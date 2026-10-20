@@ -1,0 +1,485 @@
+// src/lib/mock.ts – Simpulo mock data (no backend)
+// Images: portraits via i.pravatar.cc (up to 1000px), lifestyle shots via picsum.photos (1200×1500, portrait).
+// next.config: images.remotePatterns for i.pravatar.cc and picsum.photos
+
+export type Vibe = 'fitness' | 'creator' | 'founder' | 'remote-work' | 'holiday' | 'surf' | 'wellness';
+export type AccommodationStatus = 'open' | 'locked';
+export type StayStatus = 'draft' | 'published' | 'full' | 'completed';
+export type RequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface User {
+  id: string;
+  name: string;
+  age: number;
+  country: string;          // plain text, no flag
+  city: string;             // current base
+  languages: string[];      // ISO-ish labels shown as text: "English", "German"
+  bio: string;
+  photos: string[];         // [0] = face, then lifestyle; 3 per user
+  verified: boolean;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
+  linkedin?: string;
+  x?: string;
+  threads?: string;
+  twitch?: string;
+  website?: string;
+}
+
+export interface Stay {
+  id: string;
+  slug: string;
+  title: string;
+  hostId: string;
+  vibe: Vibe;
+  city: string;
+  region: string;           // "Bali, Indonesia"
+  lat: number;
+  lng: number;
+  mapPreviewUrl: string;    // static map placeholder
+  startDate: string;        // ISO
+  endDate: string;
+  spotsTotal: number;
+  spotsFilled: number;
+  budgetPerPerson?: { min: number; max: number };
+  pricePerPerson?: number;  // only when locked
+  currency: 'EUR';
+  accommodationStatus: AccommodationStatus;
+  accommodationLink?: string;
+  description: string;
+  whyText: string;
+  dayText: string;
+  lookingForText: string;
+  houseRules: string[];
+  interests: string[];
+  status: StayStatus;
+  featured: boolean;        // shown in Spotlight (later: boosted)
+  createdAt: string;
+}
+
+export interface JoinRequest {
+  id: string;
+  stayId: string;
+  userId: string;
+  message: string;
+  status: RequestStatus;
+  createdAt: string;
+}
+
+export interface Message {
+  id: string;
+  userId: string | 'system';
+  text: string;
+  createdAt: string;
+}
+
+export interface Thread {
+  id: string;
+  type: 'crew' | 'direct';
+  stayId: string;
+  participantIds: string[];
+  messages: Message[];
+}
+
+const face = (n: number) => `https://i.pravatar.cc/1000?img=${n}`;
+const shot = (seed: string) => `https://picsum.photos/seed/${seed}/1200/1500`;
+const map = (seed: string) => `https://picsum.photos/seed/map-${seed}/800/500?grayscale`;
+
+export const CURRENT_USER_ID = 'u1';
+
+export const users: User[] = [
+  {
+    id: 'u1', name: 'Lukas', age: 30, country: 'Germany', city: 'Osaka',
+    languages: ['German', 'English'],
+    bio: 'Remote app-dev teacher. Train every morning, work German hours, free before 3 pm.',
+    photos: [face(12), shot('lukas-gym'), shot('lukas-cafe')],
+    verified: true, instagram: 'lukas.moves', website: 'https://simpulo.app',
+  },
+  {
+    id: 'u2', name: 'Mara', age: 27, country: 'Netherlands', city: 'Canggu',
+    languages: ['Dutch', 'English', 'Spanish'],
+    bio: 'Travel creator, 18k on TikTok. Filming a Bali series this winter.',
+    photos: [face(47), shot('mara-beach'), shot('mara-scooter')],
+    verified: true, instagram: 'mara.goes', tiktok: 'mara.goes', youtube: '@maragoes',
+  },
+  {
+    id: 'u3', name: 'Tom', age: 33, country: 'United Kingdom', city: 'Lisbon',
+    languages: ['English', 'Portuguese'],
+    bio: 'Building a fintech side project. Surf before standup.',
+    photos: [face(33), shot('tom-surf'), shot('tom-laptop')],
+    verified: true, linkedin: 'tom-ellis', x: 'tomellis', website: 'https://tomellis.dev',
+  },
+  {
+    id: 'u4', name: 'Aisha', age: 29, country: 'Australia', city: 'Melbourne',
+    languages: ['English'],
+    bio: 'Physio & Muay Thai nerd. Looking for people who train seriously and eat well.',
+    photos: [face(44), shot('aisha-muaythai'), shot('aisha-food')],
+    verified: true, instagram: 'aisha.fights', youtube: '@aishafights',
+  },
+  {
+    id: 'u5', name: 'Jonas', age: 25, country: 'Sweden', city: 'Chiang Mai',
+    languages: ['Swedish', 'English', 'German'],
+    bio: 'Freelance motion designer. Night owl, coffee snob, always up for a hike.',
+    photos: [face(15), shot('jonas-hike'), shot('jonas-desk')],
+    verified: false, instagram: 'jonas.motion', threads: 'jonas.motion',
+  },
+  {
+    id: 'u6', name: 'Priya', age: 31, country: 'India', city: 'Bangkok',
+    languages: ['Hindi', 'English'],
+    bio: 'Product manager on a 6-month sabbatical. Yoga, markets, slow mornings.',
+    photos: [face(49), shot('priya-yoga'), shot('priya-market')],
+    verified: true, linkedin: 'priya-nair', instagram: 'priya.slow',
+  },
+  {
+    id: 'u7', name: 'Diego', age: 28, country: 'Mexico', city: 'Da Nang',
+    languages: ['Spanish', 'English'],
+    bio: 'Streams indie game dev on Twitch. Need a house with fast wifi and a pool.',
+    photos: [face(56), shot('diego-stream'), shot('diego-pool')],
+    verified: true, twitch: 'diegobuilds', x: 'diegobuilds', website: 'https://diegobuilds.gg',
+  },
+  {
+    id: 'u8', name: 'Lena', age: 24, country: 'Austria', city: 'Berlin',
+    languages: ['German', 'English', 'French'],
+    bio: 'Medical student on a gap semester. First solo trip – want a crew, not a hostel.',
+    photos: [face(26), shot('lena-run'), shot('lena-city')],
+    verified: false, instagram: 'lena.wanders',
+  },
+  { id: 'u9', name: 'Sofia', age: 26, country: 'Italy', city: 'Canggu',
+    languages: ['Italian', 'English'],
+    bio: 'Pilates instructor and sunrise person. Teaching at two studios in Canggu this season.',
+    photos: [face(32), shot('sofia-pilates'), shot('sofia-sunrise')],
+    verified: true, instagram: 'sofia.flows', tiktok: 'sofia.flows' },
+  { id: 'u10', name: 'Ben', age: 35, country: 'Canada', city: 'Mexico City',
+    languages: ['English', 'French', 'Spanish'],
+    bio: 'Ex-agency, now solo consultant. Cooking is how I make friends.',
+    photos: [face(60), shot('ben-cooking'), shot('ben-market')],
+    verified: true, linkedin: 'ben-carter', website: 'https://bencarter.co' },
+  { id: 'u11', name: 'Yuki', age: 28, country: 'Japan', city: 'Osaka',
+    languages: ['Japanese', 'English'],
+    bio: 'UX designer, first long trip outside Japan. Quiet, tidy, loves a good café.',
+    photos: [face(41), shot('yuki-cafe'), shot('yuki-design')],
+    verified: true, instagram: 'yuki.makes', threads: 'yuki.makes' },
+  { id: 'u12', name: 'Marco', age: 32, country: 'Brazil', city: 'Florianópolis',
+    languages: ['Portuguese', 'English', 'Spanish'],
+    bio: 'Jiu-jitsu brown belt, runs a small SaaS. Looking for mats and a pool.',
+    photos: [face(52), shot('marco-bjj'), shot('marco-beach')],
+    verified: true, instagram: 'marco.rolls', youtube: '@marcorolls', x: 'marcorolls' },
+  { id: 'u13', name: 'Hannah', age: 29, country: 'Ireland', city: 'Lisbon',
+    languages: ['English'],
+    bio: 'Writes a newsletter about slow travel (9k subs). Tea, books, long walks.',
+    photos: [face(20), shot('hannah-books'), shot('hannah-walk')],
+    verified: true, instagram: 'hannah.slowly', website: 'https://slowly.substack.com' },
+  { id: 'u14', name: 'Karim', age: 27, country: 'France', city: 'Bangkok',
+    languages: ['French', 'English', 'Arabic'],
+    bio: 'Runs a Shopify store from anywhere with wifi. Gym at 6, calls at 15.',
+    photos: [face(58), shot('karim-gym'), shot('karim-laptop')],
+    verified: false, instagram: 'karim.ships', tiktok: 'karim.ships' },
+  { id: 'u15', name: 'Emma', age: 24, country: 'Denmark', city: 'Copenhagen',
+    languages: ['Danish', 'English', 'German'],
+    bio: 'Nursing degree done, three months off before the first job. First time in Asia.',
+    photos: [face(23), shot('emma-bike'), shot('emma-sea')],
+    verified: false, instagram: 'emma.away' },
+  { id: 'u16', name: 'Raj', age: 31, country: 'Singapore', city: 'Singapore',
+    languages: ['English', 'Tamil', 'Mandarin'],
+    bio: 'Backend engineer, remote for a US startup. Nights are free, days are mine.',
+    photos: [face(63), shot('raj-run'), shot('raj-desk')],
+    verified: true, linkedin: 'raj-menon', x: 'rajbuilds', twitch: 'rajbuilds' },
+];
+
+export const stays: Stay[] = [
+  {
+    id: 's1', slug: 'fitness-house-canggu-feb', title: 'Fitness House Canggu', hostId: 'u1', vibe: 'fitness',
+    city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu'),
+    startDate: '2027-02-12', endDate: '2027-02-26', spotsTotal: 5, spotsFilled: 3,
+    pricePerPerson: 480, currency: 'EUR', accommodationStatus: 'locked',
+    accommodationLink: 'https://www.airbnb.com/rooms/example-canggu-villa',
+    description: 'Two weeks, one villa, a gym five minutes away. We train in the morning, work or surf in the afternoon, cook together at night.',
+    whyText: 'I was happiest in Bali when I had a gym routine and people around me who kept it. I want that again, with new people.',
+    dayText: '07:00 gym · 09:00 breakfast together · work/surf until 16:00 · dinner at home or Batu Bolong · early nights.',
+    lookingForText: 'People who actually train, keep a clean house and don\'t need a party every night. Mixed group preferred.',
+    houseRules: ['No smoking inside', 'Quiet after 23:00', 'Clean up the same day'],
+    interests: ['gym', 'surfing', 'healthy food', 'remote work'],
+    status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
+  },
+  {
+    id: 's2', slug: 'creator-house-uluwatu', title: 'Creator House Uluwatu', hostId: 'u2', vibe: 'creator',
+    city: 'Uluwatu', region: 'Bali, Indonesia', lat: -8.83, lng: 115.09, mapPreviewUrl: map('uluwatu'),
+    startDate: '2026-12-02', endDate: '2026-12-16', spotsTotal: 4, spotsFilled: 2,
+    budgetPerPerson: { min: 500, max: 700 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Cliff villa, sunsets, content every day. Shooting a Bali series and want other creators in the house.',
+    whyText: 'Filming alone is lonely and slow. Four creators in one house means four cameras, four audiences and better footage.',
+    dayText: 'Sunrise shoots · edit by the pool · afternoons free · sunset at Single Fin twice a week.',
+    lookingForText: 'Creators from 5k followers up who post consistently. Any niche, as long as you\'re comfortable on camera.',
+    houseRules: ['Shared gear stays in the living room', 'Ask before filming others'],
+    interests: ['content', 'surfing', 'sunsets', 'editing'],
+    status: 'published', featured: true, createdAt: '2026-10-15T11:00:00Z',
+  },
+  {
+    id: 's3', slug: 'founder-house-lisbon', title: 'Founder House Lisbon', hostId: 'u3', vibe: 'founder',
+    city: 'Lisbon', region: 'Portugal', lat: 38.72, lng: -9.14, mapPreviewUrl: map('lisbon'),
+    startDate: '2027-01-10', endDate: '2027-02-07', spotsTotal: 5, spotsFilled: 1,
+    budgetPerPerson: { min: 700, max: 950 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Four weeks of deep work with people building their own thing. Big table, good wifi, surf at Carcavelos.',
+    whyText: 'Shipping alone is slow. I want four other people at the table who are as serious about their project as I am.',
+    dayText: '07:30 surf or run · 09:00–13:00 deep work · lunch together · 14:00–18:00 work · demo night every Friday.',
+    lookingForText: 'Builders with a live project (app, agency, newsletter – anything with users). No job-hunters, no "idea stage".',
+    houseRules: ['Deep-work hours are silent', 'Friday demo is mandatory'],
+    interests: ['startups', 'surfing', 'coding', 'coffee'],
+    status: 'published', featured: true, createdAt: '2026-10-12T08:00:00Z',
+  },
+  {
+    id: 's4', slug: 'muay-thai-house-phuket', title: 'Muay Thai House Phuket', hostId: 'u4', vibe: 'fitness',
+    city: 'Rawai', region: 'Phuket, Thailand', lat: 7.77, lng: 98.33, mapPreviewUrl: map('phuket'),
+    startDate: '2026-11-20', endDate: '2026-12-11', spotsTotal: 4, spotsFilled: 4,
+    pricePerPerson: 620, currency: 'EUR', accommodationStatus: 'locked',
+    accommodationLink: 'https://www.booking.com/example-rawai-house',
+    description: 'Three weeks, two sessions a day at Tiger, meal prep in the house.',
+    whyText: 'Camps are great but the accommodation is a bunker. I want the training and a real house with people who get it.',
+    dayText: '06:30 session · nap · 16:00 session · cook together · asleep by 22:00.',
+    lookingForText: 'Anyone who has trained before and can handle two sessions a day.',
+    houseRules: ['No alcohol in the house', 'Meal-prep Sunday is a team job'],
+    interests: ['muay thai', 'nutrition', 'recovery'],
+    status: 'full', featured: false, createdAt: '2026-10-01T10:00:00Z',
+  },
+  {
+    id: 's5', slug: 'mountain-coliving-chiang-mai', title: 'Mountain Coliving Chiang Mai', hostId: 'u5', vibe: 'remote-work',
+    city: 'Chiang Mai', region: 'Thailand', lat: 18.79, lng: 98.98, mapPreviewUrl: map('chiangmai'),
+    startDate: '2027-01-05', endDate: '2027-03-05', spotsTotal: 6, spotsFilled: 2,
+    budgetPerPerson: { min: 350, max: 450 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Two months in a house near Doi Suthep. Cheap, quiet, fast wifi, weekend hikes.',
+    whyText: 'Long stays are where real friendships happen. Two months is long enough to build a routine with people.',
+    dayText: 'Flexible – people work different time zones. Shared dinner three nights a week, hike every Saturday.',
+    lookingForText: 'Remote workers with a steady job or clients. Introverts welcome, we have enough rooms to disappear.',
+    houseRules: ['Headphones in shared spaces', 'Guests only with a heads-up'],
+    interests: ['hiking', 'coffee', 'remote work', 'cooking'],
+    status: 'published', featured: false, createdAt: '2026-10-10T07:00:00Z',
+  },
+  {
+    id: 's6', slug: 'slow-house-bangkok', title: 'Slow House Bangkok', hostId: 'u6', vibe: 'wellness',
+    city: 'Ari', region: 'Bangkok, Thailand', lat: 13.78, lng: 100.54, mapPreviewUrl: map('bangkok'),
+    startDate: '2026-11-28', endDate: '2026-12-12', spotsTotal: 3, spotsFilled: 1,
+    currency: 'EUR', accommodationStatus: 'open',
+    description: 'Two weeks in Ari: yoga, markets, no plans after 20:00. For people who want a calm base in a loud city.',
+    whyText: 'I\'m on a sabbatical and want company that slows me down instead of speeding me up.',
+    dayText: '07:00 yoga on the terrace · market breakfast · free day · tea on the roof at sunset.',
+    lookingForText: 'Calm people, 28+, who don\'t need nightlife. Reading in the same room counts as a plan.',
+    houseRules: ['No work calls in shared rooms', 'Shoes off'],
+    interests: ['yoga', 'markets', 'reading', 'tea'],
+    status: 'published', featured: false, createdAt: '2026-10-16T12:00:00Z',
+  },
+  {
+    id: 's7', slug: 'dev-house-da-nang', title: 'Dev House Da Nang', hostId: 'u7', vibe: 'founder',
+    city: 'My Khe', region: 'Da Nang, Vietnam', lat: 16.06, lng: 108.24, mapPreviewUrl: map('danang'),
+    startDate: '2027-02-01', endDate: '2027-03-01', spotsTotal: 5, spotsFilled: 2,
+    pricePerPerson: 390, currency: 'EUR', accommodationStatus: 'locked',
+    accommodationLink: 'https://www.airbnb.com/rooms/example-danang-house',
+    description: 'A month by the beach with other devs. I stream, you ship, we swim at 17:00.',
+    whyText: 'Streaming from a house with other builders is more fun and the chat loves it.',
+    dayText: 'Work until 17:00 · beach · dinner on An Thuong street · optional late game night.',
+    lookingForText: 'Developers, designers, indie hackers. Must be fine with being on stream occasionally.',
+    houseRules: ['Stream room is off limits while live', 'Pool rules: no glass'],
+    interests: ['gamedev', 'streaming', 'beach', 'coffee'],
+    status: 'published', featured: false, createdAt: '2026-10-17T15:00:00Z',
+  },
+  {
+    id: 's8', slug: 'first-trip-crew-lombok', title: 'First-Trip Crew Lombok', hostId: 'u8', vibe: 'holiday',
+    city: 'Kuta Lombok', region: 'Lombok, Indonesia', lat: -8.89, lng: 116.28, mapPreviewUrl: map('lombok'),
+    startDate: '2026-12-18', endDate: '2026-12-28', spotsTotal: 4, spotsFilled: 0,
+    budgetPerPerson: { min: 250, max: 350 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Ten days over Christmas with people who also don\'t want to spend it in a hostel dorm.',
+    whyText: 'It\'s my first solo trip and I\'d rather share a house with three people I\'ve talked to than a dorm with twelve I haven\'t.',
+    dayText: 'No plan. Beaches, scooters, one day trip to the Gilis, Christmas dinner together.',
+    lookingForText: 'Easy-going people under 30. Beginners at travelling are very welcome.',
+    houseRules: ['Be nice', 'Split groceries evenly'],
+    interests: ['beaches', 'snorkeling', 'scooters'],
+    status: 'published', featured: false, createdAt: '2026-10-19T18:00:00Z',
+  },
+  {
+    id: 's9', slug: 'surf-house-ericeira', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf',
+    city: 'Ericeira', region: 'Portugal', lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira'),
+    startDate: '2026-11-06', endDate: '2026-11-09', spotsTotal: 3, spotsFilled: 1,
+    pricePerPerson: 140, currency: 'EUR', accommodationStatus: 'locked',
+    accommodationLink: 'https://www.airbnb.com/rooms/example-ericeira',
+    description: 'Long weekend, three nights, surf both mornings. Quick trip from Lisbon.',
+    whyText: 'Weekend test run for the Lisbon house – come surf and see if we get along.',
+    dayText: 'Dawn patrol · brunch · second session or nap · grilled fish.',
+    lookingForText: 'Intermediate surfers with their own board or willing to rent.',
+    houseRules: ['Wetsuits on the balcony, not in the bathroom'],
+    interests: ['surfing', 'seafood'],
+    status: 'published', featured: false, createdAt: '2026-10-19T09:00:00Z',
+  },
+  {
+    id: 's10', slug: 'remote-week-canggu-nov', title: 'Remote Week Canggu', hostId: 'u2', vibe: 'remote-work',
+    city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu2'),
+    startDate: '2026-11-03', endDate: '2026-11-10', spotsTotal: 4, spotsFilled: 3,
+    budgetPerPerson: { min: 200, max: 300 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'One week, short notice. Work from the villa, surf at Batu Bolong, one dinner out.',
+    whyText: 'I have a gap between two shoots and don\'t want to spend it alone.',
+    dayText: 'Work mornings, beach afternoons, nothing fancy.',
+    lookingForText: 'Anyone already in Bali or arriving this week.',
+    houseRules: ['Keep the kitchen clean'],
+    interests: ['remote work', 'surfing'],
+    status: 'published', featured: false, createdAt: '2026-10-20T06:00:00Z',
+  },
+  { id: 's11', slug: 'pilates-house-canggu', title: 'Pilates House Canggu', hostId: 'u9', vibe: 'wellness',
+    city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu3'),
+    startDate: '2027-01-15', endDate: '2027-02-05', spotsTotal: 4, spotsFilled: 1,
+    budgetPerPerson: { min: 450, max: 600 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Three weeks: class every morning, beach afternoons, early nights.',
+    whyText: 'I teach all day and come home to an empty villa. I\'d rather share it with people who like the same rhythm.',
+    dayText: '06:30 pilates at the studio (free for the house) · smoothie bowls · work or beach · dinner at 19:00.',
+    lookingForText: 'Women or mixed, 24–35, active, no party crowd.',
+    houseRules: ['Quiet after 22:00', 'No shoes inside'],
+    interests: ['pilates', 'beach', 'healthy food'], status: 'published', featured: true, createdAt: '2026-10-19T07:00:00Z' },
+  { id: 's12', slug: 'kitchen-house-mexico-city', title: 'Kitchen House Mexico City', hostId: 'u10', vibe: 'holiday',
+    city: 'Roma Norte', region: 'Mexico City, Mexico', lat: 19.42, lng: -99.16, mapPreviewUrl: map('cdmx'),
+    startDate: '2026-12-05', endDate: '2026-12-19', spotsTotal: 5, spotsFilled: 2,
+    pricePerPerson: 520, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.airbnb.com/rooms/example-roma-norte',
+    description: 'Two weeks eating our way through CDMX. Big kitchen, market every morning, one taco crawl.',
+    whyText: 'Cooking for people is my favourite thing, and this city has the best ingredients I know.',
+    dayText: 'Market at 9 · work or explore · we cook together at 19:00 · mezcal optional.',
+    lookingForText: 'People who eat everything and help with dishes.',
+    houseRules: ['Dishes same night', 'Tell the group if you skip dinner'],
+    interests: ['food', 'markets', 'city walks'], status: 'published', featured: true, createdAt: '2026-10-14T10:00:00Z' },
+  { id: 's13', slug: 'quiet-house-kyoto', title: 'Quiet House Kyoto', hostId: 'u11', vibe: 'remote-work',
+    city: 'Kyoto', region: 'Japan', lat: 35.01, lng: 135.77, mapPreviewUrl: map('kyoto'),
+    startDate: '2027-03-20', endDate: '2027-04-10', spotsTotal: 3, spotsFilled: 0,
+    budgetPerPerson: { min: 800, max: 1100 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Cherry-blossom weeks in a machiya. Work in the mornings, temples in the afternoons.',
+    whyText: 'I want to show two or three people my country the slow way, and not do it alone.',
+    dayText: 'Early walk · work until 14:00 · one neighbourhood per afternoon · onsen on Sundays.',
+    lookingForText: 'Tidy, quiet people who respect house etiquette. No late nights.',
+    houseRules: ['Shoes off', 'Quiet after 21:00', 'Separate the trash properly'],
+    interests: ['temples', 'coffee', 'design', 'walking'], status: 'published', featured: true, createdAt: '2026-10-20T05:00:00Z' },
+  { id: 's14', slug: 'bjj-house-floripa', title: 'BJJ House Floripa', hostId: 'u12', vibe: 'fitness',
+    city: 'Campeche', region: 'Florianópolis, Brazil', lat: -27.67, lng: -48.48, mapPreviewUrl: map('floripa'),
+    startDate: '2027-01-08', endDate: '2027-02-08', spotsTotal: 5, spotsFilled: 3,
+    pricePerPerson: 560, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.airbnb.com/rooms/example-floripa',
+    description: 'A month of mats, surf and açaí. Two academies within 10 minutes.',
+    whyText: 'Training camps with strangers from the internet have given me my best friends. Doing it again.',
+    dayText: 'Open mat 07:00 · work · surf 16:00 · class 19:00 · dead by 22:00.',
+    lookingForText: 'White to purple belts, any gender. Bring a gi.',
+    houseRules: ['Mats in the garage are shared', 'Wash your gi daily'],
+    interests: ['bjj', 'surfing', 'açaí'], status: 'published', featured: true, createdAt: '2026-10-11T13:00:00Z' },
+  { id: 's15', slug: 'slow-house-porto', title: 'Slow House Porto', hostId: 'u13', vibe: 'wellness',
+    city: 'Porto', region: 'Portugal', lat: 41.15, lng: -8.61, mapPreviewUrl: map('porto'),
+    startDate: '2026-11-14', endDate: '2026-11-21', spotsTotal: 3, spotsFilled: 1,
+    budgetPerPerson: { min: 300, max: 400 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'One week, one riverside apartment, no itinerary. Books, walks, port wine.',
+    whyText: 'I write about slow travel and want to live it with people instead of alone.',
+    dayText: 'Nothing before 10. Long walk, long lunch, reading, one dinner out.',
+    lookingForText: 'Readers, writers, people who are fine with silence.',
+    houseRules: ['Phones away at dinner'],
+    interests: ['reading', 'writing', 'walking', 'wine'], status: 'published', featured: false, createdAt: '2026-10-18T16:00:00Z' },
+  { id: 's16', slug: 'ecom-house-bangkok', title: 'E-com House Bangkok', hostId: 'u14', vibe: 'founder',
+    city: 'Thonglor', region: 'Bangkok, Thailand', lat: 13.73, lng: 100.58, mapPreviewUrl: map('thonglor'),
+    startDate: '2026-12-01', endDate: '2026-12-22', spotsTotal: 4, spotsFilled: 2,
+    pricePerPerson: 450, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.airbnb.com/rooms/example-thonglor',
+    description: 'Three weeks with other store owners. Gym in the building, Q4 push together.',
+    whyText: 'Q4 alone in a condo is depressing. Four store owners in one place is a war room.',
+    dayText: '06:00 gym · 08:00–15:00 work · afternoon free · 15:00–18:00 calls · street food.',
+    lookingForText: 'People running an online store with real revenue. Any niche.',
+    houseRules: ['Calls in your room', 'No supplier meetings in the living room'],
+    interests: ['ecommerce', 'gym', 'street food'], status: 'published', featured: false, createdAt: '2026-10-13T09:00:00Z' },
+  { id: 's17', slug: 'first-asia-house-hoi-an', title: 'First-Asia House Hoi An', hostId: 'u15', vibe: 'holiday',
+    city: 'Hoi An', region: 'Vietnam', lat: 15.88, lng: 108.34, mapPreviewUrl: map('hoian'),
+    startDate: '2027-01-20', endDate: '2027-02-03', spotsTotal: 4, spotsFilled: 1,
+    budgetPerPerson: { min: 250, max: 350 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Two weeks by the river for people on their first Asia trip. Bikes, beach, cooking class.',
+    whyText: 'I\'ve never been to Asia and don\'t want to figure everything out alone.',
+    dayText: 'Bike to the beach · lunch in the old town · afternoons free · one cooking class together.',
+    lookingForText: 'Beginners welcome. Under 30 preferred.',
+    houseRules: ['Share the bikes', 'Be back for the cooking class'],
+    interests: ['beach', 'cycling', 'food'], status: 'published', featured: false, createdAt: '2026-10-20T08:00:00Z' },
+  { id: 's18', slug: 'night-shift-house-canggu', title: 'Night-Shift House Canggu', hostId: 'u16', vibe: 'remote-work',
+    city: 'Pererenan', region: 'Bali, Indonesia', lat: -8.64, lng: 115.12, mapPreviewUrl: map('pererenan'),
+    startDate: '2027-02-15', endDate: '2027-03-15', spotsTotal: 5, spotsFilled: 2,
+    budgetPerPerson: { min: 400, max: 550 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'A house for people on US/EU hours: free days, work at night, nobody complains about the lights.',
+    whyText: 'Every house I join is asleep when I work and awake when I sleep. Let\'s fix that.',
+    dayText: 'Sleep until 10 · gym/surf/beach · work 16:00–01:00 · late dinners together.',
+    lookingForText: 'Remote workers on US or EU time zones. Night owls only.',
+    houseRules: ['Daytime is quiet time for sleepers'],
+    interests: ['remote work', 'surfing', 'late dinners'], status: 'published', featured: true, createdAt: '2026-10-17T22:00:00Z' },
+  { id: 's19', slug: 'ski-house-innsbruck', title: 'Ski House Innsbruck', hostId: 'u8', vibe: 'holiday',
+    city: 'Innsbruck', region: 'Austria', lat: 47.27, lng: 11.40, mapPreviewUrl: map('innsbruck'),
+    startDate: '2027-01-29', endDate: '2027-02-01', spotsTotal: 5, spotsFilled: 2,
+    pricePerPerson: 180, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.booking.com/example-innsbruck',
+    description: 'Long weekend, three nights, Nordkette and Axamer Lizum. Chalet with a sauna.',
+    whyText: 'Weekend version of Simpulo – quick trips with people who want more than a hostel.',
+    dayText: 'Lifts at 9 · back at 16 · sauna · raclette.',
+    lookingForText: 'Intermediate skiers/boarders. Gear rental nearby.',
+    houseRules: ['Boots in the hallway'],
+    interests: ['skiing', 'sauna', 'raclette'], status: 'published', featured: false, createdAt: '2026-10-19T12:00:00Z' },
+  { id: 's20', slug: 'editing-house-lisbon', title: 'Editing House Lisbon', hostId: 'u2', vibe: 'creator',
+    city: 'Alfama', region: 'Lisbon, Portugal', lat: 38.71, lng: -9.13, mapPreviewUrl: map('alfama'),
+    startDate: '2027-03-01', endDate: '2027-03-15', spotsTotal: 4, spotsFilled: 0,
+    budgetPerPerson: { min: 550, max: 750 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Two weeks to finish the Bali series with other editors and creators. Big screens, good light.',
+    whyText: 'Shooting is done, editing is the lonely part. Let\'s do it in one room.',
+    dayText: 'Edit 09:00–15:00 · city afternoons · screening night on the last day.',
+    lookingForText: 'Editors and creators with a backlog. Must bring your own machine.',
+    houseRules: ['Headphones during edit hours'],
+    interests: ['editing', 'content', 'city walks'], status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
+];
+
+export const joinRequests: JoinRequest[] = [
+  { id: 'r1', stayId: 's1', userId: 'u4', message: 'Physio, train 6×/week, can cook for five. In if you\'ll have me.', status: 'accepted', createdAt: '2026-10-18T12:00:00Z' },
+  { id: 'r2', stayId: 's1', userId: 'u8', message: 'Just started lifting, would love a crew that keeps me honest. Also I bake.', status: 'accepted', createdAt: '2026-10-18T14:10:00Z' },
+  { id: 'r3', stayId: 's1', userId: 'u5', message: 'Hey Lukas! Motion designer, morning training is my thing. Fine with early nights.', status: 'pending', createdAt: '2026-10-19T20:30:00Z' },
+  { id: 'r4', stayId: 's1', userId: 'u7', message: 'Can I stream one session from the gym? Otherwise totally your rules.', status: 'pending', createdAt: '2026-10-20T03:15:00Z' },
+  { id: 'r5', stayId: 's2', userId: 'u1', message: 'Not a creator but I can hold a camera and I train. Any chance?', status: 'pending', createdAt: '2026-10-19T10:00:00Z' },
+  { id: 'r6', stayId: 's3', userId: 'u1', message: 'Building a co-living app, 3 weeks in. Would love the Friday demos.', status: 'accepted', createdAt: '2026-10-16T09:00:00Z' },
+  { id: 'r7', stayId: 's7', userId: 'u5', message: 'Design + motion, happy to be on stream.', status: 'accepted', createdAt: '2026-10-18T08:00:00Z' },
+  { id: 'r8', stayId: 's6', userId: 'u8', message: 'I\'m 24, is that okay? I promise I\'m calm.', status: 'declined', createdAt: '2026-10-17T19:00:00Z' },
+  { id: 'r9', stayId: 's11', userId: 'u15', message: 'Beginner at pilates but very consistent. Would love this.', status: 'pending', createdAt: '2026-10-20T07:30:00Z' },
+  { id: 'r10', stayId: 's14', userId: 'u4', message: 'Blue belt, Muay Thai background, can share recovery tips.', status: 'accepted', createdAt: '2026-10-12T09:00:00Z' },
+  { id: 'r11', stayId: 's16', userId: 'u3', message: 'Not e-com but fintech. Fine with gym at 6.', status: 'declined', createdAt: '2026-10-14T11:00:00Z' },
+  { id: 'r12', stayId: 's18', userId: 'u7', message: 'US streaming hours, this is literally my schedule.', status: 'accepted', createdAt: '2026-10-18T02:00:00Z' },
+  { id: 'r13', stayId: 's13', userId: 'u1', message: 'I\'m in Osaka right now – happy to help with logistics.', status: 'pending', createdAt: '2026-10-20T06:00:00Z' },
+];
+
+export const threads: Thread[] = [
+  {
+    id: 't-s1', type: 'crew', stayId: 's1', participantIds: ['u1', 'u4', 'u8'],
+    messages: [
+      { id: 'm1', userId: 'system', text: 'Aisha joined the crew', createdAt: '2026-10-18T12:05:00Z' },
+      { id: 'm2', userId: 'u4', text: 'Hi all! Which gym are we talking – Nirvana or Body Factory?', createdAt: '2026-10-18T12:20:00Z' },
+      { id: 'm3', userId: 'u1', text: 'Body Factory, 5 min on the scooter. Villa is locked, link is pinned.', createdAt: '2026-10-18T12:45:00Z' },
+      { id: 'm4', userId: 'system', text: 'Lena joined the crew', createdAt: '2026-10-18T14:30:00Z' },
+      { id: 'm5', userId: 'u8', text: 'Hello!! So happy. Who\'s arriving when?', createdAt: '2026-10-18T14:32:00Z' },
+    ],
+  },
+  {
+    id: 't-s3', type: 'crew', stayId: 's3', participantIds: ['u3', 'u1'],
+    messages: [
+      { id: 'm6', userId: 'system', text: 'Lukas joined the crew', createdAt: '2026-10-16T09:30:00Z' },
+      { id: 'm7', userId: 'u3', text: 'Welcome. Three houses in the chat so far – vote by Sunday?', createdAt: '2026-10-16T10:00:00Z' },
+    ],
+  },
+  {
+    id: 't-d1', type: 'direct', stayId: 's1', participantIds: ['u1', 'u5'],
+    messages: [
+      { id: 'm8', userId: 'u1', text: 'Hey Jonas – what time zone do you work? We\'re all up at 6:30.', createdAt: '2026-10-19T21:00:00Z' },
+      { id: 'm9', userId: 'u5', text: 'European clients, so I\'m free mornings. 6:30 is fine if there\'s coffee.', createdAt: '2026-10-19T21:40:00Z' },
+    ],
+  },
+];
+
+export const VIBES: { key: Vibe; label: string }[] = [
+  { key: 'fitness', label: 'Fitness' },
+  { key: 'creator', label: 'Creator' },
+  { key: 'founder', label: 'Founder' },
+  { key: 'remote-work', label: 'Remote work' },
+  { key: 'surf', label: 'Surf' },
+  { key: 'wellness', label: 'Wellness' },
+  { key: 'holiday', label: 'Holiday' },
+];
+
+export const START_FILTERS = [
+  { key: 'any', label: 'Any date' },
+  { key: '14d', label: 'Next 2 weeks' },
+  { key: '30d', label: 'This month' },
+  { key: '90d', label: 'Next 3 months' },
+] as const;

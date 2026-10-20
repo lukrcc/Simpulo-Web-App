@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@theme {
+  --color-accent: #f0633a;
+  --color-accent-dark: #d9522c;
+  --color-accent-soft: #fdeee8;
+  --color-ink: #1e1e22;
+  /* Spotlight: slow zoom on the active slide (Ken Burns). */
+  --animate-kenburns: kenburns 6s linear forwards;
+  @keyframes kenburns {
+    from { transform: scale(1); }
+    to { transform: scale(1.06); }
   }
+  /* Bento top: incoming house fades in over the outgoing one. */
+  --animate-crossfade: fade-in 700ms ease-out both;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: var(--color-ink);
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheet-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-toast-in { animation: toast-in 180ms ease-out; }
+.animate-sheet-in { animation: sheet-in 220ms ease-out; }
+.animate-fade-in { animation: fade-in 180ms ease-out; }
