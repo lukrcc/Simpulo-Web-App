@@ -7,8 +7,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <TopHeader />
-      {/* Bottom padding keeps content clear of the floating mobile tab bar (64px + 12px + safe area) / sticky CTA. */}
-      <main className="flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-12">{children}</main>
+      {/* Every scrolling page ends with the same space before the footer: 96px mobile, 64px desktop. Full-height
+          app pages drop that padding and the footer via data-app-pane (globals.css). */}
+      <main className="flex-1 pb-24 md:pb-16">{children}</main>
       <Footer />
       <Suspense fallback={null}>
         <BottomTabBar />

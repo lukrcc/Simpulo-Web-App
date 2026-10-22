@@ -1,6 +1,8 @@
 "use client";
 
 import { LogIn } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Container } from "@/components/layout/Container";
 import { buttonClass } from "@/components/ui/button";
@@ -18,8 +20,10 @@ interface RequireLoginProps {
 
 /** Logged-in pages: when logged out, show a log-in prompt in place – no redirect. */
 export function RequireLogin({ title, description, after, children }: RequireLoginProps) {
+  const t = useTranslations("auth");
   const { currentUserId } = useStore();
   const requireAuth = useRequireAuth();
+  const router = useRouter();
 
   if (currentUserId) return <>{children}</>;
 
@@ -30,8 +34,8 @@ export function RequireLogin({ title, description, after, children }: RequireLog
         title={title}
         description={description}
         action={
-          <button type="button" onClick={() => requireAuth()} className={buttonClass("dark", "sm")}>
-            Log in
+          <button type="button" onClick={() => requireAuth(() => router.refresh())} className={buttonClass("dark", "sm")}>
+            {t("logIn")}
           </button>
         }
       />

@@ -1,5 +1,5 @@
 import { VIBES } from "./mock";
-import type { Stay, User, Vibe } from "./types";
+import type { Currency, Stay, User } from "./types";
 
 export const SIMPULO_FEE_RATE = 0.1;
 
@@ -13,14 +13,6 @@ export function simpuloFee(pricePerPerson: number): number {
   return Math.round(pricePerPerson * SIMPULO_FEE_RATE);
 }
 
-export function formatPrice(amount: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 function toUtc(date: string): number {
   const [y, m, d] = date.split("-").map(Number);
   return Date.UTC(y, m - 1, d);
@@ -31,55 +23,21 @@ export function nightsBetween(startDate: string, endDate: string): number {
   return Math.max(0, Math.round((toUtc(endDate) - toUtc(startDate)) / DAY_MS));
 }
 
-// Dates are formatted in UTC with a fixed locale so server and client render identically.
-export function formatDate(date: string, options: Intl.DateTimeFormatOptions): string {
-  return new Date(toUtc(date)).toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
+/** "Bali, Indonesia" → "Bali"; "Portugal" → "Portugal". */
+export function regionShort(stay: Pick<Stay, "region">): string {
+  return stay.region.split(",")[0]?.trim() || stay.region;
 }
 
-export function formatDateRange(startDate: string, endDate: string): string {
-  if (!startDate || !endDate) return "Dates TBD";
-  const sameYear = startDate.slice(0, 4) === endDate.slice(0, 4);
-  const start = formatDate(startDate, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-  const end = formatDate(endDate, { month: "short", day: "numeric", year: "numeric" });
-  return `${start} – ${end}`;
+/** Hosts may leave the city open ("we'll decide together") – then only the region is known. */
+export function isCityOpen(stay: Pick<Stay, "city">): boolean {
+  return !stay.city.trim();
 }
 
-/** Compact range like "Feb 12–26" or "Dec 28 – Jan 3". */
-export function formatShortRange(startDate: string, endDate: string): string {
-  if (!startDate || !endDate) return "Dates TBD";
-  const day = (d: string) => formatDate(d, { day: "numeric" });
-  const month = (d: string) => formatDate(d, { month: "short" });
-  if (startDate.slice(0, 7) === endDate.slice(0, 7)) return `${month(startDate)} ${day(startDate)}–${day(endDate)}`;
-  return `${month(startDate)} ${day(startDate)} – ${month(endDate)} ${day(endDate)}`;
-}
-
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
-}
-
-export function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-/** "Canggu, Bali, Indonesia" */
-export function placeLabel(stay: Pick<Stay, "city" | "region">): string {
-  return [stay.city, stay.region].filter(Boolean).join(", ");
+/** Map target: exact coordinates when known, else a text search – the whole region while the city is open. */
+export function mapQuery(stay: Pick<Stay, "lat" | "lng" | "city" | "region">): { query: string; zoom: number } {
+  if (isCityOpen(stay)) return { query: encodeURIComponent(stay.region), zoom: 6 };
+  if (stay.lat || stay.lng) return { query: `${stay.lat},${stay.lng}`, zoom: 13 };
+  return { query: encodeURIComponent(`${stay.city}, ${stay.region}`), zoom: 12 };
 }
 
 export function stayNights(stay: Pick<Stay, "startDate" | "endDate">): number {
@@ -87,9 +45,29 @@ export function stayNights(stay: Pick<Stay, "startDate" | "endDate">): number {
 }
 
 export function googleMapsUrl(stay: Pick<Stay, "lat" | "lng" | "city" | "region">): string {
-  // Stays created in the app have no coordinates yet (0,0) – fall back to a text search.
-  const query = stay.lat || stay.lng ? `${stay.lat},${stay.lng}` : encodeURIComponent(placeLabel(stay));
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  // Stays created in the app have no coordinates yet (0,0) – mapQuery falls back to a text search.
+  return `https://www.google.com/maps/search/?api=1&query=${mapQuery(stay).query}`;
+}
+
+const URL_PATTERN = /https?:\/\/[^\s<>"]+[^\s<>".,;:!?)]/g;
+
+/** All http(s) links in a text, in order. */
+export function findUrls(text: string): string[] {
+  return text.match(URL_PATTERN) ?? [];
+}
+
+/** Splits a text into plain parts and links, for rendering links inline. */
+export function splitLinks(text: string): Array<{ text: string; url?: string }> {
+  const parts: Array<{ text: string; url?: string }> = [];
+  let last = 0;
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const start = match.index ?? 0;
+    if (start > last) parts.push({ text: text.slice(last, start) });
+    parts.push({ text: match[0], url: match[0] });
+    last = start + match[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
 }
 
 /** First sentence of a text, e.g. a one-line hook from a longer paragraph. */
@@ -101,11 +79,6 @@ export function firstSentence(text: string): string {
 /** "with Mara" – the host's first name. */
 export function firstName(user: Pick<User, "name">): string {
   return user.name.split(" ")[0];
-}
-
-/** "27 · Netherlands" */
-export function ageAndCountry(user: Pick<User, "age" | "country">): string {
-  return `${user.age} · ${user.country}`;
 }
 
 type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
@@ -124,18 +97,6 @@ export function stayPrice(stay: PricedStay): StayPrice {
   return { kind: "tbd" };
 }
 
-/** "€480 pp", "~€400–600 pp" or "Budget TBD". */
-export function stayPriceLabel(stay: PricedStay): string {
-  const price = stayPrice(stay);
-  if (price.kind === "price") return `${formatPrice(price.amount, stay.currency)} pp`;
-  if (price.kind === "budget") return `~${formatBudget(price.min, price.max, stay.currency)} pp`;
-  return "Budget TBD";
-}
-
-export function formatBudget(min: number, max: number, currency = "EUR"): string {
-  return `${formatPrice(min, currency)}–${max.toLocaleString("en-US")}`;
-}
-
 export function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -152,8 +113,47 @@ export function makeId(prefix: string): string {
 
 export { VIBES };
 
-export function vibeLabel(vibe: Vibe): string {
-  return VIBES.find((v) => v.key === vibe)?.label ?? vibe;
+export const CURRENCIES: readonly Currency[] = ["EUR", "USD", "GBP", "AUD", "THB", "IDR"];
+
+const COUNTRY_CURRENCY: Record<string, Currency> = {
+  indonesia: "IDR",
+  thailand: "THB",
+  australia: "AUD",
+  "united kingdom": "GBP",
+  uk: "GBP",
+  "united states": "USD",
+  usa: "USD",
+};
+
+/** Default House currency from the host's country (plain-text country as on profiles); EUR otherwise. */
+export function currencyForCountry(country: string): Currency {
+  return COUNTRY_CURRENCY[country.trim().toLowerCase()] ?? "EUR";
+}
+
+const REGION_CURRENCY: Record<string, Currency> = { US: "USD", GB: "GBP", AU: "AUD", TH: "THB", ID: "IDR" };
+
+/** Default preferred currency from a BCP 47 locale ("en-AU" → AUD, "th" → THB); EUR otherwise. */
+export function currencyForLocale(locale: string): Currency {
+  const parts = locale.split("-");
+  const region = parts.find((p, i) => i > 0 && /^[A-Z]{2}$/i.test(p))?.toUpperCase();
+  if (region && REGION_CURRENCY[region]) return REGION_CURRENCY[region];
+  const language = parts[0]?.toLowerCase();
+  if (language === "th") return "THB";
+  if (language === "id") return "IDR";
+  return "EUR";
+}
+
+/** Language names as stored on profiles ("German") → ISO 639-1 codes for a House's language. */
+const LANGUAGE_CODES: Record<string, string> = {
+  arabic: "ar", catalan: "ca", chinese: "zh", czech: "cs", danish: "da", dutch: "nl", english: "en", finnish: "fi",
+  french: "fr", german: "de", greek: "el", hebrew: "he", hindi: "hi", indonesian: "id", italian: "it", japanese: "ja",
+  korean: "ko", mandarin: "zh", norwegian: "no", polish: "pl", portuguese: "pt", russian: "ru", spanish: "es",
+  swedish: "sv", tamil: "ta", thai: "th", turkish: "tr", ukrainian: "uk", vietnamese: "vi",
+};
+
+/** "German" → "de"; unknown names → undefined (they can't be a House language). */
+export function languageCode(name: string): string | undefined {
+  return LANGUAGE_CODES[name.trim().toLowerCase()];
 }
 
 /** Splits comma- or newline-separated input into trimmed, non-empty, unique entries. */

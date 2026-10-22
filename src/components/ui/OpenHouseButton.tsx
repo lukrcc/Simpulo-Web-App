@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 /**
@@ -6,6 +7,7 @@ import { cn } from "@/lib/utils";
  * Hover: lighter, 2px wider each side, and the dot pulses once.
  */
 export function OpenHouseButton({ className }: { className?: string }) {
+  const t = useTranslations("common.ui.openHouse");
   return (
     <Link
       href="/create"
@@ -16,7 +18,7 @@ export function OpenHouseButton({ className }: { className?: string }) {
         className,
       )}
     >
-      Open a House
+      {t("label")}
       <span aria-hidden className="inline-block origin-[50%_75%] text-accent motion-safe:group-hover:animate-dot-pulse">
         .
       </span>

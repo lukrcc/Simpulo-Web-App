@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -25,13 +26,15 @@ export function CarouselControls({
   onSelect,
   canPrev = true,
   canNext = true,
-  itemLabel = "House",
+  itemLabel,
   className,
 }: CarouselControlsProps) {
+  const t = useTranslations("common.ui.carousel");
+  const item = itemLabel ?? t("defaultItem");
   return (
     <div className={cn("flex justify-center", className)}>
       <div className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-1.5 md:h-10 md:px-2">
-        <ControlButton label={`Previous ${itemLabel}`} disabled={!canPrev} onClick={onPrev}>
+        <ControlButton label={t("previous", { item })} disabled={!canPrev} onClick={onPrev}>
           <ChevronLeft className="size-4" />
         </ControlButton>
         <div className="flex items-center gap-1.5 px-1.5">
@@ -39,7 +42,7 @@ export function CarouselControls({
             <button
               key={i}
               type="button"
-              aria-label={`Go to ${itemLabel} ${i + 1}`}
+              aria-label={t("goTo", { item, index: i + 1 })}
               aria-current={i === active}
               onClick={() => onSelect(i)}
               className={cn(
@@ -49,7 +52,7 @@ export function CarouselControls({
             />
           ))}
         </div>
-        <ControlButton label={`Next ${itemLabel}`} disabled={!canNext} onClick={onNext}>
+        <ControlButton label={t("next", { item })} disabled={!canNext} onClick={onNext}>
           <ChevronRight className="size-4" />
         </ControlButton>
       </div>

@@ -1,12 +1,13 @@
 "use client";
 
 import { ImagePlus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { cn } from "@/lib/utils";
 import { Img } from "./Img";
 
 const SLOTS = 3;
-const SLOT_LABELS = ["Your face", "What you're up to", "What you're up to"] as const;
+const SLOT_LABELS = ["slotFace", "slotActivity", "slotActivity"] as const;
 
 interface PhotoUploaderProps {
   /** Filled slots in order (no gaps); [0] is the face photo. */
@@ -21,6 +22,7 @@ const isObjectUrl = (url: string) => url.startsWith("blob:");
  * Mock: files are only read via URL.createObjectURL and kept in state – nothing is uploaded.
  */
 export function PhotoUploader({ photos, onChange }: PhotoUploaderProps) {
+  const t = useTranslations("common.ui.photoUploader");
   const inputRef = useRef<HTMLInputElement>(null);
   /** Which slot the file picker was opened for. */
   const targetSlot = useRef(0);
@@ -90,17 +92,17 @@ export function PhotoUploader({ photos, onChange }: PhotoUploaderProps) {
               >
                 {src ? (
                   <>
-                    <Img src={src} alt={SLOT_LABELS[slot]} fill sizes="200px" className="pointer-events-none object-cover" />
+                    <Img src={src} alt={t(SLOT_LABELS[slot])} fill sizes="200px" className="pointer-events-none object-cover" />
                     <button
                       type="button"
                       onClick={() => pick(slot)}
-                      aria-label={`Replace photo ${slot + 1}`}
+                      aria-label={t("replace", { index: slot + 1 })}
                       className="absolute inset-0"
                     />
                     <button
                       type="button"
                       onClick={() => remove(slot)}
-                      aria-label={`Remove photo ${slot + 1}`}
+                      aria-label={t("remove", { index: slot + 1 })}
                       className="glass-dark absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
                     >
                       <X className="size-3.5" />
@@ -113,8 +115,8 @@ export function PhotoUploader({ photos, onChange }: PhotoUploaderProps) {
                     className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-zinc-500"
                   >
                     <ImagePlus className={cn("size-6", slot === 0 && "text-accent")} aria-hidden />
-                    <span className="text-xs font-medium">{SLOT_LABELS[slot]}</span>
-                    {slot === 0 && <span className="text-[10px] uppercase tracking-wide text-accent">Required</span>}
+                    <span className="text-xs font-medium">{t(SLOT_LABELS[slot])}</span>
+                    {slot === 0 && <span className="text-[10px] uppercase tracking-wide text-accent">{t("required")}</span>}
                   </button>
                 )}
               </div>
@@ -122,7 +124,7 @@ export function PhotoUploader({ photos, onChange }: PhotoUploaderProps) {
           );
         })}
       </div>
-      {photos.length > 1 && <p className="mt-2 hidden text-xs text-zinc-500 md:block">Drag to reorder – the first one is your face.</p>}
+      {photos.length > 1 && <p className="mt-2 hidden text-xs text-zinc-500 md:block">{t("reorderHint")}</p>}
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
     </div>
   );

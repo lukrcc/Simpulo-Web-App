@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, SearchX, SlidersHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { BentoTop } from "@/components/BentoTop";
 import { Container } from "@/components/layout/Container";
@@ -11,10 +12,10 @@ import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChips } from "@/components/ui/FilterChips";
 import { Sheet } from "@/components/ui/Sheet";
+import { useFormat } from "@/i18n/format";
 import { START_FILTERS, VIBES } from "@/lib/mock";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
-import { pluralize } from "@/lib/utils";
 
 type StartFilterKey = (typeof START_FILTERS)[number]["key"];
 type WindowKey = Exclude<StartFilterKey, "any">;
@@ -22,12 +23,21 @@ type SortKey = "soonest" | "newest";
 
 const START_WINDOW_DAYS: Record<WindowKey, number> = { "14d": 14, "30d": 30, "90d": 90 };
 
-const VIBE_OPTIONS = VIBES.map((v) => ({ value: v.key, label: v.label }));
-const START_OPTIONS = START_FILTERS.map((f) => ({ value: f.key as StartFilterKey, label: f.label }));
-const SORT_OPTIONS: ReadonlyArray<{ value: SortKey; label: string }> = [
-  { value: "soonest", label: "Soonest first" },
-  { value: "newest", label: "Newest" },
-];
+const SORT_KEYS: readonly SortKey[] = ["soonest", "newest"];
+
+type Options<T extends string> = ReadonlyArray<{ value: T; label: string }>;
+
+/** Start-date and sort options with their translated labels – shared by the dropdowns and the mobile sheet. */
+function useFilterOptions(): { startOptions: Options<StartFilterKey>; sortOptions: Options<SortKey> } {
+  const t = useTranslations("explore");
+  return useMemo(
+    () => ({
+      startOptions: START_FILTERS.map((f) => ({ value: f.key, label: t(`startFilters.${f.key}`) })),
+      sortOptions: SORT_KEYS.map((key) => ({ value: key, label: t(`sortOptions.${key}`) })),
+    }),
+    [t],
+  );
+}
 
 /** Start-date window as YYYY-MM-DD strings, computed from today when the filter is picked. */
 interface StartWindow {
@@ -60,8 +70,14 @@ function countryOf(stay: Stay): string {
 }
 
 export function ExploreFeed() {
+  const t = useTranslations("explore");
+  const tc = useTranslations("common");
+  const format = useFormat();
+  const { startOptions, sortOptions } = useFilterOptions();
   const store = useStore();
   const [vibe, setVibe] = useState<Vibe | null>(null);
+  const [region, setRegion] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string | null>(null);
   const [range, setRange] = useState<StartWindow | null>(null);
   const [sort, setSort] = useState<SortKey>("soonest");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -69,9 +85,27 @@ export function ExploreFeed() {
   const listed = useMemo(() => store.stays.filter(isListed), [store.stays]);
   // The Spotlight only shows Houses that are taking requests.
   const featured = useMemo(() => listed.filter((s) => s.featured && s.acceptingRequests), [listed]);
+  // Region chips only pay off with some spread – with fewer than 3 countries they're hidden.
+  const regionOptions = useMemo(
+    () => [...new Set(listed.map(countryOf))].toSorted().map((country) => ({ value: country, label: country })),
+    [listed],
+  );
+  const showRegions = regionOptions.length >= 3;
+  // Language chips only when the listed Houses actually run in more than one language.
+  const languageOptions = useMemo(
+    () =>
+      [...new Set(listed.map((s) => s.language).filter(Boolean))]
+        .map((code) => ({ value: code, label: format.language(code) }))
+        .toSorted((a, b) => a.label.localeCompare(b.label)),
+    [listed, format],
+  );
+  const showLanguages = languageOptions.length >= 2;
+  const vibeOptions = useMemo(() => VIBES.map((v) => ({ value: v.key, label: format.vibe(v.key) })), [format]);
 
   const results = listed
     .filter((s) => !vibe || s.vibe === vibe)
+    .filter((s) => !showRegions || !region || countryOf(s) === region)
+    .filter((s) => !showLanguages || !language || s.language === language)
     .filter((s) => !range || (s.startDate >= range.from && s.startDate <= range.to))
     .toSorted(
       (a, b) =>
@@ -93,31 +127,40 @@ export function ExploreFeed() {
         {/* Section title + quiet desktop dropdowns */}
         <div className="mt-12 flex items-end justify-between gap-6">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">Open Houses</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t("title")}</h2>
             <p className="mt-1 text-zinc-500">
-              {pluralize(results.length, "house")} · {pluralize(countryCount, "country", "countries")}
+              {t("summary", {
+                houses: tc("houses", { count: results.length }),
+                countries: tc("countries", { count: countryCount }),
+              })}
             </p>
           </div>
           <div className="hidden items-center gap-6 md:flex">
             <QuietSelect
-              label="Start date"
+              label={t("startDate")}
               value={startKey}
-              options={START_OPTIONS}
+              options={startOptions}
               onChange={(key) => setRange(startWindow(key))}
             />
-            <QuietSelect label="Sort" value={sort} options={SORT_OPTIONS} onChange={setSort} />
+            <QuietSelect label={t("sort")} value={sort} options={sortOptions} onChange={setSort} />
           </div>
         </div>
 
         {/* Vibe chips; on mobile the date/sort filters live behind the button at the end. */}
         <div className="mt-5 flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <FilterChips label="Filter by vibe" options={VIBE_OPTIONS} value={vibe} onChange={setVibe} />
+            <FilterChips
+              label={t("filterByVibe")}
+              options={vibeOptions}
+              value={vibe}
+              onChange={setVibe}
+              allLabel={t("all")}
+            />
           </div>
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            aria-label={hasMoreFilters ? "Filters (active)" : "Filters"}
+            aria-label={hasMoreFilters ? t("filtersActive") : t("filters")}
             className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-ink transition-colors hover:bg-zinc-100 md:hidden"
           >
             <SlidersHorizontal className="size-4" />
@@ -126,6 +169,30 @@ export function ExploreFeed() {
             )}
           </button>
         </div>
+        {showRegions && (
+          <div className="mt-2">
+            <FilterChips
+              label={t("filterByRegion")}
+              options={regionOptions}
+              value={region}
+              onChange={setRegion}
+              allLabel={t("anywhere")}
+              small
+            />
+          </div>
+        )}
+        {showLanguages && (
+          <div className="mt-2">
+            <FilterChips
+              label={t("filterByLanguage")}
+              options={languageOptions}
+              value={language}
+              onChange={setLanguage}
+              allLabel={t("all")}
+              small
+            />
+          </div>
+        )}
 
         {results.length > 0 ? (
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
@@ -138,18 +205,20 @@ export function ExploreFeed() {
           <div className="mt-6">
             <EmptyState
               icon={SearchX}
-              title="No Houses match these filters"
-              description="Try another vibe or date – or open your own House and let the crew find you."
+              title={t("empty.title")}
+              description={t("empty.description")}
               action={
                 <button
                   type="button"
                   className={buttonClass("secondary", "sm")}
                   onClick={() => {
                     setVibe(null);
+                    setRegion(null);
+                    setLanguage(null);
                     setRange(null);
                   }}
                 >
-                  Show all Houses
+                  {t("empty.showAll")}
                 </button>
               }
             />
@@ -211,8 +280,9 @@ interface FilterSheetProps {
 
 /** Mobile bottom sheet for the start-date and sort filters. Changes apply only on "Apply". */
 function FilterSheet({ open, startKey, sort, onClose, onApply }: FilterSheetProps) {
+  const t = useTranslations("explore");
   return (
-    <Sheet open={open} onClose={onClose} title="Filters">
+    <Sheet open={open} onClose={onClose} title={t("filters")}>
       {/* Remounted on every open, so the draft always starts from the applied filters. */}
       {open && <FilterSheetBody startKey={startKey} sort={sort} onApply={onApply} />}
     </Sheet>
@@ -222,17 +292,19 @@ function FilterSheet({ open, startKey, sort, onClose, onApply }: FilterSheetProp
 function FilterSheetBody({ startKey, sort, onApply }: Omit<FilterSheetProps, "open" | "onClose">) {
   const [draftStart, setDraftStart] = useState(startKey);
   const [draftSort, setDraftSort] = useState(sort);
+  const t = useTranslations("explore");
+  const { startOptions, sortOptions } = useFilterOptions();
 
   return (
     <div>
-      <RadioGroup legend="Start date" name="start" options={START_OPTIONS} value={draftStart} onChange={setDraftStart} />
-      <RadioGroup legend="Sort" name="sort" options={SORT_OPTIONS} value={draftSort} onChange={setDraftSort} />
+      <RadioGroup legend={t("startDate")} name="start" options={startOptions} value={draftStart} onChange={setDraftStart} />
+      <RadioGroup legend={t("sort")} name="sort" options={sortOptions} value={draftSort} onChange={setDraftSort} />
       <button
         type="button"
         onClick={() => onApply(draftStart, draftSort)}
         className={buttonClass("dark", "lg", "mt-6 w-full")}
       >
-        Apply
+        {t("apply")}
       </button>
     </div>
   );

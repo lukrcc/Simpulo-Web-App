@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { ContentPage } from "@/components/layout/ContentPage";
 import { CONTACT_EMAIL } from "@/components/layout/secondaryLinks";
 
-export const metadata: Metadata = { title: "Contact" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: t("pages.contact") };
+}
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const t = await getTranslations("footer.pages.contact");
   return (
-    <ContentPage title="Contact">
+    <ContentPage title={t("title")}>
       <p>
-        Questions, feedback or a problem with a House? Write to{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-accent hover:underline">
-          {CONTACT_EMAIL}
-        </a>
-        .
+        {t.rich("text", {
+          email: CONTACT_EMAIL,
+          mail: (chunks) => (
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-accent hover:underline">
+              {chunks}
+            </a>
+          ),
+        })}
       </p>
     </ContentPage>
   );

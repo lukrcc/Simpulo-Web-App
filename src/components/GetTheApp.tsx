@@ -1,242 +1,137 @@
 "use client";
 
-import { Bell, ChevronDown, CircleCheck, Download, EllipsisVertical, Share, SquarePlus } from "lucide-react";
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { Bell, CircleCheck, EllipsisVertical, Share, SquarePlus, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState, type ComponentType } from "react";
 import { SiAndroid, SiApple } from "react-icons/si";
-import { buttonClass } from "@/components/ui/button";
-import { Img } from "@/components/ui/Img";
-import { clearInstallPrompt, useInstallPrompt, useIsStandalone, usePlatform, type Platform } from "@/lib/install";
+import { useToast } from "@/components/ui/Toast";
+import { clearInstallPrompt, useInstallPrompt, useIsStandalone, usePlatform } from "@/lib/install";
 import { cn } from "@/lib/utils";
 
-type Card = "iphone" | "android";
-type OpenCards = Record<Card, boolean>;
+type AppPlatform = "iphone" | "android";
 
-/** The detected platform only decides which card starts open – both always stay on the page. */
-function defaultOpen(platform: Platform): OpenCards {
-  if (platform === "ios") return { iphone: true, android: false };
-  if (platform === "android") return { iphone: false, android: true };
-  return { iphone: true, android: true };
-}
+const PLATFORMS: ReadonlyArray<{ value: AppPlatform; icon: ComponentType<{ className?: string }> }> = [
+  { value: "iphone", icon: SiApple },
+  { value: "android", icon: SiAndroid },
+];
 
-// Anchors sit under the sticky desktop header (64px) – and under the status bar on mobile.
-const anchorOffset = "scroll-mt-[env(safe-area-inset-top)] md:scroll-mt-16";
+/** Step texts: keys under howItWorks.app.steps. */
+const STEPS = {
+  iphone: [
+    { icon: Share, key: "share" },
+    { icon: SquarePlus, key: "addToHome" },
+    { icon: Bell, key: "notify" },
+  ],
+  android: [
+    { icon: EllipsisVertical, key: "menu" },
+    { icon: SquarePlus, key: "install" },
+    { icon: Bell, key: "notify" },
+  ],
+} as const satisfies Record<AppPlatform, ReadonlyArray<{ icon: LucideIcon; key: string }>>;
 
-/** "Use Simpulo like an app": store-style buttons plus the iPhone and Android steps. Anchor: #get-the-app. */
-export function GetTheApp() {
+/**
+ * "Use Simpulo like an app" card – the #get-the-app anchor. The segment defaults to the visitor's platform;
+ * one CTA follows it. Websites can't trigger "Add to Home Screen" on iOS, so the iPhone CTA points to the
+ * Safari step; Android opens Chrome's install prompt when available.
+ */
+export function GetTheApp({ className }: { className?: string }) {
   const platform = usePlatform();
   const standalone = useIsStandalone();
   const installPrompt = useInstallPrompt();
-  /** null until the visitor toggles a card themselves – until then the platform default applies. */
-  const [toggled, setToggled] = useState<OpenCards | null>(null);
-  const open = toggled ?? defaultOpen(platform);
+  const showToast = useToast();
+  const t = useTranslations("howItWorks.app");
+  /** null until the visitor picks one – until then the detected platform decides. */
+  const [picked, setPicked] = useState<AppPlatform | null>(null);
+  const selected: AppPlatform = picked ?? (platform === "android" ? "android" : "iphone");
 
-  function setCard(card: Card, value: boolean) {
-    setToggled({ ...open, [card]: value });
-  }
-
-  // Android button: install right away when Chrome has offered the prompt, otherwise jump to the steps.
-  async function onAndroid(e: MouseEvent) {
-    if (!installPrompt) {
-      setCard("android", true);
+  async function install() {
+    if (selected === "iphone") {
+      showToast(t("toastIphone"));
       return;
     }
-    e.preventDefault();
+    if (!installPrompt) {
+      showToast(t("toastAndroid"));
+      return;
+    }
     await installPrompt.prompt();
     await installPrompt.userChoice;
     clearInstallPrompt();
   }
 
+  const CtaIcon = selected === "iphone" ? SiApple : SiAndroid;
+
   return (
-    <section id="get-the-app" className={cn("rounded-3xl bg-white p-6 md:p-8", anchorOffset)}>
-      <h2 className="text-2xl font-bold tracking-tight text-ink">Use Simpulo like an app</h2>
-      <p className="mt-1 text-zinc-500">No store needed – add it to your home screen and get notified when hosts answer.</p>
+    <section
+      id="get-the-app"
+      // The anchor lands below the header via the global scroll-padding-top (--header-h).
+      className={cn("rounded-[28px] bg-white p-8", className)}
+    >
+      <h2 className="text-xl font-semibold tracking-tight text-ink">{t("title")}</h2>
+      <p className="mt-1 text-sm text-zinc-500">{t("intro")}</p>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <StoreButton href="#get-the-app-iphone" icon={<SiApple className="size-6" />} platform="iPhone" onClick={() => setCard("iphone", true)} />
-        <StoreButton href="#get-the-app-android" icon={<SiAndroid className="size-6" />} platform="Android" onClick={onAndroid} />
-      </div>
-
-      {standalone && (
-        <p className="mt-5 flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
-          <CircleCheck className="size-5 shrink-0" />
-          You&apos;re already using the installed app – nothing else to do.
+      {standalone ? (
+        <p className="mt-5 flex items-center gap-2 rounded-2xl bg-zinc-100 p-4 text-sm text-ink">
+          <CircleCheck className="size-5 shrink-0 text-accent" />
+          {t("installed")}
         </p>
-      )}
+      ) : (
+        <>
+          <div role="tablist" aria-label={t("platform")} className="mt-6 flex gap-1 rounded-full bg-black/5 p-1">
+            {PLATFORMS.map(({ value, icon: Icon }) => {
+              const active = value === selected;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setPicked(value)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors",
+                    active ? "bg-white text-ink shadow-sm" : "text-zinc-500 hover:text-ink",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {t(`platforms.${value}`)}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="mt-6 space-y-3">
-        <PlatformCard id="get-the-app-iphone" title="iPhone" open={open.iphone} onToggle={(value) => setCard("iphone", value)}>
-          <ol className="space-y-3">
-            <StepCard
-              n={1}
-              title="Tap Share"
-              text="In Safari, tap the Share button in the toolbar."
-              illustration={
-                <div className="flex h-12 w-full items-center justify-around rounded-xl bg-neutral-100 text-neutral-400">
-                  <span className="h-1.5 w-6 rounded-full bg-neutral-300" />
-                  <span className="flex size-9 items-center justify-center rounded-full bg-white text-sky-600 shadow ring-2 ring-sky-500">
-                    <Share className="size-4" />
-                  </span>
-                  <span className="h-1.5 w-6 rounded-full bg-neutral-300" />
-                </div>
-              }
-            />
-            <StepCard
-              n={2}
-              title="Add to Home Screen"
-              text="Scroll the menu and choose “Add to Home Screen”, then tap Add."
-              illustration={
-                <div className="flex h-12 w-full items-center justify-between rounded-xl bg-white px-3 text-sm font-medium shadow ring-1 ring-black/5">
-                  Add to Home Screen
-                  <SquarePlus className="size-5 text-neutral-500" />
-                </div>
-              }
-            />
-            <StepCard
-              n={3}
-              title="Open from the icon"
-              text="Start Simpulo from your home screen and allow notifications when it asks."
-              illustration={
-                <div className="flex h-12 w-full items-center gap-3 rounded-xl bg-neutral-100 px-3">
-                  <Img src="/icon-192.png" alt="" width={36} height={36} className="size-9 rounded-[10px]" />
-                  <span className="text-sm font-medium">Simpulo</span>
-                  <Bell className="ml-auto size-4 text-accent" />
-                </div>
-              }
-            />
+          <ol className="mt-6 space-y-4">
+            {STEPS[selected].map(({ icon: Icon, key }, i) => (
+              <li key={key} className="flex items-center gap-3 text-base text-ink">
+                <StepNumber n={i + 1} />
+                <Icon className="size-4.5 shrink-0 text-zinc-500" aria-hidden />
+                <span>{t(`steps.${key}`)}</span>
+              </li>
+            ))}
           </ol>
-        </PlatformCard>
 
-        <PlatformCard id="get-the-app-android" title="Android" open={open.android} onToggle={(value) => setCard("android", value)}>
-          <AndroidCard />
-        </PlatformCard>
-      </div>
+          <button
+            type="button"
+            onClick={install}
+            className={cn(
+              "mt-7 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-ink px-6 text-sm font-semibold text-white outline-none transition-[background-color,transform] duration-200",
+              "hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98]",
+            )}
+          >
+            <CtaIcon className="size-5" />
+            {selected === "iphone" ? t("ctaIphone") : t("ctaAndroid")}
+          </button>
+          <p className="mt-3 text-center text-xs text-zinc-500">{t("desktopHint")}</p>
+        </>
+      )}
     </section>
   );
 }
 
-/** One card: Chrome's install prompt when available, otherwise the Chrome menu steps. */
-function AndroidCard() {
-  const installPrompt = useInstallPrompt();
-  const [installed, setInstalled] = useState(false);
-
-  async function install() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    clearInstallPrompt();
-    setInstalled(choice.outcome === "accepted");
-  }
-
+/** 32px dark number circle with the wordmark's orange dot ("1.") – shared with the steps card on /how-it-works. */
+export function StepNumber({ n }: { n: number }) {
   return (
-    <div className="rounded-2xl border border-neutral-100 bg-white p-4">
-      {installed ? (
-        <p className="flex items-center gap-2 text-sm text-emerald-800">
-          <CircleCheck className="size-5" />
-          Simpulo is on your home screen. Open it from there.
-        </p>
-      ) : installPrompt ? (
-        <div className="text-center">
-          <button type="button" onClick={install} className={buttonClass("dark", "lg", "w-full sm:w-auto")}>
-            <Download className="size-4" />
-            Install app
-          </button>
-          <p className="mt-3 text-sm text-neutral-500">Takes a second – no app store needed.</p>
-        </div>
-      ) : (
-        <ol className="space-y-3 text-sm">
-          <li className="flex gap-3">
-            <StepNumber n={1} />
-            <span>
-              In Chrome, tap the menu <EllipsisVertical className="inline size-4 align-text-bottom" aria-label="three dots" /> top right.
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <StepNumber n={2} />
-            <span>Choose “Install app” (or “Add to Home screen”) and confirm.</span>
-          </li>
-          <li className="flex gap-3">
-            <StepNumber n={3} />
-            <span>Open Simpulo from your home screen and allow notifications.</span>
-          </li>
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function PlatformCard({
-  id,
-  title,
-  open,
-  onToggle,
-  children,
-}: {
-  id: string;
-  title: string;
-  open: boolean;
-  onToggle: (open: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <details
-      id={id}
-      open={open}
-      onToggle={(e) => onToggle(e.currentTarget.open)}
-      className={cn("group rounded-2xl bg-neutral-50 p-4", anchorOffset)}
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between font-semibold [&::-webkit-details-marker]:hidden">
-        {title}
-        <ChevronDown className="size-5 text-zinc-500 transition-transform group-open:rotate-180" aria-hidden />
-      </summary>
-      <div className="mt-4">{children}</div>
-    </details>
-  );
-}
-
-function StoreButton({
-  href,
-  icon,
-  platform,
-  onClick,
-}: {
-  href: string;
-  icon: ReactNode;
-  platform: string;
-  onClick?: (e: MouseEvent) => void;
-}) {
-  return (
-    <a
-      href={href}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-14 items-center gap-3 rounded-full bg-ink pl-5 pr-6 text-white outline-none transition-[background-color,transform] duration-200",
-        "hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98]",
-      )}
-    >
-      {icon}
-      <span className="flex flex-col leading-tight">
-        <span className="text-[11px] text-white/70">Add to</span>
-        <span className="text-base font-semibold">{platform}</span>
-      </span>
-    </a>
-  );
-}
-
-function StepNumber({ n }: { n: number }) {
-  return (
-    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">{n}</span>
-  );
-}
-
-function StepCard({ n, title, text, illustration }: { n: number; title: string; text: string; illustration?: ReactNode }) {
-  return (
-    <li className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">{n}</span>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold">{title}</p>
-        <p className="mt-0.5 text-sm text-neutral-600">{text}</p>
-        {illustration && <div className="mt-3">{illustration}</div>}
-      </div>
-    </li>
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">
+      {n}
+      <span className="text-accent">.</span>
+    </span>
   );
 }

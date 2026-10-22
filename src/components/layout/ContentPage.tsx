@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Container } from "./Container";
 
@@ -22,9 +23,10 @@ export function ContentPage({ title, intro, children }: ContentPageProps) {
 
 /** Highlights placeholder copy that must be replaced before launch. */
 export function TodoNote({ children }: { children: ReactNode }) {
+  const t = useTranslations("footer.pages");
   return (
     <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-      TODO: {children}
+      {t("todo")} {children}
     </p>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface FilterChipsProps<T extends string> {
@@ -11,11 +12,14 @@ interface FilterChipsProps<T extends string> {
   onChange: (value: T | null) => void;
   /** Label of the "no filter" chip */
   allLabel?: string;
+  /** Lighter, smaller chips for a secondary filter row */
+  small?: boolean;
 }
 
 /** Single row of chips: scrolls horizontally on mobile (edges fade out), wraps on desktop. */
-export function FilterChips<T extends string>({ label, options, value, onChange, allLabel = "All" }: FilterChipsProps<T>) {
-  const chips: Array<{ value: T | null; label: string }> = [{ value: null, label: allLabel }, ...options];
+export function FilterChips<T extends string>({ label, options, value, onChange, allLabel, small = false }: FilterChipsProps<T>) {
+  const t = useTranslations("common.ui.filterChips");
+  const chips: Array<{ value: T | null; label: string }> = [{ value: null, label: allLabel ?? t("all") }, ...options];
   return (
     <div
       role="group"
@@ -31,8 +35,9 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
             aria-pressed={active}
             onClick={() => onChange(chip.value)}
             className={cn(
-              "h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors",
-              active ? "bg-ink text-white" : "bg-white text-ink hover:bg-zinc-100",
+              "shrink-0 rounded-full font-medium transition-colors",
+              small ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-sm",
+              active ? "bg-ink text-white" : small ? "bg-transparent text-zinc-600 ring-1 ring-black/10 hover:bg-white" : "bg-white text-ink hover:bg-zinc-100",
             )}
           >
             {chip.label}

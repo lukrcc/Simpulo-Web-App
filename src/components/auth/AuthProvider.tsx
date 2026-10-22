@@ -4,19 +4,29 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { useStore } from "@/lib/store";
 import { AuthSheet } from "./AuthSheet";
 
-/** Runs `onSuccess` right away when logged in; otherwise opens the AuthSheet first and runs it after login. */
-type RequireAuth = (onSuccess?: (userId: string) => void) => void;
+/**
+ * The one auth gate. Logged in → runs `action` right away. Logged out → opens the AuthSheet (with an optional
+ * context line, e.g. "Log in to send your request") and runs `action` after a successful login; cancelling
+ * discards it. The action gets the user id, since right after login the store's closures may not know it yet.
+ * Reading never goes through here – only actions that need an account.
+ */
+type RequireAuth = (action?: (userId: string) => void, context?: string) => void;
+
+interface PendingAction {
+  action?: (userId: string) => void;
+  context?: string;
+}
 
 const AuthContext = createContext<RequireAuth | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { currentUserId } = useStore();
-  const [pending, setPending] = useState<{ onSuccess?: (userId: string) => void } | null>(null);
+  const [pending, setPending] = useState<PendingAction | null>(null);
 
   const requireAuth = useCallback<RequireAuth>(
-    (onSuccess) => {
-      if (currentUserId) onSuccess?.(currentUserId);
-      else setPending({ onSuccess });
+    (action, context) => {
+      if (currentUserId) action?.(currentUserId);
+      else setPending({ action, context });
     },
     [currentUserId],
   );
@@ -27,11 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {/* Rendered after the page, so it stacks above sheets opened by the page (e.g. the request sheet). */}
       <AuthSheet
         open={pending !== null}
+        context={pending?.context}
         onClose={() => setPending(null)}
         onSuccess={(userId) => {
-          const callback = pending?.onSuccess;
+          const action = pending?.action;
           setPending(null);
-          callback?.(userId);
+          action?.(userId);
         }}
       />
     </AuthContext.Provider>

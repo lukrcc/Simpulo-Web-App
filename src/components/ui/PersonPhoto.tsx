@@ -1,4 +1,5 @@
 import { User as UserIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Img } from "./Img";
 
@@ -12,11 +13,12 @@ interface PersonPhotoProps {
 
 /** A person's round photo – or a gray placeholder for people who haven't added one yet. */
 export function PersonPhoto({ src, alt, size, className }: PersonPhotoProps) {
+  const t = useTranslations("common.ui.personPhoto");
   if (!src) {
     return (
       <span
         role="img"
-        aria-label={`${alt} (no photo yet)`}
+        aria-label={t("noPhoto", { name: alt })}
         style={{ width: size, height: size }}
         className={cn("flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-400", className)}
       >

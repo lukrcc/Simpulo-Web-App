@@ -1,0 +1,948 @@
+{
+  "meta": {
+    "siteTitle": "Simpulo – Share a place. Find your people.",
+    "titleTemplate": "%s · Simpulo",
+    "siteDescription": "Find people to share a house with for a few weeks – hosted by real people, anywhere.",
+    "pages": {
+      "house": "House",
+      "createHouse": "Open a House",
+      "editHouse": "Edit House",
+      "houses": "Houses",
+      "manageHouse": "Manage House",
+      "messages": "Messages",
+      "chat": "Chat",
+      "profile": "Profile",
+      "howItWorks": "How it works",
+      "about": "About",
+      "contact": "Contact",
+      "imprint": "Imprint",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
+  },
+  "common": {
+    "datesTbd": "Dates TBD",
+    "budgetTbd": "Budget TBD",
+    "pricePerPersonShort": "{price} pp",
+    "budgetPerPersonShort": "~{range} pp",
+    "cityOpen": "{region} · city open",
+    "ageAndCountry": "{age} · {country}",
+    "nights": "{count, plural, one {# night} other {# nights}}",
+    "spots": "{count, plural, one {# spot} other {# spots}}",
+    "people": "{count, plural, one {# person} other {# people}}",
+    "links": "{count, plural, one {# link} other {# links}}",
+    "requests": "{count, plural, one {# request} other {# requests}}",
+    "houses": "{count, plural, one {# house} other {# houses}}",
+    "countries": "{count, plural, one {# country} other {# countries}}",
+    "shares": "{count, plural, one {# share} other {# shares}}",
+    "vibes": {
+      "fitness": "Fitness",
+      "creator": "Creator",
+      "founder": "Founder",
+      "remote-work": "Remote work",
+      "surf": "Surf",
+      "wellness": "Wellness",
+      "holiday": "Holiday"
+    },
+    "paymentStatus": {
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "requestStatus": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined"
+    },
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "more": "More",
+    "you": "you",
+    "linkCopied": "Link copied to clipboard",
+    "linkCopyFailed": "Couldn't copy the link",
+    "ui": {
+      "moreMenu": {
+        "closeMenu": "Close menu"
+      },
+      "carousel": {
+        "defaultItem": "House",
+        "previous": "Previous {item}",
+        "next": "Next {item}",
+        "goTo": "Go to {item} {index}"
+      },
+      "cardTab": {
+        "profile": "{name}'s profile"
+      },
+      "crewAvatars": {
+        "justOpened": "Just opened"
+      },
+      "filterChips": {
+        "all": "All"
+      },
+      "languageChips": {
+        "label": "Languages"
+      },
+      "openHouse": {
+        "label": "Open a House"
+      },
+      "pageSkeleton": {
+        "loading": "Loading"
+      },
+      "personPhoto": {
+        "noPhoto": "{name} (no photo yet)"
+      },
+      "photoUploader": {
+        "slotFace": "Your face",
+        "slotActivity": "What you're up to",
+        "replace": "Replace photo {index}",
+        "remove": "Remove photo {index}",
+        "required": "Required",
+        "reorderHint": "Drag to reorder – the first one is your face."
+      },
+      "photoSheet": {
+        "title": "Add a photo",
+        "hint": "Start with a clear photo of your face – hosts decide who joins.",
+        "save": "Save",
+        "added": "Photo added"
+      },
+      "priceLine": {
+        "perPerson": "{price} per person",
+        "budgetPerPerson": "~{range} per person",
+        "note": "includes everything – you pay only when the house is locked",
+        "approx": "≈ {amount} · approximate, you pay in {currency}"
+      },
+      "socialRow": {
+        "onNetwork": "{name} on {network}",
+        "website": "Website"
+      },
+      "crewContacts": {
+        "channel": {
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "discord": "Discord",
+          "phone": "Phone",
+          "facetime": "FaceTime"
+        },
+        "label": {
+          "whatsapp": "Message {name} on WhatsApp",
+          "telegram": "Message {name} on Telegram",
+          "signal": "Message {name} on Signal",
+          "discord": "Message {name} on Discord",
+          "phone": "Call {name}",
+          "facetime": "FaceTime {name}"
+        },
+        "crewOnly": "Crew only",
+        "reachMeOn": "Reach me on"
+      },
+      "save": {
+        "save": "Save {title}",
+        "unsave": "Remove {title} from saved",
+        "saved": "Saved",
+        "saveShort": "Save",
+        "loginToSave": "Log in to save this House"
+      },
+      "hostAlert": {
+        "notifyMe": "Notify me",
+        "notifying": "Notifying",
+        "notifyMeLabel": "Notify me when {name} opens a House",
+        "notifyingLabel": "Stop alerts for new Houses from {name}",
+        "loginToNotify": "Log in to get alerts from {name}",
+        "on": "You'll hear when {name} opens a House",
+        "off": "Alerts from {name} turned off"
+      },
+      "preview": {
+        "exit": "Exit preview",
+        "noChanges": "Preview only – nothing is changed",
+        "profile": "This is how others see your profile",
+        "house": "This is how guests see your House",
+        "button": "Preview",
+        "hostRequestsDisabled": "You're the host – requests are disabled in preview."
+      }
+    }
+  },
+  "nav": {
+    "items": {
+      "explore": "Explore",
+      "howItWorks": "How it works",
+      "houses": "Houses",
+      "messages": "Messages",
+      "profile": "Profile"
+    },
+    "logIn": "Log in",
+    "openHouse": "Open a House",
+    "yourProfile": "Your profile",
+    "home": "Simpulo – home",
+    "tagline": "Share a place. Find your people."
+  },
+  "footer": {
+    "label": "Footer",
+    "tagline": "Share a place. Find your people.",
+    "links": {
+      "howItWorks": "How it works",
+      "howSimpuloWorks": "How Simpulo works",
+      "getTheApp": "Get the app",
+      "contact": "Contact",
+      "legal": "Legal",
+      "imprint": "Imprint",
+      "privacy": "Privacy",
+      "terms": "Terms"
+    },
+    "pages": {
+      "todo": "TODO:",
+      "placeholder": "Placeholder text – replace with the real, legally reviewed version before launch.",
+      "about": {
+        "title": "What is Simpulo?",
+        "intro": "Simpulo matches people, not accommodation. Share a place – and find your people.",
+        "houses": "A House on Simpulo is a shared place – a villa, an apartment, a chalet – opened by one host for two to six people, from a long weekend to a few months. The host says what the House is about: training, building, creating, slowing down. You ask to join, the host says yes, and the crew sorts out the rest together.",
+        "people": "No hostel dorms, no strangers you never spoke to. Just people who want the same kind of trip as you.",
+        "cta": "See how it works →"
+      },
+      "contact": {
+        "title": "Contact",
+        "text": "Questions, feedback or a problem with a House? Write to <mail>{email}</mail>."
+      },
+      "imprint": {
+        "title": "Imprint",
+        "text": "Legal notice – company name, address, managing director, register entry and contact details."
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "text": "Privacy policy – what data Simpulo collects, why, how long it is kept, and how users can request deletion."
+      },
+      "terms": {
+        "title": "Terms of Service",
+        "text": "Terms of service – rules for hosts and guests, payments and fees, cancellations and liability."
+      }
+    }
+  },
+  "auth": {
+    "title": "Continue to Simpulo",
+    "mockProviderLogin": "Mock {provider} login – pick a user",
+    "continueWithApple": "Continue with Apple",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithEmail": "Continue with email",
+    "dataUse": "We only use it to keep your crews and messages.",
+    "legal": "By continuing you agree to our <terms>Terms</terms> and <privacy>Privacy Policy</privacy>.",
+    "checkInbox": "Check your inbox – we sent a link to <strong>{email}</strong>",
+    "emailPlaceholder": "you@example.com",
+    "emailLabel": "Email address",
+    "sendLink": "Send link",
+    "mockLoginAs": "Mock login as",
+    "logIn": "Log in",
+    "dev": {
+      "label": "Dev",
+      "mockUser": "Mock user",
+      "loggedOut": "Logged out",
+      "role": {
+        "host": "Host of this House",
+        "crew": "Crew member",
+        "pending": "Pending request",
+        "none": "Not involved"
+      },
+      "more": "Dev options for this House",
+      "closePanel": "Close",
+      "openAs": "Open in new tab as…",
+      "openAsHost": "Open in new tab as {name} (host)",
+      "openAsMember": "…as {name} (crew)",
+      "noCrewMember": "No crew member yet",
+      "scheduled": "Scheduled reminders",
+      "noReminders": "No reminders for this user right now.",
+      "fireNow": "Fire now",
+      "overdue": "overdue – would send now",
+      "plusChat": "+ crew chat",
+      "channel": {
+        "email": "email",
+        "emailPush": "email + push"
+      },
+      "types": {
+        "payDue": "Share due soon",
+        "payToday": "Share due today",
+        "bookingUpload": "Upload booking",
+        "pendingRequests": "Unanswered requests",
+        "arrival": "Arrival countdown",
+        "savedSoon": "Saved House starts soon",
+        "hostOpened": "Host alert: new House"
+      }
+    }
+  },
+  "explore": {
+    "title": "Open Houses",
+    "summary": "{houses} · {countries}",
+    "startDate": "Start date",
+    "sort": "Sort",
+    "startFilters": {
+      "any": "Any date",
+      "14d": "Next 2 weeks",
+      "30d": "This month",
+      "90d": "Next 3 months"
+    },
+    "sortOptions": {
+      "soonest": "Soonest first",
+      "newest": "Newest"
+    },
+    "all": "All",
+    "anywhere": "Anywhere",
+    "filterByVibe": "Filter by vibe",
+    "filterByRegion": "Filter by region",
+    "filterByLanguage": "Filter by language",
+    "filters": "Filters",
+    "filtersActive": "Filters (active)",
+    "apply": "Apply",
+    "empty": {
+      "title": "No Houses match these filters",
+      "description": "Try another vibe, region or date – or open your own House and let the crew find you.",
+      "showAll": "Show all Houses"
+    },
+    "featuredHouses": "Featured Houses",
+    "featuredHousesKeyboard": "Featured Houses – use the arrow keys to browse",
+    "nextHouses": "Next houses",
+    "slideLabel": "{index} of {count}: {title}",
+    "houseWithHost": "{title} with {host}",
+    "viewHouseWithHost": "View House: {title} with {host}",
+    "showHostPhoto": "Show photo {index} of {name}",
+    "withHost": "with {name}",
+    "verified": "Verified",
+    "viewHouse": "View House",
+    "untitledHouse": "Untitled House",
+    "openHouse": {
+      "prompt": "Nothing for your dates?",
+      "title": "Open your own House<accent>.</accent>",
+      "start": "Start"
+    }
+  },
+  "house": {
+    "notFound": {
+      "title": "House not found",
+      "description": "This House doesn't exist or isn't public anymore.",
+      "action": "Explore Houses"
+    },
+    "theHost": "the host",
+    "loginToMessage": "Log in to message {name}",
+    "photoPrompt": "Add a photo so {name} sees who's asking",
+    "loginToAddPhoto": "Log in to add a photo",
+    "addPhoto": "Add photo",
+    "houseRules": "House rules",
+    "datesAndNights": "{dates} · {nights}",
+    "loginBeforeSending": "You'll log in before sending",
+    "accommodation": "Accommodation",
+    "ownHouse": "That's your own House",
+    "gallery": {
+      "photoAlt": "{name} – photo {number}",
+      "share": "Share House",
+      "verified": "Verified",
+      "identity": "{ageAndCountry} · speaks {languages}",
+      "open": "Open {alt}"
+    },
+    "lightbox": {
+      "label": "{name} – photos",
+      "close": "Close photos",
+      "previous": "Previous photo",
+      "next": "Next photo",
+      "counter": "{index} / {total}"
+    },
+    "facts": {
+      "line": "{dates} · {nights} · {place}",
+      "language": "This House is in {language}",
+      "spotsIn": "{filled} of {total} in",
+      "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
+      "crewComplete": "crew complete"
+    },
+    "pitch": {
+      "why": "Why I'm hosting this",
+      "day": "A typical day",
+      "lookingFor": "Who I'm looking for"
+    },
+    "map": {
+      "title": "Where you'll be",
+      "openInMaps": "Open in Google Maps",
+      "mapOf": "Map of {place}",
+      "areaOpen": "Exact area decided with the crew"
+    },
+    "hostCard": {
+      "profile": "{name}'s profile",
+      "identity": "{name}, {age} · {country}",
+      "verified": "Verified",
+      "speaks": "speaks {languages}",
+      "viewProfile": "View profile"
+    },
+    "accommodationSection": {
+      "crewDecides": "Crew decides together",
+      "chatLinks": "{count, plural, =0 {no links in the chat yet} one {# link in the chat} other {# links in the chat}}",
+      "openCrewChat": "Open crew chat"
+    },
+    "accommodationChip": {
+      "locked": "Locked",
+      "lockedPrice": "Locked · {price} pp",
+      "open": "Accommodation open"
+    },
+    "linkPreview": {
+      "open": "Open"
+    },
+    "pay": {
+      "title": "Pay your share",
+      "nothingToPay": "There's nothing to pay for this House right now.",
+      "alreadyPaid": "You've paid your share – thanks!",
+      "share": "Share",
+      "fee": "Simpulo fee",
+      "total": "Total",
+      "card": "Card",
+      "cardNumber": "Card number",
+      "expiry": "Expiry",
+      "expiryPlaceholder": "MM/YY",
+      "cvc": "CVC",
+      "cvcPlaceholder": "CVC",
+      "mockNote": "Test mode – no real card is charged. Numbers starting with 0000 are declined.",
+      "declined": "Your card was declined. Try another card.",
+      "processing": "Processing payment",
+      "payButton": "Pay {amount}",
+      "paidToast": "Paid {amount} – thanks!"
+    },
+    "banner": {
+      "yourShare": "Your share: <b>{amount}</b> · due {date}",
+      "payNow": "Pay now",
+      "paid": "You've paid your share",
+      "paidOn": "Paid · {date}"
+    }
+  },
+  "request": {
+    "cta": {
+      "manage": "Manage House",
+      "accepted": "You're in – open the crew chat",
+      "closed": "This House is closed",
+      "pending": "Request sent · waiting for host",
+      "declined": "Not this time",
+      "crewSet": "Crew is set – message the host",
+      "join": "Join this House"
+    },
+    "steps": {
+      "message": "Join this House",
+      "login": "Continue to Simpulo",
+      "sent": "Request sent"
+    },
+    "loginSubtitle": "Log in to send your request to {name}.",
+    "intro": "Tell {name} a bit about yourself and why <house>{title}</house> is a good fit for you.",
+    "loginNote": "You'll log in before sending – your message is kept.",
+    "placeholder": "Hi! I'm a designer from Berlin, love early mornings and cooking for the crew…",
+    "looksGood": "Looks good",
+    "minLength": "At least {count} characters",
+    "send": "Send request",
+    "continue": "Continue",
+    "sentTitle": "Request sent",
+    "waitingFor": "Waiting for {name}",
+    "answerInMessages": "You'll find the answer in Messages.",
+    "done": "Done"
+  },
+  "create": {
+    "title": {
+      "create": "Open a House",
+      "edit": "Edit House"
+    },
+    "steps": {
+      "house": "The House",
+      "pitch": "Your pitch",
+      "about": "About you",
+      "publish": "Publish"
+    },
+    "errors": {
+      "title": "Give your House a title.",
+      "region": "Add a region or country – e.g. “Bali, Indonesia” or “Portugal”.",
+      "dates": "Pick start and end dates.",
+      "dateOrder": "End date must be after the start date.",
+      "minSpots": "{count, plural, one {# person is already in} other {# people are already in}} – the crew can't be smaller.",
+      "photo": "Add a face photo – Houses without one don't get requests."
+    },
+    "saved": "House saved",
+    "published": "Your House is open 🎉",
+    "loginToPublish": "Log in to open a House",
+    "previousStep": "Previous step",
+    "publishIntro": "This is how your House shows up in the feed.",
+    "loginBeforeLive": "You'll log in before it goes live – your draft stays.",
+    "save": "Save",
+    "nextStep": "Next step",
+    "continue": "Continue",
+    "publish": "Publish",
+    "livePreview": "Live preview",
+    "previewName": "You",
+    "house": {
+      "title": "Title",
+      "titlePlaceholder": "Remote Work Base by the Beach",
+      "region": "Region or country",
+      "regionHint": "As wide as you like – an island, a region or a whole country.",
+      "regionPlaceholder": "Bali, Indonesia",
+      "city": "City (optional)",
+      "cityPlaceholder": "Canggu",
+      "cityOpenPlaceholder": "Decided with the crew",
+      "cityOpen": "City still open – we'll decide together",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "crewSize": "Crew size (incl. you)",
+      "vibe": "Vibe",
+      "language": "Language",
+      "languageHint": "The language the crew speaks in this House.",
+      "locked": "Accommodation is locked",
+      "lockedOn": "Guests see the booked place.",
+      "lockedOff": "Crew decides on the place together.",
+      "link": "Accommodation link (optional)",
+      "linkHintIncomplete": "Add the link and a final price to show it as locked – otherwise it goes out as “crew decides”.",
+      "linkHint": "Airbnb, Booking.com or any listing URL.",
+      "linkPlaceholder": "https://www.airbnb.com/rooms/…",
+      "price": "Final price per person (whole House)",
+      "priceHintFee": "Includes a {fee} Simpulo fee ({rate, number, percent}).",
+      "priceHint": "Simpulo adds a {rate, number, percent} fee, included in this price.",
+      "pricePlaceholder": "1200",
+      "budget": "Budget per person (optional)",
+      "budgetHint": "A rough range for the whole House. Leave it empty and it shows as “Budget TBD”.",
+      "budgetFrom": "Budget from",
+      "budgetTo": "Budget to",
+      "budgetFromPlaceholder": "400",
+      "budgetToPlaceholder": "600",
+      "currency": "Currency",
+      "currencyHint": "Use the currency of the account that pays for the accommodation."
+    },
+    "pitch": {
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "The place, the area and the plan in a few sentences.",
+      "optional": "{label} (optional)",
+      "why": "Why I'm hosting this",
+      "whyPlaceholder": "What made you want to open this House?",
+      "day": "A typical day",
+      "dayPlaceholder": "Morning, afternoon, evening – what does it look like?",
+      "lookingFor": "Who I'm looking for",
+      "lookingForPlaceholder": "Who would be a great fit for the crew?",
+      "hostNote": "Note on your card (optional)",
+      "hostNoteHint": "{count}/{max} – a short personal line, e.g. “First-timers very welcome”.",
+      "hostNotePlaceholder": "Two spots left, flying in Feb 10 – who's in?",
+      "interests": "Interests",
+      "interestsHint": "Comma-separated, e.g. Surfing, Yoga, Startups",
+      "interestsPlaceholder": "Surfing, Yoga, Coffee",
+      "houseRules": "House rules",
+      "houseRulesHint": "One rule per line",
+      "houseRulesPlaceholder": "Quiet hours after 11 pm\nShared groceries split weekly",
+      "ideas": "Accommodation ideas (optional)",
+      "ideasHint": "Up to 3 links – Airbnb, Booking, anything. They're posted in the crew chat as your first messages.",
+      "ideaLabel": "Accommodation idea {number}",
+      "ideaPlaceholder": "https://www.airbnb.com/rooms/…",
+      "ideaPlaceholderMore": "Another link",
+      "ideaPreview": "Preview shows in the crew chat"
+    },
+    "about": {
+      "photos": "Photos",
+      "photosHint": "Houses without a face photo don't get requests.",
+      "name": "First name (optional)",
+      "namePlaceholder": "Mara",
+      "age": "Age",
+      "agePlaceholder": "27",
+      "country": "Country",
+      "countryPlaceholder": "Netherlands",
+      "languages": "Languages",
+      "languagesPlaceholder": "English, Spanish…",
+      "languagesPlaceholderMore": "Add another",
+      "addLanguage": "Add a language",
+      "removeLanguage": "Remove {language}",
+      "bio": "Bio",
+      "bioHint": "{count}/{max}",
+      "bioPlaceholder": "Travel creator, 18k on TikTok. Filming a Bali series this winter.",
+      "publicLinks": "Public links (optional)",
+      "publicLinksHint": "Shown on your profile and Houses to everyone.",
+      "crewOnly": "Crew only – shown to people in your Houses",
+      "crewOnlyHint": "Only people who share an accepted crew with you see these. Nobody else, not even as a placeholder."
+    },
+    "socials": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "youtube": "YouTube",
+      "twitch": "Twitch",
+      "kick": "Kick",
+      "linkedin": "LinkedIn",
+      "x": "X",
+      "website": "Website"
+    },
+    "socialPlaceholders": {
+      "handle": "handle",
+      "username": "username",
+      "profileName": "profile name",
+      "url": "https://…"
+    },
+    "edit": {
+      "loginTitle": "Log in to edit your House",
+      "notFound": "House not found",
+      "backToHouses": "Back to Houses"
+    },
+    "contactPlaceholders": {
+      "whatsapp": "+49 176 1234 5678",
+      "telegram": "handle",
+      "signal": "+49 176 1234 5678",
+      "discord": "name#0421",
+      "phone": "+49 176 1234 5678",
+      "facetime": "phone or Apple ID"
+    }
+  },
+  "houses": {
+    "title": "Houses",
+    "loginTitle": "Log in to see your houses",
+    "loginDescription": "Houses you host or joined show up here.",
+    "tabs": {
+      "hosting": "Hosting",
+      "joined": "Joined",
+      "saved": "Saved"
+    },
+    "emptyJoined": {
+      "title": "Find a House in Explore",
+      "description": "Ask to join a crew that matches your vibe – it shows up here.",
+      "action": "Explore Houses"
+    },
+    "noHouse": "No House yet",
+    "noJoinedHouse": "No joined Houses yet",
+    "row": {
+      "new": "{count} new",
+      "pending": "Pending",
+      "closed": "Closed"
+    },
+    "firstHouse": {
+      "title": "Open your first House<accent>.</accent>",
+      "description": "Pick a place, dates and a vibe – a rough budget is enough to start."
+    },
+    "manage": {
+      "loginTitle": "Log in to see your House",
+      "notFound": "House not found",
+      "backToHouses": "Back to Houses"
+    },
+    "detail": {
+      "closed": "Closed",
+      "editHouse": "Edit house",
+      "viewPage": "View page",
+      "shareLink": "Share link",
+      "dangerZone": "Danger zone",
+      "closedNote": "You closed this House. It's no longer listed and takes no new requests.",
+      "closeExplainer": "Ends the House early: it leaves Explore, takes no new requests, and your crew gets a message in the crew chat.",
+      "closeHouse": "Close this House",
+      "closedToast": "House closed – your crew has been told",
+      "takingRequests": "Taking requests",
+      "notTakingRequests": "Not taking requests"
+    },
+    "requests": {
+      "title": "Requests",
+      "pendingCount": "{count} pending",
+      "noneOpen": "No pending requests – share your House page to find your crew.",
+      "none": "No pending requests.",
+      "earlier": "Earlier ({count})",
+      "loginToMessage": "Log in to message {name}",
+      "noPhoto": "No photo yet",
+      "acceptedToast": "{name} joined the crew 🎉",
+      "declinedToast": "Declined {name}",
+      "crewFull": "Crew is full",
+      "accept": "Accept",
+      "decline": "Decline",
+      "reply": "Reply"
+    },
+    "crew": {
+      "title": "Crew",
+      "you": "{name} (you)",
+      "opened": "opened {date}",
+      "joined": "joined {date}",
+      "host": "Host",
+      "moreFor": "More for {name}",
+      "remove": "Remove from crew",
+      "upTo": "Up to {count, plural, one {# person} other {# people}}",
+      "eachPays": "each pays <b>{price}</b>",
+      "removeTitle": "Remove {name}?",
+      "removeDescription": "Their spot opens up again and they lose access to the crew chat. The crew sees a short note in the chat.",
+      "removeConfirm": "Remove",
+      "removedToast": "{name} is no longer in the crew"
+    },
+    "accommodation": {
+      "title": "Accommodation",
+      "total": "Total",
+      "perPersonShares": "Per person · {count, plural, one {# share} other {# shares}}",
+      "paid": "Paid",
+      "paidOf": "{paid} of {total}",
+      "suggested": "Suggested in the crew chat – lock the one you all agree on.",
+      "lockThis": "Lock this",
+      "lockAccommodation": "Lock accommodation",
+      "noLinks": "No links in the crew chat yet – paste Airbnb or Booking links there.",
+      "openChat": "Open crew chat"
+    },
+    "joined": {
+      "waiting": "Request sent – waiting for {name}",
+      "waitingForHost": "Request sent – waiting for the host"
+    },
+    "crewMenu": {
+      "leftToast": "You left {title}",
+      "manage": "Manage House",
+      "edit": "Edit House",
+      "close": "Close this House",
+      "view": "View House",
+      "leave": "Leave this House",
+      "leaveTitle": "Leave this House?",
+      "leaveDescription": "Your spot opens up again and you'll lose access to the crew chat. You can ask to join again later.",
+      "leaveConfirm": "Leave House",
+      "closeTitle": "Close this House?",
+      "closeDescription": "It disappears from Explore and takes no new requests. Everyone in the crew gets a message in the crew chat.",
+      "closeConfirm": "Close House"
+    },
+    "lock": {
+      "title": "Lock accommodation",
+      "linkLabel": "Accommodation link",
+      "linkPlaceholder": "https://airbnb.com/rooms/…",
+      "linkInvalid": "Paste the full link, starting with https://",
+      "totalLabel": "Total price for the whole place",
+      "totalPlaceholder": "2400",
+      "currency": "Currency",
+      "currencyHint": "Use the currency of the account that pays for the accommodation.",
+      "splitBetween": "Split between",
+      "occupancy": "{people} in now · {spots} in total",
+      "payBy": "Pay by",
+      "payByHint": "Everyone pays their share by this date.",
+      "preview": "{total} ÷ {spots} = {perPerson} per person · guests pay {withFee} incl. fee",
+      "previewEmpty": "Enter the total to see each share.",
+      "hint": "The crew sees this price and gets a payment request in the crew chat.",
+      "submit": "Lock accommodation",
+      "locking": "Locking accommodation",
+      "lockedToast": "Accommodation locked – the crew can pay now"
+    },
+    "payments": {
+      "title": "Payments",
+      "payBy": "Pay by {date}",
+      "progress": "{paid} of {count} paid · {paidAmount} of {totalAmount}",
+      "colName": "Name",
+      "colShare": "Share",
+      "colStatus": "Status",
+      "colPaid": "Paid on",
+      "you": "{name} (you)",
+      "remind": "Remind",
+      "remindFor": "Remind {name}",
+      "remindedToast": "Reminder sent to {name}",
+      "payNow": "Pay now",
+      "fundsTitle": "Funds released · {amount} ready",
+      "fundsText": "Everyone has paid. Book the place, then upload the booking confirmation so the crew can see it's booked.",
+      "upload": "Upload booking confirmation",
+      "uploading": "Uploading booking confirmation",
+      "uploadWithin": "Upload within 48 hours",
+      "timeLeft": "{hours}h {minutes}m left",
+      "overdue": "The 48 hours are up – please upload it now",
+      "confirmedTitle": "Booking confirmed · {date}",
+      "confirmedText": "The crew sees the House as booked.",
+      "viewProof": "View booking confirmation",
+      "confirmedToast": "Booking confirmed",
+      "booked": "Booked",
+      "unlock": "Unlock",
+      "unlocking": "Unlocking",
+      "unlockTitle": "Unlock the accommodation?",
+      "unlockDescription": "The link and price are cleared and the crew decides together again. Paid shares are refunded in full and open payments are cancelled. Everyone sees a note in the crew chat.",
+      "unlockConfirm": "Unlock and refund",
+      "unlockedToast": "Accommodation unlocked – paid shares are refunded",
+      "devReset": "Reset payments (dev)",
+      "resetToast": "Payments reset"
+    },
+    "openAnother": "Open another House",
+    "saved": {
+      "emptyTitle": "No saved Houses yet",
+      "emptyDescription": "Tap the heart on any House to keep it here."
+    },
+    "hostAlerts": {
+      "title": "Host alerts",
+      "manage": "Manage",
+      "sheetTitle": "Host alerts",
+      "sheetDescription": "You get an email (and a push, if the app is installed) when these hosts open a House.",
+      "turnOff": "Turn off"
+    }
+  },
+  "messages": {
+    "system": {
+      "joined": "{name} joined the crew",
+      "left": "{name} left the crew",
+      "removed": "{name} is no longer in the crew",
+      "locked": "{name} locked the accommodation · {price} per person",
+      "unlocked": "{name} unlocked the accommodation – the crew decides again",
+      "closed": "{name} closed this House – it's no longer listed and takes no new requests",
+      "paid": "{name} paid · {paid} of {total}",
+      "bookingConfirmed": "Booking confirmed – the place is booked 🎉",
+      "reminderPayment": "Reminder: {name}'s share is due {payBy}",
+      "reminderArrival": "{days} days to go – arrival {date} 🎒"
+    },
+    "notify": {
+      "newRequest": "New request from {name} for {title}",
+      "accepted": "You're in – {title}",
+      "declined": "{title}: not this time",
+      "locked": "{title}: accommodation locked – {price} each, pay by {payBy}",
+      "paid": "{title}: {name} paid their share",
+      "left": "{name} left {title}",
+      "delivery": "{recipients} · {channels}: {text}",
+      "channelEmail": "email",
+      "channelEmailPush": "email + push",
+      "andMore": "{names} +{count}",
+      "reminderPayDue": "{title}: your share ({price}) is due {payBy}",
+      "reminderPayToday": "{title}: your share ({price}) is due today",
+      "reminderBookingUpload": "{title}: everyone paid – upload the booking confirmation within {hours}h",
+      "reminderPendingRequests": "{title}: {count, plural, one {# request is} other {# requests are}} waiting for your answer",
+      "reminderArrival": "{title}: {days} days to go – arrival {date}",
+      "reminderSavedSoon": "{title} starts {date} – still taking requests",
+      "hostOpened": "{name} opened a House: {title}"
+    },
+    "inbox": {
+      "title": "Messages",
+      "loginTitle": "Log in to see your messages",
+      "loginDescription": "Crew chats and direct messages show up here.",
+      "unknown": "Unknown",
+      "emptyTitle": "No chats yet",
+      "emptyDescription": "Once you host a House or get accepted, your crew chat shows up here.",
+      "explore": "Explore Houses",
+      "searchPlaceholder": "Search chats",
+      "searchLabel": "Search chats by House or name",
+      "crews": "Crews",
+      "direct": "Direct",
+      "noMatch": "No chats match “{query}”.",
+      "noMessages": "No messages yet",
+      "you": "You",
+      "preview": "{author}: {text}",
+      "unread": "Unread",
+      "photos": "📷 {count, plural, one {Photo} other {# photos}}",
+      "file": "📎 {name}",
+      "attachment": "File"
+    },
+    "thread": {
+      "loginTitle": "Log in to see this chat",
+      "crewOnly": "This chat is for the crew only",
+      "crewOnlyDescription": "You'll get access once the host accepts your request.",
+      "notFound": "Chat not found",
+      "viewHouse": "View House",
+      "backToMessages": "Back to messages",
+      "sayHiCrew": "Say hi – the crew is here.",
+      "sayHiDirect": "Say hi – {name}'s here.",
+      "sayHiDirectUnknown": "Say hi – they're here.",
+      "composerCrew": "Message the crew",
+      "composerDirect": "Message {name}",
+      "attach": "Attach photos or a PDF",
+      "emoji": "Emoji",
+      "removeAttachment": "Remove {name}",
+      "removePreview": "Remove link preview",
+      "replyingTo": "Replying to {name}",
+      "cancelReply": "Cancel reply",
+      "messageLabel": "Message",
+      "send": "Send",
+      "lockedBy": "{name} locked the accommodation",
+      "locked": "Accommodation locked",
+      "total": "Total",
+      "perPerson": "Per person",
+      "payBy": "Pay by",
+      "paid": "Paid",
+      "payShare": "Pay my share · {price}",
+      "replaced": "Replaced – this place was unlocked later.",
+      "lockedAccommodation": "Locked accommodation",
+      "lockThis": "Lock this accommodation",
+      "whosIn": "Who's in",
+      "lockSummary": "{price} pp · pay by {date}",
+      "paidOf": "{paid} of {total} paid",
+      "payments": "Payments",
+      "accommodationOpen": "Accommodation open · {count, plural, =0 {no links suggested yet} one {# link suggested} other {# links suggested}}",
+      "closed": "This House is closed – it's no longer listed and takes no new requests.",
+      "unknown": "Unknown",
+      "about": "About {title}",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "newMessages": "New messages",
+      "typing": "{name} is typing…",
+      "reply": "Reply",
+      "react": "React",
+      "reactWith": "React with {emoji}",
+      "reactionLabel": "{emoji} · {count, plural, one {# reaction} other {# reactions}}",
+      "photo": "📷 Photo",
+      "file": "File",
+      "openPhoto": "Open photo {index} of {count}",
+      "photoAlt": "Photo from the chat",
+      "whosInLabel": "Who's in – {count, plural, one {# person} other {# people}}",
+      "memberCount": "{count, plural, one {# person} other {# people}} in this crew",
+      "host": "Host",
+      "you": "You"
+    }
+  },
+  "profile": {
+    "loginTitle": "Log in to see your profile",
+    "notFound": "Profile not found",
+    "explore": "Explore Houses",
+    "verified": "Verified ID",
+    "basedIn": "based in {city}",
+    "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>",
+    "pastCrews": "Past crews",
+    "pastCrewsOpen": "See {count, plural, one {# person} other {# people}} {name} has lived with",
+    "pastCrewsTitle": "Lived with",
+    "pastCrewsSubtitle": "People from {name}'s past Houses",
+    "editProfile": "Edit profile",
+    "shareProfile": "Share profile",
+    "message": "Message",
+    "linkCopied": "Profile link copied",
+    "photos": "Photos",
+    "openPhoto": "Open photo {index}",
+    "addPhoto": "Add photo",
+    "openAnother": "Open another House",
+    "findHouse": "Find a House",
+    "hosting": "Hosting",
+    "joined": "Joined",
+    "past": "Past",
+    "emptyHostingMe": "You're not hosting a House right now.",
+    "emptyHosting": "{name} isn't hosting right now.",
+    "emptyJoinedMe": "No upcoming Houses joined yet.",
+    "emptyJoined": "No upcoming Houses joined.",
+    "pastStatus": {
+      "completed": "Completed",
+      "closed": "Closed",
+      "ended": "Ended"
+    }
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "intro": "From an idea to a shared House in <b>five steps</b>.",
+    "stepsTitle": "Five steps",
+    "steps": {
+      "open": {
+        "title": "Open a House",
+        "text": "Pick a place, dates and a vibe – a rough budget is enough to start."
+      },
+      "share": {
+        "title": "Share your link",
+        "text": "Your House gets its own page. Post it wherever your people are."
+      },
+      "requests": {
+        "title": "Get requests",
+        "text": "People ask to join with a short message and their profile."
+      },
+      "crew": {
+        "title": "Pick your crew",
+        "text": "Reply, accept who fits, and decide on the place together in the crew chat."
+      },
+      "live": {
+        "title": "Live together",
+        "text": "Arrive, unpack, and share a house with people who wanted the same trip."
+      }
+    },
+    "app": {
+      "title": "Use Simpulo like an app",
+      "intro": "No store needed – add it to your home screen and get notified when hosts answer.",
+      "installed": "You're already using the installed app.",
+      "platform": "Platform",
+      "platforms": {
+        "iphone": "iPhone",
+        "android": "Android"
+      },
+      "steps": {
+        "share": "Tap Share in Safari's toolbar.",
+        "addToHome": "Choose “Add to Home Screen”, then Add.",
+        "menu": "In Chrome, tap the menu top right.",
+        "install": "Choose “Install app” (or “Add to Home screen”).",
+        "notify": "Open Simpulo from the icon and allow notifications."
+      },
+      "ctaIphone": "Add to iPhone",
+      "ctaAndroid": "Install on Android",
+      "toastIphone": "In Safari: tap Share, then “Add to Home Screen”",
+      "toastAndroid": "In Chrome: tap ⋮, then “Install app”",
+      "desktopHint": "On a computer? Open simpulo.app on your phone to install it."
+    },
+    "nudge": {
+      "title": "Stay in the loop",
+      "text": "Get notified when {name} answers – add Simpulo to your home screen.",
+      "later": "Later",
+      "showMe": "Show me how"
+    }
+  }
+}

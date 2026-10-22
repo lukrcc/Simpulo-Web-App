@@ -1,40 +1,46 @@
-import { House, Inbox, Send, Sparkles, Users, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { GetTheApp } from "@/components/GetTheApp";
-import { ContentPage } from "@/components/layout/ContentPage";
+import { getTranslations } from "next-intl/server";
+import { GetTheApp, StepNumber } from "@/components/GetTheApp";
+import { Container } from "@/components/layout/Container";
 
-export const metadata: Metadata = { title: "How it works" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: t("pages.howItWorks") };
+}
 
-const STEPS: ReadonlyArray<{ icon: LucideIcon; title: string; text: string }> = [
-  { icon: House, title: "Open a House", text: "Pick a place, dates and a vibe. Say who you're looking for – a rough budget is enough to start." },
-  { icon: Send, title: "Share", text: "Your House gets its own page. Share the link wherever your people are." },
-  { icon: Inbox, title: "Requests", text: "People ask to join with a short message. You see their profile and reply before you decide." },
-  { icon: Users, title: "Crew", text: "Accepted people join the crew chat. Decide on the place together and lock it in." },
-  { icon: Sparkles, title: "Live together", text: "Arrive, unpack, and live with people who wanted the same trip as you." },
-];
+/** Step copy: keys under howItWorks.steps. */
+const STEPS = ["open", "share", "requests", "crew", "live"] as const;
 
-export default function HowItWorksPage() {
+/** One screen on desktop (fits 1440×900 under the sticky header): two equal-height cards. */
+export default async function HowItWorksPage() {
+  const t = await getTranslations("howItWorks");
   return (
-    <ContentPage title="How Simpulo works" intro="Five steps from an idea to a shared House.">
-      <ol className="space-y-6">
-        {STEPS.map(({ icon: Icon, title, text }, i) => (
-          <li key={title} className="flex gap-4">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <Icon className="size-5" aria-hidden />
-            </span>
-            <div>
-              <h2 className="font-semibold text-ink">
-                <span className="mr-1.5 text-zinc-400">{i + 1}.</span>
-                {title}
-              </h2>
-              <p className="mt-1">{text}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div className="pt-6">
-        <GetTheApp />
+    <Container page>
+      <h1 className="text-4xl font-bold tracking-tight">{t("title")}</h1>
+      <p className="mt-2 text-lg text-zinc-500">
+        {t.rich("intro", { b: (chunks) => <span className="font-semibold text-ink">{chunks}</span> })}
+      </p>
+
+      {/* Grid items stretch, so both cards share the taller one's height. */}
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <section className="rounded-[28px] bg-white p-8 lg:col-span-7">
+          <h2 className="text-xl font-semibold tracking-tight text-ink">{t("stepsTitle")}</h2>
+          <ol className="mt-6 space-y-5">
+            {STEPS.map((step, i) => (
+              <li key={step} className="flex gap-4">
+                <StepNumber n={i + 1} />
+                <div className="min-w-0">
+                  {/* leading-8 centres the title on the 32px number circle */}
+                  <h3 className="text-lg font-semibold leading-8 text-ink">{t(`steps.${step}.title`)}</h3>
+                  <p className="text-base leading-normal text-zinc-600">{t(`steps.${step}.text`)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <GetTheApp className="lg:col-span-5" />
       </div>
-    </ContentPage>
+    </Container>
   );
 }

@@ -3,7 +3,7 @@
 /* static: also emit variables that are only read via var() (e.g. --color-page in CardTab and body). */
 @theme static {
   --color-accent: #f0633a;
-  --color-accent-dark: #d9522c;
+  --color-accent-dark: #d9552f;
   --color-accent-soft: #fdeee8;
   --color-ink: #1e1e22;
   --color-muted: #71717a;
@@ -24,13 +24,76 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/*
+ * Height of the sticky top header – the one source for offsets (sticky tops, scroll padding, full-height pages).
+ * Below md there is no top header (the tab bar sits at the bottom), only the iOS status bar area.
+ */
+:root {
+  --header-h: env(safe-area-inset-top, 0px);
+}
+@media (min-width: 768px) {
+  :root {
+    --header-h: 64px;
+  }
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
+  /* No rubber-band pull behind the glass header; normal scrolling is unaffected. */
+  overscroll-behavior-y: none;
+  /* Anchors (#get-the-app …) land below the header. */
+  scroll-padding-top: var(--header-h);
 }
 
 body {
   background: var(--color-page);
   color: var(--color-ink);
+  overscroll-behavior: none;
+}
+
+/*
+ * Full-viewport app pages – no footer, no bottom padding, only their own panes scroll:
+ * - data-app-pane="desktop": Houses/Messages master–detail, from lg up (their mobile list views keep the footer)
+ * - data-app-pane="always": the mobile chat page
+ */
+body:has([data-app-pane="always"]) footer {
+  display: none;
+}
+main:has([data-app-pane="always"]) {
+  padding-bottom: 0;
+}
+@media (min-width: 1024px) {
+  body:has([data-app-pane="desktop"]) footer {
+    display: none;
+  }
+  main:has([data-app-pane="desktop"]) {
+    padding-bottom: 0;
+  }
+}
+
+/* Thin overlay-style scrollbar that only shows its thumb on hover – for the Houses/Messages columns. */
+@utility scroll-pane {
+  /* Positioned, so absolutely placed children (sr-only text, hidden file inputs) stay inside the pane
+     instead of stretching the page. */
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  &:hover {
+    scrollbar-color: #d4d4d8 transparent;
+  }
+  /* WebKit/Blink without scrollbar-color support */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: transparent;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background: #d4d4d8;
+  }
 }
 
 /* Liquid Glass for floating UI. In the components layer, so utilities (border-b-only, hover:bg-…) still win. */
@@ -80,6 +143,12 @@ body {
 .animate-toast-in { animation: toast-in 180ms ease-out; }
 .animate-sheet-in { animation: sheet-in 220ms ease-out; }
 .animate-fade-in { animation: fade-in 180ms ease-out; }
+/* Photo lightbox: fade + scale 0.98 → 1. */
+@keyframes lightbox-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-lightbox-in { animation: lightbox-in 200ms ease-out; }
 
 /* Bento top: one step moves every house a slot forward (C → B → A → out). Each cell crossfades;
    --stagger (0 / 120 / 240ms per cell) makes the house "walk" from C to B to A. ~900ms in total. */

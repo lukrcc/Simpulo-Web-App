@@ -1,6 +1,7 @@
 import { Camera, Dumbbell, Flower2, Laptop, Rocket, TreePalm, WavesHorizontal, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Vibe } from "@/lib/types";
-import { cn, vibeLabel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const vibeStyles: Record<Vibe, { icon: LucideIcon; className: string }> = {
   fitness: { icon: Dumbbell, className: "bg-emerald-50 text-emerald-700" },
@@ -13,6 +14,7 @@ const vibeStyles: Record<Vibe, { icon: LucideIcon; className: string }> = {
 };
 
 export function VibeBadge({ vibe, className }: { vibe: Vibe; className?: string }) {
+  const t = useTranslations("common");
   const { icon: Icon, className: colors } = vibeStyles[vibe];
   return (
     <span
@@ -23,7 +25,7 @@ export function VibeBadge({ vibe, className }: { vibe: Vibe; className?: string 
       )}
     >
       <Icon className="size-3.5" aria-hidden />
-      {vibeLabel(vibe)}
+      {t(`vibes.${vibe}`)}
     </span>
   );
 }

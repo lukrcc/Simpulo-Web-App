@@ -2,6 +2,7 @@
 
 import { BellRing } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { GET_THE_APP_HREF } from "@/components/layout/secondaryLinks";
 import { buttonClass } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const InstallNudgeContext = createContext<OfferInstall | null>(null);
 
 export function InstallNudgeProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const t = useTranslations("howItWorks.nudge");
   const [hostName, setHostName] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -41,18 +43,16 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
   return (
     <InstallNudgeContext.Provider value={offerInstall}>
       {children}
-      <Sheet open={hostName !== null} onClose={close} title="Stay in the loop">
+      <Sheet open={hostName !== null} onClose={close} title={t("title")}>
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
             <BellRing className="size-5" />
           </span>
-          <p className="text-neutral-700">
-            Get notified when {hostName} answers – add Simpulo to your home screen.
-          </p>
+          <p className="text-neutral-700">{t("text", { name: hostName ?? "" })}</p>
         </div>
         <div className="mt-6 flex gap-2">
           <button type="button" onClick={close} className={buttonClass("ghost", "lg", "flex-1")}>
-            Later
+            {t("later")}
           </button>
           <button
             type="button"
@@ -62,7 +62,7 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
             }}
             className={buttonClass("dark", "lg", "flex-1")}
           >
-            Show me how
+            {t("showMe")}
           </button>
         </div>
       </Sheet>

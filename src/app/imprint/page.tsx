@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { ContentPage, TodoNote } from "@/components/layout/ContentPage";
 
-export const metadata: Metadata = { title: "Imprint" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: t("pages.imprint") };
+}
 
-export default function ImprintPage() {
+export default async function ImprintPage() {
+  const t = await getTranslations("footer.pages");
   return (
-    <ContentPage title="Imprint">
-      <TodoNote>Placeholder text – replace with the real, legally reviewed version before launch.</TodoNote>
-      <p>Legal notice – company name, address, managing director, register entry and contact details.</p>
+    <ContentPage title={t("imprint.title")}>
+      <TodoNote>{t("placeholder")}</TodoNote>
+      <p>{t("imprint.text")}</p>
     </ContentPage>
   );
 }

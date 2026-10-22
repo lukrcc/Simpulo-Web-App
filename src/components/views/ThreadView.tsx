@@ -1,234 +1,134 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, SearchX, Send } from "lucide-react";
+import { SearchX } from "lucide-react";
 import Link from "next/link";
-import { use, useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { use, useEffect, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Composer, type ReplyDraft } from "@/components/chat/Composer";
+import { MessageList } from "@/components/chat/MessageList";
+import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
 import { Container } from "@/components/layout/Container";
-import { AccommodationSection } from "@/components/stay/AccommodationSection";
-import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { LockSheet } from "@/components/stay/LockSheet";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { StatusPill } from "@/components/ui/StatusPill";
-import { mockPaymentStatus } from "@/lib/mock-extras";
-import { findUser, getCrew, useStore } from "@/lib/store";
-import type { Stay, Thread, User } from "@/lib/types";
-import { cn, formatDateRange, formatDay, formatTime, stayPriceLabel } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { findUser, useStore } from "@/lib/store";
+import type { Stay, Thread } from "@/lib/types";
+import { useIsDesktop } from "@/lib/useIsDesktop";
 
+/** /inbox/[threadId] – the mobile detail page. On desktop the same chat opens inside /inbox. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
+  const isDesktop = useIsDesktop();
+  const router = useRouter();
+  const t = useTranslations("messages.thread");
+
+  useEffect(() => {
+    if (isDesktop) router.replace(`/inbox?id=${threadId}`);
+  }, [isDesktop, threadId, router]);
+
   return (
-    <RequireLogin title="Log in to see this chat">
-      <ThreadGate threadId={threadId} />
+    <RequireLogin title={t("loginTitle")}>
+      {isDesktop ? <PageSkeleton /> : <ThreadGate threadId={threadId} embedded={false} />}
     </RequireLogin>
   );
 }
 
-function ThreadGate({ threadId }: { threadId: string }) {
+/** The right column of /inbox on desktop. */
+export function ThreadPanel({ threadId }: { threadId: string }) {
+  return <ThreadGate threadId={threadId} embedded />;
+}
+
+function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolean }) {
+  const t = useTranslations("messages.thread");
   const store = useStore();
   const thread = store.threads.find((t) => t.id === threadId);
   const stay = thread && store.stays.find((s) => s.id === thread.stayId);
 
   // Crew threads open up only after acceptance (participants), direct threads only to the two people in them.
   if (!thread || !stay || !store.currentUserId || !thread.participantIds.includes(store.currentUserId)) {
-    return (
+    const empty = (
+      <EmptyState
+        icon={SearchX}
+        title={thread ? t("crewOnly") : t("notFound")}
+        description={thread ? t("crewOnlyDescription") : undefined}
+        action={
+          <Link href={stay ? `/stays/${stay.slug}` : "/inbox"} className={buttonClass("dark", "sm")}>
+            {stay ? t("viewHouse") : t("backToMessages")}
+          </Link>
+        }
+      />
+    );
+    return embedded ? (
+      empty
+    ) : (
       <Container page width="narrow">
-        <EmptyState
-          icon={SearchX}
-          title={thread ? "This chat is for the crew only" : "Chat not found"}
-          description={thread ? "You'll get access once the host accepts your request." : undefined}
-          action={
-            <Link href={stay ? `/stays/${stay.slug}` : "/inbox"} className={buttonClass("primary", "sm")}>
-              {stay ? "View House" : "Back to messages"}
-            </Link>
-          }
-        />
+        {empty}
       </Container>
     );
   }
 
-  return <ThreadContent thread={thread} stay={stay} />;
+  return <ThreadContent key={thread.id} thread={thread} stay={stay} embedded={embedded} />;
 }
 
-function ThreadContent({ thread, stay }: { thread: Thread; stay: Stay }) {
+function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay; embedded: boolean }) {
+  const t = useTranslations("messages.thread");
   const store = useStore();
-  const { markThreadRead, sendMessage } = store;
-  const [text, setText] = useState("");
-  const endRef = useRef<HTMLDivElement>(null);
+  const { markThreadRead } = store;
   const messageCount = thread.messages.length;
+  const [lockLink, setLockLink] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
 
+  // Open = read; new messages while it's open too. (MessageList captured the old mark for its divider first.)
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
     markThreadRead(thread.id);
   }, [messageCount, thread.id, markThreadRead]);
 
-  function handleSend(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    sendMessage(thread.id, text);
-    setText("");
-  }
-
+  const isHost = stay.hostId === store.currentUserId;
+  // Only the host locks, only in the crew chat, only while the place is still open.
+  const canLock = thread.type === "crew" && isHost && stay.accommodationStatus !== "locked" && stay.status !== "closed";
   const other =
     thread.type === "direct"
       ? findUser(store, thread.participantIds.find((id) => id !== store.currentUserId) ?? "")
       : undefined;
+  const otherName = other?.name.split(" ")[0];
 
-  return (
-    <Container page width="narrow">
-      <div className="flex flex-col">
-      {thread.type === "crew" ? <CrewHeader stay={stay} /> : <DirectHeader stay={stay} other={other} />}
-
-      <ol className="flex-1 space-y-3 py-4">
-        {messageCount === 0 && (
-          <li className="py-10 text-center text-sm text-neutral-500">
-            {thread.type === "crew" ? "No messages yet – say hi to your crew 👋" : "Start the conversation 👋"}
-          </li>
-        )}
-        {thread.messages.map((message, i) => {
-          const previous = thread.messages[i - 1];
-          const showDay = !previous || formatDay(previous.createdAt) !== formatDay(message.createdAt);
-          const dayDivider = showDay && (
-            <p className="my-4 text-center text-xs font-medium text-neutral-400">{formatDay(message.createdAt)}</p>
-          );
-
-          if (message.userId === "system") {
-            return (
-              <li key={message.id}>
-                {dayDivider}
-                <p className="mx-auto w-fit rounded-full bg-neutral-100 px-3 py-1 text-center text-xs text-neutral-500">
-                  {message.text}
-                </p>
-              </li>
-            );
-          }
-
-          const author = findUser(store, message.userId);
-          const mine = message.userId === store.currentUserId;
-          const showAuthor = !mine && (showDay || previous?.userId !== message.userId || previous.userId === "system");
-          return (
-            <li key={message.id}>
-              {dayDivider}
-              <div className={cn("flex items-end gap-2", mine && "flex-row-reverse")}>
-                {!mine && <div className="w-8 shrink-0">{showAuthor && author && <Avatar user={author} size="sm" linked />}</div>}
-                <div className={cn("max-w-[78%]", mine && "text-right")}>
-                  {showAuthor && author && thread.type === "crew" && (
-                    <p className="mb-0.5 px-1 text-xs text-neutral-500">{author.name.split(" ")[0]}</p>
-                  )}
-                  <div
-                    className={cn(
-                      "inline-block rounded-2xl px-4 py-2 text-left text-sm leading-relaxed break-words",
-                      mine ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-white text-ink",
-                    )}
-                  >
-                    {message.text}
-                  </div>
-                  <p className="mt-0.5 px-1 text-[10px] text-neutral-400">{formatTime(message.createdAt)}</p>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      <div ref={endRef} />
-
-      {/* Composer – sits above the mobile tab bar */}
-      <form
-        onSubmit={handleSend}
-        className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-neutral-100 -mx-4 bg-white px-4 py-3 md:bottom-0 md:mx-0 md:px-0"
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={thread.type === "crew" ? "Message the crew…" : `Message ${other?.name.split(" ")[0] ?? ""}…`}
-          aria-label="Message"
-          className="h-11 flex-1 rounded-full border border-neutral-200 px-4 text-sm outline-none focus:border-ink"
-        />
-        <button type="submit" disabled={!text.trim()} aria-label="Send" className={buttonClass("primary", "md", "w-11 px-0")}>
-          <Send className="size-4" />
-        </button>
-      </form>
-      </div>
-    </Container>
+  const content = (
+    <>
+      {thread.type === "crew" ? <CrewHeader stay={stay} embedded={embedded} /> : <DirectHeader stay={stay} other={other} embedded={embedded} />}
+      <MessageList
+        thread={thread}
+        stay={stay}
+        emptyText={thread.type === "crew" ? t("sayHiCrew") : otherName ? t("sayHiDirect", { name: otherName }) : t("sayHiDirectUnknown")}
+        onLock={canLock ? setLockLink : undefined}
+        onReply={setReplyTo}
+      />
+      <Composer
+        threadId={thread.id}
+        placeholder={thread.type === "crew" ? t("composerCrew") : t("composerDirect", { name: otherName ?? "" })}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+      />
+      {lockLink && <LockSheet stay={stay} link={lockLink} onClose={() => setLockLink(null)} />}
+    </>
   );
-}
 
-const headerClass =
-  "sticky top-0 z-30 -mx-4 border-b border-neutral-100 bg-white/95 px-4 py-3 backdrop-blur md:top-16 md:mx-0 md:rounded-b-2xl md:px-0";
+  if (embedded) {
+    // Fills the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
+    return <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-page">{content}</div>;
+  }
 
-function CrewHeader({ stay }: { stay: Stay }) {
-  const store = useStore();
-  const crew = getCrew(store, stay);
-  const paidCount = crew.filter((m) => mockPaymentStatus(stay.id, m.id) === "paid").length;
-
+  // Mobile page: exactly the viewport above the floating tab bar (below md; the status bar area as top padding) /
+  // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
+  // itself never scrolls.
   return (
-    <header className={headerClass}>
-      <div className="flex items-center gap-3">
-        <Link href="/inbox" aria-label="Back to messages" className="-ml-2 rounded-full p-2 hover:bg-neutral-100">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <Link href={`/stays/${stay.slug}`} className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{stay.title}</p>
-          <p className="truncate text-xs text-neutral-500">{formatDateRange(stay.startDate, stay.endDate)}</p>
-        </Link>
-        <div className="flex flex-col items-end gap-0.5">
-          <AvatarStack users={crew} size="xs" max={4} linked />
-          <span className="text-[10px] text-neutral-400">Who&apos;s in</span>
-        </div>
-      </div>
-
-      <div className="mt-3">
-        <AccommodationSection stay={stay} compact />
-      </div>
-
-      <details className="group mt-2 rounded-xl bg-neutral-50 text-sm">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium [&::-webkit-details-marker]:hidden">
-          Payments
-          <span className="flex items-center gap-1 text-xs font-normal text-neutral-500">
-            {paidCount}/{crew.length} paid
-            <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
-          </span>
-        </summary>
-        <table className="w-full text-left">
-          <thead className="text-xs text-neutral-500">
-            <tr>
-              <th className="px-3 py-1.5 font-medium">Name</th>
-              <th className="px-3 py-1.5 font-medium">Share</th>
-              <th className="px-3 py-1.5 text-right font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {crew.map((member) => (
-              <tr key={member.id} className="border-t border-neutral-100">
-                <td className="px-3 py-2">{member.id === store.currentUserId ? "You" : member.name.split(" ")[0]}</td>
-                <td className="px-3 py-2">{stayPriceLabel(stay)}</td>
-                <td className="px-3 py-2 text-right">
-                  <StatusPill status={mockPaymentStatus(stay.id, member.id)} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
-    </header>
-  );
-}
-
-function DirectHeader({ stay, other }: { stay: Stay; other?: User }) {
-  return (
-    <header className={headerClass}>
-      <div className="flex items-center gap-3">
-        <Link href="/inbox" aria-label="Back to messages" className="-ml-2 rounded-full p-2 hover:bg-neutral-100">
-          <ArrowLeft className="size-5" />
-        </Link>
-        {other && <Avatar user={other} size="md" linked />}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{other?.name ?? "Unknown"}</p>
-          <Link href={`/stays/${stay.slug}`} className="block truncate text-xs text-neutral-500 hover:underline">
-            About {stay.title}
-          </Link>
-        </div>
-      </div>
-    </header>
+    <div
+      data-app-pane="always"
+      className="relative z-41 flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-page md:h-[calc(100dvh-var(--header-h))]"
+    >
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{content}</div>
+    </div>
   );
 }

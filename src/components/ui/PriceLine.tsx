@@ -1,5 +1,11 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useFormat } from "@/i18n/format";
+import { convertApprox } from "@/lib/mock-extras";
 import type { Stay } from "@/lib/types";
-import { cn, formatBudget, formatPrice, stayPrice, stayPriceLabel } from "@/lib/utils";
+import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
+import { cn, stayPrice } from "@/lib/utils";
 
 interface PriceLineProps {
   stay: Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
@@ -9,46 +15,54 @@ interface PriceLineProps {
   className?: string;
 }
 
-/** Fixed price (once locked), rough budget, or "Budget TBD" – with the Simpulo fee note where it applies. */
+/**
+ * Fixed price (once locked), rough budget, or "Budget TBD" – one all-in number per person.
+ * The fee breakdown only appears later, in the payment step.
+ */
 export function PriceLine({ stay, size = "sm", compact = false, className }: PriceLineProps) {
+  const t = useTranslations("common");
+  const format = useFormat();
   const price = stayPrice(stay);
+  const preferred = usePreferredCurrency();
+  // Only a hint for the viewer – the House is priced and charged in its own currency.
+  const showApprox = !compact && preferred !== null && preferred !== stay.currency && price.kind !== "tbd";
 
   if (compact) {
     return (
-      <div className={className}>
-        <p className={cn("font-semibold", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>{stayPriceLabel(stay)}</p>
-        <p className="text-xs text-neutral-500">
-          {price.kind === "price" && `incl. ${formatPrice(price.fee, stay.currency)} Simpulo fee`}
-          {price.kind === "budget" && "Rough budget"}
-          {price.kind === "tbd" && "Ask the host"}
-        </p>
-      </div>
+      <p className={cn("font-semibold", price.kind === "tbd" ? "text-neutral-500" : "text-ink", className)}>
+        {format.priceLabel(stay)}
+      </p>
     );
   }
 
-  const big = size === "lg" ? "text-2xl" : "text-base";
-  const unit = cn("font-normal text-neutral-500", size === "lg" ? "text-base" : "text-sm");
+  const amount =
+    price.kind === "price"
+      ? t("ui.priceLine.perPerson", { price: format.price(price.amount, stay.currency) })
+      : price.kind === "budget"
+        ? t("ui.priceLine.budgetPerPerson", { range: format.priceRange(price.min, price.max, stay.currency) })
+        : t("budgetTbd");
 
   return (
     <div className={className}>
-      {price.kind === "price" && (
-        <>
-          <p className={cn("font-semibold text-ink", big)}>
-            {formatPrice(price.amount, stay.currency)} <span className={unit}>per person</span>
-          </p>
-          <p className="text-xs text-neutral-500">incl. {formatPrice(price.fee, stay.currency)} Simpulo fee</p>
-        </>
+      <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>
+        {amount}
+      </p>
+      {showApprox && (
+        <p className="mt-0.5 text-[13px] text-zinc-500">
+          {t("ui.priceLine.approx", {
+            amount:
+              price.kind === "price"
+                ? format.approx(convertApprox(price.amount, stay.currency, preferred), preferred)
+                : format.approxRange(
+                    convertApprox(price.min, stay.currency, preferred),
+                    convertApprox(price.max, stay.currency, preferred),
+                    preferred,
+                  ),
+            currency: stay.currency,
+          })}
+        </p>
       )}
-      {price.kind === "budget" && (
-        <>
-          <p className={cn("font-semibold text-ink", big)}>
-            <span className={unit}>Budget</span> ~{formatBudget(price.min, price.max, stay.currency)}{" "}
-            <span className={unit}>per person</span>
-          </p>
-          <p className="text-xs text-neutral-500">Final price once the house is locked</p>
-        </>
-      )}
-      {price.kind === "tbd" && <p className={cn("font-semibold text-neutral-500", big)}>Budget TBD – ask the host</p>}
+      <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.note")}</p>
     </div>
   );
 }

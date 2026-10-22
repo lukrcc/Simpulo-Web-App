@@ -1,24 +1,27 @@
 import type { Metadata, Viewport } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { DevSwitcher } from "@/components/auth/DevSwitcher";
 import { InstallNudgeProvider } from "@/components/InstallNudge";
+import { NotificationToasts } from "@/components/NotificationToasts";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
 import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Simpulo – Share a place. Find your people.",
-    template: "%s · Simpulo",
-  },
-  description: "Find people to share a house with for a few weeks – hosted by real people, anywhere.",
-  // Home-screen web app: draw edge-to-edge under the iOS status bar.
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Simpulo" },
-  manifest: "/manifest.webmanifest",
-  // Next emits the standard "mobile-web-app-capable"; older iOS only reads the Apple-prefixed tag.
-  other: { "apple-mobile-web-app-capable": "yes" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return {
+    title: { default: t("siteTitle"), template: t("titleTemplate") },
+    description: t("siteDescription"),
+    // Home-screen web app: draw edge-to-edge under the iOS status bar.
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Simpulo" },
+    manifest: "/manifest.webmanifest",
+    // Next emits the standard "mobile-web-app-capable"; older iOS only reads the Apple-prefixed tag.
+    other: { "apple-mobile-web-app-capable": "yes" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#1E1E22",
@@ -26,10 +29,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang={locale} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
+        {/* Messages and formats come from src/i18n/request.ts. */}
+        <NextIntlClientProvider>
         <StoreProvider>
           <ToastProvider>
             <AuthProvider>
@@ -37,9 +43,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <AppShell>{children}</AppShell>
               </InstallNudgeProvider>
               <DevSwitcher />
+              <NotificationToasts />
             </AuthProvider>
           </ToastProvider>
         </StoreProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

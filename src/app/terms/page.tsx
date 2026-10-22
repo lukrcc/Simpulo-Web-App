@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { ContentPage, TodoNote } from "@/components/layout/ContentPage";
 
-export const metadata: Metadata = { title: "Terms of Service" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: t("pages.terms") };
+}
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const t = await getTranslations("footer.pages");
   return (
-    <ContentPage title="Terms of Service">
-      <TodoNote>Placeholder text – replace with the real, legally reviewed version before launch.</TodoNote>
-      <p>Terms of service – rules for hosts and guests, payments and fees, cancellations and liability.</p>
+    <ContentPage title={t("terms.title")}>
+      <TodoNote>{t("placeholder")}</TodoNote>
+      <p>{t("terms.text")}</p>
     </ContentPage>
   );
 }

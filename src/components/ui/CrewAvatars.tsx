@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
@@ -9,6 +10,7 @@ const MAX_MEMBERS = 3;
  * 28px avatars, overlapping by 8px, white 2px borders – no numbers. Host alone → "Just opened".
  */
 export function CrewAvatars({ host, members }: { host: User; members: User[] }) {
+  const t = useTranslations("common.ui.crewAvatars");
   const shown = members.slice(0, MAX_MEMBERS);
   const rest = members.length - shown.length;
   const avatar = "size-7 border-2 border-white";
@@ -26,7 +28,7 @@ export function CrewAvatars({ host, members }: { host: User; members: User[] }) 
           </span>
         )}
       </div>
-      {members.length === 0 && <span className="text-sm text-white/70">Just opened</span>}
+      {members.length === 0 && <span className="text-sm text-white/70">{t("justOpened")}</span>}
     </div>
   );
 }

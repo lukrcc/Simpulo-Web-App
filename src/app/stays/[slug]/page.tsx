@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { StayDetail } from "@/components/views/StayDetail";
@@ -12,7 +13,10 @@ import { firstSentence } from "@/lib/utils";
 export async function generateMetadata({ params }: PageProps<"/stays/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const stay = stays.find((s) => s.slug === slug);
-  if (!stay) return { title: "House" };
+  if (!stay) {
+    const t = await getTranslations("meta.pages");
+    return { title: t("house") };
+  }
 
   const host = users.find((u) => u.id === stay.hostId);
   const description = firstSentence(stay.lookingForText);

@@ -1,28 +1,199 @@
 "use client";
 
-import { useStore } from "@/lib/store";
+import { Bell, MoreHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useFormat } from "@/i18n/format";
+import { computeReminders, type Reminder } from "@/lib/reminders";
+import { findUser, getCrew, OPEN_AS_PARAM, useStore } from "@/lib/store";
+import type { Stay } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
-/** Development only: switch the mock user (or log out) from a small pill in the corner. */
+type Role = "host" | "crew" | "pending" | "none";
+
+/** Development only: switch the mock user, see your role on this page, open host/guest tabs, fire reminders. */
 export function DevSwitcher() {
-  const { users, currentUserId, login, logout } = useStore();
   if (process.env.NODE_ENV !== "development") return null;
+  // usePathname/useSearchParams suspend during prerender – keep that inside this small boundary.
+  return (
+    <Suspense fallback={null}>
+      <DevSwitcherInner />
+    </Suspense>
+  );
+}
+
+/** The House the current route is about: House page, Houses detail/edit, or a chat. */
+function useRouteStay(): Stay | undefined {
+  const store = useStore();
+  const pathname = usePathname();
+  const id = useSearchParams().get("id");
+  const [, section, param] = pathname.split("/");
+  if (section === "stays" && param) return store.stays.find((s) => s.slug === param);
+  if (section === "my-stays") return store.stays.find((s) => s.id === (param ?? id));
+  if (section === "inbox") {
+    const thread = store.threads.find((t) => t.id === (param ?? id));
+    return thread && store.stays.find((s) => s.id === thread.stayId);
+  }
+  return undefined;
+}
+
+function DevSwitcherInner() {
+  const t = useTranslations("auth.dev");
+  const store = useStore();
+  const { users, currentUserId, login, logout } = store;
+  const stay = useRouteStay();
+  const [panel, setPanel] = useState<"menu" | "scheduled" | null>(null);
+
+  const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
+  const reminders = currentUserId ? computeReminders(store, currentUserId) : [];
 
   return (
-    <label className="glass fixed bottom-[calc(152px+env(safe-area-inset-bottom))] left-4 z-50 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs md:bottom-4 md:left-16">
-      <span className="font-semibold text-zinc-500">Dev</span>
-      <select
-        value={currentUserId ?? ""}
-        onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
-        className="cursor-pointer bg-transparent font-medium text-ink outline-none"
-        aria-label="Mock user"
-      >
-        <option value="">Logged out</option>
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {user.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="fixed bottom-[calc(152px+env(safe-area-inset-bottom))] left-4 z-50 md:bottom-4 md:left-16">
+      {panel && (
+        <>
+          <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={() => setPanel(null)} className="fixed inset-0 cursor-default" />
+          <div className="animate-fade-in absolute bottom-10 left-0 w-80 overflow-hidden rounded-2xl bg-white text-xs shadow-xl ring-1 ring-black/5">
+            {panel === "menu" ? <OpenAsMenu stay={stay} onDone={() => setPanel(null)} /> : <ScheduledPanel reminders={reminders} />}
+          </div>
+        </>
+      )}
+      <div className="glass relative flex h-8 items-center gap-1.5 rounded-full pl-3 pr-1 text-xs">
+        <span className="font-semibold text-zinc-500">{t("label")}</span>
+        <select
+          value={currentUserId ?? ""}
+          onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
+          className="cursor-pointer bg-transparent font-medium text-ink outline-none"
+          aria-label={t("mockUser")}
+        >
+          <option value="">{t("loggedOut")}</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
+        {/* Whose perspective this page shows – only on routes about one House. */}
+        {role && (
+          <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 font-medium", ROLE_STYLES[role])}>{t(`role.${role}`)}</span>
+        )}
+        {currentUserId && (
+          <button
+            type="button"
+            onClick={() => setPanel((p) => (p === "scheduled" ? null : "scheduled"))}
+            aria-label={t("scheduled")}
+            title={t("scheduled")}
+            className="flex h-6 items-center gap-1 rounded-full px-1.5 text-zinc-600 hover:bg-black/5"
+          >
+            <Bell className="size-3.5" />
+            {reminders.length}
+          </button>
+        )}
+        {stay && (
+          <button
+            type="button"
+            onClick={() => setPanel((p) => (p === "menu" ? null : "menu"))}
+            aria-label={t("more")}
+            className="flex size-6 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const ROLE_STYLES: Record<Role, string> = {
+  host: "bg-accent-soft text-accent",
+  crew: "bg-emerald-50 text-emerald-700",
+  pending: "bg-amber-50 text-amber-700",
+  none: "bg-black/5 text-zinc-500",
+};
+
+function roleIn(store: ReturnType<typeof useStore>, stay: Stay, userId: string): Role {
+  if (stay.hostId === userId) return "host";
+  const request = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === userId);
+  if (request?.status === "accepted") return "crew";
+  if (request?.status === "pending") return "pending";
+  return "none";
+}
+
+/** "Open in new tab as {host}" / "…as {first crew member}" – each tab keeps its own user (?as=, sessionStorage). */
+function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => void }) {
+  const t = useTranslations("auth.dev");
+  const store = useStore();
+  if (!stay) return null;
+  const host = findUser(store, stay.hostId);
+  const member = getCrew(store, stay).find((u) => u.id !== stay.hostId);
+
+  function open(userId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set(OPEN_AS_PARAM, userId);
+    window.open(url.toString(), "_blank", "noopener");
+    onDone();
+  }
+
+  const item = "block w-full px-4 py-2.5 text-left hover:bg-neutral-50 disabled:cursor-default disabled:text-zinc-400 disabled:hover:bg-transparent";
+  return (
+    <div className="py-1">
+      <p className="px-4 pb-1 pt-2 font-semibold uppercase tracking-wide text-zinc-400">{t("openAs")}</p>
+      {host && (
+        <button type="button" onClick={() => open(host.id)} className={item}>
+          {t("openAsHost", { name: host.name.split(" ")[0] })}
+        </button>
+      )}
+      <button type="button" disabled={!member} onClick={() => member && open(member.id)} className={item}>
+        {member ? t("openAsMember", { name: member.name.split(" ")[0] }) : t("noCrewMember")}
+      </button>
+    </div>
+  );
+}
+
+/** Computed reminders for the current user; clicking one fires it now (toast + crew chat line if crew-related). */
+function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
+  const t = useTranslations("auth.dev");
+  const f = useFormat();
+  const store = useStore();
+  const now = new Date().toISOString();
+
+  return (
+    <div>
+      <p className="border-b border-black/5 px-4 py-2.5 font-semibold uppercase tracking-wide text-zinc-400">{t("scheduled")}</p>
+      {reminders.length === 0 ? (
+        <p className="px-4 py-4 text-zinc-500">{t("noReminders")}</p>
+      ) : (
+        <ul className="scroll-pane max-h-80 divide-y divide-black/5">
+          {reminders.map((reminder) => {
+            const stay = store.stays.find((s) => s.id === reminder.stayId);
+            const overdue = reminder.due < now;
+            return (
+              <li key={reminder.id}>
+                <button
+                  type="button"
+                  onClick={() => store.fireReminder(reminder)}
+                  title={t("fireNow")}
+                  className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-neutral-50"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-ink">{t(`types.${reminder.type}`)}</span>
+                    <span className={cn("shrink-0 tabular-nums", overdue ? "text-red-600" : "text-zinc-500")}>
+                      {overdue ? t("overdue") : `${f.day(reminder.due)} ${f.time(reminder.due)}`}
+                    </span>
+                  </span>
+                  <span className="flex items-center justify-between gap-2 text-zinc-500">
+                    <span className="truncate">{stay?.title}</span>
+                    <span className="shrink-0">
+                      {t(`channel.${reminder.channel === "email+push" ? "emailPush" : "email"}`)}
+                      {reminder.chatEvent && ` · ${t("plusChat")}`}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

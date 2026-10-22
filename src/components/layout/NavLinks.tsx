@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ const UNDERLINE_OFFSET_PX = 6;
 function NavLinksView({ pathname }: { pathname: string | null }) {
   const loggedIn = useStore().currentUserId !== null;
   const items = navItemsFor(loggedIn);
+  const t = useTranslations("nav");
   const navRef = useRef<HTMLElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
   const positioned = useRef(false);
@@ -64,7 +66,7 @@ function NavLinksView({ pathname }: { pathname: string | null }) {
 
   return (
     <nav ref={navRef} className="relative flex items-center gap-8">
-      {items.map(({ href, label }) => {
+      {items.map(({ href, labelKey }) => {
         const active = isNavActive(href, pathname);
         return (
           <Link
@@ -76,7 +78,7 @@ function NavLinksView({ pathname }: { pathname: string | null }) {
               active ? "text-ink" : "text-zinc-500 hover:text-ink",
             )}
           >
-            {label}
+            {t(`items.${labelKey}`)}
             {/* Empty inline-block: sits exactly on the text baseline, so offsetTop measures it. */}
             <span data-baseline aria-hidden className="inline-block" />
           </Link>

@@ -1,12 +1,14 @@
+import { useTranslations } from "next-intl";
 import type { Stay } from "@/lib/types";
 import { Section } from "./Section";
 
 /** The host's own words – one section each. Empty ones are skipped. */
 export function HostPitch({ stay }: { stay: Stay }) {
+  const t = useTranslations("house.pitch");
   const sections = [
-    { title: "Why I'm hosting this", text: stay.whyText },
-    { title: "A typical day", text: stay.dayText },
-    { title: "Who I'm looking for", text: stay.lookingForText },
+    { title: t("why"), text: stay.whyText },
+    { title: t("day"), text: stay.dayText },
+    { title: t("lookingFor"), text: stay.lookingForText },
   ].filter((s) => s.text.trim());
 
   return (

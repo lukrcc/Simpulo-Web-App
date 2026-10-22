@@ -1,6 +1,7 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Container } from "@/components/layout/Container";
@@ -8,11 +9,12 @@ import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { Img } from "@/components/ui/Img";
 import { PlaceText } from "@/components/ui/PlaceText";
+import { useFormat } from "@/i18n/format";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
-import { cn, firstName, firstSentence, formatShortRange, placeLabel } from "@/lib/utils";
+import { cn, firstName, firstSentence } from "@/lib/utils";
 
 const STEP_INTERVAL_MS = 7_000;
 const CELL_COUNT = 3;
@@ -44,6 +46,7 @@ const CELL_LAYOUT = [
 
 /** Desktop (≥ lg) top section: one large and two small featured Houses moving through a pipeline. */
 export function BentoTop({ stays }: { stays: Stay[] }) {
+  const t = useTranslations("explore");
   const store = useStore();
   const items = stays.flatMap((stay) => {
     const host = findUser(store, stay.hostId);
@@ -86,7 +89,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
   return (
     <Container className="hidden pt-6 lg:block">
       <section
-        aria-label="Featured Houses"
+        aria-label={t("featuredHouses")}
         aria-roledescription="carousel"
         className="grid h-[70vh] min-h-[560px] grid-cols-12 grid-rows-2 gap-6"
       >
@@ -116,7 +119,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
 
               <Link
                 href={`/stays/${current.stay.slug}`}
-                aria-label={`${current.stay.title} with ${firstName(current.host)}`}
+                aria-label={t("houseWithHost", { title: current.stay.title, host: firstName(current.host) })}
                 className="absolute inset-0 cursor-pointer"
               />
               {/* Same cell state as the image and text, so tab, text and photo always change together.
@@ -131,7 +134,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
                 <button
                   type="button"
                   onClick={manualStep}
-                  aria-label="Next houses"
+                  aria-label={t("nextHouses")}
                   className="glass-dark pulse-ring absolute bottom-6 right-6 z-20 flex size-14 items-center justify-center rounded-full text-white outline-none transition-transform hover:scale-106 focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <RefreshCw
@@ -160,6 +163,7 @@ interface CellLayerProps {
 
 /** Photo + text of one House in a cell. Image and text animate separately (see .bento-* in globals.css). */
 function CellLayer({ stay, host, guests, large, phase }: CellLayerProps) {
+  const format = useFormat();
   const imageAnimation = phase === "in" ? "bento-img-in" : phase === "out" ? "bento-img-out" : undefined;
   const textAnimation = phase === "in" ? "bento-text-in" : phase === "out" ? "bento-text-out" : undefined;
 
@@ -182,8 +186,11 @@ function CellLayer({ stay, host, guests, large, phase }: CellLayerProps) {
         </h2>
         {large && <p className="mt-3 line-clamp-2 max-w-xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>}
         <p className={cn("flex items-center gap-1.5 text-sm text-white/80", large ? "mt-3" : "mt-1")}>
-          <span className="shrink-0">{formatShortRange(stay.startDate, stay.endDate)} ·</span>
-          <PlaceText>{large ? placeLabel(stay) : stay.city}</PlaceText>
+          <span className="shrink-0">{format.shortRange(stay.startDate, stay.endDate)} ·</span>
+          <PlaceText>{large ? format.placeLabel(stay) : format.placeName(stay)}</PlaceText>
+          {stay.language && stay.language !== "en" && (
+            <span className="shrink-0 text-white/65">· {format.language(stay.language)}</span>
+          )}
         </p>
         {large && (
           <div className="mt-4">

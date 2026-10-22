@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface LanguageChipsProps {
@@ -8,9 +9,10 @@ interface LanguageChipsProps {
 }
 
 export function LanguageChips({ languages, variant = "light", className }: LanguageChipsProps) {
+  const t = useTranslations("common.ui.languageChips");
   if (languages.length === 0) return null;
   return (
-    <ul aria-label="Languages" className={cn("flex flex-wrap gap-1.5", className)}>
+    <ul aria-label={t("label")} className={cn("flex flex-wrap gap-1.5", className)}>
       {languages.map((language) => (
         <li
           key={language}

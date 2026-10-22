@@ -3,8 +3,18 @@ import type { Stay, Thread } from "./mock";
 
 export type {
   AccommodationStatus,
+  Currency,
   JoinRequest,
+  LockDetails,
   Message,
+  MessageEvent,
+  MessageType,
+  Attachment,
+  Reaction,
+  Payment,
+  PrivateContacts,
+  PaymentRecordStatus,
+  SystemEventKey,
   RequestStatus as JoinRequestStatus,
   Stay,
   StayStatus,
@@ -26,6 +36,7 @@ export type NewStayInput = Pick<
   | "endDate"
   | "spotsTotal"
   | "vibe"
+  | "language"
   | "pricePerPerson"
   | "budgetPerPerson"
   | "accommodationLink"
@@ -37,4 +48,4 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
->;
+> & Partial<Pick<Stay, "currency">>;

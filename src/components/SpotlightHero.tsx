@@ -1,6 +1,7 @@
 "use client";
 
 import { BadgeCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   useEffect,
@@ -14,10 +15,11 @@ import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CarouselControls } from "@/components/ui/CarouselControls";
 import { Img } from "@/components/ui/Img";
 import { PlaceText } from "@/components/ui/PlaceText";
+import { useFormat } from "@/i18n/format";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
-import { cn, firstName, firstSentence, formatShortRange, placeLabel } from "@/lib/utils";
+import { cn, firstName, firstSentence } from "@/lib/utils";
 
 /** A slide counts as current once this much of it is visible. */
 const ACTIVE_THRESHOLD = 0.6;
@@ -34,6 +36,7 @@ function prefersReducedMotion(): boolean {
  * Trackpad, touch, arrow keys and the control pill all move it; the dots follow via IntersectionObserver.
  */
 export function SpotlightHero({ stays }: { stays: Stay[] }) {
+  const t = useTranslations("explore");
   const store = useStore();
   const slides = stays.flatMap((stay) => {
     const host = findUser(store, stay.hostId);
@@ -126,7 +129,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     <section
       className="mx-auto max-w-[1600px] md:pt-6 lg:hidden"
       aria-roledescription="carousel"
-      aria-label="Featured Houses"
+      aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={onFocus}
@@ -139,7 +142,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
         onTouchStart={() => setTouched(true)}
         onTouchEnd={() => setTouched(false)}
         onTouchCancel={() => setTouched(false)}
-        aria-label="Featured Houses – use the arrow keys to browse"
+        aria-label={t("featuredHousesKeyboard")}
         className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink md:scroll-px-8 md:gap-8 md:px-8"
       >
         {slides.map(({ stay, host, guests }, i) => (
@@ -198,6 +201,8 @@ function stopLink(e: MouseEvent) {
 }
 
 function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto }: SlideProps) {
+  const t = useTranslations("explore");
+  const format = useFormat();
   const href = `/stays/${stay.slug}`;
 
   // The whole slide is clickable through a full-size link layer. Inner links/buttons sit above it as siblings –
@@ -208,7 +213,7 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
       ref={ref}
       data-index={index}
       aria-roledescription="slide"
-      aria-label={`${index + 1} of ${count}: ${stay.title}`}
+      aria-label={t("slideLabel", { index: index + 1, count, title: stay.title })}
       className="relative h-[calc(72vh_+_env(safe-area-inset-top))] min-h-130 w-full shrink-0 snap-start overflow-hidden bg-ink md:h-[64vh] md:rounded-4xl"
     >
       {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
@@ -225,7 +230,7 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 to-transparent to-50%" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/45 to-transparent to-30% md:from-black/35" />
 
-      <Link href={href} aria-label={`View House: ${stay.title} with ${host.name}`} className="absolute inset-0 cursor-pointer" />
+      <Link href={href} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
       {/* Top-right: host photo thumbnails */}
       {host.photos.length > 1 && (
@@ -234,7 +239,7 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
             <button
               key={src}
               type="button"
-              aria-label={`Show photo ${i + 1} of ${host.name}`}
+              aria-label={t("showHostPhoto", { index: i + 1, name: host.name })}
               aria-pressed={i === photo}
               onClick={(e) => {
                 stopLink(e);
@@ -256,13 +261,16 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
         <div>
           <h2 className="line-clamp-2 text-4xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
           <p className="mt-2 flex items-center gap-1.5 text-base font-medium text-white/90">
-            with {firstName(host)}
-            {host.verified && <BadgeCheck className="size-5 shrink-0" aria-label="Verified" />}
+            {t("withHost", { name: firstName(host) })}
+            {host.verified && <BadgeCheck className="size-5 shrink-0" aria-label={t("verified")} />}
           </p>
           <p className="mt-3 line-clamp-2 max-w-2xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>
           <p className="mt-3 text-sm text-white/80">
             <span className="inline-flex items-center gap-1.5">
-              {formatShortRange(stay.startDate, stay.endDate)} · <PlaceText>{placeLabel(stay)}</PlaceText>
+              {format.shortRange(stay.startDate, stay.endDate)} · <PlaceText>{format.placeLabel(stay)}</PlaceText>
+              {stay.language && stay.language !== "en" && (
+                <span className="shrink-0 text-white/65">· {format.language(stay.language)}</span>
+              )}
             </span>
           </p>
         </div>
@@ -273,7 +281,7 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
             aria-hidden
             className="inline-flex h-11 items-center rounded-full bg-white px-7 text-sm font-semibold text-ink"
           >
-            View House
+            {t("viewHouse")}
           </span>
         </div>
       </div>
