@@ -3,6 +3,8 @@
 import { AtSign, BadgeCheck, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
 import { StayCard } from "@/components/StayCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
@@ -14,8 +16,17 @@ import type { User } from "@/lib/types";
 import { ageAndCountry } from "@/lib/utils";
 
 export function MyProfile() {
-  const store = useStore();
-  return <ProfileView user={getCurrentUser(store)} isMe />;
+  return (
+    // Logged out: the prompt, plus the "More" links (install guide, legal) that otherwise live on the profile.
+    <RequireLogin title="Log in to see your profile" after={<MoreList />}>
+      <MyProfileContent />
+    </RequireLogin>
+  );
+}
+
+function MyProfileContent() {
+  const me = getCurrentUser(useStore());
+  return me ? <ProfileView user={me} isMe /> : null;
 }
 
 export function PublicProfile({ params }: { params: Promise<{ userId: string }> }) {
@@ -25,7 +36,7 @@ export function PublicProfile({ params }: { params: Promise<{ userId: string }> 
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-xl px-4 pt-16">
+      <Container page width="narrow">
         <EmptyState
           icon={SearchX}
           title="Profile not found"
@@ -35,7 +46,7 @@ export function PublicProfile({ params }: { params: Promise<{ userId: string }> 
             </Link>
           }
         />
-      </div>
+      </Container>
     );
   }
 
@@ -46,10 +57,10 @@ function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
   const store = useStore();
   const hosted = store.stays.filter((s) => s.hostId === user.id);
   const joinedCount = store.joinRequests.filter((r) => r.userId === user.id && r.status === "accepted").length;
-  const openHosted = hosted.filter((s) => s.status === "published" || s.status === "full");
+  const openHosted = hosted.filter((s) => s.status === "published");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-8 md:px-6 md:pt-12">
+    <Container page width="narrow">
       <div className="flex flex-col items-center text-center">
         <Avatar user={user} size="xl" />
         <h1 className="mt-4 flex items-center gap-1.5 text-2xl font-bold tracking-tight">
@@ -112,13 +123,13 @@ function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
       )}
 
       {isMe && <MoreList />}
-    </div>
+    </Container>
   );
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-2xl bg-neutral-50 p-4 text-center">
+    <div className="rounded-2xl bg-white p-4 text-center">
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-sm text-neutral-500">{label}</p>
     </div>

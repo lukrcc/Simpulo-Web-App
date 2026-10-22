@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import {
   useEffect,
@@ -9,14 +9,15 @@ import {
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
-  type ReactNode,
 } from "react";
-import { AvatarStack } from "@/components/ui/Avatar";
+import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { CarouselControls } from "@/components/ui/CarouselControls";
 import { Img } from "@/components/ui/Img";
+import { PlaceText } from "@/components/ui/PlaceText";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
-import { cn, firstName, firstSentence, formatShortRange, googleMapsUrl, placeLabel } from "@/lib/utils";
+import { cn, firstName, firstSentence, formatShortRange, placeLabel } from "@/lib/utils";
 
 /** A slide counts as current once this much of it is visible. */
 const ACTIVE_THRESHOLD = 0.6;
@@ -120,6 +121,8 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
   if (count === 0) return null;
 
   return (
+    // The one deliberate exception to <Container>: below md the slides are full-bleed (edge to edge, under the
+    // status bar). From md the scroller applies the container's 32px padding itself, as scroll padding.
     <section
       className="mx-auto max-w-[1600px] md:pt-6 lg:hidden"
       aria-roledescription="carousel"
@@ -158,60 +161,21 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
       </div>
 
       {count > 1 && (
-        <div className="mt-4 flex justify-center">
-          <div className="inline-flex h-9 items-center gap-1 rounded-full bg-zinc-100 px-1.5 md:h-10 md:px-2">
-            <ControlButton label="Previous House" disabled={active === 0} onClick={() => step(-1)}>
-              <ChevronLeft className="size-4" />
-            </ControlButton>
-            <div className="flex items-center gap-1.5 px-1.5">
-              {slides.map(({ stay }, i) => (
-                <button
-                  key={stay.id}
-                  type="button"
-                  aria-label={`Go to House ${i + 1}`}
-                  aria-current={i === active}
-                  onClick={() => {
-                    scrollToSlide(i);
-                    setTimerKey((k) => k + 1);
-                  }}
-                  className={cn(
-                    "h-2 rounded-full transition-all duration-250",
-                    i === active ? "w-6 bg-ink" : "w-2 bg-zinc-300 hover:bg-zinc-400",
-                  )}
-                />
-              ))}
-            </div>
-            <ControlButton label="Next House" disabled={active === count - 1} onClick={() => step(1)}>
-              <ChevronRight className="size-4" />
-            </ControlButton>
-          </div>
-        </div>
+        <CarouselControls
+          className="mt-4"
+          count={count}
+          active={active}
+          canPrev={active > 0}
+          canNext={active < count - 1}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          onSelect={(i) => {
+            scrollToSlide(i);
+            setTimerKey((k) => k + 1);
+          }}
+        />
       )}
     </section>
-  );
-}
-
-function ControlButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-7 items-center justify-center rounded-full text-ink transition-colors hover:bg-white disabled:text-zinc-300 disabled:hover:bg-transparent md:size-8"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -287,9 +251,9 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
         </div>
       )}
 
-      {/* Bottom: identity + actions (left), place card (right). On mobile the text spans the full width. */}
-      <div className="pointer-events-none absolute inset-x-6 bottom-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-4 text-white md:inset-x-8 md:bottom-8">
-        <div className="col-span-2 md:col-span-1">
+      {/* Bottom: identity, place and crew, then the CTA. */}
+      <div className="pointer-events-none absolute inset-x-6 bottom-6 flex flex-col gap-4 text-white md:inset-x-8 md:bottom-8">
+        <div>
           <h2 className="line-clamp-2 text-4xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
           <p className="mt-2 flex items-center gap-1.5 text-base font-medium text-white/90">
             with {firstName(host)}
@@ -297,16 +261,13 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
           </p>
           <p className="mt-3 line-clamp-2 max-w-2xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>
           <p className="mt-3 text-sm text-white/80">
-            {formatShortRange(stay.startDate, stay.endDate)} · {placeLabel(stay)}
+            <span className="inline-flex items-center gap-1.5">
+              {formatShortRange(stay.startDate, stay.endDate)} · <PlaceText>{placeLabel(stay)}</PlaceText>
+            </span>
           </p>
         </div>
-        <div className="col-start-1 flex flex-col items-start gap-4">
-          <div className="flex items-center gap-2">
-            {guests.length > 0 && <AvatarStack users={guests} size="sm" max={4} />}
-            <span className="text-sm font-medium text-white/90">
-              {stay.spotsFilled} of {stay.spotsTotal} in
-            </span>
-          </div>
+        <div className="flex flex-col items-start gap-4">
+          <CrewAvatars host={host} members={guests} />
           {/* Visual CTA only – the whole slide is the link. */}
           <span
             aria-hidden
@@ -315,39 +276,7 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
             View House
           </span>
         </div>
-        <PlaceCard stay={stay} className="pointer-events-auto col-start-2 row-start-2 md:row-span-2 md:row-start-1" />
       </div>
     </article>
-  );
-}
-
-/** Live Google Maps embed of the area – the card itself opens Google Maps in a new tab. */
-export function PlaceCard({ stay, className }: { stay: Stay; className?: string }) {
-  return (
-    <a
-      href={googleMapsUrl(stay)}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`Open ${stay.city} in Google Maps`}
-      // A real link: only keep the click from reaching the slide.
-      onClick={(e) => e.stopPropagation()}
-      className={cn(
-        "relative block h-24 w-37.5 overflow-hidden rounded-2xl border border-white/30 bg-white/10 backdrop-blur-md transition-transform hover:scale-[1.03] md:h-30 md:w-47.5",
-        className,
-      )}
-    >
-      <iframe
-        src={`https://www.google.com/maps?q=${stay.lat},${stay.lng}&z=13&output=embed`}
-        title={`Map of ${stay.city}`}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        tabIndex={-1}
-        aria-hidden
-        // pointer-events-none: swipes and clicks go to the carousel and the card link, not the map.
-        className="pointer-events-none absolute inset-0 size-full border-0"
-      />
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/60 to-transparent" />
-      <span className="pointer-events-none absolute bottom-2 left-2.5 text-[11px] font-medium text-white">{stay.city}</span>
-    </a>
   );
 }

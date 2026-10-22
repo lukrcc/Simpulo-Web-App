@@ -3,9 +3,6 @@ import type { PaymentStatus, Stay } from "./types";
 
 export const crewThreadId = (stayId: string) => `t-${stayId}`;
 
-/** Placeholder map for stays created in the app (they have no static map yet). */
-export const DEFAULT_MAP_PREVIEW = "/maps/city.svg";
-
 export interface LinkPreview {
   title: string;
   imageUrl: string;

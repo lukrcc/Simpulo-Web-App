@@ -1,23 +1,26 @@
 "use client";
 
-import { Check, SearchX } from "lucide-react";
+import { Camera, Check, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState, type FormEvent } from "react";
+import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { useInstallNudge } from "@/components/InstallNudge";
+import { PhotoSheet } from "@/components/PhotoSheet";
+import { Container } from "@/components/layout/Container";
 import { AccommodationSection } from "@/components/stay/AccommodationSection";
+import { BudgetBlock } from "@/components/stay/BudgetBlock";
 import { CrewSection } from "@/components/stay/CrewSection";
 import { HostGallery } from "@/components/stay/HostGallery";
 import { HostPitch } from "@/components/stay/HostPitch";
-import { BudgetBlock } from "@/components/stay/BudgetBlock";
 import { Section } from "@/components/stay/Section";
 import { StayFacts } from "@/components/stay/StayFacts";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PriceLine } from "@/components/ui/PriceLine";
 import { Sheet } from "@/components/ui/Sheet";
-import { useInstallNudge } from "@/components/InstallNudge";
 import { useToast } from "@/components/ui/Toast";
-import { crewThreadId, findUser, getCrew, getCrewThread, getMyRequest, isCrewMember, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { formatDateRange, pluralize, stayNights } from "@/lib/utils";
 
@@ -30,7 +33,7 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
 
   if (!stay) {
     return (
-      <div className="mx-auto max-w-xl px-4 pt-16">
+      <Container page width="narrow">
         <EmptyState
           icon={SearchX}
           title="House not found"
@@ -41,7 +44,7 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
             </Link>
           }
         />
-      </div>
+      </Container>
     );
   }
 
@@ -53,11 +56,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const router = useRouter();
   const showToast = useToast();
   const offerInstall = useInstallNudge();
+  const requireAuth = useRequireAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** Bumped after a sent request – remounts the sheet so the next one starts empty. */
+  const [requestKey, setRequestKey] = useState(0);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
 
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
   const myRequest = getMyRequest(store, stay.id);
+  const me = getCurrentUser(store);
+  // Requests work without a photo – but the host should see who's asking.
+  const askForPhoto = myRequest?.status === "pending" && me !== undefined && me.photos.length === 0;
   const isHost = stay.hostId === store.currentUserId;
   const isMember = isCrewMember(store, stay, store.currentUserId);
   const spotsLeft = Math.max(0, stay.spotsTotal - stay.spotsFilled);
@@ -77,6 +87,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     else router.push("/");
   }
 
+  /** Closed Houses: talk to the host directly (log in first if needed). */
+  function messageHost() {
+    requireAuth((userId) => {
+      if (userId === stay.hostId) {
+        router.push(`/my-stays/${stay.id}`);
+        return;
+      }
+      // userId is passed explicitly: right after an inline login the store doesn't know the new user yet.
+      router.push(`/inbox/${store.openDirectThread(stay.id, stay.hostId, userId)}`);
+    });
+  }
+
   const cta = (
     <StayCta
       stay={stay}
@@ -84,16 +106,36 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       request={myRequest}
       spotsLeft={spotsLeft}
       onRequest={() => setSheetOpen(true)}
+      onMessageHost={messageHost}
     />
   );
 
   return (
-    <div className="mx-auto max-w-6xl md:grid md:grid-cols-[1fr_360px] md:gap-12 md:px-6 md:pt-8">
+    // Mobile: the host gallery is full-bleed and starts at the very top, so no page top spacing below md.
+    <Container className="md:grid md:grid-cols-[1fr_360px] md:gap-12 md:pt-10">
       <div className="min-w-0">
-        {host && <HostGallery host={host} onBack={goBack} onShare={share} />}
+        {host && (
+          <div className="-mx-4 md:mx-0">
+            <HostGallery host={host} onBack={goBack} onShare={share} />
+          </div>
+        )}
 
-        <div className="px-4 pt-6 md:px-0">
+        <div className="pt-6">
           <StayFacts stay={stay} />
+
+          {askForPhoto && (
+            <div className="mt-6 flex items-center gap-4 rounded-2xl bg-white p-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                <Camera className="size-5" aria-hidden />
+              </span>
+              <p className="min-w-0 flex-1 text-sm text-neutral-700">
+                Add a photo so {host?.name.split(" ")[0] ?? "the host"} sees who&apos;s asking
+              </p>
+              <button type="button" onClick={() => setPhotoSheetOpen(true)} className={buttonClass("dark", "sm", "shrink-0")}>
+                Add photo
+              </button>
+            </div>
+          )}
 
           <HostPitch stay={stay} />
 
@@ -127,7 +169,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
       {/* Desktop: sticky side card */}
       <aside className="hidden md:block">
-        <div className="sticky top-24 rounded-2xl border border-neutral-100 p-6 shadow-sm">
+        <div className="sticky top-24 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
           <PriceLine stay={stay} size="lg" />
           <p className="mt-3 text-sm text-neutral-500">
             {formatDateRange(stay.startDate, stay.endDate)} · {pluralize(stayNights(stay), "night")}
@@ -147,19 +189,31 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         </div>
       </div>
 
+      <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       <RequestSheet
+        key={requestKey}
         open={sheetOpen}
         stay={stay}
         hostName={host?.name.split(" ")[0] ?? "the host"}
         onClose={() => setSheetOpen(false)}
-        onSubmit={(message) => {
-          store.requestToJoin(stay.id, message);
-          setSheetOpen(false);
-          showToast("Request sent – the host will get back to you");
-          offerInstall(host?.name.split(" ")[0] ?? "the host");
-        }}
+        // Everyone can write the message; logged out, the AuthSheet opens on top and the request goes out
+        // with the same message right after login – nothing typed is lost.
+        onSubmit={(message) =>
+          requireAuth((userId) => {
+            if (userId === stay.hostId) {
+              setSheetOpen(false);
+              showToast("That's your own House");
+              return;
+            }
+            store.requestToJoin(stay.id, message);
+            setSheetOpen(false);
+            setRequestKey((k) => k + 1);
+            showToast("Request sent – the host will get back to you");
+            offerInstall(host?.name.split(" ")[0] ?? "the host");
+          })
+        }
       />
-    </div>
+    </Container>
   );
 }
 
@@ -169,9 +223,10 @@ interface StayCtaProps {
   request?: JoinRequest;
   spotsLeft: number;
   onRequest: () => void;
+  onMessageHost: () => void;
 }
 
-function StayCta({ stay, isHost, request, spotsLeft, onRequest }: StayCtaProps) {
+function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }: StayCtaProps) {
   const full = "w-full";
   if (isHost) {
     return (
@@ -202,10 +257,11 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest }: StayCtaProps) 
       </button>
     );
   }
-  if (spotsLeft === 0 || stay.status === "full") {
+  // The host closed requests (or every spot is taken): no new request, but you can still reach the host.
+  if (!stay.acceptingRequests || spotsLeft === 0) {
     return (
-      <button type="button" disabled className={buttonClass("primary", "lg", full)}>
-        Crew is full
+      <button type="button" onClick={onMessageHost} className={buttonClass("dark", "lg", full)}>
+        Crew is set – message the host
       </button>
     );
   }
@@ -232,8 +288,8 @@ function RequestSheet({ open, stay, hostName, onClose, onSubmit }: RequestSheetP
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!valid) return;
+    // The message stays until the parent remounts the sheet after a successful send.
     onSubmit(message);
-    setMessage("");
   }
 
   return (

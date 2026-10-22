@@ -4,28 +4,38 @@ import { ArrowLeft, ExternalLink, Inbox, Lock, LockOpen, SearchX } from "lucide-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState, type FormEvent, type ReactNode } from "react";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Img } from "@/components/ui/Img";
 import { PriceLine } from "@/components/ui/PriceLine";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { StayThumb } from "@/components/ui/StayThumb";
 import { useToast } from "@/components/ui/Toast";
 import { crewThreadId, findUser, getCrew, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
-import { ageAndCountry, formatDateRange, formatDay, pluralize } from "@/lib/utils";
+import { ageAndCountry, cn, formatDateRange, formatDay, pluralize } from "@/lib/utils";
 
 const statusOrder: Record<JoinRequest["status"], number> = { pending: 0, accepted: 1, declined: 2 };
 
 export function ManageStay({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  return (
+    <RequireLogin title="Log in to manage your House">
+      <ManageStayGate id={id} />
+    </RequireLogin>
+  );
+}
+
+function ManageStayGate({ id }: { id: string }) {
   const store = useStore();
   const stay = store.stays.find((s) => s.id === id);
 
   if (!stay || stay.hostId !== store.currentUserId) {
     return (
-      <div className="mx-auto max-w-xl px-4 pt-16">
+      <Container page width="narrow">
         <EmptyState
           icon={SearchX}
           title={stay ? "Only the host can manage this House" : "House not found"}
@@ -35,7 +45,7 @@ export function ManageStay({ params }: { params: Promise<{ id: string }> }) {
             </Link>
           }
         />
-      </div>
+      </Container>
     );
   }
 
@@ -52,14 +62,14 @@ function ManageStayContent({ stay }: { stay: Stay }) {
   const crew = getCrew(store, stay);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6 md:pt-10">
+    <Container page width="narrow">
       <Link href="/my-stays" className="-ml-2 inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-500 hover:text-ink">
         <ArrowLeft className="size-4" />
         Houses
       </Link>
 
       <div className="mt-3 flex items-center gap-4">
-        <Img src={stay.mapPreviewUrl} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl bg-neutral-100 object-cover" />
+        <StayThumb stay={stay} size={64} className="size-16" />
         <div className="min-w-0">
           <h1 className="truncate text-xl font-bold tracking-tight md:text-2xl">{stay.title}</h1>
           <p className="text-sm text-neutral-500">
@@ -79,6 +89,8 @@ function ManageStayContent({ stay }: { stay: Stay }) {
         </Link>
       </div>
 
+      <RequestsSwitch stay={stay} />
+
       <Section title="Requests" aside={pending > 0 ? `${pending} pending` : undefined}>
         {requests.length === 0 ? (
           <EmptyState icon={Inbox} title="No requests yet" description="Share your House page to find your crew." />
@@ -93,7 +105,7 @@ function ManageStayContent({ stay }: { stay: Stay }) {
       </Section>
 
       <Section title="Crew" aside={pluralize(crew.length, "person", "people")}>
-        <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-100">
+        <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-100 bg-white">
           {crew.map((member) => (
             <li key={member.id} className="flex items-center gap-3 p-3">
               <Avatar user={member} size="sm" linked />
@@ -107,7 +119,7 @@ function ManageStayContent({ stay }: { stay: Stay }) {
       <Section title="Accommodation">
         <AccommodationPanel stay={stay} />
       </Section>
-    </div>
+    </Container>
   );
 }
 
@@ -123,7 +135,7 @@ function RequestCard({ request, applicant, stay }: { request: JoinRequest; appli
   }
 
   return (
-    <li className="rounded-2xl border border-neutral-100 p-4">
+    <li className="rounded-2xl border border-neutral-100 bg-white p-4">
       <div className="flex items-start gap-3">
         <Avatar user={applicant} size="lg" linked />
         <div className="min-w-0 flex-1">
@@ -132,6 +144,7 @@ function RequestCard({ request, applicant, stay }: { request: JoinRequest; appli
               {applicant.name}
             </Link>
             <StatusPill status={request.status} />
+            {applicant.photos.length === 0 && <span className="text-xs text-zinc-500">No photo yet</span>}
           </div>
           <p className="text-sm text-neutral-500">
             {ageAndCountry(applicant)} · {formatDay(request.createdAt)}
@@ -188,7 +201,7 @@ function AccommodationPanel({ stay }: { stay: Stay }) {
 
   if (stay.accommodationStatus === "locked") {
     return (
-      <div className="space-y-3 rounded-2xl bg-neutral-50 p-4">
+      <div className="space-y-3 rounded-2xl bg-white p-4">
         <div className="flex items-start gap-3">
           <Lock className="mt-0.5 size-5 shrink-0 text-accent" />
           <div className="min-w-0">
@@ -250,6 +263,38 @@ function AccommodationPanel({ stay }: { stay: Stay }) {
         Lock accommodation
       </button>
     </form>
+  );
+}
+
+/** "Taking requests": the host's switch. Accepting, declining or someone leaving never changes it. */
+function RequestsSwitch({ stay }: { stay: Stay }) {
+  const { setAcceptingRequests } = useStore();
+  const on = stay.acceptingRequests;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => setAcceptingRequests(stay.id, !on)}
+      className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-white p-4 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">Taking requests</span>
+        <span className="block text-xs text-neutral-500">
+          {on
+            ? "Your House is open – people can ask to join."
+            : "Closed for new requests. Pending ones stay below; visitors can still message you."}
+        </span>
+      </span>
+      <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", on ? "bg-accent" : "bg-neutral-200")}>
+        <span
+          className={cn(
+            "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+            on ? "translate-x-5.5" : "translate-x-0.5",
+          )}
+        />
+      </span>
+    </button>
   );
 }
 

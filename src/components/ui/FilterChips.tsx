@@ -13,14 +13,14 @@ interface FilterChipsProps<T extends string> {
   allLabel?: string;
 }
 
-/** Single row of chips: scrolls horizontally on mobile, wraps on desktop. */
+/** Single row of chips: scrolls horizontally on mobile (edges fade out), wraps on desktop. */
 export function FilterChips<T extends string>({ label, options, value, onChange, allLabel = "All" }: FilterChipsProps<T>) {
   const chips: Array<{ value: T | null; label: string }> = [{ value: null, label: allLabel }, ...options];
   return (
     <div
       role="group"
       aria-label={label}
-      className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
+      className="no-scrollbar -ml-4 flex gap-2 overflow-x-auto px-4 max-md:mask-[linear-gradient(to_right,transparent,black_16px,black_calc(100%-24px),transparent)] md:ml-0 md:flex-wrap md:overflow-visible md:px-0"
     >
       {chips.map((chip) => {
         const active = chip.value === value;
@@ -32,7 +32,7 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
             onClick={() => onChange(chip.value)}
             className={cn(
               "h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors",
-              active ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200",
+              active ? "bg-ink text-white" : "bg-white text-ink hover:bg-zinc-100",
             )}
           >
             {chip.label}

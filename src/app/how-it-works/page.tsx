@@ -1,5 +1,6 @@
 import { House, Inbox, Send, Sparkles, Users, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { GetTheApp } from "@/components/GetTheApp";
 import { ContentPage } from "@/components/layout/ContentPage";
 
 export const metadata: Metadata = { title: "How it works" };
@@ -31,6 +32,9 @@ export default function HowItWorksPage() {
           </li>
         ))}
       </ol>
+      <div className="pt-6">
+        <GetTheApp />
+      </div>
     </ContentPage>
   );
 }

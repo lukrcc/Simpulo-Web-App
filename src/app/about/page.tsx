@@ -8,7 +8,7 @@ export default function AboutPage() {
   return (
     <ContentPage
       title="What is Simpulo?"
-      intro="Simpulo matches people, not accommodation. Travel solo – and live together with a small crew."
+      intro="Simpulo matches people, not accommodation. Share a place – and find your people."
     >
       <p>
         A House on Simpulo is a shared place – a villa, an apartment, a chalet – opened by one host for two to six

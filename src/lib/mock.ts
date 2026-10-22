@@ -4,7 +4,7 @@
 
 export type Vibe = 'fitness' | 'creator' | 'founder' | 'remote-work' | 'holiday' | 'surf' | 'wellness';
 export type AccommodationStatus = 'open' | 'locked';
-export type StayStatus = 'draft' | 'published' | 'full' | 'completed';
+export type StayStatus = 'draft' | 'published' | 'completed';
 export type RequestStatus = 'pending' | 'accepted' | 'declined';
 
 export interface User {
@@ -24,6 +24,7 @@ export interface User {
   x?: string;
   threads?: string;
   twitch?: string;
+  kick?: string;            // Kick username
   website?: string;
 }
 
@@ -54,7 +55,9 @@ export interface Stay {
   houseRules: string[];
   interests: string[];
   status: StayStatus;
+  acceptingRequests: boolean; // host's "Taking requests" switch – never flipped automatically
   featured: boolean;        // shown in Spotlight (later: boosted)
+  hostNote?: string;        // short personal line from the host, max 60 chars (shown on cards)
   createdAt: string;
 }
 
@@ -185,6 +188,27 @@ export const users: User[] = [
     bio: 'Backend engineer, remote for a US startup. Nights are free, days are mine.',
     photos: [face(63), shot('raj-run'), shot('raj-desk')],
     verified: true, linkedin: 'raj-menon', x: 'rajbuilds', twitch: 'rajbuilds' },
+  // No photos yet – exercises the "No photo yet" / "Add a photo" paths.
+  { id: 'u17', name: 'Noah', age: 26, country: 'Belgium', city: 'Ghent',
+    languages: ['Dutch', 'English', 'French'],
+    bio: 'Just signed up – looking for my first shared house.',
+    photos: [], verified: false },
+  // Streaming hosts
+  { id: 'u18', name: 'Nico', age: 29, country: 'Germany', city: 'Lisbon',
+    languages: ['German', 'English', 'Portuguese'],
+    bio: 'Twitch variety streamer, 40k followers. Live most evenings, always up for a raid.',
+    photos: [face(59), shot('nico-setup'), shot('nico-lisbon')],
+    verified: true, twitch: 'nicoplays', kick: 'nicoplays', youtube: '@nicoplays', instagram: 'nico.plays' },
+  { id: 'u19', name: 'Sasha', age: 26, country: 'Ukraine', city: 'Bangkok',
+    languages: ['Ukrainian', 'English', 'Russian'],
+    bio: 'IRL and travel streamer. Street food, night markets and a backpack full of batteries.',
+    photos: [face(9), shot('sasha-irl'), shot('sasha-market')],
+    verified: true, kick: 'sashairl', twitch: 'sashairl', tiktok: 'sasha.irl' },
+  { id: 'u20', name: 'Leo', age: 31, country: 'Spain', city: 'Canggu',
+    languages: ['Spanish', 'English', 'Catalan'],
+    bio: 'Chess and cozy-games streamer. Works EU evenings, surfs in the morning.',
+    photos: [face(13), shot('leo-chess'), shot('leo-surf')],
+    verified: true, twitch: 'leomoves', kick: 'leomoves', x: 'leomoves' },
 ];
 
 export const stays: Stay[] = [
@@ -200,7 +224,7 @@ export const stays: Stay[] = [
     lookingForText: 'People who actually train, keep a clean house and don\'t need a party every night. Mixed group preferred.',
     houseRules: ['No smoking inside', 'Quiet after 23:00', 'Clean up the same day'],
     interests: ['gym', 'surfing', 'healthy food', 'remote work'],
-    status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
+    hostNote: 'Gym is 5 min away, I checked', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
   },
   {
     id: 's2', slug: 'creator-house-uluwatu', title: 'Creator House Uluwatu', hostId: 'u2', vibe: 'creator',
@@ -213,7 +237,7 @@ export const stays: Stay[] = [
     lookingForText: 'Creators from 5k followers up who post consistently. Any niche, as long as you\'re comfortable on camera.',
     houseRules: ['Shared gear stays in the living room', 'Ask before filming others'],
     interests: ['content', 'surfing', 'sunsets', 'editing'],
-    status: 'published', featured: true, createdAt: '2026-10-15T11:00:00Z',
+    hostNote: 'Two spots left, filming starts Dec 3', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-15T11:00:00Z',
   },
   {
     id: 's3', slug: 'founder-house-lisbon', title: 'Founder House Lisbon', hostId: 'u3', vibe: 'founder',
@@ -226,7 +250,7 @@ export const stays: Stay[] = [
     lookingForText: 'Builders with a live project (app, agency, newsletter – anything with users). No job-hunters, no "idea stage".',
     houseRules: ['Deep-work hours are silent', 'Friday demo is mandatory'],
     interests: ['startups', 'surfing', 'coding', 'coffee'],
-    status: 'published', featured: true, createdAt: '2026-10-12T08:00:00Z',
+    hostNote: 'Three houses on the shortlist – vote with us', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-12T08:00:00Z',
   },
   {
     id: 's4', slug: 'muay-thai-house-phuket', title: 'Muay Thai House Phuket', hostId: 'u4', vibe: 'fitness',
@@ -240,7 +264,7 @@ export const stays: Stay[] = [
     lookingForText: 'Anyone who has trained before and can handle two sessions a day.',
     houseRules: ['No alcohol in the house', 'Meal-prep Sunday is a team job'],
     interests: ['muay thai', 'nutrition', 'recovery'],
-    status: 'full', featured: false, createdAt: '2026-10-01T10:00:00Z',
+    acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-01T10:00:00Z',
   },
   {
     id: 's5', slug: 'mountain-coliving-chiang-mai', title: 'Mountain Coliving Chiang Mai', hostId: 'u5', vibe: 'remote-work',
@@ -253,7 +277,7 @@ export const stays: Stay[] = [
     lookingForText: 'Remote workers with a steady job or clients. Introverts welcome, we have enough rooms to disappear.',
     houseRules: ['Headphones in shared spaces', 'Guests only with a heads-up'],
     interests: ['hiking', 'coffee', 'remote work', 'cooking'],
-    status: 'published', featured: false, createdAt: '2026-10-10T07:00:00Z',
+    hostNote: 'Introverts very welcome, it\'s a big house', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-10T07:00:00Z',
   },
   {
     id: 's6', slug: 'slow-house-bangkok', title: 'Slow House Bangkok', hostId: 'u6', vibe: 'wellness',
@@ -266,7 +290,7 @@ export const stays: Stay[] = [
     lookingForText: 'Calm people, 28+, who don\'t need nightlife. Reading in the same room counts as a plan.',
     houseRules: ['No work calls in shared rooms', 'Shoes off'],
     interests: ['yoga', 'markets', 'reading', 'tea'],
-    status: 'published', featured: false, createdAt: '2026-10-16T12:00:00Z',
+    hostNote: 'Calm people only – I promise good tea', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-16T12:00:00Z',
   },
   {
     id: 's7', slug: 'dev-house-da-nang', title: 'Dev House Da Nang', hostId: 'u7', vibe: 'founder',
@@ -280,7 +304,7 @@ export const stays: Stay[] = [
     lookingForText: 'Developers, designers, indie hackers. Must be fine with being on stream occasionally.',
     houseRules: ['Stream room is off limits while live', 'Pool rules: no glass'],
     interests: ['gamedev', 'streaming', 'beach', 'coffee'],
-    status: 'published', featured: false, createdAt: '2026-10-17T15:00:00Z',
+    hostNote: 'Flying in Jan 31 – who\'s in?', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-17T15:00:00Z',
   },
   {
     id: 's8', slug: 'first-trip-crew-lombok', title: 'First-Trip Crew Lombok', hostId: 'u8', vibe: 'holiday',
@@ -293,7 +317,7 @@ export const stays: Stay[] = [
     lookingForText: 'Easy-going people under 30. Beginners at travelling are very welcome.',
     houseRules: ['Be nice', 'Split groceries evenly'],
     interests: ['beaches', 'snorkeling', 'scooters'],
-    status: 'published', featured: false, createdAt: '2026-10-19T18:00:00Z',
+    hostNote: 'First-timers very welcome', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T18:00:00Z',
   },
   {
     id: 's9', slug: 'surf-house-ericeira', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf',
@@ -307,7 +331,7 @@ export const stays: Stay[] = [
     lookingForText: 'Intermediate surfers with their own board or willing to rent.',
     houseRules: ['Wetsuits on the balcony, not in the bathroom'],
     interests: ['surfing', 'seafood'],
-    status: 'published', featured: false, createdAt: '2026-10-19T09:00:00Z',
+    acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T09:00:00Z',
   },
   {
     id: 's10', slug: 'remote-week-canggu-nov', title: 'Remote Week Canggu', hostId: 'u2', vibe: 'remote-work',
@@ -320,7 +344,7 @@ export const stays: Stay[] = [
     lookingForText: 'Anyone already in Bali or arriving this week.',
     houseRules: ['Keep the kitchen clean'],
     interests: ['remote work', 'surfing'],
-    status: 'published', featured: false, createdAt: '2026-10-20T06:00:00Z',
+    hostNote: 'Short notice – I\'m already in Canggu', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T06:00:00Z',
   },
   { id: 's11', slug: 'pilates-house-canggu', title: 'Pilates House Canggu', hostId: 'u9', vibe: 'wellness',
     city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu3'),
@@ -331,7 +355,7 @@ export const stays: Stay[] = [
     dayText: '06:30 pilates at the studio (free for the house) · smoothie bowls · work or beach · dinner at 19:00.',
     lookingForText: 'Women or mixed, 24–35, active, no party crowd.',
     houseRules: ['Quiet after 22:00', 'No shoes inside'],
-    interests: ['pilates', 'beach', 'healthy food'], status: 'published', featured: true, createdAt: '2026-10-19T07:00:00Z' },
+    interests: ['pilates', 'beach', 'healthy food'], hostNote: 'Free studio classes for the whole house', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-19T07:00:00Z' },
   { id: 's12', slug: 'kitchen-house-mexico-city', title: 'Kitchen House Mexico City', hostId: 'u10', vibe: 'holiday',
     city: 'Roma Norte', region: 'Mexico City, Mexico', lat: 19.42, lng: -99.16, mapPreviewUrl: map('cdmx'),
     startDate: '2026-12-05', endDate: '2026-12-19', spotsTotal: 5, spotsFilled: 2,
@@ -341,7 +365,7 @@ export const stays: Stay[] = [
     dayText: 'Market at 9 · work or explore · we cook together at 19:00 · mezcal optional.',
     lookingForText: 'People who eat everything and help with dishes.',
     houseRules: ['Dishes same night', 'Tell the group if you skip dinner'],
-    interests: ['food', 'markets', 'city walks'], status: 'published', featured: true, createdAt: '2026-10-14T10:00:00Z' },
+    interests: ['food', 'markets', 'city walks'], hostNote: 'I cook, you do the dishes. Deal?', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-14T10:00:00Z' },
   { id: 's13', slug: 'quiet-house-kyoto', title: 'Quiet House Kyoto', hostId: 'u11', vibe: 'remote-work',
     city: 'Kyoto', region: 'Japan', lat: 35.01, lng: 135.77, mapPreviewUrl: map('kyoto'),
     startDate: '2027-03-20', endDate: '2027-04-10', spotsTotal: 3, spotsFilled: 0,
@@ -351,7 +375,7 @@ export const stays: Stay[] = [
     dayText: 'Early walk · work until 14:00 · one neighbourhood per afternoon · onsen on Sundays.',
     lookingForText: 'Tidy, quiet people who respect house etiquette. No late nights.',
     houseRules: ['Shoes off', 'Quiet after 21:00', 'Separate the trash properly'],
-    interests: ['temples', 'coffee', 'design', 'walking'], status: 'published', featured: true, createdAt: '2026-10-20T05:00:00Z' },
+    interests: ['temples', 'coffee', 'design', 'walking'], acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-20T05:00:00Z' },
   { id: 's14', slug: 'bjj-house-floripa', title: 'BJJ House Floripa', hostId: 'u12', vibe: 'fitness',
     city: 'Campeche', region: 'Florianópolis, Brazil', lat: -27.67, lng: -48.48, mapPreviewUrl: map('floripa'),
     startDate: '2027-01-08', endDate: '2027-02-08', spotsTotal: 5, spotsFilled: 3,
@@ -361,7 +385,7 @@ export const stays: Stay[] = [
     dayText: 'Open mat 07:00 · work · surf 16:00 · class 19:00 · dead by 22:00.',
     lookingForText: 'White to purple belts, any gender. Bring a gi.',
     houseRules: ['Mats in the garage are shared', 'Wash your gi daily'],
-    interests: ['bjj', 'surfing', 'açaí'], status: 'published', featured: true, createdAt: '2026-10-11T13:00:00Z' },
+    interests: ['bjj', 'surfing', 'açaí'], hostNote: 'Bring a gi, I\'ll bring the açaí', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-11T13:00:00Z' },
   { id: 's15', slug: 'slow-house-porto', title: 'Slow House Porto', hostId: 'u13', vibe: 'wellness',
     city: 'Porto', region: 'Portugal', lat: 41.15, lng: -8.61, mapPreviewUrl: map('porto'),
     startDate: '2026-11-14', endDate: '2026-11-21', spotsTotal: 3, spotsFilled: 1,
@@ -371,7 +395,7 @@ export const stays: Stay[] = [
     dayText: 'Nothing before 10. Long walk, long lunch, reading, one dinner out.',
     lookingForText: 'Readers, writers, people who are fine with silence.',
     houseRules: ['Phones away at dinner'],
-    interests: ['reading', 'writing', 'walking', 'wine'], status: 'published', featured: false, createdAt: '2026-10-18T16:00:00Z' },
+    interests: ['reading', 'writing', 'walking', 'wine'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-18T16:00:00Z' },
   { id: 's16', slug: 'ecom-house-bangkok', title: 'E-com House Bangkok', hostId: 'u14', vibe: 'founder',
     city: 'Thonglor', region: 'Bangkok, Thailand', lat: 13.73, lng: 100.58, mapPreviewUrl: map('thonglor'),
     startDate: '2026-12-01', endDate: '2026-12-22', spotsTotal: 4, spotsFilled: 2,
@@ -381,7 +405,7 @@ export const stays: Stay[] = [
     dayText: '06:00 gym · 08:00–15:00 work · afternoon free · 15:00–18:00 calls · street food.',
     lookingForText: 'People running an online store with real revenue. Any niche.',
     houseRules: ['Calls in your room', 'No supplier meetings in the living room'],
-    interests: ['ecommerce', 'gym', 'street food'], status: 'published', featured: false, createdAt: '2026-10-13T09:00:00Z' },
+    interests: ['ecommerce', 'gym', 'street food'], hostNote: 'Q4 war room – real revenue only', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-13T09:00:00Z' },
   { id: 's17', slug: 'first-asia-house-hoi-an', title: 'First-Asia House Hoi An', hostId: 'u15', vibe: 'holiday',
     city: 'Hoi An', region: 'Vietnam', lat: 15.88, lng: 108.34, mapPreviewUrl: map('hoian'),
     startDate: '2027-01-20', endDate: '2027-02-03', spotsTotal: 4, spotsFilled: 1,
@@ -391,7 +415,7 @@ export const stays: Stay[] = [
     dayText: 'Bike to the beach · lunch in the old town · afternoons free · one cooking class together.',
     lookingForText: 'Beginners welcome. Under 30 preferred.',
     houseRules: ['Share the bikes', 'Be back for the cooking class'],
-    interests: ['beach', 'cycling', 'food'], status: 'published', featured: false, createdAt: '2026-10-20T08:00:00Z' },
+    interests: ['beach', 'cycling', 'food'], hostNote: 'My first Asia trip too, let\'s figure it out', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T08:00:00Z' },
   { id: 's18', slug: 'night-shift-house-canggu', title: 'Night-Shift House Canggu', hostId: 'u16', vibe: 'remote-work',
     city: 'Pererenan', region: 'Bali, Indonesia', lat: -8.64, lng: 115.12, mapPreviewUrl: map('pererenan'),
     startDate: '2027-02-15', endDate: '2027-03-15', spotsTotal: 5, spotsFilled: 2,
@@ -401,7 +425,7 @@ export const stays: Stay[] = [
     dayText: 'Sleep until 10 · gym/surf/beach · work 16:00–01:00 · late dinners together.',
     lookingForText: 'Remote workers on US or EU time zones. Night owls only.',
     houseRules: ['Daytime is quiet time for sleepers'],
-    interests: ['remote work', 'surfing', 'late dinners'], status: 'published', featured: true, createdAt: '2026-10-17T22:00:00Z' },
+    interests: ['remote work', 'surfing', 'late dinners'], hostNote: 'Night owls, this one\'s for you', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-17T22:00:00Z' },
   { id: 's19', slug: 'ski-house-innsbruck', title: 'Ski House Innsbruck', hostId: 'u8', vibe: 'holiday',
     city: 'Innsbruck', region: 'Austria', lat: 47.27, lng: 11.40, mapPreviewUrl: map('innsbruck'),
     startDate: '2027-01-29', endDate: '2027-02-01', spotsTotal: 5, spotsFilled: 2,
@@ -411,7 +435,7 @@ export const stays: Stay[] = [
     dayText: 'Lifts at 9 · back at 16 · sauna · raclette.',
     lookingForText: 'Intermediate skiers/boarders. Gear rental nearby.',
     houseRules: ['Boots in the hallway'],
-    interests: ['skiing', 'sauna', 'raclette'], status: 'published', featured: false, createdAt: '2026-10-19T12:00:00Z' },
+    interests: ['skiing', 'sauna', 'raclette'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T12:00:00Z' },
   { id: 's20', slug: 'editing-house-lisbon', title: 'Editing House Lisbon', hostId: 'u2', vibe: 'creator',
     city: 'Alfama', region: 'Lisbon, Portugal', lat: 38.71, lng: -9.13, mapPreviewUrl: map('alfama'),
     startDate: '2027-03-01', endDate: '2027-03-15', spotsTotal: 4, spotsFilled: 0,
@@ -421,7 +445,41 @@ export const stays: Stay[] = [
     dayText: 'Edit 09:00–15:00 · city afternoons · screening night on the last day.',
     lookingForText: 'Editors and creators with a backlog. Must bring your own machine.',
     houseRules: ['Headphones during edit hours'],
-    interests: ['editing', 'content', 'city walks'], status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
+    interests: ['editing', 'content', 'city walks'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
+  // Streaming houses (all featured, so they join the Spotlight rotation)
+  { id: 's21', slug: 'streaming-villa-lisbon', title: 'Streaming Villa Lisbon', hostId: 'u18', vibe: 'creator',
+    city: 'Lisbon', region: 'Portugal', lat: 38.72, lng: -9.15, mapPreviewUrl: map('lisbon-stream'),
+    startDate: '2027-02-01', endDate: '2027-02-22', spotsTotal: 5, spotsFilled: 1,
+    pricePerPerson: 690, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.airbnb.com/rooms/example-lisbon-stream-villa',
+    description: 'Three weeks in a villa built for going live: two soundproofed stream rooms, fiber, a big kitchen for between-stream dinners.',
+    whyText: 'Streaming alone in a flat gets quiet fast. In one house we can raid each other, co-stream, share chat and actually hang out when the cameras are off.',
+    dayText: 'Slow mornings · 12:00 editing & clips · 16:00–20:00 first stream block · dinner together · 21:00–00:00 late streams and raids.',
+    lookingForText: 'Streamers with a live schedule, any size, any platform. Bring your own setup; the rooms and fiber are covered.',
+    houseRules: ['Stream rooms are booked in the shared calendar', 'No background noise in the hallway while someone is live', 'Ask before putting anyone on stream'],
+    interests: ['streaming', 'gaming', 'editing', 'food'],
+    hostNote: 'Fiber + 2 stream rooms, I checked', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-21T08:00:00Z' },
+  { id: 's22', slug: 'irl-house-bangkok', title: 'IRL House Bangkok', hostId: 'u19', vibe: 'creator',
+    city: 'Ekkamai', region: 'Bangkok, Thailand', lat: 13.72, lng: 100.59, mapPreviewUrl: map('ekkamai'),
+    startDate: '2026-12-06', endDate: '2026-12-20', spotsTotal: 4, spotsFilled: 2,
+    budgetPerPerson: { min: 400, max: 550 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'Two weeks of IRL streams across Bangkok: night markets, tuk-tuks, rooftop bars – and a house to come back to.',
+    whyText: 'IRL streaming is better with company – someone to hold the second camera, someone to talk to chat with, someone to keep the battery bank charged.',
+    dayText: 'Sleep in · afternoon planning · 18:00 co-stream out in the city · late street food · back home for highlights.',
+    lookingForText: 'IRL and travel streamers who are fine being on each other\'s streams. Energy over follower count.',
+    houseRules: ['Everyone films with consent', 'Charging station in the living room is shared'],
+    interests: ['irl streaming', 'street food', 'night markets'],
+    hostNote: 'Co-streams every evening, chaos guaranteed', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-20T19:00:00Z' },
+  { id: 's23', slug: 'cozy-stream-house-canggu', title: 'Cozy Stream House Canggu', hostId: 'u20', vibe: 'creator',
+    city: 'Berawa', region: 'Bali, Indonesia', lat: -8.66, lng: 115.15, mapPreviewUrl: map('berawa'),
+    startDate: '2027-01-08', endDate: '2027-02-07', spotsTotal: 4, spotsFilled: 0,
+    budgetPerPerson: { min: 500, max: 650 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'A month in a quiet villa: surf and naps by day, cozy games and chess streams in the evening (EU prime time).',
+    whyText: 'Bali on EU hours means the days are free. I want a calm house of people who stream at night and don\'t need to party.',
+    dayText: '07:00 surf · lazy afternoon · 17:00–23:00 streams (EU evening) · midnight snacks · quiet mornings.',
+    lookingForText: 'Cozy, chess or chill streamers who keep EU hours. Quiet during the day, live by night.',
+    houseRules: ['Quiet before 14:00', 'Headphones on in shared rooms while live'],
+    interests: ['chess', 'cozy games', 'surfing'],
+    hostNote: 'Quiet by day, live by night – EU hours', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-21T06:30:00Z' },
 ];
 
 export const joinRequests: JoinRequest[] = [
@@ -438,6 +496,11 @@ export const joinRequests: JoinRequest[] = [
   { id: 'r11', stayId: 's16', userId: 'u3', message: 'Not e-com but fintech. Fine with gym at 6.', status: 'declined', createdAt: '2026-10-14T11:00:00Z' },
   { id: 'r12', stayId: 's18', userId: 'u7', message: 'US streaming hours, this is literally my schedule.', status: 'accepted', createdAt: '2026-10-18T02:00:00Z' },
   { id: 'r13', stayId: 's13', userId: 'u1', message: 'I\'m in Osaka right now – happy to help with logistics.', status: 'pending', createdAt: '2026-10-20T06:00:00Z' },
+  { id: 'r14', stayId: 's1', userId: 'u17', message: 'First trip like this – I train 4×/week and I\'m an early riser.', status: 'pending', createdAt: '2026-10-21T07:00:00Z' },
+  { id: 'r15', stayId: 's21', userId: 'u16', message: 'I stream backend coding on Twitch at night – would love a proper stream room and raids with the house.', status: 'accepted', createdAt: '2026-10-21T09:30:00Z' },
+  { id: 'r16', stayId: 's22', userId: 'u7', message: 'Game-dev streamer, happy to carry the second camera and do a co-stream night market tour.', status: 'accepted', createdAt: '2026-10-20T20:15:00Z' },
+  { id: 'r17', stayId: 's22', userId: 'u2', message: 'Filming my Asia series in December anyway – let\'s do some IRL collabs!', status: 'accepted', createdAt: '2026-10-20T21:40:00Z' },
+  { id: 'r18', stayId: 's23', userId: 'u11', message: 'Quiet, tidy, I stream cozy design sessions. EU evenings are perfect for me.', status: 'pending', createdAt: '2026-10-21T07:45:00Z' },
 ];
 
 export const threads: Thread[] = [

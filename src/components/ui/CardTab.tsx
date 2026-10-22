@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
-import { Img } from "./Img";
+import { PersonPhoto } from "./PersonPhoto";
 
 interface CardTabProps {
   host: Pick<User, "name" | "photos" | "verified">;
@@ -11,6 +11,8 @@ interface CardTabProps {
   /** Optional extra after the name, e.g. dates on featured cards */
   suffix?: string;
   className?: string;
+  /** Classes for the avatar + name, e.g. to fade them in while the tab background stays put */
+  contentClassName?: string;
 }
 
 // Inverted corners: page colour everywhere except a 20px quarter circle at the bottom-right, which lets the
@@ -25,26 +27,28 @@ const cornerBelow =
  * Notched host tab for the top-left corner of a card (the card needs `relative overflow-hidden`).
  * The tab itself plus two inverted corners – right of it along the top edge, below it along the left edge.
  */
-export function CardTab({ host, bg = "#ffffff", suffix, className }: CardTabProps) {
+export function CardTab({ host, bg = "var(--color-page)", suffix, className, contentClassName }: CardTabProps) {
   return (
     <div
       aria-hidden
       style={{ "--tab-bg": bg, backgroundColor: bg } as CSSProperties}
       className={cn(
-        "pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center gap-2 rounded-br-[20px] py-1.5 pl-1.5 pr-3.5",
+        "pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] py-1.5 pl-1.5 pr-3.5",
         cornerRight,
         cornerBelow,
         className,
       )}
     >
-      <Img src={host.photos[0]} alt="" width={28} height={28} className="size-7 shrink-0 rounded-full object-cover" />
-      <span className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
-        <span>
-          {firstName(host)}
-          <span className="text-accent">.</span>
+      <span className={cn("flex items-center gap-2", contentClassName)}>
+        <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7" />
+        <span className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
+          <span>
+            {firstName(host)}
+            <span className="text-accent">.</span>
+          </span>
+          {host.verified && <BadgeCheck className="size-4 shrink-0 text-zinc-500" />}
+          {suffix && <span className="font-normal text-zinc-500">· {suffix}</span>}
         </span>
-        {host.verified && <BadgeCheck className="size-4 shrink-0 text-zinc-500" />}
-        {suffix && <span className="font-normal text-zinc-500">· {suffix}</span>}
       </span>
     </div>
   );

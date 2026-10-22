@@ -7,8 +7,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <TopHeader />
-      {/* Bottom padding keeps content clear of the mobile tab bar / sticky CTA. */}
-      <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-12">{children}</main>
+      {/* Bottom padding keeps content clear of the floating mobile tab bar (64px + 12px + safe area) / sticky CTA. */}
+      <main className="flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-12">{children}</main>
       <Footer />
       <Suspense fallback={null}>
         <BottomTabBar />

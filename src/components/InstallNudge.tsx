@@ -3,6 +3,7 @@
 import { BellRing } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { GET_THE_APP_HREF } from "@/components/layout/secondaryLinks";
 import { buttonClass } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/Sheet";
 import { isStandalone } from "@/lib/install";
@@ -57,7 +58,7 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => {
               close();
-              router.push("/install");
+              router.push(GET_THE_APP_HREF);
             }}
             className={buttonClass("dark", "lg", "flex-1")}
           >

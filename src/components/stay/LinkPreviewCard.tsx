@@ -27,7 +27,7 @@ export function LinkPreviewCard({ href, preview, compact = false }: LinkPreviewC
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-100">
+    <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-white">
       <div className="relative aspect-video bg-neutral-100">
         <Img src={preview.imageUrl} alt="" fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />
       </div>

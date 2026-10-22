@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Img } from "./Img";
+import { PersonPhoto } from "./PersonPhoto";
 
 type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -25,12 +25,11 @@ interface AvatarProps {
 
 export function Avatar({ user, size = "md", linked = false, className }: AvatarProps) {
   const image = (
-    <Img
+    <PersonPhoto
       src={user.photos[0]}
       alt={user.name}
-      width={sizePx[size]}
-      height={sizePx[size]}
-      className={cn("shrink-0 rounded-full bg-neutral-200 object-cover", sizeClasses[size], className)}
+      size={sizePx[size]}
+      className={cn("bg-neutral-200", sizeClasses[size], className)}
     />
   );
   if (!linked) return image;

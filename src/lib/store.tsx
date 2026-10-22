@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from "react";
-import { CURRENT_USER_ID, joinRequests as mockJoinRequests, stays as mockStays, threads as mockThreads, users as mockUsers } from "./mock";
-import { DEFAULT_MAP_PREVIEW, crewThreadId, mockLastReadAt } from "./mock-extras";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import { joinRequests as mockJoinRequests, stays as mockStays, threads as mockThreads, users as mockUsers } from "./mock";
+import { crewThreadId, mockLastReadAt } from "./mock-extras";
 import type { JoinRequest, Message, NewStayInput, Stay, Thread, User } from "./types";
 import { makeId, slugify } from "./utils";
 
@@ -13,31 +13,68 @@ interface StoreState {
   stays: Stay[];
   joinRequests: JoinRequest[];
   threads: Thread[];
-  currentUserId: string;
+  /** null = logged out (mock auth) */
+  currentUserId: string | null;
   /** threadId → ISO timestamp of the newest message the current user has seen */
   lastReadAt: Record<string, string>;
 }
 
+// Actions that belong to "the current user" leave the user out: the reducer fills in state.currentUserId when it
+// processes them. So an action dispatched right after login() in the same click already acts as the new user.
 type StoreAction =
-  | { type: "createStay"; stay: Stay; thread: Thread }
-  | { type: "requestToJoin"; request: JoinRequest }
+  | { type: "login"; userId: string }
+  | { type: "logout" }
+  | { type: "updateCurrentUser"; patch: ProfilePatch }
+  | { type: "createStay"; stay: Omit<Stay, "hostId">; threadId: string }
+  | { type: "requestToJoin"; request: Omit<JoinRequest, "userId"> }
   | { type: "acceptRequest"; requestId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "declineRequest"; requestId: string }
-  | { type: "sendMessage"; threadId: string; message: Message }
+  | { type: "sendMessage"; threadId: string; message: Omit<Message, "userId"> }
   | { type: "createThread"; thread: Thread }
   | { type: "markThreadRead"; threadId: string; at: string }
-  | { type: "lockAccommodation"; stayId: string; link?: string; pricePerPerson?: number };
+  | { type: "lockAccommodation"; stayId: string; link?: string; pricePerPerson?: number }
+  | { type: "setAcceptingRequests"; stayId: string; accepting: boolean };
+
+/** The profile bits the Create flow's "About you" step and the photo sheet can change. */
+export type ProfilePatch = Partial<
+  Pick<
+    User,
+    | "name"
+    | "age"
+    | "country"
+    | "bio"
+    | "languages"
+    | "photos"
+    | "instagram"
+    | "tiktok"
+    | "youtube"
+    | "twitch"
+    | "kick"
+    | "linkedin"
+    | "x"
+    | "website"
+  >
+>;
 
 interface StoreActions {
-  createStay: (input: NewStayInput) => Stay;
+  login: (userId: string) => void;
+  logout: () => void;
+  updateCurrentUser: (patch: ProfilePatch) => void;
+  /** Creates a House hosted by the current user. Returns its slug. */
+  createStay: (input: NewStayInput) => string;
   requestToJoin: (stayId: string, message: string) => void;
   acceptRequest: (requestId: string) => void;
   declineRequest: (requestId: string) => void;
   sendMessage: (threadId: string, text: string) => void;
-  /** Finds or creates the 1:1 thread between the current user and `userId` about a stay. Returns its id. */
-  openDirectThread: (stayId: string, userId: string) => string;
+  /**
+   * Finds or creates the 1:1 thread between the current user and `userId` about a stay. Returns its id.
+   * Pass `asUserId` when calling right after login (e.g. from a requireAuth callback), before the new user is in state.
+   */
+  openDirectThread: (stayId: string, userId: string, asUserId?: string) => string;
   markThreadRead: (threadId: string) => void;
   lockAccommodation: (stayId: string, link?: string, pricePerPerson?: number) => void;
+  /** Host's "Taking requests" switch. Nothing else ever changes it. */
+  setAcceptingRequests: (stayId: string, accepting: boolean) => void;
 }
 
 type StoreValue = StoreState & StoreActions;
@@ -64,21 +101,48 @@ const initialState: StoreState = {
   stays: mockStays,
   joinRequests: mockJoinRequests,
   threads: withCrewThreads(mockStays, mockThreads, mockJoinRequests),
-  currentUserId: CURRENT_USER_ID,
+  currentUserId: null,
   lastReadAt: mockLastReadAt,
 };
+
+/** Mock auth: the chosen user survives a refresh. */
+const MOCK_USER_KEY = "simpulo:mock-user";
 
 function updateThread(threads: Thread[], threadId: string, update: (t: Thread) => Thread): Thread[] {
   return threads.map((t) => (t.id === threadId ? update(t) : t));
 }
 
 function reducer(state: StoreState, action: StoreAction): StoreState {
+  const me = state.currentUserId;
   switch (action.type) {
-    case "createStay":
-      return { ...state, stays: [action.stay, ...state.stays], threads: [action.thread, ...state.threads] };
+    case "login":
+      return state.users.some((u) => u.id === action.userId) ? { ...state, currentUserId: action.userId } : state;
 
-    case "requestToJoin":
-      return { ...state, joinRequests: [...state.joinRequests, action.request] };
+    case "logout":
+      return { ...state, currentUserId: null };
+
+    case "updateCurrentUser":
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, ...action.patch } : u)) };
+
+    case "createStay": {
+      if (!me) return state;
+      // Every House gets its crew thread right away, with the host as first member.
+      const thread: Thread = { id: action.threadId, type: "crew", stayId: action.stay.id, participantIds: [me], messages: [] };
+      return { ...state, stays: [{ ...action.stay, hostId: me }, ...state.stays], threads: [thread, ...state.threads] };
+    }
+
+    case "requestToJoin": {
+      if (!me) return state;
+      const stay = state.stays.find((s) => s.id === action.request.stayId);
+      const alreadyAsked = state.joinRequests.some(
+        (r) => r.stayId === action.request.stayId && r.userId === me && r.status !== "declined",
+      );
+      // The host can't join their own House; a second request would only duplicate the first; a House that
+      // isn't taking requests doesn't get new ones.
+      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests) return state;
+      return { ...state, joinRequests: [...state.joinRequests, { ...action.request, userId: me }] };
+    }
 
     case "acceptRequest": {
       const request = state.joinRequests.find((r) => r.id === action.requestId);
@@ -92,9 +156,8 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "accepted" } : r)),
-        stays: state.stays.map((s) =>
-          s.id === stay.id ? { ...s, spotsFilled, status: spotsFilled >= s.spotsTotal ? "full" : s.status } : s,
-        ),
+        // Only the spot count changes – whether the House keeps taking requests is the host's call.
+        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled } : s)),
         threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({
           ...t,
           participantIds: t.participantIds.includes(request.userId) ? t.participantIds : [...t.participantIds, request.userId],
@@ -112,9 +175,13 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       };
 
     case "sendMessage":
+      if (!me) return state;
       return {
         ...state,
-        threads: updateThread(state.threads, action.threadId, (t) => ({ ...t, messages: [...t.messages, action.message] })),
+        threads: updateThread(state.threads, action.threadId, (t) => ({
+          ...t,
+          messages: [...t.messages, { ...action.message, userId: me }],
+        })),
         // Your own message is read by definition.
         lastReadAt: { ...state.lastReadAt, [action.threadId]: action.message.createdAt },
       };
@@ -127,6 +194,12 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       if (current && current >= action.at) return state;
       return { ...state, lastReadAt: { ...state.lastReadAt, [action.threadId]: action.at } };
     }
+
+    case "setAcceptingRequests":
+      return {
+        ...state,
+        stays: state.stays.map((s) => (s.id === action.stayId ? { ...s, acceptingRequests: action.accepting } : s)),
+      };
 
     case "lockAccommodation":
       return {
@@ -151,68 +224,86 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { currentUserId, threads } = state;
 
-  const createStay = useCallback(
-    (input: NewStayInput): Stay => {
-      const id = makeId("s");
-      const stay: Stay = {
+  // Restore the mock user after a refresh (client only, so the server render stays logged out).
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(MOCK_USER_KEY);
+      if (saved) dispatch({ type: "login", userId: saved });
+    } catch {
+      // storage unavailable – stay logged out
+    }
+  }, []);
+
+  const login = useCallback((userId: string) => {
+    dispatch({ type: "login", userId });
+    try {
+      localStorage.setItem(MOCK_USER_KEY, userId);
+    } catch {
+      // not persisted, still logged in for this visit
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    dispatch({ type: "logout" });
+    try {
+      localStorage.removeItem(MOCK_USER_KEY);
+    } catch {
+      // nothing to clean up
+    }
+  }, []);
+
+  const updateCurrentUser = useCallback((patch: ProfilePatch) => dispatch({ type: "updateCurrentUser", patch }), []);
+
+  const createStay = useCallback((input: NewStayInput): string => {
+    const id = makeId("s");
+    const slug = `${slugify(input.title) || "house"}-${id.slice(-4)}`;
+    dispatch({
+      type: "createStay",
+      threadId: crewThreadId(id),
+      stay: {
         ...input,
         id,
-        slug: `${slugify(input.title) || "stay"}-${id.slice(-4)}`,
-        hostId: currentUserId,
-        // No geocoding yet: created stays get a placeholder map and no coordinates.
+        slug,
+        // No geocoding yet: created Houses have no coordinates and no static map preview.
         lat: 0,
         lng: 0,
-        mapPreviewUrl: DEFAULT_MAP_PREVIEW,
+        mapPreviewUrl: "",
         spotsFilled: 1,
         currency: "EUR",
         status: "published",
+        acceptingRequests: true,
         featured: false,
         createdAt: new Date().toISOString(),
-      };
-      // Every stay gets its crew thread right away, with the host as first member.
-      const thread: Thread = { id: crewThreadId(id), type: "crew", stayId: id, participantIds: [currentUserId], messages: [] };
-      dispatch({ type: "createStay", stay, thread });
-      return stay;
-    },
-    [currentUserId],
-  );
+      },
+    });
+    return slug;
+  }, []);
 
-  const requestToJoin = useCallback(
-    (stayId: string, message: string) => {
-      dispatch({
-        type: "requestToJoin",
-        request: {
-          id: makeId("r"),
-          stayId,
-          userId: currentUserId,
-          message: message.trim(),
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        },
-      });
-    },
-    [currentUserId],
-  );
+  const requestToJoin = useCallback((stayId: string, message: string) => {
+    dispatch({
+      type: "requestToJoin",
+      request: { id: makeId("r"), stayId, message: message.trim(), status: "pending", createdAt: new Date().toISOString() },
+    });
+  }, []);
 
-  const sendMessage = useCallback(
-    (threadId: string, text: string) => {
-      if (!text.trim()) return;
-      dispatch({
-        type: "sendMessage",
-        threadId,
-        message: { id: makeId("m"), userId: currentUserId, text: text.trim(), createdAt: new Date().toISOString() },
-      });
-    },
-    [currentUserId],
-  );
+  const sendMessage = useCallback((threadId: string, text: string) => {
+    if (!text.trim()) return;
+    dispatch({
+      type: "sendMessage",
+      threadId,
+      message: { id: makeId("m"), text: text.trim(), createdAt: new Date().toISOString() },
+    });
+  }, []);
 
   const openDirectThread = useCallback(
-    (stayId: string, userId: string): string => {
+    (stayId: string, userId: string, asUserId?: string): string => {
+      const me = asUserId ?? currentUserId;
+      if (!me) return "";
       const existing = threads.find(
         (t) =>
           t.type === "direct" &&
           t.stayId === stayId &&
-          t.participantIds.includes(currentUserId) &&
+          t.participantIds.includes(me) &&
           t.participantIds.includes(userId),
       );
       if (existing) return existing.id;
@@ -220,7 +311,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         id: makeId("direct"),
         type: "direct",
         stayId,
-        participantIds: [currentUserId, userId],
+        participantIds: [me, userId],
         messages: [],
       };
       dispatch({ type: "createThread", thread });
@@ -246,6 +337,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [threads],
   );
+  const setAcceptingRequests = useCallback(
+    (stayId: string, accepting: boolean) => dispatch({ type: "setAcceptingRequests", stayId, accepting }),
+    [],
+  );
   const lockAccommodation = useCallback(
     (stayId: string, link?: string, pricePerPerson?: number) =>
       dispatch({ type: "lockAccommodation", stayId, link, pricePerPerson }),
@@ -255,6 +350,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreValue>(
     () => ({
       ...state,
+      login,
+      logout,
+      updateCurrentUser,
       createStay,
       requestToJoin,
       acceptRequest,
@@ -263,8 +361,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openDirectThread,
       markThreadRead,
       lockAccommodation,
+      setAcceptingRequests,
     }),
-    [state, createStay, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, lockAccommodation],
+    [state, login, logout, updateCurrentUser, createStay, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, lockAccommodation, setAcceptingRequests],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -284,10 +383,9 @@ export function findUser(store: Pick<StoreState, "users">, userId: string): User
   return store.users.find((u) => u.id === userId);
 }
 
-export function getCurrentUser(store: Pick<StoreState, "users" | "currentUserId">): User {
-  const user = findUser(store, store.currentUserId);
-  if (!user) throw new Error(`Current user ${store.currentUserId} not found`);
-  return user;
+/** The logged-in user, or undefined when logged out. */
+export function getCurrentUser(store: Pick<StoreState, "users" | "currentUserId">): User | undefined {
+  return store.currentUserId ? findUser(store, store.currentUserId) : undefined;
 }
 
 /** Host first, then accepted guests. */
@@ -301,7 +399,8 @@ export function getCrew(store: StoreData, stay: Stay): User[] {
   return memberIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
 }
 
-export function isCrewMember(store: StoreData, stay: Stay, userId: string): boolean {
+export function isCrewMember(store: StoreData, stay: Stay, userId: string | null): boolean {
+  if (!userId) return false;
   return (
     stay.hostId === userId ||
     store.joinRequests.some((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted")
@@ -309,6 +408,7 @@ export function isCrewMember(store: StoreData, stay: Stay, userId: string): bool
 }
 
 export function getMyRequest(store: StoreData, stayId: string): JoinRequest | undefined {
+  if (!store.currentUserId) return undefined;
   return store.joinRequests.findLast((r) => r.stayId === stayId && r.userId === store.currentUserId);
 }
 

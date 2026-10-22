@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, isNavActive } from "./nav";
+import { useStore } from "@/lib/store";
+import { isNavActive, navItemsFor } from "./nav";
 
 export function NavLinksFallback() {
   return <NavLinksView pathname={null} />;
@@ -19,6 +20,8 @@ const UNDERLINE_OFFSET_PX = 6;
 
 /** Plain text tabs with one orange underline that slides to the active tab. */
 function NavLinksView({ pathname }: { pathname: string | null }) {
+  const loggedIn = useStore().currentUserId !== null;
+  const items = navItemsFor(loggedIn);
   const navRef = useRef<HTMLElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
   const positioned = useRef(false);
@@ -57,11 +60,11 @@ function NavLinksView({ pathname }: { pathname: string | null }) {
     const observer = new ResizeObserver(position);
     observer.observe(nav);
     return () => observer.disconnect();
-  }, [pathname]);
+  }, [pathname, loggedIn]);
 
   return (
     <nav ref={navRef} className="relative flex items-center gap-8">
-      {NAV_ITEMS.map(({ href, label }) => {
+      {items.map(({ href, label }) => {
         const active = isNavActive(href, pathname);
         return (
           <Link

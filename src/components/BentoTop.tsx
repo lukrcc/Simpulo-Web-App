@@ -1,51 +1,40 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { PlaceCard } from "@/components/SpotlightHero";
-import { AvatarStack } from "@/components/ui/Avatar";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Container } from "@/components/layout/Container";
 import { CardTab } from "@/components/ui/CardTab";
+import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { Img } from "@/components/ui/Img";
+import { PlaceText } from "@/components/ui/PlaceText";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { cn, firstName, firstSentence, formatShortRange, placeLabel } from "@/lib/utils";
 
-const CYCLE_MS = 10_000;
+const STEP_INTERVAL_MS = 7_000;
 const CELL_COUNT = 3;
+/** Delay between cells A → B → C, so a house reads as walking C → B → A. */
+const STAGGER_MS = 120;
+/** Longest animation (C: 240ms delay + 600ms image fade-in), rounded up. Steps are ignored until it's over. */
+const TRANSITION_MS = 900;
 
-/** Each cell shows `current`; `previous` stays underneath while `current` fades in, which makes it a crossfade. */
-interface CellState {
-  current: number;
-  previous: number | null;
+/**
+ * Pipeline C → B → A → out over the featured list, driven by one queue index:
+ * A = featured[i], B = featured[i + 1], C = featured[i + 2] (wrapping). A step is i + 1 – A's house leaves,
+ * B's moves to A, C's to B, and the next one enters C. `previousIndex` keeps the outgoing houses mounted
+ * so every cell can crossfade.
+ */
+interface Pipeline {
+  queueIndex: number;
+  previousIndex: number | null;
+  /** Total steps so far – drives the shuffle icon's rotation. */
+  steps: number;
 }
 
-interface Rotation {
-  cells: CellState[];
-  /** Which cell changes next (A → B → C → A …) */
-  step: number;
-  /** Where to look for the next featured house to bring in */
-  pointer: number;
-}
-
-function initialRotation(count: number): Rotation {
-  const cells = Array.from({ length: Math.min(CELL_COUNT, count) }, (_, i) => ({ current: i, previous: null }));
-  return { cells, step: 0, pointer: cells.length };
-}
-
-/** Swap one cell to the next featured house that isn't on screen. Pure, so it's safe as a state updater. */
-function rotate(rotation: Rotation, count: number): Rotation {
-  const { cells, step, pointer } = rotation;
-  const shown = new Set(cells.map((c) => c.current));
-  let next = pointer % count;
-  while (shown.has(next)) next = (next + 1) % count;
-  const cellIndex = step % cells.length;
-  return {
-    cells: cells.map((cell, i) => (i === cellIndex ? { current: next, previous: cell.current } : cell)),
-    step: step + 1,
-    pointer: next + 1,
-  };
-}
+const mod = (n: number, m: number) => ((n % m) + m) % m;
 
 const CELL_LAYOUT = [
   "col-span-7 row-span-2", // A
@@ -53,7 +42,7 @@ const CELL_LAYOUT = [
   "col-span-5 col-start-8 row-start-2", // C
 ] as const;
 
-/** Desktop (≥ lg) top section: one large and two small featured Houses that slowly rotate. */
+/** Desktop (≥ lg) top section: one large and two small featured Houses moving through a pipeline. */
 export function BentoTop({ stays }: { stays: Stay[] }) {
   const store = useStore();
   const items = stays.flatMap((stay) => {
@@ -62,97 +51,145 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
     return host ? [{ stay, host, guests }] : [];
   });
   const count = items.length;
+  const cellCount = Math.min(CELL_COUNT, count);
+  const canRotate = count > CELL_COUNT;
 
-  const [rotation, setRotation] = useState(() => initialRotation(count));
-  const [hovered, setHovered] = useState(false);
+  const [pipeline, setPipeline] = useState<Pipeline>({ queueIndex: 0, previousIndex: null, steps: 0 });
+  /** Bumped by a manual step so the 7s interval starts over. */
+  const [intervalKey, setIntervalKey] = useState(0);
   const pageHidden = usePageHidden();
+  const reducedMotion = usePrefersReducedMotion();
+  /** Steps arriving while a transition runs are dropped – no stacking, no skipped frames. */
+  const animatingUntil = useRef(0);
 
-  // Only rotate when there are more featured Houses than cells.
+  const advance = useCallback((): boolean => {
+    const now = performance.now();
+    if (now < animatingUntil.current) return false;
+    animatingUntil.current = now + TRANSITION_MS;
+    setPipeline((p) => ({ queueIndex: mod(p.queueIndex + 1, count), previousIndex: p.queueIndex, steps: p.steps + 1 }));
+    return true;
+  }, [count]);
+
+  // One interval for the auto steps. Paused only while the tab is hidden or under reduced motion – not on hover.
   useEffect(() => {
-    if (hovered || pageHidden || count <= CELL_COUNT) return;
-    const timer = setInterval(() => setRotation((r) => rotate(r, count)), CYCLE_MS);
+    if (!canRotate || pageHidden || reducedMotion) return;
+    const timer = setInterval(advance, STEP_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [hovered, pageHidden, count]);
+  }, [advance, canRotate, pageHidden, reducedMotion, intervalKey]);
+
+  function manualStep() {
+    if (advance()) setIntervalKey((k) => k + 1);
+  }
 
   if (count === 0) return null;
 
   return (
-    <section
-      aria-label="Featured Houses"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="mx-auto hidden h-[70vh] min-h-[560px] max-w-[1600px] grid-cols-12 grid-rows-2 gap-6 px-8 pt-6 lg:grid"
-    >
-      {rotation.cells.map((cell, i) => {
-        const large = i === 0;
-        const previous = cell.previous !== null ? items[cell.previous] : undefined;
-        const current = items[cell.current];
-        return (
-          // rounded-tl-none: the host tab covers that corner (see CardTab).
-          <div key={i} className={cn("relative overflow-hidden rounded-[28px] rounded-tl-none bg-ink", CELL_LAYOUT[i])}>
-            {previous && (
-              <div aria-hidden inert className="absolute inset-0">
-                <BentoCell {...previous} large={large} />
+    <Container className="hidden pt-6 lg:block">
+      <section
+        aria-label="Featured Houses"
+        aria-roledescription="carousel"
+        className="grid h-[70vh] min-h-[560px] grid-cols-12 grid-rows-2 gap-6"
+      >
+        {Array.from({ length: cellCount }, (_, i) => {
+          const large = i === 0;
+          const current = items[mod(pipeline.queueIndex + i, count)];
+          const previous =
+            pipeline.previousIndex === null ? undefined : items[mod(pipeline.previousIndex + i, count)];
+          const animating = previous !== undefined && previous.stay.id !== current.stay.id;
+          const stagger = { "--stagger": `${i * STAGGER_MS}ms` } as CSSProperties;
+          return (
+            // rounded-tl-none: the host tab covers that corner (see CardTab).
+            <div
+              key={i}
+              style={stagger}
+              className={cn("relative overflow-hidden rounded-[28px] rounded-tl-none bg-ink", CELL_LAYOUT[i])}
+            >
+              {animating && (
+                <div key={`out-${previous.stay.id}`} aria-hidden inert className="absolute inset-0">
+                  <CellLayer {...previous} large={large} phase="out" />
+                </div>
+              )}
+              {/* key = house: a new house remounts the layer, which replays the animation. */}
+              <div key={current.stay.id} className="absolute inset-0">
+                <CellLayer {...current} large={large} phase={animating ? "in" : "static"} />
               </div>
-            )}
-            {/* key = house: a new house remounts the layer, which replays the fade-in. */}
-            <div key={current.stay.id} className="absolute inset-0 motion-safe:animate-crossfade">
-              <BentoCell {...current} large={large} />
+
+              <Link
+                href={`/stays/${current.stay.slug}`}
+                aria-label={`${current.stay.title} with ${firstName(current.host)}`}
+                className="absolute inset-0 cursor-pointer"
+              />
+              {/* Same cell state as the image and text, so tab, text and photo always change together.
+                  One tab per cell keeps its page-coloured background solid – only the avatar and name fade. */}
+              <CardTab
+                key={`tab-${current.stay.id}`}
+                host={current.host}
+                contentClassName={animating ? "bento-text-in" : undefined}
+              />
+
+              {large && canRotate && (
+                <button
+                  type="button"
+                  onClick={manualStep}
+                  aria-label="Next houses"
+                  className="glass-dark pulse-ring absolute bottom-6 right-6 z-20 flex size-14 items-center justify-center rounded-full text-white outline-none transition-transform hover:scale-106 focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <RefreshCw
+                    className="size-[22px] motion-safe:transition-transform motion-safe:duration-900 motion-safe:ease-in-out"
+                    style={{ transform: `rotate(${pipeline.steps * 360}deg)` }}
+                    aria-hidden
+                  />
+                </button>
+              )}
             </div>
-          </div>
-        );
-      })}
-    </section>
+          );
+        })}
+      </section>
+    </Container>
   );
 }
 
-interface BentoCellProps {
+interface CellLayerProps {
   stay: Stay;
   host: User;
   guests: User[];
   large: boolean;
+  /** "in"/"out" while a step animates; "static" on first render */
+  phase: "in" | "out" | "static";
 }
 
-function BentoCell({ stay, host, guests, large }: BentoCellProps) {
+/** Photo + text of one House in a cell. Image and text animate separately (see .bento-* in globals.css). */
+function CellLayer({ stay, host, guests, large, phase }: CellLayerProps) {
+  const imageAnimation = phase === "in" ? "bento-img-in" : phase === "out" ? "bento-img-out" : undefined;
+  const textAnimation = phase === "in" ? "bento-text-in" : phase === "out" ? "bento-text-out" : undefined;
+
   return (
     <>
-      <Img
-        src={host.photos[0]}
-        alt=""
-        fill
-        sizes={large ? "(min-width: 1600px) 900px, 58vw" : "(min-width: 1600px) 640px, 42vw"}
-        className="object-cover"
-      />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 to-transparent to-60%" />
+      <div className={cn("absolute inset-0 will-change-[opacity,transform]", imageAnimation)}>
+        <Img
+          src={host.photos[0]}
+          alt=""
+          fill
+          sizes={large ? "(min-width: 1600px) 900px, 58vw" : "(min-width: 1600px) 640px, 42vw"}
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-black/75 to-transparent to-60%" />
+      </div>
 
-      {/* Whole cell is the link; the map card sits above it as a sibling (no <a> inside <a>). */}
-      <Link
-        href={`/stays/${stay.slug}`}
-        aria-label={`${stay.title} with ${firstName(host)}`}
-        className="absolute inset-0 cursor-pointer"
-      />
-
-      <CardTab host={host} />
-
-      <div className="pointer-events-none absolute inset-x-8 bottom-8 flex items-end justify-between gap-6 text-white">
-        <div className="min-w-0">
-          <h2 className={cn("font-bold tracking-tight", large ? "line-clamp-2 text-5xl" : "line-clamp-1 text-2xl")}>
-            {stay.title}
-          </h2>
-          {large && <p className="mt-3 line-clamp-2 max-w-xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>}
-          <p className={cn("text-sm text-white/80", large ? "mt-3" : "mt-1")}>
-            {formatShortRange(stay.startDate, stay.endDate)} · {large ? placeLabel(stay) : stay.city}
-          </p>
-          {large && (
-            <div className="mt-4 flex items-center gap-2">
-              {guests.length > 0 && <AvatarStack users={guests} size="sm" max={4} />}
-              <span className="text-sm font-medium text-white/90">
-                {stay.spotsFilled} of {stay.spotsTotal} in
-              </span>
-            </div>
-          )}
-        </div>
-        {large && <PlaceCard stay={stay} className="pointer-events-auto shrink-0" />}
+      <div className={cn("pointer-events-none absolute inset-x-8 bottom-8 text-white", large && "pr-20", textAnimation)}>
+        <h2 className={cn("font-bold tracking-tight", large ? "line-clamp-2 text-5xl" : "line-clamp-1 text-2xl")}>
+          {stay.title}
+        </h2>
+        {large && <p className="mt-3 line-clamp-2 max-w-xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>}
+        <p className={cn("flex items-center gap-1.5 text-sm text-white/80", large ? "mt-3" : "mt-1")}>
+          <span className="shrink-0">{formatShortRange(stay.startDate, stay.endDate)} ·</span>
+          <PlaceText>{large ? placeLabel(stay) : stay.city}</PlaceText>
+        </p>
+        {large && (
+          <div className="mt-4">
+            <CrewAvatars host={host} members={guests} />
+          </div>
+        )}
       </div>
     </>
   );

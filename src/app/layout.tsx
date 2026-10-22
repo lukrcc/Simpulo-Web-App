@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { DevSwitcher } from "@/components/auth/DevSwitcher";
 import { InstallNudgeProvider } from "@/components/InstallNudge";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -7,10 +9,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Simpulo – Travel solo. Live together.",
+    default: "Simpulo – Share a place. Find your people.",
     template: "%s · Simpulo",
   },
-  description: "Simpulo matches people, not accommodation. Join a small crew in a shared House – from a week to a few months.",
+  description: "Find people to share a house with for a few weeks – hosted by real people, anywhere.",
   // Home-screen web app: draw edge-to-edge under the iOS status bar.
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Simpulo" },
   manifest: "/manifest.webmanifest",
@@ -30,9 +32,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <StoreProvider>
           <ToastProvider>
-            <InstallNudgeProvider>
-              <AppShell>{children}</AppShell>
-            </InstallNudgeProvider>
+            <AuthProvider>
+              <InstallNudgeProvider>
+                <AppShell>{children}</AppShell>
+              </InstallNudgeProvider>
+              <DevSwitcher />
+            </AuthProvider>
           </ToastProvider>
         </StoreProvider>
       </body>

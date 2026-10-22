@@ -23,6 +23,7 @@ export function CrewSection({ stay, crew }: { stay: Stay; crew: User[] }) {
         <p className="mt-0.5 text-sm font-medium text-accent">
           {spotsLeft > 0 ? `+${pluralize(spotsLeft, "spot")} left` : "Crew complete"}
         </p>
+        <p className="text-sm text-zinc-500">Up to {pluralize(stay.spotsTotal, "person", "people")}</p>
       </div>
     </div>
   );

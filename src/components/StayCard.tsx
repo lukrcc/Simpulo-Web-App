@@ -1,11 +1,13 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { AvatarStack } from "@/components/ui/Avatar";
 import { CardTab } from "@/components/ui/CardTab";
-import { glassPill, imageGradient } from "@/components/ui/glass";
+import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
+import { PlaceText } from "@/components/ui/PlaceText";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { cn, firstName, formatShortRange } from "@/lib/utils";
@@ -30,7 +32,6 @@ export function StayCard({ stay, host, crew = [], preview = false }: StayCardPro
 
   const href = `/stays/${stay.slug}`;
   const guests = crew.filter((u) => u.id !== stay.hostId);
-  const isFull = stay.status === "full" || stay.spotsFilled >= stay.spotsTotal;
 
   return (
     <article
@@ -87,22 +88,29 @@ export function StayCard({ stay, host, crew = [], preview = false }: StayCardPro
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       {host && <CardTab host={host} />}
-      {isFull && <span className={cn(glassPill, "pointer-events-none absolute right-4 top-4")}>Crew complete</span>}
 
       {/* Bottom content – pointer-events pass through to the photo links. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-8 text-white">
         <h3 className="line-clamp-2 text-2xl font-bold tracking-tight">{stay.title || "Untitled House"}</h3>
-        <p className="mt-1 line-clamp-1 text-sm text-white/75">
-          {formatShortRange(stay.startDate, stay.endDate)}
-          {stay.city && ` · ${stay.city}`}
-        </p>
-
-        <div className="mt-4 flex items-center gap-2">
-          {guests.length > 0 && <AvatarStack users={guests} size="xs" max={4} />}
-          <span className="text-sm font-medium text-white/90">
-            {stay.spotsFilled} of {stay.spotsTotal} in
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
+          <span className="shrink-0">
+            {formatShortRange(stay.startDate, stay.endDate)}
+            {stay.city && " ·"}
           </span>
-        </div>
+          {stay.city && <PlaceText>{stay.city}</PlaceText>}
+        </p>
+        {stay.hostNote && (
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-white/85">
+            <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{stay.hostNote}</span>
+          </p>
+        )}
+
+        {host && (
+          <div className="mt-4">
+            <CrewAvatars host={host} members={guests} />
+          </div>
+        )}
       </div>
 
       {photos.length > 1 && (

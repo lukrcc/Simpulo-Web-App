@@ -3,6 +3,8 @@
 import { ArrowLeft, ChevronRight, SearchX, Send } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useRef, useState, type FormEvent } from "react";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
 import { AccommodationSection } from "@/components/stay/AccommodationSection";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
@@ -15,14 +17,22 @@ import { cn, formatDateRange, formatDay, formatTime, stayPriceLabel } from "@/li
 
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
+  return (
+    <RequireLogin title="Log in to see this chat">
+      <ThreadGate threadId={threadId} />
+    </RequireLogin>
+  );
+}
+
+function ThreadGate({ threadId }: { threadId: string }) {
   const store = useStore();
   const thread = store.threads.find((t) => t.id === threadId);
   const stay = thread && store.stays.find((s) => s.id === thread.stayId);
 
   // Crew threads open up only after acceptance (participants), direct threads only to the two people in them.
-  if (!thread || !stay || !thread.participantIds.includes(store.currentUserId)) {
+  if (!thread || !stay || !store.currentUserId || !thread.participantIds.includes(store.currentUserId)) {
     return (
-      <div className="mx-auto max-w-xl px-4 pt-16">
+      <Container page width="narrow">
         <EmptyState
           icon={SearchX}
           title={thread ? "This chat is for the crew only" : "Chat not found"}
@@ -33,7 +43,7 @@ export function ThreadView({ params }: { params: Promise<{ threadId: string }> }
             </Link>
           }
         />
-      </div>
+      </Container>
     );
   }
 
@@ -65,10 +75,11 @@ function ThreadContent({ thread, stay }: { thread: Thread; stay: Stay }) {
       : undefined;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col md:px-6 md:pt-6">
+    <Container page width="narrow">
+      <div className="flex flex-col">
       {thread.type === "crew" ? <CrewHeader stay={stay} /> : <DirectHeader stay={stay} other={other} />}
 
-      <ol className="flex-1 space-y-3 px-4 py-4 md:px-0">
+      <ol className="flex-1 space-y-3 py-4">
         {messageCount === 0 && (
           <li className="py-10 text-center text-sm text-neutral-500">
             {thread.type === "crew" ? "No messages yet – say hi to your crew 👋" : "Start the conversation 👋"}
@@ -107,7 +118,7 @@ function ThreadContent({ thread, stay }: { thread: Thread; stay: Stay }) {
                   <div
                     className={cn(
                       "inline-block rounded-2xl px-4 py-2 text-left text-sm leading-relaxed break-words",
-                      mine ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-neutral-100 text-ink",
+                      mine ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-white text-ink",
                     )}
                   >
                     {message.text}
@@ -124,7 +135,7 @@ function ThreadContent({ thread, stay }: { thread: Thread; stay: Stay }) {
       {/* Composer – sits above the mobile tab bar */}
       <form
         onSubmit={handleSend}
-        className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-neutral-100 bg-white px-4 py-3 md:bottom-0 md:px-0"
+        className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-neutral-100 -mx-4 bg-white px-4 py-3 md:bottom-0 md:mx-0 md:px-0"
       >
         <input
           value={text}
@@ -137,12 +148,13 @@ function ThreadContent({ thread, stay }: { thread: Thread; stay: Stay }) {
           <Send className="size-4" />
         </button>
       </form>
-    </div>
+      </div>
+    </Container>
   );
 }
 
 const headerClass =
-  "sticky top-0 z-30 border-b border-neutral-100 bg-white/95 px-4 py-3 backdrop-blur md:top-16 md:rounded-b-2xl md:px-0";
+  "sticky top-0 z-30 -mx-4 border-b border-neutral-100 bg-white/95 px-4 py-3 backdrop-blur md:top-16 md:mx-0 md:rounded-b-2xl md:px-0";
 
 function CrewHeader({ stay }: { stay: Stay }) {
   const store = useStore();

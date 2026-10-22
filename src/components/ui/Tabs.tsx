@@ -16,7 +16,7 @@ interface TabsProps<T extends string> {
 
 export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) {
   return (
-    <div role="tablist" className="flex gap-1 rounded-full bg-neutral-100 p-1">
+    <div role="tablist" className="flex gap-1 rounded-full bg-black/5 p-1">
       {tabs.map((tab) => {
         const active = tab.value === value;
         return (

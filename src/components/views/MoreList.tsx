@@ -3,11 +3,11 @@
 import { ChevronDown, ChevronRight, Info, Mail, Scale, Smartphone, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { LEGAL_LINKS } from "@/components/layout/secondaryLinks";
+import { GET_THE_APP_HREF, LEGAL_LINKS } from "@/components/layout/secondaryLinks";
 import { cn } from "@/lib/utils";
 
 const MORE_LINKS: ReadonlyArray<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: "/install", label: "Get the app on your phone", icon: Smartphone },
+  { href: GET_THE_APP_HREF, label: "Get the app", icon: Smartphone },
   { href: "/how-it-works", label: "How Simpulo works", icon: Info },
   { href: "/contact", label: "Contact", icon: Mail },
 ];
@@ -21,7 +21,7 @@ export function MoreList() {
   return (
     <section className="mt-10 md:hidden">
       <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">More</h2>
-      <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-100">
+      <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
         {MORE_LINKS.map(({ href, label, icon: Icon }) => (
           <li key={href}>
             <Link href={href} className={rowClass}>

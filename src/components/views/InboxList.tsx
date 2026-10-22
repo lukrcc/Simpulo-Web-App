@@ -2,6 +2,8 @@
 
 import { MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -17,10 +19,19 @@ interface ThreadRow {
 }
 
 export function InboxList() {
+  return (
+    <RequireLogin title="Log in to see your messages" description="Crew chats and direct messages show up here.">
+      <InboxContent />
+    </RequireLogin>
+  );
+}
+
+function InboxContent() {
   const store = useStore();
+  const me = store.currentUserId;
 
   const rows: ThreadRow[] = store.threads
-    .filter((t) => t.participantIds.includes(store.currentUserId))
+    .filter((t) => me !== null && t.participantIds.includes(me))
     .flatMap((thread) => {
       const stay = store.stays.find((s) => s.id === thread.stayId);
       if (!stay) return [];
@@ -38,7 +49,7 @@ export function InboxList() {
     );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-6 md:px-6 md:pt-10">
+    <Container page width="narrow">
       <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Messages</h1>
       <p className="mt-1 text-sm text-neutral-500">Crew chats and direct messages.</p>
 
@@ -87,6 +98,6 @@ export function InboxList() {
           </ul>
         )}
       </div>
-    </div>
+    </Container>
   );
 }

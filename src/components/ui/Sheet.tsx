@@ -1,7 +1,10 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
+
+/** Open sheets, oldest first – Escape only closes the topmost one (e.g. the AuthSheet over a request sheet). */
+const openSheets: string[] = [];
 
 interface SheetProps {
   open: boolean;
@@ -12,10 +15,19 @@ interface SheetProps {
 
 /** Bottom sheet on mobile, centered modal on desktop. */
 export function Sheet({ open, onClose, title, children }: SheetProps) {
+  const id = useId();
+  // Latest onClose without re-running the effect – otherwise every parent re-render would re-register the
+  // sheet and move it to the top of the stack.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
+    openSheets.push(id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && openSheets.at(-1) === id) onCloseRef.current();
     };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -23,8 +35,9 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKey);
+      openSheets.splice(openSheets.indexOf(id), 1);
     };
-  }, [open, onClose]);
+  }, [open, id]);
 
   if (!open) return null;
 

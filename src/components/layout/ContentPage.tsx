@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Container } from "./Container";
 
 interface ContentPageProps {
   title: string;
@@ -9,11 +10,13 @@ interface ContentPageProps {
 /** Simple reading layout for secondary pages (About, Legal, …). */
 export function ContentPage({ title, intro, children }: ContentPageProps) {
   return (
-    <article className="mx-auto max-w-2xl px-4 pt-8 md:px-6 md:pt-14">
+    <Container page width="text">
+      <article>
       <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{title}</h1>
       {intro && <p className="mt-3 text-lg leading-relaxed text-neutral-600">{intro}</p>}
       <div className="mt-8 space-y-4 leading-relaxed text-neutral-700">{children}</div>
-    </article>
+      </article>
+    </Container>
   );
 }
 

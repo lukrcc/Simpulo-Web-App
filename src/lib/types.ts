@@ -36,4 +36,5 @@ export type NewStayInput = Pick<
   | "lookingForText"
   | "interests"
   | "houseRules"
+  | "hostNote"
 >;
