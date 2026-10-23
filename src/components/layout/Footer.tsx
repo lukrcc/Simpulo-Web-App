@@ -9,8 +9,9 @@ import { FOOTER_LINKS } from "./secondaryLinks";
  */
 export function Footer() {
   const t = useTranslations("footer");
+  // Mobile bottom padding: tab bar (64px, 12px above the bottom) + safe area + 16px – nothing hides behind the bar.
   return (
-    <footer className="border-t border-neutral-100 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-0">
+    <footer className="border-t border-neutral-100 pb-[calc(92px+env(safe-area-inset-bottom))] md:pb-0">
       <Container className="flex flex-col gap-4 py-10 text-sm text-zinc-500 md:flex-row md:items-start md:justify-between md:gap-8">
         <div>
           <p className="text-base font-bold tracking-tight text-ink">
@@ -18,9 +19,9 @@ export function Footer() {
           </p>
           <p className="mt-1 text-xs">{t("tagline")}</p>
         </div>
-        <nav aria-label={t("label")} className="flex flex-wrap gap-x-6 gap-y-2 md:justify-end">
+        <nav aria-label={t("label")} className="flex flex-wrap gap-x-6 md:justify-end md:gap-y-2">
           {FOOTER_LINKS.map(({ href, labelKey }) => (
-            <Link key={href} href={href} className="transition-colors hover:text-ink">
+            <Link key={href} href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
               {t(`links.${labelKey}`)}
             </Link>
           ))}

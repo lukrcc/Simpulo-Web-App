@@ -13,12 +13,16 @@ import type {
   Message,
   MessageType,
   NewStayInput,
+  NotificationGroup,
   Payment,
   PaymentStatus,
+  Report,
+  ReportReason,
   Stay,
   SystemEventKey,
   Thread,
   User,
+  UserSettings,
 } from "./types";
 import { findUrls, makeId, slugify } from "./utils";
 
@@ -37,6 +41,8 @@ interface StoreState {
   payments: Payment[];
   /** threadId → who is "typing" right now (dev-only mock replies) */
   typing: Record<string, string | null>;
+  /** Mock moderation queue (Report sheet) */
+  reports: Report[];
   /** Mock outbox: every notification that would go out by email (and push, if installed). Newest last. */
   notifications: AppNotification[];
 }
@@ -98,16 +104,22 @@ type StoreAction =
   | { type: "receiveMessage"; threadId: string; message: Message }
   | { type: "toggleSaved"; stayId: string }
   | { type: "toggleHostAlert"; hostId: string }
+  | { type: "setNotification"; group: NotificationGroup; channel: "push" | "email"; on: boolean }
+  | { type: "unblockUser"; userId: string }
+  | { type: "blockUser"; userId: string }
+  | { type: "report"; report: Omit<Report, "reporterId"> }
+  | { type: "deleteAccount"; at: string }
   | { type: "fireReminder"; reminder: Reminder; message: Pick<Message, "id" | "createdAt"> }
   | { type: "setAcceptingRequests"; stayId: string; accepting: boolean };
 
-/** The profile bits the Create flow's "About you" step and the photo sheet can change. */
+/** The profile bits Edit profile, the Create flow's "About you" step and the photo sheet can change. */
 export type ProfilePatch = Partial<
   Pick<
     User,
     | "name"
     | "age"
     | "country"
+    | "city"
     | "bio"
     | "languages"
     | "photos"
@@ -118,8 +130,10 @@ export type ProfilePatch = Partial<
     | "kick"
     | "linkedin"
     | "x"
+    | "threads"
     | "website"
     | "privateContacts"
+    | "preferredCurrency"
   >
 >;
 
@@ -175,6 +189,15 @@ interface StoreActions {
   toggleSaved: (stayId: string) => void;
   /** "Notify me": get an alert when this host opens a House, or stop it. */
   toggleHostAlert: (hostId: string) => void;
+  /** Settings → Notifications: one channel of one group on/off. */
+  setNotification: (group: NotificationGroup, channel: "push" | "email", on: boolean) => void;
+  unblockUser: (userId: string) => void;
+  /** Their Houses and profile are hidden from you, their requests to your Houses auto-declined, direct threads gone. */
+  blockUser: (userId: string) => void;
+  /** Mock: queued in `reports` for review. */
+  report: (target: Report["target"], reason: ReportReason, text?: string) => void;
+  /** Mock: marks the account deleted and logs out (nothing else is removed). */
+  deleteAccount: () => void;
   /** Dev: fires a computed reminder now – notification (email/push mock), plus a crew chat line if crew-related. */
   fireReminder: (reminder: Reminder) => void;
 }
@@ -290,6 +313,7 @@ const initialState: StoreState = {
   lastReadAt: seededChat.lastReadAt,
   payments: seededPayments,
   typing: {},
+  reports: [],
   notifications: [],
 };
 
@@ -481,6 +505,11 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       // The host can't join their own House; a second request would only duplicate the first; a House that
       // isn't taking requests doesn't get new ones.
       if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests) return state;
+      // A host who blocked me declines automatically – and isn't notified.
+      const host = state.users.find((u) => u.id === stay.hostId);
+      if (settingsOf(host).blockedUserIds.includes(me)) {
+        return { ...state, joinRequests: [...state.joinRequests, { ...action.request, userId: me, status: "declined" }] };
+      }
       return {
         ...state,
         joinRequests: [...state.joinRequests, { ...action.request, userId: me }],
@@ -696,6 +725,58 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         }),
       };
     }
+
+    case "setNotification": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          const group = { ...settings.notifications[action.group], [action.channel]: action.on };
+          return { ...u, settings: { ...settings, notifications: { ...settings.notifications, [action.group]: group } } };
+        }),
+      };
+    }
+
+    case "unblockUser": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          return { ...u, settings: { ...settings, blockedUserIds: settings.blockedUserIds.filter((id) => id !== action.userId) } };
+        }),
+      };
+    }
+
+    case "blockUser": {
+      if (!me || action.userId === me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          if (settings.blockedUserIds.includes(action.userId)) return u;
+          return { ...u, settings: { ...settings, blockedUserIds: [...settings.blockedUserIds, action.userId] } };
+        }),
+        // Their open requests to my Houses are declined right away.
+        joinRequests: state.joinRequests.map((r) =>
+          r.userId === action.userId && r.status === "pending" && state.stays.some((s) => s.id === r.stayId && s.hostId === me)
+            ? { ...r, status: "declined" }
+            : r,
+        ),
+      };
+    }
+
+    case "report":
+      if (!me) return state;
+      return { ...state, reports: [...state.reports, { ...action.report, reporterId: me }] };
+
+    case "deleteAccount":
+      if (!me) return state;
+      return { ...state, currentUserId: null, users: state.users.map((u) => (u.id === me ? { ...u, deletedAt: action.at } : u)) };
 
     case "fireReminder": {
       const { reminder } = action;
@@ -944,6 +1025,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetPayments = useCallback((stayId: string) => dispatch({ type: "resetPayments", stayId }), []);
   const toggleSaved = useCallback((stayId: string) => dispatch({ type: "toggleSaved", stayId }), []);
   const toggleHostAlert = useCallback((hostId: string) => dispatch({ type: "toggleHostAlert", hostId }), []);
+  const setNotification = useCallback(
+    (group: NotificationGroup, channel: "push" | "email", on: boolean) => dispatch({ type: "setNotification", group, channel, on }),
+    [],
+  );
+  const unblockUser = useCallback((userId: string) => dispatch({ type: "unblockUser", userId }), []);
+  const blockUser = useCallback((userId: string) => dispatch({ type: "blockUser", userId }), []);
+  const report = useCallback(
+    (target: Report["target"], reason: ReportReason, text?: string) =>
+      dispatch({ type: "report", report: { id: makeId("rep"), target, reason, text: text?.trim() || undefined, createdAt: new Date().toISOString() } }),
+    [],
+  );
+  const deleteAccount = useCallback(() => {
+    dispatch({ type: "deleteAccount", at: new Date().toISOString() });
+    try {
+      localStorage.removeItem(MOCK_USER_KEY);
+      sessionStorage.removeItem(TAB_USER_KEY);
+    } catch {
+      // nothing to clean up
+    }
+  }, []);
   const fireReminder = useCallback(
     (reminder: Reminder) => dispatch({ type: "fireReminder", reminder, message: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
@@ -975,9 +1076,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAcceptingRequests,
       toggleSaved,
       toggleHostAlert,
+      setNotification,
+      unblockUser,
+      blockUser,
+      report,
+      deleteAccount,
       fireReminder,
     }),
-    [state, login, logout, updateCurrentUser, createStay, updateStay, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, fireReminder],
+    [state, login, logout, updateCurrentUser, createStay, updateStay, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -997,7 +1103,52 @@ export function useStore(): StoreValue {
 
 // Selectors – pure helpers over store state.
 
-type StoreData = Pick<StoreState, "users" | "stays" | "joinRequests" | "currentUserId">;
+const DEFAULT_SETTINGS: UserSettings = {
+  notifications: {
+    requests: { push: true, email: true },
+    messages: { push: true, email: true },
+    payments: { push: true, email: true },
+    hostAlerts: { push: true, email: true },
+  },
+  blockedUserIds: [],
+};
+
+/** Whether the current user blocked `userId` (their Houses, profile and direct threads are hidden). */
+export function isBlocked(store: Pick<StoreState, "users" | "currentUserId">, userId: string): boolean {
+  return settingsOf(getCurrentUser(store)).blockedUserIds.includes(userId);
+}
+
+/** Ready to send requests / publish: a face photo, a first name, an age (18+) and a country. */
+export function isProfileComplete(user: Pick<User, "photos" | "name" | "age" | "country">): boolean {
+  return Boolean(user.photos[0]) && user.name.trim() !== "" && user.age >= 18 && user.country.trim() !== "";
+}
+
+/** A user's settings with defaults filled in (everything on, nobody blocked). */
+export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettings {
+  return {
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...user?.settings?.notifications },
+    blockedUserIds: user?.settings?.blockedUserIds ?? [],
+  };
+}
+
+/** Which Settings group a notification belongs to (its toggles decide whether push/email go out). */
+export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
+  newRequest: "requests",
+  accepted: "requests",
+  declined: "requests",
+  reminderPendingRequests: "requests",
+  left: "messages",
+  locked: "payments",
+  paid: "payments",
+  reminderPayDue: "payments",
+  reminderPayToday: "payments",
+  reminderBookingUpload: "payments",
+  reminderArrival: "payments",
+  reminderSavedSoon: "payments",
+  hostOpened: "hostAlerts",
+};
+
+export type StoreData = Pick<StoreState, "users" | "stays" | "joinRequests" | "currentUserId">;
 
 export function findUser(store: Pick<StoreState, "users">, userId: string): User | undefined {
   return store.users.find((u) => u.id === userId);

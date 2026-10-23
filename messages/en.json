@@ -17,7 +17,10 @@
       "contact": "Contact",
       "imprint": "Imprint",
       "privacy": "Privacy Policy",
-      "terms": "Terms of Service"
+      "terms": "Terms of Service",
+      "editProfile": "Edit profile",
+      "settings": "Settings",
+      "welcome": "Complete your profile"
     }
   },
   "common": {
@@ -42,7 +45,8 @@
       "remote-work": "Remote work",
       "surf": "Surf",
       "wellness": "Wellness",
-      "holiday": "Holiday"
+      "holiday": "Holiday",
+      "mixed": "Mixed"
     },
     "paymentStatus": {
       "paid": "Paid",
@@ -97,7 +101,9 @@
         "replace": "Replace photo {index}",
         "remove": "Remove photo {index}",
         "required": "Required",
-        "reorderHint": "Drag to reorder – the first one is your face."
+        "reorderHint": "Drag to reorder – the first one is your face.",
+        "face": "Face",
+        "addPhoto": "Add photo"
       },
       "photoSheet": {
         "title": "Add a photo",
@@ -158,6 +164,10 @@
         "house": "This is how guests see your House",
         "button": "Preview",
         "hostRequestsDisabled": "You're the host – requests are disabled in preview."
+      },
+      "form": {
+        "optional": "Optional",
+        "preview": "Preview"
       }
     }
   },
@@ -173,7 +183,14 @@
     "openHouse": "Open a House",
     "yourProfile": "Your profile",
     "home": "Simpulo – home",
-    "tagline": "Share a place. Find your people."
+    "tagline": "Share a place. Find your people.",
+    "menu": {
+      "profile": "Profile",
+      "settings": "Settings",
+      "getTheApp": "Get the app",
+      "logOut": "Log out",
+      "close": "Close menu"
+    }
   },
   "footer": {
     "label": "Footer",
@@ -203,17 +220,144 @@
         "text": "Questions, feedback or a problem with a House? Write to <mail>{email}</mail>."
       },
       "imprint": {
-        "title": "Imprint",
-        "text": "Legal notice – company name, address, managing director, register entry and contact details."
+        "title": "Imprint"
       },
       "privacy": {
-        "title": "Privacy Policy",
-        "text": "Privacy policy – what data Simpulo collects, why, how long it is kept, and how users can request deletion."
+        "title": "Privacy Policy"
       },
       "terms": {
-        "title": "Terms of Service",
-        "text": "Terms of service – rules for hosts and guests, payments and fees, cancellations and liability."
+        "title": "Terms of Service"
       }
+    }
+  },
+  "legal": {
+    "lastUpdated": "Last updated: {date}",
+    "draft": "Draft – to be reviewed",
+    "draftNotice": "Placeholder structure – every section must be written and legally reviewed before launch.",
+    "terms": {
+      "intro": "These terms apply to everyone who uses Simpulo – hosts and guests alike.",
+      "role": {
+        "title": "Role of Simpulo",
+        "body": "Simpulo is a platform that connects people who want to share a place. Simpulo is not an accommodation provider, travel agent or party to the rental agreement – the accommodation is booked by the host with a third party."
+      },
+      "hosts": {
+        "title": "Hosts' obligations",
+        "body": "Hosts describe their House honestly, only open Houses they actually intend to book, keep the crew informed, and book the accommodation they locked. Hosts are responsible for complying with local rules on short-term stays."
+      },
+      "payments": {
+        "title": "Payments & fees",
+        "body": "Guests pay their share of the locked accommodation price through Simpulo. Fees, the payment provider, payout timing to the host and currency conversion are described here."
+      },
+      "cancellations": {
+        "title": "Cancellations & refunds",
+        "body": "What happens when plans change:",
+        "hostCancels": "If the host cancels, every guest gets a full refund of their share.",
+        "guestLeaves": "If a guest leaves, their share is forfeited – unless the spot is refilled by someone else.",
+        "bookingProof": "The host uploads proof of the booking within 48 hours after everyone has paid. Without proof, guests are refunded."
+      },
+      "prohibited": {
+        "title": "Prohibited content",
+        "body": "Houses are about sharing a place, not selling something. Not allowed:",
+        "courses": "Selling courses, coaching, trading signals or other products to the crew.",
+        "commercial": "Commercial listings disguised as Houses – hotels, hostels, agencies or resellers.",
+        "other": "Illegal, hateful, sexual or misleading content and fake profiles."
+      },
+      "safety": {
+        "title": "Safety & reporting",
+        "body": "Users can block and report other users and Houses at any time. Simpulo reviews reports and may hide content, suspend accounts or cooperate with authorities. In an emergency, always contact local emergency services first."
+      },
+      "deletion": {
+        "title": "Account deletion",
+        "body": "You can delete your account in Settings at any time. Open payments, active crews and legal retention obligations may delay the deletion of some data."
+      }
+    },
+    "privacy": {
+      "intro": "How Simpulo handles your personal data.",
+      "controller": {
+        "title": "Who is responsible",
+        "body": "[Company name, address, email] – the controller for the processing described here. [Data protection officer, if required.]"
+      },
+      "data": {
+        "title": "What data we collect",
+        "body": "Account data (name, email, sign-in method), profile data (photos, bio, languages, social links), Houses and join requests, messages, payment records and technical data (device, logs)."
+      },
+      "purposes": {
+        "title": "Why we use it",
+        "body": "To run the platform, match hosts and guests, process payments, keep users safe and improve Simpulo. [Legal bases per purpose.]"
+      },
+      "sharing": {
+        "title": "Who we share it with",
+        "body": "Other users see your public profile; crew members see private contacts you shared. Service providers: [hosting, payment provider, email, analytics]."
+      },
+      "retention": {
+        "title": "How long we keep it",
+        "body": "[Retention periods per data type – e.g. account data until deletion, payment records as required by tax law.]"
+      },
+      "rights": {
+        "title": "Your rights",
+        "body": "Access, correction, deletion, restriction, data portability, objection and the right to complain to a supervisory authority. [How to exercise them.]"
+      },
+      "cookies": {
+        "title": "Cookies & local storage",
+        "body": "[Which cookies and local storage entries are used, and whether consent is needed.]"
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "[Email address for privacy requests.]"
+      }
+    },
+    "imprint": {
+      "intro": "Legal notice.",
+      "provider": {
+        "title": "Service provider",
+        "body": "[Company name and legal form] · [Street and number] · [Postcode, city] · [Country]"
+      },
+      "representative": {
+        "title": "Represented by",
+        "body": "[Managing director(s)]"
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "Email: [address] · Phone: [number]"
+      },
+      "register": {
+        "title": "Register entry",
+        "body": "[Register court] · [Registration number]"
+      },
+      "vat": {
+        "title": "VAT ID",
+        "body": "[VAT identification number]"
+      },
+      "responsible": {
+        "title": "Responsible for content",
+        "body": "[Name and address of the person responsible for editorial content.]"
+      },
+      "disputes": {
+        "title": "Dispute resolution",
+        "body": "[Statement on online dispute resolution and consumer arbitration.]"
+      }
+    }
+  },
+  "states": {
+    "loading": "Loading",
+    "notFound": {
+      "title": "This page doesn't exist",
+      "description": "The link may be broken, or the page was removed.",
+      "explore": "Explore",
+      "howItWorks": "How it works"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "That didn't work. Please try again.",
+      "retry": "Try again"
+    },
+    "exploreEmpty": {
+      "title": "No Houses match – try another date or vibe",
+      "clear": "Clear filters"
+    },
+    "og": {
+      "with": "with {name}",
+      "hosted": "Houses hosted {count}"
     }
   },
   "auth": {
@@ -241,10 +385,11 @@
         "none": "Not involved"
       },
       "more": "Dev options for this House",
-      "closePanel": "Close",
-      "openAs": "Open in new tab as…",
+      "closePanel": "Close dev tools",
+      "openPanel": "Open dev tools",
+      "openAs": "Open as…",
       "openAsHost": "Open in new tab as {name} (host)",
-      "openAsMember": "…as {name} (crew)",
+      "openAsMember": "Open in new tab as {name} (crew)",
       "noCrewMember": "No crew member yet",
       "scheduled": "Scheduled reminders",
       "noReminders": "No reminders for this user right now.",
@@ -264,6 +409,25 @@
         "savedSoon": "Saved House starts soon",
         "hostOpened": "Host alert: new House"
       }
+    }
+  },
+  "onboarding": {
+    "title": "Complete your profile",
+    "subtitle": "Hosts and crews see this first – it takes a minute.",
+    "loginTitle": "Log in to set up your profile",
+    "photo": "Face photo",
+    "photoHint": "A clear photo of your face. It shows on your profile and your Houses.",
+    "name": "First name",
+    "age": "Age",
+    "country": "Country",
+    "languages": "Languages",
+    "optional": "(optional)",
+    "continue": "Continue",
+    "errors": {
+      "photo": "Add a photo of your face.",
+      "name": "Add your first name.",
+      "age": "Add your age (18–99).",
+      "country": "Add the country you're from."
     }
   },
   "explore": {
@@ -556,7 +720,8 @@
       "kick": "Kick",
       "linkedin": "LinkedIn",
       "x": "X",
-      "website": "Website"
+      "website": "Website",
+      "threads": "Threads"
     },
     "socialPlaceholders": {
       "handle": "handle",
@@ -576,7 +741,8 @@
       "discord": "name#0421",
       "phone": "+49 176 1234 5678",
       "facetime": "phone or Apple ID"
-    }
+    },
+    "previewButton": "Preview"
   },
   "houses": {
     "title": "Houses",
@@ -778,7 +944,8 @@
       "reminderPendingRequests": "{title}: {count, plural, one {# request is} other {# requests are}} waiting for your answer",
       "reminderArrival": "{title}: {days} days to go – arrival {date}",
       "reminderSavedSoon": "{title} starts {date} – still taking requests",
-      "hostOpened": "{name} opened a House: {title}"
+      "hostOpened": "{name} opened a House: {title}",
+      "channelPush": "push"
     },
     "inbox": {
       "title": "Messages",
@@ -799,7 +966,8 @@
       "unread": "Unread",
       "photos": "📷 {count, plural, one {Photo} other {# photos}}",
       "file": "📎 {name}",
-      "attachment": "File"
+      "attachment": "File",
+      "titleWithDates": "{title} · {dates}"
     },
     "thread": {
       "loginTitle": "Log in to see this chat",
@@ -854,7 +1022,9 @@
       "whosInLabel": "Who's in – {count, plural, one {# person} other {# people}}",
       "memberCount": "{count, plural, one {# person} other {# people}} in this crew",
       "host": "Host",
-      "you": "You"
+      "you": "You",
+      "chipOpen": "Open · {count, plural, one {# link} other {# links}}",
+      "chipLocked": "Locked · {price}"
     }
   },
   "profile": {
@@ -864,12 +1034,10 @@
     "verified": "Verified ID",
     "basedIn": "based in {city}",
     "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>",
-    "pastCrews": "Past crews",
     "pastCrewsOpen": "See {count, plural, one {# person} other {# people}} {name} has lived with",
     "pastCrewsTitle": "Lived with",
     "pastCrewsSubtitle": "People from {name}'s past Houses",
     "editProfile": "Edit profile",
-    "shareProfile": "Share profile",
     "message": "Message",
     "linkCopied": "Profile link copied",
     "photos": "Photos",
@@ -888,7 +1056,52 @@
       "completed": "Completed",
       "closed": "Closed",
       "ended": "Ended"
-    }
+    },
+    "livedWith": "Lived with",
+    "share": "Share profile",
+    "edit": {
+      "loginTitle": "Log in to edit your profile",
+      "title": "Edit profile",
+      "photos": "Photos",
+      "photosHint": "1–{max} photos. The first one is your face photo – drag to reorder, × to remove.",
+      "about": "About you",
+      "name": "First name",
+      "age": "Age",
+      "country": "Country",
+      "basedIn": "Based in",
+      "languages": "Languages",
+      "bio": "Bio",
+      "bioCounter": "{count} / {max}",
+      "publicLinks": "Public links",
+      "publicLinksHint": "Shown on your profile to everyone.",
+      "crewOnly": "Crew only",
+      "crewOnlyHint": "Only people who share an accepted crew with you see these.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saved": "Profile saved",
+      "errors": {
+        "photo": "Add at least one photo – the first one shows your face.",
+        "name": "Add your first name.",
+        "age": "Add your age (18–99).",
+        "country": "Add the country you're from."
+      },
+      "basedInHelper": "The city you live in right now.",
+      "languagesHelper": "Type a language and press Enter. × removes it.",
+      "bioHelper": "What would your future housemates want to know?",
+      "linksHelper": "Paste a handle or a full link – we tidy it up when you save.",
+      "crewOnlyLine": "Only people in your Houses see these.",
+      "addLink": "Add link",
+      "removeLink": "Remove {platform}",
+      "howOthersSeeYou": "How others see you",
+      "photoOnHouses": "This photo appears on your Houses.",
+      "previewButton": "Preview",
+      "unsaved": "Unsaved changes",
+      "noChanges": "No changes yet",
+      "discardTitle": "Discard your changes?",
+      "discardDescription": "You have unsaved changes on your profile. If you leave now, they're lost.",
+      "discardConfirm": "Discard"
+    },
+    "settings": "Settings"
   },
   "howItWorks": {
     "title": "How it works",
@@ -943,6 +1156,110 @@
       "text": "Get notified when {name} answers – add Simpulo to your home screen.",
       "later": "Later",
       "showMe": "Show me how"
+    }
+  },
+  "settings": {
+    "loginTitle": "Log in to see your settings",
+    "title": "Settings",
+    "account": {
+      "title": "Account",
+      "email": "Email",
+      "noEmail": "No email added",
+      "signIn": "Sign-in method",
+      "method": {
+        "apple": "Apple",
+        "google": "Google",
+        "email": "Email link"
+      },
+      "logOut": "Log out"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Push only reaches you once Simpulo is installed on your phone.",
+      "push": "Push",
+      "email": "Email",
+      "groups": {
+        "requests": "New requests",
+        "messages": "Messages",
+        "payments": "Payments & reminders",
+        "hostAlerts": "Host alerts"
+      },
+      "toggleLabel": "{group} by {channel}"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "currency": "Currency",
+      "currencyAuto": "Automatic (from your browser)",
+      "currencyHelper": "Used for the approximate prices next to a House's own currency.",
+      "language": "Language",
+      "english": "English",
+      "moreSoon": "More languages soon."
+    },
+    "privacy": {
+      "title": "Privacy",
+      "description": "Blocked people can't see your Houses or message you.",
+      "noneBlocked": "You haven't blocked anyone.",
+      "unblock": "Unblock",
+      "unblocked": "{name} is unblocked"
+    },
+    "danger": {
+      "title": "Danger zone",
+      "description": "Deletes your profile, your Houses and your messages. This can't be undone.",
+      "delete": "Delete account",
+      "sheetTitle": "Delete your account?",
+      "sheetDescription": "Your profile, Houses, crews and messages will be removed for good.",
+      "typeToConfirm": "Type {word} to confirm",
+      "confirm": "Delete my account",
+      "deleted": "Account deleted"
+    }
+  },
+  "safety": {
+    "moreOptions": "More options",
+    "report": "Report",
+    "block": "Block {name}",
+    "unblock": "Unblock {name}",
+    "loginToReport": "Log in to report this.",
+    "loginToBlock": "Log in to block {name}.",
+    "reportSheet": {
+      "titleUser": "Report {name}",
+      "titleProfile": "Report this profile",
+      "titleStay": "Report this House",
+      "titleMessage": "Report this message",
+      "intro": "What's wrong? Your report stays anonymous.",
+      "reasons": {
+        "spam": "Spam or scam",
+        "harassment": "Harassment or inappropriate messages",
+        "fake": "Fake profile",
+        "unsafe": "Unsafe or misleading House",
+        "other": "Something else"
+      },
+      "detailsLabel": "Anything else we should know? (optional)",
+      "detailsPlaceholder": "What happened?",
+      "send": "Send report",
+      "sent": "Thanks – we'll review this within 24 hours."
+    },
+    "blockSheet": {
+      "title": "Block {name}?",
+      "description": "They won't be able to message you or request your Houses. They won't be notified.",
+      "confirm": "Block",
+      "blocked": "{name} is blocked"
+    },
+    "blockedProfile": {
+      "title": "You blocked {name}",
+      "description": "You won't see their Houses, and they can't message you or request your Houses.",
+      "unblock": "Unblock",
+      "unblocked": "{name} is unblocked"
+    },
+    "blockedMessage": "Blocked user – tap to show",
+    "unavailable": {
+      "notFoundTitle": "This House doesn't exist",
+      "notFoundDescription": "The link may be wrong, or the House was never published.",
+      "closedTitle": "This House isn't around anymore",
+      "closedDescription": "The host closed it – but plenty of other Houses are still looking for a crew.",
+      "blockedTitle": "This House isn't available",
+      "blockedDescription": "You blocked the host of this House.",
+      "explore": "Explore other Houses",
+      "others": "Other open Houses"
     }
   }
 }

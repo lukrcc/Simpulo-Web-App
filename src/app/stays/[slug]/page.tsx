@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { MockDelay } from "@/components/MockDelay";
+import { HouseSkeleton } from "@/components/skeletons/HouseSkeleton";
 import { StayDetail } from "@/components/views/StayDetail";
-import { stays, users } from "@/lib/mock";
+import { stays } from "@/lib/mock";
 import { firstSentence } from "@/lib/utils";
 
 /**
- * Shared links show the House title, the host's hook sentence and the host's face photo.
+ * Shared links show the House title and the host's hook sentence; the image comes from ./opengraph-image.tsx
+ * (the file convention wins, so no image is set here).
  * Reads the mock data directly – Houses created in the browser only exist client-side and get the default title.
  */
 export async function generateMetadata({ params }: PageProps<"/stays/[slug]">): Promise<Metadata> {
@@ -18,21 +20,22 @@ export async function generateMetadata({ params }: PageProps<"/stays/[slug]">): 
     return { title: t("house") };
   }
 
-  const host = users.find((u) => u.id === stay.hostId);
   const description = firstSentence(stay.lookingForText);
-  const image = host?.photos[0];
   return {
     title: stay.title,
     description,
-    openGraph: { title: stay.title, description, images: image ? [image] : undefined },
+    openGraph: { title: stay.title, description },
+    twitter: { card: "summary_large_image", title: stay.title, description },
   };
 }
 
 // Stays can be created client-side at any time, so params are runtime data and need a Suspense boundary.
 export default function StayPage({ params }: PageProps<"/stays/[slug]">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <StayDetail params={params} />
+    <Suspense fallback={<HouseSkeleton />}>
+      <MockDelay ms={400} fallback={<HouseSkeleton />}>
+        <StayDetail params={params} />
+      </MockDelay>
     </Suspense>
   );
 }

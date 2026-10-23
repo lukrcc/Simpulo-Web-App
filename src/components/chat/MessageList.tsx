@@ -3,15 +3,16 @@
 import { ArrowDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ReportSheet } from "@/components/safety/ReportSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
-import { findUser, useStore } from "@/lib/store";
+import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Message, Stay, Thread } from "@/lib/types";
 import { DayDivider, SystemLine } from "./ChatCards";
 import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
 import type { ReplyDraft } from "./Composer";
-import { MessageBubble, quoteText } from "./MessageBubble";
+import { BlockedMessageRow, MessageBubble, quoteText } from "./MessageBubble";
 
 interface MessageListProps {
   thread: Thread;
@@ -42,6 +43,9 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
   const [pickerId, setPickerId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null);
+  const [reporting, setReporting] = useState<Message | null>(null);
+  /** Blocked users' messages the viewer tapped open */
+  const [shownIds, setShownIds] = useState<ReadonlySet<string>>(() => new Set());
 
   // Captured once, before the thread gets marked read: the first message from someone else after the read mark.
   const [firstUnreadId] = useState(() => {
@@ -54,7 +58,8 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
   // Only the newest lock card can still be paid – older ones were replaced by an unlock and a new lock.
   const latestLockId = stay.accommodationStatus === "locked" ? thread.messages.findLast((m) => m.type === "lock")?.id : undefined;
-  const typingUser = store.typing[thread.id] ? findUser(store, store.typing[thread.id] ?? "") : undefined;
+  const typingId = store.typing[thread.id];
+  const typingUser = typingId && !isBlocked(store, typingId) ? findUser(store, typingId) : undefined;
 
   const scrollToBottom = useCallback((smooth: boolean) => {
     const pane = paneRef.current;
@@ -120,23 +125,29 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
   }
 
   return (
-    <div className="relative min-h-0 flex-1">
-      <div ref={paneRef} onScroll={onScroll} className="scroll-pane h-full overflow-y-auto overscroll-contain px-3 pb-4 pt-2 md:px-4">
+    // Slightly darker than the page, so the white / tinted bubbles stand out.
+    <div className="relative min-h-0 flex-1 bg-[#F0EEEA]">
+      <div ref={paneRef} onScroll={onScroll} className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
         {count === 0 && <p className="py-16 text-center text-sm text-zinc-500">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
-              <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3 text-xs font-semibold text-accent">
-                <span className="h-px flex-1 bg-accent/40" aria-hidden />
-                {t("newMessages")}
-                <span className="h-px flex-1 bg-accent/40" aria-hidden />
+              <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3">
+                <span className="h-px flex-1 bg-[#71717A]/30" aria-hidden />
+                <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#71717A] shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
+                  {t("newMessages")}
+                </span>
+                <span className="h-px flex-1 bg-[#71717A]/30" aria-hidden />
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
 
           const { message } = row;
           const original = message.replyToId ? byId.get(message.replyToId) : undefined;
+          const fromOther = message.userId !== me && message.userId !== "system";
+          if (fromOther && isBlocked(store, message.userId) && !shownIds.has(message.id))
+            return <BlockedMessageRow key={row.key} first={row.first} onShow={() => setShownIds((ids) => new Set(ids).add(message.id))} />;
           return (
             <MessageBubble
               key={row.key}
@@ -147,7 +158,14 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
               first={row.first}
               last={row.last}
               showName={thread.type === "crew" && message.userId !== me}
-              replyTo={original && { message: original, author: findUser(store, original.userId) }}
+              replyTo={
+                original && {
+                  message: original,
+                  author: findUser(store, original.userId),
+                  // A quote must not reveal what a blocked user wrote.
+                  blocked: original.userId !== "system" && isBlocked(store, original.userId),
+                }
+              }
               currentLock={message.id === latestLockId}
               onLock={onLock}
               active={activeId === message.id}
@@ -161,6 +179,14 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
                 setPickerId(null);
                 setActiveId(null);
               }}
+              onReport={
+                fromOther
+                  ? () => {
+                      setReporting(message);
+                      setActiveId(null);
+                    }
+                  : undefined
+              }
               onJumpTo={jumpTo}
               onOpenPhotos={(photos, index) => setLightbox({ photos, index })}
             />
@@ -170,7 +196,7 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
         {typingUser && (
           <div className="mt-3 flex items-center gap-2" aria-live="polite">
             <Avatar user={typingUser} size="sm" />
-            <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-zinc-200 bg-white px-3 py-2">
+            <div className="flex items-center gap-2 rounded-[18px] rounded-bl-[6px] bg-white px-3 py-2 shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
               <span className="flex gap-1" aria-hidden>
                 {[0, 150, 300].map((delay) => (
                   <span key={delay} className="size-1.5 animate-bounce rounded-full bg-zinc-400" style={{ animationDelay: `${delay}ms` }} />
@@ -192,6 +218,12 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
           {t("newMessages")}
         </button>
       )}
+
+      <ReportSheet
+        open={reporting !== null}
+        onClose={() => setReporting(null)}
+        target={{ kind: "message", id: reporting?.id ?? "" }}
+      />
 
       <PhotoLightbox
         photos={lightbox?.photos ?? []}

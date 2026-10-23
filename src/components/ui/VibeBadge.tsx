@@ -1,4 +1,4 @@
-import { Camera, Dumbbell, Flower2, Laptop, Rocket, TreePalm, WavesHorizontal, type LucideIcon } from "lucide-react";
+import { Camera, Dumbbell, Flower2, Laptop, Rocket, Shapes, TreePalm, WavesHorizontal, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ const vibeStyles: Record<Vibe, { icon: LucideIcon; className: string }> = {
   founder: { icon: Rocket, className: "bg-indigo-50 text-indigo-700" },
   "remote-work": { icon: Laptop, className: "bg-sky-50 text-sky-700" },
   holiday: { icon: TreePalm, className: "bg-amber-50 text-amber-700" },
+  mixed: { icon: Shapes, className: "bg-zinc-100 text-zinc-700" },
   surf: { icon: WavesHorizontal, className: "bg-cyan-50 text-cyan-700" },
   wellness: { icon: Flower2, className: "bg-rose-50 text-rose-700" },
 };

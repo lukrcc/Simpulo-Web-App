@@ -14,7 +14,7 @@ import { FilterChips } from "@/components/ui/FilterChips";
 import { Sheet } from "@/components/ui/Sheet";
 import { useFormat } from "@/i18n/format";
 import { START_FILTERS, VIBES } from "@/lib/mock";
-import { findUser, getCrew, useStore } from "@/lib/store";
+import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
 
 type StartFilterKey = (typeof START_FILTERS)[number]["key"];
@@ -72,6 +72,7 @@ function countryOf(stay: Stay): string {
 export function ExploreFeed() {
   const t = useTranslations("explore");
   const tc = useTranslations("common");
+  const te = useTranslations("states.exploreEmpty");
   const format = useFormat();
   const { startOptions, sortOptions } = useFilterOptions();
   const store = useStore();
@@ -82,7 +83,9 @@ export function ExploreFeed() {
   const [sort, setSort] = useState<SortKey>("soonest");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const listed = useMemo(() => store.stays.filter(isListed), [store.stays]);
+  // Houses of people you blocked never show up.
+  const blocked = settingsOf(getCurrentUser(store)).blockedUserIds;
+  const listed = useMemo(() => store.stays.filter((s) => isListed(s) && !blocked.includes(s.hostId)), [store.stays, blocked]);
   // The Spotlight only shows Houses that are taking requests.
   const featured = useMemo(() => listed.filter((s) => s.featured && s.acceptingRequests), [listed]);
   // Region chips only pay off with some spread – with fewer than 3 countries they're hidden.
@@ -194,36 +197,36 @@ export function ExploreFeed() {
           </div>
         )}
 
-        {results.length > 0 ? (
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((stay) => (
+        {/* Grid also without results: the empty state takes the first cells, the "Open your own House" card stays last. */}
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+          {results.length > 0 ? (
+            results.map((stay) => (
               <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
-            ))}
-            <OpenHouseCard />
-          </div>
-        ) : (
-          <div className="mt-6">
-            <EmptyState
-              icon={SearchX}
-              title={t("empty.title")}
-              description={t("empty.description")}
-              action={
-                <button
-                  type="button"
-                  className={buttonClass("secondary", "sm")}
-                  onClick={() => {
-                    setVibe(null);
-                    setRegion(null);
-                    setLanguage(null);
-                    setRange(null);
-                  }}
-                >
-                  {t("empty.showAll")}
-                </button>
-              }
-            />
-          </div>
-        )}
+            ))
+          ) : (
+            <div className="flex lg:col-span-2 xl:col-span-3 *:flex-1 *:justify-center">
+              <EmptyState
+                icon={SearchX}
+                title={te("title")}
+                action={
+                  <button
+                    type="button"
+                    className={buttonClass("secondary", "sm")}
+                    onClick={() => {
+                      setVibe(null);
+                      setRegion(null);
+                      setLanguage(null);
+                      setRange(null);
+                    }}
+                  >
+                    {te("clear")}
+                  </button>
+                }
+              />
+            </div>
+          )}
+          <OpenHouseCard />
+        </div>
       </Container>
 
       <FilterSheet

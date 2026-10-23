@@ -35,7 +35,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={t("emoji")}
         aria-expanded={open}
-        className={cn("flex size-10 items-center justify-center rounded-full hover:bg-zinc-100", open ? "text-ink" : "text-zinc-500")}
+        className={cn("flex size-10 items-center justify-center rounded-full hover:bg-black/5", open ? "text-ink" : "text-zinc-500")}
       >
         <Smile className="size-5" />
       </button>

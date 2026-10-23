@@ -29,6 +29,16 @@ export function isNavActive(href: NavItem["href"], pathname: string | null): boo
 }
 
 /** Routes that show their own sticky CTA instead of the mobile tab bar. */
+/**
+ * Pages with their own sticky bottom bar (House page: Join; Create / edit House / Edit profile: Next or Save) or
+ * a full-height layout (a chat thread) hide the mobile tab bar. Explore, Houses, Messages and Profile keep it.
+ */
 export function hidesTabBar(pathname: string): boolean {
-  return pathname.startsWith("/stays/");
+  return (
+    pathname.startsWith("/stays/") ||
+    /^\/inbox\/[^/]+/.test(pathname) ||
+    pathname === "/create" ||
+    /^\/my-stays\/[^/]+\/edit$/.test(pathname) ||
+    pathname === "/profile/edit"
+  );
 }

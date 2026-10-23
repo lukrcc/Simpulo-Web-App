@@ -45,6 +45,8 @@ export function CarouselControls({
               aria-label={t("goTo", { item, index: i + 1 })}
               aria-current={i === active}
               onClick={() => onSelect(i)}
+              // Dots sit 6px apart – enlarged hit areas would overlap; ‹ › are the touch controls.
+              data-tap="none"
               className={cn(
                 "h-2 rounded-full transition-all duration-250",
                 i === active ? "w-6 bg-ink" : "w-2 bg-zinc-300 hover:bg-zinc-400",

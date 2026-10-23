@@ -71,6 +71,26 @@ main:has([data-app-pane="always"]) {
   }
 }
 
+/*
+ * Touch screens: every control gets a hit area of at least 44×44 px without changing how it looks – an invisible
+ * ::after centred on it. :where() keeps specificity at zero, so positioned elements (absolute, fixed, sticky) keep
+ * their own position and still contain the ::after. Opt out with data-tap="none" (e.g. dense carousel dots).
+ */
+@media (pointer: coarse) {
+  :where(a[href], button, [role="button"], [role="switch"], [role="tab"], summary):not([data-tap="none"]) {
+    position: relative;
+  }
+  :where(a[href], button, [role="button"], [role="switch"], [role="tab"], summary):not([data-tap="none"])::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* Thin overlay-style scrollbar that only shows its thumb on hover – for the Houses/Messages columns. */
 @utility scroll-pane {
   /* Positioned, so absolutely placed children (sr-only text, hidden file inputs) stay inside the pane

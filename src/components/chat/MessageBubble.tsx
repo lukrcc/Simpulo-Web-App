@@ -1,8 +1,8 @@
 "use client";
 
-import { Reply, SmilePlus } from "lucide-react";
+import { Flag, Reply, SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, type MouseEvent } from "react";
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
@@ -17,18 +17,18 @@ interface MessageBubbleProps {
   stay: Stay;
   author?: User;
   mine: boolean;
-  /** First / last message of a same-sender group: avatar + name on the first, time under the last (mobile) */
+  /** First / last message of a same-sender group: avatar + name on the first, the tighter tail corner on the last */
   first: boolean;
   last: boolean;
   /** Crew chats name the sender above their group */
   showName: boolean;
   /** The message this one replies to, if it's still in the thread */
-  replyTo?: { message: Message; author?: User };
+  replyTo?: { message: Message; author?: User; /** Quoted message is from someone you blocked – show no name or text */ blocked?: boolean };
   /** Only the newest lock card can still be paid */
   currentLock: boolean;
   /** Host, crew chat, place still open: link cards get "Lock this" */
   onLock?: (url: string) => void;
-  /** Action bar shown (tap on touch devices); the emoji row open */
+  /** Action bar shown (long-press on touch devices); the emoji row open */
   active: boolean;
   picking: boolean;
   highlighted: boolean;
@@ -36,14 +36,20 @@ interface MessageBubbleProps {
   onTogglePicker: () => void;
   onReply: () => void;
   onReact: (emoji: string) => void;
+  /** Someone else's message: "Report" in the action bar */
+  onReport?: () => void;
   onJumpTo: (messageId: string) => void;
   onOpenPhotos: (photos: string[], index: number) => void;
 }
+
+/** How long a touch has to rest on a message before its actions open. */
+const LONG_PRESS_MS = 450;
 
 /** A person's message: text bubble, photos, files, link / lock cards, the quoted reply and reaction pills. */
 export function MessageBubble(props: MessageBubbleProps) {
   const { message, stay, author, mine, first, last, showName, replyTo, active, picking } = props;
   const t = useTranslations("messages.thread");
+  const tSafety = useTranslations("safety");
   const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
@@ -69,59 +75,109 @@ export function MessageBubble(props: MessageBubbleProps) {
   const time = f.time(message.createdAt);
   const bigEmoji = !replyTo && isEmojiOnly(text);
 
-  // Touch devices have no hover: a tap on the message toggles its action bar (links and buttons keep working).
-  function onTap(e: MouseEvent) {
-    if ((e.target as HTMLElement).closest("a,button") || window.matchMedia("(hover: hover)").matches) return;
-    props.onToggleActive();
+  // Touch devices have no hover: a long-press on the message opens its action bar (Reply / React). Moving the
+  // finger cancels it, so scrolling still works; links and buttons inside keep their normal tap.
+  const press = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  function cancelPress() {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
   }
+  function onPointerDown(e: ReactPointerEvent) {
+    if (e.pointerType !== "touch" || (e.target as HTMLElement).closest("a,button")) return;
+    cancelPress();
+    press.current = {
+      x: e.clientX,
+      y: e.clientY,
+      timer: setTimeout(() => {
+        press.current = null;
+        navigator.vibrate?.(10);
+        props.onToggleActive();
+      }, LONG_PRESS_MS),
+    };
+  }
+  function onPointerMove(e: ReactPointerEvent) {
+    if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) cancelPress();
+  }
+  useEffect(() => cancelPress, []);
 
   const quote = replyTo && (
     <button
       type="button"
       onClick={() => props.onJumpTo(replyTo.message.id)}
       className={cn(
-        "mb-1.5 block w-full rounded-lg border-l-2 py-1 pl-2 pr-2 text-left text-xs",
-        mine ? "border-white/50 bg-white/10 text-white/75" : "border-zinc-300 bg-zinc-50 text-zinc-500",
+        "mb-1 block w-full min-w-0 rounded-md border-l-[3px] bg-black/5 py-1 pl-2 pr-2.5 text-left",
+        mine ? "border-accent" : "border-[#A1A1AA]",
       )}
     >
-      <span className="block font-semibold">{replyTo.author?.name.split(" ")[0] ?? t("unknown")}</span>
-      <span className="line-clamp-2">{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+      {replyTo.blocked ? (
+        <span className="line-clamp-1 text-[13px] italic leading-[18px] text-zinc-500">{tSafety("blockedMessage")}</span>
+      ) : (
+        <>
+          <span className={cn("block truncate text-xs font-semibold", mine ? "text-accent-dark" : "text-zinc-700")}>
+            {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
+          </span>
+          <span className="line-clamp-1 text-[13px] leading-[18px] text-zinc-500">{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+        </>
+      )}
     </button>
   );
+
+  const timeStamp = <span className="text-[11px] leading-none text-black/45 tabular-nums">{time}</span>;
+  const hasBubble = !bigEmoji && Boolean(text || quote);
+  const reactions = message.reactions ?? [];
 
   return (
     <div
       id={`msg-${message.id}`}
-      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5")}
+      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5", reactions.length > 0 && "mb-2")}
     >
       {!mine && <div className="w-8 shrink-0 self-start">{first && author && <Avatar user={author} size="sm" linked />}</div>}
 
       <div
-        onClick={onTap}
-        className={cn(
-          "group relative flex min-w-0 flex-col",
-          mine ? "items-end" : "items-start",
-          hasCard ? CARD_WIDTH : "max-w-[78%]",
-        )}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={cancelPress}
+        onPointerCancel={cancelPress}
+        // No native "copy / look up" menu on long-press – ours opens instead.
+        onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
+        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? CARD_WIDTH : "max-w-[70%]")}
       >
         {first && showName && author && <p className="mb-1 px-1 text-[13px] font-semibold text-ink">{author.name.split(" ")[0]}</p>}
 
-        <div className={cn("flex flex-col gap-1.5 rounded-2xl transition-shadow", mine ? "items-end" : "items-start", props.highlighted && "ring-2 ring-accent/60 ring-offset-2")}>
-          {(text || quote) && (
+        <div
+          className={cn(
+            "flex max-w-full flex-col gap-1.5 rounded-[18px] transition-shadow duration-300",
+            mine ? "items-end" : "items-start",
+            props.highlighted && "ring-2 ring-accent/60",
+          )}
+        >
+          {bigEmoji && (
+            // Emoji-only: no bubble, big – the time small beside it.
+            <div className={cn("flex items-end gap-1.5 px-1", mine && "flex-row-reverse")}>
+              <span className="text-[40px] leading-[1.15]">{text}</span>
+              <span className="mb-1.5">{timeStamp}</span>
+            </div>
+          )}
+          {hasBubble && (
             <div
               className={cn(
-                "max-w-full whitespace-pre-line text-left wrap-break-word",
-                // Emoji-only messages read bigger, without a bubble.
-                bigEmoji
-                  ? "px-1 text-4xl leading-tight"
-                  : cn(
-                      "rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                      mine ? "rounded-br-md bg-ink text-white" : "rounded-bl-md border border-zinc-200 bg-white text-ink",
-                    ),
+                "relative max-w-full rounded-[18px] px-3 pb-1.5 pt-1.5 text-left text-sm leading-5 text-ink shadow-[0_1px_1px_rgba(0,0,0,0.06)] wrap-break-word",
+                mine ? "bg-[#FCE6DC]" : "bg-white",
+                last && (mine ? "rounded-br-[6px]" : "rounded-bl-[6px]"),
               )}
             >
               {quote}
-              {text && <MessageText text={text} mine={mine && !bigEmoji} />}
+              {text && (
+                <span className="whitespace-pre-line">
+                  <MessageText text={text} mine={mine} />
+                </span>
+              )}
+              {/* WhatsApp-style time: an invisible copy reserves room at the end of the last line (or wraps to its own),
+                  the visible one sits in the bottom-right corner. */}
+              <span className="invisible ml-2 inline-block text-[11px] leading-none" aria-hidden>
+                {time}
+              </span>
+              <span className="absolute bottom-1.5 right-3">{timeStamp}</span>
             </div>
           )}
           {images.length > 0 && (
@@ -147,11 +203,15 @@ export function MessageBubble(props: MessageBubbleProps) {
             />
           ))}
           {type === "lock" && message.lock && <LockCard stay={stay} lock={message.lock} current={props.currentLock} />}
+          {/* No text bubble to carry it: the time under the photos / files / cards. */}
+          {!hasBubble && !bigEmoji && <span className="px-1">{timeStamp}</span>}
         </div>
 
-        {(message.reactions?.length ?? 0) > 0 && (
-          <div className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>
-            {message.reactions?.map((reaction) => {
+        {reactions.length > 0 && (
+          // Overlaps the bubble's bottom edge (the row's bottom margin keeps it clear of the next message); under
+          // media / emoji-only messages it sits below their time instead.
+          <div className={cn("relative z-[1] flex flex-wrap gap-1 px-2", hasBubble ? "-mt-2" : "mt-1", mine && "justify-end")}>
+            {reactions.map((reaction) => {
               const reacted = store.currentUserId !== null && reaction.userIds.includes(store.currentUserId);
               return (
                 <button
@@ -161,8 +221,8 @@ export function MessageBubble(props: MessageBubbleProps) {
                   aria-pressed={reacted}
                   aria-label={t("reactionLabel", { emoji: reaction.emoji, count: reaction.userIds.length })}
                   className={cn(
-                    "flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition-colors",
-                    reacted ? "border-accent/40 bg-accent/10 font-medium text-ink" : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
+                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-xs tabular-nums shadow-[0_1px_2px_rgba(0,0,0,0.12)] ring-1 transition-colors",
+                    reacted ? "bg-accent-soft font-medium text-ink ring-accent/30" : "bg-white text-zinc-600 ring-black/5 hover:bg-zinc-50",
                   )}
                 >
                   <span>{reaction.emoji}</span>
@@ -173,20 +233,16 @@ export function MessageBubble(props: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Mobile: the time under the last bubble of a group (desktop shows it in the hover bar). */}
-        {(last || active) && <p className="mt-1 px-1 text-[11px] text-zinc-400 lg:hidden">{time}</p>}
-
-        {/* Hover (desktop) / tap (touch) actions, beside the bubble. */}
+        {/* Hover (desktop) / long-press (touch) actions, beside the bubble. */}
         <div
           className={cn(
-            "absolute top-0 z-10 items-center gap-0.5",
+            "absolute top-0 z-10 items-center",
             mine ? "right-full pr-1.5" : "left-full pl-1.5",
             first && showName && author && "top-6",
             active || picking ? "flex" : "hidden group-hover:flex",
           )}
         >
-          <span className={cn("hidden whitespace-nowrap px-1 text-[11px] text-zinc-400 lg:block", mine && "order-last")}>{time}</span>
-          <div className="flex items-center rounded-full border border-zinc-200 bg-white p-0.5 shadow-sm">
+          <div className="flex items-center rounded-full bg-white p-0.5 shadow-sm ring-1 ring-black/5">
             <button
               type="button"
               onClick={props.onReply}
@@ -206,6 +262,17 @@ export function MessageBubble(props: MessageBubbleProps) {
             >
               <SmilePlus className="size-4" />
             </button>
+            {props.onReport && (
+              <button
+                type="button"
+                onClick={props.onReport}
+                aria-label={tSafety("report")}
+                title={tSafety("report")}
+                className="flex size-7 items-center justify-center rounded-full text-zinc-600 hover:bg-zinc-100"
+              >
+                <Flag className="size-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -234,6 +301,23 @@ export function MessageBubble(props: MessageBubbleProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** A message from someone you blocked, collapsed to one muted row; tapping it shows the message once. */
+export function BlockedMessageRow({ first, onShow }: { first: boolean; onShow: () => void }) {
+  const t = useTranslations("safety");
+  return (
+    <div className={cn("flex items-end gap-2", first ? "mt-3" : "mt-0.5")}>
+      <div className="w-8 shrink-0" />
+      <button
+        type="button"
+        onClick={onShow}
+        className="rounded-[18px] border border-dashed border-black/10 px-3 py-1.5 text-left text-[13px] italic text-zinc-500 hover:bg-white/60"
+      >
+        {t("blockedMessage")}
+      </button>
     </div>
   );
 }

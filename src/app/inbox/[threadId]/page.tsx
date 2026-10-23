@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { MockDelay } from "@/components/MockDelay";
+import { ThreadSkeleton } from "@/components/skeletons/ThreadSkeleton";
 import { ThreadView } from "@/components/views/ThreadView";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,8 +12,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ThreadPage({ params }: PageProps<"/inbox/[threadId]">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <ThreadView params={params} />
+    <Suspense fallback={<ThreadSkeleton />}>
+      <MockDelay ms={400} fallback={<ThreadSkeleton />}>
+        <ThreadView params={params} />
+      </MockDelay>
     </Suspense>
   );
 }

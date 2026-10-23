@@ -27,7 +27,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
             aria-selected={active}
             onClick={() => onChange(tab.value)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors md:min-h-0",
               active ? "bg-white text-ink shadow-sm" : "text-neutral-500 hover:text-ink",
             )}
           >

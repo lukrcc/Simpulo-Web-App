@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useNotificationText } from "@/i18n/events";
 import { mockInstalledUsers } from "@/lib/mock-extras";
-import { findUser, useStore } from "@/lib/store";
+import { findUser, NOTIFY_GROUP, settingsOf, useStore } from "@/lib/store";
 
 /**
  * Mock delivery for the store's notification outbox. Real sending would be server-side: email always, push when
@@ -25,13 +25,21 @@ export function NotificationToasts() {
     const fresh = notifications.slice(seen.current);
     seen.current = notifications.length;
     for (const notification of fresh) {
-      const names = notification.to.map((id) => (id === store.currentUserId ? tCommon("you") : (findUser(store, id)?.name.split(" ")[0] ?? "")));
-      const anyPush = notification.to.some((id) => mockInstalledUsers.has(id));
+      // Each recipient's Settings decide the channels: email if on, push if on and the app is installed.
+      const group = NOTIFY_GROUP[notification.key];
+      const delivered = notification.to
+        .map((id) => {
+          const prefs = settingsOf(findUser(store, id)).notifications[group];
+          return { id, email: prefs.email, push: prefs.push && mockInstalledUsers.has(id) };
+        })
+        .filter((r) => r.email || r.push);
+      if (delivered.length === 0) continue;
+      const names = delivered.map(({ id }) => (id === store.currentUserId ? tCommon("you") : (findUser(store, id)?.name.split(" ")[0] ?? "")));
+      const anyPush = delivered.some((r) => r.push);
+      const anyEmail = delivered.some((r) => r.email);
       const recipients = names.length > 3 ? t("andMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 }) : names.join(", ");
-      showToast(
-        t("delivery", { recipients, channels: anyPush ? t("channelEmailPush") : t("channelEmail"), text: text(notification) }),
-        "notify",
-      );
+      const channels = anyEmail && anyPush ? t("channelEmailPush") : anyPush ? t("channelPush") : t("channelEmail");
+      showToast(t("delivery", { recipients, channels, text: text(notification) }), "notify");
     }
   }, [notifications, store, showToast, t, tCommon, text]);
 

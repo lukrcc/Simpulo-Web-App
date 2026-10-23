@@ -1,30 +1,29 @@
 "use client";
 
-import { BadgeCheck, Compass, Eye, ImagePlus, MessageCircle, Pencil, Plus, SearchX, Share2 } from "lucide-react";
+import { Compass, Eye, ImagePlus, MessageCircle, Pencil, Plus, SearchX, Settings, Share2, UserX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { use, useState, type ReactNode } from "react";
+import { type ReactNode, type RefObject, use, useEffect, useRef, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
 import { PhotoSheet } from "@/components/PhotoSheet";
-import { PastCrews, type PastCrewMate } from "@/components/profile/PastCrews";
+import { getPastCrewMates } from "@/components/profile/PastCrews";
+import { ProfileCard } from "@/components/profile/ProfileCard";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
+import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { StayCard } from "@/components/StayCard";
 import { HostAlertButton } from "@/components/ui/HostAlertButton";
-import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
-import { CrewContacts, useHasVisibleCrewContacts } from "@/components/ui/CrewContacts";
+import { useHasVisibleCrewContacts } from "@/components/ui/CrewContacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
-import { LanguageChips } from "@/components/ui/LanguageChips";
-import { SocialRow } from "@/components/ui/SocialRow";
 import { StayThumb } from "@/components/ui/StayThumb";
 import { useToast } from "@/components/ui/Toast";
 import { MoreList } from "@/components/views/MoreList";
 import { useFormat } from "@/i18n/format";
-import { findUser, getCrew, getCurrentUser, isCrewMember, useStore } from "@/lib/store";
+import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
 
@@ -65,7 +64,38 @@ export function PublicProfile({ params }: { params: Promise<{ userId: string }> 
     );
   }
 
+  if (isBlocked(store, user.id)) return <BlockedProfile user={user} />;
+
   return <ProfileView user={user} isMe={user.id === store.currentUserId} />;
+}
+
+/** Someone you blocked: no profile, just the way back. */
+function BlockedProfile({ user }: { user: User }) {
+  const t = useTranslations("safety.blockedProfile");
+  const { unblockUser } = useStore();
+  const showToast = useToast();
+  const name = firstName(user);
+  return (
+    <Container page width="narrow">
+      <EmptyState
+        icon={UserX}
+        title={t("title", { name })}
+        description={t("description")}
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              unblockUser(user.id);
+              showToast(t("unblocked", { name }));
+            }}
+            className={buttonClass("dark", "sm")}
+          >
+            {t("unblock")}
+          </button>
+        }
+      />
+    </Container>
+  );
 }
 
 /** Ended Houses: closed or completed by the host, or past their end date. */
@@ -110,13 +140,13 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const t = useTranslations("profile");
   const tPreview = useTranslations("common.ui.preview");
   const tCommon = useTranslations("common");
-  const tContacts = useTranslations("common.ui.crewContacts");
-  const f = useFormat();
   const store = useStore();
   const router = useRouter();
   const showToast = useToast();
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
+  const asideFits = useFitsViewport(asideRef);
   const today = new Date().toISOString().slice(0, 10);
   // A preview looks through a stranger's eyes: no viewer, so no shared crew and no crew-only contacts.
   const meId = previewing ? null : store.currentUserId;
@@ -133,13 +163,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const joining = joined.filter((s) => !isPast(s, today));
   const joinedPast = joined.filter((s) => isPast(s, today)).toSorted(byEndDesc);
 
-  // Everyone from a completed House this user hosted or joined – most recent House first, each person once.
-  const pastCrewMates: PastCrewMate[] = [];
-  for (const stay of store.stays.filter((s) => s.status === "completed" && isCrewMember(store, s, user.id)).toSorted(byEndDesc)) {
-    for (const mate of getCrew(store, stay)) {
-      if (mate.id !== user.id && !pastCrewMates.some((m) => m.user.id === mate.id)) pastCrewMates.push({ user: mate, stay });
-    }
-  }
+  const pastCrewMates = getPastCrewMates(store, user.id);
 
   // "Message" only with a reason to talk: a shared crew (any House, any status) or an open request between the two
   // of you. Without one there's no Message button – "Notify me" takes its place.
@@ -186,72 +210,65 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
 
   return (
     <Container page>
+      {/* Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header). */}
+      {isMe && (
+        <div className="-mt-2 mb-2 flex justify-end md:hidden">
+          <Link href="/settings" aria-label={t("settings")} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-black/5">
+            <Settings className="size-5" />
+          </Link>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        {/* Sticky offset = the page's top padding (pt-10), so the card never moves when scrolling starts. */}
-        <aside className="self-start lg:sticky lg:top-[calc(var(--header-h)+40px)] lg:col-span-4">
-          <div className="rounded-[24px] bg-white p-6">
-            <Avatar user={user} size="xl" />
-            <h1 className="mt-4 flex items-center gap-1.5 text-2xl font-bold tracking-tight">
-              {user.name}
-              {user.verified && (
-                <span title={t("verified")} className="inline-flex">
-                  <BadgeCheck className="size-5 text-accent" role="img" aria-label={t("verified")} />
-                </span>
-              )}
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              {f.ageAndCountry(user)}
-              {user.city && ` · ${t("basedIn", { city: user.city })}`}
-            </p>
-            <LanguageChips languages={user.languages} className="mt-4" />
-            <SocialRow user={user} className="mt-4" />
-            {/* Only for people who share an accepted crew with this user (and on your own profile). */}
-            {showCrewContacts && (
-              <div className="mt-4 border-t border-black/5 pt-4">
-                <p className="mb-2 text-xs font-medium tracking-wide text-zinc-500 uppercase">{tContacts("crewOnly")}</p>
-                <CrewContacts user={user} />
-              </div>
-            )}
-            {user.bio && <p className="mt-4 leading-relaxed text-neutral-700">{user.bio}</p>}
-            <PastCrews user={user} mates={pastCrewMates} />
-            <p className="mt-4 border-t border-black/5 pt-4 text-sm text-zinc-500">
-              {t.rich("stats", {
-                hosted: hosted.length,
-                joined: joined.length,
-                b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
-                hostedLink: statLink("hosting"),
-                joinedLink: statLink("joined"),
-              })}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {isMe ? (
-                <>
-                  <button type="button" className={buttonClass("dark", "sm")}>
-                    <Pencil className="size-4" />
-                    {t("editProfile")}
+        {/* Sticky (offset = the page's top padding) only while it fits the viewport – a long bio must stay reachable. */}
+        <aside ref={asideRef} className={cn("self-start lg:col-span-4", asideFits && "lg:sticky lg:top-[calc(var(--header-h)+40px)]")}>
+          <ProfileCard
+            user={user}
+            showCrewContacts={showCrewContacts}
+            pastCrewMates={pastCrewMates}
+            stats={t.rich("stats", {
+              hosted: hosted.length,
+              joined: joined.length,
+              b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
+              hostedLink: statLink("hosting"),
+              joinedLink: statLink("joined"),
+            })}
+            actions={
+              <>
+                {isMe ? (
+                  <>
+                    <Link href="/profile/edit" className={buttonClass("dark", "sm")}>
+                      <Pencil className="size-4" />
+                      {t("editProfile")}
+                    </Link>
+                    {onPreview && (
+                      <button type="button" onClick={onPreview} className={buttonClass("ghost", "sm")}>
+                        <Eye className="size-4" />
+                        {tPreview("button")}
+                      </button>
+                    )}
+                  </>
+                ) : messageStayId ? (
+                  <button type="button" onClick={() => message(messageStayId)} className={buttonClass("dark", "sm")}>
+                    <MessageCircle className="size-4" />
+                    {t("message")}
                   </button>
-                  {onPreview && (
-                    <button type="button" onClick={onPreview} className={buttonClass("ghost", "sm")}>
-                      <Eye className="size-4" />
-                      {tPreview("button")}
-                    </button>
-                  )}
-                </>
-              ) : messageStayId ? (
-                <button type="button" onClick={() => message(messageStayId)} className={buttonClass("dark", "sm")}>
-                  <MessageCircle className="size-4" />
-                  {t("message")}
+                ) : (
+                  <HostAlertButton host={user} />
+                )}
+                <button type="button" onClick={share} aria-label={t("share")} title={t("share")} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-neutral-100">
+                  <Share2 className="size-[18px]" />
                 </button>
-              ) : (
-                <HostAlertButton host={user} />
-              )}
-              <button type="button" onClick={share} className={buttonClass("secondary", "sm")}>
-                <Share2 className="size-4" />
-                {t("shareProfile")}
-              </button>
+                {/* Someone else's profile (never in a preview): Report / Block. */}
+                {!isMe && !previewing && <SafetyMenu target={{ kind: "user", id: user.id }} user={user} className="ml-auto" />}
+              </>
+            }
+          />
+          {/* Desktop only – on mobile the same links are in the footer, and photos follow the card directly. */}
+          {isMe && (
+            <div className="hidden lg:block">
+              <MoreList />
             </div>
-          </div>
-          {isMe && <MoreList />}
+          )}
         </aside>
 
         <section className="min-w-0 space-y-10 lg:col-span-8">
@@ -264,7 +281,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
                   <button
                     type="button"
                     onClick={() => setPhotoSheetOpen(true)}
-                    className={cn(dashedTile, "h-50 w-40 shrink-0 rounded-2xl")}
+                    className={cn(dashedTile, "h-50 w-40 shrink-0 rounded-2xl text-sm")}
                   >
                     <DashedTileContent icon={<ImagePlus className="size-5" />} label={t("addPhoto")} />
                   </button>
@@ -312,7 +329,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
 }
 
 const dashedTile =
-  "flex flex-col items-center justify-center gap-3 border-2 border-dashed border-black/15 text-sm font-semibold text-zinc-500 transition-colors hover:border-black/30 hover:bg-black/[0.02] hover:text-ink";
+  "flex flex-col items-center justify-center gap-3 border-2 border-dashed border-black/15 font-semibold text-zinc-500 transition-colors hover:border-black/30 hover:bg-black/[0.02] hover:text-ink";
 
 function DashedTileContent({ icon, label }: { icon: ReactNode; label: string }) {
   return (
@@ -323,13 +340,39 @@ function DashedTileContent({ icon, label }: { icon: ReactNode; label: string }) 
   );
 }
 
-/** Same footprint as a StayCard, for "Open another House" / "Find a House". */
+/** "Open another House" / "Find a House": an ordinary first grid cell – same width, 4:5 ratio and radius as a StayCard. */
 function DashedCard({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
-    <Link href={href} className={cn(dashedTile, "aspect-4/5 rounded-4xl")}>
-      <DashedTileContent icon={icon} label={label} />
+    <Link href={href} className={cn(dashedTile, "aspect-4/5 rounded-4xl text-base")}>
+      <span className="flex size-12 items-center justify-center rounded-full bg-white text-ink">{icon}</span>
+      {label}
     </Link>
   );
+}
+
+/** Leaves this much room under the sticky card (header + this gap must fit, or the card scrolls with the page). */
+const STICKY_ROOM = 80;
+
+/** Whether the element fits the viewport under the header with STICKY_ROOM to spare; re-checked on resize. */
+function useFitsViewport(ref: RefObject<HTMLElement | null>): boolean {
+  const [fits, setFits] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
+      setFits(el.offsetHeight <= window.innerHeight - header - STICKY_ROOM);
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    window.addEventListener("resize", check);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, [ref]);
+  return fits;
 }
 
 interface HouseSectionProps {
@@ -340,7 +383,7 @@ interface HouseSectionProps {
   /** Ended Houses, shown as compact rows under the cards. */
   past: Stay[];
   empty: string;
-  /** Dashed call-to-action card at the end of the grid (own profile only). */
+  /** Dashed call-to-action card at the start of the grid (own profile only, never in preview). */
   tile?: ReactNode;
 }
 
@@ -355,10 +398,10 @@ function HouseSection({ id, title, open, past, empty, tile }: HouseSectionProps)
       </h2>
       {open.length > 0 || tile ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {tile}
           {open.map((stay) => (
             <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
           ))}
-          {tile}
         </div>
       ) : (
         <p className="rounded-[24px] border-2 border-dashed border-black/10 p-6 text-sm text-zinc-500">{empty}</p>

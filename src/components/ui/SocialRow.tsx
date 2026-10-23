@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<{ className?: string; color?: string; style?: CSSProperties }>;
 
-interface SocialNetwork {
+export interface SocialNetwork {
   key: keyof Pick<User, "instagram" | "tiktok" | "youtube" | "twitch" | "kick" | "linkedin" | "x" | "threads" | "website">;
   /** Brand name – null for the generic website link, which is translated */
   label: string | null;
@@ -23,7 +23,8 @@ interface SocialNetwork {
 /** Handles may be stored with or without a leading "@". */
 const handle = (h: string) => h.replace(/^@/, "");
 
-const NETWORKS: readonly SocialNetwork[] = [
+/** Public networks in display order – also the brand icons on Edit profile. */
+export const SOCIAL_NETWORKS: readonly SocialNetwork[] = [
   { key: "instagram", label: "Instagram", color: "#E4405F", icon: SiInstagram, href: (h) => `https://instagram.com/${handle(h)}` },
   { key: "tiktok", label: "TikTok", color: "#000000", icon: SiTiktok, href: (h) => `https://www.tiktok.com/@${handle(h)}` },
   { key: "youtube", label: "YouTube", color: "#FF0000", icon: SiYoutube, href: (h) => `https://www.youtube.com/@${handle(h)}` },
@@ -55,7 +56,7 @@ interface SocialRowProps {
 /** Round white buttons with brand-colored icons – only for the networks the user has. */
 export function SocialRow({ user, max, size = "md", className }: SocialRowProps) {
   const t = useTranslations("common.ui.socialRow");
-  const links = NETWORKS.flatMap((network) => {
+  const links = SOCIAL_NETWORKS.flatMap((network) => {
     const value = user[network.key];
     return value ? [{ ...network, label: network.label ?? t("website"), url: network.href(value) }] : [];
   }).slice(0, max);

@@ -115,15 +115,15 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
   }
 
   return (
-    <div className="shrink-0 border-t border-zinc-200 bg-white px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4">
+    <div className="shrink-0 bg-[#F0EEEA] px-3 pt-1.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded-xl bg-zinc-50 py-1.5 pl-3 pr-1.5">
+        <div className="mb-2 flex items-center gap-2 rounded-2xl bg-white py-1.5 pl-3 pr-1.5 shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
           <Reply className="size-4 shrink-0 text-zinc-400" aria-hidden />
-          <div className="min-w-0 flex-1 border-l-2 border-zinc-300 pl-2 text-xs">
+          <div className="min-w-0 flex-1 border-l-[3px] border-accent pl-2 text-xs">
             <p className="font-semibold text-ink">{t("replyingTo", { name: replyTo.name })}</p>
             <p className="truncate text-zinc-500">{replyTo.text}</p>
           </div>
-          <button type="button" onClick={onCancelReply} aria-label={t("cancelReply")} className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-200">
+          <button type="button" onClick={onCancelReply} aria-label={t("cancelReply")} className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100">
             <X className="size-4" />
           </button>
         </div>
@@ -152,7 +152,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={file.name} className="size-16 rounded-xl object-cover" />
               ) : (
-                <div className="flex h-16 w-48 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3">
+                <div className="flex h-16 w-48 items-center gap-2 rounded-xl bg-white px-3 shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
                   <FileText className="size-5 shrink-0 text-zinc-500" aria-hidden />
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium">{file.name}</p>
@@ -185,7 +185,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label={t("attach")}
-          className="flex size-10 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-black/5 hover:text-ink"
         >
           <Paperclip className="size-5" />
         </button>
@@ -199,15 +199,15 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           onPaste={onPaste}
           placeholder={placeholder}
           aria-label={t("messageLabel")}
-          className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm leading-5 outline-none transition-colors focus:border-ink focus:bg-white"
+          className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] bg-white px-4 py-2.5 text-sm leading-5 shadow-[0_1px_1px_rgba(0,0,0,0.06)] outline-none ring-1 ring-transparent transition-shadow placeholder:text-zinc-400 focus:ring-black/15"
         />
         <button
           type="submit"
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-[background-color,opacity,transform] hover:bg-[#2A2A30] active:scale-95",
-            "disabled:pointer-events-none disabled:opacity-30",
+            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-[background-color,color,transform] hover:bg-[#2A2A30] active:scale-95",
+            "disabled:pointer-events-none disabled:bg-black/10 disabled:text-zinc-400",
           )}
         >
           <ArrowUp className="size-5" strokeWidth={2.25} />

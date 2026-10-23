@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { MockDelay } from "@/components/MockDelay";
+import { InboxSkeleton } from "@/components/skeletons/InboxSkeleton";
 import { InboxList } from "@/components/views/InboxList";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,8 +13,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function InboxPage() {
   // ?id= selects the chat on desktop – search params need a Suspense boundary.
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <InboxList />
+    <Suspense fallback={<InboxSkeleton />}>
+      <MockDelay ms={400} fallback={<InboxSkeleton />}>
+        <InboxList />
+      </MockDelay>
     </Suspense>
   );
 }

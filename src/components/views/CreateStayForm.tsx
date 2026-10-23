@@ -1,14 +1,17 @@
 "use client";
 
-import { ArrowLeft, Check, Link2, Lock, LockOpen, X } from "lucide-react";
+import { ArrowLeft, Check, Eye, Link2, Lock, LockOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { Container } from "@/components/layout/Container";
+import { CONTACT_FIELDS, SOCIAL_FIELDS, type SocialKey } from "@/components/profile/profileFields";
 import { StayCard } from "@/components/StayCard";
 import { buttonClass } from "@/components/ui/button";
+import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
+import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { linkDomain } from "@/lib/mock-extras";
@@ -21,23 +24,6 @@ const HOST_NOTE_MAX = 60;
 const BIO_MAX = 160;
 const MAX_IDEAS = 3;
 
-/** Labels: `create.socials.<key>`, placeholders: `create.socialPlaceholders.<placeholder>`. */
-const SOCIAL_FIELDS = [
-  { key: "instagram", placeholder: "handle" },
-  { key: "tiktok", placeholder: "handle" },
-  { key: "youtube", placeholder: "handle" },
-  { key: "twitch", placeholder: "username" },
-  { key: "kick", placeholder: "username" },
-  { key: "linkedin", placeholder: "profileName" },
-  { key: "x", placeholder: "handle" },
-  { key: "website", placeholder: "url" },
-] as const;
-type SocialKey = (typeof SOCIAL_FIELDS)[number]["key"];
-
-/** Crew-only channels – labels `common.ui.crewContacts.channel.<key>`, placeholders `create.contactPlaceholders.<key>`. */
-const CONTACT_FIELDS = ["whatsapp", "telegram", "signal", "discord", "phone", "facetime"] as const satisfies ReadonlyArray<keyof PrivateContacts>;
-
-/** Labels: `create.steps.<key>`. */
 const STEPS = ["house", "pitch", "about", "publish"] as const;
 const PUBLISH_STEP = STEPS.length - 1;
 
@@ -327,6 +313,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [form, setForm] = useState<FormState>(() => (editing ? formFromStay(editing) : (initialDraft?.form ?? initialForm)));
   const [step, setStep] = useState(initialDraft?.step ?? 0);
   const [error, setError] = useState<StepError | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const me = getCurrentUser(store);
   const minSpots = editing ? Math.max(2, editing.spotsFilled) : 2;
   const check = (i: number) => validateStep(i, form, me, minSpots);
@@ -429,7 +416,14 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             <ArrowLeft className="size-5" />
           </button>
         )}
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{editing ? t("title.edit") : t("title.create")}</h1>
+        <h1 className="min-w-0 flex-1 text-2xl font-bold tracking-tight md:text-3xl">{editing ? t("title.edit") : t("title.create")}</h1>
+        {/* Mobile: the live preview sits behind this button (desktop shows it beside the form). */}
+        {step < PUBLISH_STEP && (
+          <button type="button" onClick={() => setPreviewOpen(true)} className={buttonClass("secondary", "sm", "md:hidden")}>
+            <Eye className="size-4" />
+            {t("previewButton")}
+          </button>
+        )}
       </div>
 
       {/* Editing: every step is reachable – the House is complete already. */}
@@ -456,7 +450,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             </p>
           )}
 
-          <div className="pt-2">
+          {/* Mobile: sticky Next / Save / Publish bar at the bottom (this page has no tab bar). */}
+          <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 -mx-2 rounded-2xl border-t border-black/5 bg-white/90 p-2 backdrop-blur md:static md:mx-0 md:rounded-none md:border-0 md:bg-transparent md:p-0 md:pt-2 md:backdrop-blur-none">
             {editing ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button type="button" disabled={blocked} onClick={save} className={buttonClass("dark", "lg", "w-full sm:w-auto")}>
@@ -484,6 +479,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             )}
           </div>
         </div>
+
+        <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title={t("livePreview")}>
+          <div className="mx-auto max-w-sm">{preview}</div>
+        </Sheet>
 
         {/* Desktop live preview while editing */}
         {step < PUBLISH_STEP && (
@@ -592,12 +591,12 @@ function HouseStep({ form, update, minSpots, language, languages, currency }: Ho
             placeholder={form.cityOpen ? t("cityOpenPlaceholder") : t("cityPlaceholder")}
           />
         </Field>
-        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+        <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-neutral-700">
           <input
             type="checkbox"
             checked={form.cityOpen}
             onChange={(e) => update("cityOpen", e.target.checked)}
-            className="size-4 accent-[var(--color-ink)]"
+            className="size-5 accent-[var(--color-ink)]"
           />
           {t("cityOpen")}
         </label>
@@ -906,54 +905,6 @@ function AboutStep({ about, update }: { about: About; update: Update }) {
         </div>
       </Field>
     </>
-  );
-}
-
-/** Language chips; type one and press Enter or comma to add. */
-function LanguageInput({ languages, onChange }: { languages: string[]; onChange: (languages: string[]) => void }) {
-  const t = useTranslations("create.about");
-  const [draft, setDraft] = useState("");
-
-  function add() {
-    const next = splitList(draft, /,/).filter((l) => !languages.some((x) => x.toLowerCase() === l.toLowerCase()));
-    if (next.length > 0) onChange([...languages, ...next]);
-    setDraft("");
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      add();
-    } else if (e.key === "Backspace" && !draft && languages.length > 0) {
-      onChange(languages.slice(0, -1));
-    }
-  }
-
-  return (
-    <div className="flex min-h-12 flex-wrap items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-2 py-2 focus-within:border-ink">
-      {languages.map((language) => (
-        <span key={language} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 py-1 pl-3 pr-1.5 text-sm">
-          {language}
-          <button
-            type="button"
-            onClick={() => onChange(languages.filter((l) => l !== language))}
-            aria-label={t("removeLanguage", { language })}
-            className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-200 hover:text-ink"
-          >
-            <X className="size-3.5" />
-          </button>
-        </span>
-      ))}
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={add}
-        placeholder={languages.length === 0 ? t("languagesPlaceholder") : t("languagesPlaceholderMore")}
-        aria-label={t("addLanguage")}
-        className="h-8 min-w-28 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-neutral-400"
-      />
-    </div>
   );
 }
 

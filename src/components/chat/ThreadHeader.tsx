@@ -2,54 +2,61 @@
 
 import { ArrowLeft, Lock, LockOpen } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { CrewMenu } from "@/components/stay/CrewMenu";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { CrewContacts, useHasVisibleCrewContacts } from "@/components/ui/CrewContacts";
-import { Img } from "@/components/ui/Img";
 import { useFormat } from "@/i18n/format";
-import { mockPreviewForUrl } from "@/lib/mock-extras";
 import { findUser, getCrew, getCrewLinks, getLockDetails, paymentProgress, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { WhosInSheet } from "./WhosInSheet";
 
-/** Embedded = the desktop panel (full header); otherwise the mobile page (one line). */
+/** One 64px row – the desktop panel (rounded top) and the mobile page alike. */
 function headerClass(embedded: boolean) {
-  return cn("relative shrink-0 border-b border-zinc-200 bg-white", embedded ? "rounded-t-3xl px-4 py-3" : "px-3 py-2 md:px-4");
+  return cn(
+    "relative flex h-16 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white",
+    embedded ? "rounded-t-3xl px-4" : "px-2 sm:px-4",
+  );
 }
 
 function BackToInbox({ embedded }: { embedded: boolean }) {
   const t = useTranslations("messages.thread");
   if (embedded) return null;
   return (
-    <Link href="/inbox" aria-label={t("backToMessages")} className="-ml-1 shrink-0 rounded-full p-2 hover:bg-zinc-100">
+    <Link href="/inbox" aria-label={t("backToMessages")} className="shrink-0 rounded-full p-2 hover:bg-zinc-100">
       <ArrowLeft className="size-5" />
     </Link>
   );
 }
 
-function ProgressBar({ paid, total, className }: { paid: number; total: number; className?: string }) {
+/** Payments once locked: a 2px line along the header's bottom edge; the taller transparent strip carries the tooltip. */
+function PaymentLine({ paid, total }: { paid: number; total: number }) {
   const t = useTranslations("messages.thread");
+  const label = t("paidOf", { paid, total });
   return (
-    <div
-      className={cn("overflow-hidden rounded-full bg-black/10", className)}
-      role="progressbar"
-      aria-label={t("payments")}
-      aria-valuemin={0}
-      aria-valuemax={total}
-      aria-valuenow={paid}
-    >
-      <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${total ? (paid / total) * 100 : 0}%` }} />
+    <div className="absolute inset-x-0 -bottom-px flex h-2 items-end" title={label}>
+      <div
+        className="h-0.5 w-full overflow-hidden bg-black/5"
+        role="progressbar"
+        aria-label={t("payments")}
+        aria-valuetext={label}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={paid}
+      >
+        <div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${total ? (paid / total) * 100 : 0}%` }} />
+      </div>
     </div>
   );
 }
 
-/** Pinned on every crew chat: dates, where the place stands, who's in – and the payment progress once locked. */
+/** Pinned on every crew chat: House + dates, where the place stands, who's in, the host's channels – one row. */
 export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }) {
   const t = useTranslations("messages.thread");
-  const tContacts = useTranslations("common.ui.crewContacts");
   const f = useFormat();
   const store = useStore();
   const [whosIn, setWhosIn] = useState(false);
@@ -60,103 +67,81 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
   const host = findUser(store, stay.hostId);
   const showHostContacts = useHasVisibleCrewContacts(host) && host?.id !== store.currentUserId;
 
-  const avatars = (
-    <button
-      type="button"
-      onClick={() => setWhosIn(true)}
-      aria-label={t("whosInLabel", { count: crew.length })}
-      className="flex shrink-0 flex-col items-end gap-0.5 rounded-xl p-1 hover:bg-zinc-100"
-    >
-      <AvatarStack users={crew} size="xs" max={embedded ? 4 : 3} />
-      {embedded && <span className="text-[10px] text-zinc-400">{t("whosIn")}</span>}
-    </button>
-  );
-
   return (
-    <header className={headerClass(embedded)}>
-      <div className={cn("flex items-center", embedded ? "gap-3" : "gap-2")}>
+    <>
+      <header className={headerClass(embedded)}>
         <BackToInbox embedded={embedded} />
-        <div className="min-w-0 flex-1">
-          <Link href={`/stays/${stay.slug}`} className="block truncate font-semibold hover:underline">
+
+        {/* The title truncates first; the dates stay. */}
+        <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
+          <Link href={`/stays/${stay.slug}`} className="min-w-0 truncate text-base font-semibold hover:underline">
             {stay.title}
           </Link>
-          {embedded && <p className="truncate text-xs text-zinc-500">{f.longRange(stay.startDate, stay.endDate)}</p>}
-        </div>
-        {avatars}
-        <CrewMenu stay={stay} afterLeaveHref="/inbox" />
-      </div>
-
-      {embedded &&
-        (lock ? (
-          <div className="mt-3 flex items-center gap-3 rounded-2xl bg-page p-2 pr-3">
-            <Img src={mockPreviewForUrl(lock.link).imageUrl} alt="" width={40} height={40} className="size-10 shrink-0 rounded-lg object-cover" />
-            <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1 truncate text-sm font-medium">
-                <Lock className="size-3.5 shrink-0 text-accent" aria-hidden />
-                <span className="truncate">{lock.title}</span>
-              </p>
-              <p className="truncate text-xs text-zinc-500">
-                {t("lockSummary", { price: f.price(lock.perPerson, stay.currency), date: f.day(lock.payBy) })}
-              </p>
-            </div>
-            <div className="w-28 shrink-0">
-              <p className="mb-1 text-right text-[11px] font-medium text-zinc-600">
-                {t("paidOf", { paid: progress.paidCount, total: progress.count })}
-              </p>
-              <ProgressBar paid={progress.paidCount} total={progress.count} className="h-1.5" />
-            </div>
-          </div>
-        ) : (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-600">
-            <LockOpen className="size-3.5 shrink-0" aria-hidden />
-            {t("accommodationOpen", { count: linkCount })}
-          </p>
-        ))}
-
-      {embedded && showHostContacts && host && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-          <span className="shrink-0">
-            {tContacts("reachMeOn")} · {host.name.split(" ")[0]}
+          <span className="shrink-0 text-[13px] text-zinc-500">
+            <span aria-hidden>· </span>
+            {f.shortRange(stay.startDate, stay.endDate)}
           </span>
-          <CrewContacts user={host} size="sm" />
-          <span className="ml-auto shrink-0 text-[11px] text-zinc-400">{tContacts("crewOnly")}</span>
         </div>
-      )}
+
+        <span
+          className="hidden h-7 shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-2.5 text-xs font-medium text-zinc-700 sm:flex"
+          title={lock ? t("lockSummary", { price: f.price(lock.perPerson, stay.currency), date: f.day(lock.payBy) }) : t("accommodationOpen", { count: linkCount })}
+        >
+          {lock ? <Lock className="size-3.5 text-accent" aria-hidden /> : <LockOpen className="size-3.5 text-zinc-500" aria-hidden />}
+          {lock ? t("chipLocked", { price: f.price(lock.perPerson, stay.currency) }) : t("chipOpen", { count: linkCount })}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setWhosIn(true)}
+          aria-label={t("whosInLabel", { count: crew.length })}
+          title={t("whosIn")}
+          className="shrink-0 rounded-full p-1 hover:bg-zinc-100"
+        >
+          <AvatarStack users={crew} size="xs" max={embedded ? 4 : 3} />
+        </button>
+
+        {showHostContacts && host && (
+          <div className="hidden shrink-0 sm:block">
+            <CrewContacts user={host} size="xs" />
+          </div>
+        )}
+
+        <CrewMenu stay={stay} afterLeaveHref="/inbox" />
+
+        {lock && <PaymentLine paid={progress.paidCount} total={progress.count} />}
+
+        <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
+      </header>
 
       {stay.status === "closed" && (
-        <p className={cn("rounded-xl bg-zinc-100 px-3 py-2 text-zinc-600", embedded ? "mt-3 text-sm" : "mt-1.5 text-xs")}>{t("closed")}</p>
+        <p className="shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-xs text-zinc-600">{t("closed")}</p>
       )}
-
-      {/* Mobile: payments condensed into a thin line along the header's bottom edge. */}
-      {!embedded && lock && (
-        <ProgressBar paid={progress.paidCount} total={progress.count} className="absolute inset-x-0 -bottom-px h-0.5 rounded-none bg-transparent" />
-      )}
-
-      <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
-    </header>
+    </>
   );
 }
 
 export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: User; embedded: boolean }) {
   const t = useTranslations("messages.thread");
+  const router = useRouter();
   return (
     <header className={headerClass(embedded)}>
-      <div className={cn("flex items-center", embedded ? "gap-3" : "gap-2")}>
-        <BackToInbox embedded={embedded} />
-        {other && <Avatar user={other} size={embedded ? "md" : "sm"} linked />}
-        <div className="min-w-0 flex-1">
-          {other ? (
-            <Link href={`/u/${other.id}`} className="block truncate font-semibold hover:underline">
-              {other.name}
-            </Link>
-          ) : (
-            <p className="truncate font-semibold">{t("unknown")}</p>
-          )}
-          <Link href={`/stays/${stay.slug}`} className="block truncate text-xs text-zinc-500 hover:underline">
-            {t("about", { title: stay.title })}
+      <BackToInbox embedded={embedded} />
+      {other && <Avatar user={other} size="md" linked />}
+      <div className="min-w-0 flex-1">
+        {other ? (
+          <Link href={`/u/${other.id}`} className="block truncate text-base font-semibold leading-5 hover:underline">
+            {other.name}
           </Link>
-        </div>
+        ) : (
+          <p className="truncate text-base font-semibold leading-5">{t("unknown")}</p>
+        )}
+        <Link href={`/stays/${stay.slug}`} className="block truncate text-[13px] text-zinc-500 hover:underline">
+          {t("about", { title: stay.title })}
+        </Link>
       </div>
+      {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
+      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/inbox")} className="shrink-0" />}
     </header>
   );
 }

@@ -31,7 +31,7 @@ export function DayDivider({ day }: { day: string }) {
         : new Intl.DateTimeFormat(locale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
   return (
     <div className="my-5 flex justify-center">
-      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">{label}</span>
+      <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-zinc-500 shadow-[0_1px_1px_rgba(0,0,0,0.06)]">{label}</span>
     </div>
   );
 }
@@ -42,17 +42,17 @@ export function SystemLine({ message }: { message: Message }) {
   const payment = messageType(message) === "payment";
   return (
     <div className="my-3 flex items-center gap-3 text-xs text-zinc-500">
-      <span className="h-px flex-1 bg-zinc-200" aria-hidden />
+      <span className="h-px flex-1 bg-black/10" aria-hidden />
       <p className={cn("flex max-w-[80%] items-center gap-1.5 text-center", payment && "font-medium text-emerald-700")}>
         {payment && <CircleCheck className="size-3.5 shrink-0" aria-hidden />}
         {messageText(message)}
       </p>
-      <span className="h-px flex-1 bg-zinc-200" aria-hidden />
+      <span className="h-px flex-1 bg-black/10" aria-hidden />
     </div>
   );
 }
 
-/** Message text with its links clickable. */
+/** Message text with its links clickable – ink on both bubble tints; own bubbles underline in the accent. */
 export function MessageText({ text, mine }: { text: string; mine: boolean }) {
   return (
     <>
@@ -63,7 +63,7 @@ export function MessageText({ text, mine }: { text: string; mine: boolean }) {
             href={part.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn("break-all underline underline-offset-2", mine ? "text-white" : "text-ink")}
+            className={cn("break-all text-ink underline underline-offset-2", mine ? "decoration-accent" : "decoration-zinc-400")}
           >
             {part.text}
           </a>
@@ -116,16 +116,16 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
       rel="noopener noreferrer"
       download={file.name}
       className={cn(
-        "flex w-64 max-w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left",
-        mine ? "rounded-br-md bg-ink text-white hover:bg-[#2A2A30]" : "rounded-bl-md border border-zinc-200 bg-white hover:bg-zinc-50",
+        "flex w-64 max-w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left text-ink shadow-[0_1px_1px_rgba(0,0,0,0.06)]",
+        mine ? "bg-[#FCE6DC] hover:bg-[#F9DCCF]" : "bg-white hover:bg-zinc-50",
       )}
     >
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-white/10" : "bg-zinc-100")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-black/5" : "bg-zinc-100")}>
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{file.name ?? t("file")}</span>
-        {file.size !== undefined && <span className={cn("block text-xs", mine ? "text-white/60" : "text-zinc-500")}>{formatSize(file.size, locale)}</span>}
+        {file.size !== undefined && <span className="block text-xs text-zinc-500">{formatSize(file.size, locale)}</span>}
       </span>
     </a>
   );
@@ -135,7 +135,7 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
 export function ChatLinkCard({ url, locked, onLock }: { url: string; locked: boolean; onLock?: () => void }) {
   const t = useTranslations("messages.thread");
   return (
-    <div className={cn(CARD_WIDTH, "rounded-2xl border border-zinc-200 bg-white p-3 text-left text-ink")}>
+    <div className={cn(CARD_WIDTH, "rounded-2xl bg-white p-3 text-left text-ink shadow-[0_1px_1px_rgba(0,0,0,0.06)]")}>
       <LinkPreviewCard href={url} preview={mockPreviewForUrl(url)} layout="row" />
       {locked ? (
         <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-accent">
@@ -165,7 +165,7 @@ export function LockCard({ stay, lock, current }: { stay: Stay; lock: LockDetail
   const host = findUser(store, stay.hostId);
 
   return (
-    <div className={cn(CARD_WIDTH, "rounded-2xl border border-zinc-200 bg-white p-4 text-left text-ink")}>
+    <div className={cn(CARD_WIDTH, "rounded-2xl bg-white p-4 text-left text-ink shadow-[0_1px_1px_rgba(0,0,0,0.06)]")}>
       <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
         <Lock className="size-3.5" aria-hidden />
         {host ? t("lockedBy", { name: host.name.split(" ")[0] }) : t("locked")}

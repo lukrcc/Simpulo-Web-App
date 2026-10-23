@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, Lock, SearchX } from "lucide-react";
+import { Camera, Check, DoorClosed, Lock, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +10,8 @@ import { AuthOptions, sheetButtonClass } from "@/components/auth/AuthSheet";
 import { useInstallNudge } from "@/components/InstallNudge";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
+import { SafetyMenu } from "@/components/safety/SafetyMenu";
+import { StayCard } from "@/components/StayCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { AccommodationSection } from "@/components/stay/AccommodationSection";
@@ -26,7 +28,7 @@ import { SaveButton } from "@/components/ui/SaveButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isCrewMember, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { cn, findUrls, stayNights } from "@/lib/utils";
 
@@ -37,26 +39,54 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const store = useStore();
   const stay = store.stays.find((s) => s.slug === slug);
-  const t = useTranslations("house.notFound");
 
-  if (!stay) {
-    return (
-      <Container page width="narrow">
+  if (!stay) return <StayUnavailable reason="notFound" />;
+  // Hosted by someone you blocked: as if it weren't there.
+  if (isBlocked(store, stay.hostId)) return <StayUnavailable reason="blocked" exceptId={stay.id} />;
+  // Closed: gone for everyone but the host and the crew (isCrewMember counts the host), who still need the page.
+  if (stay.status === "closed" && !isCrewMember(store, stay, store.currentUserId)) return <StayUnavailable reason="closed" exceptId={stay.id} />;
+
+  return <StayDetailContent stay={stay} />;
+}
+
+const UNAVAILABLE_ICONS = { notFound: SearchX, closed: DoorClosed, blocked: UserX } as const;
+const MAX_OTHER_HOUSES = 3;
+
+/** Missing, closed or blocked-host House: one friendly line, the way back, and a few open Houses to go on with. */
+function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABLE_ICONS; exceptId?: string }) {
+  const t = useTranslations("safety.unavailable");
+  const store = useStore();
+  const today = new Date().toISOString().slice(0, 10);
+  const others = store.stays
+    .filter((s) => s.id !== exceptId && s.status === "published" && s.endDate >= today && !isBlocked(store, s.hostId))
+    .slice(0, MAX_OTHER_HOUSES);
+
+  return (
+    <Container page>
+      <div className="mx-auto max-w-xl">
         <EmptyState
-          icon={SearchX}
-          title={t("title")}
-          description={t("description")}
+          icon={UNAVAILABLE_ICONS[reason]}
+          title={t(`${reason}Title`)}
+          description={t(`${reason}Description`)}
           action={
             <Link href="/" className={buttonClass("dark", "sm")}>
-              {t("action")}
+              {t("explore")}
             </Link>
           }
         />
-      </Container>
-    );
-  }
-
-  return <StayDetailContent stay={stay} />;
+      </div>
+      {others.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-lg font-semibold">{t("others")}</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {others.map((s) => (
+              <StayCard key={s.id} stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
+            ))}
+          </div>
+        </section>
+      )}
+    </Container>
+  );
 }
 
 function StayDetailContent({ stay }: { stay: Stay }) {
@@ -154,8 +184,19 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           </>
         )}
 
-        <div className="pt-6">
-          <StayFacts stay={stay} crew={crew} action={<SaveButton stay={stay} variant="outline" />} />
+        {/* Mobile order: title + crew, host card, pitch, map, rules. Desktop: pitch, rules, map (host card on the right). */}
+        <div className="flex flex-col pt-6">
+          <StayFacts
+            stay={stay}
+            crew={crew}
+            action={
+              <div className="flex shrink-0 items-center gap-1">
+                <SaveButton stay={stay} variant="outline" />
+                {/* Not on your own House (nor in its guest preview). */}
+                {!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} />}
+              </div>
+            }
+          />
 
           {/* Crew with an open share: pay right from the House page (also on mobile – this column is always shown). */}
           {isMember && <MyShare stay={stay} className="mt-6" />}
@@ -176,9 +217,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             </div>
           )}
 
-          <HostPitch stay={stay} />
+          {host && (
+            <div className={cn(sideCard, "mt-6 lg:hidden")}>
+              <HostCard host={host} />
+            </div>
+          )}
+
+          <div>
+            <HostPitch stay={stay} />
+          </div>
 
           {stay.houseRules.length > 0 && (
+            <div className="order-1 lg:order-none">
             <Section title={t("houseRules")}>
               <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
                 {stay.houseRules.map((rule) => (
@@ -189,9 +239,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
                 ))}
               </ul>
             </Section>
+            </div>
           )}
 
-          <PlaceMap stay={stay} />
+          {/* Map and rules swap: mobile shows the map first (rules carry order-1), desktop the rules first. */}
+          <div className="lg:order-1">
+            <PlaceMap stay={stay} />
+          </div>
         </div>
       </div>
 

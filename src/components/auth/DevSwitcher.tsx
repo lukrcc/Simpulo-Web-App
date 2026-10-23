@@ -43,63 +43,94 @@ function DevSwitcherInner() {
   const store = useStore();
   const { users, currentUserId, login, logout } = store;
   const stay = useRouteStay();
+  const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<"menu" | "scheduled" | null>(null);
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
   const reminders = currentUserId ? computeReminders(store, currentUserId) : [];
 
+  function close() {
+    setOpen(false);
+    setPanel(null);
+  }
+
+  const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-zinc-600 hover:bg-black/5 aria-pressed:bg-black/5 aria-pressed:text-ink";
   return (
-    <div className="fixed bottom-[calc(152px+env(safe-area-inset-bottom))] left-4 z-50 md:bottom-4 md:left-16">
-      {panel && (
+    // Bottom-right: on mobile above the floating "+" and sticky bars, on desktop in the free corner next to the form columns.
+    <div className="fixed bottom-[calc(148px+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-2 md:bottom-4">
+      {open && (
         <>
-          <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={() => setPanel(null)} className="fixed inset-0 cursor-default" />
-          <div className="animate-fade-in absolute bottom-10 left-0 w-80 overflow-hidden rounded-2xl bg-white text-xs shadow-xl ring-1 ring-black/5">
-            {panel === "menu" ? <OpenAsMenu stay={stay} onDone={() => setPanel(null)} /> : <ScheduledPanel reminders={reminders} />}
+          <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
+          <div
+            id="dev-switcher-panel"
+            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white text-xs shadow-xl ring-1 ring-black/5"
+          >
+            <div className="flex items-center gap-2 border-b border-black/5 px-4 py-2.5">
+              <select
+                value={currentUserId ?? ""}
+                onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
+                className="min-w-0 flex-1 cursor-pointer bg-transparent font-medium text-ink outline-none"
+                aria-label={t("mockUser")}
+              >
+                <option value="">{t("loggedOut")}</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+              {/* Whose perspective this page shows – only on routes about one House. */}
+              {role && (
+                <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium", ROLE_STYLES[role])}>
+                  {t(`role.${role}`)}
+                </span>
+              )}
+            </div>
+            {(currentUserId || stay) && (
+              <div className="flex items-center gap-1 px-2 py-1.5">
+                {currentUserId && (
+                  <button
+                    type="button"
+                    onClick={() => setPanel((p) => (p === "scheduled" ? null : "scheduled"))}
+                    aria-pressed={panel === "scheduled"}
+                    className={action}
+                  >
+                    <Bell className="size-3.5" />
+                    {t("scheduled")} · {reminders.length}
+                  </button>
+                )}
+                {stay && (
+                  <button
+                    type="button"
+                    onClick={() => setPanel((p) => (p === "menu" ? null : "menu"))}
+                    aria-pressed={panel === "menu"}
+                    title={t("more")}
+                    className={action}
+                  >
+                    <MoreHorizontal className="size-4" />
+                    {t("openAs")}
+                  </button>
+                )}
+              </div>
+            )}
+            {panel && (
+              <div className="border-t border-black/5">
+                {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : <ScheduledPanel reminders={reminders} />}
+              </div>
+            )}
           </div>
         </>
       )}
-      <div className="glass relative flex h-8 items-center gap-1.5 rounded-full pl-3 pr-1 text-xs">
-        <span className="font-semibold text-zinc-500">{t("label")}</span>
-        <select
-          value={currentUserId ?? ""}
-          onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
-          className="cursor-pointer bg-transparent font-medium text-ink outline-none"
-          aria-label={t("mockUser")}
-        >
-          <option value="">{t("loggedOut")}</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
-        {/* Whose perspective this page shows – only on routes about one House. */}
-        {role && (
-          <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 font-medium", ROLE_STYLES[role])}>{t(`role.${role}`)}</span>
-        )}
-        {currentUserId && (
-          <button
-            type="button"
-            onClick={() => setPanel((p) => (p === "scheduled" ? null : "scheduled"))}
-            aria-label={t("scheduled")}
-            title={t("scheduled")}
-            className="flex h-6 items-center gap-1 rounded-full px-1.5 text-zinc-600 hover:bg-black/5"
-          >
-            <Bell className="size-3.5" />
-            {reminders.length}
-          </button>
-        )}
-        {stay && (
-          <button
-            type="button"
-            onClick={() => setPanel((p) => (p === "menu" ? null : "menu"))}
-            aria-label={t("more")}
-            className="flex size-6 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5"
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => (open ? close() : setOpen(true))}
+        aria-expanded={open}
+        aria-controls="dev-switcher-panel"
+        aria-label={open ? t("closePanel") : t("openPanel")}
+        className="glass relative flex size-9 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-600 hover:text-ink"
+      >
+        {t("label")}
+      </button>
     </div>
   );
 }
@@ -137,7 +168,6 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
   const item = "block w-full px-4 py-2.5 text-left hover:bg-neutral-50 disabled:cursor-default disabled:text-zinc-400 disabled:hover:bg-transparent";
   return (
     <div className="py-1">
-      <p className="px-4 pb-1 pt-2 font-semibold uppercase tracking-wide text-zinc-400">{t("openAs")}</p>
       {host && (
         <button type="button" onClick={() => open(host.id)} className={item}>
           {t("openAsHost", { name: host.name.split(" ")[0] })}
@@ -159,7 +189,6 @@ function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
 
   return (
     <div>
-      <p className="border-b border-black/5 px-4 py-2.5 font-semibold uppercase tracking-wide text-zinc-400">{t("scheduled")}</p>
       {reminders.length === 0 ? (
         <p className="px-4 py-4 text-zinc-500">{t("noReminders")}</p>
       ) : (

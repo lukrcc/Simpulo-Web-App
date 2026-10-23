@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ContentPage, TodoNote } from "@/components/layout/ContentPage";
+import { ContentPage, LEGAL_UPDATED, LegalSection, TodoNote } from "@/components/layout/ContentPage";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
   return { title: t("pages.privacy") };
 }
 
+const SECTIONS = ["controller", "data", "purposes", "sharing", "retention", "rights", "cookies", "contact"] as const;
+
 export default async function PrivacyPage() {
-  const t = await getTranslations("footer.pages");
+  const tp = await getTranslations("footer.pages");
+  const t = await getTranslations("legal");
   return (
-    <ContentPage title={t("privacy.title")}>
-      <TodoNote>{t("placeholder")}</TodoNote>
-      <p>{t("privacy.text")}</p>
+    <ContentPage title={tp("privacy.title")} intro={t("privacy.intro")} updated={LEGAL_UPDATED}>
+      <TodoNote>{t("draftNotice")}</TodoNote>
+      {SECTIONS.map((key) => (
+        <LegalSection key={key} id={key} title={t(`privacy.${key}.title`)}>
+          <p>{t(`privacy.${key}.body`)}</p>
+        </LegalSection>
+      ))}
     </ContentPage>
   );
 }

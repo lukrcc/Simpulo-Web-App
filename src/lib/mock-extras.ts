@@ -18,6 +18,10 @@ const mockLinkPreviewTitles: Record<string, string> = {
   "https://www.airbnb.com/rooms/example-floripa": "Campeche beach house · 5 rooms, 10 min to the mats",
   "https://www.airbnb.com/rooms/example-thonglor": "Thonglor high-rise · gym in the building",
   "https://www.booking.com/example-innsbruck": "Chalet Nordkette with sauna",
+  "https://www.airbnb.com/rooms/example-dubai-marina-tower": "Marina tower 4BR · gym and pool on the 30th",
+  "https://www.booking.com/example-gili-air-bungalows": "Gili Air dive bungalows · 3 min to the boats",
+  "https://www.booking.com/example-reine-rorbu": "Red rorbu in Reine · fjord view, aurora from the porch",
+  "https://www.airbnb.com/rooms/example-chamonix-chalet": "Chalet in Les Praz · boot room, sauna, 5 min to Flégère",
 };
 
 /** Small stable hash, so the same URL always gets the same placeholder image. */

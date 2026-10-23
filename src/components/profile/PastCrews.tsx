@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Sheet } from "@/components/ui/Sheet";
 import { useFormat } from "@/i18n/format";
+import { getCrew, isCrewMember, type StoreData } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { firstName } from "@/lib/utils";
 
@@ -13,6 +14,18 @@ export interface PastCrewMate {
   user: User;
   /** The completed House they shared (the most recent one, if several). */
   stay: Stay;
+}
+
+/** Everyone from a completed House this user hosted or joined – most recent House first, each person once. */
+export function getPastCrewMates(store: StoreData, userId: string): PastCrewMate[] {
+  const mates: PastCrewMate[] = [];
+  const done = store.stays.filter((s) => s.status === "completed" && isCrewMember(store, s, userId)).toSorted((a, b) => b.endDate.localeCompare(a.endDate));
+  for (const stay of done) {
+    for (const mate of getCrew(store, stay)) {
+      if (mate.id !== userId && !mates.some((m) => m.user.id === mate.id)) mates.push({ user: mate, stay });
+    }
+  }
+  return mates;
 }
 
 /** "Past crews": everyone this user has lived with in a completed House. Renders nothing when empty. */
@@ -24,17 +37,16 @@ export function PastCrews({ user, mates }: { user: User; mates: PastCrewMate[] }
 
   return (
     <>
-      <div className="mt-4">
-        <p className="mb-2 text-xs font-medium tracking-wide text-zinc-500 uppercase">{t("pastCrews")}</p>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={t("pastCrewsOpen", { count: mates.length, name: firstName(user) })}
-          className="rounded-full transition-opacity hover:opacity-80"
-        >
-          <AvatarStack users={mates.map((m) => m.user)} max={5} size="sm" />
-        </button>
-      </div>
+      {/* One row: "Lived with" + faces (max 5, then +N); opens the full list. */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={t("pastCrewsOpen", { count: mates.length, name: firstName(user) })}
+        className="mt-4 flex items-center gap-3 rounded-full text-sm text-zinc-500 transition-colors hover:text-ink"
+      >
+        {t("livedWith")}
+        <AvatarStack users={mates.map((m) => m.user)} max={5} size="sm" />
+      </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title={t("pastCrewsTitle")} subtitle={t("pastCrewsSubtitle", { name: firstName(user) })}>
         <ul className="scroll-pane -mx-2 max-h-[60vh]">

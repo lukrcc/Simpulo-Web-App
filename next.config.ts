@@ -6,6 +6,8 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
+  // The Next.js dev indicator sat on top of the left nav rail / DevSwitcher – hide it (errors still surface).
+  devIndicators: false,
   // Lets phones on the local network open the dev server (http://<mac-ip>:3000).
   allowedDevOrigins: ["192.168.151.196", "172.20.10.*"],
   partialPrefetching: true,

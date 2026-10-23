@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<{ className?: string; style?: CSSProperties }>;
 
-interface Channel {
+export interface Channel {
   key: keyof PrivateContacts;
   icon: IconComponent;
   /** Brand colour of the icon; channels without a brand (phone, FaceTime) sit in a dark circle instead */
@@ -22,7 +22,8 @@ interface Channel {
 const digits = (value: string) => value.replace(/[^\d+]/g, "");
 
 // Order = display order.
-const CHANNELS: readonly Channel[] = [
+/** Crew-only channels in display order – also the icons on Edit profile. */
+export const CONTACT_CHANNELS: readonly Channel[] = [
   { key: "whatsapp", icon: SiWhatsapp, color: "#25D366", href: (v) => `https://wa.me/${digits(v).replace(/^\+/, "")}` },
   { key: "telegram", icon: SiTelegram, color: "#26A5E4", href: (v) => `https://t.me/${v.replace(/^@/, "")}` },
   { key: "signal", icon: SiSignal, color: "#3A76F0", href: (v) => `https://signal.me/#p/${digits(v)}` },
@@ -35,6 +36,8 @@ const CHANNELS: readonly Channel[] = [
 const sizes = {
   md: { button: "size-9", icon: "size-4" },
   sm: { button: "size-[30px]", icon: "size-3.5" },
+  /** 28px – compact headers */
+  xs: { button: "size-7", icon: "size-3.5" },
 } as const;
 
 interface CrewContactsProps {
@@ -55,7 +58,7 @@ export function CrewContacts({ user, size = "md", className }: CrewContactsProps
   if (!canSeePrivateContacts(store, store.currentUserId, user.id)) return null;
 
   const contacts = user.privateContacts ?? {};
-  const links = CHANNELS.filter(({ key }) => contacts[key] && (key !== "facetime" || apple));
+  const links = CONTACT_CHANNELS.filter(({ key }) => contacts[key] && (key !== "facetime" || apple));
   if (links.length === 0) return null;
 
   const firstName = user.name.split(" ")[0];
@@ -91,5 +94,5 @@ export function useHasVisibleCrewContacts(user: User | undefined): boolean {
   const apple = useIsAppleDevice();
   if (!user || !canSeePrivateContacts(store, store.currentUserId, user.id)) return false;
   const contacts = user.privateContacts ?? {};
-  return CHANNELS.some(({ key }) => contacts[key] && (key !== "facetime" || apple));
+  return CONTACT_CHANNELS.some(({ key }) => contacts[key] && (key !== "facetime" || apple));
 }

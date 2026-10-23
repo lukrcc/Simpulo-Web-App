@@ -7,13 +7,13 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
-import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
-import { findUser, isThreadUnread, useStore } from "@/lib/store";
+import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
@@ -44,17 +44,32 @@ function InboxContent() {
   const me = store.currentUserId;
   const isDesktop = useIsDesktop();
   const selectedId = useSearchParams().get("id");
+  const f = useFormat();
   const [query, setQuery] = useState("");
 
-  const rows: ThreadRow[] = store.threads
-    .filter((t) => me !== null && t.participantIds.includes(me))
-    .flatMap((thread) => {
-      const stay = store.stays.find((s) => s.id === thread.stayId);
-      if (!stay) return [];
-      if (thread.type === "crew") return [{ thread, title: stay.title, avatar: findUser(store, stay.hostId) }];
-      const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
-      return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other }];
-    });
+  const mine = store.threads.filter((t) => me !== null && t.participantIds.includes(me));
+  // Two crews of Houses with the same title: the dates tell them apart.
+  const crewTitleCount = new Map<string, number>();
+  for (const thread of mine) {
+    const title = thread.type === "crew" ? store.stays.find((s) => s.id === thread.stayId)?.title : undefined;
+    if (title) crewTitleCount.set(title, (crewTitleCount.get(title) ?? 0) + 1);
+  }
+
+  const rows: ThreadRow[] = mine.flatMap((thread) => {
+    const stay = store.stays.find((s) => s.id === thread.stayId);
+    if (!stay) return [];
+    if (thread.type === "crew") {
+      const title =
+        (crewTitleCount.get(stay.title) ?? 0) > 1
+          ? t("titleWithDates", { title: stay.title, dates: f.shortRange(stay.startDate, stay.endDate) })
+          : stay.title;
+      return [{ thread, title, avatar: findUser(store, stay.hostId) }];
+    }
+    const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
+    // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
+    if (other && isBlocked(store, other.id)) return [];
+    return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other }];
+  });
 
   const q = query.trim().toLowerCase();
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
@@ -161,15 +176,22 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/inbox?id=${thread.id}` : `/inbox/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors", active ? "bg-white shadow-xs" : "hover:bg-black/[0.03]")}
+      className={cn("flex h-16 items-center gap-3 rounded-2xl px-3 transition-colors", active ? "bg-white shadow-xs" : "hover:bg-black/[0.03]")}
     >
-      {avatar ? <Avatar user={avatar} size="md" /> : <span className="size-10 shrink-0 rounded-full bg-neutral-100" />}
+      {avatar ? (
+        <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={44} className="size-11 bg-neutral-200" />
+      ) : (
+        <span className="size-11 shrink-0 rounded-full bg-neutral-100" />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className={cn("truncate text-sm", unread ? "font-bold" : "font-semibold")}>{title}</p>
+          <p className={cn("min-w-0 truncate text-sm", unread ? "font-bold" : "font-semibold")}>
+            {title}
+            {/* Direct chats: the House they're about, on the same line. */}
+            {subtitle && <span className="font-normal text-neutral-400"> · {subtitle}</span>}
+          </p>
           {time && <span className="shrink-0 text-xs text-neutral-400">{time}</span>}
         </div>
-        {subtitle && <p className="truncate text-xs text-neutral-400">{subtitle}</p>}
         <div className="flex items-center gap-2">
           <p className={cn("min-w-0 flex-1 truncate text-sm", unread ? "font-medium text-ink" : "text-neutral-500")}>{preview}</p>
           {unread && <span className="size-2.5 shrink-0 rounded-full bg-accent" aria-label={t("unread")} />}

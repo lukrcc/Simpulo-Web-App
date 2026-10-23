@@ -11,6 +11,9 @@ export type {
   MessageType,
   Attachment,
   Reaction,
+  Report,
+  ReportReason,
+  NotificationGroup,
   Payment,
   PrivateContacts,
   PaymentRecordStatus,
@@ -20,6 +23,7 @@ export type {
   StayStatus,
   Thread,
   User,
+  UserSettings,
   Vibe,
 } from "./mock";
 

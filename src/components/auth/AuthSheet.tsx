@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { SiApple } from "react-icons/si";
+import { CompleteProfileForm } from "@/components/onboarding/CompleteProfileForm";
 import { Avatar } from "@/components/ui/Avatar";
 import { Sheet } from "@/components/ui/Sheet";
-import { useStore } from "@/lib/store";
+import { isProfileComplete, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 type Provider = "Apple" | "Google";
@@ -16,12 +17,10 @@ type Provider = "Apple" | "Google";
 /** Mock magic link: how long the "Check your inbox" state shows before the mock user is logged in. */
 const MOCK_LINK_DELAY_MS = 1500;
 
-/**
- * Shared look of the full-width sheet buttons (login options, "Continue", "Done"): 56px, pill, 16px medium.
- * Add colours per use.
- */
-export const sheetButtonClass =
-  "flex h-14 w-full items-center rounded-full px-5 text-[16px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed";
+import { sheetButtonClass } from "@/components/ui/sheetButton";
+
+// Re-exported for existing imports; the class itself lives in ui/sheetButton (no import cycle with onboarding).
+export { sheetButtonClass } from "@/components/ui/sheetButton";
 
 interface AuthSheetProps {
   open: boolean;
@@ -34,24 +33,70 @@ interface AuthSheetProps {
 /** "Continue to Simpulo" – bottom sheet on mobile, centred modal on desktop (see Sheet). */
 export function AuthSheet({ open, context, onClose, onSuccess }: AuthSheetProps) {
   const t = useTranslations("auth");
+  const tOnboarding = useTranslations("onboarding");
+  /** Logged in, but the profile still needs filling in – the sheet then titles that step instead. */
+  const [completing, setCompleting] = useState(false);
+  // Every open starts at the provider buttons again.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setCompleting(false);
+  }
+
   return (
-    <Sheet open={open} onClose={onClose} title={t("title")} subtitle={context} size="wide">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={completing ? tOnboarding("title") : t("title")}
+      subtitle={completing ? undefined : context}
+      size="wide"
+    >
       {/* Remounted on every open, so it always starts at the provider buttons. */}
-      {open && <AuthOptions onSuccess={onSuccess} />}
+      {open && <AuthOptions onSuccess={onSuccess} onCompleting={() => setCompleting(true)} />}
     </Sheet>
   );
 }
 
+interface AuthOptionsProps {
+  /** Runs after login – for incomplete profiles only once "Complete your profile" was saved. */
+  onSuccess: (userId: string) => void;
+  /**
+   * The login went through and the "Complete your profile" step is showing. When set, the parent titles that
+   * step (e.g. the sheet header); otherwise the step brings its own heading.
+   */
+  onCompleting?: () => void;
+}
+
 /**
  * Apple / Google / email – three identical buttons with the icon in a fixed 24px slot, so the labels share one
- * axis. Used by the AuthSheet and inline in multi-step sheets.
+ * axis. Used by the AuthSheet and inline in multi-step sheets. First login with an incomplete profile (no face
+ * photo, name, age or country): the "Complete your profile" form replaces the options in place, and `onSuccess`
+ * only runs after it was saved – so pending actions (send a request, publish a House) continue afterwards.
  */
-export function AuthOptions({ onSuccess }: { onSuccess: (userId: string) => void }) {
+export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const { users, login } = useStore();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+  /** Logged in as this user, who still has to complete their profile. */
+  const [completingId, setCompletingId] = useState<string | null>(null);
+
+  // Decide by the id just logged in – `currentUserId` from useStore() may still be the old value this render.
+  function loggedIn(userId: string) {
+    const user = users.find((u) => u.id === userId);
+    if (user && !isProfileComplete(user)) {
+      setCompletingId(userId);
+      onCompleting?.();
+    } else {
+      onSuccess(userId);
+    }
+  }
+
+  const completingUser = completingId ? users.find((u) => u.id === completingId) : undefined;
+  if (completingUser) {
+    return <CompleteProfileForm user={completingUser} onDone={onSuccess} heading={!onCompleting} />;
+  }
 
   // No real auth yet: either provider opens a picker of mock users.
   if (provider) {
@@ -75,7 +120,7 @@ export function AuthOptions({ onSuccess }: { onSuccess: (userId: string) => void
                 type="button"
                 onClick={() => {
                   login(user.id);
-                  onSuccess(user.id);
+                  loggedIn(user.id);
                 }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-neutral-50"
               >
@@ -106,7 +151,7 @@ export function AuthOptions({ onSuccess }: { onSuccess: (userId: string) => void
           className="border border-zinc-200 bg-white text-ink hover:bg-zinc-50"
         />
         {emailOpen ? (
-          <EmailForm onSuccess={onSuccess} />
+          <EmailForm onSuccess={loggedIn} />
         ) : (
           <AuthButton
             icon={<Mail className="size-5" />}

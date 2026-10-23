@@ -4,7 +4,7 @@ import { SearchX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { use, useEffect, useState } from "react";
+import { type ReactNode, use, useEffect, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
@@ -14,7 +14,7 @@ import { LockSheet } from "@/components/stay/LockSheet";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { findUser, useStore } from "@/lib/store";
+import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Stay, Thread } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 
@@ -46,6 +46,11 @@ function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolea
   const store = useStore();
   const thread = store.threads.find((t) => t.id === threadId);
   const stay = thread && store.stays.find((s) => s.id === thread.stayId);
+  // A direct chat with someone you blocked is gone – same "not found" as a missing one.
+  const blockedDirect =
+    thread?.type === "direct" && thread.participantIds.some((id) => id !== store.currentUserId && isBlocked(store, id));
+
+  if (blockedDirect) return <ThreadNotFound embedded={embedded} />;
 
   // Crew threads open up only after acceptance (participants), direct threads only to the two people in them.
   if (!thread || !stay || !store.currentUserId || !thread.participantIds.includes(store.currentUserId)) {
@@ -61,16 +66,37 @@ function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolea
         }
       />
     );
-    return embedded ? (
-      empty
-    ) : (
-      <Container page width="narrow">
-        {empty}
-      </Container>
-    );
+    return <NotFoundFrame embedded={embedded}>{empty}</NotFoundFrame>;
   }
 
   return <ThreadContent key={thread.id} thread={thread} stay={stay} embedded={embedded} />;
+}
+
+function NotFoundFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? (
+    children
+  ) : (
+    <Container page width="narrow">
+      {children}
+    </Container>
+  );
+}
+
+function ThreadNotFound({ embedded }: { embedded: boolean }) {
+  const t = useTranslations("messages.thread");
+  return (
+    <NotFoundFrame embedded={embedded}>
+      <EmptyState
+        icon={SearchX}
+        title={t("notFound")}
+        action={
+          <Link href="/inbox" className={buttonClass("dark", "sm")}>
+            {t("backToMessages")}
+          </Link>
+        }
+      />
+    </NotFoundFrame>
+  );
 }
 
 function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay; embedded: boolean }) {
