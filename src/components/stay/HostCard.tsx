@@ -16,14 +16,13 @@ export function HostCard({ host }: { host: User }) {
         <PersonPhoto src={host.photos[0]} alt={host.name} size={72} className="size-18" />
       </Link>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <Link href={profile} className="font-semibold text-ink hover:underline">
             {t("identity", { name: host.name, age: host.age, country: host.country })}
           </Link>
           {host.verified && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-              <BadgeCheck className="size-3.5" aria-hidden />
-              {t("verified")}
+            <span title={t("verified")} className="inline-flex shrink-0">
+              <BadgeCheck className="size-4 text-zinc-500" role="img" aria-label={t("verified")} />
             </span>
           )}
         </div>

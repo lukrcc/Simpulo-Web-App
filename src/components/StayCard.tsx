@@ -42,7 +42,7 @@ export function StayCard({ stay, host, crew = [], preview = false }: StayCardPro
     <article
       ref={revealRef}
       className={cn(
-        "group relative isolate aspect-4/5 overflow-hidden rounded-4xl bg-neutral-200 transition-[opacity,translate,scale] duration-300 md:hover:scale-[1.02]",
+        "group relative isolate aspect-4/5 overflow-hidden rounded-[28px] bg-neutral-200 transition-[opacity,translate,scale] duration-300 md:hover:scale-[1.02]",
         // The host tab covers the top-left corner; rounding it underneath would only leave an anti-aliasing seam.
         host && "rounded-tl-none",
         // Mobile only: fade/slide in once when scrolled into view.

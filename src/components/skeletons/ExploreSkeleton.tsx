@@ -9,8 +9,9 @@ const CHIPS = 6;
 export function ExploreSkeleton() {
   return (
     <SkeletonRoot>
-      <div className="mx-auto max-w-[1600px] md:px-8 md:pt-6">
-        <div className="h-[72vh] min-h-130 bg-black/5 md:h-[64vh] md:rounded-4xl" />
+      {/* Same shape as the Spotlight: a rounded card in the 16px / 32px gutter. */}
+      <div className="mx-auto max-w-[1600px] px-4 pt-[calc(12px+env(safe-area-inset-top))] md:px-8 md:pt-6">
+        <div className="h-[60dvh] min-h-110 rounded-[28px] bg-black/5 md:h-[64vh] md:min-h-130" />
       </div>
       <Container>
         <div className="mt-12 space-y-2">

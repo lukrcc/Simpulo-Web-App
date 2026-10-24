@@ -31,7 +31,7 @@ export function HostGallery({ host, onBack, onShare }: HostGalleryProps) {
   const { ref, active, onScroll } = useSnapCarousel<HTMLDivElement>(photos.length);
 
   return (
-    <div className="relative isolate aspect-4/5 overflow-hidden bg-neutral-200 md:aspect-video md:rounded-4xl">
+    <div className="relative isolate aspect-4/5 overflow-hidden bg-neutral-200 md:aspect-video md:rounded-[28px]">
       <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
         {photos.map((src, i) => (
           <div key={src} className="relative h-full w-full shrink-0 snap-center snap-always">

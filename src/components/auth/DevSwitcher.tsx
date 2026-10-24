@@ -56,8 +56,9 @@ function DevSwitcherInner() {
 
   const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-zinc-600 hover:bg-black/5 aria-pressed:bg-black/5 aria-pressed:text-ink";
   return (
-    // Bottom-right: on mobile above the floating "+" and sticky bars, on desktop in the free corner next to the form columns.
-    <div className="fixed bottom-[calc(148px+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-2 md:bottom-4">
+    // Mobile: small "D" top-right (no header there for logged-in users), opens downward – never near the bottom CTAs.
+    // Desktop: "Dev" bottom-right, the free corner next to the form columns, opens upward.
+    <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+72px)] z-50 flex flex-col-reverse items-end gap-2 md:bottom-4 md:top-auto md:flex-col">
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
@@ -127,9 +128,10 @@ function DevSwitcherInner() {
         aria-expanded={open}
         aria-controls="dev-switcher-panel"
         aria-label={open ? t("closePanel") : t("openPanel")}
-        className="glass relative flex size-9 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-600 hover:text-ink"
+        className="glass relative flex size-8 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-600 hover:text-ink md:size-9"
       >
-        {t("label")}
+        <span className="md:hidden">{t("labelShort")}</span>
+        <span className="max-md:hidden">{t("label")}</span>
       </button>
     </div>
   );

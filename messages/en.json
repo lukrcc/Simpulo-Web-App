@@ -376,6 +376,7 @@
     "logIn": "Log in",
     "dev": {
       "label": "Dev",
+      "labelShort": "D",
       "mockUser": "Mock user",
       "loggedOut": "Logged out",
       "role": {
@@ -447,9 +448,13 @@
     },
     "all": "All",
     "anywhere": "Anywhere",
+    "anyLanguage": "Any language",
+    "country": "Country",
+    "language": "Language",
+    "searchCountries": "Search countries",
+    "searchLanguages": "Search languages",
+    "noMatches": "No matches",
     "filterByVibe": "Filter by vibe",
-    "filterByRegion": "Filter by region",
-    "filterByLanguage": "Filter by language",
     "filters": "Filters",
     "filtersActive": "Filters (active)",
     "apply": "Apply",
@@ -473,7 +478,8 @@
       "prompt": "Nothing for your dates?",
       "title": "Open your own House<accent>.</accent>",
       "start": "Start"
-    }
+    },
+    "howItWorksLink": "How Simpulo works"
   },
   "house": {
     "notFound": {
@@ -526,7 +532,7 @@
     "hostCard": {
       "profile": "{name}'s profile",
       "identity": "{name}, {age} · {country}",
-      "verified": "Verified",
+      "verified": "Verified ID",
       "speaks": "speaks {languages}",
       "viewProfile": "View profile"
     },
@@ -609,91 +615,137 @@
       "publish": "Publish"
     },
     "errors": {
-      "title": "Give your House a title.",
+      "title": "Give your House a title – at least 4 characters.",
       "region": "Add a region or country – e.g. “Bali, Indonesia” or “Portugal”.",
-      "dates": "Pick start and end dates.",
+      "startDate": "Pick a start date.",
+      "startPast": "The start date can't be in the past.",
+      "endDate": "Pick an end date.",
       "dateOrder": "End date must be after the start date.",
+      "tooLong": "A House can run for at most {max} nights.",
       "minSpots": "{count, plural, one {# person is already in} other {# people are already in}} – the crew can't be smaller.",
-      "photo": "Add a face photo – Houses without one don't get requests."
+      "photo": "Add a face photo – Houses without one don't get requests.",
+      "name": "Add your first name.",
+      "age": "Enter an age between 18 and 99.",
+      "country": "Add your country."
     },
     "saved": "House saved",
     "published": "Your House is open 🎉",
     "loginToPublish": "Log in to open a House",
     "previousStep": "Previous step",
-    "publishIntro": "This is how your House shows up in the feed.",
-    "loginBeforeLive": "You'll log in before it goes live – your draft stays.",
     "save": "Save",
-    "nextStep": "Next step",
-    "continue": "Continue",
-    "publish": "Publish",
+    "back": "Back",
+    "next": "Next",
+    "publishHouse": "Publish House",
+    "publish": {
+      "intro": "This is how your House shows up in the feed.",
+      "loginBeforeLive": "You'll log in before it goes live – your draft stays.",
+      "summary": "Summary",
+      "place": "Place",
+      "dates": "Dates",
+      "datesNights": "{dates} · {nights}",
+      "crew": "Crew size",
+      "budget": "Budget",
+      "language": "Language",
+      "pitch": "Pitch",
+      "pitchCount": "{count} of {total} pitch fields",
+      "next": "What happens next",
+      "steps": {
+        "share": {
+          "title": "Share your link",
+          "text": "Post your House wherever your people are – the link shows the card."
+        },
+        "requests": {
+          "title": "Requests arrive in Houses",
+          "text": "Everyone who wants in sends a short request with their profile."
+        },
+        "pick": {
+          "title": "Pick your crew",
+          "text": "Accept who fits – they join the crew chat and you plan the rest together."
+        }
+      }
+    },
+    "stepOf": "Step {current} of {total}",
     "livePreview": "Live preview",
     "previewName": "You",
+    "previewButton": "Preview",
+    "checklist": {
+      "items": {
+        "title": "Title",
+        "dates": "Dates",
+        "photo": "Face photo",
+        "pitch": "Pitch",
+        "hostNote": "Card note"
+      },
+      "done": "Done",
+      "missing": "Still open"
+    },
     "house": {
+      "cards": {
+        "where": "Where & when",
+        "crew": "Crew",
+        "vibe": "Vibe",
+        "budget": "Budget"
+      },
       "title": "Title",
       "titlePlaceholder": "Remote Work Base by the Beach",
       "region": "Region or country",
       "regionHint": "As wide as you like – an island, a region or a whole country.",
       "regionPlaceholder": "Bali, Indonesia",
-      "city": "City (optional)",
+      "city": "City",
       "cityPlaceholder": "Canggu",
       "cityOpenPlaceholder": "Decided with the crew",
       "cityOpen": "City still open – we'll decide together",
       "startDate": "Start date",
       "endDate": "End date",
       "crewSize": "Crew size (incl. you)",
-      "vibe": "Vibe",
       "language": "Language",
       "languageHint": "The language the crew speaks in this House.",
-      "locked": "Accommodation is locked",
-      "lockedOn": "Guests see the booked place.",
-      "lockedOff": "Crew decides on the place together.",
-      "link": "Accommodation link (optional)",
-      "linkHintIncomplete": "Add the link and a final price to show it as locked – otherwise it goes out as “crew decides”.",
-      "linkHint": "Airbnb, Booking.com or any listing URL.",
-      "linkPlaceholder": "https://www.airbnb.com/rooms/…",
-      "price": "Final price per person (whole House)",
-      "priceHintFee": "Includes a {fee} Simpulo fee ({rate, number, percent}).",
-      "priceHint": "Simpulo adds a {rate, number, percent} fee, included in this price.",
-      "pricePlaceholder": "1200",
-      "budget": "Budget per person (optional)",
-      "budgetHint": "A rough range for the whole House. Leave it empty and it shows as “Budget TBD”.",
+      "budget": "Budget per person (whole House)",
+      "budgetHint": "Leave empty to show Budget TBD",
       "budgetFrom": "Budget from",
       "budgetTo": "Budget to",
       "budgetFromPlaceholder": "400",
       "budgetToPlaceholder": "600",
       "currency": "Currency",
-      "currencyHint": "Use the currency of the account that pays for the accommodation."
+      "lockedNote": "The place is locked – its price and link are managed on the House's Manage page."
     },
     "pitch": {
-      "description": "Description (optional)",
-      "descriptionPlaceholder": "The place, the area and the plan in a few sentences.",
-      "optional": "{label} (optional)",
+      "cards": {
+        "pitch": "Your pitch",
+        "pitchDescription": "A few honest lines – Houses with a pitch get more requests.",
+        "hostNote": "Card note",
+        "ideas": "Accommodation ideas"
+      },
       "why": "Why I'm hosting this",
       "whyPlaceholder": "What made you want to open this House?",
       "day": "A typical day",
       "dayPlaceholder": "Morning, afternoon, evening – what does it look like?",
       "lookingFor": "Who I'm looking for",
       "lookingForPlaceholder": "Who would be a great fit for the crew?",
-      "hostNote": "Note on your card (optional)",
-      "hostNoteHint": "{count}/{max} – a short personal line, e.g. “First-timers very welcome”.",
+      "hostNote": "Note on your card",
+      "hostNoteHint": "A short personal line, e.g. “First-timers very welcome”.",
+      "hostNoteCount": "{count}/{max}",
       "hostNotePlaceholder": "Two spots left, flying in Feb 10 – who's in?",
-      "interests": "Interests",
-      "interestsHint": "Comma-separated, e.g. Surfing, Yoga, Startups",
-      "interestsPlaceholder": "Surfing, Yoga, Coffee",
-      "houseRules": "House rules",
-      "houseRulesHint": "One rule per line",
-      "houseRulesPlaceholder": "Quiet hours after 11 pm\nShared groceries split weekly",
-      "ideas": "Accommodation ideas (optional)",
       "ideasHint": "Up to 3 links – Airbnb, Booking, anything. They're posted in the crew chat as your first messages.",
       "ideaLabel": "Accommodation idea {number}",
       "ideaPlaceholder": "https://www.airbnb.com/rooms/…",
       "ideaPlaceholderMore": "Another link",
-      "ideaPreview": "Preview shows in the crew chat"
+      "ideaPreview": "Preview shows in the crew chat",
+      "addIdea": "Add",
+      "removeIdea": "Remove link {number}"
     },
     "about": {
+      "cards": {
+        "summary": "Your profile",
+        "summaryDescription": "Your House card shows these photos and details.",
+        "you": "About you"
+      },
+      "missingIntro": "Almost there – Houses need a face photo, your first name, age and country before they go live.",
+      "editProfile": "Edit profile",
+      "looksGood": "Looks good",
       "photos": "Photos",
       "photosHint": "Houses without a face photo don't get requests.",
-      "name": "First name (optional)",
+      "name": "First name",
       "namePlaceholder": "Mara",
       "age": "Age",
       "agePlaceholder": "27",
@@ -707,7 +759,7 @@
       "bio": "Bio",
       "bioHint": "{count}/{max}",
       "bioPlaceholder": "Travel creator, 18k on TikTok. Filming a Bali series this winter.",
-      "publicLinks": "Public links (optional)",
+      "publicLinks": "Public links",
       "publicLinksHint": "Shown on your profile and Houses to everyone.",
       "crewOnly": "Crew only – shown to people in your Houses",
       "crewOnlyHint": "Only people who share an accepted crew with you see these. Nobody else, not even as a placeholder."
@@ -741,8 +793,7 @@
       "discord": "name#0421",
       "phone": "+49 176 1234 5678",
       "facetime": "phone or Apple ID"
-    },
-    "previewButton": "Preview"
+    }
   },
   "houses": {
     "title": "Houses",
@@ -785,7 +836,9 @@
       "closeHouse": "Close this House",
       "closedToast": "House closed – your crew has been told",
       "takingRequests": "Taking requests",
-      "notTakingRequests": "Not taking requests"
+      "notTakingRequests": "Not taking requests",
+      "fullBanner": "Your House is full · Stop taking requests?",
+      "stopRequests": "Stop taking requests"
     },
     "requests": {
       "title": "Requests",
@@ -797,7 +850,6 @@
       "noPhoto": "No photo yet",
       "acceptedToast": "{name} joined the crew 🎉",
       "declinedToast": "Declined {name}",
-      "crewFull": "Crew is full",
       "accept": "Accept",
       "decline": "Decline",
       "reply": "Reply"
@@ -904,14 +956,14 @@
     "openAnother": "Open another House",
     "saved": {
       "emptyTitle": "No saved Houses yet",
-      "emptyDescription": "Tap the heart on any House to keep it here."
+      "emptyDescription": "Tap the heart on any House to keep it here.",
+      "unsave": "Unsave"
     },
     "hostAlerts": {
       "title": "Host alerts",
-      "manage": "Manage",
-      "sheetTitle": "Host alerts",
-      "sheetDescription": "You get an email (and a push, if the app is installed) when these hosts open a House.",
-      "turnOff": "Turn off"
+      "description": "You get an email (and a push, if the app is installed) when these hosts open a House.",
+      "notifyMe": "Notify me",
+      "notifyLabel": "Notify me when {name} opens a House"
     }
   },
   "messages": {

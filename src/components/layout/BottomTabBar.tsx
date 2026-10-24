@@ -7,33 +7,58 @@ import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { useHideOnScroll, useMobileChrome } from "./mobileChrome";
 import { hidesTabBar, isNavActive, navItemsFor } from "./nav";
 
-/** Floating glass tab bar on mobile (< md). Must be rendered inside a Suspense boundary (uses usePathname). */
+/**
+ * Mobile tab bar (< md). Must be rendered inside a Suspense boundary (uses usePathname).
+ * - Installed app ("pill"): floating glass pill, 64px, 12px above the bottom edge.
+ * - Logged in in the browser ("docked"): full-width bar on the bottom edge, 56px + safe area; hides on scroll down.
+ * - Logged out in the browser ("header"): none – MobileHeader carries Log in and "+".
+ */
 export function BottomTabBar() {
   const pathname = usePathname();
+  const mode = useMobileChrome();
   const loggedIn = useStore().currentUserId !== null;
   const requireAuth = useRequireAuth();
   const t = useTranslations("nav");
-  if (hidesTabBar(pathname)) return null;
+  const hiddenRoute = hidesTabBar(pathname);
+  const docked = mode === "docked";
+  const scrolledAway = useHideOnScroll(pathname, docked && !hiddenRoute);
+  if (hiddenRoute || mode === "header") return null;
 
-  // Logged out: Explore · How it works · Log in.
+  // Logged out (pill only): Explore · How it works · Log in. Logged in: Explore · Houses · Messages · Profile.
   const items = navItemsFor(loggedIn);
 
   return (
     <>
-      {/* "Open a House" on mobile: round glass button above the tab bar (bar: 64px + 12px + safe area). */}
+      {/* "Open a House" on mobile: round button above the bar (pill: 64px + 12px + 12px gap; docked: 56px + 16px).
+          The docked variant slides away together with the bar. */}
       {pathname !== "/create" && (
         <Link
           href="/create"
           aria-label={t("openHouse")}
-          className="fixed bottom-[calc(88px+env(safe-area-inset-bottom))] right-4 z-40 flex size-12 items-center justify-center rounded-full bg-ink text-white shadow-lg shadow-black/20 outline-none transition-[background-color,transform] duration-200 hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-page active:scale-[0.98] md:hidden"
+          inert={scrolledAway}
+          className={cn(
+            "fixed right-4 z-40 flex size-12 items-center justify-center rounded-full bg-ink text-white shadow-lg shadow-black/20 outline-none transition-[background-color,transform] duration-200 hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-page active:scale-[0.98] motion-reduce:transition-none md:hidden",
+            docked ? "bottom-[calc(72px+env(safe-area-inset-bottom))]" : "bottom-[calc(88px+env(safe-area-inset-bottom))]",
+            scrolledAway && "translate-y-[calc(100%+72px+env(safe-area-inset-bottom))]",
+          )}
         >
           <Plus className="size-[22px]" strokeWidth={2.5} />
         </Link>
       )}
 
-      <nav className="glass fixed inset-x-4 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 h-16 rounded-full md:hidden">
+      <nav
+        inert={scrolledAway}
+        className={cn(
+          "fixed z-40 md:hidden",
+          docked
+            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] border-t border-black/5 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
+            : "glass inset-x-4 bottom-[calc(12px+env(safe-area-inset-bottom))] h-16 rounded-full",
+          scrolledAway && "translate-y-full",
+        )}
+      >
         <ul className={cn("grid h-full", loggedIn ? "grid-cols-4" : "grid-cols-3")}>
           {items.map(({ href, labelKey, icon: Icon }) => {
             const active = isNavActive(href, pathname);
@@ -49,7 +74,10 @@ export function BottomTabBar() {
                 >
                   <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
                   {/* Active marker: a 6px orange dot under the icon (space kept for inactive tabs). */}
-                  <span className={cn("my-1 size-1.5 rounded-full", active ? "bg-accent" : "bg-transparent")} aria-hidden />
+                  <span
+                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-accent" : "bg-transparent")}
+                    aria-hidden
+                  />
                   {t(`items.${labelKey}`)}
                 </Link>
               </li>

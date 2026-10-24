@@ -7,10 +7,13 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { AvatarStack } from "@/components/ui/Avatar";
+import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CarouselControls } from "@/components/ui/CarouselControls";
 import { Img } from "@/components/ui/Img";
@@ -24,16 +27,34 @@ import { cn, firstName, firstSentence } from "@/lib/utils";
 /** A slide counts as current once this much of it is visible. */
 const ACTIVE_THRESHOLD = 0.6;
 const AUTO_ADVANCE_MS = 6000;
+/** Phones (< md) show only the first few Houses of the rotation. */
+const MOBILE_MAX_SLIDES = 5;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+const phoneQuery = "(max-width: 767.98px)";
+
+function subscribePhone(onChange: () => void) {
+  const media = window.matchMedia(phoneQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+/** Below md; false on the server and during hydration (the extra slides are hidden with CSS meanwhile). */
+function useIsPhone(): boolean {
+  return useSyncExternalStore(subscribePhone, () => window.matchMedia(phoneQuery).matches, () => false);
+}
+
 /**
  * Apple-style spotlight: a native horizontal scroll-snap carousel, one slide per view.
  * Desktop: rounded cards aligned with the grid edges (scroll padding = side padding = gap).
- * Mobile: full-bleed slides with a small gap so a swipe reads as motion.
+ * Mobile: rounded cards in the 16px gutter, one per view (the gap equals the gutter, so nothing peeks at rest).
  * Trackpad, touch, arrow keys and the control pill all move it; the dots follow via IntersectionObserver.
+ * Phones (< md): at most 5 Houses, no control pill – page dots inside the hero instead, content centred above them.
+ * One gesture each: a tap anywhere on the card opens the House, a horizontal swipe moves to the next / previous
+ * House. Phones show only the host's first photo; the dots are the only indicator.
  */
 export function SpotlightHero({ stays }: { stays: Stay[] }) {
   const t = useTranslations("explore");
@@ -44,7 +65,9 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     const guests = getCrew(store, stay).filter((u) => u.id !== stay.hostId);
     return host ? [{ stay, host, guests }] : [];
   });
-  const count = slides.length;
+  const isPhone = useIsPhone();
+  // Slides past the phone limit stay rendered but are hidden below md (max-md:hidden), so SSR and hydration match.
+  const count = isPhone ? Math.min(slides.length, MOBILE_MAX_SLIDES) : slides.length;
 
   const [active, setActive] = useState(0);
   const [photoIndex, setPhotoIndex] = useState<Record<string, number>>({});
@@ -124,10 +147,12 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
   if (count === 0) return null;
 
   return (
-    // The one deliberate exception to <Container>: below md the slides are full-bleed (edge to edge, under the
-    // status bar). From md the scroller applies the container's 32px padding itself, as scroll padding.
+    // Like <Container>, but the scroller applies the gutter itself (16px phones / 32px md) as padding + scroll padding,
+    // so slides snap to the gutter. The gap equals the 16px gutter on phones – any narrower and the next card would
+    // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
+    // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1600px] md:pt-6 lg:hidden"
+      className="mx-auto max-w-[1600px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-6 lg:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
@@ -143,7 +168,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
         onTouchEnd={() => setTouched(false)}
         onTouchCancel={() => setTouched(false)}
         aria-label={t("featuredHousesKeyboard")}
-        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink md:scroll-px-8 md:gap-8 md:px-8"
+        className="no-scrollbar flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink md:scroll-px-8 md:gap-8 md:px-8"
       >
         {slides.map(({ stay, host, guests }, i) => (
           <Slide
@@ -157,6 +182,11 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
             index={i}
             isActive={i === active}
             count={count}
+            phoneHidden={i >= MOBILE_MAX_SLIDES}
+            onSelect={(target) => {
+              scrollToSlide(target);
+              setTimerKey((k) => k + 1);
+            }}
             photo={photoIndex[stay.id] ?? 0}
             onPhoto={(photo) => setPhotoIndex((p) => ({ ...p, [stay.id]: photo }))}
           />
@@ -165,7 +195,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
 
       {count > 1 && (
         <CarouselControls
-          className="mt-4"
+          className="mt-4 max-md:hidden"
           count={count}
           active={active}
           canPrev={active > 0}
@@ -190,6 +220,10 @@ interface SlideProps {
   index: number;
   isActive: boolean;
   count: number;
+  /** Past the phone limit: hidden below md. */
+  phoneHidden: boolean;
+  /** Phone page dots: jump to a slide. */
+  onSelect: (index: number) => void;
   photo: number;
   onPhoto: (index: number) => void;
 }
@@ -200,21 +234,27 @@ function stopLink(e: MouseEvent) {
   e.stopPropagation();
 }
 
-function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto }: SlideProps) {
+function Slide({ ref, stay, host, guests, index, isActive, count, phoneHidden, onSelect, photo, onPhoto }: SlideProps) {
   const t = useTranslations("explore");
+  const tc = useTranslations("common.ui.carousel");
   const format = useFormat();
   const href = `/stays/${stay.slug}`;
 
   // The whole slide is clickable through a full-size link layer. Inner links/buttons sit above it as siblings –
   // nesting them inside the <a> would be invalid HTML (<a> in <a>). Overlay content is inset 24px (6) on mobile and
-  // 32px (8) on desktop; on mobile the top row also clears the status bar (safe-area-inset-top).
+  // 32px (8) on desktop; on mobile the top row also clears the status bar (safe-area-inset-top: 0 in a browser tab,
+  // the status bar height in the installed app, where the hero runs under it).
   return (
     <article
       ref={ref}
       data-index={index}
       aria-roledescription="slide"
       aria-label={t("slideLabel", { index: index + 1, count, title: stay.title })}
-      className="relative h-[calc(72vh_+_env(safe-area-inset-top))] min-h-130 w-full shrink-0 snap-start overflow-hidden bg-ink md:h-[64vh] md:rounded-4xl"
+      className={cn(
+        // Phones: a rounded card one gutter narrower than the screen; md+: full width of the padded scroller.
+        "relative h-[60dvh] min-h-110 w-[calc(100vw-32px)] shrink-0 snap-start overflow-hidden rounded-[28px] bg-ink md:h-[64vh] md:min-h-130 md:w-full",
+        phoneHidden && "max-md:hidden",
+      )}
     >
       {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
       <div className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
@@ -226,15 +266,22 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
           sizes="(min-width: 1600px) 1536px, 100vw"
           className="object-cover"
         />
+        {/* Phones always show the first photo – the thumbnails that switch photos only exist from md up. */}
+        {photo !== 0 && host.photos[0] && (
+          <Img src={host.photos[0]} alt="" fill sizes="100vw" className="object-cover md:hidden" />
+        )}
       </div>
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 to-transparent to-50%" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/45 to-transparent to-30% md:from-black/35" />
 
       <Link href={href} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
-      {/* Top-right: host photo thumbnails */}
+      {/* Phones: the notched host tab in the top-left corner, cut out of the page like on the cards. */}
+      <CardTab host={host} linked className="md:hidden" />
+
+      {/* Top-right (md+): host photo thumbnails */}
       {host.photos.length > 1 && (
-        <div className="absolute right-6 top-[calc(16px_+_env(safe-area-inset-top))] flex gap-2 md:right-8 md:top-8">
+        <div className="absolute right-6 top-4 hidden gap-2 md:right-8 md:top-8 md:flex">
           {host.photos.slice(0, 3).map((src, i) => (
             <button
               key={src}
@@ -256,35 +303,86 @@ function Slide({ ref, stay, host, guests, index, isActive, count, photo, onPhoto
         </div>
       )}
 
-      {/* Bottom: identity, place and crew, then the CTA. */}
-      <div className="pointer-events-none absolute inset-x-6 bottom-6 flex flex-col gap-4 text-white md:inset-x-8 md:bottom-8">
-        <div>
-          <h2 className="line-clamp-2 text-4xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
-          <p className="mt-2 flex items-center gap-1.5 text-base font-medium text-white/90">
+      {/* Bottom: identity, place and crew, then the CTA. Phones: centred and tight (8px), stacked above the dots;
+          from md left-aligned at the bottom. Only the title and the CTA take taps (mouse/touch duplicates of the
+          slide link – hidden from assistive tech, which uses the full-size link). */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left">
+        <div className="flex flex-col items-center md:block">
+          <Link href={href} tabIndex={-1} aria-hidden className="pointer-events-auto">
+            <h2 className="line-clamp-2 text-3xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
+          </Link>
+          <p className="mt-1 flex items-center gap-1.5 text-[15px] font-medium text-white/90 md:mt-2 md:text-base">
             {t("withHost", { name: firstName(host) })}
             {host.verified && <BadgeCheck className="size-5 shrink-0" aria-label={t("verified")} />}
           </p>
-          <p className="mt-3 line-clamp-2 max-w-2xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>
-          <p className="mt-3 text-sm text-white/80">
-            <span className="inline-flex items-center gap-1.5">
-              {format.shortRange(stay.startDate, stay.endDate)} · <PlaceText>{format.placeLabel(stay)}</PlaceText>
+          <p className="mt-2 line-clamp-2 max-w-2xl text-base text-white/85 md:mt-3 md:text-lg md:text-white/90">
+            {firstSentence(stay.lookingForText)}
+          </p>
+          <p className="mt-2 text-[13px] text-white/80 md:mt-3 md:text-sm">
+            <span className="inline-flex max-w-full items-center gap-1.5">
+              {format.shortRange(stay.startDate, stay.endDate)} ·{" "}
+              {/* cn() doesn't merge classes, so the display toggles sit on wrappers, not on PlaceText. */}
+              <span className="flex min-w-0 md:hidden">
+                <PlaceText>{format.placeName(stay)}</PlaceText>
+              </span>
+              <span className="hidden min-w-0 md:flex">
+                <PlaceText>{format.placeLabel(stay)}</PlaceText>
+              </span>
               {stay.language && stay.language !== "en" && (
-                <span className="shrink-0 text-white/65">· {format.language(stay.language)}</span>
+                <span className="hidden shrink-0 text-white/65 md:inline">· {format.language(stay.language)}</span>
               )}
             </span>
           </p>
         </div>
-        <div className="flex flex-col items-start gap-4">
-          <CrewAvatars host={host} members={guests} />
-          {/* Visual CTA only – the whole slide is the link. */}
+        <div className="flex flex-col items-center gap-2 md:items-start md:gap-4">
+          <div className="md:hidden">
+            <AvatarStack users={[host, ...guests]} />
+          </div>
+          <div className="hidden md:block">
+            <CrewAvatars host={host} members={guests} />
+          </div>
+          {/* Phones: glass pill; md+: white pill (visual only there – the whole slide is the link). */}
+          <Link
+            href={href}
+            tabIndex={-1}
+            aria-hidden
+            className="glass-dark pointer-events-auto inline-flex h-11 items-center rounded-full px-7 text-sm font-semibold md:hidden"
+          >
+            {t("viewHouse")}
+          </Link>
           <span
             aria-hidden
-            className="inline-flex h-11 items-center rounded-full bg-white px-7 text-sm font-semibold text-ink"
+            className="hidden h-11 items-center rounded-full bg-white px-7 text-sm font-semibold text-ink md:inline-flex"
           >
             {t("viewHouse")}
           </span>
         </div>
       </div>
+
+      {/* Phones: page dots, bottom-centre, 16px above the edge. Dense, so no enlarged hit areas – swipe is the main
+          control. */}
+      {count > 1 && (
+        <div className="absolute inset-x-0 bottom-4 flex justify-center gap-1.5 md:hidden">
+          {/* Capped here too: during hydration `count` is still the full (md+) number. */}
+          {Array.from({ length: Math.min(count, MOBILE_MAX_SLIDES) }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={tc("goTo", { item: tc("defaultItem"), index: i + 1 })}
+              aria-current={i === index}
+              onClick={(e) => {
+                stopLink(e);
+                onSelect(i);
+              }}
+              data-tap="none"
+              className={cn(
+                "h-1.5 rounded-full transition-all duration-250 motion-reduce:transition-none",
+                i === index ? "w-[18px] bg-white" : "w-1.5 bg-white/50",
+              )}
+            />
+          ))}
+        </div>
+      )}
     </article>
   );
 }

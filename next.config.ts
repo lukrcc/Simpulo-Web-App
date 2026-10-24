@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // The Next.js dev indicator sat on top of the left nav rail / DevSwitcher – hide it (errors still surface).
   devIndicators: false,
   // Lets phones on the local network open the dev server (http://<mac-ip>:3000).
-  allowedDevOrigins: ["192.168.151.196", "172.20.10.*"],
+  allowedDevOrigins: ["192.168.151.196", "172.20.10.*", "10.219.49.*"],
   partialPrefetching: true,
   // The install guide lives on How it works now; old links (and bookmarks) still land there.
   async redirects() {

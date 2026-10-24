@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Check, ChevronRight, Link2, Lock, Pencil, Share2 } from "lucide-react";
+import { BadgeCheck, Check, ChevronRight, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -54,6 +54,8 @@ function HouseManage({ stay }: { stay: Stay }) {
   const showToast = useToast();
   const [closing, setClosing] = useState(false);
   const closed = stay.status === "closed";
+  // Every spot taken but still listed as open – suggest switching requests off.
+  const fullButOpen = !closed && stay.acceptingRequests && stay.spotsFilled >= stay.spotsTotal;
 
   async function share() {
     try {
@@ -80,6 +82,17 @@ function HouseManage({ stay }: { stay: Stay }) {
           <AccommodationChip stay={stay} />
           <BookedChip stay={stay} />
         </div>
+        {fullButOpen && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-neutral-700">
+              <Users className="size-4 shrink-0 text-zinc-500" aria-hidden />
+              {t("fullBanner")}
+            </p>
+            <button type="button" onClick={() => store.setAcceptingRequests(stay.id, false)} className={buttonClass("secondary", "sm")}>
+              {t("stopRequests")}
+            </button>
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/my-stays/${stay.id}/edit`} className={buttonClass("dark", "sm")}>
             <Pencil className="size-3.5" />
@@ -245,17 +258,19 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
       <div className="mt-3 flex gap-2">
         {pending && (
           <>
-            <button
-              type="button"
-              disabled={isFull}
-              onClick={() => {
-                acceptRequest(request.id);
-                showToast(t("acceptedToast", { name: firstName }));
-              }}
-              className={buttonClass("dark", "sm", "min-w-24")}
-            >
-              {isFull ? t("crewFull") : t("accept")}
-            </button>
+            {/* A full crew can't take anyone else – only Decline and Reply. */}
+            {!isFull && (
+              <button
+                type="button"
+                onClick={() => {
+                  acceptRequest(request.id);
+                  showToast(t("acceptedToast", { name: firstName }));
+                }}
+                className={buttonClass("dark", "sm", "min-w-24")}
+              >
+                {t("accept")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -307,7 +322,7 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
               </div>
               {locked && <StatusPill status={paymentStatus(store, stay.id, member.id)} />}
               {isHost ? (
-                <span className="text-xs font-medium uppercase text-accent">{t("host")}</span>
+                <span className="rounded-full bg-page px-2.5 py-1 text-xs font-medium text-zinc-600">{t("host")}</span>
               ) : (
                 manage && <MoreMenu label={t("moreFor", { name: member.name })} items={[{ label: t("remove"), onSelect: () => setRemoving(member), danger: true }]} />
               )}

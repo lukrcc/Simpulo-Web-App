@@ -343,7 +343,7 @@ function DashedTileContent({ icon, label }: { icon: ReactNode; label: string }) 
 /** "Open another House" / "Find a House": an ordinary first grid cell – same width, 4:5 ratio and radius as a StayCard. */
 function DashedCard({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
-    <Link href={href} className={cn(dashedTile, "aspect-4/5 rounded-4xl text-base")}>
+    <Link href={href} className={cn(dashedTile, "aspect-4/5 rounded-[28px] text-base")}>
       <span className="flex size-12 items-center justify-center rounded-full bg-white text-ink">{icon}</span>
       {label}
     </Link>

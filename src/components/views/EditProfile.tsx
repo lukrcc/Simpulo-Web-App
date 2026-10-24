@@ -3,15 +3,7 @@
 import { Eye, Lock, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ComponentType,
-  type CSSProperties,
-  type FormEvent,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type FormEvent } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import {
   FormCard,
@@ -27,14 +19,7 @@ import {
 } from "@/components/form/FormLayout";
 import { getPastCrewMates } from "@/components/profile/PastCrews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
-import {
-  CONTACT_FIELDS,
-  SOCIAL_FIELDS,
-  contactInputMode,
-  normalizeContact,
-  normalizeSocial,
-  type SocialKey,
-} from "@/components/profile/profileFields";
+import { CONTACT_FIELDS, SOCIAL_FIELDS, contactInputMode, normalizeContact, normalizeSocial, type SocialKey } from "@/components/profile/profileFields";
 import { buttonClass } from "@/components/ui/button";
 import { CardTab } from "@/components/ui/CardTab";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -92,12 +77,8 @@ function formOf(me: User): FormState {
     city: me.city,
     languages: me.languages,
     bio: me.bio,
-    socials: Object.fromEntries(
-      SOCIAL_FIELDS.map(({ key }) => [key, me[key] ?? ""]),
-    ),
-    contacts: Object.fromEntries(
-      CONTACT_FIELDS.map((key) => [key, me.privateContacts?.[key] ?? ""]),
-    ),
+    socials: Object.fromEntries(SOCIAL_FIELDS.map(({ key }) => [key, me[key] ?? ""])),
+    contacts: Object.fromEntries(CONTACT_FIELDS.map((key) => [key, me.privateContacts?.[key] ?? ""])),
   };
 }
 
@@ -119,8 +100,7 @@ function draftOf(me: User, form: FormState): User {
     bio: form.bio.trim().slice(0, BIO_MAX),
     privateContacts,
   };
-  for (const { key } of SOCIAL_FIELDS)
-    draft[key] = normalizeSocial(key, form.socials[key] ?? "") || undefined;
+  for (const { key } of SOCIAL_FIELDS) draft[key] = normalizeSocial(key, form.socials[key] ?? "") || undefined;
   return draft;
 }
 
@@ -178,9 +158,7 @@ function EditProfileForm({ me }: { me: User }) {
     const problem = validate(form);
     if (problem) {
       setError(problem);
-      document
-        .getElementById(ERROR_TARGET[problem])
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById(ERROR_TARGET[problem])?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     const patch: ProfilePatch = {
@@ -200,23 +178,13 @@ function EditProfileForm({ me }: { me: User }) {
     leave("/profile");
   }
 
-  const errorText = (key: FormError) =>
-    error === key ? t(`errors.${key}`) : null;
+  const errorText = (key: FormError) => (error === key ? t(`errors.${key}`) : null);
 
   const formColumn = (
     <form onSubmit={save} noValidate>
       <FormCards>
-        <FormCard
-          id={ERROR_TARGET.photo}
-          title={t("photos")}
-          description={t("photosHint", { max: MAX_PHOTOS })}
-        >
-          <PhotoUploader
-            photos={form.photos}
-            onChange={(photos) => update("photos", photos)}
-            slots={MAX_PHOTOS}
-            labels="profile"
-          />
+        <FormCard id={ERROR_TARGET.photo} title={t("photos")} description={t("photosHint", { max: MAX_PHOTOS })}>
+          <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos)} slots={MAX_PHOTOS} labels="profile" />
           {error === "photo" && (
             <p role="alert" className="text-[13px] text-red-600">
               {t("errors.photo")}
@@ -226,11 +194,7 @@ function EditProfileForm({ me }: { me: User }) {
 
         <FormCard title={t("about")}>
           <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
-            <FormField
-              id={ERROR_TARGET.name}
-              label={t("name")}
-              error={errorText("name")}
-            >
+            <FormField id={ERROR_TARGET.name} label={t("name")} error={errorText("name")}>
               <input
                 className={formInput}
                 value={form.name}
@@ -239,11 +203,7 @@ function EditProfileForm({ me }: { me: User }) {
                 aria-invalid={error === "name" || undefined}
               />
             </FormField>
-            <FormField
-              id={ERROR_TARGET.age}
-              label={t("age")}
-              error={errorText("age")}
-            >
+            <FormField id={ERROR_TARGET.age} label={t("age")} error={errorText("age")}>
               <input
                 className={formInput}
                 type="number"
@@ -257,11 +217,7 @@ function EditProfileForm({ me }: { me: User }) {
             </FormField>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField
-              id={ERROR_TARGET.country}
-              label={t("country")}
-              error={errorText("country")}
-            >
+            <FormField id={ERROR_TARGET.country} label={t("country")} error={errorText("country")}>
               <input
                 className={formInput}
                 value={form.country}
@@ -270,29 +226,12 @@ function EditProfileForm({ me }: { me: User }) {
                 aria-invalid={error === "country" || undefined}
               />
             </FormField>
-            <FormField
-              label={t("basedIn")}
-              helper={t("basedInHelper")}
-              optional
-            >
-              <input
-                className={formInput}
-                value={form.city}
-                onChange={(e) => update("city", e.target.value)}
-              />
+            <FormField label={t("basedIn")} helper={t("basedInHelper")} optional>
+              <input className={formInput} value={form.city} onChange={(e) => update("city", e.target.value)} />
             </FormField>
           </div>
-          <FormField
-            label={t("languages")}
-            helper={t("languagesHelper")}
-            optional
-            group
-          >
-            <LanguageInput
-              languages={form.languages}
-              onChange={(languages) => update("languages", languages)}
-              soft
-            />
+          <FormField label={t("languages")} helper={t("languagesHelper")} optional group>
+            <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} soft />
           </FormField>
           <BioField value={form.bio} onChange={(bio) => update("bio", bio)} />
         </FormCard>
@@ -343,26 +282,13 @@ function EditProfileForm({ me }: { me: User }) {
 
       {/* Save bar: sticks to the bottom of the form column (no tab bar on this page on mobile). */}
       <StickyFormBar>
-        <p
-          className="min-w-0 flex-1 truncate text-sm text-zinc-500"
-          aria-live="polite"
-        >
+        <p className="min-w-0 flex-1 truncate text-sm text-zinc-500" aria-live="polite">
           {dirty ? t("unsaved") : t("noChanges")}
         </p>
-        <button
-          type="button"
-          onClick={() =>
-            dirty ? setPendingHref("/profile") : leave("/profile")
-          }
-          className={buttonClass("ghost", "md")}
-        >
+        <button type="button" onClick={() => (dirty ? setPendingHref("/profile") : leave("/profile"))} className={buttonClass("ghost", "md")}>
           {t("cancel")}
         </button>
-        <button
-          type="submit"
-          disabled={!dirty}
-          className={buttonClass("dark", "md")}
-        >
+        <button type="submit" disabled={!dirty} className={buttonClass("dark", "md")}>
           {t("save")}
         </button>
       </StickyFormBar>
@@ -374,11 +300,7 @@ function EditProfileForm({ me }: { me: User }) {
       <FormHeader
         title={t("title")}
         aside={
-          <button
-            type="button"
-            onClick={() => setPreviewOpen(true)}
-            className={buttonClass("secondary", "sm", "lg:hidden")}
-          >
+          <button type="button" onClick={() => setPreviewOpen(true)} className={buttonClass("secondary", "sm", "lg:hidden")}>
             <Eye className="size-4" />
             {t("previewButton")}
           </button>
@@ -393,11 +315,7 @@ function EditProfileForm({ me }: { me: User }) {
         }
       />
 
-      <Sheet
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        title={t("howOthersSeeYou")}
-      >
+      <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title={t("howOthersSeeYou")}>
         <LivePreview user={draft} />
       </Sheet>
       <ConfirmSheet
@@ -429,24 +347,11 @@ function useLeaveGuard(active: boolean, onBlockedLink: (href: string) => void) {
     if (!active) return;
     const beforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
     const onClick = (e: MouseEvent) => {
-      if (
-        e.defaultPrevented ||
-        e.button !== 0 ||
-        e.metaKey ||
-        e.ctrlKey ||
-        e.shiftKey ||
-        e.altKey
-      )
-        return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const anchor = (e.target as Element | null)?.closest?.("a[href]");
-      if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank")
-        return;
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank") return;
       const url = new URL(anchor.href, window.location.href);
-      if (
-        url.origin !== window.location.origin ||
-        url.pathname === window.location.pathname
-      )
-        return;
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
       e.preventDefault();
       e.stopPropagation();
       callback.current(url.pathname + url.search + url.hash);
@@ -466,9 +371,7 @@ function LivePreview({ user }: { user: User }) {
   const tProfile = useTranslations("profile");
   const store = useStore();
   const hosted = store.stays.filter((s) => s.hostId === user.id).length;
-  const joined = store.joinRequests.filter(
-    (r) => r.userId === user.id && r.status === "accepted",
-  ).length;
+  const joined = store.joinRequests.filter((r) => r.userId === user.id && r.status === "accepted").length;
 
   return (
     <div>
@@ -479,29 +382,15 @@ function LivePreview({ user }: { user: User }) {
         stats={tProfile.rich("stats", {
           hosted,
           joined,
-          b: (chunks) => (
-            <span className="font-semibold text-ink">{chunks}</span>
-          ),
+          b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
           hostedLink: (chunks) => <span>{chunks}</span>,
           joinedLink: (chunks) => <span>{chunks}</span>,
         })}
       />
       <div className="mt-4 flex items-center gap-4 rounded-[24px] bg-white p-4">
         <div className="relative isolate aspect-4/5 w-24 shrink-0 overflow-hidden rounded-2xl rounded-tl-none bg-neutral-200">
-          {user.photos[0] && (
-            <Img
-              src={user.photos[0]}
-              alt=""
-              fill
-              sizes="96px"
-              className="object-cover"
-            />
-          )}
-          <CardTab
-            host={user}
-            bg="#ffffff"
-            className="h-7 scale-[0.8] origin-top-left"
-          />
+          {user.photos[0] && <Img src={user.photos[0]} alt="" fill sizes="96px" className="object-cover" />}
+          <CardTab host={user} bg="#ffffff" className="h-7 scale-[0.8] origin-top-left" />
         </div>
         <p className="text-sm text-zinc-600">{t("photoOnHouses")}</p>
       </div>
@@ -510,13 +399,7 @@ function LivePreview({ user }: { user: User }) {
 }
 
 /** Bio: 5 rows to start, grows with the text, counter bottom-right. */
-function BioField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
+function BioField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const t = useTranslations("profile.edit");
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -533,20 +416,11 @@ function BioField({
       helper={
         <span className="flex justify-between gap-4">
           <span>{t("bioHelper")}</span>
-          <span className="shrink-0 tabular-nums">
-            {t("bioCounter", { count: value.length, max: BIO_MAX })}
-          </span>
+          <span className="shrink-0 tabular-nums">{t("bioCounter", { count: value.length, max: BIO_MAX })}</span>
         </span>
       }
     >
-      <textarea
-        ref={ref}
-        rows={5}
-        maxLength={BIO_MAX}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={formTextarea}
-      />
+      <textarea ref={ref} rows={5} maxLength={BIO_MAX} value={value} onChange={(e) => onChange(e.target.value)} className={formTextarea} />
     </FormField>
   );
 }
@@ -580,21 +454,13 @@ function LinkRows<K extends string>({
   const t = useTranslations("profile.edit");
   const tChannel = useTranslations("common.ui.crewContacts.channel");
   const [shown, setShown] = useState<K[]>(() => {
-    const filled = options
-      .filter((o) => values[o.key]?.trim())
-      .map((o) => o.key);
-    const fillers = options
-      .filter((o) => !filled.includes(o.key))
-      .map((o) => o.key);
-    return [
-      ...filled,
-      ...fillers.slice(0, Math.max(0, VISIBLE_LINK_ROWS - filled.length)),
-    ];
+    const filled = options.filter((o) => values[o.key]?.trim()).map((o) => o.key);
+    const fillers = options.filter((o) => !filled.includes(o.key)).map((o) => o.key);
+    return [...filled, ...fillers.slice(0, Math.max(0, VISIBLE_LINK_ROWS - filled.length))];
   });
   const [picking, setPicking] = useState(false);
   const hidden = options.filter((o) => !shown.includes(o.key));
-  const labelOf = (o: LinkOption<K>) =>
-    channelLabels ? tChannel(o.key as ContactKey) : o.label;
+  const labelOf = (o: LinkOption<K>) => (channelLabels ? tChannel(o.key as ContactKey) : o.label);
 
   return (
     <div className="space-y-3">
@@ -609,25 +475,16 @@ function LinkRows<K extends string>({
                 <span
                   className={cn(
                     "pointer-events-none absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg",
-                    option.dark || !option.color
-                      ? "bg-ink text-white"
-                      : "bg-white shadow-xs ring-1 ring-black/5",
+                    option.dark || !option.color ? "bg-ink text-white" : "bg-white shadow-xs ring-1 ring-black/5",
                   )}
                 >
-                  {Icon && (
-                    <Icon
-                      className="size-4"
-                      style={option.color ? { color: option.color } : undefined}
-                    />
-                  )}
+                  {Icon && <Icon className="size-4" style={option.color ? { color: option.color } : undefined} />}
                 </span>
                 <input
                   className={cn(formInput, "pl-12 pr-10")}
                   value={values[option.key] ?? ""}
                   inputMode={option.inputMode}
-                  onChange={(e) =>
-                    onChange({ ...values, [option.key]: e.target.value })
-                  }
+                  onChange={(e) => onChange({ ...values, [option.key]: e.target.value })}
                 />
                 <button
                   type="button"
@@ -647,12 +504,7 @@ function LinkRows<K extends string>({
 
       {hidden.length > 0 && (
         <div className="relative">
-          <button
-            type="button"
-            onClick={() => setPicking((p) => !p)}
-            aria-expanded={picking}
-            className={buttonClass("ghost", "sm", "-ml-2")}
-          >
+          <button type="button" onClick={() => setPicking((p) => !p)} aria-expanded={picking} className={buttonClass("ghost", "sm", "-ml-2")}>
             <Plus className="size-4" />
             {t("addLink")}
           </button>
@@ -671,16 +523,7 @@ function LinkRows<K extends string>({
                       }}
                       className="flex h-9 items-center gap-2 rounded-full border border-[#E7E5E4] bg-[#FAFAF9] pl-2 pr-3 text-sm hover:border-neutral-400"
                     >
-                      {Icon && (
-                        <Icon
-                          className="size-4"
-                          style={
-                            option.color && !option.dark
-                              ? { color: option.color }
-                              : undefined
-                          }
-                        />
-                      )}
+                      {Icon && <Icon className="size-4" style={option.color && !option.dark ? { color: option.color } : undefined} />}
                       {labelOf(option)}
                     </button>
                   </li>

@@ -14,8 +14,8 @@ type IconComponent = ComponentType<{ className?: string; style?: CSSProperties }
 export interface Channel {
   key: keyof PrivateContacts;
   icon: IconComponent;
-  /** Brand colour of the icon; channels without a brand (phone, FaceTime) sit in a dark circle instead */
-  color?: string;
+  /** Glyph colour on the white circle – the brand colour, or ink for the plain phone/FaceTime glyphs */
+  color: string;
   href: (value: string) => string;
 }
 
@@ -29,8 +29,8 @@ export const CONTACT_CHANNELS: readonly Channel[] = [
   { key: "signal", icon: SiSignal, color: "#3A76F0", href: (v) => `https://signal.me/#p/${digits(v)}` },
   // Discord has no reliable deep link for a username – the app opens and the user can search it.
   { key: "discord", icon: SiDiscord, color: "#5865F2", href: () => "https://discord.com/app" },
-  { key: "phone", icon: Phone, href: (v) => `tel:${digits(v)}` },
-  { key: "facetime", icon: Video, href: (v) => `facetime:${v.includes("@") ? v : digits(v)}` },
+  { key: "phone", icon: Phone, color: "#1E1E22", href: (v) => `tel:${digits(v)}` },
+  { key: "facetime", icon: Video, color: "#1E1E22", href: (v) => `facetime:${v.includes("@") ? v : digits(v)}` },
 ];
 
 const sizes = {
@@ -75,12 +75,11 @@ export function CrewContacts({ user, size = "md", className }: CrewContactsProps
             aria-label={t(`label.${key}`, { name: firstName })}
             title={`${t(`channel.${key}`)} · ${value}`}
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-full shadow-sm shadow-black/15 ring-1 ring-black/5 transition-transform hover:scale-105",
-              color ? "bg-white" : "bg-ink text-white",
+              "flex shrink-0 items-center justify-center rounded-full bg-white shadow-sm shadow-black/15 ring-1 ring-black/5 transition-transform hover:scale-105",
               sizes[size].button,
             )}
           >
-            <Icon className={sizes[size].icon} style={color ? { color } : undefined} />
+            <Icon className={sizes[size].icon} style={{ color }} />
           </a>
         );
       })}

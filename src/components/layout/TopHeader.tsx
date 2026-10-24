@@ -4,7 +4,7 @@ import { HeaderActions } from "./HeaderActions";
 import { Logo } from "./Logo";
 import { NavLinks, NavLinksFallback } from "./NavLinks";
 
-/** Desktop-only header (≥ md). */
+/** Desktop-only header (≥ md). Below md: MobileHeader (logged out, browser) or the tab bar. */
 export function TopHeader() {
   // Glass bar: content scrolls under it. Only a bottom hairline instead of the full glass border – drawn as a
   // pseudo-element, so the header stays exactly --header-h tall (a border would add 1px).

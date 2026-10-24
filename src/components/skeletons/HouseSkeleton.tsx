@@ -7,7 +7,7 @@ export function HouseSkeleton() {
     <SkeletonRoot>
       <Container className="md:pt-10 lg:grid lg:grid-cols-12 lg:gap-8">
         <div className="min-w-0 lg:col-span-7">
-          <div className="-mx-4 aspect-4/5 bg-black/5 md:mx-0 md:aspect-video md:rounded-4xl lg:aspect-3/2 lg:rounded-[28px]" />
+          <div className="-mx-4 aspect-4/5 bg-black/5 md:mx-0 md:aspect-video md:rounded-[28px] lg:aspect-3/2" />
           <div className="pt-6">
             <Bone className="h-8 w-3/4 rounded-xl" />
             <Bone className="mt-3 h-4 w-1/2" />

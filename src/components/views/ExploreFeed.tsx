@@ -1,9 +1,11 @@
 "use client";
 
-import { ChevronDown, SearchX, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Search, SearchX, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { BentoTop } from "@/components/BentoTop";
+import { FilterDropdown, SEARCH_THRESHOLD, type FilterDropdownOption } from "@/components/explore/FilterDropdown";
 import { Container } from "@/components/layout/Container";
 import { OpenHouseCard } from "@/components/OpenHouseCard";
 import { SpotlightHero } from "@/components/SpotlightHero";
@@ -16,6 +18,7 @@ import { useFormat } from "@/i18n/format";
 import { START_FILTERS, VIBES } from "@/lib/mock";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type StartFilterKey = (typeof START_FILTERS)[number]["key"];
 type WindowKey = Exclude<StartFilterKey, "any">;
@@ -88,13 +91,13 @@ export function ExploreFeed() {
   const listed = useMemo(() => store.stays.filter((s) => isListed(s) && !blocked.includes(s.hostId)), [store.stays, blocked]);
   // The Spotlight only shows Houses that are taking requests.
   const featured = useMemo(() => listed.filter((s) => s.featured && s.acceptingRequests), [listed]);
-  // Region chips only pay off with some spread – with fewer than 3 countries they're hidden.
+  // The country dropdown only pays off with more than one country.
   const regionOptions = useMemo(
     () => [...new Set(listed.map(countryOf))].toSorted().map((country) => ({ value: country, label: country })),
     [listed],
   );
-  const showRegions = regionOptions.length >= 3;
-  // Language chips only when the listed Houses actually run in more than one language.
+  const showRegions = regionOptions.length >= 2;
+  // Language dropdown only when the listed Houses actually run in more than one language.
   const languageOptions = useMemo(
     () =>
       [...new Set(listed.map((s) => s.language).filter(Boolean))]
@@ -118,7 +121,9 @@ export function ExploreFeed() {
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const startKey: StartFilterKey = range?.key ?? "any";
-  const hasMoreFilters = startKey !== "any" || sort !== "soonest";
+  const activeRegion = showRegions ? region : null;
+  const activeLanguage = showLanguages ? language : null;
+  const hasMoreFilters = startKey !== "any" || sort !== "soonest" || activeRegion !== null || activeLanguage !== null;
 
   return (
     <div>
@@ -137,8 +142,36 @@ export function ExploreFeed() {
                 countries: tc("countries", { count: countryCount }),
               })}
             </p>
+            {/* Logged out on mobile there's no tab bar – this is the way to "How it works" (plus the footer). */}
+            {!store.currentUserId && (
+              <Link href="/how-it-works" className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-ink underline underline-offset-2 md:hidden">
+                {t("howItWorksLink")}
+              </Link>
+            )}
           </div>
           <div className="hidden items-center gap-6 md:flex">
+            {showRegions && (
+              <FilterDropdown
+                label={t("country")}
+                allLabel={t("anywhere")}
+                options={regionOptions}
+                value={region}
+                onChange={setRegion}
+                searchPlaceholder={t("searchCountries")}
+                noMatchesLabel={t("noMatches")}
+              />
+            )}
+            {showLanguages && (
+              <FilterDropdown
+                label={t("language")}
+                allLabel={t("anyLanguage")}
+                options={languageOptions}
+                value={language}
+                onChange={setLanguage}
+                searchPlaceholder={t("searchLanguages")}
+                noMatchesLabel={t("noMatches")}
+              />
+            )}
             <QuietSelect
               label={t("startDate")}
               value={startKey}
@@ -149,7 +182,7 @@ export function ExploreFeed() {
           </div>
         </div>
 
-        {/* Vibe chips; on mobile the date/sort filters live behind the button at the end. */}
+        {/* Vibe chips; on mobile the country/language/date/sort filters live behind the button at the end. */}
         <div className="mt-5 flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <FilterChips
@@ -172,31 +205,6 @@ export function ExploreFeed() {
             )}
           </button>
         </div>
-        {showRegions && (
-          <div className="mt-2">
-            <FilterChips
-              label={t("filterByRegion")}
-              options={regionOptions}
-              value={region}
-              onChange={setRegion}
-              allLabel={t("anywhere")}
-              small
-            />
-          </div>
-        )}
-        {showLanguages && (
-          <div className="mt-2">
-            <FilterChips
-              label={t("filterByLanguage")}
-              options={languageOptions}
-              value={language}
-              onChange={setLanguage}
-              allLabel={t("all")}
-              small
-            />
-          </div>
-        )}
-
         {/* Grid also without results: the empty state takes the first cells, the "Open your own House" card stays last. */}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {results.length > 0 ? (
@@ -233,10 +241,16 @@ export function ExploreFeed() {
         open={sheetOpen}
         startKey={startKey}
         sort={sort}
+        region={activeRegion}
+        language={activeLanguage}
+        regionOptions={showRegions ? regionOptions : []}
+        languageOptions={showLanguages ? languageOptions : []}
         onClose={() => setSheetOpen(false)}
-        onApply={(nextStart, nextSort) => {
-          setRange(startWindow(nextStart));
-          setSort(nextSort);
+        onApply={(next) => {
+          setRange(startWindow(next.start));
+          setSort(next.sort);
+          setRegion(next.region);
+          setLanguage(next.language);
           setSheetOpen(false);
         }}
       />
@@ -273,38 +287,85 @@ function QuietSelect<T extends string>({ label, value, options, onChange }: Quie
   );
 }
 
+interface AppliedFilters {
+  start: StartFilterKey;
+  sort: SortKey;
+  region: string | null;
+  language: string | null;
+}
+
 interface FilterSheetProps {
   open: boolean;
   startKey: StartFilterKey;
   sort: SortKey;
+  region: string | null;
+  language: string | null;
+  /** Empty = that filter is hidden */
+  regionOptions: readonly FilterDropdownOption[];
+  languageOptions: readonly FilterDropdownOption[];
   onClose: () => void;
-  onApply: (start: StartFilterKey, sort: SortKey) => void;
+  onApply: (filters: AppliedFilters) => void;
 }
 
-/** Mobile bottom sheet for the start-date and sort filters. Changes apply only on "Apply". */
-function FilterSheet({ open, startKey, sort, onClose, onApply }: FilterSheetProps) {
+/** Mobile bottom sheet for the country, language, start-date and sort filters. Changes apply only on "Apply". */
+function FilterSheet({ open, onClose, ...rest }: FilterSheetProps) {
   const t = useTranslations("explore");
   return (
     <Sheet open={open} onClose={onClose} title={t("filters")}>
       {/* Remounted on every open, so the draft always starts from the applied filters. */}
-      {open && <FilterSheetBody startKey={startKey} sort={sort} onApply={onApply} />}
+      {open && <FilterSheetBody {...rest} />}
     </Sheet>
   );
 }
 
-function FilterSheetBody({ startKey, sort, onApply }: Omit<FilterSheetProps, "open" | "onClose">) {
+/** "" stands for "no filter" in the radio groups. */
+const ALL = "";
+
+function FilterSheetBody({
+  startKey,
+  sort,
+  region,
+  language,
+  regionOptions,
+  languageOptions,
+  onApply,
+}: Omit<FilterSheetProps, "open" | "onClose">) {
   const [draftStart, setDraftStart] = useState(startKey);
   const [draftSort, setDraftSort] = useState(sort);
+  const [draftRegion, setDraftRegion] = useState(region ?? ALL);
+  const [draftLanguage, setDraftLanguage] = useState(language ?? ALL);
   const t = useTranslations("explore");
   const { startOptions, sortOptions } = useFilterOptions();
 
   return (
     <div>
+      {regionOptions.length > 0 && (
+        <RadioGroup
+          legend={t("country")}
+          name="region"
+          options={[{ value: ALL, label: t("anywhere") }, ...regionOptions]}
+          value={draftRegion}
+          onChange={setDraftRegion}
+          searchPlaceholder={regionOptions.length > SEARCH_THRESHOLD ? t("searchCountries") : undefined}
+        />
+      )}
+      {languageOptions.length > 0 && (
+        <RadioGroup
+          legend={t("language")}
+          name="language"
+          options={[{ value: ALL, label: t("anyLanguage") }, ...languageOptions]}
+          value={draftLanguage}
+          onChange={setDraftLanguage}
+          searchPlaceholder={languageOptions.length > SEARCH_THRESHOLD ? t("searchLanguages") : undefined}
+        />
+      )}
       <RadioGroup legend={t("startDate")} name="start" options={startOptions} value={draftStart} onChange={setDraftStart} />
       <RadioGroup legend={t("sort")} name="sort" options={sortOptions} value={draftSort} onChange={setDraftSort} />
       <button
         type="button"
-        onClick={() => onApply(draftStart, draftSort)}
+        onClick={() =>
+          onApply({ start: draftStart, sort: draftSort, region: draftRegion || null, language: draftLanguage || null })
+        }
         className={buttonClass("dark", "lg", "mt-6 w-full")}
       >
         {t("apply")}
@@ -319,14 +380,38 @@ interface RadioGroupProps<T extends string> {
   options: ReadonlyArray<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
+  /** Long lists get a search field that narrows the options (the picked one always stays visible). */
+  searchPlaceholder?: string;
 }
 
-function RadioGroup<T extends string>({ legend, name, options, value, onChange }: RadioGroupProps<T>) {
+function RadioGroup<T extends string>({ legend, name, options, value, onChange, searchPlaceholder }: RadioGroupProps<T>) {
+  const t = useTranslations("explore");
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLocaleLowerCase();
+  const visible = needle
+    ? options.filter((o) => o.value === value || o.label.toLocaleLowerCase().includes(needle))
+    : options;
   return (
     <fieldset className="mt-4 first:mt-0">
       <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">{legend}</legend>
-      <div className="divide-y divide-neutral-100">
-        {options.map((option) => (
+      {searchPlaceholder && (
+        <label className="mt-1 flex items-center gap-2 rounded-xl bg-page px-3 py-2.5">
+          <Search className="size-4 shrink-0 text-zinc-400" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+            className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-zinc-400"
+          />
+        </label>
+      )}
+      <div className={cn("divide-y divide-neutral-100", searchPlaceholder && "scroll-pane max-h-64")}>
+        {needle && visible.length <= 1 && !visible.some((o) => o.label.toLocaleLowerCase().includes(needle)) && (
+          <p className="py-3 text-[15px] text-zinc-500">{t("noMatches")}</p>
+        )}
+        {visible.map((option) => (
           <label key={option.value} className="flex cursor-pointer items-center justify-between py-3 text-[15px]">
             {option.label}
             <input

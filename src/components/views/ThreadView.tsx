@@ -146,13 +146,13 @@ function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay;
     return <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-page">{content}</div>;
   }
 
-  // Mobile page: exactly the viewport above the floating tab bar (below md; the status bar area as top padding) /
+  // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
   // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
   // itself never scrolls.
   return (
     <div
       data-app-pane="always"
-      className="relative z-41 flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-page md:h-[calc(100dvh-var(--header-h))]"
+      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-page md:h-[calc(100dvh-var(--header-h))]"
     >
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{content}</div>
     </div>

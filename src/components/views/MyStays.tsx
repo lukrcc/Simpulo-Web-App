@@ -8,12 +8,11 @@ import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
 import { HouseDetail } from "@/components/stay/HouseDetail";
-import { StayCard } from "@/components/StayCard";
+import { HostCard } from "@/components/stay/HostCard";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
-import { Sheet } from "@/components/ui/Sheet";
 import { StayThumb } from "@/components/ui/StayThumb";
 import { Tabs } from "@/components/ui/Tabs";
 import { findUser, getCrew, getCurrentUser, pendingRequestCount, useStore } from "@/lib/store";
@@ -47,11 +46,17 @@ function MyStaysContent() {
     .map((r) => ({ request: r, stay: store.stays.find((s) => s.id === r.stayId) }))
     .filter((j): j is { request: JoinRequest; stay: Stay } => Boolean(j.stay));
 
-  // A deep link to a joined House opens the Joined tab.
+  // A deep link to a joined (or only saved) House opens that tab.
   const savedIds = getCurrentUser(store)?.savedStayIds ?? [];
   const saved = savedIds.map((id) => store.stays.find((s) => s.id === id)).filter((s): s is Stay => Boolean(s));
-  const [tab, setTab] = useState<Tab>(() => (joined.some((j) => j.stay.id === selectedId) ? "joined" : "hosting"));
-  const stays = tab === "hosting" ? hosting : tab === "joined" ? joined.map((j) => j.stay) : [];
+  const [tab, setTab] = useState<Tab>(() =>
+    joined.some((j) => j.stay.id === selectedId)
+      ? "joined"
+      : !hosting.some((s) => s.id === selectedId) && saved.some((s) => s.id === selectedId)
+        ? "saved"
+        : "hosting",
+  );
+  const stays = tab === "hosting" ? hosting : tab === "joined" ? joined.map((j) => j.stay) : saved;
   const active = stays.find((s) => s.id === selectedId) ?? stays[0];
 
   const list = (
@@ -79,22 +84,20 @@ function MyStaysContent() {
             </li>
           ))}
       </ul>
-      {/* Saved: compact rows on desktop (the cards fill the detail panel), cards on mobile. Both open the House. */}
+      {/* Saved: on desktop a row selects the House for the detail panel, on mobile it opens the House page. */}
       {tab === "saved" && saved.length > 0 && (
-        <>
-          <ul className="hidden space-y-1 lg:block">
-            {saved.map((stay) => (
-              <li key={stay.id}>
-                <StayRowLink stay={stay} active={false} isDesktop={isDesktop} href={`/stays/${stay.slug}`} />
-              </li>
-            ))}
-          </ul>
-          <div className="grid gap-4 lg:hidden">
-            {saved.map((stay) => (
-              <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
-            ))}
-          </div>
-        </>
+        <ul className="space-y-1">
+          {saved.map((stay) => (
+            <li key={stay.id}>
+              <StayRowLink
+                stay={stay}
+                active={isDesktop && stay.id === active?.id}
+                isDesktop={isDesktop}
+                href={isDesktop ? undefined : `/stays/${stay.slug}`}
+              />
+            </li>
+          ))}
+        </ul>
       )}
       {tab === "saved" && saved.length === 0 && (
         <EmptyState
@@ -138,12 +141,8 @@ function MyStaysContent() {
       detail={
         isDesktop &&
         (tab === "saved" ? (
-          saved.length > 0 ? (
-            <div className="grid grid-cols-2 gap-6 xl:grid-cols-3">
-              {saved.map((stay) => (
-                <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
-              ))}
-            </div>
+          active ? (
+            <SavedHouse key={active.id} stay={active} />
           ) : (
             <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-black/10">
               <EmptyState icon={Heart} title={t("saved.emptyTitle")} />
@@ -169,7 +168,7 @@ interface StayRowLinkProps {
   pending?: number;
   /** Joined: own request still pending */
   waiting?: boolean;
-  /** Overrides the Houses detail link (Saved rows open the House page) */
+  /** Overrides the Houses detail link (Saved rows on mobile open the House page) */
   href?: string;
 }
 
@@ -250,42 +249,84 @@ function OpenFirstHouseCard() {
   );
 }
 
-/** Saved segment: hosts with alerts on ("Notify me" on their profile), with a sheet to turn them off. */
+/** Saved detail (desktop): the selected saved House – summary, host, and a way to unsave it. */
+function SavedHouse({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses");
+  const f = useFormat();
+  const store = useStore();
+  const host = findUser(store, stay.hostId);
+
+  return (
+    <section className="rounded-[24px] bg-white p-6">
+      <h2 className="text-2xl font-bold tracking-tight">{stay.title}</h2>
+      <p className="mt-1 text-zinc-500">
+        {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
+      </p>
+      {host && (
+        <div className="mt-5 border-t border-black/5 pt-5">
+          <HostCard host={host} />
+        </div>
+      )}
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link href={`/stays/${stay.slug}`} className={buttonClass("dark", "sm")}>
+          {t("detail.viewPage")}
+        </Link>
+        <button type="button" onClick={() => store.toggleSaved(stay.id)} className={buttonClass("secondary", "sm")}>
+          <Heart className="size-3.5 fill-current" aria-hidden />
+          {t("saved.unsave")}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Saved segment: hosts with alerts on ("Notify me" on their profile) as rows with a switch. */
 function HostAlertsRow() {
   const t = useTranslations("houses.hostAlerts");
   const store = useStore();
-  const [open, setOpen] = useState(false);
-  const hosts = (getCurrentUser(store)?.hostAlerts ?? []).map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
+  const alertIds = getCurrentUser(store)?.hostAlerts ?? [];
+  // Hosts switched off here stay listed until the page is left, so a mis-tap can be undone.
+  const [shownIds, setShownIds] = useState(alertIds);
+  const ids = [...shownIds, ...alertIds.filter((id) => !shownIds.includes(id))];
+  if (ids.length !== shownIds.length) setShownIds(ids);
+  const hosts = ids.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
   if (hosts.length === 0) return null;
 
   return (
     <section className="mt-6 border-t border-black/5 pt-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">{t("title")}</h2>
-        <button type="button" onClick={() => setOpen(true)} className="text-sm font-medium text-ink underline underline-offset-2 hover:text-zinc-600">
-          {t("manage")}
-        </button>
-      </div>
-      <div className="mt-3">
-        <AvatarStack users={hosts} size="sm" max={8} linked />
-      </div>
-
-      <Sheet open={open} onClose={() => setOpen(false)} title={t("sheetTitle")}>
-        <p className="mb-4 text-sm text-zinc-500">{t("sheetDescription")}</p>
-        <ul className="divide-y divide-black/5">
-          {hosts.map((host) => (
-            <li key={host.id} className="flex items-center gap-3 py-3">
+      <h2 className="text-sm font-semibold">{t("title")}</h2>
+      <p className="mt-0.5 text-xs text-zinc-500">{t("description")}</p>
+      <ul className="mt-2 divide-y divide-black/5">
+        {hosts.map((host) => {
+          const on = alertIds.includes(host.id);
+          return (
+            <li key={host.id} className="flex items-center gap-3 py-2.5">
               <Avatar user={host} size="md" linked />
-              <Link href={`/u/${host.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline" onClick={() => setOpen(false)}>
+              <Link href={`/u/${host.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline">
                 {host.name}
               </Link>
-              <button type="button" onClick={() => store.toggleHostAlert(host.id)} className={buttonClass("secondary", "sm")}>
-                {t("turnOff")}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={on}
+                aria-label={t("notifyLabel", { name: host.name.split(" ")[0] })}
+                onClick={() => store.toggleHostAlert(host.id)}
+                className="flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-600"
+              >
+                {t("notifyMe")}
+                <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-accent" : "bg-neutral-300")}>
+                  <span
+                    className={cn(
+                      "absolute left-0 top-0.5 size-4 rounded-full bg-white shadow transition-transform",
+                      on ? "translate-x-4.5" : "translate-x-0.5",
+                    )}
+                  />
+                </span>
               </button>
             </li>
-          ))}
-        </ul>
-      </Sheet>
+          );
+        })}
+      </ul>
     </section>
   );
 }
