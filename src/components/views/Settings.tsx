@@ -4,12 +4,14 @@ import { ChevronDown, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { FormCard, FormCards, FormContainer, FormField, FormHeader, formInput } from "@/components/form/FormLayout";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
@@ -41,6 +43,7 @@ function SettingsContent({ me }: { me: User }) {
   const router = useRouter();
   const showToast = useToast();
   const [deleting, setDeleting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const settings = settingsOf(me);
   const blocked = settings.blockedUserIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
 
@@ -62,12 +65,28 @@ function SettingsContent({ me }: { me: User }) {
             <Row label={t("account.signIn")}>
               <span className="text-sm text-ink">{t(`account.method.${me.signInMethod ?? "email"}`)}</span>
             </Row>
+            <Row label={t("account.verify.label")}>
+              {me.verified ? (
+                <span className="inline-flex items-center gap-1 text-sm font-medium text-ink">
+                  {t("account.verify.verified")}
+                  <VerifiedBadge />
+                </span>
+              ) : (
+                <span className="flex items-center gap-3">
+                  <span className="text-sm text-zinc-500">{t("account.verify.notVerified")}</span>
+                  <button type="button" onClick={() => setVerifying(true)} className={buttonClass("dark", "sm")}>
+                    {t("account.verify.action")}
+                  </button>
+                </span>
+              )}
+            </Row>
             <div className="pt-2">
               <button type="button" onClick={logOut} className={buttonClass("secondary", "md")}>
                 {t("account.logOut")}
               </button>
             </div>
           </Card>
+          <VerifyIdSheet open={verifying} onClose={() => setVerifying(false)} />
 
           <Card title={t("notifications.title")} description={t("notifications.description")}>
             <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] items-center gap-y-1 text-sm">

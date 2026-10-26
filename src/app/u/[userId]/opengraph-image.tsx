@@ -32,10 +32,19 @@ async function loadFonts(): Promise<OgFont[] | undefined> {
   }
 }
 
-/** Remote photo as a data URI – null when it's missing or the host is unreachable, so the card shows a solid block. */
+/**
+ * Photo as a data URI – null when it's missing or unreachable, so the card shows a solid block. Local files
+ * (/mock/…) are read from public/ and turned into JPEG, since the image renderer doesn't take WebP.
+ */
 async function loadPhoto(url: string | undefined): Promise<string | null> {
   if (!url) return null;
   try {
+    if (url.startsWith("/")) {
+      const { readFile } = await import("node:fs/promises");
+      const { default: sharp } = await import("sharp");
+      const file = await readFile(`${process.cwd()}/public${url}`);
+      return `data:image/jpeg;base64,${(await sharp(file).jpeg({ quality: 85 }).toBuffer()).toString("base64")}`;
+    }
     const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
     const type = res.headers.get("content-type") ?? "";
     if (!res.ok || !type.startsWith("image/")) return null;

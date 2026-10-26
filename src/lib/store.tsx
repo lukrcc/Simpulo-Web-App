@@ -133,6 +133,7 @@ export type ProfilePatch = Partial<
     | "threads"
     | "website"
     | "privateContacts"
+    | "verified"
     | "preferredCurrency"
   >
 >;

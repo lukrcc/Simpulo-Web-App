@@ -52,4 +52,4 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "currency">>;
+> & Partial<Pick<Stay, "currency" | "customVibe">>;

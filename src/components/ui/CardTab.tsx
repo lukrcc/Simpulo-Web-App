@@ -1,6 +1,6 @@
-import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { VerifiedBadge } from "./VerifiedBadge";
 import type { CSSProperties } from "react";
 import type { User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
@@ -37,11 +37,8 @@ export function CardTab({ host, bg = "var(--color-page)", suffix, className, con
     <span className={cn("flex items-center gap-2", contentClassName)}>
       <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7" />
       <span className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
-        <span>
-          {firstName(host)}
-          <span className="text-accent">.</span>
-        </span>
-        {host.verified && <BadgeCheck className="size-4 shrink-0 text-zinc-500" />}
+        <span>{firstName(host)}</span>
+        {host.verified && <VerifiedBadge size={14} />}
         {suffix && <span className="font-normal text-zinc-500">· {suffix}</span>}
       </span>
     </span>

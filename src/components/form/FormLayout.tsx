@@ -10,17 +10,32 @@ import { cn } from "@/lib/utils";
  * muted "Optional", one input style, a segmented step bar and a sticky footer bar inside the form column.
  */
 
-/** Narrower than the 1600px feed container – forms read better at this width. The header stays full width. */
-export function FormContainer({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mx-auto w-full max-w-[1120px] px-4 pt-6 md:px-8 md:pt-10", className)}>{children}</div>;
+/**
+ * Narrower than the 1600px feed container – forms read better at this width. The header stays full width.
+ * "wide" (Open a House): 1280px, for the 400px preview column.
+ */
+export function FormContainer({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
+  return <div className={cn("mx-auto w-full px-4 pt-6 md:px-8 md:pt-10", wide ? "max-w-[1280px]" : "max-w-[1120px]", className)}>{children}</div>;
 }
 
-/** Form left; preview right (360px, sticky 32px under the header) from lg up. Without a preview the form spans. */
-export function FormGrid({ form, preview }: { form: ReactNode; preview?: ReactNode }) {
+/**
+ * Form left; preview right from lg up (360px, sticky 32px under the header). Without a preview the form spans.
+ * "wide": a 400px column, sticky 24px under the header and never taller than the viewport, so it never scrolls away.
+ */
+export function FormGrid({ form, preview, wide = false }: { form: ReactNode; preview?: ReactNode; wide?: boolean }) {
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
+    <div className={cn("lg:grid lg:gap-10", wide ? "lg:grid-cols-[minmax(0,1fr)_400px]" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
       <div className="min-w-0">{form}</div>
-      {preview && <aside className="hidden self-start lg:sticky lg:top-[calc(var(--header-h)+32px)] lg:block">{preview}</aside>}
+      {preview && (
+        <aside
+          className={cn(
+            "hidden self-start lg:sticky lg:block",
+            wide ? "lg:top-[calc(var(--header-h)+24px)] lg:max-h-[calc(100dvh-var(--header-h)-48px)]" : "lg:top-[calc(var(--header-h)+32px)]",
+          )}
+        >
+          {preview}
+        </aside>
+      )}
     </div>
   );
 }

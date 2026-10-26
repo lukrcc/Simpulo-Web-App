@@ -8,11 +8,27 @@ import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { cn, stayPrice } from "@/lib/utils";
 
 interface PriceLineProps {
-  stay: Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
+  stay: PricedStay;
   size?: "sm" | "lg";
   /** Short form for tight spots like the sticky mobile CTA bar ("€480 pp") */
   compact?: boolean;
   className?: string;
+}
+
+type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
+
+/**
+ * The House's price or budget in the viewer's currency ("$430–650"), rounded – or null when there's nothing to
+ * convert (no price yet, same currency, or not known yet during hydration). Hosts and guests never convert.
+ */
+export function useApproxAmount(stay: PricedStay): string | null {
+  const format = useFormat();
+  const preferred = usePreferredCurrency();
+  const price = stayPrice(stay);
+  if (preferred === null || preferred === stay.currency || price.kind === "tbd") return null;
+  return price.kind === "price"
+    ? format.approx(convertApprox(price.amount, stay.currency, preferred), preferred)
+    : format.approxRange(convertApprox(price.min, stay.currency, preferred), convertApprox(price.max, stay.currency, preferred), preferred);
 }
 
 /**
@@ -23,9 +39,8 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
   const t = useTranslations("common");
   const format = useFormat();
   const price = stayPrice(stay);
-  const preferred = usePreferredCurrency();
   // Only a hint for the viewer – the House is priced and charged in its own currency.
-  const showApprox = !compact && preferred !== null && preferred !== stay.currency && price.kind !== "tbd";
+  const approx = useApproxAmount(stay);
 
   if (compact) {
     return (
@@ -47,21 +62,7 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
       <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>
         {amount}
       </p>
-      {showApprox && (
-        <p className="mt-0.5 text-[13px] text-zinc-500">
-          {t("ui.priceLine.approx", {
-            amount:
-              price.kind === "price"
-                ? format.approx(convertApprox(price.amount, stay.currency, preferred), preferred)
-                : format.approxRange(
-                    convertApprox(price.min, stay.currency, preferred),
-                    convertApprox(price.max, stay.currency, preferred),
-                    preferred,
-                  ),
-            currency: stay.currency,
-          })}
-        </p>
-      )}
+      {approx && <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
       <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.note")}</p>
     </div>
   );

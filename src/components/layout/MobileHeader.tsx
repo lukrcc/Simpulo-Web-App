@@ -1,10 +1,11 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { Logo } from "./Logo";
+import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
+import { cn } from "@/lib/utils";
 import { useMobileChrome } from "./mobileChrome";
 
 /**
@@ -22,16 +23,16 @@ export function MobileHeader() {
     <header className="pt-[env(safe-area-inset-top)] md:hidden">
       <div className="flex h-16 items-center justify-between gap-4 px-4">
         <Logo />
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <button type="button" onClick={() => requireAuth()} className="text-sm font-medium text-ink">
             {t("logIn")}
           </button>
           <Link
             href="/create"
             aria-label={t("openHouse")}
-            className="flex size-9 items-center justify-center rounded-full bg-ink text-white outline-none transition-[background-color,transform] duration-200 hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-page active:scale-[0.98]"
+            className={cn(openHouseClass, "open-house-btn--round")}
           >
-            <Plus className="size-[18px]" strokeWidth={2.5} />
+            <OpenHousePlus />
           </Link>
         </div>
       </div>

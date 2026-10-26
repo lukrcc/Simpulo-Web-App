@@ -1,10 +1,11 @@
 "use client";
 
-import { LogIn, Plus } from "lucide-react";
+import { LogIn } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useHideOnScroll, useMobileChrome } from "./mobileChrome";
@@ -40,12 +41,13 @@ export function BottomTabBar() {
           aria-label={t("openHouse")}
           inert={scrolledAway}
           className={cn(
-            "fixed right-4 z-40 flex size-12 items-center justify-center rounded-full bg-ink text-white shadow-lg shadow-black/20 outline-none transition-[background-color,transform] duration-200 hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-page active:scale-[0.98] motion-reduce:transition-none md:hidden",
+            openHouseClass,
+            "open-house-btn--round fixed right-4 z-40 md:hidden",
             docked ? "bottom-[calc(72px+env(safe-area-inset-bottom))]" : "bottom-[calc(88px+env(safe-area-inset-bottom))]",
             scrolledAway && "translate-y-[calc(100%+72px+env(safe-area-inset-bottom))]",
           )}
         >
-          <Plus className="size-[22px]" strokeWidth={2.5} />
+          <OpenHousePlus />
         </Link>
       )}
 

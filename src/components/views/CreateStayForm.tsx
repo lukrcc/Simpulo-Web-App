@@ -2,25 +2,24 @@
 
 import { ArrowLeft, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useMessages, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { AboutFields, AboutSummary, Checklist, HouseStep, PitchStep, PublishSummary, type ChecklistKey } from "@/components/create/HouseSteps";
+import { AboutFields, AboutSummary, Checklist, HouseStep, PitchStep, PublishAside, PublishCard, type ChecklistKey } from "@/components/create/HouseSteps";
 import {
-  PITCH_FIELDS,
   PUBLISH_STEP,
   STEPS,
   aboutModeOf,
   aboutOf,
   clearDraft,
   currencyOf,
+  earliestStart,
   fieldId,
   formFromStay,
   ideasOf,
   initialForm,
   languageOf,
   languageOptions,
-  pitchCount,
   readDraft,
   stepErrors,
   toInput,
@@ -58,11 +57,18 @@ export function EditStayForm({ stay }: { stay: Stay }) {
 /** Where each checklist item lives: its step and the field to focus. */
 const CHECKLIST_TARGETS: Record<ChecklistKey, { step: number; id: string }> = {
   title: { step: 0, id: fieldId("title") },
+  place: { step: 0, id: fieldId("region") },
   dates: { step: 0, id: fieldId("startDate") },
+  lookingFor: { step: 1, id: fieldId("lookingForText") },
   photo: { step: 2, id: fieldId("photo") },
-  pitch: { step: 1, id: fieldId(PITCH_FIELDS[0]) },
   hostNote: { step: 1, id: fieldId("hostNote") },
 };
+
+/**
+ * The live preview card: 400px wide at most, and narrower when the window is short, so card + "Preview" label +
+ * checklist line (~88px) always fit in the sticky column (4:5 kept).
+ */
+const PREVIEW_CARD_WIDTH = "mx-auto w-[min(100%,400px,calc((100dvh-var(--header-h)-48px-88px)*0.8))]";
 
 /** Scrolls a field (or card) into view and focuses its first control. */
 function focusField(id: string) {
@@ -94,7 +100,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const today = useSyncExternalStore(noSubscribe, todayString, () => "");
   const me = getCurrentUser(store);
   const minSpots = editing ? Math.max(2, editing.spotsFilled) : 2;
-  const errorsOf = (i: number): FieldErrors => stepErrors(i, { form, me, minSpots, today, editing });
+  const messages = useMessages();
+  const [starters] = useState(() => Object.values(messages.create.starters).flatMap((s) => s.lookingFor));
+  const errorsOf = (i: number): FieldErrors => stepErrors(i, { form, me, minSpots, today, editing, starters });
   const isValid = (i: number) => Object.keys(errorsOf(i)).length === 0;
   const aboutMode = aboutModeOf(me);
 
@@ -115,6 +123,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function patch(changes: Partial<FormState>) {
+    setForm((f) => ({ ...f, ...changes }));
+  }
+
   function touch(key: FieldKey) {
     setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   }
@@ -122,6 +134,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   function errorText(error: FieldError): string {
     if (error.key === "minSpots") return tErrors("minSpots", { count: error.count });
     if (error.key === "tooLong") return tErrors("tooLong", { max: error.max });
+    if (error.key === "titleLength") return tErrors("titleLength", { min: error.min, max: error.max });
     return tErrors(error.key);
   }
 
@@ -212,28 +225,19 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     featured: false,
     createdAt: "",
   };
-  const card = <StayCard stay={previewStay} host={previewHost} crew={previewHost ? [previewHost] : []} preview />;
+  const card = (
+    <StayCard stay={previewStay} host={previewHost} crew={previewHost ? [previewHost] : []} preview photoPlaceholder={t("photoPlaceholder")} />
+  );
 
-  const pitchFilled = pitchCount(form);
-  const dateErrors = errorsOf(0);
-  const checklist = (
-    <Checklist
-      onJump={jumpTo}
-      items={[
-        { key: "title", done: !dateErrors.title },
-        { key: "dates", done: !dateErrors.startDate && !dateErrors.endDate },
-        { key: "photo", done: Boolean(about.photos[0]) },
-        { key: "pitch", done: pitchFilled === PITCH_FIELDS.length, detail: `${pitchFilled}/${PITCH_FIELDS.length}` },
-        { key: "hostNote", done: form.hostNote.trim() !== "" },
-      ]}
-    />
-  );
-  const preview = (
-    <>
-      <div className="mx-auto max-w-90">{card}</div>
-      {checklist}
-    </>
-  );
+  const houseErrors = errorsOf(0);
+  const checklistItems = [
+    { key: "title", done: !houseErrors.title },
+    { key: "place", done: !houseErrors.region },
+    { key: "dates", done: !houseErrors.startDate && !houseErrors.endDate },
+    { key: "lookingFor", done: !errorsOf(1).lookingForText },
+    { key: "photo", done: Boolean(about.photos[0]) },
+    { key: "hostNote", done: form.hostNote.trim() !== "" },
+  ] satisfies Array<{ key: ChecklistKey; done: boolean }>;
 
   const stepValid = isValid(step);
   const next = () => {
@@ -247,16 +251,18 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         <HouseStep
           form={form}
           update={update}
+          patch={patch}
           minSpots={minSpots}
+          minStart={earliestStart(today)}
           language={languageOf(form)}
-          languages={languageOptions(form, me)}
+          languages={languageOptions(me)}
           currency={previewStay.currency}
           locked={editing?.accommodationStatus === "locked"}
           errorOf={errorOf}
           touch={touch}
         />
       )}
-      {step === 1 && <PitchStep form={form} update={update} showIdeas={!editing} />}
+      {step === 1 && <PitchStep form={form} update={update} patch={patch} showIdeas={!editing} errorOf={errorOf} touch={touch} />}
       {step === 2 &&
         (aboutMode.kind === "summary" && me ? (
           <FormCards>
@@ -272,7 +278,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             touch={touch}
           />
         ))}
-      {step === PUBLISH_STEP && <PublishSummary stay={previewStay} form={form} card={card} loginNote={!me} />}
+      {step === PUBLISH_STEP && <PublishCard card={card} loginNote={!me} />}
 
       <StickyFormBar>
         {step > 0 && (
@@ -314,7 +320,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   );
 
   return (
-    <FormContainer>
+    <FormContainer wide>
       <FormHeader
         title={editing ? t("title.edit") : t("title.create")}
         back={
@@ -338,11 +344,31 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {/* Completed steps are clickable to go back; editing: every step is reachable – the House is complete already. */}
       <StepProgress steps={STEPS.map((key) => t(`steps.${key}`))} current={step} reachable={editing ? PUBLISH_STEP : step} onSelect={goTo} />
 
-      {/* Step 4 shows the card itself – no second preview beside it. */}
-      <FormGrid form={formColumn} preview={step < PUBLISH_STEP ? <PreviewColumn>{preview}</PreviewColumn> : undefined} />
+      {/* Steps 1–3: the live preview stays in view. Step 4: the card moves into the form column, the summary takes its place. */}
+      <FormGrid
+        wide
+        form={formColumn}
+        preview={
+          step < PUBLISH_STEP ? (
+            <PreviewColumn>
+              <div className={PREVIEW_CARD_WIDTH}>{card}</div>
+              <Checklist items={checklistItems} onJump={jumpTo} />
+            </PreviewColumn>
+          ) : (
+            <PublishAside stay={previewStay} form={form} />
+          )
+        }
+      />
+      {/* Below lg the summary follows the card (the sticky column is desktop only). */}
+      {step === PUBLISH_STEP && (
+        <div className="mt-6 lg:hidden">
+          <PublishAside stay={previewStay} form={form} />
+        </div>
+      )}
 
       <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title={t("livePreview")}>
-        {preview}
+        <div className="mx-auto max-w-90">{card}</div>
+        <Checklist items={checklistItems} onJump={jumpTo} expanded />
       </Sheet>
     </FormContainer>
   );
@@ -356,7 +382,5 @@ function previewHostOf(about: About, me: User | undefined, fallbackName: string)
     ...base,
     name: about.name.trim() || base.name || fallbackName,
     photos: about.photos.length > 0 ? about.photos : base.photos,
-    languages: about.languages,
-    bio: about.bio,
   };
 }

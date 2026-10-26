@@ -25,6 +25,24 @@ function tightRange(text: string): string {
   return clean(text).replace(/(\d) – (\d)/, "$1–$2");
 }
 
+/**
+ * A money range with the currency symbol once ("€400–600", not "€400 – €600") and without Intl's own "~" for
+ * equal ends (the labels add their own) – equal ends are just one amount.
+ */
+function moneyRange(format: Intl.NumberFormat, min: number, max: number): string {
+  if (Math.round(min) === Math.round(max)) return clean(format.format(min));
+  const parts = format.formatRangeToParts(min, max);
+  const symbolInFront = parts.some((p) => p.type === "currency" && p.source === "startRange");
+  return clean(
+    parts
+      .filter((p) => !(symbolInFront && p.type === "currency" && p.source === "endRange"))
+      .map((p) => p.value)
+      .join(""),
+  )
+    .replace(/\s*–\s*/, "–")
+    .trim();
+}
+
 /** Locale-aware number/date formatting – pure, usable on the server with getLocale(). */
 export function createFormatters(locale: string) {
   const currency = (code: string) => new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumFractionDigits: 0 });
@@ -40,12 +58,12 @@ export function createFormatters(locale: string) {
       clean(new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumSignificantDigits: 2 }).format(amount)),
     /** "A$660–990", rounded like approx */
     approxRange: (min: number, max: number, code: string) =>
-      tightRange(new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumSignificantDigits: 2 }).formatRange(min, max)),
+      moneyRange(new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumSignificantDigits: 2 }), min, max),
     /** "€", "A$", "฿" – for input prefixes */
     currencySymbol: (code: string) =>
       new Intl.NumberFormat(locale, { style: "currency", currency: code }).formatToParts(0).find((p) => p.type === "currency")?.value ?? code,
     /** "€400–600" */
-    priceRange: (min: number, max: number, code = "EUR") => tightRange(currency(code).formatRange(min, max)),
+    priceRange: (min: number, max: number, code = "EUR") => moneyRange(currency(code), min, max),
     /** "Feb 12–26" – null without both dates */
     shortRange: (start: string, end: string) => (start && end ? tightRange(short.formatRange(toDate(start), toDate(end))) : null),
     /** "Feb 12–26, 2027" */

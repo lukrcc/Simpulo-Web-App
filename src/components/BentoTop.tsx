@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { Container } from "@/components/layout/Container";
 import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
@@ -131,24 +131,141 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
               />
 
               {large && canRotate && (
-                <button
-                  type="button"
+                <ShuffleButton
+                  label={t("nextHouses")}
+                  steps={pipeline.steps}
+                  running={!pageHidden}
+                  showRing={!reducedMotion}
                   onClick={manualStep}
-                  aria-label={t("nextHouses")}
-                  className="glass-dark pulse-ring absolute bottom-6 right-6 z-20 flex size-14 items-center justify-center rounded-full text-white outline-none transition-transform hover:scale-106 focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <RefreshCw
-                    className="size-[22px] motion-safe:transition-transform motion-safe:duration-900 motion-safe:ease-in-out"
-                    style={{ transform: `rotate(${pipeline.steps * 360}deg)` }}
-                    aria-hidden
-                  />
-                </button>
+                />
               )}
             </div>
           );
         })}
       </section>
     </Container>
+  );
+}
+
+/** Ring around the 56px button: r = 30 with a 3px stroke, so it sits ~1px outside the button edge. */
+const RING_SIZE = 66;
+const RING_RADIUS = 30;
+/** The old ring fades for this long before the new one starts filling; the fill is shortened by the same amount. */
+const RING_FADE_MS = 150;
+
+interface ShuffleButtonProps {
+  label: string;
+  /** Total steps (auto or manual) – each change spins the icon and restarts the ring. */
+  steps: number;
+  /** False while the tab is hidden: the auto-advance interval is cleared, so the ring holds too. */
+  running: boolean;
+  /** Off under reduced motion: no ring and no auto-advance, just a static icon. */
+  showRing: boolean;
+  onClick: () => void;
+}
+
+/** Shuffle button whose progress ring fills over the auto-advance interval and empties on every step. */
+function ShuffleButton({ label, steps, running, showRing, onClick }: ShuffleButtonProps) {
+  const gradientId = useId();
+  const progressRef = useRef<SVGCircleElement>(null);
+  const fillRef = useRef<Animation | null>(null);
+
+  // Driven with the Web Animations API so a step can freeze the ring where it is, fade it out and refill it from empty.
+  useEffect(() => {
+    const ring = progressRef.current;
+    if (!ring) return;
+    const previous = fillRef.current;
+    if (!running) {
+      previous?.pause();
+      return;
+    }
+    let cancelled = false;
+    const startFill = (duration: number) => {
+      previous?.cancel();
+      fillRef.current = ring.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }], {
+        duration,
+        easing: "linear",
+        fill: "forwards",
+      });
+    };
+    if (!previous) {
+      startFill(STEP_INTERVAL_MS);
+      return;
+    }
+    previous.pause();
+    const fade = ring.animate([{ opacity: 1 }, { opacity: 0 }], { duration: RING_FADE_MS, fill: "forwards" });
+    fade.onfinish = () => {
+      if (cancelled) return;
+      startFill(STEP_INTERVAL_MS - RING_FADE_MS);
+      fade.cancel();
+    };
+    return () => {
+      cancelled = true;
+      fade.cancel();
+    };
+  }, [steps, running, showRing]);
+
+  // Unmount (or ring hidden): drop the fill so a remounted ring starts fresh.
+  useEffect(
+    () => () => {
+      fillRef.current?.cancel();
+      fillRef.current = null;
+    },
+    [showRing],
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="group absolute bottom-6 right-6 z-20 flex size-14 items-center justify-center rounded-full border border-white/18 bg-[rgba(20,20,22,0.45)] text-white outline-none backdrop-blur-[16px] transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent"
+    >
+      {showRing && (
+        <svg
+          aria-hidden
+          width={RING_SIZE}
+          height={RING_SIZE}
+          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+          // -rotate-90: the stroke starts at 12 o'clock.
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible"
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#F7A27A" />
+              <stop offset="100%" stopColor="#F0633A" />
+            </linearGradient>
+          </defs>
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth={3}
+            className="stroke-white/18 transition-[stroke] duration-200 group-hover:stroke-white/30"
+          />
+          <circle
+            ref={progressRef}
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth={3}
+            strokeLinecap="round"
+            // pathLength 100: dash offsets are percentages of the circle. Starts empty until the fill runs.
+            pathLength={100}
+            strokeDasharray={100}
+            strokeDashoffset={100}
+          />
+        </svg>
+      )}
+      <RefreshCw
+        className="size-[22px] motion-safe:transition-transform motion-safe:duration-900 motion-safe:ease-in-out"
+        style={{ transform: `rotate(${steps * 360}deg)` }}
+        aria-hidden
+      />
+    </button>
   );
 }
 

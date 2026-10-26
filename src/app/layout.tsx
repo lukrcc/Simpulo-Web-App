@@ -10,9 +10,25 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
+/** Public base URL for metadata, or undefined (invalid values are ignored rather than breaking every page). */
+function siteUrlFromEnv(): URL | undefined {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!raw) return undefined;
+  try {
+    return new URL(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+const siteUrl = siteUrlFromEnv();
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
   return {
+    // Absolute URLs for Open Graph come from NEXT_PUBLIC_SITE_URL when set (e.g. https://simpulo.app). Unset, Next
+    // falls back to its own default for the current environment – nothing here hard-codes a host.
+    ...(siteUrl && { metadataBase: siteUrl }),
     title: { default: t("siteTitle"), template: t("titleTemplate") },
     description: t("siteDescription"),
     // Home-screen web app: draw edge-to-edge under the iOS status bar.

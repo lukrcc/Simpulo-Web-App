@@ -1,8 +1,8 @@
-import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { User } from "@/lib/types";
 
 /** Side card on the House page: who's hosting. Avatar, name and "View profile" all link to the profile. */
@@ -16,15 +16,11 @@ export function HostCard({ host }: { host: User }) {
         <PersonPhoto src={host.photos[0]} alt={host.name} size={72} className="size-18" />
       </Link>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
           <Link href={profile} className="font-semibold text-ink hover:underline">
             {t("identity", { name: host.name, age: host.age, country: host.country })}
           </Link>
-          {host.verified && (
-            <span title={t("verified")} className="inline-flex shrink-0">
-              <BadgeCheck className="size-4 text-zinc-500" role="img" aria-label={t("verified")} />
-            </span>
-          )}
+          {host.verified && <VerifiedBadge />}
         </div>
         {host.languages.length > 0 && <p className="mt-0.5 text-sm text-zinc-500">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialRow user={host} size="sm" className="mt-3" />

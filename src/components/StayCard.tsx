@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -10,10 +10,11 @@ import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
 import { PlaceText } from "@/components/ui/PlaceText";
+import { useApproxAmount } from "@/components/ui/PriceLine";
 import { useFormat } from "@/i18n/format";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName } from "@/lib/utils";
+import { cn, firstName, stayPhotos, stayPrice } from "@/lib/utils";
 
 interface StayCardProps {
   stay: Stay;
@@ -22,16 +23,21 @@ interface StayCardProps {
   crew?: User[];
   /** Renders without links, e.g. for the live preview in /create */
   preview?: boolean;
+  /** Without photos: a neutral avatar placeholder with this text instead of the colour wash (live preview) */
+  photoPlaceholder?: string;
 }
 
 const CARD_SIZES = "(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw";
 const MAX_PHOTOS = 5;
 
-export function StayCard({ stay, host, crew = [], preview = false }: StayCardProps) {
+export function StayCard({ stay, host, crew = [], preview = false, photoPlaceholder }: StayCardProps) {
   const t = useTranslations("explore");
+  const tCommon = useTranslations("common");
   const format = useFormat();
-  // Always the host's own photos – never the accommodation.
-  const photos = host ? host.photos.slice(0, MAX_PHOTOS) : [];
+  const approx = useApproxAmount(stay);
+  const hasPrice = stayPrice(stay).kind !== "tbd";
+  // The host's face first, then the world of the House – never the accommodation.
+  const photos = host ? stayPhotos(stay, host).slice(0, MAX_PHOTOS) : [];
   const { ref, active, onScroll } = useSnapCarousel<HTMLDivElement>(photos.length);
   const [revealRef, revealed] = useRevealOnce<HTMLElement>();
 
@@ -51,7 +57,17 @@ export function StayCard({ stay, host, crew = [], preview = false }: StayCardPro
     >
       {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
       <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
-        {photos.length === 0 && <div className="h-full w-full shrink-0 bg-linear-to-br from-accent-soft to-neutral-300" />}
+        {photos.length === 0 &&
+          (photoPlaceholder ? (
+            <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-neutral-200 pb-24 text-zinc-500">
+              <span className="flex size-20 items-center justify-center rounded-full bg-white/70">
+                <UserRound className="size-10 text-zinc-400" strokeWidth={1.5} aria-hidden />
+              </span>
+              <span className="text-sm font-medium">{photoPlaceholder}</span>
+            </div>
+          ) : (
+            <div className="h-full w-full shrink-0 bg-linear-to-br from-accent-soft to-neutral-300" />
+          ))}
         {photos.map((src, i) => {
           const image = (
             <>
@@ -107,6 +123,13 @@ export function StayCard({ stay, host, crew = [], preview = false }: StayCardPro
           {/* The House's language – only when it isn't English. */}
           {stay.language && stay.language !== "en" && <span className="shrink-0 text-white/60">· {format.language(stay.language)}</span>}
         </p>
+        {/* The House's own currency; the viewer's ≈ amount muted after it (only a hint, never charged). */}
+        {hasPrice && (
+          <p className="mt-1 truncate text-sm font-semibold text-white/90">
+            {format.priceLabel(stay)}
+            {approx && <span className="font-normal text-white/60"> · {tCommon("ui.priceLine.approxShort", { amount: approx })}</span>}
+          </p>
+        )}
         {stay.hostNote && (
           <p className="mt-1 flex items-center gap-1.5 text-sm text-white/85">
             <MessageCircle className="size-3.5 shrink-0" aria-hidden />

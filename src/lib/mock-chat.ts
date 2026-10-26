@@ -36,6 +36,13 @@ const VIBE_ACTIVITY: Record<Stay["vibe"], string> = {
   wellness: "yoga",
   holiday: "beach day",
   mixed: "study session",
+  streaming: "stream",
+  trading: "market open",
+  yoga: "yoga class",
+  diving: "dive",
+  climbing: "climbing session",
+  language: "language exchange",
+  students: "study session",
 };
 
 const EMOJI_REPLIES = ["🔥", "🙌", "😂😂", "❤️", "👍", "🤙", "🥳"];

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, Share2 } from "lucide-react";
+import { ArrowLeft, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -8,6 +8,7 @@ import { CardTab } from "@/components/ui/CardTab";
 import { glassCircle, imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
 import { SocialRow } from "@/components/ui/SocialRow";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import type { User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
@@ -18,16 +19,18 @@ const MAX_PHOTOS = 5;
 
 interface HostGalleryProps {
   host: User;
+  /** The host's face, then the House's theme photos (see stayPhotos) */
+  photos: string[];
   onBack: () => void;
   onShare: () => void;
 }
 
 /** Mobile/tablet: full-width carousel of the host's portraits with their identity overlaid. */
-export function HostGallery({ host, onBack, onShare }: HostGalleryProps) {
+export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGalleryProps) {
   const t = useTranslations("house.gallery");
   const tCommon = useTranslations("common");
   const format = useFormat();
-  const photos = host.photos.slice(0, MAX_PHOTOS);
+  const photos = allPhotos.slice(0, MAX_PHOTOS);
   const { ref, active, onScroll } = useSnapCarousel<HTMLDivElement>(photos.length);
 
   return (
@@ -60,11 +63,11 @@ export function HostGallery({ host, onBack, onShare }: HostGalleryProps) {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-9 text-white">
-        <Link href={`/u/${host.id}`} className="pointer-events-auto inline-flex items-center gap-2">
+        <Link href={`/u/${host.id}`} className="pointer-events-auto inline-flex items-center gap-1">
           <span className="text-3xl font-bold tracking-tight">
             {host.name}
           </span>
-          {host.verified && <BadgeCheck className="size-6 shrink-0" aria-label={t("verified")} />}
+          {host.verified && <VerifiedBadge onDark />}
         </Link>
         <p className="mt-1 text-sm text-white/85">
           {t("identity", { ageAndCountry: format.ageAndCountry(host), languages: host.languages.join(", ") })}
@@ -89,9 +92,9 @@ const tile = "relative block size-full overflow-hidden bg-neutral-200 outline-no
  * Desktop: main photo left (60%), two stacked right (40%) – at most 520px tall. Any photo opens the lightbox.
  * The notched tab top-left links to the host's profile.
  */
-export function HostPhotoGrid({ host, onShare }: Omit<HostGalleryProps, "onBack">) {
+export function HostPhotoGrid({ host, photos: allPhotos, onShare }: Omit<HostGalleryProps, "onBack">) {
   const t = useTranslations("house.gallery");
-  const photos = host.photos.slice(0, MAX_PHOTOS);
+  const photos = allPhotos.slice(0, MAX_PHOTOS);
   const [open, setOpen] = useState<number | null>(null);
   const [main, ...side] = photos.slice(0, 3);
   const extra = photos.length - 3;

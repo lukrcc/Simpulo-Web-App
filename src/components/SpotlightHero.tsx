@@ -1,6 +1,5 @@
 "use client";
 
-import { BadgeCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
@@ -17,6 +16,7 @@ import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CarouselControls } from "@/components/ui/CarouselControls";
 import { Img } from "@/components/ui/Img";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { PlaceText } from "@/components/ui/PlaceText";
 import { useFormat } from "@/i18n/format";
 import { findUser, getCrew, useStore } from "@/lib/store";
@@ -311,9 +311,9 @@ function Slide({ ref, stay, host, guests, index, isActive, count, phoneHidden, o
           <Link href={href} tabIndex={-1} aria-hidden className="pointer-events-auto">
             <h2 className="line-clamp-2 text-3xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
           </Link>
-          <p className="mt-1 flex items-center gap-1.5 text-[15px] font-medium text-white/90 md:mt-2 md:text-base">
+          <p className="mt-1 flex items-center gap-1 text-[15px] font-medium text-white/90 md:mt-2 md:text-base">
             {t("withHost", { name: firstName(host) })}
-            {host.verified && <BadgeCheck className="size-5 shrink-0" aria-label={t("verified")} />}
+            {host.verified && <VerifiedBadge onDark />}
           </p>
           <p className="mt-2 line-clamp-2 max-w-2xl text-base text-white/85 md:mt-3 md:text-lg md:text-white/90">
             {firstSentence(stay.lookingForText)}

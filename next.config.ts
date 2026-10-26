@@ -8,8 +8,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   // The Next.js dev indicator sat on top of the left nav rail / DevSwitcher – hide it (errors still surface).
   devIndicators: false,
-  // Lets phones on the local network open the dev server (http://<mac-ip>:3000).
-  allowedDevOrigins: ["192.168.151.196", "172.20.10.*", "10.219.49.*"],
+  // Dev only: other hosts that may load the dev server's JS/HMR (hostnames only – no scheme, no port; `*` = one
+  // label). Phones on the LAN, the iPhone hotspot range and Cloudflare quick tunnels.
+  allowedDevOrigins: ["*.trycloudflare.com", "192.168.178.*", "172.20.10.*", "192.168.151.196", "10.219.49.*"],
   partialPrefetching: true,
   // The install guide lives on How it works now; old links (and bookmarks) still land there.
   async redirects() {

@@ -30,7 +30,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
-import { cn, findUrls, stayNights } from "@/lib/utils";
+import { cn, findUrls, stayNights, stayPhotos } from "@/lib/utils";
 
 /** Side column cards on the House page. */
 const sideCard = "rounded-[24px] bg-white p-6";
@@ -176,10 +176,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         {host && (
           <>
             <div className="-mx-4 md:mx-0 lg:hidden">
-              <HostGallery host={host} onBack={goBack} onShare={share} />
+              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={share} />
             </div>
             <div className="hidden lg:block">
-              <HostPhotoGrid host={host} onShare={share} />
+              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={share} />
             </div>
           </>
         )}

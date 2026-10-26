@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Clock, FileUp, Loader2, Wallet } from "lucide-react";
+import { CircleCheck, Clock, FileUp, Loader2, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { PaySheet } from "@/components/stay/PaySheet";
@@ -185,7 +185,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   if (stay.status === "booked" && stay.bookingConfirmedAt) {
     return (
       <div className="mt-5 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4">
-        <BadgeCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
+        <CircleCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-emerald-900">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
           <p className="mt-0.5 text-sm text-emerald-800">{t("confirmedText")}</p>

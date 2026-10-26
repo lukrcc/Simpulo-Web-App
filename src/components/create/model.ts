@@ -1,7 +1,6 @@
-import { CONTACT_FIELDS, SOCIAL_FIELDS, type SocialKey } from "@/components/profile/profileFields";
 import { isProfileComplete, type ProfilePatch } from "@/lib/store";
-import type { Currency, NewStayInput, PrivateContacts, Stay, User, Vibe } from "@/lib/types";
-import { currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
+import type { Currency, NewStayInput, Stay, User, Vibe } from "@/lib/types";
+import { LANGUAGES, addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
 
 /*
  * Open a House – the form state and everything derived from it (no React here): defaults, validation per step,
@@ -10,9 +9,12 @@ import { currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib
 
 export const DRAFT_KEY = "draftHouse";
 export const HOST_NOTE_MAX = 60;
-export const BIO_MAX = 160;
 export const MAX_IDEAS = 3;
 export const TITLE_MIN = 4;
+export const TITLE_MAX = 60;
+export const CUSTOM_VIBE_MAX = 20;
+export const LOOKING_FOR_MIN = 20;
+export const LOOKING_FOR_MAX = 160;
 export const MAX_NIGHTS = 120;
 export const DEFAULT_LANGUAGE = "en";
 
@@ -29,16 +31,23 @@ export interface FormState {
   startDate: string;
   endDate: string;
   spotsTotal: number;
-  vibe: Vibe;
+  /** "" = not picked yet (saved as "mixed") */
+  vibe: Vibe | "";
+  /** The host's own vibe label – non-null means "+ Custom" is the pick (saved as vibe "mixed") */
+  customVibe: string | null;
   /** ISO 639-1; "" = English */
   language: string;
   /** "" = default from the host's country */
   currency: Currency | "";
+  /** Both "" = no budget ("Skip – decide together") */
   budgetMin: string;
   budgetMax: string;
   // 2 · Your pitch
   whyText: string;
+  /** Always the full text – with the template on, it's the parts joined (see joinDayParts) */
   dayText: string;
+  /** Morning · Afternoon · Evening template; null = written freely */
+  dayParts: [string, string, string] | null;
   lookingForText: string;
   hostNote: string;
   /** Up to 3 links; posted into the crew chat on publish (create only) */
@@ -48,10 +57,6 @@ export interface FormState {
   aboutName?: string;
   aboutAge?: string;
   aboutCountry?: string;
-  aboutLanguages?: string[];
-  aboutBio?: string;
-  aboutSocials?: Partial<Record<SocialKey, string>>;
-  aboutContacts?: PrivateContacts;
 }
 
 export const initialForm: FormState = {
@@ -62,13 +67,15 @@ export const initialForm: FormState = {
   startDate: "",
   endDate: "",
   spotsTotal: 4,
-  vibe: "remote-work",
+  vibe: "",
+  customVibe: null,
   language: "",
   currency: "",
   budgetMin: "",
   budgetMax: "",
   whyText: "",
   dayText: "",
+  dayParts: null,
   lookingForText: "",
   hostNote: "",
   accommodationIdeas: [""],
@@ -86,6 +93,7 @@ export function formFromStay(stay: Stay): FormState {
     endDate: stay.endDate,
     spotsTotal: stay.spotsTotal,
     vibe: stay.vibe,
+    customVibe: stay.customVibe ?? null,
     language: stay.language,
     currency: stay.currency,
     budgetMin: stay.budgetPerPerson ? String(stay.budgetPerPerson.min) : "",
@@ -97,16 +105,15 @@ export function formFromStay(stay: Stay): FormState {
   };
 }
 
-/** "About you" as it currently reads: what the host typed, else their profile, else empty. */
+/**
+ * "About you" as it currently reads: what the host typed, else their profile, else empty. Only what a House
+ * needs – links, bio and crew-only contacts live in Edit profile.
+ */
 export interface About {
   photos: string[];
   name: string;
   age: string;
   country: string;
-  languages: string[];
-  bio: string;
-  socials: Partial<Record<SocialKey, string>>;
-  contacts: PrivateContacts;
 }
 
 export function aboutOf(form: FormState, me?: User): About {
@@ -115,11 +122,20 @@ export function aboutOf(form: FormState, me?: User): About {
     name: form.aboutName ?? me?.name ?? "",
     age: form.aboutAge ?? (me && me.age > 0 ? String(me.age) : ""),
     country: form.aboutCountry ?? me?.country ?? "",
-    languages: form.aboutLanguages ?? me?.languages ?? [],
-    bio: form.aboutBio ?? me?.bio ?? "",
-    socials: { ...(me && Object.fromEntries(SOCIAL_FIELDS.map(({ key }) => [key, me[key] ?? ""]))), ...form.aboutSocials },
-    contacts: { ...me?.privateContacts, ...form.aboutContacts },
   };
+}
+
+/** The vibe whose suggestions (titles, starters) apply: a custom vibe uses the "mixed" ones. */
+export function suggestionVibe(form: FormState): Vibe {
+  return form.customVibe !== null || !form.vibe ? "mixed" : form.vibe;
+}
+
+/** "Morning: …\nAfternoon: …\nEvening: …" – only the parts that are filled. */
+export function joinDayParts(parts: [string, string, string], labels: [string, string, string]): string {
+  return parts
+    .map((part, i) => (part.trim() ? `${labels[i]}: ${part.trim()}` : ""))
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
@@ -140,10 +156,11 @@ export function aboutModeOf(me?: User): AboutMode {
   return { kind: "missing", fields };
 }
 
-/** The House language options: English plus the host's own languages as ISO codes (unknown names dropped) and the current pick. */
-export function languageOptions(form: FormState, me?: User): string[] {
-  const codes = aboutOf(form, me).languages.map(languageCode).filter((code): code is string => code !== undefined);
-  return Array.from(new Set([DEFAULT_LANGUAGE, ...codes, ...(form.language ? [form.language] : [])]));
+/** The House language options: the host's own languages first (as ISO codes), then the common ones. */
+export function languageOptions(me?: User): { own: string[]; common: string[] } {
+  const own = Array.from(new Set((me?.languages ?? []).map(languageCode).filter((code): code is string => code !== undefined)));
+  const first = own.length > 0 ? own : [DEFAULT_LANGUAGE];
+  return { own: first, common: LANGUAGES.map((l) => l.code).filter((code) => !first.includes(code)) };
 }
 
 export function languageOf(form: FormState): string {
@@ -162,6 +179,16 @@ export const isLink = (value: string) => findUrls(value)[0] === value;
 export function ideasOf(form: FormState): string[] {
   return form.accommodationIdeas.map((l) => l.trim()).filter(isLink).slice(0, MAX_IDEAS);
 }
+
+/** Slider scale per currency: about €100–3000 per person in every currency, in round steps. */
+export const BUDGET_SCALE: Record<Currency, { min: number; max: number; step: number; start: [number, number] }> = {
+  EUR: { min: 100, max: 3000, step: 50, start: [400, 600] },
+  USD: { min: 100, max: 3000, step: 50, start: [400, 650] },
+  GBP: { min: 100, max: 2500, step: 50, start: [350, 500] },
+  AUD: { min: 150, max: 5000, step: 50, start: [650, 1000] },
+  THB: { min: 4000, max: 110_000, step: 1000, start: [15_000, 22_000] },
+  IDR: { min: 1_500_000, max: 50_000_000, step: 500_000, start: [7_000_000, 10_000_000] },
+};
 
 /** Optional budget: either end alone counts for both, a reversed range is turned around. */
 function budgetOf(form: FormState): { min: number; max: number } | undefined {
@@ -189,7 +216,8 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
     startDate: form.startDate,
     endDate: form.endDate,
     spotsTotal: form.spotsTotal,
-    vibe: form.vibe,
+    vibe: form.customVibe !== null || !form.vibe ? "mixed" : form.vibe,
+    customVibe: form.customVibe?.trim() || undefined,
     language: languageOf(form),
     currency: locked && editing ? editing.currency : currencyOf(form, me),
     pricePerPerson: editing?.pricePerPerson,
@@ -206,38 +234,25 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
   };
 }
 
-/** What "About you" writes to the profile on publish. */
+/** What "About you" writes to the profile on publish – only its four fields; everything else stays as it is. */
 export function toProfilePatch(form: FormState, me?: User): ProfilePatch {
   const about = aboutOf(form, me);
-  const patch: ProfilePatch = {
+  return {
     photos: about.photos,
     ...(about.name.trim() && { name: about.name.trim() }),
     ...(Number(about.age) >= 18 && { age: Number(about.age) }),
     ...(about.country.trim() && { country: about.country.trim() }),
-    languages: about.languages,
-    bio: about.bio.trim().slice(0, BIO_MAX),
   };
-  for (const { key } of SOCIAL_FIELDS) {
-    const value = about.socials[key]?.trim();
-    if (value) patch[key] = value;
-  }
-  // Crew-only channels: what's filled in replaces the stored set (an emptied field removes that channel).
-  const contacts: PrivateContacts = {};
-  for (const key of CONTACT_FIELDS) {
-    const value = about.contacts[key]?.trim();
-    if (value) contacts[key] = value;
-  }
-  patch.privateContacts = contacts;
-  return patch;
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "photo" | "name" | "age" | "country";
+export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "lookingForText" | "photo" | "name" | "age" | "country";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
-  | { key: "title" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "photo" | "name" | "age" | "country" }
+  | { key: "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "lookingFor" | "lookingForUnfinished" | "photo" | "name" | "age" | "country" }
   | { key: "tooLong"; max: number }
+  | { key: "titleLength"; min: number; max: number }
   | { key: "minSpots"; count: number };
 
 export type FieldErrors = Partial<Record<FieldKey, FieldError>>;
@@ -252,7 +267,22 @@ export interface ValidationContext {
   /** YYYY-MM-DD, local */
   today: string;
   editing?: Stay;
+  /** The tap-to-insert starters of "Who I'm looking for" – a starter alone isn't a pitch yet */
+  starters?: string[];
 }
+
+/** "Who I'm looking for" without the starters it begins with – what the host wrote themselves. */
+export function ownWords(text: string, starters: string[]): string {
+  let rest = text.trim();
+  for (const starter of starters) {
+    const s = starter.trim();
+    if (s && rest.startsWith(s)) rest = rest.slice(s.length).trim();
+  }
+  return rest;
+}
+
+/** The earliest start: tomorrow ("" while today is unknown). */
+export const earliestStart = (today: string) => (today ? addDays(today, 1) : "");
 
 /** Today as YYYY-MM-DD in the host's time zone. */
 export function todayString(): string {
@@ -262,15 +292,17 @@ export function todayString(): string {
 }
 
 /** What blocks leaving a step, per field (in the order the fields appear). Optional fields never block. */
-export function stepErrors(step: number, { form, me, minSpots, today, editing }: ValidationContext): FieldErrors {
+export function stepErrors(step: number, { form, me, minSpots, today, editing, starters = [] }: ValidationContext): FieldErrors {
   const errors: FieldErrors = {};
   if (step === 0) {
-    if (form.title.trim().length < TITLE_MIN) errors.title = { key: "title" };
+    const title = form.title.trim().length;
+    if (title < TITLE_MIN || title > TITLE_MAX) errors.title = { key: "titleLength", min: TITLE_MIN, max: TITLE_MAX };
     if (!form.region.trim()) errors.region = { key: "region" };
     // A House that already started can still be edited without moving its start.
     const startChanged = !editing || form.startDate !== editing.startDate;
     if (!form.startDate) errors.startDate = { key: "startDate" };
-    else if (startChanged && form.startDate < today) errors.startDate = { key: "startPast" };
+    // Houses start tomorrow at the earliest ("" = clock not read yet, before hydration).
+    else if (startChanged && today && form.startDate <= today) errors.startDate = { key: "startPast" };
     if (!form.endDate) errors.endDate = { key: "endDate" };
     else if (form.startDate) {
       const nights = nightsBetween(form.startDate, form.endDate);
@@ -278,6 +310,12 @@ export function stepErrors(step: number, { form, me, minSpots, today, editing }:
       else if (nights > MAX_NIGHTS) errors.endDate = { key: "tooLong", max: MAX_NIGHTS };
     }
     if (form.spotsTotal < minSpots) errors.spotsTotal = { key: "minSpots", count: minSpots };
+  }
+  if (step === 1) {
+    // The hook on cards and the Spotlight – one honest line at least.
+    const text = form.lookingForText.trim();
+    if (text.length < LOOKING_FOR_MIN) errors.lookingForText = { key: "lookingFor" };
+    else if (ownWords(text, starters).length < 3) errors.lookingForText = { key: "lookingForUnfinished" };
   }
   if (step === 2) {
     const mode = aboutModeOf(me);
@@ -299,6 +337,7 @@ export const STEP_OF_FIELD: Record<FieldKey, number> = {
   startDate: 0,
   endDate: 0,
   spotsTotal: 0,
+  lookingForText: 1,
   photo: 2,
   name: 2,
   age: 2,
@@ -310,12 +349,19 @@ export interface Draft {
   step: number;
 }
 
+const ABOUT_KEYS = ["aboutPhotos", "aboutName", "aboutAge", "aboutCountry"];
+
+function pick(source: object, keys: string[]): Partial<FormState> {
+  return Object.fromEntries(Object.entries(source).filter(([key]) => keys.includes(key)));
+}
+
 export function readDraft(): Draft | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const draft = JSON.parse(raw) as Partial<Draft>;
-    const form: FormState = { ...initialForm, ...draft.form };
+    // Fields of older drafts that no longer exist are dropped; new ones get their defaults.
+    const form: FormState = { ...initialForm, ...pick(draft.form ?? {}, Object.keys(initialForm).concat(ABOUT_KEYS)) };
     // Older drafts kept three fixed idea slots; drop the empty trailing ones.
     const ideas = form.accommodationIdeas.filter((link, i) => i === 0 || link.trim() !== "").slice(0, MAX_IDEAS);
     return { form: { ...form, accommodationIdeas: ideas.length > 0 ? ideas : [""] }, step: Math.min(Math.max(draft.step ?? 0, 0), PUBLISH_STEP) };

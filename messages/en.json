@@ -40,11 +40,18 @@
     "shares": "{count, plural, one {# share} other {# shares}}",
     "vibes": {
       "fitness": "Fitness",
+      "surf": "Surf",
       "creator": "Creator",
+      "streaming": "Streaming",
       "founder": "Founder",
       "remote-work": "Remote work",
-      "surf": "Surf",
+      "trading": "Trading",
       "wellness": "Wellness",
+      "yoga": "Yoga",
+      "diving": "Diving",
+      "climbing": "Climbing",
+      "language": "Language",
+      "students": "Students",
       "holiday": "Holiday",
       "mixed": "Mixed"
     },
@@ -115,7 +122,8 @@
         "perPerson": "{price} per person",
         "budgetPerPerson": "~{range} per person",
         "note": "includes everything – you pay only when the house is locked",
-        "approx": "≈ {amount} · approximate, you pay in {currency}"
+        "approx": "≈ {amount} · approximate, you pay in {currency}",
+        "approxShort": "≈ {amount}"
       },
       "socialRow": {
         "onNetwork": "{name} on {network}",
@@ -168,6 +176,34 @@
       "form": {
         "optional": "Optional",
         "preview": "Preview"
+      },
+      "dateRange": {
+        "placeholder": "Add dates",
+        "from": "From {date} – pick the end",
+        "dialog": "Choose dates",
+        "quick": {
+          "week": "1 week",
+          "twoWeeks": "2 weeks",
+          "month": "1 month"
+        },
+        "pickStart": "Pick the start",
+        "pickEnd": "Now pick the end",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "maxNights": "From tomorrow, up to {max} nights."
+      },
+      "verified": "ID verified",
+      "verifyId": {
+        "title": "Verify your ID",
+        "intro": "We use Stripe to check your ID and a selfie. Takes 2 minutes.",
+        "stepId": "A photo of your passport or ID card",
+        "stepSelfie": "A quick selfie to match it",
+        "start": "Start verification",
+        "checking": "Checking your ID…",
+        "successTitle": "You're verified",
+        "successText": "Your profile and Houses now show the ID verified badge.",
+        "done": "Done",
+        "mockNote": "Demo – nothing is uploaded."
       }
     }
   },
@@ -471,7 +507,6 @@
     "viewHouseWithHost": "View House: {title} with {host}",
     "showHostPhoto": "Show photo {index} of {name}",
     "withHost": "with {name}",
-    "verified": "Verified",
     "viewHouse": "View House",
     "untitledHouse": "Untitled House",
     "openHouse": {
@@ -500,7 +535,6 @@
     "gallery": {
       "photoAlt": "{name} – photo {number}",
       "share": "Share House",
-      "verified": "Verified",
       "identity": "{ageAndCountry} · speaks {languages}",
       "open": "Open {alt}"
     },
@@ -532,7 +566,6 @@
     "hostCard": {
       "profile": "{name}'s profile",
       "identity": "{name}, {age} · {country}",
-      "verified": "Verified ID",
       "speaks": "speaks {languages}",
       "viewProfile": "View profile"
     },
@@ -615,18 +648,20 @@
       "publish": "Publish"
     },
     "errors": {
-      "title": "Give your House a title – at least 4 characters.",
-      "region": "Add a region or country – e.g. “Bali, Indonesia” or “Portugal”.",
-      "startDate": "Pick a start date.",
-      "startPast": "The start date can't be in the past.",
-      "endDate": "Pick an end date.",
+      "region": "Pick a place from the list – or type your own.",
+      "startDate": "Pick your dates.",
+      "startPast": "Houses start tomorrow at the earliest.",
+      "endDate": "Pick the end date.",
       "dateOrder": "End date must be after the start date.",
       "tooLong": "A House can run for at most {max} nights.",
       "minSpots": "{count, plural, one {# person is already in} other {# people are already in}} – the crew can't be smaller.",
       "photo": "Add a face photo – Houses without one don't get requests.",
       "name": "Add your first name.",
       "age": "Enter an age between 18 and 99.",
-      "country": "Add your country."
+      "country": "Add your country.",
+      "titleLength": "Titles are {min}–{max} characters.",
+      "lookingFor": "One line at least (20+ characters) – it's the hook on your card.",
+      "lookingForUnfinished": "Finish the sentence – say who you're looking for in your own words."
     },
     "saved": "House saved",
     "published": "Your House is open 🎉",
@@ -637,7 +672,7 @@
     "next": "Next",
     "publishHouse": "Publish House",
     "publish": {
-      "intro": "This is how your House shows up in the feed.",
+      "intro": "This is how it shows up in the feed.",
       "loginBeforeLive": "You'll log in before it goes live – your draft stays.",
       "summary": "Summary",
       "place": "Place",
@@ -671,48 +706,115 @@
     "checklist": {
       "items": {
         "title": "Title",
+        "place": "Where",
         "dates": "Dates",
+        "lookingFor": "Who you're looking for",
         "photo": "Face photo",
-        "pitch": "Pitch",
         "hostNote": "Card note"
       },
+      "progress": "{done} of {total} done",
       "done": "Done",
       "missing": "Still open"
     },
     "house": {
       "cards": {
-        "where": "Where & when",
-        "crew": "Crew",
         "vibe": "Vibe",
+        "where": "Where & when",
+        "title": "Title",
+        "crew": "Crew",
         "budget": "Budget"
       },
+      "vibeHint": "Pick one – it drives the suggestions.",
+      "custom": "Custom",
+      "customLabel": "Your own vibe",
+      "customPlaceholder": "e.g. Padel",
+      "where": "Where",
+      "wherePlaceholder": "Search a place – or type your own",
+      "whereEmpty": "Not listed – it's kept as you typed it.",
+      "area": "Area",
+      "areaPlaceholder": "Neighbourhood or town",
+      "stillOpen": "Still open",
+      "stillOpenHint": "decide together",
+      "areaEmpty": "Not listed – it's kept as you typed it.",
+      "when": "When",
       "title": "Title",
-      "titlePlaceholder": "Remote Work Base by the Beach",
-      "region": "Region or country",
-      "regionHint": "As wide as you like – an island, a region or a whole country.",
-      "regionPlaceholder": "Bali, Indonesia",
-      "city": "City",
-      "cityPlaceholder": "Canggu",
-      "cityOpenPlaceholder": "Decided with the crew",
-      "cityOpen": "City still open – we'll decide together",
-      "startDate": "Start date",
-      "endDate": "End date",
+      "titlePlaceholder": "Your House's name",
+      "titleCount": "{count}/{max}",
+      "titleSuggestionsHint": "Tap a suggestion to use it – you can still edit it.",
+      "titleSuggestionsLater": "Pick a vibe and a place for suggestions.",
+      "titleTemplates": {
+        "house": "{vibe} House {place}",
+        "period": "{place} {vibe} {period}",
+        "of": "{duration} of {activity} in {region}",
+        "ofNoDates": "{activity} in {region}"
+      },
+      "periods": {
+        "week": "Week",
+        "month": "Month",
+        "other": "Retreat"
+      },
+      "durations": {
+        "week": "One Week",
+        "twoWeeks": "Two Weeks",
+        "threeWeeks": "Three Weeks",
+        "month": "A Month",
+        "twoMonths": "Two Months",
+        "nights": "{count} Nights"
+      },
+      "titleVibes": {
+        "fitness": "Fitness",
+        "surf": "Surf",
+        "creator": "Creator",
+        "streaming": "Streamer",
+        "founder": "Founder",
+        "remote-work": "Remote Work",
+        "trading": "Trader",
+        "wellness": "Wellness",
+        "yoga": "Yoga",
+        "diving": "Dive",
+        "climbing": "Climbing",
+        "language": "Language",
+        "students": "Student",
+        "holiday": "Holiday",
+        "mixed": "Crew"
+      },
+      "activities": {
+        "fitness": "Training",
+        "surf": "Surfing",
+        "creator": "Creating",
+        "streaming": "Streaming",
+        "founder": "Building",
+        "remote-work": "Remote Work",
+        "trading": "Trading",
+        "wellness": "Slow Living",
+        "yoga": "Yoga",
+        "diving": "Diving",
+        "climbing": "Climbing",
+        "language": "Language Exchange",
+        "students": "Studying",
+        "holiday": "Sun",
+        "mixed": "Good Company"
+      },
       "crewSize": "Crew size (incl. you)",
       "language": "Language",
       "languageHint": "The language the crew speaks in this House.",
-      "budget": "Budget per person (whole House)",
-      "budgetHint": "Leave empty to show Budget TBD",
-      "budgetFrom": "Budget from",
-      "budgetTo": "Budget to",
-      "budgetFromPlaceholder": "400",
-      "budgetToPlaceholder": "600",
-      "currency": "Currency",
+      "languagesYours": "Your languages",
+      "languagesOther": "Other languages",
+      "budget": "Budget per person",
+      "budgetRange": "≈ {range} per person",
+      "budgetMinLabel": "Lowest budget per person",
+      "budgetMaxLabel": "Highest budget per person",
+      "skipBudget": "Skip – decide together",
+      "budgetSkipped": "No budget on the card – you'll decide together. Drag to set one.",
+      "currencyChange": "change",
+      "currencyLabel": "Currency",
+      "currencyHint": "From your country. Guests see an approximate amount in their own currency.",
       "lockedNote": "The place is locked – its price and link are managed on the House's Manage page."
     },
     "pitch": {
       "cards": {
         "pitch": "Your pitch",
-        "pitchDescription": "A few honest lines – Houses with a pitch get more requests.",
+        "pitchDescription": "One line about who you're looking for is enough to publish – the rest makes it better.",
         "hostNote": "Card note",
         "ideas": "Accommodation ideas"
       },
@@ -723,7 +825,6 @@
       "lookingFor": "Who I'm looking for",
       "lookingForPlaceholder": "Who would be a great fit for the crew?",
       "hostNote": "Note on your card",
-      "hostNoteHint": "A short personal line, e.g. “First-timers very welcome”.",
       "hostNoteCount": "{count}/{max}",
       "hostNotePlaceholder": "Two spots left, flying in Feb 10 – who's in?",
       "ideasHint": "Up to 3 links – Airbnb, Booking, anything. They're posted in the crew chat as your first messages.",
@@ -732,7 +833,28 @@
       "ideaPlaceholderMore": "Another link",
       "ideaPreview": "Preview shows in the crew chat",
       "addIdea": "Add",
-      "removeIdea": "Remove link {number}"
+      "removeIdea": "Remove link {number}",
+      "lookingForHint": "The hook on your card and in the Spotlight.",
+      "lookingForCount": "{count}/{max}",
+      "startWith": "Start with",
+      "dayModeFree": "Write freely",
+      "dayModeTemplate": "Morning · Afternoon · Evening",
+      "dayParts": {
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      },
+      "dayPartPlaceholders": {
+        "morning": "Gym, coffee, deep work",
+        "afternoon": "Beach or cowork",
+        "evening": "Dinner together"
+      },
+      "hostNoteExamples": [
+        "First-timers welcome",
+        "Two spots left",
+        "Flying in on the 10th",
+        "Quiet house, early nights"
+      ]
     },
     "about": {
       "cards": {
@@ -740,29 +862,27 @@
         "summaryDescription": "Your House card shows these photos and details.",
         "you": "About you"
       },
-      "missingIntro": "Almost there – Houses need a face photo, your first name, age and country before they go live.",
+      "missingIntro": "Almost there – a House needs a face photo, your first name, age and country.",
       "editProfile": "Edit profile",
       "looksGood": "Looks good",
-      "photos": "Photos",
+      "photos": "Face photo",
       "photosHint": "Houses without a face photo don't get requests.",
       "name": "First name",
       "namePlaceholder": "Mara",
       "age": "Age",
       "agePlaceholder": "27",
       "country": "Country",
-      "countryPlaceholder": "Netherlands",
+      "countryPlaceholder": "Search your country",
       "languages": "Languages",
-      "languagesPlaceholder": "English, Spanish…",
+      "languagesPlaceholder": "Search languages",
       "languagesPlaceholderMore": "Add another",
       "addLanguage": "Add a language",
       "removeLanguage": "Remove {language}",
-      "bio": "Bio",
-      "bioHint": "{count}/{max}",
-      "bioPlaceholder": "Travel creator, 18k on TikTok. Filming a Bali series this winter.",
-      "publicLinks": "Public links",
-      "publicLinksHint": "Shown on your profile and Houses to everyone.",
-      "crewOnly": "Crew only – shown to people in your Houses",
-      "crewOnlyHint": "Only people who share an accepted crew with you see these. Nobody else, not even as a placeholder."
+      "laterHint": "Add links and a bio later in your profile.",
+      "younger": "Younger",
+      "older": "Older",
+      "countryEmpty": "No country matches.",
+      "noLanguage": "No language matches."
     },
     "socials": {
       "instagram": "Instagram",
@@ -793,6 +913,234 @@
       "discord": "name#0421",
       "phone": "+49 176 1234 5678",
       "facetime": "phone or Apple ID"
+    },
+    "photoPlaceholder": "Your photo here",
+    "starters": {
+      "fitness": {
+        "lookingFor": [
+          "People who actually train – ",
+          "Early risers who ",
+          "Anyone who wants a routine and "
+        ],
+        "why": [
+          "I train better with people around me, so ",
+          "I've wanted a month of proper training since "
+        ],
+        "day": [
+          "Gym at 7, then ",
+          "Morning session, long lunch, "
+        ]
+      },
+      "surf": {
+        "lookingFor": [
+          "Surfers of any level who ",
+          "People who'd rather be in the water by 6 and ",
+          "Anyone learning to surf who "
+        ],
+        "why": [
+          "Surfing alone gets old – ",
+          "I want one season of surfing every day, and "
+        ],
+        "day": [
+          "Dawn patrol, breakfast, then ",
+          "Surf at sunrise, work midday, "
+        ]
+      },
+      "creator": {
+        "lookingFor": [
+          "Creators who post consistently and ",
+          "Photographers and editors who ",
+          "People who like making things together – "
+        ],
+        "why": [
+          "I create more when I'm around other creators, so ",
+          "I'm filming a series here and "
+        ],
+        "day": [
+          "Shoot in the morning light, edit after lunch, ",
+          "Golden hour content, then "
+        ]
+      },
+      "streaming": {
+        "lookingFor": [
+          "Streamers who go live regularly and ",
+          "People who don't mind a bit of noise at night – ",
+          "Anyone building a channel who "
+        ],
+        "why": [
+          "Streaming from a shared house means ",
+          "I want fast internet and people who get it – "
+        ],
+        "day": [
+          "Late start, prep in the afternoon, ",
+          "Collabs in the afternoon, live in the evening, "
+        ]
+      },
+      "founder": {
+        "lookingFor": [
+          "Founders who ship every week and ",
+          "People building something of their own who ",
+          "Anyone who likes talking product over dinner – "
+        ],
+        "why": [
+          "Building alone is lonely, so ",
+          "I want a month of deep work with people who "
+        ],
+        "day": [
+          "Deep work until lunch, ",
+          "Standup over breakfast, build all day, "
+        ]
+      },
+      "remote-work": {
+        "lookingFor": [
+          "Remote workers with a real job and ",
+          "People who work hard and still ",
+          "Anyone who wants a calm base and "
+        ],
+        "why": [
+          "Working from a laptop is better with a crew – ",
+          "I want a base with good wifi and good people – "
+        ],
+        "day": [
+          "Coffee, focused work until 3, ",
+          "Cowork in the morning, explore in the afternoon, "
+        ]
+      },
+      "trading": {
+        "lookingFor": [
+          "Traders who keep market hours and ",
+          "People who take risk management seriously and ",
+          "Anyone who likes sharing setups and "
+        ],
+        "why": [
+          "Trading alone gets in your head, so ",
+          "I want a house that keeps the same hours – "
+        ],
+        "day": [
+          "Pre-market prep, session, then ",
+          "Charts in the morning, gym after close, "
+        ]
+      },
+      "wellness": {
+        "lookingFor": [
+          "People who want a slower month and ",
+          "Anyone who cares about sleep, food and ",
+          "Calm people who "
+        ],
+        "why": [
+          "I need a reset, and ",
+          "I want a month without rushing – "
+        ],
+        "day": [
+          "Slow mornings, a long walk, ",
+          "Breathwork, breakfast, then "
+        ]
+      },
+      "yoga": {
+        "lookingFor": [
+          "Yogis of any level who ",
+          "People who want a daily practice and ",
+          "Anyone curious about yoga who "
+        ],
+        "why": [
+          "I want to deepen my practice with others – ",
+          "There's a teacher training here and "
+        ],
+        "day": [
+          "Practice at 7, breakfast together, ",
+          "Class in the morning, free afternoon, "
+        ]
+      },
+      "diving": {
+        "lookingFor": [
+          "Divers who ",
+          "People doing their open water and ",
+          "Anyone who loves the ocean and "
+        ],
+        "why": [
+          "The diving here is incredible and ",
+          "I'm working towards my divemaster, so "
+        ],
+        "day": [
+          "Two dives in the morning, ",
+          "Boat at 8, back by lunch, "
+        ]
+      },
+      "climbing": {
+        "lookingFor": [
+          "Climbers of any grade who ",
+          "People who'd rather be on the wall and ",
+          "Anyone who wants to learn to climb and "
+        ],
+        "why": [
+          "The crags here are world class and ",
+          "Climbing is better with partners – "
+        ],
+        "day": [
+          "Climb early before the heat, ",
+          "Bouldering in the morning, rest in the afternoon, "
+        ]
+      },
+      "language": {
+        "lookingFor": [
+          "People learning the language who ",
+          "Native speakers happy to ",
+          "Anyone who wants to practise every day and "
+        ],
+        "why": [
+          "I want to finally speak the language, so ",
+          "Immersion works best together – "
+        ],
+        "day": [
+          "Class in the morning, ",
+          "Language exchange over lunch, "
+        ]
+      },
+      "students": {
+        "lookingFor": [
+          "Students on a semester break who ",
+          "People studying remotely who ",
+          "Anyone on a budget who "
+        ],
+        "why": [
+          "Semester break is the perfect time, and ",
+          "Studying is easier with people around – "
+        ],
+        "day": [
+          "Library mornings, ",
+          "Lectures online, then "
+        ]
+      },
+      "holiday": {
+        "lookingFor": [
+          "People who want a proper break and ",
+          "First-time travellers who ",
+          "Anyone up for day trips and "
+        ],
+        "why": [
+          "I finally have time off, and ",
+          "I've wanted to see this place for years – "
+        ],
+        "day": [
+          "Beach in the morning, ",
+          "Slow breakfast, a day trip, "
+        ]
+      },
+      "mixed": {
+        "lookingFor": [
+          "Easygoing people who ",
+          "Anyone who likes a full house and ",
+          "People who are up for "
+        ],
+        "why": [
+          "I'm going anyway and ",
+          "A shared house beats a hotel – "
+        ],
+        "day": [
+          "Everyone does their thing during the day, ",
+          "Mornings free, dinners together, "
+        ]
+      }
     }
   },
   "houses": {
@@ -838,7 +1186,9 @@
       "takingRequests": "Taking requests",
       "notTakingRequests": "Not taking requests",
       "fullBanner": "Your House is full · Stop taking requests?",
-      "stopRequests": "Stop taking requests"
+      "stopRequests": "Stop taking requests",
+      "verifyHint": "Verify your ID to receive payouts.",
+      "verifyAction": "Verify"
     },
     "requests": {
       "title": "Requests",
@@ -1083,7 +1433,6 @@
     "loginTitle": "Log in to see your profile",
     "notFound": "Profile not found",
     "explore": "Explore Houses",
-    "verified": "Verified ID",
     "basedIn": "based in {city}",
     "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>",
     "pastCrewsOpen": "See {count, plural, one {# person} other {# people}} {name} has lived with",
@@ -1223,7 +1572,13 @@
         "google": "Google",
         "email": "Email link"
       },
-      "logOut": "Log out"
+      "logOut": "Log out",
+      "verify": {
+        "label": "Verify your ID",
+        "notVerified": "Not verified",
+        "verified": "Verified",
+        "action": "Verify"
+      }
     },
     "notifications": {
       "title": "Notifications",

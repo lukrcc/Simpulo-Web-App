@@ -1,27 +1,28 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 /**
- * The "Open a House." pill (header, empty states): dark with the wordmark's orange dot.
- * Hover: lighter, 2px wider each side, and the dot pulses once.
+ * Shared by every "Open a House" control (this pill and the round mobile "+" buttons). All of its look lives in
+ * `.open-house-btn` (globals.css) – ink outline on white, dark on hover, .97 when pressed – so no background or
+ * colour classes here. Only the focus outline comes from Tailwind, in ink too: no orange on this button.
  */
+export const openHouseClass =
+  "open-house-btn outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-ink";
+
+/** The plus of every "Open a House" control: 16px, stroke 2, in the text colour (white on hover). */
+export function OpenHousePlus() {
+  return <Plus className="size-4 shrink-0" strokeWidth={2} aria-hidden />;
+}
+
+/** The "Open a House" pill (header): plus + label, 36px tall. */
 export function OpenHouseButton({ className }: { className?: string }) {
   const t = useTranslations("common.ui.openHouse");
   return (
-    <Link
-      href="/create"
-      className={cn(
-        "group inline-flex h-10 items-center whitespace-nowrap rounded-full bg-ink px-5 text-sm font-medium text-white outline-none",
-        "transition-[background-color,padding,transform] duration-200 hover:bg-[#2A2A30] hover:px-[22px] active:scale-[0.98]",
-        "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-page",
-        className,
-      )}
-    >
+    <Link href="/create" className={cn(openHouseClass, className)}>
+      <OpenHousePlus />
       {t("label")}
-      <span aria-hidden className="inline-block origin-[50%_75%] text-accent motion-safe:group-hover:animate-dot-pulse">
-        .
-      </span>
     </Link>
   );
 }

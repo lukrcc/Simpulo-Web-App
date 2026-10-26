@@ -113,6 +113,16 @@ export function makeId(prefix: string): string {
 
 export { VIBES };
 
+/**
+ * A House's photos: the host's face first, then the House's theme photos. Houses opened in the app have no theme
+ * photos, so the rest of the host's own photos fill in.
+ */
+export function stayPhotos(stay: Pick<Stay, "photos">, host?: Pick<User, "photos">): string[] {
+  const face = host?.photos[0];
+  const rest = stay.photos?.length ? stay.photos : (host?.photos.slice(1) ?? []);
+  return face ? [face, ...rest] : rest;
+}
+
 export const CURRENCIES: readonly Currency[] = ["EUR", "USD", "GBP", "AUD", "THB", "IDR"];
 
 const COUNTRY_CURRENCY: Record<string, Currency> = {
@@ -143,17 +153,53 @@ export function currencyForLocale(locale: string): Currency {
   return "EUR";
 }
 
-/** Language names as stored on profiles ("German") → ISO 639-1 codes for a House's language. */
-const LANGUAGE_CODES: Record<string, string> = {
-  arabic: "ar", catalan: "ca", chinese: "zh", czech: "cs", danish: "da", dutch: "nl", english: "en", finnish: "fi",
-  french: "fr", german: "de", greek: "el", hebrew: "he", hindi: "hi", indonesian: "id", italian: "it", japanese: "ja",
-  korean: "ko", mandarin: "zh", norwegian: "no", polish: "pl", portuguese: "pt", russian: "ru", spanish: "es",
-  swedish: "sv", tamil: "ta", thai: "th", turkish: "tr", ukrainian: "uk", vietnamese: "vi",
-};
+/**
+ * The languages to pick from (profiles and Houses), most common first. Profiles store the English name ("German"),
+ * Houses the ISO 639-1 code ("de").
+ */
+export const LANGUAGES: ReadonlyArray<{ code: string; name: string }> = [
+  ["en", "English"], ["es", "Spanish"], ["pt", "Portuguese"], ["fr", "French"], ["de", "German"], ["it", "Italian"],
+  ["nl", "Dutch"], ["ru", "Russian"], ["uk", "Ukrainian"], ["pl", "Polish"], ["tr", "Turkish"], ["ar", "Arabic"],
+  ["he", "Hebrew"], ["hi", "Hindi"], ["ta", "Tamil"], ["bn", "Bengali"], ["ur", "Urdu"], ["zh", "Chinese"],
+  ["ja", "Japanese"], ["ko", "Korean"], ["th", "Thai"], ["vi", "Vietnamese"], ["id", "Indonesian"], ["ms", "Malay"],
+  ["tl", "Filipino"], ["sv", "Swedish"], ["no", "Norwegian"], ["da", "Danish"], ["fi", "Finnish"], ["is", "Icelandic"],
+  ["cs", "Czech"], ["sk", "Slovak"], ["hu", "Hungarian"], ["ro", "Romanian"], ["bg", "Bulgarian"], ["hr", "Croatian"],
+  ["sr", "Serbian"], ["el", "Greek"], ["ka", "Georgian"], ["ca", "Catalan"], ["sw", "Swahili"], ["af", "Afrikaans"],
+].map(([code, name]) => ({ code, name }));
 
-/** "German" → "de"; unknown names → undefined (they can't be a House language). */
+/** "German" → "de" (also "Mandarin" → "zh"); unknown names → undefined (they can't be a House language). */
 export function languageCode(name: string): string | undefined {
-  return LANGUAGE_CODES[name.trim().toLowerCase()];
+  const key = name.trim().toLowerCase();
+  if (key === "mandarin") return "zh";
+  return LANGUAGES.find((l) => l.name.toLowerCase() === key)?.code;
+}
+
+/** ISO 3166-1 alpha-2 codes of all countries; names come from Intl in the UI language. */
+const COUNTRY_CODES =
+  "AD AE AF AG AL AM AO AR AT AU AZ BA BB BD BE BF BG BH BI BJ BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FR GA GB GD GE GH GM GN GQ GR GT GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NR NZ OM PA PE PG PH PK PL PR PS PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS XK YE ZA ZM ZW".split(" ");
+
+/** Country names (as stored on profiles: plain text, no flags), sorted. */
+export function countryNames(locale: string): string[] {
+  const names = new Intl.DisplayNames([locale], { type: "region" });
+  return COUNTRY_CODES.map((code) => names.of(code) ?? code).sort((a, b) => a.localeCompare(b, locale));
+}
+
+/** YYYY-MM-DD plus n days (calendar arithmetic in UTC, so no DST surprises). */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD plus n months, clamped to the month's last day (Jan 31 + 1 → Feb 28). */
+export function addMonths(date: string, months: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  return d.toISOString().slice(0, 10);
 }
 
 /** Splits comma- or newline-separated input into trimmed, non-empty, unique entries. */

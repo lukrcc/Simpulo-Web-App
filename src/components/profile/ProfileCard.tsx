@@ -1,12 +1,13 @@
 "use client";
 
-import { BadgeCheck, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { CrewContacts } from "@/components/ui/CrewContacts";
 import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import type { User } from "@/lib/types";
 import { PastCrews, type PastCrewMate } from "./PastCrews";
@@ -34,13 +35,9 @@ export function ProfileCard({ user, stats, showCrewContacts, pastCrewMates, acti
       <div className="flex items-center gap-4">
         <PersonPhoto src={user.photos[0]} alt={user.name} size={80} className="size-20" />
         <div className="min-w-0">
-          <h1 className="flex items-center gap-1.5 text-2xl font-bold tracking-tight">
+          <h1 className="flex items-center gap-1 text-2xl font-bold tracking-tight">
             <span className="truncate">{user.name}</span>
-            {user.verified && (
-              <span title={t("verified")} className="inline-flex shrink-0">
-                <BadgeCheck className="size-5 text-accent" role="img" aria-label={t("verified")} />
-              </span>
-            )}
+            {user.verified && <VerifiedBadge />}
           </h1>
           <p className="mt-0.5 text-sm text-zinc-500">
             {f.ageAndCountry(user)}

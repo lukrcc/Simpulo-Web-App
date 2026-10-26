@@ -1,10 +1,11 @@
 "use client";
 
-import { BadgeCheck, Check, ChevronRight, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
+import { Check, ChevronRight, CircleCheck, IdCard, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
+import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsCard } from "@/components/payments/PaymentsCard";
@@ -15,9 +16,10 @@ import { MoreMenu } from "@/components/ui/MoreMenu";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { useToast } from "@/components/ui/Toast";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
-import { crewThreadId, findUser, getCrew, getCrewLinks, getLockDetails, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCurrentUser, getCrewLinks, getLockDetails, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AccommodationChip } from "./AccommodationChip";
@@ -53,6 +55,8 @@ function HouseManage({ stay }: { stay: Stay }) {
   const store = useStore();
   const showToast = useToast();
   const [closing, setClosing] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const me = getCurrentUser(store);
   const closed = stay.status === "closed";
   // Every spot taken but still listed as open – suggest switching requests off.
   const fullButOpen = !closed && stay.acceptingRequests && stay.spotsFilled >= stay.spotsTotal;
@@ -93,6 +97,19 @@ function HouseManage({ stay }: { stay: Stay }) {
             </button>
           </div>
         )}
+        {/* Payouts need a verified host – a soft nudge, never a blocker for running the House. */}
+        {me && !me.verified && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-accent-soft/60 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-neutral-700">
+              <IdCard className="size-4 shrink-0 text-accent" aria-hidden />
+              {t("verifyHint")}
+            </p>
+            <button type="button" onClick={() => setVerifying(true)} className={buttonClass("secondary", "sm")}>
+              {t("verifyAction")}
+            </button>
+          </div>
+        )}
+        <VerifyIdSheet open={verifying} onClose={() => setVerifying(false)} />
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/my-stays/${stay.id}/edit`} className={buttonClass("dark", "sm")}>
             <Pencil className="size-3.5" />
@@ -151,7 +168,7 @@ function BookedChip({ stay }: { stay: Stay }) {
   if (stay.status !== "booked") return null;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-      <BadgeCheck className="size-3" aria-hidden />
+      <CircleCheck className="size-3" aria-hidden />
       {t("booked")}
     </span>
   );
@@ -241,9 +258,12 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
         <Avatar user={applicant} size="lg" linked />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/u/${applicant.id}`} className="font-semibold hover:underline">
-              {applicant.name}
-            </Link>
+            <span className="flex items-center gap-1">
+              <Link href={`/u/${applicant.id}`} className="font-semibold hover:underline">
+                {applicant.name}
+              </Link>
+              {applicant.verified && <VerifiedBadge />}
+            </span>
             {!pending && <StatusPill status={request.status} />}
             {applicant.photos.length === 0 && <span className="text-xs text-zinc-500">{t("noPhoto")}</span>}
           </div>
@@ -312,9 +332,12 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
             <li key={member.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
               <Avatar user={member} size="md" linked />
               <div className="min-w-0 flex-1">
-                <Link href={`/u/${member.id}`} className="block truncate text-sm font-medium hover:underline">
-                  {member.id === store.currentUserId ? t("you", { name: member.name }) : member.name}
-                </Link>
+                <span className="flex min-w-0 items-center gap-1">
+                  <Link href={`/u/${member.id}`} className="truncate text-sm font-medium hover:underline">
+                    {member.id === store.currentUserId ? t("you", { name: member.name }) : member.name}
+                  </Link>
+                  {member.verified && <VerifiedBadge />}
+                </span>
                 <p className="truncate text-xs text-zinc-500">
                   {member.country}
                   {joined && ` · ${t(isHost ? "opened" : "joined", { date: f.day(joined) })}`}

@@ -15,12 +15,6 @@
     from { transform: scale(1); }
     to { transform: scale(1.06); }
   }
-  /* "Open a House": the orange dot pulses once on hover. */
-  --animate-dot-pulse: dot-pulse 300ms ease-out;
-  @keyframes dot-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.4); }
-  }
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -189,14 +183,49 @@ main:has([data-app-pane="always"]) {
 @keyframes bento-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bento-fade-out { from { opacity: 1; } to { opacity: 0; } }
 
-/* Shuffle button: a soft ring expands and fades every 4s (1.2s of movement, then rest). */
-.pulse-ring { animation: pulse-ring 4s ease-out infinite; }
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
-  30%, 100% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .bento-img-in, .bento-text-in { animation-name: bento-fade-in; }
-  .pulse-ring { animation: none; }
+}
+
+/* "Open a House": a compact ink outline on white that fills dark on hover, pressed at .97. No colour. Round
+   variant: a 36px circle. In the components layer, so layout utilities (fixed, md:hidden, …) still apply on top. */
+@layer components {
+  .open-house-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px 0 12px;
+    border-radius: 9999px;
+    border: 1px solid #1e1e22;
+    color: #1e1e22;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .open-house-btn:hover {
+    background: #1e1e22;
+    color: #fff;
+  }
+  .open-house-btn:active {
+    transform: scale(0.97);
+  }
+  .open-house-btn svg {
+    color: currentColor;
+  }
+  .open-house-btn--round {
+    width: 36px;
+    padding: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .open-house-btn {
+      transition: none;
+    }
+    .open-house-btn:active {
+      transform: none;
+    }
+  }
 }
