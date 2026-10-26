@@ -36,6 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: "/manifest.webmanifest",
     // Next emits the standard "mobile-web-app-capable"; older iOS only reads the Apple-prefixed tag.
     other: { "apple-mobile-web-app-capable": "yes" },
+    // Gated test deployment: never indexed. (SITE_PASSWORD is runtime-only on App Hosting, so prerendered pages may
+    // miss this tag – src/proxy.ts adds an X-Robots-Tag header to every response for exactly that case.)
+    ...(process.env.SITE_PASSWORD && { robots: { index: false, follow: false } }),
   };
 }
 

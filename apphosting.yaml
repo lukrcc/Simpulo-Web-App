@@ -1,0 +1,5 @@
+# Firebase App Hosting. The password itself lives in Cloud Secret Manager as "sitePassword" – never in this repo.
+env:
+  - variable: SITE_PASSWORD
+    secret: sitePassword
+    availability: [RUNTIME]
