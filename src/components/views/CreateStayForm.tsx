@@ -16,10 +16,12 @@ import {
   earliestStart,
   fieldId,
   formFromStay,
+  hostFeeBase,
   ideasOf,
   initialForm,
   languageOf,
   languageOptions,
+  prefillOf,
   readDraft,
   stepErrors,
   toInput,
@@ -37,6 +39,9 @@ import { StayCard } from "@/components/StayCard";
 import { buttonClass } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
+import { useFeatureFlag } from "@/lib/featureFlags";
+import { canChargeHostFee, maxHostFee } from "@/lib/fees";
+import { useFormat } from "@/i18n/format";
 import { getCurrentUser, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 
@@ -86,9 +91,15 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const showToast = useToast();
   const t = useTranslations("create");
   const tErrors = useTranslations("create.errors");
+  const tDraft = useTranslations("growth.draft");
+  const format = useFormat();
   const [initialDraft] = useState(() => (restore ? readDraft() : null));
-  const [form, setForm] = useState<FormState>(() => (editing ? formFromStay(editing) : (initialDraft?.form ?? initialForm)));
-  const [step, setStep] = useState(initialDraft?.step ?? 0);
+  // "Open one" / "Open your own House" links: /create?region=…&from=…&to=… fills place and dates in (over a draft).
+  const [prefill] = useState(() => (restore && !editing ? prefillOf(window.location.search, todayString()) : null));
+  const [form, setForm] = useState<FormState>(() =>
+    editing ? formFromStay(editing) : { ...(initialDraft?.form ?? initialForm), ...(prefill && { city: "", cityOpen: false, ...prefill }) },
+  );
+  const [step, setStep] = useState(prefill ? 0 : (initialDraft?.step ?? 0));
   // Errors show once a field was left (touched) or Next was tried on its step.
   const [touched, setTouched] = useState<ReadonlySet<FieldKey>>(() => new Set());
   const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
@@ -99,6 +110,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "" (server / hydration) simply means "no earliest date yet".
   const today = useSyncExternalStore(noSubscribe, todayString, () => "");
   const me = getCurrentUser(store);
+  const hostPremium = useFeatureFlag("hostPremium");
   const minSpots = editing ? Math.max(2, editing.spotsFilled) : 2;
   const messages = useMessages();
   const [starters] = useState(() => Object.values(messages.create.starters).flatMap((s) => s.lookingFor));
@@ -135,6 +147,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (error.key === "minSpots") return tErrors("minSpots", { count: error.count });
     if (error.key === "tooLong") return tErrors("tooLong", { max: error.max });
     if (error.key === "titleLength") return tErrors("titleLength", { min: error.min, max: error.max });
+    if (error.key === "hostFeeTooHigh") return tErrors("hostFeeTooHigh", { max: format.price(error.max, previewStay.currency) });
     return tErrors(error.key);
   }
 
@@ -188,12 +201,25 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   /** The profile is only written when step 3 asked for something (summary = nothing to save). */
   const writesProfile = aboutMode.kind !== "summary";
 
+  /** Claimed and duplicated Houses start as drafts: saved as they are, or published from here. */
+  const isDraft = editing?.status === "draft";
+
   function save() {
+    // A draft may be saved half-finished – it's only checked when it goes live.
+    if (!editing || (!isDraft && !validateAll())) return;
+    store.updateStay(editing.id, toInput(form, me, editing));
+    if (writesProfile) store.updateCurrentUser(toProfilePatch(form, me));
+    showToast(isDraft ? tDraft("savedToast") : t("saved"));
+    router.push(`/my-stays/${editing.id}`);
+  }
+
+  function publishDraft() {
     if (!editing || !validateAll()) return;
     store.updateStay(editing.id, toInput(form, me, editing));
     if (writesProfile) store.updateCurrentUser(toProfilePatch(form, me));
-    showToast(t("saved"));
-    router.push(`/my-stays/${editing.id}`);
+    store.publishStay(editing.id);
+    showToast(tDraft("publishedToast"));
+    router.push(`/stays/${editing.slug}`);
   }
 
   function publish() {
@@ -208,6 +234,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     }, t("loginToPublish"));
   }
 
+  const feeBase = hostFeeBase(form, editing);
   const about = aboutOf(form, me);
   const previewHost = previewHostOf(about, me, t("previewName"));
   const previewStay: Stay = {
@@ -258,6 +285,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
           languages={languageOptions(me)}
           currency={previewStay.currency}
           locked={editing?.accommodationStatus === "locked"}
+          hostFee={hostPremium ? { allowed: canChargeHostFee(me), max: feeBase !== undefined ? maxHostFee(feeBase) : undefined } : undefined}
           errorOf={errorOf}
           touch={touch}
         />
@@ -305,9 +333,20 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
           </button>
         )}
         {editing ? (
-          <button type="button" onClick={save} className={buttonClass("dark", "md")}>
-            {t("save")}
-          </button>
+          isDraft ? (
+            <>
+              <button type="button" onClick={save} className={buttonClass("secondary", "md")}>
+                {tDraft("saveDraft")}
+              </button>
+              <button type="button" onClick={publishDraft} className={buttonClass("dark", "md")}>
+                {tDraft("publish")}
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={save} className={buttonClass("dark", "md")}>
+              {t("save")}
+            </button>
+          )
         ) : (
           step === PUBLISH_STEP && (
             <button type="button" onClick={publish} className={buttonClass("dark", "md")}>
@@ -377,7 +416,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 /** The host as the preview card should show them – also before login, once there's a face photo. */
 function previewHostOf(about: About, me: User | undefined, fallbackName: string): User | undefined {
   if (!me && !about.photos[0]) return undefined;
-  const base: User = me ?? { id: "preview", name: "", age: 0, country: "", city: "", languages: [], bio: "", photos: [], verified: false };
+  const base: User = me ?? { id: "preview", name: "", age: 0, country: "", city: "", languages: [], bio: "", photos: [], verified: false, isPro: false, canChargeHostFee: false };
   return {
     ...base,
     name: about.name.trim() || base.name || fallbackName,

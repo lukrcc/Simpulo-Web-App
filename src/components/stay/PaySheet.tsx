@@ -32,6 +32,7 @@ export function PaySheet({ stay, open, onClose }: { stay: Stay; open: boolean; o
 
 function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
   const t = useTranslations("house.pay");
+  const tPremium = useTranslations("growth.premium");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
@@ -66,7 +67,8 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
   return (
     <form onSubmit={pay} className="space-y-5">
       <dl className="divide-y divide-black/5 rounded-2xl bg-page px-4">
-        <Row label={t("share")} value={money(payment.share)} />
+        <Row label={payment.hostFee ? tPremium("share") : t("share")} value={money(payment.share)} />
+        {payment.hostFee ? <Row label={tPremium("fieldLabel")} value={money(payment.hostFee)} /> : null}
         <Row label={t("fee")} value={money(payment.fee)} />
         <Row label={t("total")} value={money(payment.total)} strong />
       </dl>

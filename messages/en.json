@@ -20,7 +20,12 @@
       "terms": "Terms of Service",
       "editProfile": "Edit profile",
       "settings": "Settings",
-      "welcome": "Complete your profile"
+      "welcome": "Complete your profile",
+      "host": "Host with your community",
+      "claim": "Claim your House",
+      "adminGrowth": "Growth",
+      "adminHouses": "Prepared Houses",
+      "adminNewHouse": "Prepare a House"
     }
   },
   "common": {
@@ -53,7 +58,16 @@
       "language": "Language",
       "students": "Students",
       "holiday": "Holiday",
-      "mixed": "Mixed"
+      "mixed": "Mixed",
+      "party": "Party",
+      "singles": "Singles",
+      "weekend": "Short trip",
+      "business": "Business",
+      "social": "Social",
+      "adventure": "Adventure",
+      "culture": "Culture",
+      "food": "Food",
+      "study": "Study"
     },
     "paymentStatus": {
       "paid": "Paid",
@@ -235,6 +249,7 @@
       "howItWorks": "How it works",
       "howSimpuloWorks": "How Simpulo works",
       "getTheApp": "Get the app",
+      "hostWithCommunity": "Host with your community",
       "contact": "Contact",
       "legal": "Legal",
       "imprint": "Imprint",
@@ -387,10 +402,6 @@
       "description": "That didn't work. Please try again.",
       "retry": "Try again"
     },
-    "exploreEmpty": {
-      "title": "No Houses match – try another date or vibe",
-      "clear": "Clear filters"
-    },
     "og": {
       "with": "with {name}",
       "hosted": "Houses hosted {count}"
@@ -445,7 +456,8 @@
         "arrival": "Arrival countdown",
         "savedSoon": "Saved House starts soon",
         "hostOpened": "Host alert: new House"
-      }
+      },
+      "hostPremium": "Host premium"
     }
   },
   "onboarding": {
@@ -550,7 +562,8 @@
       "language": "This House is in {language}",
       "spotsIn": "{filled} of {total} in",
       "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
-      "crewComplete": "crew complete"
+      "crewComplete": "crew complete",
+      "ageRange": "Looking for {min}–{max}"
     },
     "pitch": {
       "why": "Why I'm hosting this",
@@ -616,7 +629,9 @@
       "pending": "Request sent · waiting for host",
       "declined": "Not this time",
       "crewSet": "Crew is set – message the host",
-      "join": "Join this House"
+      "join": "Join this House",
+      "full": "Crew is full",
+      "ended": "This House has ended"
     },
     "steps": {
       "message": "Join this House",
@@ -661,7 +676,8 @@
       "country": "Add your country.",
       "titleLength": "Titles are {min}–{max} characters.",
       "lookingFor": "One line at least (20+ characters) – it's the hook on your card.",
-      "lookingForUnfinished": "Finish the sentence – say who you're looking for in your own words."
+      "lookingForUnfinished": "Finish the sentence – say who you're looking for in your own words.",
+      "hostFeeTooHigh": "At most 30 % of the share – {max} at your lowest budget."
     },
     "saved": "House saved",
     "published": "Your House is open 🎉",
@@ -776,7 +792,16 @@
         "language": "Language",
         "students": "Student",
         "holiday": "Holiday",
-        "mixed": "Crew"
+        "mixed": "Crew",
+        "party": "Party",
+        "singles": "Singles",
+        "weekend": "Weekend",
+        "business": "Business",
+        "social": "Social",
+        "adventure": "Adventure",
+        "culture": "Culture",
+        "food": "Food",
+        "study": "Study"
       },
       "activities": {
         "fitness": "Training",
@@ -793,7 +818,16 @@
         "language": "Language Exchange",
         "students": "Studying",
         "holiday": "Sun",
-        "mixed": "Good Company"
+        "mixed": "Good Company",
+        "party": "Partying",
+        "singles": "Meeting People",
+        "weekend": "City Life",
+        "business": "Business",
+        "social": "Good Company",
+        "adventure": "Adventure",
+        "culture": "Culture",
+        "food": "Eating Well",
+        "study": "Studying"
       },
       "crewSize": "Crew size (incl. you)",
       "language": "Language",
@@ -1139,6 +1173,141 @@
         "day": [
           "Everyone does their thing during the day, ",
           "Mornings free, dinners together, "
+        ]
+      },
+      "party": {
+        "lookingFor": [
+          "People who love music more than bottles and ",
+          "Night owls who ",
+          "Anyone who can go hard and "
+        ],
+        "why": [
+          "Going out is better with a crew, so ",
+          "I've wanted to do this party properly since "
+        ],
+        "day": [
+          "Late breakfast, pool, ",
+          "Sleep in, sunset, then "
+        ]
+      },
+      "singles": {
+        "lookingFor": [
+          "Singles who are tired of apps and ",
+          "Open, kind people who ",
+          "Anyone who'd rather meet in person and "
+        ],
+        "why": [
+          "Apps made dating feel like work, so ",
+          "I meet more people in one shared week than in a year of swiping – "
+        ],
+        "day": [
+          "Hosted dinner at 8, ",
+          "Day trip, sunset drinks, "
+        ]
+      },
+      "weekend": {
+        "lookingFor": [
+          "People who can make the most of three days and ",
+          "Anyone up for a quick escape who ",
+          "Easygoing people who "
+        ],
+        "why": [
+          "A long weekend is enough if the crew is right – ",
+          "I only have a few days off, so "
+        ],
+        "day": [
+          "Coffee, a walk through town, ",
+          "Out all day, dinner together, "
+        ]
+      },
+      "business": {
+        "lookingFor": [
+          "People who run their own business and ",
+          "Professionals who ",
+          "Anyone who wants to work hard and "
+        ],
+        "why": [
+          "I get more done with sharp people around me, so ",
+          "Conferences are better with a house to come back to – "
+        ],
+        "day": [
+          "Work in the morning, ",
+          "Sessions all day, dinner together, "
+        ]
+      },
+      "social": {
+        "lookingFor": [
+          "Easygoing people who ",
+          "Anyone who likes a full table and ",
+          "People far from home who "
+        ],
+        "why": [
+          "I'd rather spend this week with new people than alone – ",
+          "A house full of people beats a hotel, so "
+        ],
+        "day": [
+          "Slow mornings, a walk, ",
+          "Cooking together, games at night, "
+        ]
+      },
+      "adventure": {
+        "lookingFor": [
+          "People who are fit enough to ",
+          "Anyone who loves the outdoors and ",
+          "Early risers who "
+        ],
+        "why": [
+          "This trip needs a crew, so ",
+          "I've wanted to do this route for years – "
+        ],
+        "day": [
+          "Up at 6, out all day, ",
+          "Long day outside, early nights, "
+        ]
+      },
+      "culture": {
+        "lookingFor": [
+          "Curious people who ",
+          "Anyone who loves museums, food and ",
+          "People who want to really see a place and "
+        ],
+        "why": [
+          "A city opens up with the right people, so ",
+          "I've wanted to explore this place properly since "
+        ],
+        "day": [
+          "Museum in the morning, ",
+          "A walk through the old town, "
+        ]
+      },
+      "food": {
+        "lookingFor": [
+          "People who plan their trips around meals and ",
+          "Home cooks who ",
+          "Anyone who eats everything and "
+        ],
+        "why": [
+          "Food is better shared, so ",
+          "I've wanted to cook my way through this place since "
+        ],
+        "day": [
+          "Market in the morning, ",
+          "Cooking class, long lunch, "
+        ]
+      },
+      "study": {
+        "lookingFor": [
+          "Students who ",
+          "People with an exam coming up who ",
+          "Anyone who wants a quiet, focused house and "
+        ],
+        "why": [
+          "I study better with people around me, so ",
+          "Exam season alone is grim – "
+        ],
+        "day": [
+          "Library until lunch, ",
+          "Study blocks, a run, "
         ]
       }
     }
@@ -1667,6 +1836,286 @@
       "blockedDescription": "You blocked the host of this House.",
       "explore": "Explore other Houses",
       "others": "Other open Houses"
+    }
+  },
+  "growth": {
+    "share": {
+      "titleHouse": "Share this House",
+      "titleProfile": "Share {name}'s profile",
+      "titleOwnProfile": "Share your profile",
+      "subtitle": "Your link carries your name – so we know who brought whom.",
+      "button": "Share",
+      "buttonFor": "Share {title}",
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "twitch": "Twitch",
+        "copy": "Copy link"
+      },
+      "pasteHint": "Link copied – paste it into your {channel} story, bio or chat.",
+      "whatsappHouse": "Come live with us: {title}",
+      "whatsappProfile": "{name} on Simpulo",
+      "storyButton": "Download story image",
+      "storyHint": "1080 × 1920 with a QR code to this House",
+      "storyBusy": "Creating image…",
+      "storyDone": "Story image saved",
+      "storyFailed": "Couldn't create the image – try again."
+    },
+    "story": {
+      "join": "Join on simpulo.app",
+      "scan": "Scan to join",
+      "hostedBy": "Hosted by {name}"
+    },
+    "demand": {
+      "title": "No House for these dates yet",
+      "titlePlace": "No House in {place} for these dates yet",
+      "text": "Open one and the people looking for the same trip find you – or we'll tell you when one opens.",
+      "openOne": "Open one",
+      "notifyMe": "Notify me",
+      "clear": "Clear filters"
+    },
+    "alert": {
+      "title": "Notify me",
+      "subtitle": "We'll email you once a House opens that fits.",
+      "anywhere": "Anywhere",
+      "anyDates": "Any dates",
+      "starting": "Starting {range}",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "invalid": "Enter a valid email address.",
+      "submit": "Notify me",
+      "doneTitle": "You're on the list",
+      "doneText": "We'll email {email} when a House opens there.",
+      "done": "Done"
+    },
+    "ownHouse": {
+      "titleDeclined": "Still want to go?",
+      "titleFull": "This crew is set",
+      "text": "Open your own House for the same dates – {dates} in {place} – and find your own people.",
+      "textNoDates": "Open your own House in {place} and find your own people.",
+      "action": "Open your own House"
+    },
+    "again": {
+      "title": "Do it again?",
+      "hostText": "{title} is over. Run it again – everything is copied except the dates and the crew.",
+      "hostAction": "Duplicate as draft",
+      "copiedToast": "Draft ready – pick new dates",
+      "guestText": "Loved it? Host your own next trip – with your own crew.",
+      "guestAction": "Host your own next trip"
+    },
+    "premium": {
+      "programme": "Host experience",
+      "perPerson": "per person",
+      "fieldLabel": "Host experience",
+      "optional": "optional",
+      "fieldHint": "Guestlists, coaching, hosted dinners – per person, on top of the stay. Up to 30 % of the share.",
+      "fieldHintMax": "Guestlists, coaching, hosted dinners – per person, on top of the stay. Up to 30 % of the share: {max} at your lowest budget.",
+      "verifiedOnly": "Pro hosts can add a paid host experience on top of the stay.",
+      "share": "Stay share",
+      "fee": "Simpulo fee",
+      "total": "Total",
+      "lockPreview": "{total} ÷ {spots} = {perPerson} stay + {programme} host experience + {fee} fee = {withFee} per guest",
+      "youReceive": "You receive {amount} per guest – the stay share plus 80 % of the host experience.",
+      "capped": "Host experience capped at 30 % of the share: {amount}.",
+      "colProgramme": "Host exp.",
+      "noProgramme": "–",
+      "compactProgramme": "+ {amount} host experience",
+      "offerTitle": "Included in the host experience",
+      "proHost": "Pro host"
+    },
+    "draft": {
+      "badge": "Draft",
+      "bannerTitle": "Draft – only you can see this House",
+      "bannerText": "Finish the details and publish it when you're ready.",
+      "finish": "Finish & publish",
+      "publish": "Publish House",
+      "publishedToast": "Your House is live",
+      "saveDraft": "Save draft",
+      "savedToast": "Draft saved"
+    },
+    "claim": {
+      "eyebrow": "Prepared for {name}",
+      "title": "This is yours – claim it",
+      "intro": "We turned your post into a House on Simpulo. Claim it, make it yours, then publish it to your people.",
+      "preparedFrom": "Prepared from your post",
+      "viewPost": "View the original post",
+      "claim": "This is yours – claim it",
+      "loginContext": "Log in to claim your House",
+      "claimedToast": "It's yours – check the details, then publish",
+      "steps": [
+        {
+          "title": "Claim it",
+          "text": "Log in or sign up – it takes a minute."
+        },
+        {
+          "title": "Make it yours",
+          "text": "Check dates, budget and pitch. Your photo replaces ours."
+        },
+        {
+          "title": "Publish and share",
+          "text": "Your House goes live – share your link and your crew finds you."
+        }
+      ],
+      "notFoundTitle": "This claim link doesn't work",
+      "notFoundText": "It may be mistyped – or the House was removed.",
+      "claimedTitle": "Already claimed",
+      "claimedText": "Someone already made this House theirs.",
+      "mineTitle": "You claimed this House",
+      "mineText": "It's a draft until you publish it.",
+      "openDraft": "Open your draft",
+      "explore": "Explore Houses"
+    },
+    "admin": {
+      "devOnly": "Admin · mock data",
+      "nav": {
+        "growth": "Growth",
+        "houses": "Prepared Houses"
+      },
+      "growthTitle": "Growth",
+      "growthIntro": "Every tracked event in this browser plus the seeded history. Revenue is Simpulo's part – guest fees plus 20 % of host experiences – converted to ≈ EUR.",
+      "summary": "{events} events · {visits} visits · {paid} payments",
+      "byChannel": "By channel",
+      "byRef": "By referrer",
+      "byHouse": "By House",
+      "cols": {
+        "channel": "Channel",
+        "ref": "Referrer",
+        "house": "House",
+        "visits": "Visits",
+        "requests": "Requests",
+        "accepted": "Accepted",
+        "paid": "Paid",
+        "revenue": "Revenue"
+      },
+      "direct": "(direct)",
+      "noRef": "(no ref)",
+      "unknownUser": "Unknown ({id})",
+      "showAll": "Show all {count}",
+      "showLess": "Show less",
+      "alerts": "Notify-me alerts",
+      "alertRow": "{email} · {place} · {dates}",
+      "applications": "Host applications",
+      "none": "Nothing yet.",
+      "housesTitle": "Prepared Houses",
+      "housesIntro": "Houses prepared on someone's behalf. They claim them with the link, edit and publish.",
+      "newHouse": "Prepare a House",
+      "claimed": "Claimed",
+      "unclaimed": "Unclaimed",
+      "claimedBy": "by {name} · {date}",
+      "copyLink": "Copy claim link",
+      "open": "Open",
+      "linkCopied": "Claim link copied",
+      "newTitle": "Prepare a House",
+      "newIntro": "On behalf of a creator. They claim it with the link, make it theirs and publish.",
+      "fields": {
+        "name": "Their name",
+        "photoUrl": "Photo URL",
+        "title": "House title",
+        "region": "Where",
+        "regionPlaceholder": "Lisbon, Portugal",
+        "city": "Area",
+        "cityPlaceholder": "Santos (optional)",
+        "startDate": "From",
+        "endDate": "To",
+        "spots": "Spots",
+        "pitch": "Pitch",
+        "pitchPlaceholder": "What the House is about – in their words.",
+        "sourceLink": "Source link",
+        "sourceLinkPlaceholder": "https://instagram.com/p/…"
+      },
+      "errors": {
+        "required": "Required",
+        "url": "Enter a full link (https://…)",
+        "dates": "Pick an end date after the start",
+        "spots": "2 to 12 spots"
+      },
+      "create": "Create claim link",
+      "createdTitle": "Claim link ready",
+      "createdText": "Send it to {name}. Mock data: it works in this browser.",
+      "another": "Prepare another",
+      "viewAll": "All prepared Houses"
+    },
+    "host": {
+      "eyebrow": "For creators, streamers, coaches and schools",
+      "title": "Host with your community",
+      "intro": "Take your people on a trip you lead. They share the place – you add what only you can bring, and get paid for it.",
+      "apply": "Apply to host",
+      "openHouse": "Open a House now",
+      "forTitle": "Who it's for",
+      "audiences": [
+        {
+          "title": "Creators",
+          "text": "Film, shoot and grow together – with the people who already watch you."
+        },
+        {
+          "title": "Streamers",
+          "text": "A gaming house for a few weeks: your chat, in real life."
+        },
+        {
+          "title": "Coaches",
+          "text": "Training camps, run clubs, surf weeks – your sessions, every day."
+        },
+        {
+          "title": "Schools",
+          "text": "Language, yoga or diving schools: a House for your students."
+        }
+      ],
+      "premiumTitle": "How the host experience works",
+      "premiumText": "The crew splits the stay. On top, you can add a host experience – coaching, guestlists, hosted dinners – of up to 30 % of the share. Pro hosts can charge one.",
+      "exampleTitle": "Example, per person",
+      "exampleStay": "Stay share",
+      "exampleProgramme": "Host experience",
+      "exampleFee": "Simpulo fee (10 %)",
+      "exampleGuestPays": "Each guest pays",
+      "exampleYouGet": "You receive per guest",
+      "exampleNote": "The stay share plus 80 % of the host experience – Simpulo keeps 20 % of it and the guest fee.",
+      "stepsTitle": "Three steps",
+      "steps": [
+        {
+          "title": "Apply",
+          "text": "Tell us who you are, where your people are and what you have in mind."
+        },
+        {
+          "title": "Open your House",
+          "text": "We help you set it up – dates, place, budget and your host experience."
+        },
+        {
+          "title": "Share it",
+          "text": "Post your link and story. Your community requests to join, you pick your crew."
+        }
+      ],
+      "formTitle": "Apply",
+      "formIntro": "We read every application and reply within a few days.",
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "links": "Your platforms",
+        "linksPlaceholder": "instagram.com/you, twitch.tv/you",
+        "audience": "Audience size",
+        "audienceChoose": "Choose…",
+        "idea": "Your idea",
+        "ideaPlaceholder": "A two-week run camp in Lisbon for my club…",
+        "place": "Place",
+        "placePlaceholder": "Lisbon, Portugal",
+        "from": "From",
+        "to": "To"
+      },
+      "audienceSizes": {
+        "under1k": "Under 1k",
+        "1k": "1k–10k",
+        "10k": "10k–100k",
+        "100k": "100k+"
+      },
+      "errors": {
+        "required": "Required",
+        "email": "Enter a valid email address.",
+        "links": "Add at least one link"
+      },
+      "submit": "Send application",
+      "sentTitle": "Thanks – we'll be in touch",
+      "sentText": "We'll reply to {email} within a few days.",
+      "another": "Send another"
     }
   }
 }

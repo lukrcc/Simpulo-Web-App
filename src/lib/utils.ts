@@ -1,16 +1,11 @@
+import { guestFee } from "./fees";
 import { VIBES } from "./mock";
 import type { Currency, Stay, User } from "./types";
-
-export const SIMPULO_FEE_RATE = 0.1;
 
 const DAY_MS = 86_400_000;
 
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
-}
-
-export function simpuloFee(pricePerPerson: number): number {
-  return Math.round(pricePerPerson * SIMPULO_FEE_RATE);
 }
 
 function toUtc(date: string): number {
@@ -91,7 +86,7 @@ export type StayPrice =
 /** A fixed price only exists once the place is locked; before that there's at most a rough budget. */
 export function stayPrice(stay: PricedStay): StayPrice {
   if (stay.accommodationStatus === "locked" && stay.pricePerPerson) {
-    return { kind: "price", amount: stay.pricePerPerson, fee: simpuloFee(stay.pricePerPerson) };
+    return { kind: "price", amount: stay.pricePerPerson, fee: guestFee(stay.pricePerPerson) };
   }
   if (stay.budgetPerPerson) return { kind: "budget", ...stay.budgetPerPerson };
   return { kind: "tbd" };

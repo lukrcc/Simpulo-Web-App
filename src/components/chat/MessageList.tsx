@@ -2,7 +2,7 @@
 
 import { ArrowDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,13 +22,15 @@ interface MessageListProps {
   /** Host, crew chat, place still open: link cards get "Lock this" */
   onLock?: (url: string) => void;
   onReply: (draft: ReplyDraft) => void;
+  /** App card after the last message (e.g. "Do it again?" once the House is over) */
+  footer?: ReactNode;
 }
 
 /**
  * The scrolling message pane: day dividers, same-sender groups, the "New messages" divider (opens scrolled there),
  * auto-scroll at the bottom, a "↓ New messages" pill when scrolled up, and the typing indicator.
  */
-export function MessageList({ thread, stay, emptyText, onLock, onReply }: MessageListProps) {
+export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }: MessageListProps) {
   const t = useTranslations("messages.thread");
   const messageText = useMessageText();
   const store = useStore();
@@ -128,7 +130,7 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
     // Slightly darker than the page, so the white / tinted bubbles stand out.
     <div className="relative min-h-0 flex-1 bg-[#F0EEEA]">
       <div ref={paneRef} onScroll={onScroll} className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
-        {count === 0 && <p className="py-16 text-center text-sm text-zinc-500">{emptyText}</p>}
+        {count === 0 && !footer && <p className="py-16 text-center text-sm text-zinc-500">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
@@ -206,6 +208,7 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply }: Messag
             </div>
           </div>
         )}
+        {footer}
       </div>
 
       {showPill && (

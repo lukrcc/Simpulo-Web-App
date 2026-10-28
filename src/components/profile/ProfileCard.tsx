@@ -7,6 +7,7 @@ import { CrewContacts } from "@/components/ui/CrewContacts";
 import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
+import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import type { User } from "@/lib/types";
@@ -44,6 +45,7 @@ export function ProfileCard({ user, stats, showCrewContacts, pastCrewMates, acti
             {user.city && ` · ${t("basedIn", { city: user.city })}`}
           </p>
           {stats && <p className="mt-0.5 text-sm text-zinc-500">{stats}</p>}
+          <ProHostLabel user={user} className="mt-1.5" />
         </div>
       </div>
 

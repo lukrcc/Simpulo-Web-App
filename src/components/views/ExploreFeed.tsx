@@ -1,17 +1,17 @@
 "use client";
 
-import { ChevronDown, Search, SearchX, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { BentoTop } from "@/components/BentoTop";
+import { DemandCard } from "@/components/explore/DemandCard";
 import { FilterDropdown, SEARCH_THRESHOLD, type FilterDropdownOption } from "@/components/explore/FilterDropdown";
 import { Container } from "@/components/layout/Container";
 import { OpenHouseCard } from "@/components/OpenHouseCard";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { StayCard } from "@/components/StayCard";
 import { buttonClass } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChips } from "@/components/ui/FilterChips";
 import { Sheet } from "@/components/ui/Sheet";
 import { useFormat } from "@/i18n/format";
@@ -75,7 +75,6 @@ function countryOf(stay: Stay): string {
 export function ExploreFeed() {
   const t = useTranslations("explore");
   const tc = useTranslations("common");
-  const te = useTranslations("states.exploreEmpty");
   const format = useFormat();
   const { startOptions, sortOptions } = useFilterOptions();
   const store = useStore();
@@ -212,24 +211,18 @@ export function ExploreFeed() {
               <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
             ))
           ) : (
-            <div className="flex lg:col-span-2 xl:col-span-3 *:flex-1 *:justify-center">
-              <EmptyState
-                icon={SearchX}
-                title={te("title")}
-                action={
-                  <button
-                    type="button"
-                    className={buttonClass("secondary", "sm")}
-                    onClick={() => {
-                      setVibe(null);
-                      setRegion(null);
-                      setLanguage(null);
-                      setRange(null);
-                    }}
-                  >
-                    {te("clear")}
-                  </button>
-                }
+            // No House for these filters: open one, or be told when one opens (demand → supply).
+            <div className="flex md:col-span-2 lg:col-span-2 xl:col-span-3 *:flex-1">
+              <DemandCard
+                region={activeRegion}
+                from={range?.from}
+                to={range?.to}
+                onClear={() => {
+                  setVibe(null);
+                  setRegion(null);
+                  setLanguage(null);
+                  setRange(null);
+                }}
               />
             </div>
           )}

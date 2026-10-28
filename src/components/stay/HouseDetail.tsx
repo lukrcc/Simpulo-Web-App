@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, CircleCheck, IdCard, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
+import { Check, ChevronRight, CircleCheck, FilePen, IdCard, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,7 @@ import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsCard } from "@/components/payments/PaymentsCard";
+import { ShareSheet, StoryImageButton } from "@/components/share/ShareSheet";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -50,25 +51,18 @@ function CardTitle({ title, aside }: { title: string; aside?: ReactNode }) {
 
 function HouseManage({ stay }: { stay: Stay }) {
   const t = useTranslations("houses.detail");
-  const tCommon = useTranslations("common");
+  const tDraft = useTranslations("growth.draft");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
   const [closing, setClosing] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const me = getCurrentUser(store);
   const closed = stay.status === "closed";
+  const draft = stay.status === "draft";
   // Every spot taken but still listed as open – suggest switching requests off.
   const fullButOpen = !closed && stay.acceptingRequests && stay.spotsFilled >= stay.spotsTotal;
-
-  async function share() {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/stays/${stay.slug}`);
-      showToast(tCommon("linkCopied"));
-    } catch {
-      showToast(tCommon("linkCopyFailed"));
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -80,12 +74,29 @@ function HouseManage({ stay }: { stay: Stay }) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {closed ? (
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{t("closed")}</span>
+          ) : draft ? (
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{tDraft("badge")}</span>
           ) : (
             <RequestsToggle stay={stay} />
           )}
           <AccommodationChip stay={stay} />
           <BookedChip stay={stay} />
         </div>
+        {/* Claimed or duplicated: nobody sees it until it's published – through the stepper, which checks it. */}
+        {draft && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page px-4 py-3">
+            <p className="flex items-start gap-2 text-sm text-neutral-700">
+              <FilePen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block font-medium text-ink">{tDraft("bannerTitle")}</span>
+                {tDraft("bannerText")}
+              </span>
+            </p>
+            <Link href={`/my-stays/${stay.id}/edit`} className={buttonClass("dark", "sm")}>
+              {tDraft("finish")}
+            </Link>
+          </div>
+        )}
         {fullButOpen && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page px-4 py-3">
             <p className="flex items-center gap-2 text-sm text-neutral-700">
@@ -119,11 +130,18 @@ function HouseManage({ stay }: { stay: Stay }) {
           <Link href={`/stays/${stay.slug}?preview=guest`} className={buttonClass("secondary", "sm")}>
             {t("viewPage")}
           </Link>
-          <button type="button" onClick={share} className={buttonClass("secondary", "sm")}>
-            <Share2 className="size-3.5" />
-            {t("shareLink")}
-          </button>
+          {/* A draft has no public page to share yet. */}
+          {!draft && (
+            <>
+              <button type="button" onClick={() => setSharing(true)} className={buttonClass("secondary", "sm")}>
+                <Share2 className="size-3.5" />
+                {t("shareLink")}
+              </button>
+              <StoryImageButton stay={stay} variant="button" />
+            </>
+          )}
         </div>
+        <ShareSheet target={{ kind: "house", stay }} open={sharing} onClose={() => setSharing(false)} />
       </section>
 
       <RequestsCard stay={stay} />

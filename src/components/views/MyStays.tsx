@@ -174,6 +174,7 @@ interface StayRowLinkProps {
 
 function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, href }: StayRowLinkProps) {
   const t = useTranslations("houses.row");
+  const tDraft = useTranslations("growth.draft");
   const f = useFormat();
   const store = useStore();
   const host = findUser(store, stay.hostId);
@@ -200,6 +201,9 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, hr
           {waiting && <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("pending")}</span>}
           {stay.status === "closed" && (
             <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("closed")}</span>
+          )}
+          {stay.status === "draft" && (
+            <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{tDraft("badge")}</span>
           )}
         </div>
         <p className="truncate text-xs text-zinc-500">

@@ -1,20 +1,35 @@
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
-import { FACE_QUERIES, THEME_QUERIES, houseThemePath, userFacePath as userFace } from './mock-images';
+import { FACE_QUERIES, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
+import { extraHosts, extraHouses, type ExtraHost, type ExtraHouse } from './mock-houses-extra';
 
 export type Vibe =
   | 'fitness' | 'surf' | 'creator' | 'streaming' | 'founder' | 'remote-work' | 'trading' | 'wellness' | 'yoga'
   | 'diving' | 'climbing' | 'language' | 'students' | 'holiday'
-  | 'mixed'; // mixed: fits no single vibe – also the filter key of Houses with a custom vibe (Stay.customVibe)
+  | 'mixed' // mixed: fits no single vibe – also the filter key of Houses with a custom vibe (Stay.customVibe)
+  | 'party' | 'singles' | 'weekend' | 'business' | 'social' | 'adventure' | 'culture' | 'food' | 'study';
 export type AccommodationStatus = 'open' | 'locked';
 /** Currencies a host can price a House in. */
 export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
 
-export type StayStatus = 'draft' | 'published' | 'booked' | 'completed' | 'closed'; // booked = paid + booking confirmed; closed = host ended it early
+// booked = paid + booking confirmed; closed = host ended it early; draft_unclaimed = prepared by Simpulo for someone
+// who hasn't claimed it yet (no host, never listed – see Stay.claim)
+export type StayStatus = 'draft_unclaimed' | 'draft' | 'published' | 'booked' | 'completed' | 'closed';
 export type RequestStatus = 'pending' | 'accepted' | 'declined';
 
-export interface User {
+/**
+ * Where someone came from: the `ref` (the user whose share link they opened) and the UTM tags of their first visit
+ * (first touch, see src/lib/growth.ts). Copied onto the user at signup and onto every request and payment.
+ */
+export interface Attribution {
+  refUserId?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+}
+
+export interface User extends Attribution {
   id: string;
   name: string;
   age: number;
@@ -24,7 +39,14 @@ export interface User {
   bio: string;
   photos: string[];         // [0] = face, then the theme photos of their House (see the photo pass at the end)
   facePhotoQuery?: string;  // Pixabay search for the face photo (mock only)
+  imageQueries?: string[];  // Pixabay searches (mock only): [0] portrait (= facePhotoQuery), [1..2] lifestyle photos
   verified: boolean;
+  /** Professional host: runs hosted experiences ("Pro host" label – feature flag hostPremium) */
+  isPro: boolean;
+  /** May add a host fee to their Houses (feature flag hostPremium) */
+  canChargeHostFee: boolean;
+  /** One line on pro profiles, e.g. "Surf coach · ISA Level 2" */
+  proTitle?: string;
   instagram?: string;
   tiktok?: string;
   youtube?: string;
@@ -106,6 +128,7 @@ export interface Stay {
   hostNote?: string;        // short personal line from the host, max 60 chars (shown on cards)
   customVibe?: string;      // host's own vibe label (max 20 chars); `vibe` is then 'mixed'
   themeQueries?: string[];  // Pixabay searches for the House's theme photos (mock only)
+  imageQueries?: string[];  // the same searches, as listed in the data: [0] cover, then the gallery
   photos?: string[];        // theme photos – the gallery is the host's face, then these (none for Houses opened in the app)
   createdAt: string;
   // Set when the host locks the accommodation (payments are created then):
@@ -115,23 +138,46 @@ export interface Stay {
   // After everyone paid and the host uploaded the booking:
   bookingConfirmedAt?: string;
   bookingProofUrl?: string;
+  /** Optional host fee on top of the stay share ("Host experience": coaching, guestlists …): per person, ≤ 30 % of the
+   *  share, hosts with canChargeHostFee only. Feature flag hostPremium – off, the store hides it. */
+  hostFeePerPerson?: number;
+  /** What the host fee pays for – a checklist on the House page */
+  hostOffer?: string[];
+  /** The ages the host is aiming for ("Looking for 27–38") – shown only, no filter */
+  ageRange?: { min: number; max: number };
+  /** Prepared on behalf of someone (admin): who it's for and the claim link. Kept after the claim, with claimedAt. */
+  claim?: StayClaim;
+  /** "Do it again?": the House this draft was copied from */
+  duplicatedFrom?: string;
+}
+
+/** A House Simpulo prepared for a creator from their own post – they claim it via /claim/{token}. */
+export interface StayClaim {
+  token: string;
+  name: string;             // who it's for, shown until claimed
+  photoUrl: string;
+  sourceLink: string;       // the original post the House was prepared from
+  createdAt: string;
+  claimedAt?: string;
+  claimedBy?: string;
 }
 
 export type PaymentRecordStatus = 'pending' | 'paid' | 'refunded';
 
-/** One crew member's share of a locked place. fee = 10% of share, capped at 50 (house currency). */
-export interface Payment {
+/** One crew member's share of a locked place. Fee rules: src/lib/fees.ts. */
+export interface Payment extends Attribution {
   id: string;
   stayId: string;
   userId: string;
   share: number;
-  fee: number;
-  total: number;            // share + fee – what the guest pays
+  hostFee?: number;         // the host programme (Stay.hostFeePerPerson) – 0 / unset for the host's own share
+  fee: number;              // guest fee: 10 % of the share, min 10, max 50 (house currency)
+  total: number;            // share + hostFee + fee – what the guest pays
   status: PaymentRecordStatus;
   paidAt?: string;
 }
 
-export interface JoinRequest {
+export interface JoinRequest extends Attribution {
   id: string;
   stayId: string;
   userId: string;
@@ -198,7 +244,8 @@ const map = (seed: string) => `https://picsum.photos/seed/map-${seed}/800/500?gr
 
 export const CURRENT_USER_ID = 'u1';
 
-export const users: User[] = [
+/** The original people; isPro / canChargeHostFee are filled in below (see `users`). */
+const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
   {
     id: 'u1', name: 'Lukas', age: 30, country: 'Germany', city: 'Osaka',
     languages: ['German', 'English'],
@@ -505,7 +552,7 @@ export const users: User[] = [
     privateContacts: { whatsapp: '+34655123987', phone: '+34655123987' } },
 ];
 
-export const stays: Stay[] = [
+const coreStays: Stay[] = [
   {
     id: 's1', slug: 'fitness-house-canggu-feb', title: 'Fitness House Canggu', hostId: 'u1', vibe: 'fitness', language: 'en',
     city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu'),
@@ -521,7 +568,7 @@ export const stays: Stay[] = [
     hostNote: 'Gym is 5 min away, I checked', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
   },
   {
-    id: 's2', slug: 'creator-house-uluwatu', title: 'Creator House Uluwatu', hostId: 'u2', vibe: 'creator', language: 'en',
+    id: 's2', hostFeePerPerson: 100, slug: 'creator-house-uluwatu', title: 'Creator House Uluwatu', hostId: 'u2', vibe: 'creator', language: 'en',
     city: 'Uluwatu', region: 'Bali, Indonesia', lat: -8.83, lng: 115.09, mapPreviewUrl: map('uluwatu'),
     startDate: '2026-12-02', endDate: '2026-12-16', spotsTotal: 4, spotsFilled: 2,
     budgetPerPerson: { min: 500, max: 700 }, currency: 'EUR', accommodationStatus: 'open',
@@ -547,7 +594,7 @@ export const stays: Stay[] = [
     hostNote: 'Three houses on the shortlist – vote with us', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-12T08:00:00Z',
   },
   {
-    id: 's4', slug: 'muay-thai-house-phuket', title: 'Muay Thai House Phuket', hostId: 'u4', vibe: 'fitness', language: 'en',
+    id: 's4', hostFeePerPerson: 120, slug: 'muay-thai-house-phuket', title: 'Muay Thai House Phuket', hostId: 'u4', vibe: 'fitness', language: 'en',
     city: 'Rawai', region: 'Phuket, Thailand', lat: 7.77, lng: 98.33, mapPreviewUrl: map('phuket'),
     startDate: '2026-11-20', endDate: '2026-12-11', spotsTotal: 4, spotsFilled: 4,
     pricePerPerson: 620, currency: 'EUR', accommodationStatus: 'locked',
@@ -744,7 +791,7 @@ export const stays: Stay[] = [
     houseRules: ['Headphones during edit hours'],
     interests: ['editing', 'content', 'city walks'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
   // Streaming houses (all featured, so they join the Spotlight rotation)
-  { id: 's21', slug: 'streaming-villa-lisbon', title: 'Streaming Villa Lisbon', hostId: 'u18', vibe: 'creator', language: 'en',
+  { id: 's21', hostFeePerPerson: 150, slug: 'streaming-villa-lisbon', title: 'Streaming Villa Lisbon', hostId: 'u18', vibe: 'creator', language: 'en',
     city: 'Lisbon', region: 'Portugal', lat: 38.72, lng: -9.15, mapPreviewUrl: map('lisbon-stream'),
     startDate: '2027-02-01', endDate: '2027-02-22', spotsTotal: 5, spotsFilled: 1,
     pricePerPerson: 690, currency: 'EUR', accommodationStatus: 'locked', accommodationLink: 'https://www.airbnb.com/rooms/example-lisbon-stream-villa',
@@ -906,7 +953,7 @@ export const stays: Stay[] = [
     houseRules: ['Follow the program – no ego lifting', 'Meal prep is shared', 'Sleep before 23:00'],
     interests: ['hyrox', 'running', 'functional fitness'],
     hostNote: 'Race prep, five weeks, full crew', acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-03T07:30:00Z' },
-  { id: 's35', slug: 'marathon-prep-house-cape-town', title: 'Marathon Prep House Cape Town', hostId: 'u30', vibe: 'fitness', language: 'en',
+  { id: 's35', hostFeePerPerson: 150, slug: 'marathon-prep-house-cape-town', title: 'Marathon Prep House Cape Town', hostId: 'u30', vibe: 'fitness', language: 'en',
     city: 'Sea Point', region: 'Western Cape, South Africa', lat: -33.915, lng: 18.389, mapPreviewUrl: map('sea-point'),
     startDate: '2027-02-01', endDate: '2027-03-14', spotsTotal: 5, spotsFilled: 2,
     budgetPerPerson: { min: 700, max: 900 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1096,7 +1143,7 @@ export const stays: Stay[] = [
     houseRules: ['Headsets on after midnight', 'No toxicity – in game or at home', 'Shared setup room stays clean'],
     interests: ['esports', 'streaming', 'korean food', 'night life'],
     hostNote: 'Gigabit fibre, setup room for 5', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-21T15:00:00Z' },
-  { id: 's52', slug: 'kitesurf-house-tarifa', title: 'Kitesurf House Tarifa', hostId: 'u47', vibe: 'surf', language: 'en',
+  { id: 's52', hostFeePerPerson: 120, slug: 'kitesurf-house-tarifa', title: 'Kitesurf House Tarifa', hostId: 'u47', vibe: 'surf', language: 'en',
     city: 'Tarifa', region: 'Andalusia, Spain', lat: 36.013, lng: -5.606, mapPreviewUrl: map('tarifa'),
     startDate: '2027-05-08', endDate: '2027-05-22', spotsTotal: 4, spotsFilled: 2,
     pricePerPerson: 690, currency: 'EUR', accommodationStatus: 'locked',
@@ -1108,7 +1155,7 @@ export const stays: Stay[] = [
     houseRules: ['Kites dry in the garden, not the living room', 'Help each other launch and land', 'Sand stays at the door'],
     interests: ['kitesurfing', 'wing foiling', 'yoga', 'tapas'],
     hostNote: 'Lesson discount for beginners', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-16T11:00:00Z' },
-  { id: 's53', slug: 'padel-and-sun-house-marbella', title: 'Padel & Sun House Marbella', hostId: 'u48', vibe: 'fitness', language: 'en',
+  { id: 's53', hostFeePerPerson: 200, slug: 'padel-and-sun-house-marbella', title: 'Padel & Sun House Marbella', hostId: 'u48', vibe: 'fitness', language: 'en',
     city: 'Marbella', region: 'Andalusia, Spain', lat: 36.51, lng: -4.886, mapPreviewUrl: map('marbella'),
     startDate: '2027-04-15', endDate: '2027-04-25', spotsTotal: 5, spotsFilled: 3,
     budgetPerPerson: { min: 900, max: 1200 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1120,6 +1167,52 @@ export const stays: Stay[] = [
     interests: ['padel', 'tennis', 'beach', 'spanish food'],
     hostNote: 'Daily coaching at my club included', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-18T17:00:00Z' },
 ];
+
+// Extra Houses (x1–x50) and their hosts (p1–p37) from ./mock-houses-extra, mapped onto the app's types.
+
+/** Language names in the extra data → the codes Stay.language uses. */
+const LANGUAGE_CODES: Record<string, string> = { English: 'en', German: 'de', Spanish: 'es', Portuguese: 'pt', French: 'fr', Italian: 'it', Dutch: 'nl', Japanese: 'ja' };
+
+function hostToUser(host: ExtraHost): User {
+  const { socials, imageQueries, ...rest } = host;
+  const handle = socials.instagram ?? socials.tiktok ?? host.name.toLowerCase();
+  return {
+    ...rest,
+    ...socials,
+    imageQueries,
+    facePhotoQuery: FACE_QUERIES[host.id] ?? imageQueries[0],
+    // portrait + two lifestyle photos (paths only – the photo pass below doesn't add House photos for these hosts)
+    photos: [userFace(host.id), userPhotoPath(host.id, 2), userPhotoPath(host.id, 3)],
+    privateContacts: { telegram: handle.replace(/[^a-z0-9_]/gi, '_') },
+  };
+}
+
+function houseToStay(house: ExtraHouse): Stay {
+  const { vibe, language, status, imageQueries, ...rest } = house;
+  // 'full' is how the extra data spells it; in the app a full House is a published one with every spot taken.
+  const full = status === 'full';
+  return {
+    ...rest,
+    vibe,
+    language: LANGUAGE_CODES[language] ?? 'en',
+    status: full ? 'published' : status,
+    ...(full && { acceptingRequests: false, spotsFilled: house.spotsTotal }),
+    mapPreviewUrl: map(house.city.toLowerCase().replace(/\s+/g, '-')),
+    imageQueries,
+    // A locked House has its place: the same kind of placeholder listing as the original ones.
+    ...(house.accommodationStatus === 'locked' && { accommodationLink: `https://www.airbnb.com/rooms/example-${house.slug}` }),
+    // Past and done: everyone paid and the booking was confirmed.
+    ...(status === 'completed' && { bookingConfirmedAt: new Date(new Date(house.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() }),
+  };
+}
+
+/** Everyone: the original people (host fee allowed for verified hosts, as before; nobody is "Pro") plus the extra hosts. */
+export const users: User[] = [
+  ...coreUsers.map((user) => ({ ...user, isPro: false, canChargeHostFee: user.verified })),
+  ...extraHosts.map(hostToUser),
+];
+
+export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)];
 
 export const joinRequests: JoinRequest[] = [
   { id: 'r1', stayId: 's1', userId: 'u4', message: 'Physio, train 6×/week, can cook for five. In if you\'ll have me.', status: 'accepted', createdAt: '2026-10-18T12:00:00Z' },
@@ -1193,6 +1286,37 @@ export const joinRequests: JoinRequest[] = [
   { id: 'r68', stayId: 's53', userId: 'u23', message: 'Padel three times a week in Dubai – London session in the evening.', status: 'accepted', createdAt: '2026-10-19T10:00:00Z' },
 ];
 
+// The extra Houses come with a filled-spot count but no crew: give each the accepted requests behind it, picked
+// deterministically from everyone else with a photo (never Lukas, the default mock user, so his inbox stays as it is).
+const EXTRA_CREW_MESSAGES = [
+  'Sounds exactly like my kind of week – count me in.',
+  'Been looking for a crew for this. Easygoing, tidy, up early.',
+  'I can cook for the group one night. Really looking forward to it.',
+  'First time doing something like this, but it feels right.',
+  'Dates work perfectly for me. Happy to help with planning.',
+];
+{
+  const pool = users.filter((u) => u.id !== CURRENT_USER_ID && u.photos.length > 0);
+  let n = 0;
+  for (const [index, house] of extraHouses.entries()) {
+    const candidates = pool.filter((u) => u.id !== house.hostId);
+    const crewSize = Math.max(0, (house.status === 'full' ? house.spotsTotal : house.spotsFilled) - 1);
+    for (let i = 0; i < crewSize; i++) {
+      const member = candidates[(index * 7 + i * 11) % candidates.length];
+      if (joinRequests.some((r) => r.stayId === house.id && r.userId === member.id)) continue;
+      n++;
+      joinRequests.push({
+        id: `rx${n}`,
+        stayId: house.id,
+        userId: member.id,
+        message: EXTRA_CREW_MESSAGES[(index + i) % EXTRA_CREW_MESSAGES.length],
+        status: 'accepted',
+        createdAt: new Date(new Date(house.createdAt).getTime() + (i + 1) * 5 * 60 * 60 * 1000).toISOString(),
+      });
+    }
+  }
+}
+
 export const threads: Thread[] = [
   {
     id: 't-s1', type: 'crew', stayId: 's1', participantIds: ['u1', 'u4', 'u8', 'u2', 'u13'],
@@ -1236,6 +1360,15 @@ export const VIBES: { key: Vibe; label: string }[] = [
   { key: 'students', label: 'Students' },
   { key: 'holiday', label: 'Holiday' },
   { key: 'mixed', label: 'Mixed' },
+  { key: 'party', label: 'Party' },
+  { key: 'singles', label: 'Singles' },
+  { key: 'weekend', label: 'Short trip' },
+  { key: 'business', label: 'Business' },
+  { key: 'social', label: 'Social' },
+  { key: 'adventure', label: 'Adventure' },
+  { key: 'culture', label: 'Culture' },
+  { key: 'food', label: 'Food' },
+  { key: 'study', label: 'Study' },
 ];
 
 export const START_FILTERS = [
@@ -1247,11 +1380,14 @@ export const START_FILTERS = [
 
 // Photo pass: every House gets its theme photos, every person their face plus the theme photos of the House they
 // host (or else the first one they're in), so profiles show the world they travel in.
+// Extra Houses: imageQueries[0] is the cover, [1..3] the gallery; extra hosts keep their portrait + lifestyle photos.
 for (const stay of stays) {
-  stay.themeQueries = THEME_QUERIES[stay.id];
+  stay.themeQueries = THEME_QUERIES[stay.id] ?? stay.imageQueries?.map((q, i) => THEME_QUERY_FIXES[`${stay.id}/${i + 1}`] ?? q);
+  stay.imageQueries ??= stay.themeQueries;
   stay.photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(stay.id, i + 1));
 }
 for (const user of users) {
+  if (user.imageQueries) continue;
   user.facePhotoQuery = FACE_QUERIES[user.id];
   const hosted = stays.find((s) => s.hostId === user.id);
   const joined = joinRequests.find((r) => r.userId === user.id && r.status === 'accepted');

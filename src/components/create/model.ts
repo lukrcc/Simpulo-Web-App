@@ -1,3 +1,4 @@
+import { canChargeHostFee, maxHostFee } from "@/lib/fees";
 import { isProfileComplete, type ProfilePatch } from "@/lib/store";
 import type { Currency, NewStayInput, Stay, User, Vibe } from "@/lib/types";
 import { LANGUAGES, addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
@@ -42,6 +43,8 @@ export interface FormState {
   /** Both "" = no budget ("Skip – decide together") */
   budgetMin: string;
   budgetMax: string;
+  /** Host programme per person, verified hosts only ("" = none) */
+  hostFee: string;
   // 2 · Your pitch
   whyText: string;
   /** Always the full text – with the template on, it's the parts joined (see joinDayParts) */
@@ -73,6 +76,7 @@ export const initialForm: FormState = {
   currency: "",
   budgetMin: "",
   budgetMax: "",
+  hostFee: "",
   whyText: "",
   dayText: "",
   dayParts: null,
@@ -98,6 +102,7 @@ export function formFromStay(stay: Stay): FormState {
     currency: stay.currency,
     budgetMin: stay.budgetPerPerson ? String(stay.budgetPerPerson.min) : "",
     budgetMax: stay.budgetPerPerson ? String(stay.budgetPerPerson.max) : "",
+    hostFee: stay.hostFeePerPerson ? String(stay.hostFeePerPerson) : "",
     whyText: stay.whyText,
     dayText: stay.dayText,
     lookingForText: stay.lookingForText,
@@ -197,6 +202,21 @@ function budgetOf(form: FormState): { min: number; max: number } | undefined {
   return { min: Math.min(...values), max: Math.max(...values) };
 }
 
+/**
+ * The share the 30 % host programme cap is measured against: the locked price, else the low end of the budget
+ * (undefined = no budget yet – the cap applies when the place is locked).
+ */
+export function hostFeeBase(form: FormState, editing?: Stay): number | undefined {
+  if (editing?.accommodationStatus === "locked" && editing.pricePerPerson) return editing.pricePerPerson;
+  return budgetOf(form)?.min;
+}
+
+/** The host fee as saved: a whole amount > 0, and only for hosts who may charge one. */
+function hostFeeOf(form: FormState, me?: User): number | undefined {
+  const fee = Math.round(Number(form.hostFee));
+  return canChargeHostFee(me) && fee > 0 ? fee : undefined;
+}
+
 export const PITCH_FIELDS = ["whyText", "dayText", "lookingForText"] as const;
 
 export function pitchCount(form: FormState): number {
@@ -229,6 +249,7 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
     dayText: form.dayText.trim(),
     lookingForText: form.lookingForText.trim(),
     hostNote: form.hostNote.trim() || undefined,
+    hostFeePerPerson: hostFeeOf(form, me),
     interests: editing?.interests ?? [],
     houseRules: editing?.houseRules ?? [],
   };
@@ -246,14 +267,15 @@ export function toProfilePatch(form: FormState, me?: User): ProfilePatch {
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "lookingForText" | "photo" | "name" | "age" | "country";
+export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "hostFee" | "lookingForText" | "photo" | "name" | "age" | "country";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
   | { key: "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "lookingFor" | "lookingForUnfinished" | "photo" | "name" | "age" | "country" }
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
-  | { key: "minSpots"; count: number };
+  | { key: "minSpots"; count: number }
+  | { key: "hostFeeTooHigh"; max: number };
 
 export type FieldErrors = Partial<Record<FieldKey, FieldError>>;
 
@@ -310,6 +332,9 @@ export function stepErrors(step: number, { form, me, minSpots, today, editing, s
       else if (nights > MAX_NIGHTS) errors.endDate = { key: "tooLong", max: MAX_NIGHTS };
     }
     if (form.spotsTotal < minSpots) errors.spotsTotal = { key: "minSpots", count: minSpots };
+    const fee = hostFeeOf(form, me);
+    const base = hostFeeBase(form, editing);
+    if (fee !== undefined && base !== undefined && fee > maxHostFee(base)) errors.hostFee = { key: "hostFeeTooHigh", max: maxHostFee(base) };
   }
   if (step === 1) {
     // The hook on cards and the Spotlight – one honest line at least.
@@ -337,6 +362,7 @@ export const STEP_OF_FIELD: Record<FieldKey, number> = {
   startDate: 0,
   endDate: 0,
   spotsTotal: 0,
+  hostFee: 0,
   lookingForText: 1,
   photo: 2,
   name: 2,
@@ -385,4 +411,34 @@ export function clearDraft() {
   } catch {
     // nothing to clear
   }
+}
+
+// ─── Prefill links ("Open one", "Open your own House", "Host your own next trip") ──────────────────
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** /create with a place and dates filled in – the stepper picks them up (see prefillOf). */
+export function createHref({ region, from, to }: { region?: string; from?: string; to?: string }): string {
+  const params = new URLSearchParams();
+  if (region?.trim()) params.set("region", region.trim());
+  if (from && ISO_DATE.test(from)) params.set("from", from);
+  if (to && ISO_DATE.test(to)) params.set("to", to);
+  const query = params.toString();
+  return query ? `/create?${query}` : "/create";
+}
+
+/**
+ * What a /create?region=…&from=…&to=… link fills in. A start before the earliest allowed one moves to it; an end
+ * that's no longer after the start is dropped. null when the link carries nothing.
+ */
+export function prefillOf(search: string, today: string): Partial<FormState> | null {
+  const params = new URLSearchParams(search);
+  const region = params.get("region")?.trim().slice(0, 80) ?? "";
+  const from = params.get("from") ?? "";
+  const to = params.get("to") ?? "";
+  const earliest = earliestStart(today);
+  const start = ISO_DATE.test(from) ? (earliest && from < earliest ? earliest : from) : "";
+  const end = ISO_DATE.test(to) && start && to > start ? to : "";
+  if (!region && !start) return null;
+  return { ...(region && { region }), ...(start && { startDate: start, endDate: end }) };
 }

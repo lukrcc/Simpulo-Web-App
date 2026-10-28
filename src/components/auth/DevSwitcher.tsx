@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useFormat } from "@/i18n/format";
+import { setFeatureFlag, useFeatureFlag } from "@/lib/featureFlags";
 import { computeReminders, type Reminder } from "@/lib/reminders";
 import { findUser, getCrew, OPEN_AS_PARAM, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -87,8 +88,9 @@ function DevSwitcherInner() {
                 </span>
               )}
             </div>
+            <FlagSwitch />
             {(currentUserId || stay) && (
-              <div className="flex items-center gap-1 px-2 py-1.5">
+              <div className="flex items-center gap-1 border-t border-black/5 px-2 py-1.5">
                 {currentUserId && (
                   <button
                     type="button"
@@ -134,6 +136,22 @@ function DevSwitcherInner() {
         <span className="max-md:hidden">{t("label")}</span>
       </button>
     </div>
+  );
+}
+
+/** Feature flag hostPremium: host fee, what it includes and the "Pro host" label – on or gone. */
+function FlagSwitch() {
+  const t = useTranslations("auth.dev");
+  const on = useFeatureFlag("hostPremium");
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5">
+      <span className="font-medium text-ink">{t("hostPremium")}</span>
+      <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag("hostPremium", e.target.checked)} className="peer sr-only" />
+      <span
+        aria-hidden
+        className="relative h-5 w-8 shrink-0 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/30"
+      />
+    </label>
   );
 }
 

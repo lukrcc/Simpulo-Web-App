@@ -3,6 +3,8 @@
 // so the app only ever uses these local files. Credits: public/mock/credits.json.
 
 export const userFacePath = (userId: string) => `/mock/users/${userId}/face.webp`;
+/** Further photos of a person (n ≥ 2; 1 is the face): the lifestyle shots of the extra hosts. */
+export const userPhotoPath = (userId: string, n: number) => `/mock/users/${userId}/${n}.webp`;
 export const houseThemePath = (stayId: string, n: number) => `/mock/houses/${stayId}/${n}.webp`;
 
 /**
@@ -58,6 +60,29 @@ export const FACE_QUERIES: Record<string, string> = {
   u46: 'young asian man',
   u47: 'woman smiling beach',
   u48: 'man smiling sport',
+  // Extra hosts whose own portrait query (imageQueries[0] in mock-houses-extra.ts) found no usable face – a child,
+  // shirtless, text on a shirt, a hidden face or no person at all. These plainer searches replace it.
+  p5: 'man smiling casual',
+  p6: 'young asian woman smiling',
+  p7: 'man smiling outdoor',
+  p9: 'man smiling beard casual',
+  p10: 'hispanic woman smiling',
+  p11: 'man smiling sport',
+  p12: 'young woman smiling city',
+  p13: 'japanese man',
+  p15: 'arab man smiling',
+  p16: 'blonde woman smiling',
+  p18: 'young woman smiling',
+  p19: 'man smiling glasses',
+  p20: 'young man smiling casual',
+  p21: 'asian woman smiling',
+  p26: 'black man smiling',
+  p30: 'woman dark hair smiling',
+  p33: 'young woman smiling',
+  p34: 'man smiling beard',
+  p35: 'young woman smiling outdoor',
+  p36: 'hispanic man smiling',
+  p37: 'chinese man smiling',
 };
 
 /** 2–3 photos of the world of each House – the activity and the place, never the accommodation itself. */
@@ -115,4 +140,17 @@ export const THEME_QUERIES: Record<string, string[]> = {
   s51: ['gaming setup', 'esports', 'seoul night'],
   s52: ['kitesurfing', 'tarifa beach', 'kitesurf wave'],
   s53: ['padel', 'marbella beach', 'tennis racket'],
+};
+
+/**
+ * Extra Houses (imageQueries in mock-houses-extra.ts): long queries the fetch script had to shorten to one loose word
+ * ("ibiza", "le") and that came back off-theme. Short searches Pixabay tags well, by "{house}/{photo number}".
+ */
+export const THEME_QUERY_FIXES: Record<string, string> = {
+  'x1/2': 'nightclub', 'x1/4': 'cliff sunset', 'x3/4': 'nightlife', 'x4/1': 'beach party', 'x5/3': 'garden party',
+  'x5/4': 'concert crowd', 'x9/2': 'meeting', 'x9/4': 'dinner friends', 'x10/1': 'whiteboard', 'x10/4': 'presentation',
+  'x11/2': 'living room', 'x12/2': 'kitesurfing', 'x15/1': 'racing car', 'x16/2': 'paris street', 'x26/4': 'dance couple',
+  'x27/4': 'fondue', 'x35/4': 'surfer', 'x37/1': 'runners', 'x38/2': 'boxing gloves', 'x38/3': 'thailand beach',
+  'x42/1': 'gamer', 'x43/3': 'street art', 'x44/3': 'courtyard', 'x44/4': 'museum', 'x46/2': 'fruit market',
+  'x46/4': 'wine tasting', 'x49/1': 'pretzel',
 };

@@ -1,12 +1,27 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useSyncExternalStore, type ReactNode } from "react";
-import { joinRequests as mockJoinRequests, stays as mockStays, threads as mockThreads, users as mockUsers } from "./mock";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useFeatureFlag } from "./featureFlags";
+import { guestFee, paymentSplit } from "./fees";
+import {
+  attributionOf,
+  claimToken,
+  firstTouch,
+  stripAttributionParams,
+  type DemandAlert,
+  type GrowthEvent,
+  type GrowthEventName,
+  type HostApplication,
+  type ShareChannel,
+} from "./growth";
+import { joinRequests as rawJoinRequests, stays as mockStays, threads as mockThreads, users as mockUsers } from "./mock";
 import { withMockHistory } from "./mock-chat";
+import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "./mock-growth";
 import type { Reminder } from "./reminders";
 import { crewThreadId, mockPaidUsers, mockPreviewForUrl } from "./mock-extras";
 import type {
   Attachment,
+  Attribution,
   Currency,
   JoinRequest,
   LockDetails,
@@ -45,6 +60,26 @@ interface StoreState {
   reports: Report[];
   /** Mock outbox: every notification that would go out by email (and push, if installed). Newest last. */
   notifications: AppNotification[];
+  /** Analytics events, oldest first (seeded history + this browser's; also logged to the console) */
+  events: GrowthEvent[];
+  /** "Notify me" on an empty Explore */
+  alerts: DemandAlert[];
+  /** /host applications */
+  applications: HostApplication[];
+}
+
+/** What a House prepared on someone's behalf needs (admin form). */
+export interface ClaimableStayInput {
+  name: string;
+  photoUrl: string;
+  sourceLink: string;
+  title: string;
+  region: string;
+  city: string;
+  startDate: string;
+  endDate: string;
+  spotsTotal: number;
+  pitch: string;
 }
 
 export type NotifyEventKey =
@@ -77,13 +112,28 @@ type StoreAction =
   | { type: "login"; userId: string }
   | { type: "logout" }
   | { type: "updateCurrentUser"; patch: ProfilePatch }
-  | { type: "createStay"; stay: Omit<Stay, "hostId">; threadId: string; firstMessages: Array<Omit<Message, "userId">> }
+  | {
+      type: "createStay";
+      stay: Omit<Stay, "hostId">;
+      threadId: string;
+      firstMessages: Array<Omit<Message, "userId">>;
+      attribution: Attribution;
+    }
+  | { type: "publishStay"; stayId: string; at: string; attribution: Attribution }
+  | { type: "createClaimableStay"; stay: Stay }
+  | { type: "claimStay"; token: string; at: string }
+  | { type: "duplicateStay"; stayId: string; copy: Pick<Stay, "id" | "slug" | "createdAt"> }
+  | { type: "track"; event: GrowthEvent }
+  | { type: "attributeUser"; userId: string; attribution: Attribution }
+  | { type: "addAlert"; alert: DemandAlert }
+  | { type: "addApplication"; application: HostApplication }
+  | { type: "restoreGrowth"; saved: PersistedGrowth }
   | { type: "updateStay"; stayId: string; patch: NewStayInput }
   | { type: "leaveStay"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "removeMember"; stayId: string; userId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "unlockAccommodation"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "closeStay"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
-  | { type: "requestToJoin"; request: Omit<JoinRequest, "userId"> }
+  | { type: "requestToJoin"; request: Omit<JoinRequest, "userId">; at: string }
   | { type: "acceptRequest"; requestId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "declineRequest"; requestId: string }
   | { type: "sendMessage"; threadId: string; message: Omit<Message, "userId"> }
@@ -149,6 +199,20 @@ interface StoreActions {
   createStay: (input: NewStayInput, accommodationIdeas?: string[]) => string;
   /** Host only: saves the edited House (slug and crew stay as they are). */
   updateStay: (stayId: string, patch: NewStayInput) => void;
+  /** Host only: a draft goes live (listed, taking requests). */
+  publishStay: (stayId: string) => void;
+  /** Admin: prepares a House for someone (status draft_unclaimed). Returns its claim token. */
+  createClaimableStay: (input: ClaimableStayInput) => string;
+  /** The current user becomes the host of the prepared House (now a draft they can edit, then publish). */
+  claimStay: (token: string) => void;
+  /** "Do it again?": copies an ended House as a new draft for its host (no dates, no crew). Returns the new id. */
+  duplicateStay: (stayId: string) => string;
+  /** Analytics: records an event with the browser's first-touch attribution (and logs it to the console). */
+  track: (name: GrowthEventName, props?: { houseId?: string; channel?: ShareChannel; userId?: string }) => void;
+  /** "Notify me" on an empty Explore. */
+  addAlert: (alert: Pick<DemandAlert, "email" | "region" | "from" | "to">) => void;
+  /** /host application form. */
+  addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
   leaveStay: (stayId: string) => void;
   /** Host only: ends the House early. The crew is told in the crew chat. */
@@ -208,7 +272,8 @@ type StoreValue = StoreState & StoreActions;
 /** Every stay has exactly one crew thread – seed empty ones where the mock data has none. */
 function withCrewThreads(stays: Stay[], threads: Thread[], requests: JoinRequest[]): Thread[] {
   const missing = stays
-    .filter((stay) => !threads.some((t) => t.id === crewThreadId(stay.id)))
+    // A House waiting to be claimed has nobody to talk to yet.
+    .filter((stay) => stay.hostId && !threads.some((t) => t.id === crewThreadId(stay.id)))
     .map<Thread>((stay) => ({
       id: crewThreadId(stay.id),
       type: "crew",
@@ -227,11 +292,27 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const MOCK_DELAY_MS = 600;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Simpulo fee on a share: 10 %, capped at 50 in the house currency. */
-export const FEE_RATE = 0.1;
-export const FEE_CAP = 50;
-export function feeFor(share: number): number {
-  return Math.min(Math.round(share * FEE_RATE), FEE_CAP);
+/** Simpulo's guest fee on a share – see src/lib/fees.ts. */
+export const feeFor = guestFee;
+
+/** A crew member's payment record for a share: the host programme on top for guests, never for the host. */
+function paymentFor(stay: Stay, userId: string, share: number, attribution: Attribution): Omit<Payment, "id" | "status"> {
+  const split = paymentSplit(share, userId === stay.hostId ? 0 : (stay.hostFeePerPerson ?? 0));
+  return {
+    stayId: stay.id,
+    userId,
+    share,
+    ...(split.hostFee > 0 && { hostFee: split.hostFee }),
+    fee: split.fee,
+    total: split.total,
+    ...attributionOf(attribution),
+  };
+}
+
+/** Where a crew member came from: their accepted request's attribution (the host: their own signup's). */
+function memberAttribution(users: User[], requests: JoinRequest[], stay: Stay, userId: string): Attribution {
+  if (userId === stay.hostId) return attributionOf(users.find((u) => u.id === userId));
+  return attributionOf(requests.findLast((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted"));
 }
 
 /** Default pay-by date when locking: five days from now (never after arrival). */
@@ -283,11 +364,7 @@ function seedPayments(stays: Stay[], requests: JoinRequest[]): Payment[] {
       const paid = Boolean(stay.bookingConfirmedAt) || (mockPaidUsers[stay.id]?.includes(userId) ?? false);
       return {
         id: `pay-${stay.id}-${userId}`,
-        stayId: stay.id,
-        userId,
-        share,
-        fee: feeFor(share),
-        total: share + feeFor(share),
+        ...paymentFor(stay, userId, share, memberAttribution(mockUsers, requests, stay, userId)),
         status: paid ? "paid" : "pending",
         ...(paid && { paidAt }),
       };
@@ -295,6 +372,7 @@ function seedPayments(stays: Stay[], requests: JoinRequest[]): Payment[] {
   });
 }
 
+const mockJoinRequests = withMockAttribution(rawJoinRequests, mockStays);
 const seededStays = seedLockedStays(mockStays);
 const seededPayments = seedPayments(seededStays, mockJoinRequests);
 const seededChat = withMockHistory(withCrewThreads(seededStays, mockThreads, mockJoinRequests), {
@@ -307,7 +385,8 @@ const seededChat = withMockHistory(withCrewThreads(seededStays, mockThreads, moc
 
 const initialState: StoreState = {
   users: mockUsers,
-  stays: seededStays,
+  // Houses waiting to be claimed have no host and no crew thread until someone claims them.
+  stays: [...seededStays, ...mockClaimableStays],
   joinRequests: mockJoinRequests,
   threads: seededChat.threads,
   currentUserId: null,
@@ -316,7 +395,56 @@ const initialState: StoreState = {
   typing: {},
   reports: [],
   notifications: [],
+  events: mockGrowthEvents({ stays: seededStays, joinRequests: mockJoinRequests, payments: seededPayments }),
+  alerts: [],
+  applications: [],
 };
+
+/** The growth bits kept in this browser across reloads (mock – no backend). Seeded events are left out. */
+interface PersistedGrowth {
+  events: GrowthEvent[];
+  alerts: DemandAlert[];
+  applications: HostApplication[];
+  /** Prepared Houses created here, and every claimed one – so claim links and claimed drafts survive a reload */
+  claimStays: Stay[];
+  /** Attribution attached to users at signup in this browser */
+  userAttribution: Record<string, Attribution>;
+}
+
+const GROWTH_KEY = "simpulo:growth";
+
+function persistedGrowth(state: StoreState): PersistedGrowth {
+  return {
+    events: state.events.filter((e) => !e.seed),
+    alerts: state.alerts,
+    applications: state.applications,
+    claimStays: state.stays.filter((s) => s.claim && (s.claim.claimedAt || !mockClaimableStays.some((m) => m.id === s.id))),
+    userAttribution: Object.fromEntries(
+      state.users.filter((u) => attributionOf(u).utmSource || u.refUserId).map((u) => [u.id, attributionOf(u)]),
+    ),
+  };
+}
+
+function readPersistedGrowth(): PersistedGrowth | null {
+  try {
+    const raw = localStorage.getItem(GROWTH_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<PersistedGrowth>;
+    return {
+      events: Array.isArray(saved.events) ? saved.events : [],
+      alerts: Array.isArray(saved.alerts) ? saved.alerts : [],
+      applications: Array.isArray(saved.applications) ? saved.applications : [],
+      claimStays: Array.isArray(saved.claimStays) ? saved.claimStays : [],
+      userAttribution: saved.userAttribution && typeof saved.userAttribution === "object" ? saved.userAttribution : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
+function event(id: string, name: GrowthEventName, at: string, props: Omit<GrowthEvent, "id" | "name" | "at">): GrowthEvent {
+  return { id: `ev-${id}`, name, at, ...props };
+}
 
 /** text / image / link / lock / payment / system – stored, or derived for older messages. */
 export function messageType(message: Message): MessageType {
@@ -328,6 +456,23 @@ export function messageType(message: Message): MessageType {
 
 const firstNameOf = (state: Pick<StoreState, "users">, userId: string, fallback = "Someone") =>
   state.users.find((u) => u.id === userId)?.name.split(" ")[0] ?? fallback;
+
+/** The user's own signup attribution; without one, `fallback` (the first touch the action was sent with). */
+function attributionFor(state: Pick<StoreState, "users">, userId: string, fallback: Attribution | undefined): Attribution {
+  const own = attributionOf(state.users.find((u) => u.id === userId));
+  return Object.keys(own).length > 0 ? own : attributionOf(fallback);
+}
+
+/** Everyone with an alert on this host hears about their new House. */
+function notifyHostAlerts(state: StoreState, hostId: string, stay: Pick<Stay, "id" | "title">): AppNotification[] {
+  return notify(
+    state,
+    state.users.filter((u) => u.hostAlerts?.includes(hostId)).map((u) => u.id),
+    "hostOpened",
+    { name: firstNameOf(state, hostId), title: stay.title },
+    stay.id,
+  );
+}
 
 /** Host plus accepted members. */
 function crewIds(state: Pick<StoreState, "joinRequests">, stay: Stay): string[] {
@@ -416,14 +561,110 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         threads: [thread, ...state.threads],
         // The host's own ideas aren't unread for the host.
         lastReadAt: lastMessage ? { ...state.lastReadAt, [action.threadId]: lastMessage.createdAt } : state.lastReadAt,
-        // Everyone with an alert on this host hears about the new House.
-        notifications: notify(
-          state,
-          state.users.filter((u) => u.hostAlerts?.includes(me)).map((u) => u.id),
-          "hostOpened",
-          { name: firstNameOf(state, me), title: action.stay.title },
-          action.stay.id,
+        notifications: notifyHostAlerts(state, me, action.stay),
+        events: [
+          ...state.events,
+          event(action.stay.id, "house_published", action.stay.createdAt, { houseId: action.stay.id, userId: me, ...attributionFor(state, me, action.attribution) }),
+        ],
+      };
+    }
+
+    case "publishStay": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me || stay.status !== "draft") return state;
+      return {
+        ...state,
+        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "published", acceptingRequests: true } : s)),
+        notifications: notifyHostAlerts(state, me, stay),
+        events: [
+          ...state.events,
+          event(`${stay.id}-${action.at}`, "house_published", action.at, { houseId: stay.id, userId: me, ...attributionFor(state, me, action.attribution) }),
+        ],
+      };
+    }
+
+    case "createClaimableStay":
+      return { ...state, stays: [...state.stays, action.stay] };
+
+    case "claimStay": {
+      const stay = state.stays.find((s) => s.claim?.token === action.token);
+      if (!stay?.claim || !me || stay.status !== "draft_unclaimed") return state;
+      const threadId = crewThreadId(stay.id);
+      return {
+        ...state,
+        // A draft of their own now: they edit it, then publish. Their profile photo replaces the prepared one.
+        stays: state.stays.map((s) =>
+          s.id === stay.id
+            ? { ...s, hostId: me, status: "draft", acceptingRequests: false, claim: { ...stay.claim!, claimedAt: action.at, claimedBy: me } }
+            : s,
         ),
+        threads: state.threads.some((t) => t.id === threadId)
+          ? updateThread(state.threads, threadId, (t) => ({ ...t, participantIds: [me] }))
+          : [{ id: threadId, type: "crew", stayId: stay.id, participantIds: [me], messages: [] }, ...state.threads],
+      };
+    }
+
+    case "duplicateStay": {
+      const source = state.stays.find((s) => s.id === action.stayId);
+      if (!source || !me || source.hostId !== me) return state;
+      const copy: Stay = {
+        ...source,
+        ...action.copy,
+        // New dates, a new crew, a new place to find: only the idea and the pitch carry over.
+        status: "draft",
+        startDate: "",
+        endDate: "",
+        spotsFilled: 1,
+        acceptingRequests: false,
+        featured: false,
+        accommodationStatus: "open",
+        accommodationLink: undefined,
+        pricePerPerson: undefined,
+        budgetPerPerson: source.budgetPerPerson ?? (source.pricePerPerson ? { min: source.pricePerPerson, max: source.pricePerPerson } : undefined),
+        lockedAt: undefined,
+        totalPrice: undefined,
+        payByDate: undefined,
+        bookingConfirmedAt: undefined,
+        bookingProofUrl: undefined,
+        claim: undefined,
+        duplicatedFrom: source.id,
+      };
+      return {
+        ...state,
+        stays: [copy, ...state.stays],
+        threads: [{ id: crewThreadId(copy.id), type: "crew", stayId: copy.id, participantIds: [me], messages: [] }, ...state.threads],
+      };
+    }
+
+    case "track":
+      return { ...state, events: [...state.events, action.event] };
+
+    case "attributeUser": {
+      // First touch wins: a user who already has an attribution keeps it.
+      const user = state.users.find((u) => u.id === action.userId);
+      if (!user || Object.keys(attributionOf(user)).length > 0 || Object.keys(action.attribution).length === 0) return state;
+      return { ...state, users: state.users.map((u) => (u.id === user.id ? { ...u, ...attributionOf(action.attribution) } : u)) };
+    }
+
+    case "addAlert":
+      return { ...state, alerts: [...state.alerts, action.alert] };
+
+    case "addApplication":
+      return { ...state, applications: [...state.applications, action.application] };
+
+    case "restoreGrowth": {
+      const { saved } = action;
+      const known = new Set(state.events.map((e) => e.id));
+      const savedIds = new Set(saved.claimStays.map((s) => s.id));
+      const stays = [...state.stays.filter((s) => !savedIds.has(s.id)), ...saved.claimStays];
+      return {
+        ...state,
+        events: [...state.events, ...saved.events.filter((e) => !known.has(e.id))],
+        alerts: saved.alerts,
+        applications: saved.applications,
+        stays,
+        threads: withCrewThreads(stays, state.threads, state.joinRequests),
+        users: state.users.map((u) => (saved.userAttribution[u.id] && Object.keys(attributionOf(u)).length === 0 ? { ...u, ...attributionOf(saved.userAttribution[u.id]) } : u)),
       };
     }
 
@@ -506,15 +747,20 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       // The host can't join their own House; a second request would only duplicate the first; a House that
       // isn't taking requests doesn't get new ones.
       if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests) return state;
+      const { id, stayId, message, status, createdAt } = action.request;
+      const attribution = attributionFor(state, me, action.request);
+      const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me };
+      const events = [...state.events, event(id, "request_sent", action.at, { houseId: stayId, userId: me, ...attribution })];
       // A host who blocked me declines automatically – and isn't notified.
       const host = state.users.find((u) => u.id === stay.hostId);
       if (settingsOf(host).blockedUserIds.includes(me)) {
-        return { ...state, joinRequests: [...state.joinRequests, { ...action.request, userId: me, status: "declined" }] };
+        return { ...state, joinRequests: [...state.joinRequests, { ...request, status: "declined" }], events };
       }
       return {
         ...state,
-        joinRequests: [...state.joinRequests, { ...action.request, userId: me }],
-        notifications: notify(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, action.request.id),
+        joinRequests: [...state.joinRequests, request],
+        notifications: notify(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id),
+        events,
       };
     }
 
@@ -537,11 +783,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
                 ...state.payments,
                 {
                   id: `pay-${stay.id}-${request.userId}`,
-                  stayId: stay.id,
-                  userId: request.userId,
-                  share: stay.pricePerPerson,
-                  fee: feeFor(stay.pricePerPerson),
-                  total: stay.pricePerPerson + feeFor(stay.pricePerPerson),
+                  ...paymentFor(stay, request.userId, stay.pricePerPerson, request),
                   status: "pending",
                 },
               ]
@@ -554,6 +796,10 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
           messages: [...t.messages, systemMessage],
         })),
         notifications: notify(state, [request.userId], "accepted", { title: stay.title }, systemMessage.id),
+        events: [
+          ...state.events,
+          event(systemMessage.id, "request_accepted", systemMessage.createdAt, { houseId: stay.id, userId: request.userId, ...attributionOf(request) }),
+        ],
       };
     }
 
@@ -611,11 +857,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const crew = crewIds(state, stay);
       const payments: Payment[] = crew.map((userId) => ({
         id: `pay-${stay.id}-${userId}-${action.message.id}`,
-        stayId: stay.id,
-        userId,
-        share: lock.perPerson,
-        fee: feeFor(lock.perPerson),
-        total: lock.perPerson + feeFor(lock.perPerson),
+        ...paymentFor(stay, userId, lock.perPerson, memberAttribution(state.users, state.joinRequests, stay, userId)),
         status: "pending",
       }));
       return {
@@ -650,6 +892,17 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         payments,
         threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, message] })),
         notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id),
+        events: [
+          ...state.events,
+          event(message.id, "payment_completed", message.createdAt, {
+            houseId: stay.id,
+            userId: me,
+            amount: mine.total,
+            revenue: paymentSplit(mine.share, mine.hostFee).revenue,
+            currency: stay.currency,
+            ...attributionOf(mine),
+          }),
+        ],
       };
     }
 
@@ -798,9 +1051,70 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
+/**
+ * Feature flag hostPremium off: the host fee doesn't exist for anyone – Houses lose their fee and what it includes,
+ * payments their fee part (and total), nobody is a Pro host. The state itself keeps everything, so switching the flag
+ * back on brings it all back.
+ */
+function withoutHostPremium({ stays, payments, users }: Pick<StoreState, "stays" | "payments" | "users">) {
+  return {
+    stays: stays.map((stay) => {
+      if (stay.hostFeePerPerson === undefined && stay.hostOffer === undefined) return stay;
+      const rest = { ...stay };
+      delete rest.hostFeePerPerson;
+      delete rest.hostOffer;
+      return rest;
+    }),
+    payments: payments.map((payment) => {
+      if (!payment.hostFee) return payment;
+      const { hostFee, ...rest } = payment;
+      return { ...rest, total: payment.total - hostFee };
+    }),
+    users: users.map((user) => (user.isPro || user.canChargeHostFee ? { ...user, isPro: false, canChargeHostFee: false } : user)),
+  };
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const hostPremium = useFeatureFlag("hostPremium");
   const { currentUserId, threads, stays } = state;
+  /** Events already in the console (or seeded/restored) – the log effect only prints new ones. */
+  const loggedEvents = useRef<Set<string> | null>(null);
+  /** Growth data is written back only after it was read, so the first render can't overwrite it. */
+  const growthRestored = useRef(false);
+
+  // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
+  useEffect(() => {
+    firstTouch();
+    const saved = readPersistedGrowth();
+    if (saved) {
+      loggedEvents.current = new Set([...initialState.events, ...saved.events].map((e) => e.id));
+      dispatch({ type: "restoreGrowth", saved });
+    }
+    growthRestored.current = true;
+    stripAttributionParams();
+  }, []);
+
+  useEffect(() => {
+    if (!growthRestored.current) return;
+    try {
+      localStorage.setItem(GROWTH_KEY, JSON.stringify(persistedGrowth(state)));
+    } catch {
+      // storage full or unavailable – the data stays for this visit
+    }
+    // Only these parts are persisted; the rest of the state doesn't need a write.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.events, state.alerts, state.applications, state.stays, state.users]);
+
+  // Analytics: every new event goes to the console as well (mock – no analytics backend).
+  useEffect(() => {
+    const logged = (loggedEvents.current ??= new Set(initialState.events.map((e) => e.id)));
+    for (const e of state.events) {
+      if (logged.has(e.id)) continue;
+      logged.add(e.id);
+      console.info(`[analytics] ${e.name}`, e);
+    }
+  }, [state.events]);
 
   // Restore the mock user after a refresh (client only, so the server render stays logged out).
   useEffect(() => {
@@ -824,6 +1138,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((userId: string) => {
     dispatch({ type: "login", userId });
+    // Mock signup: the first login in this browser attaches its first touch to the account (an existing one wins).
+    const attribution = firstTouch();
+    dispatch({ type: "attributeUser", userId, attribution });
+    dispatch({ type: "track", event: { id: makeId("ev"), name: "auth_completed", at: new Date().toISOString(), userId, ...attribution } });
     try {
       const storage = userStorage();
       storage.setItem(storage === sessionStorage ? TAB_USER_KEY : MOCK_USER_KEY, userId);
@@ -858,6 +1176,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         text: link,
         createdAt: new Date(now + i).toISOString(),
       })),
+      attribution: firstTouch(),
       stay: {
         ...input,
         id,
@@ -878,7 +1197,99 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return slug;
   }, []);
 
-  const updateStay = useCallback((stayId: string, patch: NewStayInput) => dispatch({ type: "updateStay", stayId, patch }), []);
+  // Flag off, the form never shows the host fee – an edit then keeps whatever fee the House has.
+  const updateStay = useCallback(
+    (stayId: string, patch: NewStayInput) => {
+      const kept = { ...patch };
+      if (!hostPremium) delete kept.hostFeePerPerson;
+      dispatch({ type: "updateStay", stayId, patch: kept });
+    },
+    [hostPremium],
+  );
+  const publishStay = useCallback(
+    (stayId: string) => dispatch({ type: "publishStay", stayId, at: new Date().toISOString(), attribution: firstTouch() }),
+    [],
+  );
+  const createClaimableStay = useCallback((input: ClaimableStayInput): string => {
+    const id = makeId("s");
+    const token = claimToken();
+    const createdAt = new Date().toISOString();
+    dispatch({
+      type: "createClaimableStay",
+      stay: {
+        id,
+        slug: `${slugify(input.title) || "house"}-${id.slice(-4)}`,
+        title: input.title.trim(),
+        hostId: "",
+        vibe: "mixed",
+        language: "en",
+        city: input.city.trim(),
+        region: input.region.trim(),
+        lat: 0,
+        lng: 0,
+        mapPreviewUrl: "",
+        startDate: input.startDate,
+        endDate: input.endDate,
+        spotsTotal: input.spotsTotal,
+        spotsFilled: 1,
+        currency: "EUR",
+        accommodationStatus: "open",
+        description: input.pitch.trim(),
+        whyText: input.pitch.trim(),
+        dayText: "",
+        // Left for the creator: who they're looking for is theirs to say (the stepper asks before publishing).
+        lookingForText: "",
+        houseRules: [],
+        interests: [],
+        status: "draft_unclaimed",
+        acceptingRequests: false,
+        featured: false,
+        createdAt,
+        claim: { token, name: input.name.trim(), photoUrl: input.photoUrl.trim(), sourceLink: input.sourceLink.trim(), createdAt },
+      },
+    });
+    return token;
+  }, []);
+  const claimStay = useCallback((token: string) => dispatch({ type: "claimStay", token, at: new Date().toISOString() }), []);
+  const duplicateStay = useCallback(
+    (stayId: string): string => {
+      const source = stays.find((s) => s.id === stayId);
+      const id = makeId("s");
+      dispatch({
+        type: "duplicateStay",
+        stayId,
+        copy: { id, slug: `${slugify(source?.title ?? "") || "house"}-${id.slice(-4)}`, createdAt: new Date().toISOString() },
+      });
+      return id;
+    },
+    [stays],
+  );
+  const track = useCallback(
+    (name: GrowthEventName, props: { houseId?: string; channel?: ShareChannel; userId?: string } = {}) => {
+      const userId = props.userId ?? currentUserId ?? undefined;
+      dispatch({
+        type: "track",
+        event: { id: makeId("ev"), name, at: new Date().toISOString(), ...firstTouch(), ...props, ...(userId && { userId }) },
+      });
+    },
+    [currentUserId],
+  );
+  const addAlert = useCallback(
+    (alert: Pick<DemandAlert, "email" | "region" | "from" | "to">) =>
+      dispatch({
+        type: "addAlert",
+        alert: { ...alert, id: makeId("alert"), createdAt: new Date().toISOString(), ...(currentUserId && { userId: currentUserId }) },
+      }),
+    [currentUserId],
+  );
+  const addApplication = useCallback(
+    (application: Omit<HostApplication, "id" | "createdAt" | "userId">) =>
+      dispatch({
+        type: "addApplication",
+        application: { ...application, id: makeId("app"), createdAt: new Date().toISOString(), ...(currentUserId && { userId: currentUserId }) },
+      }),
+    [currentUserId],
+  );
   const leaveStay = useCallback(
     (stayId: string) => dispatch({ type: "leaveStay", stayId, systemMessage: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
@@ -898,9 +1309,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const requestToJoin = useCallback((stayId: string, message: string) => {
+    const createdAt = new Date().toISOString();
     dispatch({
       type: "requestToJoin",
-      request: { id: makeId("r"), stayId, message: message.trim(), status: "pending", createdAt: new Date().toISOString() },
+      at: createdAt,
+      // The browser's first touch – the reducer prefers the user's own signup attribution.
+      request: { id: makeId("r"), stayId, message: message.trim(), status: "pending", createdAt, ...firstTouch() },
     });
   }, []);
 
@@ -1051,14 +1465,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const premiumView = useMemo(
+    () => (hostPremium ? null : withoutHostPremium({ stays: state.stays, payments: state.payments, users: state.users })),
+    [hostPremium, state.stays, state.payments, state.users],
+  );
+
   const value = useMemo<StoreValue>(
     () => ({
       ...state,
+      ...premiumView,
       login,
       logout,
       updateCurrentUser,
       createStay,
       updateStay,
+      publishStay,
+      createClaimableStay,
+      claimStay,
+      duplicateStay,
+      track,
+      addAlert,
+      addApplication,
       leaveStay,
       closeStay,
       removeMember,
@@ -1084,7 +1511,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       fireReminder,
     }),
-    [state, login, logout, updateCurrentUser, createStay, updateStay, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, duplicateStay, track, addAlert, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

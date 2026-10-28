@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CardTab } from "@/components/ui/CardTab";
+import { CardShareButton } from "@/components/share/ShareSheet";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { imageGradient } from "@/components/ui/glass";
@@ -109,7 +110,12 @@ export function StayCard({ stay, host, crew = [], preview = false, photoPlacehol
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       {host && <CardTab host={host} />}
-      {!preview && <SaveButton stay={stay} className="absolute right-4 top-4 z-10" />}
+      {!preview && (
+        <div className="absolute right-4 top-4 z-10 flex gap-2">
+          <CardShareButton stay={stay} />
+          <SaveButton stay={stay} />
+        </div>
+      )}
 
       {/* Bottom content – pointer-events pass through to the photo links. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-8 text-white">

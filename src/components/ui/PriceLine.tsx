@@ -15,7 +15,7 @@ interface PriceLineProps {
   className?: string;
 }
 
-type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
+type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency"> & Partial<Pick<Stay, "hostFeePerPerson">>;
 
 /**
  * The House's price or budget in the viewer's currency ("$430–650"), rounded – or null when there's nothing to
@@ -37,16 +37,21 @@ export function useApproxAmount(stay: PricedStay): string | null {
  */
 export function PriceLine({ stay, size = "sm", compact = false, className }: PriceLineProps) {
   const t = useTranslations("common");
+  const tPremium = useTranslations("growth.premium");
   const format = useFormat();
   const price = stayPrice(stay);
   // Only a hint for the viewer – the House is priced and charged in its own currency.
   const approx = useApproxAmount(stay);
 
+  // A host fee is always shown apart from the stay, as its own line: "Host experience · €60".
+  const hostFee = stay.hostFeePerPerson ? format.price(stay.hostFeePerPerson, stay.currency) : null;
+
   if (compact) {
     return (
-      <p className={cn("font-semibold", price.kind === "tbd" ? "text-neutral-500" : "text-ink", className)}>
-        {format.priceLabel(stay)}
-      </p>
+      <div className={className}>
+        <p className={cn("font-semibold", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>{format.priceLabel(stay)}</p>
+        {hostFee && <p className="text-xs text-zinc-500">{tPremium("compactProgramme", { amount: hostFee })}</p>}
+      </div>
     );
   }
 
@@ -62,6 +67,12 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
       <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>
         {amount}
       </p>
+      {hostFee && (
+        <p className={cn("mt-1 text-ink", size === "lg" ? "text-base" : "text-sm")}>
+          {tPremium("programme")} <span className="text-zinc-300">·</span> <span className="font-medium tabular-nums">{hostFee}</span>
+          <span className="text-zinc-500"> {tPremium("perPerson")}</span>
+        </p>
+      )}
       {approx && <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
       <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.note")}</p>
     </div>

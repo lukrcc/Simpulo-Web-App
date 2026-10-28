@@ -10,6 +10,7 @@ import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
+import { paymentSplit } from "@/lib/fees";
 import { findUser, getLockDetails, getPayments, paymentProgress, useStore } from "@/lib/store";
 import type { Payment, Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const IS_DEV = process.env.NODE_ENV !== "production";
  */
 export function PaymentsCard({ stay, className }: { stay: Stay; className?: string }) {
   const t = useTranslations("houses.payments");
+  const tPremium = useTranslations("growth.premium");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
@@ -38,6 +40,8 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
   const money = (amount: number) => f.price(amount, stay.currency);
   const percent = progress.count > 0 ? Math.round((progress.paidCount / progress.count) * 100) : 0;
   const closed = stay.status === "closed";
+  // The programme column only for Houses that have one.
+  const withProgramme = payments.some((p) => p.hostFee);
 
   async function unlock() {
     setUnlocking(false);
@@ -78,6 +82,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
           <tr>
             <th scope="col" className="pb-2 font-medium">{t("colName")}</th>
             <th scope="col" className="pb-2 text-right font-medium">{t("colShare")}</th>
+            {withProgramme && <th scope="col" className="pb-2 pl-3 text-right font-medium">{tPremium("colProgramme")}</th>}
             <th scope="col" className="pb-2 pl-3 font-medium">{t("colStatus")}</th>
             <th scope="col" className="hidden pb-2 font-medium sm:table-cell">{t("colPaid")}</th>
             <th scope="col" className="pb-2">
@@ -87,7 +92,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
         </thead>
         <tbody className="divide-y divide-black/5 border-t border-black/5">
           {payments.map((payment) => (
-            <PaymentRow key={payment.id} payment={payment} stay={stay} onPay={() => setPaying(true)} />
+            <PaymentRow key={payment.id} payment={payment} stay={stay} withProgramme={withProgramme} onPay={() => setPaying(true)} />
           ))}
         </tbody>
       </table>
@@ -127,7 +132,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
   );
 }
 
-function PaymentRow({ payment, stay, onPay }: { payment: Payment; stay: Stay; onPay: () => void }) {
+function PaymentRow({ payment, stay, withProgramme, onPay }: { payment: Payment; stay: Stay; withProgramme: boolean; onPay: () => void }) {
   const t = useTranslations("houses.payments");
   const f = useFormat();
   const store = useStore();
@@ -146,6 +151,9 @@ function PaymentRow({ payment, stay, onPay }: { payment: Payment; stay: Stay; on
         </span>
       </td>
       <td className="py-3 text-right tabular-nums">{f.price(payment.share, stay.currency)}</td>
+      {withProgramme && (
+        <td className="py-3 pl-3 text-right tabular-nums text-zinc-600">{payment.hostFee ? f.price(payment.hostFee, stay.currency) : "–"}</td>
+      )}
       <td className="py-3 pl-3">
         <StatusPill status={pending ? "pending" : "paid"} />
       </td>
@@ -180,7 +188,8 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   const showToast = useToast();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const released = payments.reduce((sum, p) => sum + p.share, 0);
+  // What the host gets: every share plus 80 % of each host programme (Simpulo keeps the guest fees and 20 %).
+  const released = payments.reduce((sum, p) => sum + paymentSplit(p.share, p.hostFee).hostReceives, 0);
 
   if (stay.status === "booked" && stay.bookingConfirmedAt) {
     return (

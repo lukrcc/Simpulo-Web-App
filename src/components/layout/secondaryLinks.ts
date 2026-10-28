@@ -5,6 +5,7 @@ export const GET_THE_APP_HREF = "/how-it-works#get-the-app";
 export const FOOTER_LINKS = [
   { href: "/how-it-works", labelKey: "howItWorks" },
   { href: GET_THE_APP_HREF, labelKey: "getTheApp" },
+  { href: "/host", labelKey: "hostWithCommunity" },
   { href: "/contact", labelKey: "contact" },
   { href: "/imprint", labelKey: "imprint" },
   { href: "/privacy", labelKey: "privacy" },

@@ -12,6 +12,7 @@ import { getPastCrewMates } from "@/components/profile/PastCrews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { StayCard } from "@/components/StayCard";
 import { HostAlertButton } from "@/components/ui/HostAlertButton";
@@ -139,12 +140,11 @@ interface ProfileBodyProps {
 function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const t = useTranslations("profile");
   const tPreview = useTranslations("common.ui.preview");
-  const tCommon = useTranslations("common");
   const store = useStore();
   const router = useRouter();
-  const showToast = useToast();
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const asideRef = useRef<HTMLElement>(null);
   const asideFits = useFitsViewport(asideRef);
   const today = new Date().toISOString().slice(0, 10);
@@ -183,14 +183,6 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
     if (threadId) router.push(`/inbox/${threadId}`);
   }
 
-  async function share() {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/u/${user.id}`);
-      showToast(t("linkCopied"));
-    } catch {
-      showToast(tCommon("linkCopyFailed"));
-    }
-  }
 
   const statLink = (id: string) =>
     function StatLink(chunks: ReactNode) {
@@ -255,7 +247,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
                 ) : (
                   <HostAlertButton host={user} />
                 )}
-                <button type="button" onClick={share} aria-label={t("share")} title={t("share")} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-neutral-100">
+                <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-neutral-100">
                   <Share2 className="size-[18px]" />
                 </button>
                 {/* Someone else's profile (never in a preview): Report / Block. */}
@@ -324,6 +316,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
 
       <PhotoLightbox photos={user.photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
       {isMe && <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />}
+      <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
     </Container>
   );
 }

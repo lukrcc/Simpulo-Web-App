@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Info, Mail, Scale, Smartphone, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Mail, Megaphone, Scale, Smartphone, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -8,9 +8,10 @@ import { GET_THE_APP_HREF, LEGAL_LINKS } from "@/components/layout/secondaryLink
 import { cn } from "@/lib/utils";
 
 /** Labels: keys under footer.links. */
-const MORE_LINKS: ReadonlyArray<{ href: string; labelKey: "getTheApp" | "howSimpuloWorks" | "contact"; icon: LucideIcon }> = [
+const MORE_LINKS: ReadonlyArray<{ href: string; labelKey: "getTheApp" | "howSimpuloWorks" | "hostWithCommunity" | "contact"; icon: LucideIcon }> = [
   { href: GET_THE_APP_HREF, labelKey: "getTheApp", icon: Smartphone },
   { href: "/how-it-works", labelKey: "howSimpuloWorks", icon: Info },
+  { href: "/host", labelKey: "hostWithCommunity", icon: Megaphone },
   { href: "/contact", labelKey: "contact", icon: Mail },
 ];
 

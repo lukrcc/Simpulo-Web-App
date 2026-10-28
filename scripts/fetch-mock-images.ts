@@ -7,7 +7,8 @@
  * --redo replaces the given files with a different photo: their current Pixabay ids go on a reject list
  * (scripts/mock-image-rejects.json) so they're never picked again.
  *
- * One face per person, one photo per theme query of each House (queries in src/lib/mock-images.ts). Pixabay forbids
+ * One face per person (plus the lifestyle photos of hosts with imageQueries), one photo per theme query of each House
+ * (queries in src/lib/mock-images.ts, or the House's imageQueries – src/lib/mock-houses-extra.ts). Pixabay forbids
  * permanent hotlinking, so the app only uses the local files. Re-runnable: existing files are skipped and their
  * Pixabay ids stay reserved, so no photo is ever used twice. The API key comes from PIXABAY_API_KEY (environment or
  * .env.local) and is never printed.
@@ -17,7 +18,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { stays, users } from "../src/lib/mock";
-import { houseThemePath, userFacePath } from "../src/lib/mock-images";
+import { houseThemePath, userFacePath, userPhotoPath } from "../src/lib/mock-images";
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC = path.join(ROOT, "public");
@@ -182,6 +183,7 @@ async function main() {
 
   const jobs = [
     ...users.map((u) => ({ file: userFacePath(u.id), query: u.facePhotoQuery ?? "portrait", people: true, seed: `face-${u.id}` })),
+    ...users.flatMap((u) => (u.imageQueries ?? []).slice(1).map((query, i) => ({ file: userPhotoPath(u.id, i + 2), query, people: false, seed: `${u.id}-${i + 2}` }))),
     ...stays.flatMap((s) => (s.themeQueries ?? []).map((query, i) => ({ file: houseThemePath(s.id, i + 1), query, people: false, seed: `${s.id}-${i + 1}` }))),
   ];
 

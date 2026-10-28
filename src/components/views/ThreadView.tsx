@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, use, useEffect, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
+import { DoItAgainCard } from "@/components/chat/ChatCards";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
@@ -120,6 +121,8 @@ function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay;
       ? findUser(store, thread.participantIds.find((id) => id !== store.currentUserId) ?? "")
       : undefined;
   const otherName = other?.name.split(" ")[0];
+  // Over (or completed): the crew chat ends with "Do it again?". Read on the client only – this view never prerenders.
+  const ended = thread.type === "crew" && stay.status !== "closed" && (stay.status === "completed" || (stay.endDate !== "" && stay.endDate < new Date().toISOString().slice(0, 10)));
 
   const content = (
     <>
@@ -130,6 +133,7 @@ function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay;
         emptyText={thread.type === "crew" ? t("sayHiCrew") : otherName ? t("sayHiDirect", { name: otherName }) : t("sayHiDirectUnknown")}
         onLock={canLock ? setLockLink : undefined}
         onReply={setReplyTo}
+        footer={ended ? <DoItAgainCard stay={stay} isHost={isHost} /> : undefined}
       />
       <Composer
         threadId={thread.id}

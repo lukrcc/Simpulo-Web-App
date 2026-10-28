@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
+import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { User } from "@/lib/types";
 
@@ -22,6 +23,7 @@ export function HostCard({ host }: { host: User }) {
           </Link>
           {host.verified && <VerifiedBadge />}
         </div>
+        <ProHostLabel user={host} className="mt-1" />
         {host.languages.length > 0 && <p className="mt-0.5 text-sm text-zinc-500">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialRow user={host} size="sm" className="mt-3" />
         {host.bio && <p className="mt-3 line-clamp-2 text-sm text-neutral-700">{host.bio}</p>}

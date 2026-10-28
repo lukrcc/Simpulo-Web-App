@@ -70,9 +70,12 @@ interface HouseStepProps extends FieldHelpers {
   currency: Currency;
   /** Editing a House whose place is locked: price and currency are managed on the Manage page. */
   locked: boolean;
+  /** Host fee: only hosts who may charge one can set it; `max` = 30 % of the lowest share (unknown without a budget).
+   *  Unset (feature flag hostPremium off): no host fee field at all. */
+  hostFee?: { allowed: boolean; max?: number };
 }
 
-export function HouseStep({ form, update, patch, minSpots, minStart, languages, language, currency, locked, errorOf, touch }: HouseStepProps) {
+export function HouseStep({ form, update, patch, minSpots, minStart, languages, language, currency, locked, hostFee, errorOf, touch }: HouseStepProps) {
   const t = useTranslations("create.house");
   const format = useFormat();
   const areas = areaOptions(form.region);
@@ -231,6 +234,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
 
       <FormCard title={t("cards.budget")}>
         {locked ? <p className="text-sm text-zinc-500">{t("lockedNote")}</p> : <BudgetField form={form} patch={patch} currency={currency} />}
+        {hostFee && <HostFeeField form={form} update={update} currency={currency} {...hostFee} errorOf={errorOf} touch={touch} />}
       </FormCard>
     </FormCards>
   );
@@ -403,6 +407,51 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
         />
       </label>
       <p className="text-[13px] text-zinc-500">{t("currencyHint")}</p>
+    </div>
+  );
+}
+
+/**
+ * Optional host fee per person (coaching, guestlists, sessions …), on top of the stay – hosts who may charge one,
+ * at most 30 % of the share. Everyone else sees one quiet line instead.
+ */
+function HostFeeField({
+  form,
+  update,
+  currency,
+  allowed,
+  max,
+  errorOf,
+  touch,
+}: { form: FormState; update: Update; currency: Currency; allowed: boolean; max?: number } & FieldHelpers) {
+  const t = useTranslations("growth.premium");
+  const format = useFormat();
+  if (!allowed) return <p className="mt-4 border-t border-black/5 pt-4 text-[13px] text-zinc-500">{t("verifiedOnly")}</p>;
+  return (
+    <div className="mt-4 border-t border-black/5 pt-4">
+      <FormField
+        id={fieldId("hostFee")}
+        label={t("fieldLabel")}
+        optional
+        error={errorOf("hostFee")}
+        helper={max !== undefined ? t("fieldHintMax", { max: format.price(max, currency) }) : t("fieldHint")}
+      >
+        <span className="relative block">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-neutral-500">{format.currencySymbol(currency)}</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={10}
+            value={form.hostFee}
+            onChange={(e) => update("hostFee", e.target.value)}
+            onBlur={() => touch("hostFee")}
+            aria-invalid={errorOf("hostFee") ? true : undefined}
+            placeholder="0"
+            className={cn(formInput, "pl-11 tabular-nums")}
+          />
+        </span>
+      </FormField>
     </div>
   );
 }

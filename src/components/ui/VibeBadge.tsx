@@ -1,4 +1,4 @@
-import { Camera, CandlestickChart, Dumbbell, Fish, Flower2, GraduationCap, Languages, Laptop, Mountain, Radio, Rocket, Shapes, Sparkles, TreePalm, WavesHorizontal, type LucideIcon } from "lucide-react";
+import { BookOpen, Briefcase, CalendarDays, Camera, CandlestickChart, Compass, Dumbbell, Fish, Flower2, GraduationCap, Heart, Landmark, Languages, Laptop, Mountain, PartyPopper, Radio, Rocket, Shapes, Sparkles, TreePalm, Users, UtensilsCrossed, WavesHorizontal, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,15 @@ const vibeStyles: Record<Vibe, { icon: LucideIcon; className: string }> = {
   climbing: { icon: Mountain, className: "bg-stone-100 text-stone-700" },
   language: { icon: Languages, className: "bg-teal-50 text-teal-700" },
   students: { icon: GraduationCap, className: "bg-orange-50 text-orange-700" },
+  party: { icon: PartyPopper, className: "bg-purple-50 text-purple-700" },
+  singles: { icon: Heart, className: "bg-red-50 text-red-700" },
+  weekend: { icon: CalendarDays, className: "bg-yellow-50 text-yellow-800" },
+  business: { icon: Briefcase, className: "bg-slate-100 text-slate-700" },
+  social: { icon: Users, className: "bg-green-50 text-green-700" },
+  adventure: { icon: Compass, className: "bg-emerald-100 text-emerald-800" },
+  culture: { icon: Landmark, className: "bg-indigo-100 text-indigo-800" },
+  food: { icon: UtensilsCrossed, className: "bg-amber-100 text-amber-800" },
+  study: { icon: BookOpen, className: "bg-blue-100 text-blue-800" },
 };
 
 /** `label`: a host's custom vibe, shown instead of the vibe name. */

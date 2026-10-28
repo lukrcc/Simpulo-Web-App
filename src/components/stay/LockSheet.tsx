@@ -8,7 +8,8 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
-import { defaultPayBy, feeFor, getCrew, getCrewLinks, useStore } from "@/lib/store";
+import { paymentSplit } from "@/lib/fees";
+import { defaultPayBy, getCrew, getCrewLinks, useStore } from "@/lib/store";
 import type { Currency, Stay } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
 import { LinkPreviewCard } from "./LinkPreviewCard";
@@ -36,6 +37,7 @@ function today(): string {
  */
 export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; onClose: () => void }) {
   const t = useTranslations("houses.lock");
+  const tPremium = useTranslations("growth.premium");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
@@ -53,7 +55,9 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
   const urlValid = isUrl(cleanUrl);
   const totalValue = Math.round(Number(total));
   const perPerson = totalValue > 0 ? Math.ceil(totalValue / spots) : 0;
-  const fee = feeFor(perPerson);
+  // A guest's payment: stay share + host programme (capped at 30 % of the share) + guest fee.
+  const split = paymentSplit(perPerson, stay.hostFeePerPerson);
+  const programmeCapped = perPerson > 0 && stay.hostFeePerPerson !== undefined && split.hostFee < stay.hostFeePerPerson;
   const canSubmit = urlValid && perPerson > 0 && payBy !== "" && !busy;
   const spotChoices = Array.from({ length: maxSpots - crewSize + 1 }, (_, i) => crewSize + i);
 
@@ -157,15 +161,28 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
 
         <div className="rounded-2xl bg-page p-4">
           <p className="text-sm font-medium tabular-nums text-ink">
-            {perPerson > 0
-              ? t("preview", {
-                  total: f.price(totalValue, currency),
-                  spots,
-                  perPerson: f.price(perPerson, currency),
-                  withFee: f.price(perPerson + fee, currency),
-                })
-              : t("previewEmpty")}
+            {perPerson === 0
+              ? t("previewEmpty")
+              : split.hostFee > 0
+                ? tPremium("lockPreview", {
+                    total: f.price(totalValue, currency),
+                    spots,
+                    perPerson: f.price(perPerson, currency),
+                    programme: f.price(split.hostFee, currency),
+                    fee: f.price(split.fee, currency),
+                    withFee: f.price(split.total, currency),
+                  })
+                : t("preview", {
+                    total: f.price(totalValue, currency),
+                    spots,
+                    perPerson: f.price(perPerson, currency),
+                    withFee: f.price(split.total, currency),
+                  })}
           </p>
+          {split.hostFee > 0 && (
+            <p className="mt-1 text-[13px] text-zinc-600">{tPremium("youReceive", { amount: f.price(split.hostReceives, currency) })}</p>
+          )}
+          {programmeCapped && <p className="mt-1 text-[13px] text-zinc-600">{tPremium("capped", { amount: f.price(split.hostFee, currency) })}</p>}
           <p className="mt-1 text-[13px] text-zinc-500">{t("hint")}</p>
         </div>
 

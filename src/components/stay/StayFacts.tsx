@@ -27,6 +27,7 @@ export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /*
           place: format.shortPlaceLabel(stay),
         })}
       </p>
+      {stay.ageRange && <p className="mt-1 text-sm text-zinc-500">{t("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
       <div className="mt-4 flex items-center gap-3">
         {/* Host first, then accepted guests – each links to their profile. */}
         <AvatarStack users={crew} size="sm" max={6} linked />

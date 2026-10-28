@@ -1,16 +1,17 @@
 "use client";
 
-import { Camera, Check, DoorClosed, Lock, SearchX, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, Lock, Plus, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { use, useState, type FormEvent, type ReactNode } from "react";
+import { use, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { AuthOptions, sheetButtonClass } from "@/components/auth/AuthSheet";
 import { useInstallNudge } from "@/components/InstallNudge";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { StayCard } from "@/components/StayCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
@@ -27,6 +28,7 @@ import { PriceLine } from "@/components/ui/PriceLine";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
+import { createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
@@ -40,7 +42,10 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const store = useStore();
   const stay = store.stays.find((s) => s.slug === slug);
 
-  if (!stay) return <StayUnavailable reason="notFound" />;
+  // Drafts (and Houses still waiting to be claimed) exist only for their host.
+  if (!stay || ((stay.status === "draft" || stay.status === "draft_unclaimed") && stay.hostId !== store.currentUserId)) {
+    return <StayUnavailable reason="notFound" />;
+  }
   // Hosted by someone you blocked: as if it weren't there.
   if (isBlocked(store, stay.hostId)) return <StayUnavailable reason="blocked" exceptId={stay.id} />;
   // Closed: gone for everyone but the host and the crew (isCrewMember counts the host), who still need the page.
@@ -91,7 +96,6 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
 
 function StayDetailContent({ stay }: { stay: Stay }) {
   const t = useTranslations("house");
-  const tCommon = useTranslations("common");
   const format = useFormat();
   const store = useStore();
   const router = useRouter();
@@ -112,6 +116,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     offerInstall(hostFirstName);
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
@@ -126,13 +131,24 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const spotsLeft = Math.max(0, stay.spotsTotal - stay.spotsFilled);
   const chatLinkCount = (getCrewThread(store, stay.id)?.messages ?? []).reduce((count, m) => count + findUrls(m.text).length, 0);
 
-  async function share() {
+  const { track } = store;
+  const viewedByHost = stay.hostId === store.currentUserId;
+  // Analytics: one view per House and browser tab (not the host looking at their own House).
+  useEffect(() => {
+    if (viewedByHost) return;
+    const key = `simpulo:viewed:${stay.id}`;
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast(tCommon("linkCopied"));
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
     } catch {
-      showToast(tCommon("linkCopyFailed"));
+      // no session storage – count it anyway
     }
+    track("house_viewed", { houseId: stay.id });
+  }, [stay.id, viewedByHost, track]);
+
+  function startRequest() {
+    store.track("join_started", { houseId: stay.id });
+    setSheetOpen(true);
   }
 
   function goBack() {
@@ -161,7 +177,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       isHost={isHost}
       request={myRequest}
       spotsLeft={spotsLeft}
-      onRequest={() => setSheetOpen(true)}
+      onRequest={startRequest}
       onMessageHost={messageHost}
     />
   );
@@ -176,10 +192,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         {host && (
           <>
             <div className="-mx-4 md:mx-0 lg:hidden">
-              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={share} />
+              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={() => setShareOpen(true)} />
             </div>
             <div className="hidden lg:block">
-              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={share} />
+              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={() => setShareOpen(true)} />
             </div>
           </>
         )}
@@ -197,6 +213,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
               </div>
             }
           />
+
+          {/* Declined, or the crew is full: the same trip, as their own House. */}
+          {!isHost && !isMember && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0))) && (
+            <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />
+          )}
 
           {/* Crew with an open share: pay right from the House page (also on mobile – this column is always shown). */}
           {isMember && <MyShare stay={stay} className="mt-6" />}
@@ -226,6 +247,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           <div>
             <HostPitch stay={stay} />
           </div>
+
+          {/* Only with a host fee (gone entirely when the hostPremium flag is off – the store drops both). */}
+          {stay.hostFeePerPerson && stay.hostOffer && stay.hostOffer.length > 0 && <HostOffer stay={stay} offer={stay.hostOffer} />}
 
           {stay.houseRules.length > 0 && (
             <div className="order-1 lg:order-none">
@@ -261,7 +285,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
               {t("datesAndNights", { dates: format.longRange(stay.startDate, stay.endDate), nights: format.nights(stayNights(stay)) })}
             </p>
             <div className="mt-5">{cta}</div>
-            {!me && stay.status !== "closed" && <p className="mt-2 text-center text-xs text-zinc-500">{t("loginBeforeSending")}</p>}
+            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-xs text-zinc-500">{t("loginBeforeSending")}</p>}
           </div>
           {host && (
             <div className={cn(sideCard, "hidden lg:block")}>
@@ -284,6 +308,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       </div>
 
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
+      <ShareSheet target={{ kind: "house", stay }} open={shareOpen} onClose={() => setShareOpen(false)} />
       <RequestSheet
         key={requestKey}
         open={sheetOpen}
@@ -305,6 +330,54 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       />
     </Container>
     </PreviewProvider>
+  );
+}
+
+/** What the host fee pays for: a neutral checklist under the pitch. */
+function HostOffer({ stay, offer }: { stay: Stay; offer: string[] }) {
+  const t = useTranslations("growth.premium");
+  const format = useFormat();
+  return (
+    <Section
+      title={t("offerTitle")}
+      action={
+        <span className="shrink-0 text-sm text-zinc-500">
+          <span className="font-medium tabular-nums text-ink">{format.price(stay.hostFeePerPerson ?? 0, stay.currency)}</span> {t("perPerson")}
+        </span>
+      }
+    >
+      <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
+        {offer.map((item) => (
+          <li key={item} className="flex gap-2 text-neutral-700">
+            <Check className="mt-1 size-4 shrink-0 text-zinc-500" aria-hidden />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+/** "Open your own House for the same dates" – prefilled in /create (region + dates). */
+function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
+  const t = useTranslations("growth.ownHouse");
+  const format = useFormat();
+  const dates = format.longRange(stay.startDate, stay.endDate);
+  const place = format.placeName(stay);
+  return (
+    <div className="mt-6 rounded-2xl bg-white p-5">
+      <p className="font-semibold">{declined ? t("titleDeclined") : t("titleFull")}</p>
+      <p className="mt-1 text-sm text-neutral-600">
+        {stay.startDate && stay.endDate ? t("text", { dates, place }) : t("textNoDates", { place })}
+      </p>
+      <Link
+        href={createHref({ region: stay.region, from: stay.startDate, to: stay.endDate })}
+        className={buttonClass("dark", "sm", "mt-4")}
+      >
+        <Plus className="size-4" aria-hidden />
+        {t("action")}
+      </Link>
+    </div>
   );
 }
 
@@ -342,6 +415,14 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }:
       </button>
     );
   }
+  // Done (or past its end date): nothing to join any more.
+  if (stay.status === "completed" || stay.endDate < new Date().toISOString().slice(0, 10)) {
+    return (
+      <button type="button" disabled className={buttonClass("dark", "lg", full)}>
+        {t("ended")}
+      </button>
+    );
+  }
   if (request?.status === "pending") {
     return (
       <button type="button" disabled className={buttonClass("dark", "lg", full)}>
@@ -357,8 +438,16 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }:
       </button>
     );
   }
-  // The host closed requests (or every spot is taken): no new request, but you can still reach the host.
-  if (!stay.acceptingRequests || spotsLeft === 0) {
+  // Every spot is taken: nothing to request.
+  if (spotsLeft === 0) {
+    return (
+      <button type="button" disabled className={buttonClass("dark", "lg", full)}>
+        {t("full")}
+      </button>
+    );
+  }
+  // The host closed requests: no new request, but you can still reach the host.
+  if (!stay.acceptingRequests) {
     return (
       <button type="button" onClick={onMessageHost} className={buttonClass("dark", "lg", full)}>
         {t("crewSet")}
