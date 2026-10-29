@@ -3006,40 +3006,22 @@
     "matched": "boat mediterranean"
   },
   {
-    "file": "/mock/houses/x8/1.webp",
-    "source": "pixabay",
-    "pixabayId": 8171000,
-    "pageURL": "https://pixabay.com/photos/parade-lgbtq-rainbow-event-pride-8171000/",
-    "user": "Michael_Kastelic",
-    "query": "pride parade rainbow flags",
-    "matched": "pride parade rainbow"
-  },
-  {
     "file": "/mock/houses/x8/2.webp",
     "source": "pixabay",
-    "pixabayId": 5053410,
-    "pageURL": "https://pixabay.com/photos/classic-cello-maspalomas-5053410/",
-    "user": "wurliburli",
-    "query": "maspalomas dunes",
-    "matched": "maspalomas dunes"
-  },
-  {
-    "file": "/mock/houses/x8/3.webp",
-    "source": "pixabay",
-    "pixabayId": 6803845,
-    "pageURL": "https://pixabay.com/photos/woman-swimming-pool-resort-vacation-6803845/",
-    "user": "Mariakray",
-    "query": "pool villa canary islands",
-    "matched": "pool"
+    "pixabayId": 314660,
+    "pageURL": "https://pixabay.com/photos/pride-day-gay-pride-girl-woman-314660/",
+    "user": "PublicDomainPictures",
+    "query": "pride festival crowd colorful",
+    "matched": "pride festival"
   },
   {
     "file": "/mock/houses/x8/4.webp",
     "source": "pixabay",
-    "pixabayId": 4922436,
-    "pageURL": "https://pixabay.com/photos/friends-couple-fun-street-people-4922436/",
-    "user": "Toan_Le",
-    "query": "friends dinner laughing",
-    "matched": "friends"
+    "pixabayId": 8561694,
+    "pageURL": "https://pixabay.com/photos/beach-sand-coast-spain-8561694/",
+    "user": "Matthias_Groeneveld",
+    "query": "canary islands beach sunset",
+    "matched": "canary islands beach sunset"
   },
   {
     "file": "/mock/houses/x9/1.webp",
@@ -4654,5 +4636,23 @@
     "user": "moritz320",
     "query": "board games table friends",
     "matched": "board games"
+  },
+  {
+    "file": "/mock/houses/x8/1.webp",
+    "source": "pixabay",
+    "pixabayId": 102636,
+    "pageURL": "https://pixabay.com/photos/zandvoort-netherlands-holland-102636/",
+    "user": "foerstemann",
+    "query": "friends beach sunset colorful",
+    "matched": "friends beach sunset"
+  },
+  {
+    "file": "/mock/houses/x8/3.webp",
+    "source": "pixabay",
+    "pixabayId": 6803845,
+    "pageURL": "https://pixabay.com/photos/woman-swimming-pool-resort-vacation-6803845/",
+    "user": "Mariakray",
+    "query": "pool party friends",
+    "matched": "pool"
   }
 ]

@@ -32,7 +32,7 @@ function EditStayGate({ id }: { id: string }) {
   const isHost = stay !== undefined && stay.hostId === currentUserId;
 
   useEffect(() => {
-    if (stay && !isHost) router.replace(`/stays/${stay.slug}`);
+    if (stay && !isHost) router.replace(`/house/${stay.slug}`);
   }, [stay, isHost, router]);
 
   if (!stay) {

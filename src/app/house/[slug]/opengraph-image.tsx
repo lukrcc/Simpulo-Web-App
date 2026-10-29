@@ -1,13 +1,13 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
-import { stays, users } from "@/lib/mock";
+import { getStayRecord, getUser } from "@/lib/data/stays";
 import { firstName } from "@/lib/utils";
 
-export const alt = "Simpulo";
+export const alt = "A House on Simpulo: the host, the title, the dates and the place";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PAGE = "#F5F4F1";
+const WHITE = "#FFFFFF";
 const INK = "#1E1E22";
 const ACCENT = "#F0633A";
 
@@ -62,18 +62,20 @@ function formatDates(start: string, end: string): string {
   return format.formatRange(new Date(start), new Date(end));
 }
 
-/** Share card for a House: host photo on the left half, title, host and dates · city on the right. */
+/** Share card for a House on white: host photo on the left half, title, host, dates · city and a small wordmark on the right. */
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getTranslations({ locale: "en", namespace: "states.og" });
-  const stay = stays.find((s) => s.slug === slug);
-  const host = stay && users.find((u) => u.id === stay.hostId);
+  const record = await getStayRecord(slug);
+  // Drafts never get a card of their own.
+  const stay = record && record.status !== "draft" && record.status !== "draft_unclaimed" ? record : undefined;
+  const host = stay && (await getUser(stay.hostId));
   const [photo, fonts] = await Promise.all([loadPhoto(host?.photos[0]), loadFonts()]);
 
   return new ImageResponse(
     (
-      <div style={{ display: "flex", width: "100%", height: "100%", background: PAGE, color: INK }}>
-        <div style={{ display: "flex", width: 600, height: 630, background: "#D6D3CD" }}>
+      <div style={{ display: "flex", width: "100%", height: "100%", background: WHITE, color: INK }}>
+        <div style={{ display: "flex", width: 600, height: 630, background: "#F5F4F1" }}>
           {photo && (
             <img src={photo} alt="" width={600} height={630} style={{ width: 600, height: 630, objectFit: "cover" }} />
           )}
@@ -90,7 +92,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               </div>
             )}
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 44, fontWeight: 700, letterSpacing: -1 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 32, fontWeight: 700, letterSpacing: -1 }}>
             simpulo<span style={{ color: ACCENT }}>.</span>
           </div>
         </div>

@@ -47,7 +47,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
         ...(stay.status === "closed" ? [] : [{ label: t("crewMenu.close"), onSelect: () => setConfirm("close"), danger: true }]),
       ]
     : [
-        ...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/stays/${stay.slug}` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }]),
         { label: t("crewMenu.leave"), onSelect: () => setConfirm("leave"), danger: true },
       ];
 

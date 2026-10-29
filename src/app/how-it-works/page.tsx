@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { pageMetadata } from "@/lib/seo";
 import { GetTheApp, StepNumber } from "@/components/GetTheApp";
 import { Container } from "@/components/layout/Container";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta");
-  return { title: t("pages.howItWorks") };
+  const t = await getTranslations("seo.pages.howItWorks");
+  return pageMetadata({ title: t("title"), description: t("description"), path: "/how-it-works", type: "article" });
 }
 
 /** Step copy: keys under howItWorks.steps. */

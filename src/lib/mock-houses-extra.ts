@@ -394,7 +394,7 @@ export const extraHouses: ExtraHouse[] = [
     lookingForText: 'LGBTQ+ folks and true allies. Warm, loud, respectful.',
     houseRules: ['Pronouns respected', 'Everyone cooks once'],
     interests: ['pride', 'beach', 'cooking', 'dancing'],
-    imageQueries: ['pride parade rainbow flags', 'maspalomas dunes', 'pool villa canary islands', 'friends dinner laughing'],
+    imageQueries: ['friends beach sunset colorful', 'pride festival crowd colorful', 'pool party friends', 'canary islands beach sunset'],
     createdAt: '2026-10-23T14:00:00Z' },
 
   // ── Business / Founder ──

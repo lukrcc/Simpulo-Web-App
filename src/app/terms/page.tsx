@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { pageMetadata } from "@/lib/seo";
 import { ContentPage, LEGAL_UPDATED, LegalList, LegalSection, TodoNote } from "@/components/layout/ContentPage";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta");
-  return { title: t("pages.terms") };
+  const t = await getTranslations("seo.pages.terms");
+  return pageMetadata({ title: t("title"), description: t("description"), path: "/terms", type: "article" });
 }
 
 // Cancellations and prohibited content add bullet points under their body.

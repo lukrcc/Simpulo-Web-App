@@ -50,6 +50,7 @@ export function AuthSheet({ open, context, onClose, onSuccess }: AuthSheetProps)
       title={completing ? tOnboarding("title") : t("title")}
       subtitle={completing ? undefined : context}
       size="wide"
+      focusOverlay
     >
       {/* Remounted on every open, so it always starts at the provider buttons. */}
       {open && <AuthOptions onSuccess={onSuccess} onCompleting={() => setCompleting(true)} />}

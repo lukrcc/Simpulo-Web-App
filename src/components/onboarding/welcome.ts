@@ -2,7 +2,7 @@
 export const WELCOME_PATH = "/welcome";
 
 /**
- * Only same-site paths are accepted as `?next=` ("/stays/s1"); anything else ("//evil.com", "https://…",
+ * Only same-site paths are accepted as `?next=` ("/house/s1"); anything else ("//evil.com", "https://…",
  * empty) falls back to the home page.
  */
 export function safeNextPath(next: string | null | undefined): string {

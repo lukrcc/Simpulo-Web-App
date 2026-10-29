@@ -408,7 +408,7 @@ function HouseSection({ id, title, open, past, empty, tile }: HouseSectionProps)
           <ul className="divide-y divide-black/5 rounded-[24px] bg-white">
             {past.map((stay) => (
               <li key={stay.id}>
-                <Link href={`/stays/${stay.slug}`} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02]">
+                <Link href={`/house/${stay.slug}`} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02]">
                   <StayThumb stay={stay} size={48} className="size-12" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{stay.title}</p>

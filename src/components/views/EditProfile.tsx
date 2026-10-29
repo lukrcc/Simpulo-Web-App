@@ -22,6 +22,7 @@ import { ProfileCard } from "@/components/profile/ProfileCard";
 import { CONTACT_FIELDS, SOCIAL_FIELDS, contactInputMode, normalizeContact, normalizeSocial, type SocialKey } from "@/components/profile/profileFields";
 import { buttonClass } from "@/components/ui/button";
 import { CardTab } from "@/components/ui/CardTab";
+import { NotchedCard } from "@/components/ui/NotchedCard";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { CONTACT_CHANNELS } from "@/components/ui/CrewContacts";
 import { Img } from "@/components/ui/Img";
@@ -388,10 +389,13 @@ function LivePreview({ user }: { user: User }) {
         })}
       />
       <div className="mt-4 flex items-center gap-4 rounded-[24px] bg-white p-4">
-        <div className="relative isolate aspect-4/5 w-24 shrink-0 overflow-hidden rounded-2xl rounded-tl-none bg-neutral-200">
+        <NotchedCard
+          className="aspect-4/5 w-24 shrink-0"
+          clipClassName="rounded-2xl bg-neutral-200"
+          tab={<CardTab host={user} bg="#ffffff" className="h-7 scale-[0.8] origin-top-left" />}
+        >
           {user.photos[0] && <Img src={user.photos[0]} alt="" fill sizes="96px" className="object-cover" />}
-          <CardTab host={user} bg="#ffffff" className="h-7 scale-[0.8] origin-top-left" />
-        </div>
+        </NotchedCard>
         <p className="text-sm text-zinc-600">{t("photoOnHouses")}</p>
       </div>
     </div>

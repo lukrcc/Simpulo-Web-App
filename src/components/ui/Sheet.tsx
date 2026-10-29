@@ -4,9 +4,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-
-/** Open sheets, oldest first – Escape only closes the topmost one (e.g. the AuthSheet over a request sheet). */
-const openSheets: string[] = [];
+import { ModalOverlay, modalStack as openSheets } from "./ModalOverlay";
 
 interface SheetProps {
   open: boolean;
@@ -18,6 +16,8 @@ interface SheetProps {
   onBack?: () => void;
   /** "wide": fixed 640px width (height follows content), 32px padding, 24px header icons. */
   size?: "default" | "wide";
+  /** Blur and dim everything behind it, trap focus, lock scrolling without a jump (ModalOverlay) */
+  focusOverlay?: boolean;
   children: ReactNode;
 }
 
@@ -27,9 +27,10 @@ const PANEL_SIZES = {
 } as const;
 
 /** Bottom sheet on mobile, centered modal on desktop. */
-export function Sheet({ open, onClose, title, subtitle, onBack, size = "default", children }: SheetProps) {
+export function Sheet({ open, onClose, title, subtitle, onBack, size = "default", focusOverlay = false, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
+  const titleId = `${id}-title`;
   // Latest onClose without re-running the effect – otherwise every parent re-render would re-register the
   // sheet and move it to the top of the stack.
   const onCloseRef = useRef(onClose);
@@ -38,7 +39,8 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
   });
 
   useEffect(() => {
-    if (!open) return;
+    // With the focus overlay, ModalOverlay does all of this (and more).
+    if (!open || focusOverlay) return;
     openSheets.push(id);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && openSheets.at(-1) === id) onCloseRef.current();
@@ -51,52 +53,63 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
       window.removeEventListener("keydown", onKey);
       openSheets.splice(openSheets.indexOf(id), 1);
     };
-  }, [open, id]);
+  }, [open, id, focusOverlay]);
 
   if (!open) return null;
   const iconSize = size === "wide" ? "size-6" : "size-5";
+  const panelClass = cn("scroll-pane relative max-h-[90dvh] w-full rounded-t-3xl bg-white shadow-xl md:rounded-3xl", PANEL_SIZES[size]);
+
+  const content = (
+    <>
+      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-neutral-200 md:hidden" />
+      <div className={cn("flex items-center justify-between gap-4", !subtitle && "mb-4")}>
+        <div className="flex min-w-0 items-center gap-1">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label={t("back")}
+              className="-ml-1.5 rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
+            >
+              <ArrowLeft className={iconSize} />
+            </button>
+          )}
+          <h2 id={titleId} className="truncate text-lg font-semibold">
+            {title}
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("close")}
+          className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
+        >
+          <X className={iconSize} />
+        </button>
+      </div>
+      {subtitle && <p className="mb-6 mt-1 text-[15px] text-zinc-500">{subtitle}</p>}
+      <div data-sheet-body>{children}</div>
+    </>
+  );
+
+  if (focusOverlay) {
+    return (
+      // Focus starts on the sheet's first action (e.g. "Continue with Apple"), not on the close button.
+      <ModalOverlay open onClose={onClose} labelledBy={titleId} panelClassName={panelClass} initialFocus="[data-sheet-body]">
+        {content}
+      </ModalOverlay>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button
         type="button"
         aria-label={t("close")}
         onClick={onClose}
         className="animate-fade-in absolute inset-0 bg-black/40"
       />
-      <div
-        className={cn(
-          "animate-sheet-in scroll-pane relative max-h-[90dvh] w-full rounded-t-3xl bg-white shadow-xl md:rounded-3xl",
-          PANEL_SIZES[size],
-        )}
-      >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-neutral-200 md:hidden" />
-        <div className={cn("flex items-center justify-between gap-4", !subtitle && "mb-4")}>
-          <div className="flex min-w-0 items-center gap-1">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                aria-label={t("back")}
-                className="-ml-1.5 rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
-              >
-                <ArrowLeft className={iconSize} />
-              </button>
-            )}
-            <h2 className="truncate text-lg font-semibold">{title}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("close")}
-            className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
-          >
-            <X className={iconSize} />
-          </button>
-        </div>
-        {subtitle && <p className="mb-6 mt-1 text-[15px] text-zinc-500">{subtitle}</p>}
-        {children}
-      </div>
+      <div className={cn("animate-sheet-in", panelClass)}>{content}</div>
     </div>
   );
 }

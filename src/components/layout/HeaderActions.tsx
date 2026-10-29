@@ -10,9 +10,10 @@ import { Avatar } from "@/components/ui/Avatar";
 import { OpenHouseButton } from "@/components/ui/OpenHouseButton";
 import { getCurrentUser, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
+import { NotificationBell } from "./NotificationBell";
 import { GET_THE_APP_HREF } from "./secondaryLinks";
 
-/** Header right side: "Log in" (logged out) or the avatar menu (logged in), plus "Open a House". */
+/** Header right side: "Log in" (logged out) or the bell + avatar menu (logged in), plus "Open a House". */
 export function HeaderActions() {
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -22,7 +23,10 @@ export function HeaderActions() {
   return (
     <div className="flex items-center justify-end gap-5">
       {me ? (
-        <AccountMenu me={me} />
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <AccountMenu me={me} />
+        </div>
       ) : (
         <button type="button" onClick={() => requireAuth()} className="text-sm font-medium text-zinc-500 hover:text-ink">
           {t("logIn")}

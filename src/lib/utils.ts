@@ -112,9 +112,11 @@ export { VIBES };
  * A House's photos: the host's face first, then the House's theme photos. Houses opened in the app have no theme
  * photos, so the rest of the host's own photos fill in.
  */
-export function stayPhotos(stay: Pick<Stay, "photos">, host?: Pick<User, "photos">): string[] {
+export function stayPhotos(stay: Pick<Stay, "photos" | "coverImageOverride">, host?: Pick<User, "photos">): string[] {
   const face = host?.photos[0];
-  const rest = stay.photos?.length ? stay.photos : (host?.photos.slice(1) ?? []);
+  const themes = stay.photos?.length ? stay.photos : (host?.photos.slice(1) ?? []);
+  // A pinned cover replaces the first theme photo (and isn't shown twice).
+  const rest = stay.coverImageOverride ? [stay.coverImageOverride, ...themes.slice(1).filter((p) => p !== stay.coverImageOverride)] : themes;
   return face ? [face, ...rest] : rest;
 }
 

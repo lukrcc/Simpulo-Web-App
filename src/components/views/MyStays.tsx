@@ -93,7 +93,7 @@ function MyStaysContent() {
                 stay={stay}
                 active={isDesktop && stay.id === active?.id}
                 isDesktop={isDesktop}
-                href={isDesktop ? undefined : `/stays/${stay.slug}`}
+                href={isDesktop ? undefined : `/house/${stay.slug}`}
               />
             </li>
           ))}
@@ -272,7 +272,7 @@ function SavedHouse({ stay }: { stay: Stay }) {
         </div>
       )}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Link href={`/stays/${stay.slug}`} className={buttonClass("dark", "sm")}>
+        <Link href={`/house/${stay.slug}`} className={buttonClass("dark", "sm")}>
           {t("detail.viewPage")}
         </Link>
         <button type="button" onClick={() => store.toggleSaved(stay.id)} className={buttonClass("secondary", "sm")}>

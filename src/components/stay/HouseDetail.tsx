@@ -11,6 +11,7 @@ import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsCard } from "@/components/payments/PaymentsCard";
 import { ShareSheet, StoryImageButton } from "@/components/share/ShareSheet";
 import { Avatar } from "@/components/ui/Avatar";
+import { InterestInvite } from "@/components/stay/InterestInvite";
 import { buttonClass } from "@/components/ui/button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { MoreMenu } from "@/components/ui/MoreMenu";
@@ -127,7 +128,7 @@ function HouseManage({ stay }: { stay: Stay }) {
             {t("editHouse")}
           </Link>
           {/* The host sees the public page as a guest would (dark preview banner, nothing changes data). */}
-          <Link href={`/stays/${stay.slug}?preview=guest`} className={buttonClass("secondary", "sm")}>
+          <Link href={`/house/${stay.slug}?preview=guest`} className={buttonClass("secondary", "sm")}>
             {t("viewPage")}
           </Link>
           {/* A draft has no public page to share yet. */}
@@ -144,6 +145,8 @@ function HouseManage({ stay }: { stay: Stay }) {
         <ShareSheet target={{ kind: "house", stay }} open={sharing} onClose={() => setSharing(false)} />
       </section>
 
+      {/* People who want this city and month: the host can invite them (only shows with matching interest). */}
+      {!draft && <InterestInvite stay={stay} />}
       <RequestsCard stay={stay} />
       <CrewCard stay={stay} manage />
       <HostAccommodationCard stay={stay} />
@@ -528,7 +531,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               {host ? t("joined.waiting", { name: host.name.split(" ")[0] }) : t("joined.waitingForHost")}
             </p>
           )}
-          <Link href={`/stays/${stay.slug}`} className={buttonClass("secondary", "sm")}>
+          <Link href={`/house/${stay.slug}`} className={buttonClass("secondary", "sm")}>
             {t("detail.viewPage")}
           </Link>
         </div>

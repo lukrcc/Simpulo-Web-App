@@ -418,9 +418,10 @@ export function clearDraft() {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** /create with a place and dates filled in – the stepper picks them up (see prefillOf). */
-export function createHref({ region, from, to }: { region?: string; from?: string; to?: string }): string {
+export function createHref({ region, city, from, to }: { region?: string; city?: string; from?: string; to?: string }): string {
   const params = new URLSearchParams();
   if (region?.trim()) params.set("region", region.trim());
+  if (city?.trim()) params.set("city", city.trim());
   if (from && ISO_DATE.test(from)) params.set("from", from);
   if (to && ISO_DATE.test(to)) params.set("to", to);
   const query = params.toString();
@@ -434,11 +435,12 @@ export function createHref({ region, from, to }: { region?: string; from?: strin
 export function prefillOf(search: string, today: string): Partial<FormState> | null {
   const params = new URLSearchParams(search);
   const region = params.get("region")?.trim().slice(0, 80) ?? "";
+  const city = params.get("city")?.trim().slice(0, 80) ?? "";
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
   const earliest = earliestStart(today);
   const start = ISO_DATE.test(from) ? (earliest && from < earliest ? earliest : from) : "";
   const end = ISO_DATE.test(to) && start && to > start ? to : "";
-  if (!region && !start) return null;
-  return { ...(region && { region }), ...(start && { startDate: start, endDate: end }) };
+  if (!region && !city && !start) return null;
+  return { ...(region && { region }), ...(city && { city, cityOpen: false }), ...(start && { startDate: start, endDate: end }) };
 }

@@ -14,7 +14,10 @@ import {
   type HostApplication,
   type ShareChannel,
 } from "./growth";
-import { joinRequests as rawJoinRequests, stays as mockStays, threads as mockThreads, users as mockUsers } from "./mock";
+import { CURRENT_USER_ID } from "./mock";
+import { getMockDataset, readPreset, type MockDataset } from "./mock-datasets";
+import type { AppNotification, NotifyEventKey } from "./data/notifications";
+import { FLEXIBLE, interestIn, interestsFor, MOCK_INTERESTS, wantsMonth, type DemandSpot, type Interest } from "./interests";
 import { withMockHistory } from "./mock-chat";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "./mock-growth";
 import type { Reminder } from "./reminders";
@@ -58,7 +61,7 @@ interface StoreState {
   typing: Record<string, string | null>;
   /** Mock moderation queue (Report sheet) */
   reports: Report[];
-  /** Mock outbox: every notification that would go out by email (and push, if installed). Newest last. */
+  /** Every notification, one per recipient (in-app under the bell; also email / push – see NotificationToasts). Newest last. */
   notifications: AppNotification[];
   /** Analytics events, oldest first (seeded history + this browser's; also logged to the console) */
   events: GrowthEvent[];
@@ -66,6 +69,10 @@ interface StoreState {
   alerts: DemandAlert[];
   /** /host applications */
   applications: HostApplication[];
+  /** "Where do you want to go next?" – one record per person, place and month (mock: placeholder demand + this browser's) */
+  interests: Interest[];
+  /** stayId → when its host invited the people interested in it */
+  interestInvites: Record<string, string>;
 }
 
 /** What a House prepared on someone's behalf needs (admin form). */
@@ -82,29 +89,7 @@ export interface ClaimableStayInput {
   pitch: string;
 }
 
-export type NotifyEventKey =
-  | "newRequest"
-  | "accepted"
-  | "declined"
-  | "locked"
-  | "paid"
-  | "left"
-  // Scheduled reminders (src/lib/reminders.ts)
-  | "reminderPayDue"
-  | "reminderPayToday"
-  | "reminderBookingUpload"
-  | "reminderPendingRequests"
-  | "reminderArrival"
-  | "reminderSavedSoon"
-  | "hostOpened";
-
-/** One notification event – email always, push if the recipient installed the app. Text comes from translations. */
-export interface AppNotification {
-  id: string;
-  to: string[];
-  key: NotifyEventKey;
-  values: Record<string, string | number>;
-}
+export type { AppNotification, NotifyEventKey } from "./data/notifications";
 
 // Actions that belong to "the current user" leave the user out: the reducer fills in state.currentUserId when it
 // processes them. So an action dispatched right after login() in the same click already acts as the new user.
@@ -126,8 +111,14 @@ type StoreAction =
   | { type: "track"; event: GrowthEvent }
   | { type: "attributeUser"; userId: string; attribution: Attribution }
   | { type: "addAlert"; alert: DemandAlert }
+  | { type: "toggleInterest"; userId: string; spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">; interest: Pick<Interest, "id" | "createdAt"> }
+  | { type: "addInterest"; interest: Interest }
+  | { type: "markNotificationRead"; id: string; at: string }
+  | { type: "markAllNotificationsRead"; at: string }
+  | { type: "inviteInterested"; stayId: string; at: string }
   | { type: "addApplication"; application: HostApplication }
   | { type: "restoreGrowth"; saved: PersistedGrowth }
+  | { type: "loadDataset"; state: StoreState }
   | { type: "updateStay"; stayId: string; patch: NewStayInput }
   | { type: "leaveStay"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "removeMember"; stayId: string; userId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
@@ -154,7 +145,7 @@ type StoreAction =
   | { type: "receiveMessage"; threadId: string; message: Message }
   | { type: "toggleSaved"; stayId: string }
   | { type: "toggleHostAlert"; hostId: string }
-  | { type: "setNotification"; group: NotificationGroup; channel: "push" | "email"; on: boolean }
+  | { type: "setNotification"; group: NotificationGroup; channel: NotificationChannel; on: boolean }
   | { type: "unblockUser"; userId: string }
   | { type: "blockUser"; userId: string }
   | { type: "report"; report: Omit<Report, "reporterId"> }
@@ -211,6 +202,16 @@ interface StoreActions {
   track: (name: GrowthEventName, props?: { houseId?: string; channel?: ShareChannel; userId?: string }) => void;
   /** "Notify me" on an empty Explore. */
   addAlert: (alert: Pick<DemandAlert, "email" | "region" | "from" | "to">) => void;
+  /** "I'm interested" on a demand spot: on, or off again. `userId` – right after an inline login the store doesn't know the user yet. */
+  toggleInterest: (spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">, userId: string) => void;
+  /** "+ Add a place": a new interest of `userId` (shows up in the demand row right away) */
+  addInterest: (input: Pick<Interest, "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) => void;
+  /** Bell / notifications page: one of the current user's notifications is read */
+  markNotificationRead: (id: string) => void;
+  /** …or all of them */
+  markAllNotificationsRead: () => void;
+  /** Host: tell everyone interested in the House's city and month about it (notification + email) – once */
+  inviteInterested: (stayId: string) => void;
   /** /host application form. */
   addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
@@ -255,7 +256,7 @@ interface StoreActions {
   /** "Notify me": get an alert when this host opens a House, or stop it. */
   toggleHostAlert: (hostId: string) => void;
   /** Settings → Notifications: one channel of one group on/off. */
-  setNotification: (group: NotificationGroup, channel: "push" | "email", on: boolean) => void;
+  setNotification: (group: NotificationGroup, channel: NotificationChannel, on: boolean) => void;
   unblockUser: (userId: string) => void;
   /** Their Houses and profile are hidden from you, their requests to your Houses auto-declined, direct threads gone. */
   blockUser: (userId: string) => void;
@@ -354,7 +355,7 @@ function seedLockedStays(stays: Stay[]): Stay[] {
 }
 
 /** A payment record per crew member of every locked stay; mockPaidUsers (and past Houses) are paid already. */
-function seedPayments(stays: Stay[], requests: JoinRequest[]): Payment[] {
+function seedPayments(stays: Stay[], requests: JoinRequest[], users: User[]): Payment[] {
   return stays.flatMap((stay) => {
     if (stay.accommodationStatus !== "locked" || !stay.pricePerPerson) return [];
     const share = stay.pricePerPerson;
@@ -364,7 +365,7 @@ function seedPayments(stays: Stay[], requests: JoinRequest[]): Payment[] {
       const paid = Boolean(stay.bookingConfirmedAt) || (mockPaidUsers[stay.id]?.includes(userId) ?? false);
       return {
         id: `pay-${stay.id}-${userId}`,
-        ...paymentFor(stay, userId, share, memberAttribution(mockUsers, requests, stay, userId)),
+        ...paymentFor(stay, userId, share, memberAttribution(users, requests, stay, userId)),
         status: paid ? "paid" : "pending",
         ...(paid && { paidAt }),
       };
@@ -372,33 +373,77 @@ function seedPayments(stays: Stay[], requests: JoinRequest[]): Payment[] {
   });
 }
 
-const mockJoinRequests = withMockAttribution(rawJoinRequests, mockStays);
-const seededStays = seedLockedStays(mockStays);
-const seededPayments = seedPayments(seededStays, mockJoinRequests);
-const seededChat = withMockHistory(withCrewThreads(seededStays, mockThreads, mockJoinRequests), {
-  stays: seededStays,
-  users: mockUsers,
-  joinRequests: mockJoinRequests,
-  payments: seededPayments,
-  lockFor: lockFromStay,
-});
+/**
+ * ⚠ MOCK: about 40 notifications for the default mock user across every type and the last two months, so the bell,
+ * the day groups and "Load more" on /notifications have something to show. Built from Houses and chats that exist in
+ * the dataset – a type without a fitting House is skipped. Anything older than two days is read.
+ */
+const MOCK_NOW = Date.parse("2026-10-29T08:00:00Z");
+const MOCK_DAYS = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 9, 10, 11, 12, 14, 15, 17, 18, 20, 21, 24, 26, 28, 31, 34, 37, 40, 43, 47, 51, 55, 60];
 
-const initialState: StoreState = {
-  users: mockUsers,
-  // Houses waiting to be claimed have no host and no crew thread until someone claims them.
-  stays: [...seededStays, ...mockClaimableStays],
-  joinRequests: mockJoinRequests,
-  threads: seededChat.threads,
-  currentUserId: null,
-  lastReadAt: seededChat.lastReadAt,
-  payments: seededPayments,
-  typing: {},
-  reports: [],
-  notifications: [],
-  events: mockGrowthEvents({ stays: seededStays, joinRequests: mockJoinRequests, payments: seededPayments }),
-  alerts: [],
-  applications: [],
-};
+function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], threads: Thread[]): AppNotification[] {
+  const me = CURRENT_USER_ID;
+  const published = stays.filter((s) => s.status === "published" || s.status === "booked");
+  const hosted = published.filter((s) => s.hostId === me);
+  const joined = published.filter((s) => s.hostId !== me && requests.some((r) => r.stayId === s.id && r.userId === me && r.status === "accepted"));
+  const locked = joined.filter((s) => s.accommodationStatus === "locked" && s.pricePerPerson);
+  const others = published.filter((s) => s.hostId !== me && !joined.includes(s));
+  const names = users.filter((u) => u.id !== me && u.photos.length > 0).map((u) => u.name.split(" ")[0]);
+  const chats = threads.filter((t) => t.participantIds.includes(me));
+  const pick = <T,>(list: T[], i: number): T | undefined => list[i % Math.max(1, list.length)];
+
+  const builders: Array<(i: number) => Omit<AppNotification, "id" | "userId" | "eventId" | "createdAt"> | null> = [
+    (i) => { const s = pick(hosted, i); return s ? { key: "newRequest", values: { name: pick(names, i * 3)!, title: s.title }, stayId: s.id } : null; },
+    (i) => { const t = pick(chats, i); const s = t && stays.find((x) => x.id === t.stayId); return t && s ? { key: "newMessage", values: { name: pick(names, i * 5 + 1)!, title: s.title, preview: MOCK_PREVIEWS[i % MOCK_PREVIEWS.length] }, stayId: s.id, threadId: t.id } : null; },
+    (i) => { const s = pick(joined, i); return s ? { key: "accepted", values: { title: s.title }, stayId: s.id } : null; },
+    (i) => { const s = pick(locked, i); return s ? { key: "reminderPayDue", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
+    (i) => { const s = pick(others, i * 7); return s ? { key: "interestOpened", values: { place: s.city || s.region, title: s.title }, stayId: s.id } : null; },
+    (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
+    (i) => { const s = pick(others, i * 5 + 2); return s ? { key: "declined", values: { title: s.title }, stayId: s.id } : null; },
+    (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
+    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/how-it-works"] as const)[i % 3] }),
+  ];
+
+  return MOCK_DAYS.flatMap((days, i) => {
+    const item = builders[i % builders.length](Math.floor(i / builders.length));
+    if (!item) return [];
+    // Spread over the day: newest first within a day, a few hours apart.
+    const createdAt = new Date(MOCK_NOW - days * 86_400_000 - (i % 4) * 2.5 * 3_600_000).toISOString();
+    const read = days >= 2 || i % 3 === 2;
+    return [{ ...item, id: `n-mock-${i}`, userId: me, eventId: `n-mock-${i}`, createdAt, ...(read && { readAt: createdAt }), mock: true as const }];
+  });
+}
+
+const MOCK_PREVIEWS = ["Who's bringing the speaker?", "Landing at 14:20, anyone around?", "Booked my flight 🎉", "Can we push dinner to 8?", "Found a great coworking spot nearby"];
+
+/** The store's starting state for a mock dataset (see mock-datasets.ts – the DevSwitcher's "Data" preset). */
+function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: MockDataset): StoreState {
+  const joinRequests = withMockAttribution(rawRequests, rawStays);
+  const stays = seedLockedStays(rawStays);
+  const payments = seedPayments(stays, joinRequests, users);
+  const chat = withMockHistory(withCrewThreads(stays, threads, joinRequests), { stays, users, joinRequests, payments, lockFor: lockFromStay });
+  return {
+    users,
+    // Houses waiting to be claimed have no host and no crew thread until someone claims them.
+    stays: [...stays, ...mockClaimableStays],
+    joinRequests,
+    threads: chat.threads,
+    currentUserId: null,
+    lastReadAt: chat.lastReadAt,
+    payments,
+    typing: {},
+    reports: [],
+    events: mockGrowthEvents({ stays, joinRequests, payments }),
+    alerts: [],
+    applications: [],
+    interests: [...MOCK_INTERESTS],
+    interestInvites: {},
+    notifications: mockInbox(stays, joinRequests, users, chat.threads),
+  };
+}
+
+/** Server render and hydration always start from the full data; another preset is swapped in right after. */
+const initialState: StoreState = buildInitialState(getMockDataset("full"));
 
 /** The growth bits kept in this browser across reloads (mock – no backend). Seeded events are left out. */
 interface PersistedGrowth {
@@ -471,7 +516,19 @@ function notifyHostAlerts(state: StoreState, hostId: string, stay: Pick<Stay, "i
     "hostOpened",
     { name: firstNameOf(state, hostId), title: stay.title },
     stay.id,
+    stay.id,
   );
+}
+
+/** Everyone interested in this place and the House's start month (with "notify me" on) hears that it opened. */
+function notifyInterested(state: StoreState, stay: Pick<Stay, "id" | "title" | "city" | "startDate">): AppNotification[] {
+  const place = stay.city.trim().toLowerCase();
+  const month = stay.startDate.slice(0, 7);
+  const people = state.interests
+    .filter((i) => i.notify && i.placeName.trim().toLowerCase() === place && wantsMonth(i, month))
+    .map((i) => i.userId)
+    .filter((id) => state.users.some((u) => u.id === id));
+  return notify(state, people, "interestOpened", { place: stay.city, title: stay.title }, `${stay.id}-interest`, stay.id);
 }
 
 /** Host plus accepted members. */
@@ -485,9 +542,27 @@ function notify(
   key: NotifyEventKey,
   values: Record<string, string | number>,
   id: string,
+  /** The House it's about – where the notification links to */
+  stayId?: string,
+  /** A chat it's about (new messages) */
+  threadId?: string,
 ): AppNotification[] {
   const recipients = [...new Set(to)].filter(Boolean);
-  return recipients.length > 0 ? [...state.notifications, { id: `n-${id}`, to: recipients, key, values }] : state.notifications;
+  if (recipients.length === 0) return state.notifications;
+  const createdAt = new Date().toISOString();
+  return [
+    ...state.notifications,
+    ...recipients.map((userId) => ({
+      id: `n-${id}-${userId}`,
+      userId,
+      eventId: `n-${id}`,
+      key,
+      values,
+      createdAt,
+      ...(stayId && { stayId }),
+      ...(threadId && { threadId }),
+    })),
+  ];
 }
 
 /** A system line in the crew chat: no stored text, rendered from the event's translation. */
@@ -561,7 +636,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         threads: [thread, ...state.threads],
         // The host's own ideas aren't unread for the host.
         lastReadAt: lastMessage ? { ...state.lastReadAt, [action.threadId]: lastMessage.createdAt } : state.lastReadAt,
-        notifications: notifyHostAlerts(state, me, action.stay),
+        notifications: notifyInterested({ ...state, notifications: notifyHostAlerts(state, me, action.stay) }, action.stay),
         events: [
           ...state.events,
           event(action.stay.id, "house_published", action.stay.createdAt, { houseId: action.stay.id, userId: me, ...attributionFor(state, me, action.attribution) }),
@@ -575,7 +650,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "published", acceptingRequests: true } : s)),
-        notifications: notifyHostAlerts(state, me, stay),
+        notifications: notifyInterested({ ...state, notifications: notifyHostAlerts(state, me, stay) }, stay),
         events: [
           ...state.events,
           event(`${stay.id}-${action.at}`, "house_published", action.at, { houseId: stay.id, userId: me, ...attributionFor(state, me, action.attribution) }),
@@ -649,8 +724,54 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
     case "addAlert":
       return { ...state, alerts: [...state.alerts, action.alert] };
 
+    case "toggleInterest": {
+      const existing = interestIn(state.interests, action.userId, action.spot);
+      if (existing) return { ...state, interests: state.interests.filter((i) => i.id !== existing.id) };
+      // Joining a place: the months its people want (just "anytime" if none of them picked one).
+      const months = action.spot.months.length > 0 ? action.spot.months.map((m) => m.month) : [FLEXIBLE];
+      const { placeName, country, region } = action.spot;
+      const interest: Interest = { placeName, country, region, months, ...action.interest, userId: action.userId, language: "en", notify: true, visible: true };
+      return { ...state, interests: [...state.interests, interest] };
+    }
+
+    case "addInterest": {
+      // One interest per person and place: adding a place again replaces its months and "notify me".
+      const existing = interestIn(state.interests, action.interest.userId, action.interest);
+      const others = existing ? state.interests.filter((i) => i.id !== existing.id) : state.interests;
+      return { ...state, interests: [...others, action.interest] };
+    }
+
+    case "inviteInterested": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me || state.interestInvites[stay.id]) return state;
+      // Everyone – shown or not: people who opted out are told too, they just stay anonymous to the host.
+      const people = interestsFor(state.interests, stay)
+        .map((i) => i.userId)
+        .filter((id) => id !== me && state.users.some((u) => u.id === id));
+      return {
+        ...state,
+        interestInvites: { ...state.interestInvites, [stay.id]: action.at },
+        notifications: notify(state, people, "interestInvite", { name: firstNameOf(state, me), place: stay.city, title: stay.title }, `${stay.id}-invite`, stay.id),
+      };
+    }
+
+    case "markNotificationRead":
+      return {
+        ...state,
+        notifications: state.notifications.map((n) => (n.id === action.id && n.userId === me && !n.readAt ? { ...n, readAt: action.at } : n)),
+      };
+
+    case "markAllNotificationsRead":
+      return {
+        ...state,
+        notifications: state.notifications.map((n) => (n.userId === me && !n.readAt ? { ...n, readAt: action.at } : n)),
+      };
+
     case "addApplication":
       return { ...state, applications: [...state.applications, action.application] };
+
+    case "loadDataset":
+      return { ...action.state, currentUserId: state.currentUserId };
 
     case "restoreGrowth": {
       const { saved } = action;
@@ -684,7 +805,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const next = withoutMember(state, stay, me, systemLine(action.systemMessage, "left", { name }));
       return next === state
         ? state
-        : { ...next, notifications: notify(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id) };
+        : { ...next, notifications: notify(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id, stay.id) };
     }
 
     case "removeMember": {
@@ -759,7 +880,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: [...state.joinRequests, request],
-        notifications: notify(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id),
+        notifications: notify(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id, stay.id),
         events,
       };
     }
@@ -795,7 +916,17 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
           participantIds: t.participantIds.includes(request.userId) ? t.participantIds : [...t.participantIds, request.userId],
           messages: [...t.messages, systemMessage],
         })),
-        notifications: notify(state, [request.userId], "accepted", { title: stay.title }, systemMessage.id),
+        notifications: notify(
+          // The last spot taken: the whole crew hears it's complete.
+          spotsFilled >= stay.spotsTotal
+            ? { ...state, notifications: notify(state, [...crewIds(state, stay), request.userId], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
+            : state,
+          [request.userId],
+          "accepted",
+          { title: stay.title },
+          systemMessage.id,
+          stay.id,
+        ),
         events: [
           ...state.events,
           event(systemMessage.id, "request_accepted", systemMessage.createdAt, { houseId: stay.id, userId: request.userId, ...attributionOf(request) }),
@@ -810,12 +941,15 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "declined" } : r)),
-        notifications: notify(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`),
+        notifications: notify(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`, stay.id),
       };
     }
 
-    case "sendMessage":
+    case "sendMessage": {
       if (!me) return state;
+      const thread = state.threads.find((t) => t.id === action.threadId);
+      const stay = thread && state.stays.find((s) => s.id === thread.stayId);
+      const preview = action.message.text.trim().slice(0, 80) || "📎";
       return {
         ...state,
         threads: updateThread(state.threads, action.threadId, (t) => ({
@@ -824,7 +958,12 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         })),
         // Your own message is read by definition.
         lastReadAt: { ...state.lastReadAt, [action.threadId]: action.message.createdAt },
+        // Everyone else in the chat gets a notification that leads to it.
+        notifications: thread
+          ? notify(state, thread.participantIds.filter((id) => id !== me), "newMessage", { name: firstNameOf(state, me), title: stay?.title ?? "", preview }, action.message.id, stay?.id, thread.id)
+          : state.notifications,
       };
+    }
 
     case "createThread":
       return { ...state, threads: [...state.threads, action.thread] };
@@ -872,7 +1011,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         payments: [...state.payments.filter((p) => p.stayId !== stay.id || p.status === "refunded"), ...payments],
         threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, message] })),
         lastReadAt: { ...state.lastReadAt, [crewThreadId(stay.id)]: message.createdAt },
-        notifications: notify(state, crew.filter((id) => id !== me), "locked", { title: stay.title, price: lock.perPerson, payBy: lock.payBy }, message.id),
+        notifications: notify(state, crew.filter((id) => id !== me), "locked", { title: stay.title, price: lock.perPerson, payBy: lock.payBy }, message.id, stay.id),
       };
     }
 
@@ -891,7 +1030,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         ...state,
         payments,
         threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, message] })),
-        notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id),
+        notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id, stay.id),
         events: [
           ...state.events,
           event(message.id, "payment_completed", message.createdAt, {
@@ -1034,7 +1173,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
 
     case "fireReminder": {
       const { reminder } = action;
-      const notifications = notify(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`);
+      const notifications = notify(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`, reminder.stayId);
       if (!reminder.chatEvent) return { ...state, notifications };
       const line = systemLine(action.message, reminder.chatEvent, reminder.values);
       return {
@@ -1083,6 +1222,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /** Growth data is written back only after it was read, so the first render can't overwrite it. */
   const growthRestored = useRef(false);
 
+  // Mock data volume (DevSwitcher "Data"): another preset than "full" is swapped in right after hydration. Runs before
+  // the growth restore below, so restored claims and events land on top of it.
+  useEffect(() => {
+    const preset = readPreset();
+    if (preset !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getMockDataset(preset)) });
+  }, []);
+
   // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
   useEffect(() => {
     firstTouch();
@@ -1110,7 +1256,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const logged = (loggedEvents.current ??= new Set(initialState.events.map((e) => e.id)));
     for (const e of state.events) {
-      if (logged.has(e.id)) continue;
+      // Seeded history (also a dataset's) isn't news.
+      if (logged.has(e.id) || e.seed) continue;
       logged.add(e.id);
       console.info(`[analytics] ${e.name}`, e);
     }
@@ -1282,6 +1429,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }),
     [currentUserId],
   );
+  const toggleInterest = useCallback(
+    (spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">, userId: string) =>
+      dispatch({ type: "toggleInterest", userId, spot, interest: { id: makeId("interest"), createdAt: new Date().toISOString() } }),
+    [],
+  );
+  const addInterest = useCallback(
+    (input: Pick<Interest, "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) =>
+      dispatch({
+        type: "addInterest",
+        interest: { ...input, id: makeId("interest"), userId, language: "en", createdAt: new Date().toISOString() },
+      }),
+    [],
+  );
+  const markNotificationRead = useCallback((id: string) => dispatch({ type: "markNotificationRead", id, at: new Date().toISOString() }), []);
+  const markAllNotificationsRead = useCallback(() => dispatch({ type: "markAllNotificationsRead", at: new Date().toISOString() }), []);
+  const inviteInterested = useCallback((stayId: string) => dispatch({ type: "inviteInterested", stayId, at: new Date().toISOString() }), []);
   const addApplication = useCallback(
     (application: Omit<HostApplication, "id" | "createdAt" | "userId">) =>
       dispatch({
@@ -1441,7 +1604,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toggleSaved = useCallback((stayId: string) => dispatch({ type: "toggleSaved", stayId }), []);
   const toggleHostAlert = useCallback((hostId: string) => dispatch({ type: "toggleHostAlert", hostId }), []);
   const setNotification = useCallback(
-    (group: NotificationGroup, channel: "push" | "email", on: boolean) => dispatch({ type: "setNotification", group, channel, on }),
+    (group: NotificationGroup, channel: NotificationChannel, on: boolean) => dispatch({ type: "setNotification", group, channel, on }),
     [],
   );
   const unblockUser = useCallback((userId: string) => dispatch({ type: "unblockUser", userId }), []);
@@ -1485,6 +1648,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       duplicateStay,
       track,
       addAlert,
+      toggleInterest,
+      addInterest,
+      markNotificationRead,
+      markAllNotificationsRead,
+      inviteInterested,
       addApplication,
       leaveStay,
       closeStay,
@@ -1511,7 +1679,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       fireReminder,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, duplicateStay, track, addAlert, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, duplicateStay, track, addAlert, toggleInterest, addInterest, markNotificationRead, markAllNotificationsRead, inviteInterested, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -1537,6 +1705,8 @@ const DEFAULT_SETTINGS: UserSettings = {
     messages: { push: true, email: true },
     payments: { push: true, email: true },
     hostAlerts: { push: true, email: true },
+    interests: { push: true, email: true },
+    system: { push: false, email: true },
   },
   blockedUserIds: [],
 };
@@ -1560,6 +1730,9 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
 }
 
 /** Which Settings group a notification belongs to (its toggles decide whether push/email go out). */
+/** In-app = under the bell; push only reaches installed apps; email always. */
+export type NotificationChannel = "inApp" | "push" | "email";
+
 export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
   newRequest: "requests",
   accepted: "requests",
@@ -1574,6 +1747,13 @@ export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
   reminderArrival: "payments",
   reminderSavedSoon: "payments",
   hostOpened: "hostAlerts",
+  interestOpened: "interests",
+  interestInvite: "interests",
+  crewFull: "requests",
+  newMessage: "messages",
+  systemWelcome: "system",
+  systemVerify: "system",
+  systemPhoto: "system",
 };
 
 export type StoreData = Pick<StoreState, "users" | "stays" | "joinRequests" | "currentUserId">;

@@ -24,6 +24,13 @@ const ROOT = path.resolve(__dirname, "..");
 const PUBLIC = path.join(ROOT, "public");
 const CREDITS = path.join(PUBLIC, "mock", "credits.json");
 const REJECTS = path.join(ROOT, "scripts", "mock-image-rejects.json");
+/** Brightness/colour of candidates, by Pixabay id – measured once from the small preview, then reused. */
+const STATS = path.join(ROOT, "scripts", "mock-image-stats.json");
+/** Too bright or too grey looks washed out on the cards: a candidate must stay below / above these. */
+const MAX_LUMINANCE = 0.75;
+const MIN_SATURATION = 0.15;
+/** Candidates measured per query before falling back to the best-ranked one. */
+const MAX_MEASURED = 10;
 const MAX_SIDE = 1200;
 const QUALITY = 78;
 /** Pixabay allows 100 requests / 60 s – stay well below. */
@@ -31,7 +38,7 @@ const RATE = { requests: 90, windowMs: 60_000 };
 /** Pages of 30 hits to look through per query before shortening it. */
 const MAX_PAGES = 3;
 /** Never: text and logos, listings, generated images, children. */
-const BAD_TAGS = ["text", "logo", "typography", "lettering", "quote", "banner", "label", "font", "sign", "signage", "mockup", "template", "advertising", "real estate", "bedroom", "hotel room", "ai generated", "generated", "artificial intelligence", "watermark", "child", "children", "kid", "kids", "baby", "toddler", "nude", "naked", "erotic", "bikini", "topless", "shirtless", "painting", "artwork", "digital art", "fantasy", "surreal", "skull"];
+const BAD_TAGS = ["text", "logo", "typography", "lettering", "quote", "banner", "label", "font", "sign", "signage", "mockup", "template", "advertising", "real estate", "bedroom", "hotel room", "ai generated", "generated", "artificial intelligence", "watermark", "child", "children", "kid", "kids", "baby", "toddler", "nude", "naked", "erotic", "bikini", "swimsuit", "swimwear", "topless", "shirtless", "painting", "artwork", "digital art", "fantasy", "surreal", "skull"];
 /** Faces only: one adult, in colour, a real portrait – no art shots, groups or costumes. */
 const BAD_FACE_TAGS = ["couple", "family", "group", "old", "elderly", "senior", "aged", "wrinkles", "grandfather", "grandmother", "underwater", "painting", "art", "artwork", "fantasy", "sculpture", "statue", "topless", "shirtless", "sexy", "lingerie", "bikini", "black and white", "monochrome", "silhouette", "mask", "costume", "halloween", "skull", "blood", "boy", "teen", "teenager"];
 const WOMAN = ["woman", "women", "female", "girl", "lady"];
@@ -44,6 +51,7 @@ interface Hit {
   likes: number;
   user: string;
   largeImageURL: string;
+  previewURL: string;
 }
 
 type Credit =
@@ -135,9 +143,46 @@ async function search(query: string, people: boolean, page = 1, orientation = "v
   throw new Error(`Pixabay kept failing for "${query}"`);
 }
 
+type ImageStats = { luminance: number; saturation: number };
+const statsCache: Record<number, ImageStats> = existsSync(STATS) ? JSON.parse(readFileSync(STATS, "utf8")) : {};
+
+/** Average luminance and saturation (0–1) of a hit, from its 150px preview scaled down to 32×32. */
+async function statsOf(hit: Hit): Promise<ImageStats | null> {
+  if (statsCache[hit.id]) return statsCache[hit.id];
+  const res = await fetch(hit.previewURL).catch(() => null);
+  if (!res?.ok) return null;
+  const { data, info } = await sharp(Buffer.from(await res.arrayBuffer())).resize(32, 32, { fit: "fill" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  let luminance = 0;
+  let saturation = 0;
+  const pixels = data.length / info.channels;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const [r, g, b] = [data[i] / 255, data[i + 1] / 255, data[i + 2] / 255];
+    const max = Math.max(r, g, b);
+    luminance += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    saturation += max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+  }
+  const stats = { luminance: luminance / pixels, saturation: saturation / pixels };
+  statsCache[hit.id] = stats;
+  await writeFile(STATS, JSON.stringify(statsCache) + "\n");
+  return stats;
+}
+
+const isVivid = (stats: ImageStats | null) => stats !== null && stats.luminance < MAX_LUMINANCE && stats.saturation > MIN_SATURATION;
+
+/**
+ * Of the fitting hits (best first), the first that isn't washed out – too bright or too grey (see isVivid). Only
+ * the first MAX_MEASURED are measured; if none qualifies, the best-ranked one after all.
+ */
+async function firstVivid(fitting: Hit[]): Promise<Hit> {
+  for (const hit of fitting.slice(0, MAX_MEASURED)) {
+    if (isVivid(await statsOf(hit))) return hit;
+  }
+  return fitting[0];
+}
+
 /**
  * The best unused hit that really shows the query: clean tags, plus the theme or face rules above. Ranked by likes
- * (faces: by how many query words they match first). Looks through a few pages, then tries shorter queries
+ * (faces: by how many query words they match first), skipping washed-out ones. Looks through a few pages, then tries shorter queries
  * (dropping the last word – faces keep at least "… man/woman") before giving up.
  */
 async function pick(query: string, people: boolean, used: Set<number>, orientation = "vertical"): Promise<{ hit: Hit; query: string } | null> {
@@ -150,7 +195,7 @@ async function pick(query: string, people: boolean, used: Set<number>, orientati
       const fitting = hits
         .filter((h) => !used.has(h.id) && !hasBadTag(h, BAD_TAGS) && (people ? fitsFace(h, query) : fitsTheme(h, q)))
         .sort((a, b) => (people ? overlap(b, query) - overlap(a, query) : 0) || b.likes - a.likes);
-      if (fitting[0]) return { hit: fitting[0], query: q };
+      if (fitting[0]) return { hit: await firstVivid(fitting), query: q };
       if (hits.length < 30) break;
     }
   }

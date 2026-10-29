@@ -16,12 +16,12 @@ export function OpenHousePlus() {
   return <Plus className="size-4 shrink-0" strokeWidth={2} aria-hidden />;
 }
 
-/** The "Open a House" pill (header): plus + label, 36px tall. */
+/** The "Open a House" pill (header): filled primary (`.open-house-btn--primary`), the label only, 36px tall. */
 export function OpenHouseButton({ className }: { className?: string }) {
   const t = useTranslations("common.ui.openHouse");
   return (
-    <Link href="/create" className={cn(openHouseClass, className)}>
-      <OpenHousePlus />
+    // Its focus ring (2px ink at 30 %) comes from .open-house-btn--primary, not the round buttons' outline.
+    <Link href="/create" className={cn("open-house-btn open-house-btn--primary outline-none", className)}>
       {t("label")}
     </Link>
   );

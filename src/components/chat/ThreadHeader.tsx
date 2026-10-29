@@ -74,7 +74,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
 
         {/* The title truncates first; the dates stay. */}
         <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-          <Link href={`/stays/${stay.slug}`} className="min-w-0 truncate text-base font-semibold hover:underline">
+          <Link href={`/house/${stay.slug}`} className="min-w-0 truncate text-base font-semibold hover:underline">
             {stay.title}
           </Link>
           <span className="shrink-0 text-[13px] text-zinc-500">
@@ -136,7 +136,7 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
         ) : (
           <p className="truncate text-base font-semibold leading-5">{t("unknown")}</p>
         )}
-        <Link href={`/stays/${stay.slug}`} className="block truncate text-[13px] text-zinc-500 hover:underline">
+        <Link href={`/house/${stay.slug}`} className="block truncate text-[13px] text-zinc-500 hover:underline">
           {t("about", { title: stay.title })}
         </Link>
       </div>

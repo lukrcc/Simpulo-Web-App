@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useFormat } from "@/i18n/format";
-import { setFeatureFlag, useFeatureFlag } from "@/lib/featureFlags";
+import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
+import { DATASET_PRESETS, readPreset, savePreset } from "@/lib/mock-datasets";
 import { computeReminders, type Reminder } from "@/lib/reminders";
 import { findUser, getCrew, OPEN_AS_PARAM, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -30,7 +31,7 @@ function useRouteStay(): Stay | undefined {
   const pathname = usePathname();
   const id = useSearchParams().get("id");
   const [, section, param] = pathname.split("/");
-  if (section === "stays" && param) return store.stays.find((s) => s.slug === param);
+  if (section === "house" && param) return store.stays.find((s) => s.slug === param);
   if (section === "my-stays") return store.stays.find((s) => s.id === (param ?? id));
   if (section === "inbox") {
     const thread = store.threads.find((t) => t.id === (param ?? id));
@@ -88,7 +89,8 @@ function DevSwitcherInner() {
                 </span>
               )}
             </div>
-            <FlagSwitch />
+            <FlagSwitch flag="hostPremium" />
+            <DataPreset />
             {(currentUserId || stay) && (
               <div className="flex items-center gap-1 border-t border-black/5 px-2 py-1.5">
                 {currentUserId && (
@@ -139,19 +141,48 @@ function DevSwitcherInner() {
   );
 }
 
-/** Feature flag hostPremium: host fee, what it includes and the "Pro host" label – on or gone. */
-function FlagSwitch() {
+/** A feature flag as a switch: hostPremium (host fee, what it includes, "Pro host"). */
+function FlagSwitch({ flag }: { flag: FeatureFlag }) {
   const t = useTranslations("auth.dev");
-  const on = useFeatureFlag("hostPremium");
+  const on = useFeatureFlag(flag);
   return (
     <label className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5">
-      <span className="font-medium text-ink">{t("hostPremium")}</span>
-      <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag("hostPremium", e.target.checked)} className="peer sr-only" />
+      <span className="font-medium text-ink">{t(flag)}</span>
+      <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag(flag, e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
         className="relative h-5 w-8 shrink-0 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/30"
       />
     </label>
+  );
+}
+
+/** Mock data volume: Empty · Launch · Growing · Full – saved in this browser, applied with a reload. */
+function DataPreset() {
+  const t = useTranslations("auth.dev");
+  const [current] = useState(readPreset);
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
+      <span className="font-medium text-ink">{t("data")}</span>
+      <div role="radiogroup" aria-label={t("data")} className="flex rounded-full bg-black/5 p-0.5">
+        {DATASET_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            role="radio"
+            aria-checked={preset === current}
+            onClick={() => {
+              if (preset === current) return;
+              savePreset(preset);
+              window.location.reload();
+            }}
+            className="rounded-full px-2 py-1 font-medium text-zinc-600 aria-checked:bg-white aria-checked:text-ink aria-checked:shadow-sm"
+          >
+            {t(`presets.${preset}`)}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

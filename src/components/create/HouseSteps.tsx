@@ -13,6 +13,7 @@ import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Img } from "@/components/ui/Img";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { RangeSlider } from "@/components/ui/RangeSlider";
+import { chipActiveClass, chipClass, chipInactiveClass } from "@/components/form/chips";
 import { useFormat } from "@/i18n/format";
 import { linkDomain } from "@/lib/mock-extras";
 import type { Currency, Stay, User, Vibe } from "@/lib/types";
@@ -49,9 +50,6 @@ export interface FieldHelpers {
 }
 
 // No class merging here, so active and inactive each set their own background.
-const chipClass = "rounded-full border px-4 py-2 text-sm transition-colors";
-const chipInactiveClass = "border-[#E7E5E4] bg-[#FAFAF9] hover:border-neutral-400";
-const chipActiveClass = "border-ink bg-ink text-white";
 /** Smaller tap-to-insert suggestion chips (starters, title ideas, card note examples) */
 const suggestionClass =
   "max-w-full truncate rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5 text-[13px] text-zinc-600 transition-colors hover:border-ink hover:text-ink";

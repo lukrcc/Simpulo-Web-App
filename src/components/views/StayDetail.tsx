@@ -4,7 +4,7 @@ import { Camera, Check, DoorClosed, Lock, Plus, SearchX, UserX } from "lucide-re
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { use, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, use, useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { AuthOptions, sheetButtonClass } from "@/components/auth/AuthSheet";
 import { useInstallNudge } from "@/components/InstallNudge";
@@ -19,6 +19,7 @@ import { AccommodationSection } from "@/components/stay/AccommodationSection";
 import { HostCard } from "@/components/stay/HostCard";
 import { HostGallery, HostPhotoGrid } from "@/components/stay/HostGallery";
 import { HostPitch } from "@/components/stay/HostPitch";
+import { InterestInvite } from "@/components/stay/InterestInvite";
 import { PlaceMap } from "@/components/stay/PlaceMap";
 import { Section } from "@/components/stay/Section";
 import { StayFacts } from "@/components/stay/StayFacts";
@@ -100,7 +101,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const store = useStore();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // ?preview=guest (host only) – read in its own boundary, so the page itself renders on the server for everyone.
+  const [previewParam, setPreviewParam] = useState(false);
   const tPreview = useTranslations("common.ui.preview");
   const showToast = useToast();
   const offerInstall = useInstallNudge();
@@ -121,7 +123,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
   // "Preview as guest" (?preview=guest, host only): render as a logged-out stranger; nothing changes data.
-  const previewing = stay.hostId === store.currentUserId && searchParams.get("preview") === "guest";
+  const previewing = stay.hostId === store.currentUserId && previewParam;
   const myRequest = previewing ? undefined : getMyRequest(store, stay.id);
   const me = previewing ? undefined : getCurrentUser(store);
   // Requests work without a photo – but the host should see who's asking.
@@ -186,6 +188,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     // Mobile: the host gallery is full-bleed and starts at the very top, so no page top spacing below md.
     // Desktop (lg): content 7/12, sticky side cards 5/12. Below lg the sticky bottom bar carries the CTA.
     <PreviewProvider active={previewing}>
+    <Suspense fallback={null}>
+      <PreviewParam onChange={setPreviewParam} />
+    </Suspense>
     {previewing && <PreviewBanner message={tPreview("house")} onExit={() => router.replace(pathname)} />}
     <Container className="md:pt-10 lg:grid lg:grid-cols-12 lg:gap-8">
       <div className="min-w-0 lg:col-span-7">
@@ -218,6 +223,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {!isHost && !isMember && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0))) && (
             <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />
           )}
+
+          {/* The host, right after opening it: people who want this city and month – invite them. */}
+          {isHost && <InterestInvite stay={stay} className="mt-6" />}
 
           {/* Crew with an open share: pay right from the House page (also on mobile – this column is always shown). */}
           {isMember && <MyShare stay={stay} className="mt-6" />}
@@ -358,6 +366,16 @@ function HostOffer({ stay, offer }: { stay: Stay; offer: string[] }) {
   );
 }
 
+/**
+ * Reports ?preview=guest to the House page. useSearchParams makes everything up to the nearest Suspense render
+ * only in the browser – here that's just this empty component, not the House.
+ */
+function PreviewParam({ onChange }: { onChange: (preview: boolean) => void }) {
+  const preview = useSearchParams().get("preview") === "guest";
+  useEffect(() => onChange(preview), [preview, onChange]);
+  return null;
+}
+
 /** "Open your own House for the same dates" – prefilled in /create (region + dates). */
 function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
   const t = useTranslations("growth.ownHouse");
@@ -390,8 +408,13 @@ interface StayCtaProps {
   onMessageHost: () => void;
 }
 
+const noSubscribe = () => () => {};
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
 function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }: StayCtaProps) {
   const t = useTranslations("request.cta");
+  // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
+  const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
   const full = "w-full";
   if (isHost) {
     return (
@@ -416,7 +439,7 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }:
     );
   }
   // Done (or past its end date): nothing to join any more.
-  if (stay.status === "completed" || stay.endDate < new Date().toISOString().slice(0, 10)) {
+  if (stay.status === "completed" || (today !== "" && stay.endDate < today)) {
     return (
       <button type="button" disabled className={buttonClass("dark", "lg", full)}>
         {t("ended")}

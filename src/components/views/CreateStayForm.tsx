@@ -219,7 +219,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (writesProfile) store.updateCurrentUser(toProfilePatch(form, me));
     store.publishStay(editing.id);
     showToast(tDraft("publishedToast"));
-    router.push(`/stays/${editing.slug}`);
+    router.push(`/house/${editing.slug}`);
   }
 
   function publish() {
@@ -230,7 +230,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       if (writesProfile) store.updateCurrentUser(toProfilePatch(form, me));
       clearDraft();
       showToast(t("published"));
-      router.push(`/stays/${slug}`);
+      router.push(`/house/${slug}`);
     }, t("loginToPublish"));
   }
 

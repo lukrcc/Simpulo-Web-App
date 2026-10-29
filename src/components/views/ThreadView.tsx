@@ -61,7 +61,7 @@ function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolea
         title={thread ? t("crewOnly") : t("notFound")}
         description={thread ? t("crewOnlyDescription") : undefined}
         action={
-          <Link href={stay ? `/stays/${stay.slug}` : "/inbox"} className={buttonClass("dark", "sm")}>
+          <Link href={stay ? `/house/${stay.slug}` : "/inbox"} className={buttonClass("dark", "sm")}>
             {stay ? t("viewHouse") : t("backToMessages")}
           </Link>
         }

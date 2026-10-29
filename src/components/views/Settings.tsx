@@ -16,7 +16,8 @@ import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
 
-const GROUPS: readonly NotificationGroup[] = ["requests", "messages", "payments", "hostAlerts"];
+const GROUPS: readonly NotificationGroup[] = ["requests", "payments", "interests", "hostAlerts", "messages", "system"];
+const CHANNELS = ["inApp", "push", "email"] as const;
 /** What has to be typed to delete the account. */
 const DELETE_WORD = "DELETE";
 
@@ -89,17 +90,21 @@ function SettingsContent({ me }: { me: User }) {
           <VerifyIdSheet open={verifying} onClose={() => setVerifying(false)} />
 
           <Card title={t("notifications.title")} description={t("notifications.description")}>
-            <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] items-center gap-y-1 text-sm">
+            <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem_3.5rem] items-center gap-y-1 text-sm">
               <span />
-              <span className="text-center text-xs font-medium text-zinc-500">{t("notifications.push")}</span>
-              <span className="text-center text-xs font-medium text-zinc-500">{t("notifications.email")}</span>
+              {CHANNELS.map((channel) => (
+                <span key={channel} className="text-center text-xs font-medium text-zinc-500">
+                  {t(`notifications.${channel}`)}
+                </span>
+              ))}
               {GROUPS.map((group) => (
                 <div key={group} className="contents">
                   <span className="py-3 font-medium">{t(`notifications.groups.${group}`)}</span>
-                  {(["push", "email"] as const).map((channel) => (
+                  {CHANNELS.map((channel) => (
                     <span key={channel} className="flex justify-center">
                       <Switch
-                        on={settings.notifications[group][channel]}
+                        // In-app is on unless switched off (older settings don't have it yet).
+                        on={settings.notifications[group][channel] !== false}
                         label={t("notifications.toggleLabel", {
                           group: t(`notifications.groups.${group}`),
                           channel: t(`notifications.${channel}`),

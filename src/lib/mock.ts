@@ -78,10 +78,11 @@ export interface Report {
   createdAt: string;
 }
 
-export type NotificationGroup = 'requests' | 'messages' | 'payments' | 'hostAlerts';
+export type NotificationGroup = 'requests' | 'messages' | 'payments' | 'hostAlerts' | 'interests' | 'system';
 
 export interface UserSettings {
-  notifications: Record<NotificationGroup, { push: boolean; email: boolean }>;
+  /** inApp: shown under the bell (unset = on) */
+  notifications: Record<NotificationGroup, { push: boolean; email: boolean; inApp?: boolean }>;
   blockedUserIds: string[];
 }
 
@@ -130,6 +131,7 @@ export interface Stay {
   themeQueries?: string[];  // Pixabay searches for the House's theme photos (mock only)
   imageQueries?: string[];  // the same searches, as listed in the data: [0] cover, then the gallery
   photos?: string[];        // theme photos – the gallery is the host's face, then these (none for Houses opened in the app)
+  coverImageOverride?: string; // pins the House's cover (the first theme photo) to this image, e.g. '/mock/houses/x8/2.webp'
   createdAt: string;
   // Set when the host locks the accommodation (payments are created then):
   lockedAt?: string;
@@ -254,7 +256,7 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
     verified: true, instagram: 'lukas.moves', website: 'https://simpulo.app', savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
     email: 'lukas@simpulo.app', signInMethod: 'apple',
     settings: {
-      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true } },
+      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, interests: { push: true, email: true }, system: { push: false, email: true } },
       blockedUserIds: ['u14'],
     },
     privateContacts: { whatsapp: '+4917612345678', telegram: 'lukasmoves', facetime: 'lukas.moves@icloud.com' },

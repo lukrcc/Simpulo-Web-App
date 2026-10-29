@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { CardTab } from "@/components/ui/CardTab";
+import { NotchedCard } from "@/components/ui/NotchedCard";
 import { glassCircle, imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
 import { SocialRow } from "@/components/ui/SocialRow";
@@ -100,31 +101,32 @@ export function HostPhotoGrid({ host, photos: allPhotos, onShare }: Omit<HostGal
   const extra = photos.length - 3;
 
   return (
-    <div className="relative isolate aspect-3/2 max-h-[520px] w-full overflow-hidden rounded-[28px] bg-neutral-200">
-      {main && (
-        <div className={cn("grid size-full gap-2", side.length > 0 && "grid-cols-[3fr_2fr]")}>
-          <Tile src={main} alt={host.name} onOpen={() => setOpen(0)} preload sizes="(min-width: 1600px) 480px, 35vw" />
-          {side.length > 0 && (
-            <div className={cn("grid min-h-0 gap-2", side.length > 1 && "grid-rows-2")}>
-              {side.map((src, i) => (
-                <Tile key={src} src={src} alt={t("photoAlt", { name: host.name, number: i + 2 })} onOpen={() => setOpen(i + 1)} sizes="(min-width: 1600px) 320px, 23vw">
-                  {i === side.length - 1 && extra > 0 && (
-                    <span className="glass-dark absolute bottom-3 right-3 rounded-full px-3 py-1 text-xs font-medium">+{extra}</span>
-                  )}
-                </Tile>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+    <>
+      {/* One clipped silhouette notched around the host tab (the lightbox stays outside – the clip would cut it). */}
+      <NotchedCard className="aspect-3/2 max-h-[520px] w-full" clipClassName="rounded-[28px] bg-neutral-200" tab={<CardTab host={host} linked />}>
+        {main && (
+          <div className={cn("grid size-full gap-2", side.length > 0 && "grid-cols-[3fr_2fr]")}>
+            <Tile src={main} alt={host.name} onOpen={() => setOpen(0)} preload sizes="(min-width: 1600px) 480px, 35vw" />
+            {side.length > 0 && (
+              <div className={cn("grid min-h-0 gap-2", side.length > 1 && "grid-rows-2")}>
+                {side.map((src, i) => (
+                  <Tile key={src} src={src} alt={t("photoAlt", { name: host.name, number: i + 2 })} onOpen={() => setOpen(i + 1)} sizes="(min-width: 1600px) 320px, 23vw">
+                    {i === side.length - 1 && extra > 0 && (
+                      <span className="glass-dark absolute bottom-3 right-3 rounded-full px-3 py-1 text-xs font-medium">+{extra}</span>
+                    )}
+                  </Tile>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-      <CardTab host={host} linked />
-      <button type="button" onClick={onShare} aria-label={t("share")} className={cn(glassCircle, "absolute right-4 top-4 z-10")}>
-        <Share2 className="size-5" />
-      </button>
-
+        <button type="button" onClick={onShare} aria-label={t("share")} className={cn(glassCircle, "absolute right-4 top-4 z-10")}>
+          <Share2 className="size-5" />
+        </button>
+      </NotchedCard>
       <PhotoLightbox photos={photos} index={open} onIndexChange={setOpen} onClose={() => setOpen(null)} alt={host.name} />
-    </div>
+    </>
   );
 }
 
@@ -141,7 +143,7 @@ function Tile({ src, alt, onOpen, sizes, preload = false, children }: TileProps)
   const t = useTranslations("house.gallery");
   return (
     <button type="button" onClick={onOpen} aria-label={t("open", { alt })} className={cn(tile, "group")}>
-      <Img src={src} alt="" fill preload={preload} sizes={sizes} className="object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+      <Img src={src} alt={alt} fill preload={preload} sizes={sizes} className="object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
       {children}
     </button>
   );

@@ -22,13 +22,16 @@ export function NotificationToasts() {
   const seen = useRef(notifications.length);
 
   useEffect(() => {
-    const fresh = notifications.slice(seen.current);
+    const fresh = notifications.slice(seen.current).filter((n) => !n.mock);
     seen.current = notifications.length;
-    for (const notification of fresh) {
+    // One line per event: its recipients' records share the eventId.
+    const events = Map.groupBy(fresh, (n) => n.eventId);
+    for (const records of events.values()) {
+      const notification = records[0];
       // Each recipient's Settings decide the channels: email if on, push if on and the app is installed.
       const group = NOTIFY_GROUP[notification.key];
-      const delivered = notification.to
-        .map((id) => {
+      const delivered = records
+        .map(({ userId: id }) => {
           const prefs = settingsOf(findUser(store, id)).notifications[group];
           return { id, email: prefs.email, push: prefs.push && mockInstalledUsers.has(id) };
         })

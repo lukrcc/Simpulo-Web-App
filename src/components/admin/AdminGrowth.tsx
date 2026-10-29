@@ -89,7 +89,7 @@ export function AdminGrowth() {
             const stay = stayOf(key);
             if (!stay) return key;
             return (
-              <Link href={`/stays/${stay.slug}`} className="hover:underline">
+              <Link href={`/house/${stay.slug}`} className="hover:underline">
                 {stay.title}
               </Link>
             );

@@ -164,28 +164,53 @@ main:has([data-app-pane="always"]) {
 }
 .animate-lightbox-in { animation: lightbox-in 200ms ease-out; }
 
-/* Bento top: one step moves every house a slot forward (C → B → A → out). Each cell crossfades;
-   --stagger (0 / 120 / 240ms per cell) makes the house "walk" from C to B to A. ~900ms in total. */
-.bento-img-in { animation: bento-img-in 600ms ease-out both; }
-.bento-img-out { animation: bento-fade-out 500ms ease-out both; }
-.bento-text-in { animation: bento-text-in 400ms ease-out both; }
-.bento-text-out { animation: bento-fade-out 200ms ease-out both; }
-.bento-img-in, .bento-img-out, .bento-text-out { animation-delay: var(--stagger, 0ms); }
-.bento-text-in { animation-delay: calc(200ms + var(--stagger, 0ms)); }
-@keyframes bento-img-in {
-  from { opacity: 0; transform: scale(1.05); }
-  to { opacity: 1; transform: scale(1); }
+/* Notched cards (useNotchClip): once the card clips itself around the host tab, the tab needs no page-coloured
+   background or corner pieces – they were what left a hairline along the notch. Unlayered, so it beats utilities. */
+[data-notch="ready"] .card-tab {
+  background: transparent;
 }
-@keyframes bento-text-in {
-  from { opacity: 0; transform: translateY(8px); }
+[data-notch="ready"] .card-tab::before,
+[data-notch="ready"] .card-tab::after {
+  display: none;
+}
+/* The frame scales on hover as one layer (card + tab together), on whole pixels where the browser can. */
+.notch-frame {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Focus overlay behind a dialog (ModalOverlay): blur + light dim; without backdrop-filter a stronger dim instead.
+   The panel slides up as a bottom sheet on phones and fades + scales 0.98 → 1 from md; reduced motion: fade only. */
+.modal-backdrop {
+  background: rgba(30, 30, 34, 0.25);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: fade-in 200ms ease-out;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .modal-backdrop { background: rgba(30, 30, 34, 0.55); }
+}
+@keyframes modal-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-@keyframes bento-fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes bento-fade-out { from { opacity: 1; } to { opacity: 0; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .bento-img-in, .bento-text-in { animation-name: bento-fade-in; }
+.modal-panel { animation: modal-sheet-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (min-width: 48rem) {
+  .modal-panel { animation: modal-pop 200ms ease-out; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel { animation: fade-in 200ms ease-out; }
+}
+
+/* Bento top: all three cells switch together (BentoTop.tsx crossfades the layers). The host tab's avatar + name
+   fade in with their cell – --stagger is 0 / 80 / 160ms per cell. */
+.bento-swap-in { animation: bento-fade-in 500ms ease-in-out both; animation-delay: var(--stagger, 0ms); }
+@keyframes bento-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* "Open a House": a compact ink outline on white that fills dark on hover, pressed at .97. No colour. Round
    variant: a 36px circle. In the components layer, so layout utilities (fixed, md:hidden, …) still apply on top. */
@@ -196,7 +221,7 @@ main:has([data-app-pane="always"]) {
     justify-content: center;
     gap: 6px;
     height: 36px;
-    padding: 0 14px 0 12px;
+    padding: 0 14px;
     border-radius: 9999px;
     border: 1px solid #1e1e22;
     color: #1e1e22;
@@ -216,6 +241,29 @@ main:has([data-app-pane="always"]) {
   .open-house-btn svg {
     color: currentColor;
   }
+  /* The header pill: filled primary. Ink fill, white semibold text; hover lifts 1px and lightens, pressed it sits
+     back down in ink. A hairline shadow keeps its edge crisp on the glass header over bright photos. */
+  .open-house-btn--primary {
+    background: #1e1e22;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(30, 30, 34, 0.18);
+    transition: background-color 0.15s ease, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease;
+  }
+  .open-house-btn--primary:hover {
+    background: #2e2e33;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(30, 30, 34, 0.22);
+  }
+  .open-house-btn--primary:active {
+    background: #1e1e22;
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(30, 30, 34, 0.18);
+  }
+  .open-house-btn--primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(30, 30, 34, 0.3);
+  }
   .open-house-btn--round {
     width: 36px;
     padding: 0;
@@ -224,7 +272,8 @@ main:has([data-app-pane="always"]) {
     .open-house-btn {
       transition: none;
     }
-    .open-house-btn:active {
+    .open-house-btn:active,
+    .open-house-btn--primary:hover {
       transform: none;
     }
   }

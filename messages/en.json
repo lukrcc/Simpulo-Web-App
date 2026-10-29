@@ -15,17 +15,18 @@
       "howItWorks": "How it works",
       "about": "About",
       "contact": "Contact",
-      "imprint": "Imprint",
+      "imprint": "Impressum",
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "editProfile": "Edit profile",
       "settings": "Settings",
       "welcome": "Complete your profile",
-      "host": "Host with your community",
+      "host": "Host a House",
       "claim": "Claim your House",
       "adminGrowth": "Growth",
       "adminHouses": "Prepared Houses",
-      "adminNewHouse": "Prepare a House"
+      "adminNewHouse": "Prepare a House",
+      "notifications": "Notifications"
     }
   },
   "common": {
@@ -218,6 +219,9 @@
         "successText": "Your profile and Houses now show the ID verified badge.",
         "done": "Done",
         "mockNote": "Demo – nothing is uploaded."
+      },
+      "months": {
+        "flexible": "Flexible"
       }
     }
   },
@@ -227,7 +231,8 @@
       "howItWorks": "How it works",
       "houses": "Houses",
       "messages": "Messages",
-      "profile": "Profile"
+      "profile": "Profile",
+      "host": "Host"
     },
     "logIn": "Log in",
     "openHouse": "Open a House",
@@ -252,9 +257,17 @@
       "hostWithCommunity": "Host with your community",
       "contact": "Contact",
       "legal": "Legal",
-      "imprint": "Imprint",
+      "imprint": "Impressum",
       "privacy": "Privacy",
-      "terms": "Terms"
+      "terms": "Terms",
+      "hostAHouse": "Host a house",
+      "safety": "Safety",
+      "faq": "FAQ",
+      "about": "About",
+      "impressum": "Impressum",
+      "houses": "Houses",
+      "openHouse": "Open a House",
+      "proHosts": "Pro hosts"
     },
     "pages": {
       "todo": "TODO:",
@@ -271,7 +284,7 @@
         "text": "Questions, feedback or a problem with a House? Write to <mail>{email}</mail>."
       },
       "imprint": {
-        "title": "Imprint"
+        "title": "Impressum"
       },
       "privacy": {
         "title": "Privacy Policy"
@@ -279,7 +292,29 @@
       "terms": {
         "title": "Terms of Service"
       }
-    }
+    },
+    "columns": {
+      "explore": "Explore",
+      "hosting": "Hosting",
+      "simpulo": "Simpulo"
+    },
+    "index": {
+      "title": "Explore by city and vibe",
+      "cities": "Cities",
+      "vibes": "Vibes",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "coLivingIn": "Co-living in {city}",
+      "vibeHouses": "{vibe} houses"
+    },
+    "copyright": "© {year} Simpulo",
+    "social": {
+      "label": "Simpulo on social media",
+      "instagram": "Simpulo on Instagram",
+      "tiktok": "Simpulo on TikTok",
+      "youtube": "Simpulo on YouTube"
+    },
+    "legalLabel": "Legal"
   },
   "legal": {
     "lastUpdated": "Last updated: {date}",
@@ -457,7 +492,14 @@
         "savedSoon": "Saved House starts soon",
         "hostOpened": "Host alert: new House"
       },
-      "hostPremium": "Host premium"
+      "hostPremium": "Host premium",
+      "data": "Data",
+      "presets": {
+        "empty": "Empty",
+        "launch": "Launch",
+        "growing": "Growing",
+        "full": "Full"
+      }
     }
   },
   "onboarding": {
@@ -507,9 +549,11 @@
     "filtersActive": "Filters (active)",
     "apply": "Apply",
     "empty": {
-      "title": "No Houses match these filters",
-      "description": "Try another vibe, region or date – or open your own House and let the crew find you.",
-      "showAll": "Show all Houses"
+      "title": "The first houses are opening soon",
+      "text": "Simpulo is just getting started. Open the first House yourself – or hear from us when one opens.",
+      "open": "Open a House",
+      "notify": "Get notified",
+      "notifyLogin": "Log in to hear when Houses open where you want to go."
     },
     "featuredHouses": "Featured Houses",
     "featuredHousesKeyboard": "Featured Houses – use the arrow keys to browse",
@@ -521,12 +565,117 @@
     "withHost": "with {name}",
     "viewHouse": "View House",
     "untitledHouse": "Untitled House",
-    "openHouse": {
-      "prompt": "Nothing for your dates?",
-      "title": "Open your own House<accent>.</accent>",
-      "start": "Start"
+    "howItWorksLink": "How Simpulo works",
+    "cards": {
+      "hostedBy": "Hosted by {name}",
+      "hostAlt": "{name}, host of {title}",
+      "photoAlt": "{title} – photo {number}"
     },
-    "howItWorksLink": "How Simpulo works"
+    "collections": {
+      "scrollBack": "Scroll back",
+      "scrollOn": "Scroll on",
+      "shortTrips": {
+        "title": "Short trips",
+        "subline": "Five nights or fewer – easy to fit in."
+      },
+      "party": {
+        "title": "Party houses",
+        "subline": "Big nights, a shared villa and a crew to go out with."
+      },
+      "trainTogether": {
+        "title": "Train together",
+        "subline": "Sessions every morning with people who show up."
+      },
+      "buildTogether": {
+        "title": "Build with others",
+        "subline": "Deep work by day, people who ship."
+      },
+      "meetSomeone": {
+        "title": "Meet someone",
+        "subline": "New people, real dinners, no apps."
+      },
+      "seeAll": "See all",
+      "seeAllLabel": "See all {title}"
+    },
+    "interests": {
+      "title": "Where do you want to go next?",
+      "subline": "People want to go here – say you're in, or host the House.",
+      "people": "{count, plural, one {# person} other {# people}}",
+      "interested": "I'm interested",
+      "host": "Host this house",
+      "interestedOn": "Interested",
+      "regionsLabel": "Filter by region",
+      "allRegions": "All",
+      "addPlace": "Add a place",
+      "loginToAdd": "Log in to add a place you want to go.",
+      "loginToJoin": "Log in to say you'd like to go to {place}.",
+      "regions": {
+        "europe": "Europe",
+        "southeastAsia": "Southeast Asia",
+        "eastAsia": "East Asia",
+        "middleEast": "Middle East",
+        "northAmerica": "North America",
+        "latinAmerica": "Latin America",
+        "africa": "Africa",
+        "oceania": "Oceania"
+      },
+      "add": {
+        "title": "Add a place",
+        "subtitle": "Pick a place and when you'd like to go. Others can join you – and hosts see the demand.",
+        "place": "Where?",
+        "placeError": "Pick a place.",
+        "monthError": "Pick at least one month – or Flexible.",
+        "notify": "Notify me when a House opens",
+        "submit": "Add place",
+        "added": "{place} added",
+        "addedNotify": "{place} added – we'll tell you when a House opens",
+        "popular": "Popular destinations",
+        "search": "Search a city",
+        "searchPlaceholder": "Search a city or country",
+        "noMatch": "No match – pick one of the suggestions.",
+        "removePlace": "Remove {place}",
+        "months": "When? (one or more)",
+        "flexible": "Flexible",
+        "visible": "Show me to others interested in this place",
+        "visibleHelper": "Your first name, photo and months – never dates. Off: you only count."
+      },
+      "anytime": "{count} anytime",
+      "seePeople": "See {count, plural, one {the person} other {the # people}} who want to go to {place}",
+      "peopleTitle": "Who wants to go to {place}",
+      "peopleSubtitle": "{count, plural, one {# person is} other {# people are}} interested – these chose to be shown.",
+      "anytimeShort": "Anytime",
+      "viewProfile": "Profile",
+      "seeAll": "See all",
+      "seeAllLabel": "See all places people want to go",
+      "pageIntro": "Places people want to go, and when. Say you're in – or host the House and bring them together.",
+      "monthsLabel": "Filter by month",
+      "anyMonth": "Any month",
+      "noneHere": "Nobody has picked this yet – add a place."
+    },
+    "noResults": {
+      "title": "No Houses match these filters",
+      "text": "Try another vibe, place or date – or clear the filters.",
+      "clear": "Clear filters"
+    },
+    "showMore": "Show {count} more",
+    "filterByCollection": "Filter by collection",
+    "filtersUi": {
+      "clear": "Clear",
+      "clearAll": "Clear all",
+      "noMatches": "No matches",
+      "month": "Month",
+      "budget": "Budget",
+      "vibe": "Vibe",
+      "perPerson": "per person, ≈ EUR",
+      "budgetMin": "Minimum budget",
+      "budgetMax": "Maximum budget",
+      "scrollBack": "Scroll back",
+      "scrollOn": "Scroll on",
+      "remove": "Remove {label}",
+      "otherRegion": "Other",
+      "filtersCount": "Filters, {count} active",
+      "show": "Show {count, plural, one {# house} other {# houses}}"
+    }
   },
   "house": {
     "notFound": {
@@ -1516,7 +1665,14 @@
       "reminderArrival": "{title}: {days} days to go – arrival {date}",
       "reminderSavedSoon": "{title} starts {date} – still taking requests",
       "hostOpened": "{name} opened a House: {title}",
-      "channelPush": "push"
+      "channelPush": "push",
+      "interestOpened": "A House opened in {place}: {title}",
+      "interestInvite": "{name} opened a House in {place} – you said you'd like to go: {title}",
+      "crewFull": "{title}: the crew is complete",
+      "newMessage": "{name} in {title}: {preview}",
+      "systemWelcome": "Welcome to Simpulo – here's how Houses work",
+      "systemVerify": "Verify your ID to get the badge hosts look for",
+      "systemPhoto": "Add a face photo – hosts accept people they can see"
     },
     "inbox": {
       "title": "Messages",
@@ -1751,16 +1907,19 @@
     },
     "notifications": {
       "title": "Notifications",
-      "description": "Push only reaches you once Simpulo is installed on your phone.",
+      "description": "In-app shows under the bell. Push only reaches you once Simpulo is installed on your phone.",
       "push": "Push",
       "email": "Email",
       "groups": {
-        "requests": "New requests",
-        "messages": "Messages",
-        "payments": "Payments & reminders",
-        "hostAlerts": "Host alerts"
+        "requests": "Requests & answers",
+        "payments": "Locks, payments & reminders",
+        "interests": "Houses opening where you're interested",
+        "hostAlerts": "Hosts you follow",
+        "messages": "Messages & crew updates",
+        "system": "From Simpulo"
       },
-      "toggleLabel": "{group} by {channel}"
+      "toggleLabel": "{group} by {channel}",
+      "inApp": "In-app"
     },
     "preferences": {
       "title": "Preferences",
@@ -2037,32 +2196,32 @@
       "viewAll": "All prepared Houses"
     },
     "host": {
-      "eyebrow": "For creators, streamers, coaches and schools",
-      "title": "Host with your community",
-      "intro": "Take your people on a trip you lead. They share the place – you add what only you can bring, and get paid for it.",
-      "apply": "Apply to host",
-      "openHouse": "Open a House now",
-      "forTitle": "Who it's for",
-      "audiences": [
+      "eyebrow": "Anyone can host",
+      "title": "Open a House. Find your crew.",
+      "intro": "Pick a place, your dates and the vibe. Share the link. Simpulo handles requests, chat and payment – you pay your share like everyone else. No fees for hosting.",
+      "openHouse": "Open a House",
+      "heroCardLabel": "A House people opened",
+      "whyTitle": "Why host on Simpulo",
+      "why": [
         {
-          "title": "Creators",
-          "text": "Film, shoot and grow together – with the people who already watch you."
+          "title": "You choose the people",
+          "text": "See every request, chat first and accept who fits. Nobody's in without your yes."
         },
         {
-          "title": "Streamers",
-          "text": "A gaming house for a few weeks: your chat, in real life."
+          "title": "You only pay your share",
+          "text": "No hosting fees. You pay for your spot like everyone else."
         },
         {
-          "title": "Coaches",
-          "text": "Training camps, run clubs, surf weeks – your sessions, every day."
-        },
-        {
-          "title": "Schools",
-          "text": "Language, yoga or diving schools: a House for your students."
+          "title": "We handle the rest",
+          "text": "Requests, chat and payments – held by Simpulo until the crew is complete."
         }
       ],
-      "premiumTitle": "How the host experience works",
-      "premiumText": "The crew splits the stay. On top, you can add a host experience – coaching, guestlists, hosted dinners – of up to 30 % of the share. Pro hosts can charge one.",
+      "housesTitle": "Houses people opened",
+      "housesSubline": "Party, founder, surf, study – every kind of crew.",
+      "housesSeeAll": "See all",
+      "housesSeeAllLabel": "See all Houses",
+      "proTitle": "Add what only you can bring",
+      "proText": "Coaching, sessions, guestlists: as a host you can add a host experience of up to 30 % of the share. The crew sees it before they join – it's optional, on top of a normal House.",
       "exampleTitle": "Example, per person",
       "exampleStay": "Stay share",
       "exampleProgramme": "Host experience",
@@ -2070,21 +2229,19 @@
       "exampleGuestPays": "Each guest pays",
       "exampleYouGet": "You receive per guest",
       "exampleNote": "The stay share plus 80 % of the host experience – Simpulo keeps 20 % of it and the guest fee.",
-      "stepsTitle": "Three steps",
-      "steps": [
+      "faqTitle": "Questions",
+      "faq": [
         {
-          "title": "Apply",
-          "text": "Tell us who you are, where your people are and what you have in mind."
+          "question": "Do I pay for the place upfront?",
+          "answer": "No. The place is only booked once the crew is complete and everyone has paid their share."
         },
         {
-          "title": "Open your House",
-          "text": "We help you set it up – dates, place, budget and your host experience."
-        },
-        {
-          "title": "Share it",
-          "text": "Post your link and story. Your community requests to join, you pick your crew."
+          "question": "What if my crew doesn't fill up?",
+          "answer": "Nothing is booked and nobody pays. You can extend the dates or lower the spots."
         }
       ],
+      "ctaTitle": "Your crew is out there<accent>.</accent>",
+      "ctaText": "Open a House – it's free, and takes a few minutes.",
       "formTitle": "Apply",
       "formIntro": "We read every application and reply within a few days.",
       "fields": {
@@ -2116,6 +2273,135 @@
       "sentTitle": "Thanks – we'll be in touch",
       "sentText": "We'll reply to {email} within a few days.",
       "another": "Send another"
+    },
+    "invite": {
+      "title": "{count, plural, one {# person is} other {# people are}} interested in this – invite them",
+      "text": "They want to go to {place} around this time. We'll send each of them a notification and an email about your House – only month and city, never dates.",
+      "namesAndMore": "{names} and {count} more",
+      "anonymous": "{count, plural, one {# person} other {# people}} – they chose not to be shown",
+      "action": "Invite them",
+      "sent": "Invited – {count, plural, one {# person} other {# people}} got a notification and an email",
+      "sentToast": "{count, plural, one {# person} other {# people}} invited"
+    }
+  },
+  "seo": {
+    "breadcrumbs": {
+      "home": "Home",
+      "label": "Breadcrumb"
+    },
+    "count": "{count, plural, =0 {No open Houses right now} one {# open House} other {# open Houses}}",
+    "housesLabel": "Houses",
+    "house": {
+      "title": "{title} in {city}",
+      "similar": "Similar Houses",
+      "similarText": "This House has ended – these are still taking requests.",
+      "imageAlt": "{title} – the host, the dates and the place"
+    },
+    "city": {
+      "h1": "Co-living in {city}",
+      "description": "Find people to share a house with in {city}, {country}: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
+      "intro": "Intro paragraph about co-living in {city} – who goes there, what a typical House looks like, when to go.",
+      "related": "Also popular",
+      "link": "{city}",
+      "vibes": "Vibes in {city}"
+    },
+    "vibe": {
+      "h1": "{vibe} houses",
+      "description": "Shared {vibe} houses for a few weeks: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
+      "intro": "Intro paragraph about {vibe} houses – who they're for, what a day looks like, what hosts expect.",
+      "related": "More vibes",
+      "cities": "Top cities for {vibe} houses"
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Answers to common questions about Simpulo: Houses, joining, hosting, payments and safety.",
+      "intro": "The questions people ask most about Houses, joining and hosting.",
+      "todo": "Draft answers – final copy and more questions follow."
+    },
+    "safety": {
+      "title": "Safety",
+      "description": "How Simpulo keeps shared Houses safe: real profiles, host-approved requests, payments only when the place is booked.",
+      "intro": "How we help you live with people you can trust.",
+      "todo": "Placeholder – the real safety page is still being written.",
+      "placeholder": "Section text follows.",
+      "sections": {
+        "profiles": "Real profiles",
+        "requests": "Hosts choose their crew",
+        "payments": "Paying safely",
+        "onSite": "At the House",
+        "reporting": "Reporting a problem"
+      }
+    },
+    "pages": {
+      "explore": {
+        "title": "Explore Houses",
+        "description": "Open Houses around the world – shared places for a few weeks, hosted by real people."
+      },
+      "howItWorks": {
+        "title": "How it works",
+        "description": "Open a House, share it, pick your crew and live together for a few weeks – how Simpulo works, step by step."
+      },
+      "host": {
+        "title": "Host a House",
+        "description": "Anyone can host: open a House, share the link and pick your crew. Simpulo handles requests, chat and payment – no fees for hosting."
+      },
+      "about": {
+        "title": "About",
+        "description": "Why Simpulo exists: shared places for a few weeks, with people you choose."
+      },
+      "contact": {
+        "title": "Contact",
+        "description": "Questions, feedback or a problem with a House? Get in touch with the Simpulo team."
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "description": "How Simpulo handles your personal data."
+      },
+      "terms": {
+        "title": "Terms of Service",
+        "description": "The terms for using Simpulo as a host or guest."
+      },
+      "impressum": {
+        "title": "Impressum",
+        "description": "Legal notice and provider information for Simpulo."
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAll": "Mark all as read",
+    "seeAll": "See all notifications",
+    "empty": "Nothing yet – notifications about your houses and requests show up here.",
+    "emptyTab": "Nothing here yet.",
+    "loadMore": "Load more",
+    "unread": "Unread",
+    "label": "Notifications",
+    "labelUnread": "Notifications, {count} unread",
+    "close": "Close notifications",
+    "loginTitle": "Log in to see your notifications",
+    "tabs": {
+      "all": "All",
+      "requests": "Requests",
+      "houses": "Houses",
+      "messages": "Messages",
+      "system": "System"
+    },
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "earlier": "Earlier"
+    },
+    "types": {
+      "request_received": "New request",
+      "request_accepted": "You're in",
+      "request_declined": "Request declined",
+      "crew_full": "Crew complete",
+      "house_locked": "Accommodation locked",
+      "payment_due": "Payment",
+      "new_message": "New message",
+      "house_opened_in_place": "A House opened",
+      "system": "Simpulo"
     }
   }
 }

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { pageMetadata } from "@/lib/seo";
 import { ContentPage, LEGAL_UPDATED, LegalSection, TodoNote } from "@/components/layout/ContentPage";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta");
-  return { title: t("pages.imprint") };
+  const t = await getTranslations("seo.pages.impressum");
+  return pageMetadata({ title: t("title"), description: t("description"), path: "/impressum", type: "article" });
 }
 
 const SECTIONS = ["provider", "representative", "contact", "register", "vat", "responsible", "disputes"] as const;

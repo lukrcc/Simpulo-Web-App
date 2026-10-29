@@ -14,7 +14,12 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   // The install guide lives on How it works now; old links (and bookmarks) still land there.
   async redirects() {
-    return [{ source: "/install", destination: "/how-it-works#get-the-app", permanent: false }];
+    return [
+      { source: "/install", destination: "/how-it-works#get-the-app", permanent: false },
+      // SEO URLs: House pages moved from /stays/… to /house/…, the imprint to /impressum – old links keep working.
+      { source: "/stays/:slug", destination: "/house/:slug", permanent: true },
+      { source: "/imprint", destination: "/impressum", permanent: true },
+    ];
   },
   images: {
     // Keep in sync with OPTIMIZED_HOSTS in src/components/ui/Img.tsx.

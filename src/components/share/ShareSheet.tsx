@@ -30,7 +30,7 @@ const CHANNEL_ICONS: Record<LinkChannel, ReactNode> = {
 };
 
 function pathOf(target: ShareTarget): string {
-  return target.kind === "house" ? `/stays/${target.stay.slug}` : `/u/${target.user.id}`;
+  return target.kind === "house" ? `/house/${target.stay.slug}` : `/u/${target.user.id}`;
 }
 
 /**
@@ -106,7 +106,7 @@ export function StoryImageButton({ stay, variant = "sheet", className }: { stay:
   async function download() {
     setBusy(true);
     try {
-      const url = shareUrl(`/stays/${stay.slug}`, { refUserId: store.currentUserId, channel: "story", medium: "qr" });
+      const url = shareUrl(`/house/${stay.slug}`, { refUserId: store.currentUserId, channel: "story", medium: "qr" });
       const blob = await renderStoryImage({
         photoUrl: host?.photos[0] ?? stay.photos?.[0],
         title: stay.title,
@@ -154,7 +154,7 @@ export function StoryImageButton({ stay, variant = "sheet", className }: { stay:
 }
 
 /** Round glass share button for photos (House cards): opens the share sheet without opening the card's link. */
-export function CardShareButton({ stay, className }: { stay: Stay; className?: string }) {
+export function CardShareButton({ stay, variant = "glass", className }: { stay: Stay; /** "glass" on photos, "outline" on white */ variant?: "glass" | "outline"; className?: string }) {
   const t = useTranslations("growth.share");
   const [open, setOpen] = useState(false);
 
@@ -167,7 +167,14 @@ export function CardShareButton({ stay, className }: { stay: Stay; className?: s
 
   return (
     <>
-      <button type="button" onClick={openSheet} aria-label={t("buttonFor", { title: stay.title })} title={t("button")} className={cn(glassCircle, className)}>
+      <button type="button" onClick={openSheet} aria-label={t("buttonFor", { title: stay.title })} title={t("button")}
+        className={cn(
+          variant === "glass"
+            ? glassCircle
+            : "flex size-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-ink transition-colors hover:border-neutral-400",
+          className,
+        )}
+      >
         <Share2 className="size-5" />
       </button>
       {/* Portaled: the card scales on hover, which would make the fixed sheet position itself inside the card. */}

@@ -1,9 +1,9 @@
-import { Compass, House, Lightbulb, MessageCircle, User, type LucideIcon } from "lucide-react";
+import { Compass, House, Lightbulb, Megaphone, MessageCircle, User, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
-  href: "/" | "/how-it-works" | "/my-stays" | "/inbox" | "/profile";
+  href: "/" | "/host" | "/how-it-works" | "/my-stays" | "/inbox" | "/profile";
   /** Message key under nav.items */
-  labelKey: "explore" | "howItWorks" | "houses" | "messages" | "profile";
+  labelKey: "explore" | "host" | "howItWorks" | "houses" | "messages" | "profile";
   icon: LucideIcon;
   /** Who sees the tab: guests only, logged-in members only, or everyone */
   audience: "guest" | "member" | "all";
@@ -11,20 +11,23 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", labelKey: "explore", icon: Compass, audience: "all" },
+  // The page for potential hosts.
+  { href: "/host", labelKey: "host", icon: Megaphone, audience: "guest" },
   { href: "/how-it-works", labelKey: "howItWorks", icon: Lightbulb, audience: "guest" },
   { href: "/my-stays", labelKey: "houses", icon: House, audience: "member" },
   { href: "/inbox", labelKey: "messages", icon: MessageCircle, audience: "member" },
   { href: "/profile", labelKey: "profile", icon: User, audience: "member" },
 ];
 
-/** Logged out (standalone pill only): Explore · How it works. Logged in: Explore · Houses · Messages · Profile. */
+/** Logged out: Explore · Host · How it works. Logged in: Explore · Houses · Messages · Profile. */
 export function navItemsFor(loggedIn: boolean): readonly NavItem[] {
   return NAV_ITEMS.filter((item) => item.audience === "all" || item.audience === (loggedIn ? "member" : "guest"));
 }
 
 export function isNavActive(href: NavItem["href"], pathname: string | null): boolean {
   if (!pathname) return false;
-  if (href === "/") return pathname === "/" || pathname.startsWith("/stays");
+  // Explore covers the feed, House pages and the city / vibe landing pages.
+  if (href === "/") return pathname === "/" || pathname === "/explore" || /^\/(house|houses|co-living)\//.test(pathname);
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -47,7 +50,7 @@ export function mobileChromeFor(standalone: boolean, loggedIn: boolean): MobileC
  */
 export function hidesTabBar(pathname: string): boolean {
   return (
-    pathname.startsWith("/stays/") ||
+    pathname.startsWith("/house/") ||
     /^\/inbox\/[^/]+/.test(pathname) ||
     pathname === "/create" ||
     /^\/my-stays\/[^/]+\/edit$/.test(pathname) ||

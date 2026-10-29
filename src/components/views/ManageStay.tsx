@@ -39,7 +39,7 @@ function ManageStayGate({ id }: { id: string }) {
 
   useEffect(() => {
     if (!stay) return;
-    if (!involved) router.replace(`/stays/${stay.slug}`);
+    if (!involved) router.replace(`/house/${stay.slug}`);
     else if (isDesktop) router.replace(`/my-stays?id=${stay.id}`);
   }, [stay, involved, isDesktop, router]);
 

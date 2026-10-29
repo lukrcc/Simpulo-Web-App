@@ -28,8 +28,10 @@ const cornerBelow =
   "after:absolute after:left-0 after:top-full after:size-5 after:content-[''] after:bg-[radial-gradient(circle_at_100%_100%,transparent_19.5px,var(--tab-bg)_20px)]";
 
 /**
- * Notched host tab for the top-left corner of a card (the card needs `relative overflow-hidden`).
- * The tab itself plus two inverted corners – right of it along the top edge, below it along the left edge.
+ * Host tab in the top-left notch of a card. The card cuts the notch out of itself (useNotchClip – one clip path around
+ * the tab), so the tab has no background of its own: it sits on the page. Until that clip is measured (server render,
+ * before hydration) it still paints the page colour plus two inverted corners – right of it along the top edge, below
+ * it along the left edge – over a rounded-tl-none card; globals.css drops them once the card is `data-notch="ready"`.
  */
 export function CardTab({ host, bg = "var(--color-page)", suffix, className, contentClassName, linked = false }: CardTabProps) {
   const t = useTranslations("common.ui.cardTab");
@@ -47,9 +49,10 @@ export function CardTab({ host, bg = "var(--color-page)", suffix, className, con
   return (
     <div
       aria-hidden={!linked}
-      style={{ "--tab-bg": bg, backgroundColor: bg } as CSSProperties}
+      data-card-tab
+      style={{ "--tab-bg": bg } as CSSProperties}
       className={cn(
-        "pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] py-1.5 pl-1.5 pr-3.5",
+        "card-tab pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] bg-(--tab-bg) py-1.5 pl-1.5 pr-3.5",
         cornerRight,
         cornerBelow,
         className,
