@@ -37,12 +37,15 @@ export function ThreadView({ params }: { params: Promise<{ threadId: string }> }
   );
 }
 
-/** The right column of /inbox on desktop. */
-export function ThreadPanel({ threadId }: { threadId: string }) {
-  return <ThreadGate threadId={threadId} embedded />;
+/**
+ * The right column of /inbox on desktop. `inline`: inside another page (the past House view), which has its own
+ * "Do it again" – so the chat doesn't end with one.
+ */
+export function ThreadPanel({ threadId, inline = false }: { threadId: string; inline?: boolean }) {
+  return <ThreadGate threadId={threadId} embedded inline={inline} />;
 }
 
-function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolean }) {
+function ThreadGate({ threadId, embedded, inline = false }: { threadId: string; embedded: boolean; inline?: boolean }) {
   const t = useTranslations("messages.thread");
   const store = useStore();
   const thread = store.threads.find((t) => t.id === threadId);
@@ -70,7 +73,7 @@ function ThreadGate({ threadId, embedded }: { threadId: string; embedded: boolea
     return <NotFoundFrame embedded={embedded}>{empty}</NotFoundFrame>;
   }
 
-  return <ThreadContent key={thread.id} thread={thread} stay={stay} embedded={embedded} />;
+  return <ThreadContent key={thread.id} thread={thread} stay={stay} embedded={embedded} inline={inline} />;
 }
 
 function NotFoundFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
@@ -100,7 +103,7 @@ function ThreadNotFound({ embedded }: { embedded: boolean }) {
   );
 }
 
-function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay; embedded: boolean }) {
+function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; stay: Stay; embedded: boolean; inline: boolean }) {
   const t = useTranslations("messages.thread");
   const store = useStore();
   const { markThreadRead } = store;
@@ -122,7 +125,7 @@ function ThreadContent({ thread, stay, embedded }: { thread: Thread; stay: Stay;
       : undefined;
   const otherName = other?.name.split(" ")[0];
   // Over (or completed): the crew chat ends with "Do it again?". Read on the client only – this view never prerenders.
-  const ended = thread.type === "crew" && stay.status !== "closed" && (stay.status === "completed" || (stay.endDate !== "" && stay.endDate < new Date().toISOString().slice(0, 10)));
+  const ended = !inline && thread.type === "crew" && stay.status !== "closed" && (stay.status === "completed" || (stay.endDate !== "" && stay.endDate < new Date().toISOString().slice(0, 10)));
 
   const content = (
     <>

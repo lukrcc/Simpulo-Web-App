@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, MapPin, Plus, Search, Users, X } from "lucide-react";
+import { Check, Plus, Search, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
@@ -18,7 +18,7 @@ import { placeByName, PLACES, searchPlaces, type Place } from "@/lib/places";
 import { findUser, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
-import { AvatarStack } from "@/components/ui/Avatar";
+import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
@@ -137,55 +137,123 @@ function monthSpan(format: ReturnType<typeof useFormatter>, spot: DemandSpot, th
 }
 
 /** Card of a demand spot: city, country, "8 people · Feb–Mar · 3 anytime" and the two actions. `tile`: House-card size (4:5), centred. */
+/** Tiles in the card's people mosaic (2×2) – past that, the last one says "+N". */
+const MOSAIC_TILES = 4;
+
 export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: boolean }) {
   const t = useTranslations("explore.interests");
   const format = useFormatter();
+  const store = useStore();
+  const requireAuth = useRequireAuth();
   const { interested, toggle } = useInterestToggle(spot);
   const thisYear = useThisYear();
   const span = monthSpan(format, spot, thisYear);
-  const people = useVisiblePeople(spot);
+  const optedIn = useOptedInPeople(spot);
+  const loggedIn = store.currentUserId !== null;
+  const people = loggedIn ? optedIn : [];
   const [listing, setListing] = useState(false);
   const range = spot.months.length > 0 ? { from: monthRange(spot.months[0].month).from, to: monthRange(spot.months.at(-1)!.month).to } : {};
   const summary = [t("people", { count: spot.count }), span, spot.anytime > 0 ? t("anytime", { count: spot.anytime }) : null].filter(Boolean).join(" · ");
+  const openPeople = () => (loggedIn ? setListing(true) : requireAuth(() => setListing(true), t("loginToSeeFor", { place: spot.placeName })));
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col bg-white",
-        tile ? "aspect-4/5 items-center justify-center rounded-[28px] p-8 text-center" : "rounded-[24px] p-6",
-      )}
-    >
-      {tile && (
-        <span className="mb-5 flex size-14 items-center justify-center rounded-full bg-page text-ink">
-          <MapPin className="size-6" aria-hidden />
-        </span>
-      )}
-      <p className="text-xl font-semibold tracking-tight text-ink">{spot.placeName}</p>
-      {spot.country && <p className="mt-0.5 text-zinc-500">{spot.country}</p>}
-      <p className={cn("mt-3 flex items-start gap-1.5 text-sm font-medium text-ink", tile && "justify-center")}>
-        <Users className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-        <span>{summary}</span>
-      </p>
-      {/* Logged in only: the people who chose to be seen – tap for the list. Everyone else is just counted. */}
-      {people.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setListing(true)}
-          aria-label={t("seePeople", { count: people.length, place: spot.placeName })}
-          className={cn("mt-3 flex w-fit items-center gap-2 rounded-full pr-2 hover:bg-black/[0.03]", tile && "mx-auto")}
-        >
-          <AvatarStack users={people.map((p) => p.user)} size="xs" max={5} />
-        </button>
-      )}
-      <div className={cn("mt-auto flex flex-wrap gap-2 pt-6", tile && "mt-0 justify-center")}>
-        <button type="button" aria-pressed={interested} onClick={toggle} className={buttonClass(interested ? "secondary" : "dark", "sm")}>
-          {interested && <Check className="size-4" aria-hidden />}
-          {interested ? t("interestedOn") : t("interested")}
-        </button>
-        <Link href={createHref({ region: spot.country, city: spot.placeName, ...range })} className={buttonClass("secondary", "sm")}>
-          {t("host")}
-        </Link>
+    // Tiles fill a grid cell beside the House cards (as tall as they are); in rows the mosaic sets the height.
+    <div className={cn("flex w-full flex-col overflow-hidden bg-white", tile ? "h-full rounded-[28px]" : "rounded-[24px]")}>
+      <PeopleMosaic
+        people={optedIn.map((p) => p.user)}
+        blurred={!loggedIn}
+        label={loggedIn ? t("seePeople", { count: optedIn.length, place: spot.placeName }) : t("loginToSeeFor", { place: spot.placeName })}
+        onOpen={optedIn.length > 0 ? openPeople : undefined}
+      />
+
+      <div className="flex flex-1 flex-col p-5">
+        <p className="text-lg font-bold tracking-tight text-ink">
+          {spot.country ? `${spot.placeName}, ${spot.country}` : spot.placeName}
+        </p>
+        <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-ink">
+          <Users className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+          <span>{summary}</span>
+        </p>
+        {/* Logged out, the faces are blurred – this is the way to see them. */}
+        {!loggedIn && optedIn.length > 0 && (
+          <button
+            type="button"
+            onClick={openPeople}
+            className="mt-2 w-fit whitespace-nowrap text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
+          >
+            {t("loginToSee")}
+          </button>
+        )}
+        {/* One row, never wrapping: each button as wide as its label, both growing into the rest. The row is a size
+            container – below 232px, where the two full labels no longer fit, "Host this house" becomes "Host it". */}
+        <div className="@container mt-auto w-full pt-5">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              aria-pressed={interested}
+              onClick={toggle}
+              className={buttonClass(interested ? "secondary" : "dark", "xs", "min-w-0 flex-auto whitespace-nowrap")}
+            >
+              {interested && <Check className="size-4 shrink-0" aria-hidden />}
+              <span className="truncate">{interested ? t("interestedOn") : t("interested")}</span>
+            </button>
+            <Link
+              href={createHref({ region: spot.country, city: spot.placeName, ...range })}
+              aria-label={t("host")}
+              className={buttonClass("secondary", "xs", "min-w-0 flex-auto whitespace-nowrap")}
+            >
+              <span className="truncate @max-[14.5rem]:hidden">{t("host")}</span>
+              <span className="hidden truncate @max-[14.5rem]:inline">{t("hostShort")}</span>
+            </Link>
+          </div>
+        </div>
       </div>
       <PeopleSheet open={listing} onClose={() => setListing(false)} spot={spot} people={people} thisYear={thisYear} />
+    </div>
+  );
+}
+
+/**
+ * The top of a demand card: the opted-in people as a 2×2 portrait mosaic (16:10, 2px gaps). More than four: the
+ * fourth tile says "+N" over a dark overlay; fewer: the rest are tinted placeholder tiles. Logged out, the photos are
+ * blurred – the "+N" stays readable. Tapping it opens the list (or the login first).
+ */
+function PeopleMosaic({ people, blurred, label, onOpen }: { people: Pick<User, "id" | "name" | "photos">[]; blurred: boolean; label: string; onOpen?: () => void }) {
+  const overflow = people.length > MOSAIC_TILES;
+  const shown = people.slice(0, MOSAIC_TILES);
+  const rest = people.length - (MOSAIC_TILES - 1);
+  const tiles = (
+    <span className="grid size-full grid-cols-2 grid-rows-2 gap-0.5">
+      {Array.from({ length: MOSAIC_TILES }, (_, i) => {
+        const person = shown[i];
+        return (
+          <span key={person?.id ?? `empty-${i}`} className="relative overflow-hidden bg-[#E8E6E1]">
+            {person?.photos[0] && (
+              <Img
+                src={person.photos[0]}
+                alt=""
+                fill
+                sizes="160px"
+                // Blurred photos are scaled up a little, so the blur doesn't fade in from the tile edges.
+                className={cn("object-cover object-[center_30%]", blurred && "scale-110 blur-[6px]")}
+              />
+            )}
+            {overflow && i === MOSAIC_TILES - 1 && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-lg font-semibold text-white">+{rest}</span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+  const frame = "relative block aspect-16/10 w-full shrink-0 overflow-hidden";
+  // Names are in the list behind it; the tiles themselves are decorative.
+  return onOpen ? (
+    <button type="button" onClick={onOpen} aria-label={label} className={cn(frame, "transition-opacity hover:opacity-95")}>
+      {tiles}
+    </button>
+  ) : (
+    <div aria-hidden className={frame}>
+      {tiles}
     </div>
   );
 }
@@ -195,10 +263,12 @@ interface VisiblePerson {
   months: string[];
 }
 
-/** Logged in: the people interested in a spot who opted in to be shown (never the opted-out ones). Logged out: none. */
-function useVisiblePeople(spot: DemandSpot): VisiblePerson[] {
+/**
+ * The people interested in a spot who opted in to be shown (never the opted-out ones). Logged in, the card shows them;
+ * logged out only as a blurred teaser. (A real backend sends logged-out visitors placeholders, not their photos.)
+ */
+function useOptedInPeople(spot: DemandSpot): VisiblePerson[] {
   const store = useStore();
-  if (!store.currentUserId) return [];
   return interestsIn(store.interests, spot.placeName).flatMap((interest) => {
     const user = interest.visible ? findUser(store, interest.userId) : undefined;
     return user ? [{ user, months: interest.months }] : [];

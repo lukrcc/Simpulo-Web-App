@@ -8,7 +8,7 @@ import { type ReactNode, type RefObject, use, useEffect, useRef, useState } from
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
 import { PhotoSheet } from "@/components/PhotoSheet";
-import { getPastCrewMates } from "@/components/profile/PastCrews";
+import { profileCrews } from "@/components/profile/Crews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
@@ -163,7 +163,8 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const joining = joined.filter((s) => !isPast(s, today));
   const joinedPast = joined.filter((s) => isPast(s, today)).toSorted(byEndDesc);
 
-  const pastCrewMates = getPastCrewMates(store, user.id);
+  // A preview has no viewer: counts only, like for a stranger.
+  const crews = profileCrews(store, user.id, meId);
 
   // "Message" only with a reason to talk: a shared crew (any House, any status) or an open request between the two
   // of you. Without one there's no Message button – "Notify me" takes its place.
@@ -216,7 +217,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
           <ProfileCard
             user={user}
             showCrewContacts={showCrewContacts}
-            pastCrewMates={pastCrewMates}
+            crews={crews}
             stats={t.rich("stats", {
               hosted: hosted.length,
               joined: joined.length,

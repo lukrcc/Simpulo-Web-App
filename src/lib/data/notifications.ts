@@ -13,6 +13,8 @@ export type NotificationType =
   | "payment_due"
   | "new_message"
   | "house_opened_in_place"
+  | "crew_invite"
+  | "do_it_again"
   | "system";
 
 /** Tabs on /notifications (besides "All"). */
@@ -27,6 +29,8 @@ export const TYPE_CATEGORY: Record<NotificationType, NotificationCategory> = {
   house_locked: "houses",
   payment_due: "houses",
   house_opened_in_place: "houses",
+  crew_invite: "houses",
+  do_it_again: "houses",
   new_message: "messages",
   system: "system",
 };
@@ -53,6 +57,13 @@ export type NotifyEventKey =
   | "interestOpened"
   // A host invited you to their new House in a place you're interested in
   | "interestInvite"
+  // Crews: a past crew mate invited you to their new House / an invited person said yes (to the host)
+  | "crewInvite"
+  // A host invited you from their People to a House that's already open
+  | "houseInvite"
+  | "inviteAccepted"
+  // Two days after a House ended, to everyone in its crew
+  | "doItAgain"
   // From Simpulo itself
   | "systemWelcome"
   | "systemVerify"
@@ -73,6 +84,10 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   hostOpened: "house_opened_in_place",
   interestOpened: "house_opened_in_place",
   interestInvite: "house_opened_in_place",
+  crewInvite: "crew_invite",
+  houseInvite: "crew_invite",
+  inviteAccepted: "request_accepted",
+  doItAgain: "do_it_again",
   left: "system",
   reminderArrival: "system",
   reminderSavedSoon: "system",

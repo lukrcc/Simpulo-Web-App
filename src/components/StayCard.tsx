@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Plus, UserRound } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle, Plus, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import { useNotchClip } from "@/components/ui/notch";
 import { CardShareButton } from "@/components/share/ShareSheet";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
 import { imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
@@ -19,7 +20,7 @@ import { useFormat } from "@/i18n/format";
 import type { CardVariant } from "@/lib/exploreLayout";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName, stayPhotos, stayPrice } from "@/lib/utils";
+import { cn, firstName, openSpots, stayPhotos, stayPrice } from "@/lib/utils";
 
 interface StayCardProps {
   stay: Stay;
@@ -45,6 +46,9 @@ const FACE_POSITION = "object-cover object-[center_30%]";
 /** A soft shadow under text on photos – keeps it readable on bright ones, on top of the gradient. */
 const TEXT_SHADOW = "[text-shadow:0_1px_3px_rgb(0_0_0/0.35)]";
 const MAX_PHOTOS = 5;
+/** The photo arrows: desktop only, shown on hover or keyboard focus. */
+const PHOTO_ARROW =
+  "glass-dark absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-black/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
 /** One card API for every House tile: `variant` picks the layout. */
 export function StayCard({ variant = "default", ...props }: StayCardProps) {
@@ -74,9 +78,9 @@ function DefaultStayCard({
   const approx = useApproxAmount(stay);
   const hasPrice = stayPrice(stay).kind !== "tbd";
   // The host's face first, then the world of the House – never the accommodation.
-  // Tall and compact cards show one photo: no swiping, no dots, no hover crossfade.
+  // Tall and compact cards show one photo: no swiping, no arrows, no dots.
   const photos = host ? (tall || compact ? stayPhotos(stay, host).slice(0, 1) : stayPhotos(stay, host).slice(0, MAX_PHOTOS)) : [];
-  const { ref, active, onScroll } = useSnapCarousel<HTMLDivElement>(photos.length);
+  const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const [revealRef, revealed] = useRevealOnce<HTMLElement>();
   // One clipped layer: photos, gradients and overlays inside the notched silhouette; the host tab sits beside it.
   const clipRef = useRef<HTMLDivElement>(null);
@@ -114,27 +118,15 @@ function DefaultStayCard({
               <div className="h-full w-full shrink-0 bg-linear-to-br from-accent-soft to-neutral-300" />
             ))}
           {photos.map((src, i) => {
+            // Photos only change by swipe, arrow or dot – never on hover.
             const image = (
-              <>
-                <Img
-                  src={src}
-                  alt={i === 0 && host ? t("cards.hostAlt", { name: host.name, title: stay.title }) : t("cards.photoAlt", { title: stay.title, number: i + 1 })}
-                  fill
-                  sizes={CARD_SIZES}
-                  className={tall ? FACE_POSITION : "object-cover"}
-                />
-                {/* Desktop hover: crossfade the first photo to the second (hover only fires on hover-capable devices).
-                    A visual duplicate of the next slide – decorative, so no alt of its own. */}
-                {i === 0 && photos[1] && (
-                  <Img
-                    src={photos[1]}
-                    alt=""
-                    fill
-                    sizes={CARD_SIZES}
-                    className="object-cover opacity-0 transition-opacity duration-400 group-hover:opacity-100"
-                  />
-                )}
-              </>
+              <Img
+                src={src}
+                alt={i === 0 && host ? t("cards.hostAlt", { name: host.name, title: stay.title }) : t("cards.photoAlt", { title: stay.title, number: i + 1 })}
+                fill
+                sizes={CARD_SIZES}
+                className={tall ? FACE_POSITION : "object-cover"}
+              />
             );
             const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always";
             return preview ? (
@@ -194,21 +186,43 @@ function DefaultStayCard({
           )}
 
           {host && (
-            <div className={compact ? "mt-3" : "mt-4"}>
+            // Crew bottom-left; the host's public socials bottom-right on the same line (not on compact cards).
+            <div className={cn("flex items-center justify-between gap-3", compact ? "mt-3" : "mt-4")}>
               {crewRow === "large" ? <CrewFaces crew={[host, ...guests]} /> : <CrewAvatars host={host} members={guests} />}
+              {!compact && <HostSocialIcons host={host} />}
             </div>
           )}
         </div>
 
         {photos.length > 1 && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1">
-            {photos.map((src, i) => (
-              <span
-                key={src}
-                className={cn("h-1 rounded-full transition-all", i === active ? "w-3 bg-white" : "w-1 bg-white/50")}
-              />
-            ))}
-          </div>
+          <>
+            {/* Desktop: ‹ › while hovering (or focused); phones swipe. One index with the swipe – see useSnapCarousel. */}
+            {active > 0 && (
+              <button type="button" onClick={() => step(-1)} aria-label={t("cards.prevPhoto")} className={cn(PHOTO_ARROW, "left-3")}>
+                <ChevronLeft className="size-5" aria-hidden />
+              </button>
+            )}
+            {active < photos.length - 1 && (
+              <button type="button" onClick={() => step(1)} aria-label={t("cards.nextPhoto")} className={cn(PHOTO_ARROW, "right-3")}>
+                <ChevronRight className="size-5" aria-hidden />
+              </button>
+            )}
+            {/* Dots: the current photo; each one jumps there (a taller hit area than the dot itself). */}
+            <div className="absolute inset-x-0 bottom-1 flex justify-center">
+              {photos.map((src, i) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => scrollTo(i)}
+                  aria-label={t("cards.showPhoto", { number: i + 1, count: photos.length })}
+                  aria-current={i === active || undefined}
+                  className="flex h-5 items-center px-0.5"
+                >
+                  <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-white" : "w-1 bg-white/50")} />
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
       {host && <CardTab host={host} />}
@@ -252,7 +266,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
   const tFacts = useTranslations("house.facts");
   const format = useFormat();
   const members = crew.length > 0 ? crew : [host];
-  const spotsLeft = Math.max(0, stay.spotsTotal - stay.spotsFilled);
+  const spotsLeft = openSpots(stay);
   const openTiles = Math.min(spotsLeft, 1);
   const peopleTiles = MAX_TILES - openTiles;
   // Too many people for the strip: the last people tile becomes "+N".

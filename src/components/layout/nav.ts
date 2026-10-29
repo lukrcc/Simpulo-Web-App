@@ -28,6 +28,8 @@ export function isNavActive(href: NavItem["href"], pathname: string | null): boo
   if (!pathname) return false;
   // Explore covers the feed, House pages and the city / vibe landing pages.
   if (href === "/") return pathname === "/" || pathname === "/explore" || /^\/(house|houses|co-living)\//.test(pathname);
+  // People lives under Houses (its segment there, and /people).
+  if (href === "/my-stays" && pathname === "/people") return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

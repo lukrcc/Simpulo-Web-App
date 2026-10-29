@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
+import { loadOgFonts } from "@/lib/ogFonts";
 import { getStayRecord, getUser } from "@/lib/data/stays";
 import { firstName } from "@/lib/utils";
 
@@ -10,28 +11,6 @@ export const contentType = "image/png";
 const WHITE = "#FFFFFF";
 const INK = "#1E1E22";
 const ACCENT = "#F0633A";
-
-type OgFont = { name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" };
-
-/**
- * Geist 400 + 700 (next/og only bundles Geist Regular, so titles wouldn't be bold). Google Fonts serves TTF to clients
- * without a modern user agent; if it's unreachable the card falls back to the bundled regular weight.
- */
-async function loadFonts(): Promise<OgFont[] | undefined> {
-  try {
-    const css = await fetch("https://fonts.googleapis.com/css2?family=Geist:wght@400;700", { signal: AbortSignal.timeout(4000) }).then((r) => r.text());
-    const faces = [...css.matchAll(/font-weight: (400|700);[^}]*?src: url\((.+?)\) format\('(?:truetype|opentype)'\)/g)];
-    const fonts = await Promise.all(
-      faces.map(async ([, weight, src]): Promise<OgFont> => {
-        const data = await fetch(src, { signal: AbortSignal.timeout(4000) }).then((r) => r.arrayBuffer());
-        return { name: "Geist", data, weight: weight === "700" ? 700 : 400, style: "normal" };
-      }),
-    );
-    return fonts.length === 2 ? fonts : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Photo as a data URI – null when it's missing or unreachable, so the card shows a solid block. Local files
@@ -70,7 +49,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   // Drafts never get a card of their own.
   const stay = record && record.status !== "draft" && record.status !== "draft_unclaimed" ? record : undefined;
   const host = stay && (await getUser(stay.hostId));
-  const [photo, fonts] = await Promise.all([loadPhoto(host?.photos[0]), loadFonts()]);
+  const [photo, fonts] = await Promise.all([loadPhoto(host?.photos[0]), loadOgFonts()]);
 
   return new ImageResponse(
     (

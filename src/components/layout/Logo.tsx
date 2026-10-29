@@ -8,7 +8,8 @@ export function Logo() {
       <span className="text-2xl font-bold tracking-tight text-ink">
         simpulo<span className="text-accent">.</span>
       </span>
-      <span className="mt-1 text-[11px] text-neutral-500">{t("tagline")}</span>
+      {/* Hidden while the header is compact (globals.css). */}
+      <span className="logo-tagline mt-1 text-[11px] text-neutral-500">{t("tagline")}</span>
     </Link>
   );
 }

@@ -3,13 +3,13 @@ import type { ReactNode } from "react";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { useFormat } from "@/i18n/format";
 import type { Stay, User } from "@/lib/types";
-import { stayNights } from "@/lib/utils";
+import { openSpots, stayNights } from "@/lib/utils";
 
 /** Title block: House title, "Feb 12–26, 2027 · 14 nights · Canggu, Bali", then the crew row. */
 export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /** Next to the title, e.g. the heart */ action?: ReactNode }) {
   const t = useTranslations("house.facts");
   const format = useFormat();
-  const spotsLeft = Math.max(0, stay.spotsTotal - stay.spotsFilled);
+  const spotsLeft = openSpots(stay);
 
   return (
     <div>
@@ -35,7 +35,9 @@ export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /*
           <span className="font-medium text-ink">
             {t("spotsIn", { filled: stay.spotsFilled, total: stay.spotsTotal })}
           </span>{" "}
-          · {spotsLeft > 0 ? t("spotsLeft", { count: spotsLeft }) : t("crewComplete")}
+          · {spotsLeft > 0 ? t("spotsLeft", { count: spotsLeft }) : stay.spotsInvited ? "" : t("crewComplete")}
+          {/* Spots held by invites from a past crew: not open, not taken yet. */}
+          {stay.spotsInvited ? `${spotsLeft > 0 ? " · " : ""}${t("invited", { count: stay.spotsInvited })}` : null}
         </p>
       </div>
     </div>

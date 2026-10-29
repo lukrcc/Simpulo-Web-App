@@ -35,13 +35,14 @@ const cornerBelow =
  */
 export function CardTab({ host, bg = "var(--color-page)", suffix, className, contentClassName, linked = false }: CardTabProps) {
   const t = useTranslations("common.ui.cardTab");
+  // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
-    <span className={cn("flex items-center gap-2", contentClassName)}>
-      <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7" />
-      <span className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
-        <span>{firstName(host)}</span>
-        {host.verified && <VerifiedBadge size={14} />}
-        {suffix && <span className="font-normal text-zinc-500">· {suffix}</span>}
+    <span className={cn("flex min-w-0 items-center gap-2", contentClassName)}>
+      <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7 shrink-0" />
+      <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
+        <span className="min-w-0 truncate">{firstName(host)}</span>
+        {host.verified && <VerifiedBadge size={14} className="shrink-0" />}
+        {suffix && <span className="shrink-0 font-normal text-zinc-500">· {suffix}</span>}
       </span>
     </span>
   );
@@ -53,13 +54,15 @@ export function CardTab({ host, bg = "var(--color-page)", suffix, className, con
       style={{ "--tab-bg": bg } as CSSProperties}
       className={cn(
         "card-tab pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] bg-(--tab-bg) py-1.5 pl-1.5 pr-3.5",
+        // Clear of the share + save buttons top-right (and the concave corner beside the tab).
+        "max-w-[calc(100%-7rem)]",
         cornerRight,
         cornerBelow,
         className,
       )}
     >
       {linked ? (
-        <Link href={`/u/${host.id}`} aria-label={t("profile", { name: host.name })} className="pointer-events-auto rounded-full hover:opacity-80">
+        <Link href={`/u/${host.id}`} aria-label={t("profile", { name: host.name })} className="pointer-events-auto min-w-0 rounded-full hover:opacity-80">
           {content}
         </Link>
       ) : (

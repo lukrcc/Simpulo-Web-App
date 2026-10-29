@@ -2,15 +2,13 @@
 
 import { Check, CircleCheck, FileText, Lock, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
-import { createHref } from "@/components/create/model";
+import { againHref } from "@/components/create/model";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { buttonClass } from "@/components/ui/button";
 import { Img } from "@/components/ui/Img";
-import { useToast } from "@/components/ui/Toast";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
@@ -213,21 +211,11 @@ export function LockCard({ stay, lock, current }: { stay: Stay; lock: LockDetail
 }
 
 /**
- * The crew chat's last word once the House is over: "Do it again?" – the host duplicates it as a draft (new dates,
- * new crew), guests are invited to host their own next trip (prefilled with the place).
+ * The crew chat's last word once the House is over: "Do it again?" – host and guests alike open the stepper with the
+ * same vibe, place and spots, and the crew ready to invite.
  */
 export function DoItAgainCard({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const t = useTranslations("growth.again");
-  const store = useStore();
-  const router = useRouter();
-  const showToast = useToast();
-
-  function duplicate() {
-    const id = store.duplicateStay(stay.id);
-    showToast(t("copiedToast"));
-    router.push(`/my-stays/${id}/edit`);
-  }
-
   return (
     <div className="mt-6 flex justify-center">
       <div className={cn(CARD_WIDTH, "rounded-2xl bg-white p-4 text-center text-ink shadow-[0_1px_1px_rgba(0,0,0,0.06)]")}>
@@ -236,15 +224,9 @@ export function DoItAgainCard({ stay, isHost }: { stay: Stay; isHost: boolean })
           {t("title")}
         </p>
         <p className="mt-2 text-sm text-neutral-700">{isHost ? t("hostText", { title: stay.title }) : t("guestText")}</p>
-        {isHost ? (
-          <button type="button" onClick={duplicate} className={buttonClass("dark", "md", "mt-4 w-full")}>
-            {t("hostAction")}
-          </button>
-        ) : (
-          <Link href={createHref({ region: stay.region })} className={buttonClass("dark", "md", "mt-4 w-full")}>
-            {t("guestAction")}
-          </Link>
-        )}
+        <Link href={againHref(stay.id)} className={buttonClass("dark", "md", "mt-4 w-full")}>
+          {t("action")}
+        </Link>
       </div>
     </div>
   );

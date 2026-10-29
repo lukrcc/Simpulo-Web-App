@@ -8,6 +8,7 @@ import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState, 
 import { BentoTop } from "@/components/BentoTop";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { CompactFilterBar } from "@/components/explore/CompactFilterBar";
 import { ActiveFilterChips, BudgetSlider, CheckboxList, FilterPopover, VibeChipRow, type ActiveChip, type CheckOption } from "@/components/explore/Filters";
 import { AddPlaceSheet, DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
 import { MonthChips, shortMonth } from "@/components/form/MonthChips";
@@ -113,6 +114,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const store = useStore();
   const [filters, setFiltersState] = useState<ExploreFilters>(EMPTY_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const pillsRowRef = useRef<HTMLDivElement>(null);
+  const mobileRowRef = useRef<HTMLDivElement>(null);
   const spots = useDemandSpots();
   const collection = scope && "collection" in scope ? COLLECTIONS.find((c) => c.id === scope.collection) : undefined;
 
@@ -298,9 +301,12 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           </div>
         )}
 
-        {/* Desktop: the filter pills; mobile: one "Filters" button for the sheet. Vibe chips on both. */}
-        <div className={cn("hidden flex-wrap items-center gap-2 md:flex", headless ? "mt-2" : "mt-6")}>{popovers}</div>
-        <div className={cn("flex items-center gap-2", headless ? "mt-2 md:mt-4" : "mt-5 md:mt-4")}>
+        {/* Desktop: the filter pills; mobile: one "Filters" button for the sheet. Vibe chips on both. Once the pills row
+            (phones: the Filters row) scrolls up under the header, CompactFilterBar takes over. */}
+        <div ref={pillsRowRef} className={cn("hidden flex-wrap items-center gap-2 md:flex", headless ? "mt-2" : "mt-6")}>
+          {popovers}
+        </div>
+        <div ref={mobileRowRef} className={cn("flex items-center gap-2", headless ? "mt-2 md:mt-4" : "mt-5 md:mt-4")}>
           {showVibes && (
             <div className="min-w-0 flex-1">
               <VibeChipRow label={t("filterByVibe")} allLabel={t("all")} options={vibeOptions} value={filters.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />
@@ -320,6 +326,24 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           </button>
         </div>
         <ActiveFilterChips chips={chips} onClearAll={clearFilters} resultLabel={resultLabel} />
+        <CompactFilterBar
+          watchRef={pillsRowRef}
+          mobileWatchRef={mobileRowRef}
+          resultLabel={resultLabel}
+          chips={chips}
+          activeCount={activeCount(filters)}
+          onOpenSheet={() => setSheetOpen(true)}
+          panel={
+            <>
+              <div className="flex flex-wrap items-center gap-2">{popovers}</div>
+              {showVibes && (
+                <div className="mt-3">
+                  <VibeChipRow label={t("filterByVibe")} allLabel={t("all")} options={vibeOptions} value={filters.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />
+                </div>
+              )}
+            </>
+          }
+        />
 
         {results.length === 0 ? (
           // Nothing for these filters: say so, and the way back.

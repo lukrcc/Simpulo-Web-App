@@ -2,9 +2,9 @@
 // scheduled for real yet – later this becomes Cloud Functions (timers) + FCM push / email.
 import { mockInstalledUsers } from "./mock-extras";
 import type { NotifyEventKey } from "./store";
-import type { JoinRequest, Payment, Stay, SystemEventKey, User } from "./types";
+import type { Crew, JoinRequest, Payment, Stay, SystemEventKey, User } from "./types";
 
-export type ReminderType = "payDue" | "payToday" | "bookingUpload" | "pendingRequests" | "arrival" | "savedSoon" | "hostOpened";
+export type ReminderType = "payDue" | "payToday" | "bookingUpload" | "pendingRequests" | "arrival" | "savedSoon" | "hostOpened" | "doItAgain";
 
 export interface Reminder {
   id: string;
@@ -26,6 +26,7 @@ interface ReminderData {
   users: User[];
   joinRequests: JoinRequest[];
   payments: Payment[];
+  crews: Crew[];
 }
 
 const HOUR = 60 * 60 * 1000;
@@ -39,6 +40,8 @@ const SAVED_WINDOW_DAYS = 60;
 const SAVED_DAYS_BEFORE = 14;
 /** Host alerts: Houses an alerted host opened within this window */
 const HOST_ALERT_WINDOW_DAYS = 30;
+/** "Want to do it again?": this long after a House ended, to everyone in its crew */
+export const DO_IT_AGAIN_DAYS_AFTER = 2;
 
 const dayStart = (date: string) => new Date(`${date}T09:00:00Z`).getTime();
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -124,5 +127,18 @@ export function computeReminders(data: ReminderData, userId: string, now = Date.
     }
   }
 
+  // Two days after a House ended: everyone who lived in it is asked whether they'd do it again.
+  for (const crew of data.crews) {
+    const stay = data.stays.find((s) => s.id === crew.houseId);
+    if (!stay || !crew.memberIds.includes(userId)) continue;
+    add({ type: "doItAgain", stayId: stay.id, due: doItAgainDue(crew), notifyKey: "doItAgain", values: { title: stay.title } });
+  }
+
   return reminders.toSorted((a, b) => a.due.localeCompare(b.due));
+}
+
+/** When a crew gets its "Want to do it again?": two days after the House ended. */
+export function doItAgainDue(crew: Pick<Crew, "endedAt">): string {
+  const ended = crew.endedAt.length === 10 ? dayStart(crew.endedAt) : new Date(crew.endedAt).getTime();
+  return iso(ended + DO_IT_AGAIN_DAYS_AFTER * DAY);
 }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -10,6 +11,10 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { SITE_URL } from "@/lib/seo";
 import { StoreProvider } from "@/lib/store";
 import "./globals.css";
+
+// Self-hosted at build time by next/font – the browser never requests a Google domain. Tailwind's font-sans reads the
+// variable (globals.css).
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
@@ -38,7 +43,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} className="h-full antialiased">
+    <html lang={locale} className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {/* Messages and formats come from src/i18n/request.ts. */}
         <NextIntlClientProvider>

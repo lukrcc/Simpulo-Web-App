@@ -17,7 +17,7 @@ import {
   formInput,
   formTextarea,
 } from "@/components/form/FormLayout";
-import { getPastCrewMates } from "@/components/profile/PastCrews";
+import { profileCrews } from "@/components/profile/Crews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { CONTACT_FIELDS, SOCIAL_FIELDS, contactInputMode, normalizeContact, normalizeSocial, type SocialKey } from "@/components/profile/profileFields";
 import { buttonClass } from "@/components/ui/button";
@@ -379,7 +379,7 @@ function LivePreview({ user }: { user: User }) {
       <ProfileCard
         user={user}
         showCrewContacts
-        pastCrewMates={getPastCrewMates(store, user.id)}
+        crews={profileCrews(store, user.id, user.id)}
         stats={tProfile.rich("stats", {
           hosted,
           joined,

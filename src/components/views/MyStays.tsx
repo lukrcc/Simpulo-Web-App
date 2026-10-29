@@ -1,12 +1,13 @@
 "use client";
 
-import { Compass, Heart, House, Plus, type LucideIcon } from "lucide-react";
+import { Compass, Heart, History, House, Plus, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
+import { PeopleList, PersonPanel, usePeople } from "@/components/people/People";
 import { HouseDetail } from "@/components/stay/HouseDetail";
 import { HostCard } from "@/components/stay/HostCard";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
@@ -15,13 +16,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { StayThumb } from "@/components/ui/StayThumb";
 import { Tabs } from "@/components/ui/Tabs";
-import { findUser, getCrew, getCurrentUser, pendingRequestCount, useStore } from "@/lib/store";
+import { findUser, getCrew, getCurrentUser, isCrewMember, pendingRequestCount, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { useFormat } from "@/i18n/format";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 
-type Tab = "hosting" | "joined" | "saved";
+type Tab = "hosting" | "joined" | "people" | "past" | "saved";
 
 export function MyStays() {
   const t = useTranslations("houses");
@@ -36,27 +37,39 @@ function MyStaysContent() {
   const t = useTranslations("houses");
   const store = useStore();
   const isDesktop = useIsDesktop();
-  const selectedId = useSearchParams().get("id");
+  const params = useSearchParams();
+  const selectedId = params.get("id");
+  // People: ?tab=people (and ?person= for the desktop detail).
+  const personId = params.get("person");
+  const people = usePeople();
 
+  // Completed Houses move to Past – for the host and the crew alike – and stay listed there.
   const hosting = store.stays
-    .filter((s) => s.hostId === store.currentUserId)
+    .filter((s) => s.hostId === store.currentUserId && s.status !== "completed")
     .toSorted((a, b) => a.startDate.localeCompare(b.startDate));
   const joined = store.joinRequests
-    .filter((r) => r.userId === store.currentUserId && (r.status === "accepted" || r.status === "pending"))
+    .filter((r) => r.userId === store.currentUserId && (r.status === "accepted" || r.status === "pending" || r.status === "invited"))
     .map((r) => ({ request: r, stay: store.stays.find((s) => s.id === r.stayId) }))
-    .filter((j): j is { request: JoinRequest; stay: Stay } => Boolean(j.stay));
+    .filter((j): j is { request: JoinRequest; stay: Stay } => Boolean(j.stay) && j.stay!.status !== "completed");
+  const past = store.stays
+    .filter((s) => s.status === "completed" && isCrewMember(store, s, store.currentUserId))
+    .toSorted((a, b) => b.endDate.localeCompare(a.endDate));
 
   // A deep link to a joined (or only saved) House opens that tab.
   const savedIds = getCurrentUser(store)?.savedStayIds ?? [];
   const saved = savedIds.map((id) => store.stays.find((s) => s.id === id)).filter((s): s is Stay => Boolean(s));
   const [tab, setTab] = useState<Tab>(() =>
-    joined.some((j) => j.stay.id === selectedId)
+    params.get("tab") === "people" || personId
+      ? "people"
+      : joined.some((j) => j.stay.id === selectedId)
       ? "joined"
-      : !hosting.some((s) => s.id === selectedId) && saved.some((s) => s.id === selectedId)
-        ? "saved"
-        : "hosting",
+      : past.some((s) => s.id === selectedId)
+        ? "past"
+        : !hosting.some((s) => s.id === selectedId) && saved.some((s) => s.id === selectedId)
+          ? "saved"
+          : "hosting",
   );
-  const stays = tab === "hosting" ? hosting : tab === "joined" ? joined.map((j) => j.stay) : saved;
+  const stays = tab === "hosting" ? hosting : tab === "joined" ? joined.map((j) => j.stay) : tab === "past" ? past : tab === "saved" ? saved : [];
   const active = stays.find((s) => s.id === selectedId) ?? stays[0];
 
   const list = (
@@ -65,6 +78,8 @@ function MyStaysContent() {
         tabs={[
           { value: "hosting", label: t("tabs.hosting"), count: hosting.length },
           { value: "joined", label: t("tabs.joined"), count: joined.length },
+          { value: "people", label: t("tabs.people"), count: people.length },
+          { value: "past", label: t("tabs.past"), count: past.length },
           { value: "saved", label: t("tabs.saved"), count: saved.length },
         ]}
         value={tab}
@@ -80,10 +95,33 @@ function MyStaysContent() {
         {tab === "joined" &&
           joined.map(({ request, stay }) => (
             <li key={request.id}>
-              <StayRowLink stay={stay} active={isDesktop && stay.id === active?.id} isDesktop={isDesktop} waiting={request.status === "pending"} />
+              <StayRowLink
+                stay={stay}
+                active={isDesktop && stay.id === active?.id}
+                isDesktop={isDesktop}
+                waiting={request.status === "pending"}
+                invited={request.status === "invited"}
+              />
+            </li>
+          ))}
+        {tab === "past" &&
+          past.map((stay) => (
+            <li key={stay.id}>
+              <StayRowLink stay={stay} active={isDesktop && stay.id === active?.id} isDesktop={isDesktop} />
             </li>
           ))}
       </ul>
+      {/* Desktop: a row selects the person for the detail column; mobile: it opens their profile. */}
+      {tab === "people" && (
+        <div className="mt-4">
+          <PeopleList
+            variant="panel"
+            activeId={isDesktop ? (personId ?? people[0]?.user.id) : undefined}
+            hrefOf={(p) => (isDesktop ? `/my-stays?tab=people&person=${p.user.id}` : `/u/${p.user.id}`)}
+          />
+        </div>
+      )}
+      {tab === "past" && past.length === 0 && <EmptyState icon={History} title={t("pastEmpty.title")} description={t("pastEmpty.description")} />}
       {/* Saved: on desktop a row selects the House for the detail panel, on mobile it opens the House page. */}
       {tab === "saved" && saved.length > 0 && (
         <ul className="space-y-1">
@@ -140,7 +178,9 @@ function MyStaysContent() {
       // Desktop only – below lg a row opens /my-stays/[id].
       detail={
         isDesktop &&
-        (tab === "saved" ? (
+        (tab === "people" ? (
+          <PersonPanel personId={personId} />
+        ) : tab === "saved" ? (
           active ? (
             <SavedHouse key={active.id} stay={active} />
           ) : (
@@ -152,7 +192,7 @@ function MyStaysContent() {
           <HouseDetail key={active.id} stay={active} />
         ) : (
           <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-black/10">
-            <EmptyState icon={House} title={tab === "hosting" ? t("noHouse") : t("noJoinedHouse")} />
+            <EmptyState icon={tab === "past" ? History : House} title={tab === "hosting" ? t("noHouse") : tab === "past" ? t("pastEmpty.title") : t("noJoinedHouse")} />
           </div>
         ))
       }
@@ -168,11 +208,13 @@ interface StayRowLinkProps {
   pending?: number;
   /** Joined: own request still pending */
   waiting?: boolean;
+  /** Joined: invited from a past crew, not answered yet */
+  invited?: boolean;
   /** Overrides the Houses detail link (Saved rows on mobile open the House page) */
   href?: string;
 }
 
-function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, href }: StayRowLinkProps) {
+function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, invited = false, href }: StayRowLinkProps) {
   const t = useTranslations("houses.row");
   const tDraft = useTranslations("growth.draft");
   const f = useFormat();
@@ -199,6 +241,7 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, hr
             <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-white">{t("new", { count: pending })}</span>
           )}
           {waiting && <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("pending")}</span>}
+          {invited && <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{t("invited")}</span>}
           {stay.status === "closed" && (
             <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("closed")}</span>
           )}

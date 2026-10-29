@@ -227,6 +227,19 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
       <button type="button" disabled={!member} onClick={() => member && open(member.id)} className={item}>
         {member ? t("openAsMember", { name: member.name.split(" ")[0] }) : t("noCrewMember")}
       </button>
+      {/* What the scheduled job will do after the end date: completed, Crew record written. */}
+      {(stay.status === "published" || stay.status === "booked") && (
+        <button
+          type="button"
+          onClick={() => {
+            store.completeStay(stay.id);
+            onDone();
+          }}
+          className={item}
+        >
+          {t("complete")}
+        </button>
+      )}
     </div>
   );
 }

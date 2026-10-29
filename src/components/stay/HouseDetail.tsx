@@ -1,15 +1,16 @@
 "use client";
 
-import { Check, ChevronRight, CircleCheck, FilePen, IdCard, Link2, Lock, Pencil, Share2, Users } from "lucide-react";
+import { Check, ChevronRight, CircleCheck, FilePen, IdCard, Link2, Lock, MailOpen, Pencil, RotateCcw, User as UserIcon, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
+import { againHref } from "@/components/create/model";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsCard } from "@/components/payments/PaymentsCard";
-import { ShareSheet, StoryImageButton } from "@/components/share/ShareSheet";
+import { HostShareTools } from "@/components/share/HostShareTools";
 import { Avatar } from "@/components/ui/Avatar";
 import { InterestInvite } from "@/components/stay/InterestInvite";
 import { buttonClass } from "@/components/ui/button";
@@ -18,12 +19,14 @@ import { MoreMenu } from "@/components/ui/MoreMenu";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { useToast } from "@/components/ui/Toast";
+import { Img } from "@/components/ui/Img";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { ThreadPanel } from "@/components/views/ThreadView";
 import { useFormat } from "@/i18n/format";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
-import { crewThreadId, findUser, getCrew, getCurrentUser, getCrewLinks, getLockDetails, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCurrentUser, getCrewLinks, getInvited, getLockDetails, isCrewMember, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, openSpots } from "@/lib/utils";
 import { AccommodationChip } from "./AccommodationChip";
 import { AccommodationSection } from "./AccommodationSection";
 import { CloseStayConfirm, CrewMenu } from "./CrewMenu";
@@ -33,10 +36,11 @@ import { LockSheet } from "./LockSheet";
 
 const card = "rounded-[24px] bg-white p-6";
 
-/** Houses detail: the host's management panel, or a member's view of a joined House. */
+/** Houses detail: the host's management panel, a member's view of a joined House, or – once it's over – the crew. */
 export function HouseDetail({ stay }: { stay: Stay }) {
-  const { currentUserId } = useStore();
-  return stay.hostId === currentUserId ? <HouseManage stay={stay} /> : <JoinedHouse stay={stay} />;
+  const store = useStore();
+  if (stay.status === "completed" && isCrewMember(store, stay, store.currentUserId)) return <PastHouse stay={stay} />;
+  return stay.hostId === store.currentUserId ? <HouseManage stay={stay} /> : <JoinedHouse stay={stay} />;
 }
 
 function CardTitle({ title, aside }: { title: string; aside?: ReactNode }) {
@@ -58,12 +62,11 @@ function HouseManage({ stay }: { stay: Stay }) {
   const showToast = useToast();
   const [closing, setClosing] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const me = getCurrentUser(store);
   const closed = stay.status === "closed";
   const draft = stay.status === "draft";
   // Every spot taken but still listed as open – suggest switching requests off.
-  const fullButOpen = !closed && stay.acceptingRequests && stay.spotsFilled >= stay.spotsTotal;
+  const fullButOpen = !closed && stay.acceptingRequests && openSpots(stay) === 0;
 
   return (
     <div className="space-y-6">
@@ -131,19 +134,11 @@ function HouseManage({ stay }: { stay: Stay }) {
           <Link href={`/house/${stay.slug}?preview=guest`} className={buttonClass("secondary", "sm")}>
             {t("viewPage")}
           </Link>
-          {/* A draft has no public page to share yet. */}
-          {!draft && (
-            <>
-              <button type="button" onClick={() => setSharing(true)} className={buttonClass("secondary", "sm")}>
-                <Share2 className="size-3.5" />
-                {t("shareLink")}
-              </button>
-              <StoryImageButton stay={stay} variant="button" />
-            </>
-          )}
         </div>
-        <ShareSheet target={{ kind: "house", stay }} open={sharing} onClose={() => setSharing(false)} />
       </section>
+
+      {/* The host's share tools – a draft has no public page to share yet. */}
+      {!draft && <HostShareTools stay={stay} />}
 
       {/* People who want this city and month: the host can invite them (only shows with matching interest). */}
       {!draft && <InterestInvite stay={stay} />}
@@ -219,7 +214,10 @@ function RequestsToggle({ stay }: { stay: Stay }) {
 function RequestsCard({ stay }: { stay: Stay }) {
   const t = useTranslations("houses.requests");
   const store = useStore();
-  const requests = store.joinRequests.filter((r) => r.stayId === stay.id).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // Invites from past crews aren't requests – they're listed in the crew card while open.
+  const requests = store.joinRequests
+    .filter((r) => r.stayId === stay.id && r.status !== "invited")
+    .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
   const pending = requests.filter((r) => r.status === "pending");
   const earlier = requests.filter((r) => r.status !== "pending");
 
@@ -263,7 +261,8 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
   const router = useRouter();
   const showToast = useToast();
   const firstName = applicant.name.split(" ")[0];
-  const isFull = stay.spotsFilled >= stay.spotsTotal;
+  // Spots held by open invites count as taken.
+  const isFull = openSpots(stay) === 0;
   const pending = request.status === "pending";
 
   function reply() {
@@ -340,6 +339,7 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
   const showToast = useToast();
   const [removing, setRemoving] = useState<User | null>(null);
   const crew = getCrew(store, stay);
+  const invited = getInvited(store, stay.id);
   const locked = stay.accommodationStatus === "locked" && stay.pricePerPerson !== undefined;
 
   return (
@@ -373,6 +373,19 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
             </li>
           );
         })}
+        {/* Invited from a past crew: not in yet, but their spot is held until they answer. */}
+        {invited.map((person) => (
+          <li key={person.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+            <Avatar user={person} size="md" linked className="opacity-60" />
+            <div className="min-w-0 flex-1">
+              <Link href={`/u/${person.id}`} className="block truncate text-sm font-medium text-zinc-600 hover:underline">
+                {person.name}
+              </Link>
+              <p className="truncate text-xs text-zinc-500">{t("invitedNote")}</p>
+            </div>
+            <StatusPill status="invited" />
+          </li>
+        ))}
       </ul>
       <p className="mt-4 border-t border-black/5 pt-4 text-sm text-zinc-500">
         {t("upTo", { count: stay.spotsTotal })}
@@ -493,8 +506,15 @@ function JoinedHouse({ stay }: { stay: Stay }) {
   const f = useFormat();
   const store = useStore();
   const host = findUser(store, stay.hostId);
+  const showToast = useToast();
   const request = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId);
   const accepted = request?.status === "accepted";
+  const invited = request?.status === "invited";
+
+  function respond(accept: boolean) {
+    store.respondToInvite(stay.id, accept);
+    showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
+  }
 
   return (
     <div className="space-y-6">
@@ -515,6 +535,15 @@ function JoinedHouse({ stay }: { stay: Stay }) {
           <BookedChip stay={stay} />
         </div>
         {accepted && <MyShare stay={stay} variant="panel" className="mt-4" />}
+        {invited && (
+          <p className="mt-4 flex items-start gap-2 rounded-2xl bg-page px-4 py-3 text-sm text-neutral-700">
+            <MailOpen className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+            <span>
+              <span className="block font-medium text-ink">{t("invite.title", { name: host?.name.split(" ")[0] ?? "" })}</span>
+              {t("invite.text")}
+            </span>
+          </p>
+        )}
         {host && (
           <div className="mt-5 border-t border-black/5 pt-5">
             <HostCard host={host} />
@@ -525,6 +554,15 @@ function JoinedHouse({ stay }: { stay: Stay }) {
             <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonClass("dark", "sm")}>
               {t("accommodation.openChat")}
             </Link>
+          ) : invited ? (
+            <>
+              <button type="button" onClick={() => respond(true)} className={buttonClass("dark", "sm")}>
+                {t("invite.accept")}
+              </button>
+              <button type="button" onClick={() => respond(false)} className={buttonClass("secondary", "sm")}>
+                {t("invite.decline")}
+              </button>
+            </>
           ) : (
             <p className="flex items-center gap-1.5 text-sm text-zinc-500">
               <Check className="size-4" aria-hidden />
@@ -542,6 +580,94 @@ function JoinedHouse({ stay }: { stay: Stay }) {
       <section className={card}>
         <CardTitle title={t("accommodation.title")} />
         <AccommodationSection stay={stay} chatLinkCount={getCrewLinks(store, stay.id).length} canOpenChat={accepted} inCard />
+      </section>
+    </div>
+  );
+}
+
+// ─── Past ──────────────────────────────────────────────────────────────────────
+
+/**
+ * A completed House, for everyone who lived in it (host included): the crew as photos, the crew chat – still open,
+ * read and write – and "Do it again" (same vibe, place and spots; the crew ready to invite).
+ */
+function PastHouse({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.past");
+  const tCrew = useTranslations("houses.crew");
+  const f = useFormat();
+  const store = useStore();
+  const crew = getCrew(store, stay);
+  const others = crew.length - 1;
+
+  return (
+    <div className="space-y-6">
+      <section className={card}>
+        <span className="inline-flex items-center gap-1 rounded-full bg-page px-2.5 py-1 text-xs font-medium text-zinc-600">
+          <Check className="size-3" aria-hidden />
+          {t("badge")}
+        </span>
+        <h2 className="mt-3 text-2xl font-bold tracking-tight">{stay.title}</h2>
+        <p className="mt-1 text-zinc-500">
+          {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
+        </p>
+        <p className="mt-4 text-neutral-700">{others > 0 ? t("livedWith", { count: others }) : t("livedAlone")}</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link href={againHref(stay.id)} className={buttonClass("dark", "md")}>
+            <RotateCcw className="size-4" aria-hidden />
+            {t("again")}
+          </Link>
+          <Link href={`/house/${stay.slug}`} className={buttonClass("secondary", "md")}>
+            {t("viewPage")}
+          </Link>
+        </div>
+      </section>
+
+      <section className={card}>
+        <CardTitle title={t("crewTitle")} aside={f.people(crew.length)} />
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {crew.map((member) => (
+            <li key={member.id}>
+              <Link href={`/u/${member.id}`} className="group block">
+                <span className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-neutral-200">
+                  {member.photos[0] ? (
+                    <Img
+                      src={member.photos[0]}
+                      alt=""
+                      fill
+                      sizes="(min-width: 640px) 200px, 30vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-neutral-400">
+                      <UserIcon className="size-10" aria-hidden />
+                    </span>
+                  )}
+                  {member.id === stay.hostId && (
+                    <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-ink">{tCrew("host")}</span>
+                  )}
+                </span>
+                <span className="mt-2 flex min-w-0 items-center gap-1 text-sm font-semibold">
+                  <span className="truncate group-hover:underline">{member.id === store.currentUserId ? t("you") : member.name}</span>
+                  {member.verified && <VerifiedBadge />}
+                </span>
+                <span className="block truncate text-xs text-zinc-500">{member.country}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby={`past-chat-${stay.id}`}>
+        <div className="mb-3 px-1">
+          <h2 id={`past-chat-${stay.id}`} className="text-lg font-semibold">
+            {t("chatTitle")}
+          </h2>
+          <p className="text-sm text-zinc-500">{t("chatText")}</p>
+        </div>
+        {/* The real crew chat, embedded: a fixed height so only the messages scroll. */}
+        <div className="h-[min(600px,75dvh)]">
+          <ThreadPanel threadId={crewThreadId(stay.id)} inline />
+        </div>
       </section>
     </div>
   );

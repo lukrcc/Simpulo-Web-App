@@ -16,7 +16,8 @@ export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
 // booked = paid + booking confirmed; closed = host ended it early; draft_unclaimed = prepared by Simpulo for someone
 // who hasn't claimed it yet (no host, never listed – see Stay.claim)
 export type StayStatus = 'draft_unclaimed' | 'draft' | 'published' | 'booked' | 'completed' | 'closed';
-export type RequestStatus = 'pending' | 'accepted' | 'declined';
+// invited = the host asked them (from a past crew) – it holds a spot until they accept (→ accepted) or decline
+export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'invited';
 
 /**
  * Where someone came from: the `ref` (the user whose share link they opened) and the UTM tags of their first visit
@@ -112,6 +113,8 @@ export interface Stay {
   endDate: string;
   spotsTotal: number;
   spotsFilled: number;
+  /** Invites from past crews still waiting for an answer – each holds a spot, so Explore shows only the rest as open */
+  spotsInvited?: number;
   budgetPerPerson?: { min: number; max: number };
   pricePerPerson?: number;  // only when locked
   currency: Currency;       // everything on the House is stored and charged in this currency
@@ -151,6 +154,18 @@ export interface Stay {
   claim?: StayClaim;
   /** "Do it again?": the House this draft was copied from */
   duplicatedFrom?: string;
+}
+
+/**
+ * Who lived together: written when a House reaches 'completed' – the host plus everyone accepted at that moment.
+ * Never changes afterwards (people leaving or deleting their account later don't rewrite who was there).
+ */
+export interface Crew {
+  houseId: string;
+  /** Host first, then the accepted members */
+  memberIds: string[];
+  /** When the House ended (ISO) */
+  endedAt: string;
 }
 
 /** A House Simpulo prepared for a creator from their own post – they claim it via /claim/{token}. */
@@ -829,7 +844,7 @@ const coreStays: Stay[] = [
   // Past Houses (completed) – they give profiles "Past" rows and "Past crews".
   { id: 's24', slug: 'surf-house-ericeira-september', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf', language: 'en',
     city: 'Ericeira', region: 'Portugal', lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira-september'),
-    startDate: '2026-09-07', endDate: '2026-09-21', spotsTotal: 4, spotsFilled: 3,
+    startDate: '2026-09-07', endDate: '2026-09-21', spotsTotal: 4, spotsFilled: 4,
     pricePerPerson: 520, currency: 'EUR', accommodationStatus: 'locked',
     accommodationLink: 'https://www.airbnb.com/rooms/example-ericeira-september',
     description: 'Two weeks of dawn patrol and remote work above Ribeira d\'Ilhas.',
@@ -842,7 +857,7 @@ const coreStays: Stay[] = [
     lockedAt: '2026-07-20T10:00:00Z', totalPrice: 2080, payByDate: '2026-08-01', bookingConfirmedAt: '2026-08-02T08:00:00Z' },
   { id: 's25', slug: 'remote-week-canggu-october', title: 'Remote Week Canggu', hostId: 'u2', vibe: 'remote-work', language: 'en',
     city: 'Canggu', region: 'Bali, Indonesia', lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu-october'),
-    startDate: '2026-10-05', endDate: '2026-10-12', spotsTotal: 3, spotsFilled: 3,
+    startDate: '2026-10-05', endDate: '2026-10-12', spotsTotal: 5, spotsFilled: 5,
     pricePerPerson: 310, currency: 'EUR', accommodationStatus: 'locked',
     accommodationLink: 'https://www.airbnb.com/rooms/example-canggu-october',
     description: 'One week of laptops by the pool and sunsets at Echo Beach.',
@@ -852,7 +867,34 @@ const coreStays: Stay[] = [
     houseRules: ['Calls in the bedrooms, not the living room'],
     interests: ['remote work', 'surfing'],
     acceptingRequests: false, status: 'completed', featured: false, createdAt: '2026-08-15T09:00:00Z',
-    lockedAt: '2026-08-25T10:00:00Z', totalPrice: 930, payByDate: '2026-09-05', bookingConfirmedAt: '2026-09-06T08:00:00Z' },
+    lockedAt: '2026-08-25T10:00:00Z', totalPrice: 1550, payByDate: '2026-09-05', bookingConfirmedAt: '2026-09-06T08:00:00Z' },
+  // Hosted by the default mock user and over since three days – "Do it again" with a crew to invite.
+  { id: 's54', slug: 'training-week-barcelona-october', title: 'Training Week Barcelona', hostId: 'u1', vibe: 'fitness', language: 'en',
+    city: 'Barceloneta', region: 'Barcelona, Spain', lat: 41.38, lng: 2.19, mapPreviewUrl: map('barceloneta-october'),
+    startDate: '2026-10-16', endDate: '2026-10-26', spotsTotal: 5, spotsFilled: 5,
+    pricePerPerson: 480, currency: 'EUR', accommodationStatus: 'locked',
+    accommodationLink: 'https://www.airbnb.com/rooms/example-barceloneta-october',
+    description: 'Ten days of 07:00 sessions on the beach, a box two streets away and long lunches after.',
+    whyText: 'Training is easier when the whole house gets up for it.',
+    dayText: '07:00 beach workout · work · 18:00 box · dinner at home.',
+    lookingForText: 'People who train most days and still want a social house.',
+    houseRules: ['Shoes off inside', 'Early nights before leg day'],
+    interests: ['crossfit', 'running', 'beach'],
+    acceptingRequests: false, status: 'completed', featured: false, createdAt: '2026-08-20T09:00:00Z',
+    lockedAt: '2026-08-28T10:00:00Z', totalPrice: 2400, payByDate: '2026-09-10', bookingConfirmedAt: '2026-09-11T08:00:00Z' },
+  // Ericeira again: Tom invited his September crew – Hannah said yes, Lukas hasn't answered yet (holds a spot).
+  { id: 's55', slug: 'surf-house-ericeira-spring', title: 'Surf House Ericeira – Spring', hostId: 'u3', vibe: 'surf', language: 'en',
+    city: 'Ericeira', region: 'Portugal', lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira-spring'),
+    startDate: '2027-04-10', endDate: '2027-04-24', spotsTotal: 4, spotsFilled: 2, spotsInvited: 1,
+    budgetPerPerson: { min: 500, max: 600 }, currency: 'EUR', accommodationStatus: 'open',
+    description: 'The September crew, round two: dawn patrol, remote work and sunset sessions above Ribeira d\'Ilhas.',
+    whyText: 'September was too good to do only once.',
+    dayText: '06:30 surf · 09:00–15:00 work · sunset sessions · dinner at home.',
+    lookingForText: 'Intermediate surfers with a remote job – one spot is still open.',
+    houseRules: ['Wetsuits dry outside', 'Quiet after 22:00'],
+    interests: ['surfing', 'remote work'],
+    hostNote: 'Round two – one spot left', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-25T09:00:00Z',
+    duplicatedFrom: 's24' },
   // ── 20 community Houses (s26–s45) ──
   { id: 's26', slug: 'trading-house-bangkok-thonglor', title: 'Trading House Bangkok', hostId: 'u21', vibe: 'remote-work', language: 'en',
     city: 'Thonglor', region: 'Bangkok, Thailand', lat: 13.73, lng: 100.58, mapPreviewUrl: map('thonglor'),
@@ -1238,6 +1280,16 @@ export const joinRequests: JoinRequest[] = [
   { id: 'r20', stayId: 's24', userId: 'u13', message: 'Slow mornings, then surf. Happy to cook.', status: 'accepted', createdAt: '2026-07-12T10:00:00Z' },
   { id: 'r21', stayId: 's25', userId: 'u4', message: 'Need a calm work week before my next fight camp.', status: 'accepted', createdAt: '2026-08-16T10:00:00Z' },
   { id: 'r22', stayId: 's25', userId: 'u5', message: 'Motion designer, quiet worker, loud at karaoke.', status: 'accepted', createdAt: '2026-08-17T10:00:00Z' },
+  { id: 'r69', stayId: 's25', userId: 'u1', message: 'A calm week of work and sunsets is exactly what I need.', status: 'accepted', createdAt: '2026-08-18T10:00:00Z' },
+  { id: 'r70', stayId: 's54', userId: 'u4', message: 'Physio – happy to run the mobility sessions.', status: 'accepted', createdAt: '2026-08-21T10:00:00Z' },
+  { id: 'r71', stayId: 's54', userId: 'u8', message: 'Still new to lifting – you all keep me honest.', status: 'accepted', createdAt: '2026-08-22T10:00:00Z' },
+  { id: 'r72', stayId: 's54', userId: 'u13', message: 'I\'ll cook if you take me to the box.', status: 'accepted', createdAt: '2026-08-23T10:00:00Z' },
+  { id: 'r75', stayId: 's54', userId: 'u9', message: 'Yoga teacher – I\'ll do the cool-downs on the beach.', status: 'accepted', createdAt: '2026-08-24T10:00:00Z' },
+  { id: 'r76', stayId: 's24', userId: 'u6', message: 'Learning to surf this year, remote job on IST hours.', status: 'accepted', createdAt: '2026-07-13T10:00:00Z' },
+  { id: 'r77', stayId: 's25', userId: 'u10', message: 'Quiet coder, early sunsets, happy to cook once.', status: 'accepted', createdAt: '2026-08-19T10:00:00Z' },
+  // Invites from a past crew have no message – the host asked them.
+  { id: 'r73', stayId: 's55', userId: 'u13', message: '', status: 'accepted', createdAt: '2026-10-25T09:00:00Z' },
+  { id: 'r74', stayId: 's55', userId: 'u1', message: '', status: 'invited', createdAt: '2026-10-25T09:00:00Z' },
   { id: 'r25', stayId: 's1', userId: 'u13', message: 'Run club regular, cook on Sundays. Would love a training crew.', status: 'accepted', createdAt: '2026-10-19T15:00:00Z' },
   { id: 'r26', stayId: 's9', userId: 'u1', message: 'Long weekend of surf before the Lisbon month – in!', status: 'accepted', createdAt: '2026-10-08T12:00:00Z' },
   { id: 'r27', stayId: 's9', userId: 'u13', message: 'Can bring a spare board.', status: 'accepted', createdAt: '2026-10-08T15:00:00Z' },
@@ -1383,10 +1435,13 @@ export const START_FILTERS = [
 // Photo pass: every House gets its theme photos, every person their face plus the theme photos of the House they
 // host (or else the first one they're in), so profiles show the world they travel in.
 // Extra Houses: imageQueries[0] is the cover, [1..3] the gallery; extra hosts keep their portrait + lifestyle photos.
+// Houses added after the image fetch borrow the photos of a similar House.
+const BORROWED_PHOTOS: Record<string, string> = { s54: 's34', s55: 's24' };
 for (const stay of stays) {
-  stay.themeQueries = THEME_QUERIES[stay.id] ?? stay.imageQueries?.map((q, i) => THEME_QUERY_FIXES[`${stay.id}/${i + 1}`] ?? q);
+  const source = BORROWED_PHOTOS[stay.id] ?? stay.id;
+  stay.themeQueries = THEME_QUERIES[source] ?? stay.imageQueries?.map((q, i) => THEME_QUERY_FIXES[`${stay.id}/${i + 1}`] ?? q);
   stay.imageQueries ??= stay.themeQueries;
-  stay.photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(stay.id, i + 1));
+  stay.photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(source, i + 1));
 }
 for (const user of users) {
   if (user.imageQueries) continue;

@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { absoluteUrl, siteIsGated } from "@/lib/seo";
 
 /** Logged-in areas and flows – never crawled (their pages are noindex as well). */
-const PRIVATE_PATHS = ["/inbox", "/notifications", "/my-stays", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
+const PRIVATE_PATHS = ["/inbox", "/notifications", "/my-stays", "/people", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
 
 /** Gated test deployments (SITE_PASSWORD set) disallow everything; otherwise public pages are open and the sitemap is linked. */
 export default async function robots(): Promise<MetadataRoute.Robots> {

@@ -39,6 +39,11 @@ export function stayNights(stay: Pick<Stay, "startDate" | "endDate">): number {
   return nightsBetween(stay.startDate, stay.endDate);
 }
 
+/** Spots anyone can still request: not taken, and not held by an invite that's waiting for an answer. */
+export function openSpots(stay: Pick<Stay, "spotsTotal" | "spotsFilled" | "spotsInvited">): number {
+  return Math.max(0, stay.spotsTotal - stay.spotsFilled - (stay.spotsInvited ?? 0));
+}
+
 export function googleMapsUrl(stay: Pick<Stay, "lat" | "lng" | "city" | "region">): string {
   // Stays created in the app have no coordinates yet (0,0) – mapQuery falls back to a text search.
   return `https://www.google.com/maps/search/?api=1&query=${mapQuery(stay).query}`;

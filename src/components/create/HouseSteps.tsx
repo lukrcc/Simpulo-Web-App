@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronUp, Circle, Link2, Minus, Plus, X } from "lucide-react";
+import { Check, ChevronUp, Circle, Link2, Minus, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
@@ -16,6 +16,7 @@ import { RangeSlider } from "@/components/ui/RangeSlider";
 import { chipActiveClass, chipClass, chipInactiveClass } from "@/components/form/chips";
 import { useFormat } from "@/i18n/format";
 import { linkDomain } from "@/lib/mock-extras";
+import type { PersonEntry } from "@/lib/store";
 import type { Currency, Stay, User, Vibe } from "@/lib/types";
 import { CURRENCIES, VIBES, cn, countryNames, nightsBetween } from "@/lib/utils";
 import {
@@ -847,7 +848,91 @@ export function AboutFields({ about, update, fields, full, errorOf, touch }: Abo
   );
 }
 
-/* ───────────────────────── 4 · Publish ───────────────────────── */
+/* ───────────────────────── 4 · Invite (with a past crew) ───────────────────────── */
+
+interface InviteStepProps {
+  /** The host's People (see getPeople) – "Do it again": the repeated House's crew first */
+  people: PersonEntry[];
+  selected: string[];
+  /** Spots besides the host's – no more invites than that */
+  max: number;
+  onChange: (ids: string[]) => void;
+}
+
+/** "Invite your crew": the host's People as avatar chips, with search; picked people are invited on publish. Optional. */
+export function InviteStep({ people, selected, max, onChange }: InviteStepProps) {
+  const t = useTranslations("create.invite");
+  const [query, setQuery] = useState("");
+  const picked = selected.filter((id) => people.some((p) => p.user.id === id));
+  const full = picked.length >= max;
+  const q = query.trim().toLowerCase();
+  const shown = q ? people.filter((p) => p.user.name.toLowerCase().includes(q)) : people;
+  const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((x) => x !== id) : full ? picked : [...picked, id]);
+
+  return (
+    <FormCards>
+      <FormCard title={t("title")} description={t("description")}>
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("search")}
+            aria-label={t("search")}
+            className={cn(formInput, "pl-10")}
+          />
+        </label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium tabular-nums" aria-live="polite">
+            {t("count", { count: picked.length, max })}
+          </p>
+          {people.length > 1 && (
+            <button
+              type="button"
+              onClick={() => onChange(picked.length > 0 ? [] : people.map((p) => p.user.id).slice(0, max))}
+              className={buttonClass("ghost", "sm", "-mr-2")}
+            >
+              {picked.length > 0 ? t("clear") : t("pickAll")}
+            </button>
+          )}
+        </div>
+        {shown.length > 0 ? (
+          <div role="group" aria-label={t("title")} className="flex flex-wrap gap-2">
+            {shown.map(({ user: person, houses }) => {
+              const on = picked.includes(person.id);
+              return (
+                <button
+                  key={person.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!on && full}
+                  onClick={() => toggle(person.id)}
+                  title={t("togetherIn", { houses: houses.map((h) => h.title).join(", ") })}
+                  className={cn(
+                    chipClass,
+                    on ? chipActiveClass : chipInactiveClass,
+                    "inline-flex h-11 items-center gap-2 py-0 pl-1.5 pr-3.5 disabled:cursor-not-allowed disabled:opacity-40",
+                  )}
+                >
+                  <Avatar user={person} size="sm" />
+                  {person.name.split(" ")[0]}
+                  {on && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500">{t("noMatch", { query: query.trim() })}</p>
+        )}
+        {full && max > 0 && <p className="text-[13px] text-zinc-500">{t("full", { count: max })}</p>}
+      </FormCard>
+      <p className="px-2 text-[13px] text-zinc-500">{t("hint")}</p>
+    </FormCards>
+  );
+}
+
+/* ───────────────────────── 5 · Publish ───────────────────────── */
 
 /** Left column of the last step: the card as it shows up in the feed. */
 export function PublishCard({ card, loginNote }: { card: ReactNode; loginNote: boolean }) {
@@ -862,7 +947,7 @@ export function PublishCard({ card, loginNote }: { card: ReactNode; loginNote: b
 }
 
 /** Right (sticky) column of the last step: summary and what happens next. */
-export function PublishAside({ stay, form }: { stay: Stay; form: FormState }) {
+export function PublishAside({ stay, form, invited = 0 }: { stay: Stay; form: FormState; invited?: number }) {
   const t = useTranslations("create.publish");
   const format = useFormat();
   const nights = stay.startDate && stay.endDate ? nightsBetween(stay.startDate, stay.endDate) : 0;
@@ -871,6 +956,7 @@ export function PublishAside({ stay, form }: { stay: Stay; form: FormState }) {
     [t("place"), format.placeLabel(stay)],
     [t("dates"), nights > 0 ? t("datesNights", { dates, nights: format.nights(nights) }) : dates, true],
     [t("crew"), format.people(stay.spotsTotal)],
+    ...(invited > 0 ? ([[t("invited"), t("invitedCount", { count: invited })]] as Array<[string, string]>) : []),
     [t("budget"), format.priceLabel(stay)],
     [t("language"), format.language(stay.language)],
     [t("pitch"), t("pitchCount", { count: pitchCount(form), total: PITCH_FIELDS.length })],

@@ -19,7 +19,7 @@ const MIN_CITIES = 3;
 const COLLAPSED_LINKS = 8;
 
 /** Logged-in areas and flows – no index there (matches robots.ts). */
-const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
+const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/people", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
 
 /**
  * "Explore by city and vibe" above the footer, on public pages: the top cities as plain links, "Show all" for every

@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
+import { loadOgFonts } from "@/lib/ogFonts";
 
 export const alt = "Simpulo – Share a place. Find your people.";
 export const size = { width: 1200, height: 630 };
@@ -17,6 +18,6 @@ export default async function Image() {
         <div style={{ display: "flex", marginTop: 24, fontSize: 44, color: "#6B6B72" }}>{t("siteDescription")}</div>
       </div>
     ),
-    size,
+    { ...size, fonts: await loadOgFonts() },
   );
 }

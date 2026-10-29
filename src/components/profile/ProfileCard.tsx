@@ -11,7 +11,7 @@ import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import type { User } from "@/lib/types";
-import { PastCrews, type PastCrewMate } from "./PastCrews";
+import { Crews, PeopleLink, type OwnPeople, type ProfileCrews } from "./Crews";
 
 interface ProfileCardProps {
   user: User;
@@ -19,13 +19,14 @@ interface ProfileCardProps {
   stats?: ReactNode;
   /** Crew-only channels (after a divider and a lock) – only for viewers who may see them */
   showCrewContacts: boolean;
-  pastCrewMates: PastCrewMate[];
+  /** Under the bio: "People · N" (own) or "Crews" (someone else's) – null: nothing to show yet */
+  crews: OwnPeople | ProfileCrews | null;
   /** Button row at the bottom (Edit/Preview/Share, Message, Notify me …) */
   actions?: ReactNode;
 }
 
 /** The compact profile card – on /profile and, fed with the draft, as the live preview on Edit profile. */
-export function ProfileCard({ user, stats, showCrewContacts, pastCrewMates, actions }: ProfileCardProps) {
+export function ProfileCard({ user, stats, showCrewContacts, crews, actions }: ProfileCardProps) {
   const t = useTranslations("profile");
   const tContacts = useTranslations("common.ui.crewContacts");
   const f = useFormat();
@@ -64,7 +65,8 @@ export function ProfileCard({ user, stats, showCrewContacts, pastCrewMates, acti
       <LanguageChips languages={user.languages} compact className="mt-3" />
 
       {user.bio && <p className="mt-5 border-t border-black/5 pt-5 text-base leading-[1.6] text-neutral-700">{user.bio}</p>}
-      <PastCrews user={user} mates={pastCrewMates} />
+      {crews?.kind === "own" && <PeopleLink people={crews.people} />}
+      {crews?.kind === "theirs" && <Crews crews={crews} />}
 
       {actions && <div className="mt-5 flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

@@ -6,7 +6,8 @@ export type { Attribution };
 
 /** Channels a share link can be made for (the share sheet). `story` is the downloadable story image's QR code. */
 export const SHARE_CHANNELS = ["whatsapp", "instagram", "tiktok", "twitch", "copy"] as const;
-export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story";
+/** Plus the host tools (story image, QR poster) and the system share dialog (navigator.share). */
+export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "poster" | "native";
 
 export const REF_PARAM = "ref";
 const UTM_PARAMS = { utmSource: "utm_source", utmMedium: "utm_medium", utmCampaign: "utm_campaign" } as const;

@@ -1,14 +1,15 @@
 "use client";
 
 import { ArrowLeft, Eye } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMessages, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { AboutFields, AboutSummary, Checklist, HouseStep, PitchStep, PublishAside, PublishCard, type ChecklistKey } from "@/components/create/HouseSteps";
+import { AboutFields, AboutSummary, Checklist, HouseStep, InviteStep, PitchStep, PublishAside, PublishCard, type ChecklistKey } from "@/components/create/HouseSteps";
 import {
-  PUBLISH_STEP,
-  STEPS,
+  AGAIN_PARAM,
+  INVITE_PARAM,
+  againForm,
   aboutModeOf,
   aboutOf,
   clearDraft,
@@ -19,11 +20,13 @@ import {
   hostFeeBase,
   ideasOf,
   initialForm,
+  invitesOf,
   languageOf,
   languageOptions,
   prefillOf,
   readDraft,
   stepErrors,
+  stepsFor,
   toInput,
   toProfilePatch,
   todayString,
@@ -42,7 +45,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
 import { useFormat } from "@/i18n/format";
-import { getCurrentUser, useStore } from "@/lib/store";
+import { getCrew, getCurrentUser, getPeople, isBlocked, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 
 const noSubscribe = () => () => {};
@@ -95,11 +98,33 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const format = useFormat();
   const [initialDraft] = useState(() => (restore ? readDraft() : null));
   // "Open one" / "Open your own House" links: /create?region=…&from=…&to=… fills place and dates in (over a draft).
+  // Read here on a full page load; after a client-side navigation the URL only arrives through LinkParams below.
   const [prefill] = useState(() => (restore && !editing ? prefillOf(window.location.search, todayString()) : null));
+  const [prefillApplied, setPrefillApplied] = useState(prefill !== null);
   const [form, setForm] = useState<FormState>(() =>
     editing ? formFromStay(editing) : { ...(initialDraft?.form ?? initialForm), ...(prefill && { city: "", cityOpen: false, ...prefill }) },
   );
-  const [step, setStep] = useState(prefill ? 0 : (initialDraft?.step ?? 0));
+  const [stepState, setStep] = useState(prefill ? 0 : (initialDraft?.step ?? 0));
+  // "Do it again" (/create?again=<House>): applied once the user and that House are known (the user is restored
+  // after hydration), over any draft.
+  const [againId, setAgainId] = useState<string | null>(null);
+  const [againApplied, setAgainApplied] = useState(false);
+  // "Invite to a House" from People (/create?invite=<user>): that person is picked, once they're known.
+  const [inviteId, setInviteId] = useState<string | null>(null);
+  const [inviteApplied, setInviteApplied] = useState(false);
+  const readLinkParams = useCallback(
+    (params: URLSearchParams) => {
+      setAgainId(params.get(AGAIN_PARAM));
+      setInviteId(params.get(INVITE_PARAM));
+      const linked = prefillOf(params.toString(), todayString());
+      if (linked && !prefillApplied) {
+        setPrefillApplied(true);
+        setForm((f) => ({ ...f, city: "", cityOpen: false, ...linked }));
+        setStep(0);
+      }
+    },
+    [prefillApplied],
+  );
   // Errors show once a field was left (touched) or Next was tried on its step.
   const [touched, setTouched] = useState<ReadonlySet<FieldKey>>(() => new Set());
   const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
@@ -110,6 +135,33 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "" (server / hydration) simply means "no earliest date yet".
   const today = useSyncExternalStore(noSubscribe, todayString, () => "");
   const me = getCurrentUser(store);
+  // The House being repeated: from the link, or from a restored draft that started as one.
+  const againSourceId = againId ?? (form.againFrom || null);
+  const againSource = againSourceId && me ? store.stays.find((s) => s.id === againSourceId && isCrewMember(store, s, me.id)) : undefined;
+  // Who can be invited: the host's People – the repeated House's crew first.
+  const invitePeople = useMemo<PersonEntry[]>(() => {
+    if (!me || editing) return [];
+    const people = getPeople(store, me.id).filter((p) => !isBlocked(store, p.user.id));
+    if (!againSource) return people;
+    const crewIds = new Set(getCrew(store, againSource).map((u) => u.id));
+    return [...people.filter((p) => crewIds.has(p.user.id)), ...people.filter((p) => !crewIds.has(p.user.id))];
+  }, [store, me, editing, againSource]);
+  if (againId && againSource && !againApplied) {
+    setAgainApplied(true);
+    const crewIds = getCrew(store, againSource).map((u) => u.id).filter((id) => invitePeople.some((p) => p.user.id === id));
+    // A fresh form: an unrelated draft's title and pitch don't belong to this House.
+    setForm(againForm(initialForm, againSource, crewIds));
+    setStep(0);
+  }
+  if (inviteId && !inviteApplied && invitePeople.some((p) => p.user.id === inviteId)) {
+    setInviteApplied(true);
+    setForm((f) => ({ ...f, inviteIds: f.inviteIds.includes(inviteId) ? f.inviteIds : [inviteId, ...f.inviteIds] }));
+  }
+  const steps = stepsFor(invitePeople.length > 0);
+  const publishStep = steps.length - 1;
+  // A step past the end (the invite step went away, e.g. after logging out) lands on Publish.
+  const step = Math.min(stepState, publishStep);
+  const invites = invitesOf(form, invitePeople);
   const hostPremium = useFeatureFlag("hostPremium");
   const minSpots = editing ? Math.max(2, editing.spotsFilled) : 2;
   const messages = useMessages();
@@ -181,7 +233,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   /** First invalid step jumps into view with its errors; true when everything is valid. */
   function validateAll(): boolean {
-    for (let i = 0; i < PUBLISH_STEP; i++) {
+    for (let i = 0; i < publishStep; i++) {
       const errors = errorsOf(i);
       if (Object.keys(errors).length > 0) {
         showProblems(i, errors);
@@ -226,7 +278,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!validateAll()) return;
     // Logged out: log in first, then publish – the draft is still in state, nothing is lost.
     requireAuth(() => {
-      const slug = store.createStay(toInput(form, me), ideasOf(form));
+      const slug = store.createStay(toInput(form, me), ideasOf(form), { invite: invites, againFrom: form.againFrom || undefined });
       if (writesProfile) store.updateCurrentUser(toProfilePatch(form, me));
       clearDraft();
       showToast(t("published"));
@@ -246,6 +298,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     lng: 0,
     mapPreviewUrl: "",
     spotsFilled: editing?.spotsFilled ?? 1,
+    // Invited people hold their spots on the card too.
+    spotsInvited: editing ? editing.spotsInvited : invites.length,
     currency: editing?.accommodationStatus === "locked" ? editing.currency : currencyOf(form, me),
     status: "draft",
     acceptingRequests: true,
@@ -306,7 +360,15 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             touch={touch}
           />
         ))}
-      {step === PUBLISH_STEP && <PublishCard card={card} loginNote={!me} />}
+      {steps[step] === "invite" && (
+        <InviteStep
+          people={invitePeople}
+          selected={form.inviteIds}
+          max={Math.max(0, form.spotsTotal - 1)}
+          onChange={(ids) => update("inviteIds", ids)}
+        />
+      )}
+      {step === publishStep && <PublishCard card={card} loginNote={!me} />}
 
       <StickyFormBar>
         {step > 0 && (
@@ -314,8 +376,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             {t("back")}
           </button>
         )}
-        <p className="min-w-0 flex-1 truncate text-[13px] text-zinc-500">{t("stepOf", { current: step + 1, total: STEPS.length })}</p>
-        {step < PUBLISH_STEP && (
+        <p className="min-w-0 flex-1 truncate text-[13px] text-zinc-500">{t("stepOf", { current: step + 1, total: steps.length })}</p>
+        {step < publishStep && (
           // Looks disabled until the step is valid, but a tap still shows what's missing.
           <button
             type="button"
@@ -329,7 +391,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
                 : "aria-disabled:cursor-not-allowed aria-disabled:bg-neutral-200 aria-disabled:text-neutral-500 aria-disabled:hover:bg-neutral-200",
             )}
           >
-            {t("next")}
+            {/* Nobody picked: the invite step is skipped, not completed. */}
+            {steps[step] === "invite" && invites.length === 0 ? t("skip") : t("next")}
           </button>
         )}
         {editing ? (
@@ -348,7 +411,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             </button>
           )
         ) : (
-          step === PUBLISH_STEP && (
+          step === publishStep && (
             <button type="button" onClick={publish} className={buttonClass("dark", "md")}>
               {t("publishHouse")}
             </button>
@@ -360,6 +423,11 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   return (
     <FormContainer wide>
+      {restore && !editing && (
+        <Suspense fallback={null}>
+          <LinkParams onRead={readLinkParams} />
+        </Suspense>
+      )}
       <FormHeader
         title={editing ? t("title.edit") : t("title.create")}
         back={
@@ -371,7 +439,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         }
         aside={
           // Mobile: the live preview sits behind this button (desktop shows it beside the form).
-          step < PUBLISH_STEP && (
+          step < publishStep && (
             <button type="button" onClick={() => setPreviewOpen(true)} className={buttonClass("secondary", "sm", "lg:hidden")}>
               <Eye className="size-4" />
               {t("previewButton")}
@@ -381,27 +449,27 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       />
 
       {/* Completed steps are clickable to go back; editing: every step is reachable – the House is complete already. */}
-      <StepProgress steps={STEPS.map((key) => t(`steps.${key}`))} current={step} reachable={editing ? PUBLISH_STEP : step} onSelect={goTo} />
+      <StepProgress steps={steps.map((key) => t(`steps.${key}`))} current={step} reachable={editing ? publishStep : step} onSelect={goTo} />
 
       {/* Steps 1–3: the live preview stays in view. Step 4: the card moves into the form column, the summary takes its place. */}
       <FormGrid
         wide
         form={formColumn}
         preview={
-          step < PUBLISH_STEP ? (
+          step < publishStep ? (
             <PreviewColumn>
               <div className={PREVIEW_CARD_WIDTH}>{card}</div>
               <Checklist items={checklistItems} onJump={jumpTo} />
             </PreviewColumn>
           ) : (
-            <PublishAside stay={previewStay} form={form} />
+            <PublishAside stay={previewStay} form={form} invited={invites.length} />
           )
         }
       />
       {/* Below lg the summary follows the card (the sticky column is desktop only). */}
-      {step === PUBLISH_STEP && (
+      {step === publishStep && (
         <div className="mt-6 lg:hidden">
-          <PublishAside stay={previewStay} form={form} />
+          <PublishAside stay={previewStay} form={form} invited={invites.length} />
         </div>
       )}
 
@@ -411,6 +479,17 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       </Sheet>
     </FormContainer>
   );
+}
+
+/**
+ * Reports the link's search params (?again=, ?invite=, ?region=…) to the wizard. useSearchParams needs a Suspense
+ * boundary on this prerendered page – here it wraps only this empty component.
+ */
+function LinkParams({ onRead }: { onRead: (params: URLSearchParams) => void }) {
+  const params = useSearchParams();
+  const key = params.toString();
+  useEffect(() => onRead(new URLSearchParams(key)), [key, onRead]);
+  return null;
 }
 
 /** The host as the preview card should show them – also before login, once there's a face photo. */

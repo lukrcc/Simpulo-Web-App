@@ -1,5 +1,5 @@
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
-import { isProfileComplete, type ProfilePatch } from "@/lib/store";
+import { isProfileComplete, type PersonEntry, type ProfilePatch } from "@/lib/store";
 import type { Currency, NewStayInput, Stay, User, Vibe } from "@/lib/types";
 import { LANGUAGES, addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
 
@@ -19,8 +19,16 @@ export const LOOKING_FOR_MAX = 160;
 export const MAX_NIGHTS = 120;
 export const DEFAULT_LANGUAGE = "en";
 
-export const STEPS = ["house", "pitch", "about", "publish"] as const;
-export const PUBLISH_STEP = STEPS.length - 1;
+export const STEPS = ["house", "pitch", "about", "invite", "publish"] as const;
+export type StepKey = (typeof STEPS)[number];
+
+/**
+ * The steps a host goes through: "Invite" only with someone to invite (at least one past crew) and never when
+ * editing. It sits right before Publish, so the steps before it keep their index (see stepErrors).
+ */
+export function stepsFor(canInvite: boolean): StepKey[] {
+  return canInvite ? [...STEPS] : STEPS.filter((key) => key !== "invite");
+}
 
 export interface FormState {
   // 1 · The House
@@ -55,6 +63,11 @@ export interface FormState {
   hostNote: string;
   /** Up to 3 links; posted into the crew chat on publish (create only) */
   accommodationIdeas: string[];
+  // 4 · Invite (create only, with a past crew)
+  /** People from past crews to invite – each holds a spot until they answer */
+  inviteIds: string[];
+  /** "Do it again": the completed House this one repeats ("" = a new one) */
+  againFrom: string;
   // 3 · About you – undefined = untouched, shown pre-filled from the logged-in user
   aboutPhotos?: string[];
   aboutName?: string;
@@ -83,6 +96,8 @@ export const initialForm: FormState = {
   lookingForText: "",
   hostNote: "",
   accommodationIdeas: [""],
+  inviteIds: [],
+  againFrom: "",
 };
 
 /** The edit page starts from the House as it is. */
@@ -108,6 +123,32 @@ export function formFromStay(stay: Stay): FormState {
     lookingForText: stay.lookingForText,
     hostNote: stay.hostNote ?? "",
   };
+}
+
+/**
+ * "Do it again": the same vibe, place and spots as the House that ended, and its crew (minus the host) selected for
+ * the invite step – as many as fit besides the host. Dates, title and pitch are new.
+ */
+export function againForm(form: FormState, source: Stay, crewIds: string[]): FormState {
+  return {
+    ...form,
+    vibe: source.vibe,
+    customVibe: source.customVibe ?? null,
+    city: source.city,
+    region: source.region,
+    cityOpen: !source.city.trim(),
+    spotsTotal: source.spotsTotal,
+    language: source.language,
+    currency: source.currency,
+    inviteIds: crewIds.slice(0, Math.max(0, source.spotsTotal - 1)),
+    againFrom: source.id,
+  };
+}
+
+/** The invites as they'll go out: only people offered (the host's People), no more than the spots besides the host's. */
+export function invitesOf(form: FormState, people: PersonEntry[]): string[] {
+  const offered = new Set(people.map((p) => p.user.id));
+  return form.inviteIds.filter((id) => offered.has(id)).slice(0, Math.max(0, form.spotsTotal - 1));
 }
 
 /**
@@ -390,7 +431,7 @@ export function readDraft(): Draft | null {
     const form: FormState = { ...initialForm, ...pick(draft.form ?? {}, Object.keys(initialForm).concat(ABOUT_KEYS)) };
     // Older drafts kept three fixed idea slots; drop the empty trailing ones.
     const ideas = form.accommodationIdeas.filter((link, i) => i === 0 || link.trim() !== "").slice(0, MAX_IDEAS);
-    return { form: { ...form, accommodationIdeas: ideas.length > 0 ? ideas : [""] }, step: Math.min(Math.max(draft.step ?? 0, 0), PUBLISH_STEP) };
+    return { form: { ...form, accommodationIdeas: ideas.length > 0 ? ideas : [""] }, step: Math.min(Math.max(draft.step ?? 0, 0), STEPS.length - 1) };
   } catch {
     return null;
   }
@@ -427,6 +468,20 @@ export function createHref({ region, city, from, to }: { region?: string; city?:
   const query = params.toString();
   return query ? `/create?${query}` : "/create";
 }
+
+/** "Do it again": /create?again=<the completed House> – same vibe, place and spots, its crew ready to invite. */
+export function againHref(stayId: string): string {
+  return `/create?${AGAIN_PARAM}=${encodeURIComponent(stayId)}`;
+}
+
+export const AGAIN_PARAM = "again";
+
+/** "Invite to a House" without an open House: /create?invite=<user> – that person is picked on the invite step. */
+export function inviteHref(userId: string): string {
+  return `/create?${INVITE_PARAM}=${encodeURIComponent(userId)}`;
+}
+
+export const INVITE_PARAM = "invite";
 
 /**
  * What a /create?region=…&from=…&to=… link fills in. A start before the earliest allowed one moves to it; an end

@@ -36,5 +36,7 @@ export function hrefOf(n: AppNotification, stays: readonly Stay[], me: string | 
   if (n.threadId) return `/inbox/${n.threadId}`;
   const stay = n.stayId ? stays.find((s) => s.id === n.stayId) : undefined;
   if (!stay) return null;
+  // "Want to do it again?" leads everyone in the crew to the past House (crew, chat, "Do it again").
+  if (n.key === "doItAgain") return `/my-stays/${stay.id}`;
   return stay.hostId === me ? `/my-stays/${stay.id}` : `/house/${stay.slug}`;
 }

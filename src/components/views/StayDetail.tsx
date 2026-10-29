@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, DoorClosed, Lock, Plus, SearchX, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, Lock, MailOpen, Plus, RotateCcw, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,11 +29,11 @@ import { PriceLine } from "@/components/ui/PriceLine";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
-import { createHref } from "@/components/create/model";
+import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
-import { cn, findUrls, stayNights, stayPhotos } from "@/lib/utils";
+import { cn, findUrls, openSpots, stayNights, stayPhotos } from "@/lib/utils";
 
 /** Side column cards on the House page. */
 const sideCard = "rounded-[24px] bg-white p-6";
@@ -130,7 +130,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const askForPhoto = myRequest?.status === "pending" && me !== undefined && me.photos.length === 0;
   const isHost = stay.hostId === store.currentUserId && !previewing;
   const isMember = !previewing && isCrewMember(store, stay, store.currentUserId);
-  const spotsLeft = Math.max(0, stay.spotsTotal - stay.spotsFilled);
+  const spotsLeft = openSpots(stay);
   const chatLinkCount = (getCrewThread(store, stay.id)?.messages ?? []).reduce((count, m) => count + findUrls(m.text).length, 0);
 
   const { track } = store;
@@ -173,6 +173,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     }, t("loginToMessage", { name: hostFirstName }));
   }
 
+  function respondToInvite(accept: boolean) {
+    if (previewing) return showToast(tPreview("noChanges"));
+    store.respondToInvite(stay.id, accept);
+    showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
+  }
+
   const cta = (
     <StayCta
       stay={stay}
@@ -181,6 +187,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       spotsLeft={spotsLeft}
       onRequest={startRequest}
       onMessageHost={messageHost}
+      onRespond={respondToInvite}
     />
   );
 
@@ -222,6 +229,19 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {/* Declined, or the crew is full: the same trip, as their own House. */}
           {!isHost && !isMember && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0))) && (
             <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />
+          )}
+
+          {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
+          {myRequest?.status === "invited" && (
+            <div className="mt-6 flex items-start gap-4 rounded-2xl bg-white p-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                <MailOpen className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0 text-sm">
+                <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
+                <p className="mt-0.5 text-neutral-600">{t("invite.text")}</p>
+              </div>
+            </div>
           )}
 
           {/* The host, right after opening it: people who want this city and month – invite them. */}
@@ -406,16 +426,27 @@ interface StayCtaProps {
   spotsLeft: number;
   onRequest: () => void;
   onMessageHost: () => void;
+  /** Invited from a past crew: accept or decline */
+  onRespond: (accept: boolean) => void;
 }
 
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }: StayCtaProps) {
+function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost, onRespond }: StayCtaProps) {
   const t = useTranslations("request.cta");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
   const full = "w-full";
+  // Over, and you were in it (host or crew): the same House again, with the same people.
+  if (stay.status === "completed" && (isHost || request?.status === "accepted")) {
+    return (
+      <Link href={againHref(stay.id)} className={buttonClass("dark", "lg", full)}>
+        <RotateCcw className="size-4" aria-hidden />
+        {t("again")}
+      </Link>
+    );
+  }
   if (isHost) {
     return (
       <Link href={`/my-stays/${stay.id}`} className={buttonClass("dark", "lg", full)}>
@@ -444,6 +475,18 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost }:
       <button type="button" disabled className={buttonClass("dark", "lg", full)}>
         {t("ended")}
       </button>
+    );
+  }
+  if (request?.status === "invited") {
+    return (
+      <div className="flex gap-2">
+        <button type="button" onClick={() => onRespond(true)} className={buttonClass("dark", "lg", "flex-1")}>
+          {t("acceptInvite")}
+        </button>
+        <button type="button" onClick={() => onRespond(false)} className={buttonClass("secondary", "lg", "shrink-0")}>
+          {t("declineInvite")}
+        </button>
+      </div>
     );
   }
   if (request?.status === "pending") {

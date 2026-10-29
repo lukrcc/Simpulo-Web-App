@@ -11,6 +11,7 @@ export type {
   MessageEvent,
   MessageType,
   Attachment,
+  Crew,
   Reaction,
   Report,
   ReportReason,
