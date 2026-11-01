@@ -21,12 +21,12 @@ export function ContentPage({ title, intro, updated, children }: ContentPageProp
       <article className={cn(legal && "max-w-180")}>
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{title}</h1>
         {updated && (
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-muted">
             {t("lastUpdated", { date: format.dateTime(new Date(updated), { dateStyle: "long" }) })}
           </p>
         )}
-        {intro && <p className="mt-3 text-lg leading-relaxed text-neutral-600">{intro}</p>}
-        <div className={cn("mt-8 leading-relaxed text-neutral-700", legal ? "space-y-10 text-base" : "space-y-4")}>
+        {intro && <p className="mt-3 text-lg leading-relaxed text-muted">{intro}</p>}
+        <div className={cn("mt-8 leading-relaxed text-ink", legal ? "space-y-10 text-base" : "space-y-4")}>
           {children}
         </div>
       </article>
@@ -68,7 +68,7 @@ export function LegalSection({ id, title, children }: LegalSectionProps) {
 /** Bulleted points inside a legal section. */
 export function LegalList({ items }: { items: string[] }) {
   return (
-    <ul className="list-disc space-y-2 pl-5 marker:text-neutral-400">
+    <ul className="list-disc space-y-2 pl-5 marker:text-muted">
       {items.map((item) => (
         <li key={item}>{item}</li>
       ))}

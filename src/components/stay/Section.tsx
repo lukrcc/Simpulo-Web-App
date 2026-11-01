@@ -10,7 +10,7 @@ interface SectionProps {
 /** A titled section of the House page, separated from the one above by a divider line. */
 export function Section({ title, action, children }: SectionProps) {
   return (
-    <section className="mt-8 border-t border-black/5 pt-6">
+    <section className="mt-8 border-t border-line pt-6">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold">{title}</h2>
         {action}

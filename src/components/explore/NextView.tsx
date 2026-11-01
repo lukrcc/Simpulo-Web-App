@@ -32,7 +32,7 @@ export function NextView() {
   return (
     <Container page>
       <h1 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t("title")}</h1>
-      <p className="mt-2 max-w-2xl text-lg text-zinc-500">{t("pageIntro")}</p>
+      <p className="mt-2 max-w-2xl text-lg text-muted">{t("pageIntro")}</p>
       {regionOptions.length > 1 && (
         <div className="mt-6">
           <FilterChips label={t("regionsLabel")} options={regionOptions} value={region} onChange={setRegion} allLabel={t("allRegions")} />
@@ -53,7 +53,7 @@ export function NextView() {
           </li>
         ))}
       </ul>
-      {shown.length === 0 && <p className="mt-6 text-zinc-500">{t("noneHere")}</p>}
+      {shown.length === 0 && <p className="mt-6 text-muted">{t("noneHere")}</p>}
       <AddPlaceSheet open={adding} onClose={() => setAdding(false)} />
     </Container>
   );

@@ -18,7 +18,7 @@ export function ConfirmSheet({ open, title, description, confirmLabel, onConfirm
   const t = useTranslations("common");
   return (
     <Sheet open={open} onClose={onClose} title={title}>
-      <p className="text-sm leading-relaxed text-neutral-600">{description}</p>
+      <p className="text-sm leading-relaxed text-muted">{description}</p>
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button type="button" onClick={onClose} className={buttonClass("ghost", "lg", "w-full sm:w-auto")}>
           {t("cancel")}
@@ -26,7 +26,7 @@ export function ConfirmSheet({ open, title, description, confirmLabel, onConfirm
         <button
           type="button"
           onClick={onConfirm}
-          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-red-600 px-6 text-base font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-red-600 px-6 text-base font-semibold text-surface transition-colors hover:bg-red-700 sm:w-auto"
         >
           {confirmLabel}
         </button>

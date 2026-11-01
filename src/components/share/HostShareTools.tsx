@@ -95,11 +95,11 @@ export function HostShareTools({ stay, className }: { stay: Stay; className?: st
   ];
 
   return (
-    <section aria-labelledby="share-your-house" className={cn("rounded-[24px] bg-white p-6", className)}>
+    <section aria-labelledby="share-your-house" className={cn("rounded-[24px] bg-surface p-6", className)}>
       <h2 id="share-your-house" className="text-lg font-semibold">
         {t("hostTitle")}
       </h2>
-      <p className="mt-1 text-sm text-zinc-500">{t("hostText")}</p>
+      <p className="mt-1 text-sm text-muted">{t("hostText")}</p>
       <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {tools.map(({ key, icon: Icon, label, hint, busyLabel, onClick }) => (
           <li key={key}>
@@ -107,12 +107,12 @@ export function HostShareTools({ stay, className }: { stay: Stay; className?: st
               type="button"
               onClick={onClick}
               disabled={busy !== null}
-              className="flex h-full w-full items-start gap-3 rounded-2xl bg-page px-4 py-3 text-left text-ink transition-colors hover:bg-zinc-200/60 disabled:opacity-60"
+              className="flex h-full w-full items-start gap-3 rounded-2xl bg-bg px-4 py-3 text-left text-ink transition-colors hover:bg-line/60 disabled:opacity-60"
             >
               {busy === key ? <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin" aria-hidden /> : <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />}
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{busy === key && busyLabel ? busyLabel : label}</span>
-                {hint && <span className="block text-xs text-zinc-500">{hint}</span>}
+                {hint && <span className="block text-xs text-muted">{hint}</span>}
               </span>
             </button>
           </li>

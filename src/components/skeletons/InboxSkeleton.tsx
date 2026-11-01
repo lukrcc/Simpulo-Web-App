@@ -17,7 +17,7 @@ export function InboxSkeleton() {
       }
       detail={
         <div className="h-full animate-pulse" aria-hidden>
-          <ChatSkeleton className="rounded-[24px] bg-white" />
+          <ChatSkeleton className="rounded-[24px] bg-surface" />
         </div>
       }
       detailFill

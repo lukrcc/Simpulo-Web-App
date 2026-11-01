@@ -67,7 +67,7 @@ function NotificationsList() {
       <div className="flex items-end justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-ink">{t("title")}</h1>
         {unread > 0 && (
-          <button type="button" onClick={repo.markAllRead} className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-ink">
+          <button type="button" onClick={repo.markAllRead} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
             <CheckCheck className="size-4" aria-hidden />
             {t("markAll")}
           </button>
@@ -82,7 +82,7 @@ function NotificationsList() {
             role="tab"
             aria-selected={category === c}
             onClick={() => setCategory(c)}
-            className={cn("h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors", category === c ? "bg-ink text-white" : "bg-white text-ink hover:bg-zinc-100")}
+            className={cn("h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors", category === c ? "bg-ink text-surface" : "bg-surface text-ink hover:bg-bg")}
           >
             {t(`tabs.${c ?? "all"}`)}
           </button>
@@ -92,10 +92,10 @@ function NotificationsList() {
       {nothingAtAll ? (
         <div className="mt-12 flex flex-col items-center text-center">
           <Img src="/icon.svg" alt="" width={72} height={72} className="size-18" />
-          <p className="mt-5 max-w-sm text-zinc-600">{t("empty")}</p>
+          <p className="mt-5 max-w-sm text-muted">{t("empty")}</p>
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-10 text-center text-sm text-zinc-500">{t("emptyTab")}</p>
+        <p className="mt-10 text-center text-sm text-muted">{t("emptyTab")}</p>
       ) : (
         <div className="mt-6 space-y-6">
           {(["today", "yesterday", "week", "earlier"] as const).map((group) => {
@@ -103,10 +103,10 @@ function NotificationsList() {
             if (list.length === 0) return null;
             return (
               <section key={group} aria-labelledby={`n-${group}`}>
-                <h2 id={`n-${group}`} className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                <h2 id={`n-${group}`} className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">
                   {t(`groups.${group}`)}
                 </h2>
-                <ul className="space-y-0.5 rounded-[24px] bg-white p-1.5">
+                <ul className="space-y-0.5 rounded-[24px] bg-surface p-1.5">
                   {list.map((n) => (
                     <li key={n.id}>
                       <NotificationItem notification={n} onRead={repo.markRead} />

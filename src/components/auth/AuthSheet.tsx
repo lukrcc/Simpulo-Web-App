@@ -106,15 +106,15 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
         <button
           type="button"
           onClick={() => setProvider(null)}
-          className="-ml-1 mb-3 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-ink"
+          className="-ml-1 mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
         >
           <ArrowLeft className="size-4" />
           {tc("back")}
         </button>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
           {t("mockProviderLogin", { provider })}
         </p>
-        <ul className="scroll-pane max-h-[50vh] divide-y divide-neutral-100 rounded-2xl border border-neutral-100">
+        <ul className="scroll-pane max-h-[50vh] divide-y divide-line rounded-2xl border border-line">
           {users.map((user) => (
             <li key={user.id}>
               <button
@@ -123,11 +123,11 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
                   login(user.id);
                   loggedIn(user.id);
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-neutral-50"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-bg"
               >
                 <Avatar user={user} size="sm" />
                 <span className="flex-1 text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-zinc-500">{user.country}</span>
+                <span className="text-xs text-muted">{user.country}</span>
               </button>
             </li>
           ))}
@@ -143,13 +143,13 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
           icon={<SiApple className="size-5" />}
           label={t("continueWithApple")}
           onClick={() => setProvider("Apple")}
-          className="bg-black text-white hover:bg-black/85"
+          className="bg-ink text-surface hover:bg-ink/85"
         />
         <AuthButton
           icon={<FcGoogle className="size-5" />}
           label={t("continueWithGoogle")}
           onClick={() => setProvider("Google")}
-          className="border border-zinc-200 bg-white text-ink hover:bg-zinc-50"
+          className="border border-line bg-surface text-ink hover:bg-bg"
         />
         {emailOpen ? (
           <EmailForm onSuccess={loggedIn} />
@@ -158,12 +158,12 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
             icon={<Mail className="size-5" />}
             label={t("continueWithEmail")}
             onClick={() => setEmailOpen(true)}
-            className="bg-page text-ink hover:bg-zinc-200/60"
+            className="bg-bg text-ink hover:bg-line/60"
           />
         )}
       </div>
-      <p className="mt-4 text-[13px] text-zinc-500">{t("dataUse")}</p>
-      <p className="mt-1 text-[13px] text-zinc-500">
+      <p className="mt-4 text-[13px] text-muted">{t("dataUse")}</p>
+      <p className="mt-1 text-[13px] text-muted">
         {t.rich("legal", {
           terms: (chunks) => (
             <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
@@ -218,8 +218,8 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
 
   if (sentTo) {
     return (
-      <p role="status" className="flex min-h-14 items-center gap-3 rounded-3xl bg-page px-5 py-3 text-[15px] text-ink">
-        <MailCheck className="size-5 shrink-0 text-accent" />
+      <p role="status" className="flex min-h-14 items-center gap-3 rounded-3xl bg-bg px-5 py-3 text-[15px] text-ink">
+        <MailCheck className="size-5 shrink-0 text-ink" />
         <span>
           {t.rich("checkInbox", { email: sentTo, strong: (chunks) => <span className="font-medium">{chunks}</span> })}
         </span>
@@ -239,17 +239,17 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t("emailPlaceholder")}
           aria-label={t("emailLabel")}
-          className="h-14 min-w-0 flex-1 rounded-full border border-zinc-200 bg-white px-5 text-[16px] outline-none focus:border-ink"
+          className="h-14 min-w-0 flex-1 rounded-full border border-line bg-surface px-5 text-[16px] outline-none focus:border-accent"
         />
         <button
           type="submit"
           disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}
-          className="h-14 shrink-0 rounded-full bg-ink px-6 text-[16px] font-medium text-white transition-colors hover:bg-[#2A2A30] disabled:bg-neutral-200 disabled:text-neutral-500"
+          className="h-14 shrink-0 rounded-full bg-ink px-6 text-[16px] font-medium text-surface transition-colors hover:bg-ink/90 disabled:bg-line disabled:text-muted"
         >
           {t("sendLink")}
         </button>
       </div>
-      <label className="flex items-center gap-1.5 pl-5 text-xs text-zinc-500">
+      <label className="flex items-center gap-1.5 pl-5 text-xs text-muted">
         {t("mockLoginAs")}
         <select
           value={mockUserId}

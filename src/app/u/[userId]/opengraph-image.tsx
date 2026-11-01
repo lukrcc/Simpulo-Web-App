@@ -2,14 +2,15 @@ import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { stays, users } from "@/lib/mock";
+import { COLORS } from "@/lib/colors";
 
 export const alt = "Simpulo";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PAGE = "#F5F4F1";
-const INK = "#1E1E22";
-const ACCENT = "#F0633A";
+const PAGE = COLORS.bg;
+const INK = COLORS.ink;
+const ACCENT = COLORS.accent;
 
 /**
  * Photo as a data URI – null when it's missing or unreachable, so the card shows a solid block. Local files
@@ -45,7 +46,7 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
   return new ImageResponse(
     (
       <div style={{ display: "flex", width: "100%", height: "100%", background: PAGE, color: INK }}>
-        <div style={{ display: "flex", width: 600, height: 630, background: "#D6D3CD" }}>
+        <div style={{ display: "flex", width: 600, height: 630, background: COLORS.line }}>
           {photo && (
             <img src={photo} alt="" width={600} height={630} style={{ width: 600, height: 630, objectFit: "cover" }} />
           )}
@@ -56,7 +57,7 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
               {user?.name ?? "Simpulo"}
             </div>
             {user && (
-              <div style={{ display: "flex", marginTop: 20, fontSize: 30, color: "#6B6B72" }}>{t("hosted", { count: hosted })}</div>
+              <div style={{ display: "flex", marginTop: 20, fontSize: 30, color: COLORS.muted }}>{t("hosted", { count: hosted })}</div>
             )}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 44, fontWeight: 700, letterSpacing: -1 }}>

@@ -4,11 +4,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "dark";
 type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 const variants: Record<ButtonVariant, string> = {
-  // Orange fill is reserved for the House page's "Join this House" – use "dark" everywhere else.
-  primary: "bg-accent text-white hover:bg-accent-dark disabled:bg-neutral-200 disabled:text-neutral-500",
-  secondary: "border border-neutral-200 bg-white text-ink hover:border-neutral-400 disabled:text-neutral-400",
-  ghost: "text-ink hover:bg-neutral-100 disabled:text-neutral-400",
-  dark: "bg-ink text-white hover:bg-black disabled:bg-neutral-200 disabled:text-neutral-500",
+  // No orange buttons: primary and dark are both ink with surface text.
+  primary: "bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted",
+  secondary: "border border-line bg-surface text-ink hover:bg-bg disabled:text-muted",
+  ghost: "text-ink hover:bg-bg disabled:text-muted",
+  dark: "bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted",
 };
 
 const sizes: Record<ButtonSize, string> = {

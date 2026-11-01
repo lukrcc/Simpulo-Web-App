@@ -17,7 +17,6 @@ import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { StayCard } from "@/components/StayCard";
 import { HostAlertButton } from "@/components/ui/HostAlertButton";
 import { buttonClass } from "@/components/ui/button";
-import { useHasVisibleCrewContacts } from "@/components/ui/CrewContacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { StayThumb } from "@/components/ui/StayThumb";
@@ -150,7 +149,6 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const today = new Date().toISOString().slice(0, 10);
   // A preview looks through a stranger's eyes: no viewer, so no shared crew and no crew-only contacts.
   const meId = previewing ? null : store.currentUserId;
-  const showCrewContacts = useHasVisibleCrewContacts(user) && !previewing;
 
   const hosted = store.stays.filter((s) => s.hostId === user.id);
   const joined = store.joinRequests
@@ -206,7 +204,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
       {/* Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header). */}
       {isMe && (
         <div className="-mt-2 mb-2 flex justify-end md:hidden">
-          <Link href="/settings" aria-label={t("settings")} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-black/5">
+          <Link href="/settings" aria-label={t("settings")} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-ink/5">
             <Settings className="size-5" />
           </Link>
         </div>
@@ -216,7 +214,6 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
         <aside ref={asideRef} className={cn("self-start lg:col-span-4", asideFits && "lg:sticky lg:top-[calc(var(--header-h)+40px)]")}>
           <ProfileCard
             user={user}
-            showCrewContacts={showCrewContacts}
             crews={crews}
             stats={t.rich("stats", {
               hosted: hosted.length,
@@ -248,7 +245,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
                 ) : (
                   <HostAlertButton host={user} />
                 )}
-                <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-neutral-100">
+                <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-bg">
                   <Share2 className="size-[18px]" />
                 </button>
                 {/* Someone else's profile (never in a preview): Report / Block. */}
@@ -286,7 +283,7 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
                       type="button"
                       onClick={() => setPhotoIndex(i)}
                       aria-label={t("openPhoto", { index: i + 1 })}
-                      className="relative h-50 w-40 shrink-0 snap-start overflow-hidden rounded-2xl bg-neutral-200"
+                      className="relative h-50 w-40 shrink-0 snap-start overflow-hidden rounded-2xl bg-line"
                     >
                       <Img src={src} alt="" fill sizes="160px" className="object-cover transition-transform duration-500 hover:scale-[1.03]" />
                     </button>
@@ -323,12 +320,12 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
 }
 
 const dashedTile =
-  "flex flex-col items-center justify-center gap-3 border-2 border-dashed border-black/15 font-semibold text-zinc-500 transition-colors hover:border-black/30 hover:bg-black/[0.02] hover:text-ink";
+  "flex flex-col items-center justify-center gap-3 border-2 border-dashed border-line font-semibold text-muted transition-colors hover:bg-ink/[0.02] hover:text-ink";
 
 function DashedTileContent({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <>
-      <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink">{icon}</span>
+      <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink">{icon}</span>
       {label}
     </>
   );
@@ -338,7 +335,7 @@ function DashedTileContent({ icon, label }: { icon: ReactNode; label: string }) 
 function DashedCard({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
     <Link href={href} className={cn(dashedTile, "aspect-4/5 rounded-[28px] text-base")}>
-      <span className="flex size-12 items-center justify-center rounded-full bg-white text-ink">{icon}</span>
+      <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink">{icon}</span>
       {label}
     </Link>
   );
@@ -388,7 +385,7 @@ function HouseSection({ id, title, open, past, empty, tile }: HouseSectionProps)
   return (
     <div id={id} className="scroll-mt-[calc(var(--header-h)+24px)]">
       <h2 className="mb-3 text-lg font-semibold">
-        {title} <span className="font-normal text-zinc-400">{open.length}</span>
+        {title} <span className="font-normal text-muted">{open.length}</span>
       </h2>
       {open.length > 0 || tile ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -398,26 +395,26 @@ function HouseSection({ id, title, open, past, empty, tile }: HouseSectionProps)
           ))}
         </div>
       ) : (
-        <p className="rounded-[24px] border-2 border-dashed border-black/10 p-6 text-sm text-zinc-500">{empty}</p>
+        <p className="rounded-[24px] border-2 border-dashed border-line p-6 text-sm text-muted">{empty}</p>
       )}
 
       {past.length > 0 && (
         <div className="mt-6">
-          <h3 className="mb-2 text-sm font-semibold text-zinc-500">
-            {t("past")} <span className="font-normal text-zinc-400">{past.length}</span>
+          <h3 className="mb-2 text-sm font-semibold text-muted">
+            {t("past")} <span className="font-normal text-muted">{past.length}</span>
           </h3>
-          <ul className="divide-y divide-black/5 rounded-[24px] bg-white">
+          <ul className="divide-y divide-line rounded-[24px] bg-surface">
             {past.map((stay) => (
               <li key={stay.id}>
-                <Link href={`/house/${stay.slug}`} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02]">
+                <Link href={`/house/${stay.slug}`} className="flex items-center gap-4 px-4 py-3 hover:bg-ink/[0.02]">
                   <StayThumb stay={stay} size={48} className="size-12" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{stay.title}</p>
-                    <p className="truncate text-xs text-zinc-500">
+                    <p className="truncate text-xs text-muted">
                       {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs text-zinc-500">
+                  <span className="shrink-0 text-xs text-muted">
                     {t(`pastStatus.${stay.status === "completed" || stay.status === "closed" ? stay.status : "ended"}`)}
                   </span>
                 </Link>

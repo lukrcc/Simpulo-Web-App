@@ -37,7 +37,7 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
             className={cn(
               "shrink-0 rounded-full font-medium transition-colors",
               small ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-sm",
-              active ? "bg-ink text-white" : small ? "bg-transparent text-zinc-600 ring-1 ring-black/10 hover:bg-white" : "bg-white text-ink hover:bg-zinc-100",
+              active ? "bg-ink text-surface" : small ? "bg-transparent text-muted ring-1 ring-line hover:bg-surface" : "bg-surface text-ink hover:bg-bg",
             )}
           >
             {chip.label}

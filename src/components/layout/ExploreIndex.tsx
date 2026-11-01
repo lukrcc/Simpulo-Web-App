@@ -19,7 +19,7 @@ const MIN_CITIES = 3;
 const COLLAPSED_LINKS = 8;
 
 /** Logged-in areas and flows – no index there (matches robots.ts). */
-const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/people", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
+const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/people", "/saved", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
 
 /**
  * "Explore by city and vibe" above the footer, on public pages: the top cities as plain links, "Show all" for every
@@ -69,10 +69,10 @@ function ExploreIndexBlock() {
 
   if (cities.length < MIN_CITIES) return null;
   const canExpand = cities.length > COLLAPSED_LINKS || vibes.length > 0;
-  const link = "inline-flex min-h-9 items-center text-[13px] text-zinc-500 transition-colors hover:text-ink md:min-h-7";
+  const link = "inline-flex min-h-9 items-center text-[13px] text-muted transition-colors hover:text-ink md:min-h-7";
 
   return (
-    <section aria-labelledby={`${id}-title`} className="border-t border-neutral-100">
+    <section aria-labelledby={`${id}-title`} className="border-t border-line">
       <Container className="py-8">
         <div className="flex items-baseline justify-between gap-4">
           <h2 id={`${id}-title`} className="text-sm font-semibold text-ink">
@@ -84,7 +84,7 @@ function ExploreIndexBlock() {
               aria-expanded={open}
               aria-controls={`${id}-list`}
               onClick={() => setOpen((o) => !o)}
-              className="text-[13px] font-medium text-zinc-600 underline-offset-4 hover:text-ink hover:underline"
+              className="text-[13px] font-medium text-muted underline-offset-4 hover:text-ink hover:underline"
             >
               {open ? t("showLess") : t("showAll")}
             </button>
@@ -93,7 +93,7 @@ function ExploreIndexBlock() {
         {/* All links always rendered; collapsed, only the top cities show. */}
         <div id={`${id}-list`} className="mt-3 space-y-4">
           <div>
-            <h3 className={cn("mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400", !open && "sr-only")}>{t("cities")}</h3>
+            <h3 className={cn("mb-1 text-xs font-medium uppercase tracking-wide text-muted", !open && "sr-only")}>{t("cities")}</h3>
             <ul className="flex flex-wrap gap-x-5">
               {cities.map((city, i) => (
                 <li key={city.slug} className={cn(!open && i >= COLLAPSED_LINKS && "hidden")}>
@@ -106,7 +106,7 @@ function ExploreIndexBlock() {
           </div>
           {vibes.length > 0 && (
             <div className={cn(!open && "hidden")}>
-              <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{t("vibes")}</h3>
+              <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{t("vibes")}</h3>
               <ul className="flex flex-wrap gap-x-5">
                 {vibes.map(({ vibe }) => (
                   <li key={vibe}>

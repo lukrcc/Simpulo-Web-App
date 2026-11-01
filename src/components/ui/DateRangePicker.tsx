@@ -114,18 +114,18 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
-          "flex h-11 w-full items-center gap-2.5 rounded-xl border bg-[#FAFAF9] px-4 text-left text-[15px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ink/20",
-          invalid ? "border-red-300" : "border-[#E7E5E4]",
+          "flex h-11 w-full items-center gap-2.5 rounded-xl border bg-bg px-4 text-left text-[15px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-accent",
+          invalid ? "border-red-300" : "border-line",
         )}
       >
-        <CalendarDays className="size-4 shrink-0 text-zinc-500" aria-hidden />
+        <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
         {start ? (
           <span className="min-w-0 flex-1 truncate">
             {end ? format.shortRange(start, end) : t("from", { date: format.day(start) })}
-            {nights > 0 && <span className="text-zinc-500"> · {format.nights(nights)}</span>}
+            {nights > 0 && <span className="text-muted"> · {format.nights(nights)}</span>}
           </span>
         ) : (
-          <span className="flex-1 text-neutral-400">{t("placeholder")}</span>
+          <span className="flex-1 text-muted">{t("placeholder")}</span>
         )}
       </button>
 
@@ -134,7 +134,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
           ref={popoverRef}
           role="dialog"
           aria-label={t("dialog")}
-          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-[24px] bg-white p-4 shadow-xl ring-1 ring-black/5 sm:w-[min(100%,36rem)] sm:p-5"
+          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-[24px] bg-surface p-4 shadow-xl ring-1 ring-line sm:w-[min(100%,36rem)] sm:p-5"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {QUICK.map(({ key, apply }) => {
@@ -151,14 +151,14 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                   }}
                   className={cn(
                     "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                    active ? "border-ink bg-ink text-white" : "border-[#E7E5E4] bg-[#FAFAF9] hover:border-neutral-400",
+                    active ? "border-ink bg-ink text-surface" : "border-line bg-surface hover:bg-bg",
                   )}
                 >
                   {t(`quick.${key}`)}
                 </button>
               );
             })}
-            <span className="ml-auto text-[13px] text-zinc-500">{pickingEnd ? t("pickEnd") : t("pickStart")}</span>
+            <span className="ml-auto text-[13px] text-muted">{pickingEnd ? t("pickEnd") : t("pickStart")}</span>
           </div>
 
           <div className="relative grid gap-6 sm:grid-cols-2">
@@ -167,7 +167,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
               onClick={() => setMonth(addMonths(`${month}-01`, -1).slice(0, 7))}
               disabled={!canGoBack}
               aria-label={t("previousMonth")}
-              className="absolute left-0 top-0 flex size-8 items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30"
+              className="absolute left-0 top-0 flex size-8 items-center justify-center rounded-full hover:bg-ink/5 disabled:opacity-30"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -175,7 +175,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
               type="button"
               onClick={() => setMonth(addMonths(`${month}-01`, 1).slice(0, 7))}
               aria-label={t("nextMonth")}
-              className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-full hover:bg-black/5"
+              className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-full hover:bg-ink/5"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -183,7 +183,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
               // Phones show one month; the arrows step through.
               <div key={m} className={cn(i === 1 && "max-sm:hidden")}>
                 <p className="mb-2 flex h-8 items-center justify-center text-sm font-semibold">{monthName(m)}</p>
-                <div className="grid grid-cols-7 text-center text-[11px] font-medium text-zinc-400">
+                <div className="grid grid-cols-7 text-center text-[11px] font-medium text-muted">
                   {weekdays.map((d, j) => (
                     <span key={j} className="py-1">
                       {d}
@@ -201,9 +201,9 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                         key={day}
                         className={cn(
                           "py-0.5",
-                          inRange && "bg-black/5",
-                          isStart && rangeEnd && "rounded-l-full bg-linear-to-r from-transparent from-50% to-black/5 to-50%",
-                          isEnd && "rounded-r-full bg-linear-to-l from-transparent from-50% to-black/5 to-50%",
+                          inRange && "bg-ink/5",
+                          isStart && rangeEnd && "rounded-l-full bg-linear-to-r from-transparent from-50% to-ink/5 to-50%",
+                          isEnd && "rounded-r-full bg-linear-to-l from-transparent from-50% to-ink/5 to-50%",
                         )}
                       >
                         <button
@@ -215,8 +215,8 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                           aria-label={format.day(day)}
                           data-tap="none"
                           className={cn(
-                            "mx-auto flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-zinc-300",
-                            isStart || isEnd ? "bg-ink font-semibold text-white" : "enabled:hover:bg-black/10",
+                            "mx-auto flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
+                            isStart || isEnd ? "bg-ink font-semibold text-surface" : "enabled:hover:bg-ink/10",
                           )}
                         >
                           {Number(day.slice(8))}
@@ -228,7 +228,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[13px] text-zinc-500">{t("maxNights", { max: maxNights })}</p>
+          <p className="mt-3 text-[13px] text-muted">{t("maxNights", { max: maxNights })}</p>
         </div>
       )}
     </div>

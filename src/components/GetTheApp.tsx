@@ -64,19 +64,19 @@ export function GetTheApp({ className }: { className?: string }) {
     <section
       id="get-the-app"
       // The anchor lands below the header via the global scroll-padding-top (--header-h).
-      className={cn("rounded-[28px] bg-white p-8", className)}
+      className={cn("rounded-[28px] bg-surface p-8", className)}
     >
       <h2 className="text-xl font-semibold tracking-tight text-ink">{t("title")}</h2>
-      <p className="mt-1 text-sm text-zinc-500">{t("intro")}</p>
+      <p className="mt-1 text-sm text-muted">{t("intro")}</p>
 
       {standalone ? (
-        <p className="mt-5 flex items-center gap-2 rounded-2xl bg-zinc-100 p-4 text-sm text-ink">
-          <CircleCheck className="size-5 shrink-0 text-accent" />
+        <p className="mt-5 flex items-center gap-2 rounded-2xl bg-bg p-4 text-sm text-ink">
+          <CircleCheck className="size-5 shrink-0 text-ink" />
           {t("installed")}
         </p>
       ) : (
         <>
-          <div role="tablist" aria-label={t("platform")} className="mt-6 flex gap-1 rounded-full bg-black/5 p-1">
+          <div role="tablist" aria-label={t("platform")} className="mt-6 flex gap-1 rounded-full bg-ink/5 p-1">
             {PLATFORMS.map(({ value, icon: Icon }) => {
               const active = value === selected;
               return (
@@ -88,7 +88,7 @@ export function GetTheApp({ className }: { className?: string }) {
                   onClick={() => setPicked(value)}
                   className={cn(
                     "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors",
-                    active ? "bg-white text-ink shadow-sm" : "text-zinc-500 hover:text-ink",
+                    active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
                   )}
                 >
                   <Icon className="size-4" />
@@ -102,7 +102,7 @@ export function GetTheApp({ className }: { className?: string }) {
             {STEPS[selected].map(({ icon: Icon, key }, i) => (
               <li key={key} className="flex items-center gap-3 text-base text-ink">
                 <StepNumber n={i + 1} />
-                <Icon className="size-4.5 shrink-0 text-zinc-500" aria-hidden />
+                <Icon className="size-4.5 shrink-0 text-muted" aria-hidden />
                 <span>{t(`steps.${key}`)}</span>
               </li>
             ))}
@@ -112,26 +112,26 @@ export function GetTheApp({ className }: { className?: string }) {
             type="button"
             onClick={install}
             className={cn(
-              "mt-7 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-ink px-6 text-sm font-semibold text-white outline-none transition-[background-color,transform] duration-200",
-              "hover:bg-[#2A2A30] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98]",
+              "mt-7 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-ink px-6 text-sm font-semibold text-surface outline-none transition-[background-color,transform] duration-200",
+              "hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98]",
             )}
           >
             <CtaIcon className="size-5" />
             {selected === "iphone" ? t("ctaIphone") : t("ctaAndroid")}
           </button>
-          <p className="mt-3 text-center text-xs text-zinc-500">{t("desktopHint")}</p>
+          <p className="mt-3 text-center text-xs text-muted">{t("desktopHint")}</p>
         </>
       )}
     </section>
   );
 }
 
-/** 32px dark number circle with the wordmark's orange dot ("1.") – shared with the steps card on /how-it-works. */
+/** 32px dark number circle with a dot ("1.") – shared with the steps card on /how-it-works. */
 export function StepNumber({ n }: { n: number }) {
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-surface">
       {n}
-      <span className="text-accent">.</span>
+      <span className="text-ink">.</span>
     </span>
   );
 }

@@ -49,3 +49,13 @@ export function placeByName(name: string): Place | undefined {
   const n = fold(name);
   return PLACES.find((p) => fold(p.name) === n);
 }
+
+/** Countries for "Country" in Edit profile (mock list – later Google Places, like the cities). */
+export const COUNTRIES: readonly string[] = [
+  ...new Set([
+    ...CITIES.map(([, country]) => country),
+    "Belgium", "Canada", "Chile", "China", "Estonia", "Finland", "Hungary", "Iceland", "India", "Ireland", "Israel", "Latvia",
+    "Lithuania", "Luxembourg", "Malaysia", "Norway", "Peru", "Poland", "Romania", "Singapore", "Slovenia", "Sri Lanka",
+    "Sweden", "Switzerland", "Ukraine", "Uruguay",
+  ]),
+].toSorted((a, b) => a.localeCompare(b));

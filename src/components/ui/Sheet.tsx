@@ -57,11 +57,11 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
 
   if (!open) return null;
   const iconSize = size === "wide" ? "size-6" : "size-5";
-  const panelClass = cn("scroll-pane relative max-h-[90dvh] w-full rounded-t-3xl bg-white shadow-xl md:rounded-3xl", PANEL_SIZES[size]);
+  const panelClass = cn("scroll-pane relative max-h-[90dvh] w-full rounded-t-3xl bg-surface shadow-xl md:rounded-3xl", PANEL_SIZES[size]);
 
   const content = (
     <>
-      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-neutral-200 md:hidden" />
+      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line md:hidden" />
       <div className={cn("flex items-center justify-between gap-4", !subtitle && "mb-4")}>
         <div className="flex min-w-0 items-center gap-1">
           {onBack && (
@@ -69,7 +69,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
               type="button"
               onClick={onBack}
               aria-label={t("back")}
-              className="-ml-1.5 rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
+              className="-ml-1.5 rounded-full p-1.5 text-muted hover:bg-bg"
             >
               <ArrowLeft className={iconSize} />
             </button>
@@ -82,12 +82,12 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
           type="button"
           onClick={onClose}
           aria-label={t("close")}
-          className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100"
+          className="rounded-full p-1.5 text-muted hover:bg-bg"
         >
           <X className={iconSize} />
         </button>
       </div>
-      {subtitle && <p className="mb-6 mt-1 text-[15px] text-zinc-500">{subtitle}</p>}
+      {subtitle && <p className="mb-6 mt-1 text-[15px] text-muted">{subtitle}</p>}
       <div data-sheet-body>{children}</div>
     </>
   );
@@ -107,7 +107,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
         type="button"
         aria-label={t("close")}
         onClick={onClose}
-        className="animate-fade-in absolute inset-0 bg-black/40"
+        className="animate-fade-in absolute inset-0 bg-ink/40"
       />
       <div className={cn("animate-sheet-in", panelClass)}>{content}</div>
     </div>

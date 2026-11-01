@@ -29,7 +29,7 @@ export const dayOf = (iso: string) => iso.slice(0, 10);
 
 const isLine = (message: Message) => {
   const type = messageType(message);
-  return type === "system" || type === "payment" || message.userId === "system";
+  return type === "system" || message.senderId === "system";
 };
 
 /** Day dividers, the "New messages" divider and same-sender groups, in display order. */
@@ -54,7 +54,7 @@ export function buildRows(messages: Message[], firstUnreadId: string | null): Ch
       open !== null &&
       !newDay &&
       !unread &&
-      open.message.userId === message.userId &&
+      open.message.senderId === message.senderId &&
       new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <= GROUP_WINDOW_MS;
     if (open && continues) open.last = false;
     const row: Extract<ChatRow, { kind: "message" }> = { kind: "message", key: message.id, message, first: !continues, last: true };

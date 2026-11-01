@@ -27,7 +27,6 @@ import {
   MAX_IDEAS,
   MAX_NIGHTS,
   PITCH_FIELDS,
-  TITLE_MAX,
   fieldId,
   isLink,
   joinDayParts,
@@ -53,7 +52,7 @@ export interface FieldHelpers {
 // No class merging here, so active and inactive each set their own background.
 /** Smaller tap-to-insert suggestion chips (starters, title ideas, card note examples) */
 const suggestionClass =
-  "max-w-full truncate rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5 text-[13px] text-zinc-600 transition-colors hover:border-ink hover:text-ink";
+  "max-w-full truncate rounded-full border border-dashed border-line bg-surface px-3 py-1.5 text-[13px] text-muted transition-colors hover:bg-bg hover:text-ink";
 
 /* ───────────────────────── 1 · The House ───────────────────────── */
 
@@ -69,16 +68,18 @@ interface HouseStepProps extends FieldHelpers {
   currency: Currency;
   /** Editing a House whose place is locked: price and currency are managed on the Manage page. */
   locked: boolean;
+  /** Title length limit: 28 for a new House, 60 when editing (see titleMaxFor) */
+  titleMax: number;
   /** Host fee: only hosts who may charge one can set it; `max` = 30 % of the lowest share (unknown without a budget).
    *  Unset (feature flag hostPremium off): no host fee field at all. */
   hostFee?: { allowed: boolean; max?: number };
 }
 
-export function HouseStep({ form, update, patch, minSpots, minStart, languages, language, currency, locked, hostFee, errorOf, touch }: HouseStepProps) {
+export function HouseStep({ form, update, patch, minSpots, minStart, languages, language, currency, locked, titleMax, hostFee, errorOf, touch }: HouseStepProps) {
   const t = useTranslations("create.house");
   const format = useFormat();
   const areas = areaOptions(form.region);
-  const titles = useTitleSuggestions(form);
+  const titles = useTitleSuggestions(form, titleMax);
   const dateError = errorOf("startDate") ?? errorOf("endDate");
 
   return (
@@ -158,7 +159,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
           id={fieldId("title")}
           label={t("title")}
           error={errorOf("title")}
-          aside={<span className="text-xs tabular-nums text-zinc-400">{t("titleCount", { count: form.title.trim().length, max: TITLE_MAX })}</span>}
+          aside={<span className="text-xs tabular-nums text-muted">{t("titleCount", { count: form.title.trim().length, max: titleMax })}</span>}
           helper={titles.length > 0 ? t("titleSuggestionsHint") : t("titleSuggestionsLater")}
         >
           <input
@@ -167,7 +168,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
             onChange={(e) => update("title", e.target.value)}
             onBlur={() => touch("title")}
             placeholder={titles[0] ?? t("titlePlaceholder")}
-            maxLength={TITLE_MAX}
+            maxLength={titleMax}
             aria-invalid={Boolean(errorOf("title")) || undefined}
           />
         </FormField>
@@ -182,7 +183,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
                   touch("title");
                 }}
                 aria-pressed={form.title === title}
-                className={cn(suggestionClass, form.title === title && "border-solid border-ink text-ink")}
+                className={cn(suggestionClass, form.title === title && "border-solid border-ink bg-ink text-surface hover:bg-ink hover:text-surface")}
               >
                 {title}
               </button>
@@ -193,7 +194,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
 
       <FormCard title={t("cards.crew")}>
         <FormField id={fieldId("spotsTotal")} label={t("crewSize")} error={errorOf("spotsTotal")} group>
-          <div className="flex gap-1 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] p-1">
+          <div className="flex gap-1 rounded-xl border border-line bg-bg p-1">
             {[2, 3, 4, 5, 6].map((n) => (
               <button
                 key={n}
@@ -203,7 +204,7 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
                 onClick={() => update("spotsTotal", n)}
                 className={cn(
                   "h-9 flex-1 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                  form.spotsTotal === n ? "bg-white text-ink shadow-sm" : "text-zinc-500 hover:text-ink",
+                  form.spotsTotal === n ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
                 )}
               >
                 {n}
@@ -232,8 +233,26 @@ export function HouseStep({ form, update, patch, minSpots, minStart, languages, 
       </FormCard>
 
       <FormCard title={t("cards.budget")}>
-        {locked ? <p className="text-sm text-zinc-500">{t("lockedNote")}</p> : <BudgetField form={form} patch={patch} currency={currency} />}
+        {locked ? <p className="text-sm text-muted">{t("lockedNote")}</p> : <BudgetField form={form} patch={patch} currency={currency} />}
         {hostFee && <HostFeeField form={form} update={update} currency={currency} {...hostFee} errorOf={errorOf} touch={touch} />}
+      </FormCard>
+
+      {/* Optional: the crew's own WhatsApp / Telegram group – shown to confirmed members once the crew is complete. */}
+      <FormCard title={t("cards.crewGroup")}>
+        <FormField id={fieldId("crewGroupUrl")} label={t("crewGroupUrl")} helper={t("crewGroupHelper")} error={errorOf("crewGroupUrl")} optional>
+          <input
+            className={formInput}
+            value={form.crewGroupUrl}
+            onChange={(e) => update("crewGroupUrl", e.target.value)}
+            onBlur={() => touch("crewGroupUrl")}
+            placeholder="https://chat.whatsapp.com/…"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-invalid={Boolean(errorOf("crewGroupUrl")) || undefined}
+          />
+        </FormField>
       </FormCard>
     </FormCards>
   );
@@ -261,7 +280,7 @@ function VibePicker({ form, patch }: { form: FormState; patch: Patch }) {
         );
       })}
       {custom ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-ink bg-white py-0.5 pl-4 pr-1">
+        <span className="inline-flex items-center gap-1 rounded-full border border-ink bg-surface py-0.5 pl-4 pr-1">
           <input
             autoFocus
             value={form.customVibe ?? ""}
@@ -269,13 +288,13 @@ function VibePicker({ form, patch }: { form: FormState; patch: Patch }) {
             onChange={(e) => patch({ customVibe: e.target.value })}
             placeholder={t("customPlaceholder")}
             aria-label={t("customLabel")}
-            className="h-8 w-32 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+            className="h-8 w-32 bg-transparent text-sm outline-none placeholder:text-muted"
           />
           <button
             type="button"
             onClick={() => patch({ customVibe: null })}
             aria-label={t("customLabel")}
-            className="flex size-8 items-center justify-center rounded-full text-zinc-500 hover:bg-black/5"
+            className="flex size-8 items-center justify-center rounded-full text-muted hover:bg-ink/5"
           >
             <X className="size-3.5" />
           </button>
@@ -291,7 +310,7 @@ function VibePicker({ form, patch }: { form: FormState; patch: Patch }) {
 }
 
 /** Three title ideas from vibe + place + duration ("Fitness House Canggu", "Canggu Fitness Month", "Two Weeks of Training in Bali"). */
-function useTitleSuggestions(form: FormState): string[] {
+function useTitleSuggestions(form: FormState, titleMax: number): string[] {
   const t = useTranslations("create.house");
   const customLabel = form.customVibe?.trim();
   const vibe: Vibe | "" = form.customVibe !== null ? (customLabel ? "mixed" : "") : form.vibe;
@@ -310,7 +329,7 @@ function useTitleSuggestions(form: FormState): string[] {
       ? t("titleTemplates.of", { duration: duration ? t(`durations.${duration}`) : t("durations.nights", { count: nights }), activity, region })
       : t("titleTemplates.ofNoDates", { activity, region }),
   ];
-  return Array.from(new Set(ideas.filter((idea) => idea.length <= TITLE_MAX)));
+  return Array.from(new Set(ideas.filter((idea) => idea.length <= titleMax)));
 }
 
 function durationKey(nights: number) {
@@ -352,7 +371,7 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
               setChangingCurrency(false);
             }}
             onBlur={() => setChangingCurrency(false)}
-            className="h-8 rounded-lg border border-[#E7E5E4] bg-[#FAFAF9] px-2 text-[13px] outline-none"
+            className="h-8 rounded-lg border border-line bg-bg px-2 text-[13px] outline-none"
           >
             {CURRENCIES.map((code) => (
               <option key={code} value={code}>
@@ -361,7 +380,7 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
             ))}
           </select>
         ) : (
-          <p className="text-[13px] text-zinc-500">
+          <p className="text-[13px] text-muted">
             {currency} ·{" "}
             <button type="button" onClick={() => setChangingCurrency(true)} className="font-medium text-ink underline underline-offset-2">
               {t("currencyChange")}
@@ -370,7 +389,7 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
         )}
       </div>
 
-      <p className={cn("text-xl font-semibold tabular-nums", skipped && "text-zinc-400")} aria-live="polite">
+      <p className={cn("text-xl font-semibold tabular-nums", skipped && "text-muted")} aria-live="polite">
         {t("budgetRange", { range: format.priceRange(value[0], value[1], currency) })}
       </p>
       <RangeSlider
@@ -383,15 +402,15 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
         labels={[t("budgetMinLabel"), t("budgetMaxLabel")]}
         formatValue={(n) => format.price(n, currency)}
       />
-      <div className="flex justify-between text-xs tabular-nums text-zinc-400">
+      <div className="flex justify-between text-xs tabular-nums text-muted">
         <span>{format.price(scale.min, currency)}</span>
         <span>{format.price(scale.max, currency)}</span>
       </div>
 
-      <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 border-t border-black/5 pt-3 text-sm">
+      <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 border-t border-line pt-3 text-sm">
         <span>
           <span className="block font-medium">{t("skipBudget")}</span>
-          {skipped && <span className="block text-[13px] text-zinc-500">{t("budgetSkipped")}</span>}
+          {skipped && <span className="block text-[13px] text-muted">{t("budgetSkipped")}</span>}
         </span>
         <input
           type="checkbox"
@@ -402,10 +421,10 @@ function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch;
         />
         <span
           aria-hidden
-          className="relative h-6 w-10 shrink-0 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/30"
+          className="relative h-6 w-10 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
         />
       </label>
-      <p className="text-[13px] text-zinc-500">{t("currencyHint")}</p>
+      <p className="text-[13px] text-muted">{t("currencyHint")}</p>
     </div>
   );
 }
@@ -425,9 +444,9 @@ function HostFeeField({
 }: { form: FormState; update: Update; currency: Currency; allowed: boolean; max?: number } & FieldHelpers) {
   const t = useTranslations("growth.premium");
   const format = useFormat();
-  if (!allowed) return <p className="mt-4 border-t border-black/5 pt-4 text-[13px] text-zinc-500">{t("verifiedOnly")}</p>;
+  if (!allowed) return <p className="mt-4 border-t border-line pt-4 text-[13px] text-muted">{t("verifiedOnly")}</p>;
   return (
-    <div className="mt-4 border-t border-black/5 pt-4">
+    <div className="mt-4 border-t border-line pt-4">
       <FormField
         id={fieldId("hostFee")}
         label={t("fieldLabel")}
@@ -436,7 +455,7 @@ function HostFeeField({
         helper={max !== undefined ? t("fieldHintMax", { max: format.price(max, currency) }) : t("fieldHint")}
       >
         <span className="relative block">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-neutral-500">{format.currencySymbol(currency)}</span>
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-muted">{format.currencySymbol(currency)}</span>
           <input
             type="number"
             inputMode="numeric"
@@ -483,7 +502,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
             label={t("lookingFor")}
             error={errorOf("lookingForText")}
             helper={t("lookingForHint")}
-            aside={<span className="text-xs tabular-nums text-zinc-400">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
+            aside={<span className="text-xs tabular-nums text-muted">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
           >
             <Starters items={starters("lookingFor")} onPick={(s) => insert("lookingForText", s, lookingForRef)} />
             <AutoTextarea
@@ -505,7 +524,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
         </FormField>
 
         <FormField id={fieldId("dayText")} label={t("day")} optional group>
-          <div className="mb-2 inline-flex rounded-full border border-[#E7E5E4] bg-[#FAFAF9] p-0.5 text-[13px]">
+          <div className="mb-2 inline-flex rounded-full border border-line bg-bg p-0.5 text-[13px]">
             {([false, true] as const).map((template) => {
               const active = (form.dayParts !== null) === template;
               return (
@@ -514,7 +533,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
                   type="button"
                   aria-pressed={active}
                   onClick={() => patch({ dayParts: template ? (form.dayParts ?? ["", "", ""]) : null })}
-                  className={cn("h-8 rounded-full px-3 font-medium transition-colors", active ? "bg-white text-ink shadow-sm" : "text-zinc-500 hover:text-ink")}
+                  className={cn("h-8 rounded-full px-3 font-medium transition-colors", active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink")}
                 >
                   {template ? t("dayModeTemplate") : t("dayModeFree")}
                 </button>
@@ -525,7 +544,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
             <div className="space-y-2">
               {form.dayParts.map((part, i) => (
                 <label key={i} className="flex items-center gap-3">
-                  <span className="w-20 shrink-0 text-[13px] font-medium text-zinc-500">{partLabels[i]}</span>
+                  <span className="w-20 shrink-0 text-[13px] font-medium text-muted">{partLabels[i]}</span>
                   <input
                     className={formInput}
                     value={part}
@@ -553,7 +572,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
           id={fieldId("hostNote")}
           label={t("hostNote")}
           optional
-          aside={<span className="text-xs tabular-nums text-zinc-400">{t("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}
+          aside={<span className="text-xs tabular-nums text-muted">{t("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}
         >
           <input
             className={formInput}
@@ -570,7 +589,7 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
               type="button"
               onClick={() => update("hostNote", example)}
               aria-pressed={form.hostNote === example}
-              className={cn(suggestionClass, form.hostNote === example && "border-solid border-ink text-ink")}
+              className={cn(suggestionClass, form.hostNote === example && "border-solid border-ink bg-ink text-surface hover:bg-ink hover:text-surface")}
             >
               {example}
             </button>
@@ -663,20 +682,20 @@ function IdeasField({ ideas, onChange }: { ideas: string[]; onChange: (ideas: st
                   type="button"
                   onClick={() => onChange(slots.filter((_, j) => j !== i))}
                   aria-label={t("removeIdea", { number: i + 1 })}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-black/5"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5"
                 >
                   <X className="size-4" />
                 </button>
               )}
             </div>
             {link && isLink(link) && (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-[#E7E5E4] bg-white p-2">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-400">
+              <div className="flex items-center gap-3 rounded-xl border border-dashed border-line bg-surface p-2">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-bg text-muted">
                   <Link2 className="size-5" aria-hidden />
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium">{linkDomain(link)}</span>
-                  <span className="block text-xs text-zinc-500">{t("ideaPreview")}</span>
+                  <span className="block text-xs text-muted">{t("ideaPreview")}</span>
                 </span>
               </div>
             )}
@@ -705,13 +724,13 @@ export function AboutSummary({ me, onContinue }: { me: User; onContinue: () => v
         <Avatar user={me} size="lg" />
         <div className="min-w-0">
           <p className="truncate font-semibold">{me.name}</p>
-          <p className="truncate text-sm text-zinc-500">{format.ageAndCountry(me)}</p>
+          <p className="truncate text-sm text-muted">{format.ageAndCountry(me)}</p>
         </div>
       </div>
       {me.photos.length > 0 && (
         <div className="no-scrollbar flex gap-2 overflow-x-auto">
           {me.photos.map((src, i) => (
-            <div key={`${src}-${i}`} className="relative aspect-4/5 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+            <div key={`${src}-${i}`} className="relative aspect-4/5 w-16 shrink-0 overflow-hidden rounded-xl bg-bg">
               <Img src={src} alt="" fill sizes="64px" className="object-cover" />
             </div>
           ))}
@@ -749,7 +768,7 @@ export function AboutFields({ about, update, fields, full, errorOf, touch }: Abo
 
   return (
     <FormCards>
-      {!full && <p className="rounded-[24px] bg-white px-6 py-4 text-sm text-zinc-600">{t("about.missingIntro")}</p>}
+      {!full && <p className="rounded-[24px] bg-surface px-6 py-4 text-sm text-muted">{t("about.missingIntro")}</p>}
       {show("photo") && (
         <FormCard id={fieldId("photo")} title={t("about.photos")} description={t("about.photosHint")}>
           <div className="max-w-40">
@@ -788,13 +807,13 @@ export function AboutFields({ about, update, fields, full, errorOf, touch }: Abo
           )}
           {show("age") && (
             <FormField id={fieldId("age")} label={t("about.age")} error={errorOf("age")} group>
-              <div className="inline-flex items-center gap-1 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] p-1">
+              <div className="inline-flex items-center gap-1 rounded-xl border border-line bg-bg p-1">
                 <button
                   type="button"
                   onClick={() => setAge(age ? age - 1 : 25)}
                   disabled={age > 0 && age <= 18}
                   aria-label={t("about.younger")}
-                  className="flex size-9 items-center justify-center rounded-lg text-zinc-600 hover:bg-white disabled:opacity-30"
+                  className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface disabled:opacity-30"
                 >
                   <Minus className="size-4" />
                 </button>
@@ -809,14 +828,14 @@ export function AboutFields({ about, update, fields, full, errorOf, touch }: Abo
                   placeholder={t("about.agePlaceholder")}
                   aria-label={t("about.age")}
                   aria-invalid={Boolean(errorOf("age")) || undefined}
-                  className="h-9 w-14 bg-transparent text-center text-[15px] tabular-nums outline-none [appearance:textfield] placeholder:text-neutral-400 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="h-9 w-14 bg-transparent text-center text-[15px] tabular-nums outline-none [appearance:textfield] placeholder:text-muted [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <button
                   type="button"
                   onClick={() => setAge(age ? age + 1 : 25)}
                   disabled={age >= 99}
                   aria-label={t("about.older")}
-                  className="flex size-9 items-center justify-center rounded-lg text-zinc-600 hover:bg-white disabled:opacity-30"
+                  className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface disabled:opacity-30"
                 >
                   <Plus className="size-4" />
                 </button>
@@ -843,7 +862,7 @@ export function AboutFields({ about, update, fields, full, errorOf, touch }: Abo
           )}
         </FormCard>
       )}
-      <p className="px-2 text-[13px] text-zinc-500">{t("about.laterHint")}</p>
+      <p className="px-2 text-[13px] text-muted">{t("about.laterHint")}</p>
     </FormCards>
   );
 }
@@ -873,7 +892,7 @@ export function InviteStep({ people, selected, max, onChange }: InviteStepProps)
     <FormCards>
       <FormCard title={t("title")} description={t("description")}>
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
           <input
             type="search"
             value={query}
@@ -923,11 +942,11 @@ export function InviteStep({ people, selected, max, onChange }: InviteStepProps)
             })}
           </div>
         ) : (
-          <p className="text-sm text-zinc-500">{t("noMatch", { query: query.trim() })}</p>
+          <p className="text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>
         )}
-        {full && max > 0 && <p className="text-[13px] text-zinc-500">{t("full", { count: max })}</p>}
+        {full && max > 0 && <p className="text-[13px] text-muted">{t("full", { count: max })}</p>}
       </FormCard>
-      <p className="px-2 text-[13px] text-zinc-500">{t("hint")}</p>
+      <p className="px-2 text-[13px] text-muted">{t("hint")}</p>
     </FormCards>
   );
 }
@@ -939,9 +958,9 @@ export function PublishCard({ card, loginNote }: { card: ReactNode; loginNote: b
   const t = useTranslations("create.publish");
   return (
     <div className="space-y-3">
-      <p className="text-center text-sm text-zinc-500">{t("intro")}</p>
+      <p className="text-center text-sm text-muted">{t("intro")}</p>
       <div className="mx-auto w-full max-w-100">{card}</div>
-      {loginNote && <p className="text-center text-sm text-zinc-500">{t("loginBeforeLive")}</p>}
+      {loginNote && <p className="text-center text-sm text-muted">{t("loginBeforeLive")}</p>}
     </div>
   );
 }
@@ -965,10 +984,10 @@ export function PublishAside({ stay, form, invited = 0 }: { stay: Stay; form: Fo
   return (
     <FormCards>
       <FormCard title={t("summary")}>
-        <dl className="divide-y divide-black/5 text-sm">
+        <dl className="divide-y divide-line text-sm">
           {rows.map(([label, value, nowrap]) => (
             <div key={label} className="flex justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-              <dt className="shrink-0 text-zinc-500">{label}</dt>
+              <dt className="shrink-0 text-muted">{label}</dt>
               <dd className={cn("min-w-0 text-right font-medium", nowrap && "whitespace-nowrap")}>{value}</dd>
             </div>
           ))}
@@ -981,7 +1000,7 @@ export function PublishAside({ stay, form, invited = 0 }: { stay: Stay; form: Fo
               <StepNumber n={i + 1} />
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{t(`steps.${key}.title`)}</p>
-                <p className="text-[13px] text-zinc-500">{t(`steps.${key}.text`)}</p>
+                <p className="text-[13px] text-muted">{t(`steps.${key}.text`)}</p>
               </div>
             </li>
           ))}
@@ -1005,7 +1024,7 @@ export function Checklist({ items, onJump, expanded = false }: { items: Checklis
   const [open, setOpen] = useState(false);
   const done = items.filter((i) => i.done).length;
   const list = (
-    <ul className={cn("rounded-[24px] bg-white p-2", !expanded && "absolute inset-x-0 bottom-full z-20 mb-2 shadow-xl ring-1 ring-black/5")}>
+    <ul className={cn("rounded-[24px] bg-surface p-2", !expanded && "absolute inset-x-0 bottom-full z-20 mb-2 shadow-xl ring-1 ring-line")}>
       {items.map(({ key, done: itemDone }) => (
         <li key={key}>
           <button
@@ -1014,16 +1033,16 @@ export function Checklist({ items, onJump, expanded = false }: { items: Checklis
               setOpen(false);
               onJump(key);
             }}
-            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm hover:bg-black/5"
+            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm hover:bg-ink/5"
           >
             {itemDone ? (
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-surface">
                 <Check className="size-3" strokeWidth={3} aria-hidden />
               </span>
             ) : (
-              <Circle className="size-5 shrink-0 text-zinc-300" aria-hidden />
+              <Circle className="size-5 shrink-0 text-muted/60" aria-hidden />
             )}
-            <span className={cn("flex-1", itemDone ? "text-ink" : "text-zinc-500")}>{t(`items.${key}`)}</span>
+            <span className={cn("flex-1", itemDone ? "text-ink" : "text-muted")}>{t(`items.${key}`)}</span>
             <span className="sr-only">{itemDone ? t("done") : t("missing")}</span>
           </button>
         </li>
@@ -1038,13 +1057,13 @@ export function Checklist({ items, onJump, expanded = false }: { items: Checklis
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex h-12 w-full items-center gap-3 rounded-2xl bg-white px-4 text-left text-sm hover:bg-white/70"
+        className="flex h-12 w-full items-center gap-3 rounded-2xl bg-surface px-4 text-left text-sm hover:bg-surface/70"
       >
-        <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
+        <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
           <span className="absolute inset-y-0 left-0 rounded-full bg-ink transition-[width]" style={{ width: `${(done / items.length) * 100}%` }} />
         </span>
         <span className="shrink-0 font-medium tabular-nums">{t("progress", { done, total: items.length })}</span>
-        <ChevronUp className={cn("size-4 shrink-0 text-zinc-500 transition-transform", !open && "rotate-180")} aria-hidden />
+        <ChevronUp className={cn("size-4 shrink-0 text-muted transition-transform", !open && "rotate-180")} aria-hidden />
       </button>
     </div>
   );

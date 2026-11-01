@@ -77,7 +77,7 @@ export function InterestRow({ exclude = [], layout = "scroll" }: { /** Spots alr
           </li>
         </ul>
       ) : (
-        <ScrollRow className="mt-5">
+        <ScrollRow>
           {spots.slice(0, ROW_SPOTS).map((spot) => (
             <div key={spot.placeName} className="flex w-72 shrink-0 snap-start">
               <DemandCard spot={spot} />
@@ -101,9 +101,9 @@ export function AddPlaceCard({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={() => requireAuth(onAdd, t("loginToAdd"))}
-      className="flex min-h-56 w-full flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-black/10 p-6 text-zinc-600 transition-colors hover:border-black/20 hover:text-ink"
+      className="flex min-h-56 w-full flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-line p-6 text-muted transition-colors hover:bg-surface hover:text-ink"
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-white text-ink">
+      <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink">
         <Plus className="size-5" aria-hidden />
       </span>
       <span className="font-semibold">{t("addPlace")}</span>
@@ -157,7 +157,7 @@ export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: bo
   const openPeople = () => (loggedIn ? setListing(true) : requireAuth(() => setListing(true), t("loginToSeeFor", { place: spot.placeName })));
   return (
     // Tiles fill a grid cell beside the House cards (as tall as they are); in rows the mosaic sets the height.
-    <div className={cn("flex w-full flex-col overflow-hidden bg-white", tile ? "h-full rounded-[28px]" : "rounded-[24px]")}>
+    <div className={cn("flex w-full flex-col overflow-hidden bg-surface", tile ? "h-full rounded-[28px]" : "rounded-[24px]")}>
       <PeopleMosaic
         people={optedIn.map((p) => p.user)}
         blurred={!loggedIn}
@@ -170,7 +170,7 @@ export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: bo
           {spot.country ? `${spot.placeName}, ${spot.country}` : spot.placeName}
         </p>
         <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-ink">
-          <Users className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+          <Users className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
           <span>{summary}</span>
         </p>
         {/* Logged out, the faces are blurred – this is the way to see them. */}
@@ -178,7 +178,7 @@ export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: bo
           <button
             type="button"
             onClick={openPeople}
-            className="mt-2 w-fit whitespace-nowrap text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
+            className="mt-2 w-fit whitespace-nowrap text-xs font-medium text-muted underline underline-offset-2 hover:text-ink"
           >
             {t("loginToSee")}
           </button>
@@ -226,7 +226,7 @@ function PeopleMosaic({ people, blurred, label, onOpen }: { people: Pick<User, "
       {Array.from({ length: MOSAIC_TILES }, (_, i) => {
         const person = shown[i];
         return (
-          <span key={person?.id ?? `empty-${i}`} className="relative overflow-hidden bg-[#E8E6E1]">
+          <span key={person?.id ?? `empty-${i}`} className="relative overflow-hidden bg-line">
             {person?.photos[0] && (
               <Img
                 src={person.photos[0]}
@@ -238,7 +238,7 @@ function PeopleMosaic({ people, blurred, label, onOpen }: { people: Pick<User, "
               />
             )}
             {overflow && i === MOSAIC_TILES - 1 && (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-lg font-semibold text-white">+{rest}</span>
+              <span className="absolute inset-0 flex items-center justify-center bg-ink/55 text-lg font-semibold text-white">+{rest}</span>
             )}
           </span>
         );
@@ -290,17 +290,17 @@ function PeopleSheet({ open, onClose, spot, people, thisYear }: { open: boolean;
   const format = useFormatter();
   return (
     <Sheet open={open} onClose={onClose} title={t("peopleTitle", { place: spot.placeName })} subtitle={t("peopleSubtitle", { count: spot.count })}>
-      <ul className="divide-y divide-black/5">
+      <ul className="divide-y divide-line">
         {people.map(({ user, months }) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} onClick={onClose} className="flex items-center gap-3 py-3 hover:bg-neutral-50">
+            <Link href={`/u/${user.id}`} onClick={onClose} className="flex items-center gap-3 py-3 hover:bg-bg">
               <PersonPhoto src={user.photos[0]} alt={user.name} size={44} className="size-11" />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1 font-medium text-ink">
                   {firstName(user)}
                   {user.verified && <VerifiedBadge size={14} />}
                 </span>
-                <span className="block text-sm text-zinc-500">{personMonths(format, months, thisYear, t("anytimeShort"))}</span>
+                <span className="block text-sm text-muted">{personMonths(format, months, thisYear, t("anytimeShort"))}</span>
               </span>
               <span className="shrink-0 text-sm font-medium text-ink underline underline-offset-2">{t("viewProfile")}</span>
             </Link>
@@ -377,7 +377,7 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
         ) : (
           !place && (
             <div className="relative mt-3">
-              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
               <input
                 type="search"
                 role="combobox"
@@ -392,7 +392,7 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
                 className={cn(formInput, "pl-10")}
               />
               {suggestions.length > 0 && (
-                <ul id="place-suggestions" role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-2xl bg-white py-1 shadow-xl ring-1 ring-black/5">
+                <ul id="place-suggestions" role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-2xl bg-surface py-1 shadow-xl ring-1 ring-line">
                   {suggestions.map((p) => (
                     <li key={p.placeId} role="option" aria-selected={false}>
                       <button
@@ -401,16 +401,16 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
                           setPlace(p);
                           setQuery("");
                         }}
-                        className="flex w-full items-baseline gap-2 px-4 py-2.5 text-left text-sm hover:bg-neutral-50"
+                        className="flex w-full items-baseline gap-2 px-4 py-2.5 text-left text-sm hover:bg-bg"
                       >
                         <span className="font-medium text-ink">{p.name}</span>
-                        <span className="text-zinc-500">{p.country}</span>
+                        <span className="text-muted">{p.country}</span>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {query.trim() && suggestions.length === 0 && <p className="mt-1.5 text-[13px] text-zinc-500">{t("noMatch")}</p>}
+              {query.trim() && suggestions.length === 0 && <p className="mt-1.5 text-[13px] text-muted">{t("noMatch")}</p>}
             </div>
           )
         )}
@@ -423,14 +423,14 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
         {tried && months.length === 0 && <p className="mt-1.5 text-[13px] text-red-600">{t("monthError")}</p>}
       </fieldset>
 
-      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-page px-4 py-3">
+      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-bg px-4 py-3">
         <span className="text-sm font-medium">{t("notify")}</span>
         <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-5 accent-ink" />
       </label>
-      <label className="-mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-page px-4 py-3">
+      <label className="-mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-bg px-4 py-3">
         <span>
           <span className="block text-sm font-medium">{t("visible")}</span>
-          <span className="mt-0.5 block text-[13px] text-zinc-500">{t("visibleHelper")}</span>
+          <span className="mt-0.5 block text-[13px] text-muted">{t("visibleHelper")}</span>
         </span>
         <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} className="size-5 shrink-0 accent-ink" />
       </label>

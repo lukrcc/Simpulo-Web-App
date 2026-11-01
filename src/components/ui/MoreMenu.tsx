@@ -22,7 +22,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
   const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
-  const itemClass = "block w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50";
+  const itemClass = "block w-full px-4 py-2.5 text-left text-sm hover:bg-bg";
 
   return (
     <div className={cn("relative", className)}>
@@ -32,7 +32,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
         aria-label={label ?? t("more")}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="rounded-full p-2 text-neutral-600 hover:bg-black/5 hover:text-ink"
+        className="rounded-full p-2 text-muted hover:bg-ink/5 hover:text-ink"
       >
         <MoreHorizontal className="size-5" />
       </button>
@@ -41,7 +41,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
           <button type="button" aria-label={t("ui.moreMenu.closeMenu")} tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" />
           <div
             role="menu"
-            className="animate-fade-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl bg-white py-1 shadow-xl ring-1 ring-black/5"
+            className="animate-fade-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl bg-surface py-1 shadow-xl ring-1 ring-line"
           >
             {items.map((item) =>
               "href" in item ? (

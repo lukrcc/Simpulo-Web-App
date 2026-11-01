@@ -12,7 +12,13 @@ export const DRAFT_KEY = "draftHouse";
 export const HOST_NOTE_MAX = 60;
 export const MAX_IDEAS = 3;
 export const TITLE_MIN = 4;
+/** Editing: Houses opened before the 28-character limit keep their longer titles. */
 export const TITLE_MAX = 60;
+/** A new House's title – short enough for the hero (the counter in the form shows it). */
+export const TITLE_MAX_NEW = 28;
+
+/** The title limit: 28 for a new House, 60 when editing one. */
+export const titleMaxFor = (editing?: Stay) => (editing ? TITLE_MAX : TITLE_MAX_NEW);
 export const CUSTOM_VIBE_MAX = 20;
 export const LOOKING_FOR_MIN = 20;
 export const LOOKING_FOR_MAX = 160;
@@ -53,6 +59,8 @@ export interface FormState {
   budgetMax: string;
   /** Host programme per person, verified hosts only ("" = none) */
   hostFee: string;
+  /** Optional WhatsApp / Telegram invite link for the crew ("" = none) */
+  crewGroupUrl: string;
   // 2 · Your pitch
   whyText: string;
   /** Always the full text – with the template on, it's the parts joined (see joinDayParts) */
@@ -90,6 +98,7 @@ export const initialForm: FormState = {
   budgetMin: "",
   budgetMax: "",
   hostFee: "",
+  crewGroupUrl: "",
   whyText: "",
   dayText: "",
   dayParts: null,
@@ -118,6 +127,7 @@ export function formFromStay(stay: Stay): FormState {
     budgetMin: stay.budgetPerPerson ? String(stay.budgetPerPerson.min) : "",
     budgetMax: stay.budgetPerPerson ? String(stay.budgetPerPerson.max) : "",
     hostFee: stay.hostFeePerPerson ? String(stay.hostFeePerPerson) : "",
+    crewGroupUrl: stay.crewGroupUrl ?? "",
     whyText: stay.whyText,
     dayText: stay.dayText,
     lookingForText: stay.lookingForText,
@@ -284,6 +294,7 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
     pricePerPerson: editing?.pricePerPerson,
     budgetPerPerson: locked ? editing?.budgetPerPerson : budgetOf(form),
     accommodationLink: editing?.accommodationLink,
+    crewGroupUrl: normalizeGroupUrl(form.crewGroupUrl) || undefined,
     accommodationStatus: editing?.accommodationStatus ?? "open",
     description: editing ? editing.description : form.whyText.trim(),
     whyText: form.whyText.trim(),
@@ -307,12 +318,32 @@ export function toProfilePatch(form: FormState, me?: User): ProfilePatch {
   };
 }
 
+/** Hosts a crew group link may point to: WhatsApp (wa.me, chat.whatsapp.com) and Telegram (t.me). */
+const GROUP_HOSTS = new Set(["wa.me", "chat.whatsapp.com", "t.me"]);
+
+/** The crew group link as saved: trimmed, https:// added when it was left out ("" = none). */
+export function normalizeGroupUrl(raw: string): string {
+  const value = raw.trim();
+  if (!value) return "";
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+/** A WhatsApp or Telegram invite link (wa.me/…, chat.whatsapp.com/…, t.me/…) with something after the host. */
+export function isValidGroupUrl(raw: string): boolean {
+  try {
+    const url = new URL(normalizeGroupUrl(raw));
+    return GROUP_HOSTS.has(url.hostname.replace(/^www\./, "")) && url.pathname.length > 1;
+  } catch {
+    return false;
+  }
+}
+
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "hostFee" | "lookingForText" | "photo" | "name" | "age" | "country";
+export type FieldKey = "title" | "region" | "startDate" | "endDate" | "spotsTotal" | "hostFee" | "crewGroupUrl" | "lookingForText" | "photo" | "name" | "age" | "country";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
-  | { key: "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "lookingFor" | "lookingForUnfinished" | "photo" | "name" | "age" | "country" }
+  | { key: "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "crewGroupUrl" | "lookingFor" | "lookingForUnfinished" | "photo" | "name" | "age" | "country" }
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
   | { key: "minSpots"; count: number }
@@ -359,7 +390,8 @@ export function stepErrors(step: number, { form, me, minSpots, today, editing, s
   const errors: FieldErrors = {};
   if (step === 0) {
     const title = form.title.trim().length;
-    if (title < TITLE_MIN || title > TITLE_MAX) errors.title = { key: "titleLength", min: TITLE_MIN, max: TITLE_MAX };
+    const max = titleMaxFor(editing);
+    if (title < TITLE_MIN || title > max) errors.title = { key: "titleLength", min: TITLE_MIN, max };
     if (!form.region.trim()) errors.region = { key: "region" };
     // A House that already started can still be edited without moving its start.
     const startChanged = !editing || form.startDate !== editing.startDate;
@@ -376,6 +408,8 @@ export function stepErrors(step: number, { form, me, minSpots, today, editing, s
     const fee = hostFeeOf(form, me);
     const base = hostFeeBase(form, editing);
     if (fee !== undefined && base !== undefined && fee > maxHostFee(base)) errors.hostFee = { key: "hostFeeTooHigh", max: maxHostFee(base) };
+    // Optional – but if given, a WhatsApp or Telegram invite link.
+    if (form.crewGroupUrl.trim() && !isValidGroupUrl(form.crewGroupUrl)) errors.crewGroupUrl = { key: "crewGroupUrl" };
   }
   if (step === 1) {
     // The hook on cards and the Spotlight – one honest line at least.
@@ -404,6 +438,7 @@ export const STEP_OF_FIELD: Record<FieldKey, number> = {
   endDate: 0,
   spotsTotal: 0,
   hostFee: 0,
+  crewGroupUrl: 0,
   lookingForText: 1,
   photo: 2,
   name: 2,

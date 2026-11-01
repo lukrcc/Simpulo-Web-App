@@ -45,10 +45,10 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
       {children}
       <Sheet open={hostName !== null} onClose={close} title={t("title")}>
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
             <BellRing className="size-5" />
           </span>
-          <p className="text-neutral-700">{t("text", { name: hostName ?? "" })}</p>
+          <p className="text-ink">{t("text", { name: hostName ?? "" })}</p>
         </div>
         <div className="mt-6 flex gap-2">
           <button type="button" onClick={close} className={buttonClass("ghost", "lg", "flex-1")}>

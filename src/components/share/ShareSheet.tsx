@@ -2,25 +2,20 @@
 
 import { Link2, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { SiInstagram, SiTiktok, SiTwitch, SiWhatsapp } from "react-icons/si";
 import { sheetButtonClass } from "@/components/ui/sheetButton";
-import { glassCircle } from "@/components/ui/glass";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { SHARE_CHANNELS, shareUrl } from "@/lib/growth";
 import { useStore } from "@/lib/store";
-import type { Stay, User } from "@/lib/types";
+import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type ShareTarget = { kind: "house"; stay: Stay } | { kind: "profile"; user: User };
+/** Houses are shared with HouseShare (system dialog / "Share this House"); this sheet shares profiles. */
+export type ShareTarget = { kind: "profile"; user: User };
 
 type LinkChannel = (typeof SHARE_CHANNELS)[number];
-
-/** Houses: just the link and WhatsApp (plus the system dialog where there is one). The story image and the QR poster
- * are host tools on the House's own page (HostShareTools). */
-const HOUSE_CHANNELS: readonly LinkChannel[] = ["copy", "whatsapp"];
 
 const CHANNEL_ICONS: Record<LinkChannel, ReactNode> = {
   whatsapp: <SiWhatsapp className="size-5 text-[#25D366]" />,
@@ -31,7 +26,7 @@ const CHANNEL_ICONS: Record<LinkChannel, ReactNode> = {
 };
 
 function pathOf(target: ShareTarget): string {
-  return target.kind === "house" ? `/house/${target.stay.slug}` : `/u/${target.user.id}`;
+  return `/u/${target.user.id}`;
 }
 
 const noSubscribe = () => () => {};
@@ -41,33 +36,25 @@ function useCanNativeShare(): boolean {
 }
 
 /**
- * Share a House or a profile. Every link carries ?ref={you}&utm_source={channel}, so a visit that comes from it is
- * attributed (src/lib/growth.ts). Houses: "Copy link", "WhatsApp" and, where supported, "Share…" (the system share
- * dialog). Profiles also list Instagram, TikTok and Twitch – they have no web share target, so their link is copied
- * ready to paste.
+ * Share a profile. Every link carries ?ref={you}&utm_source={channel}, so a visit that comes from it is attributed
+ * (src/lib/growth.ts): WhatsApp, Instagram, TikTok, Twitch (no web share target – the link is copied ready to paste),
+ * "Copy link" and, where supported, "Share…" (the system share dialog).
  */
 export function ShareSheet({ target, open, onClose }: { target: ShareTarget; open: boolean; onClose: () => void }) {
   const t = useTranslations("growth.share");
   const tCommon = useTranslations("common");
   const store = useStore();
   const showToast = useToast();
-  const houseId = target.kind === "house" ? target.stay.id : undefined;
-  const ownProfile = target.kind === "profile" && target.user.id === store.currentUserId;
+  const ownProfile = target.user.id === store.currentUserId;
   const canNativeShare = useCanNativeShare();
-  const channels = target.kind === "house" ? HOUSE_CHANNELS : SHARE_CHANNELS;
-
-  const title =
-    target.kind === "house"
-      ? t("titleHouse")
-      : ownProfile
-        ? t("titleOwnProfile")
-        : t("titleProfile", { name: target.user.name.split(" ")[0] });
+  const channels = SHARE_CHANNELS;
+  const title = ownProfile ? t("titleOwnProfile") : t("titleProfile", { name: target.user.name.split(" ")[0] });
 
   async function share(channel: LinkChannel) {
     const url = shareUrl(pathOf(target), { refUserId: store.currentUserId, channel });
-    store.track("link_shared", { houseId, channel });
+    store.track("link_shared", { channel });
     if (channel === "whatsapp") {
-      const text = target.kind === "house" ? t("whatsappHouse", { title: target.stay.title }) : t("whatsappProfile", { name: target.user.name });
+      const text = t("whatsappProfile", { name: target.user.name });
       window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, "_blank", "noopener,noreferrer");
       onClose();
       return;
@@ -83,17 +70,17 @@ export function ShareSheet({ target, open, onClose }: { target: ShareTarget; ope
 
   async function nativeShare() {
     const url = shareUrl(pathOf(target), { refUserId: store.currentUserId, channel: "native" });
-    const text = target.kind === "house" ? t("whatsappHouse", { title: target.stay.title }) : t("whatsappProfile", { name: target.user.name });
+    const text = t("whatsappProfile", { name: target.user.name });
     try {
-      await navigator.share({ title: target.kind === "house" ? target.stay.title : target.user.name, text, url });
-      store.track("link_shared", { houseId, channel: "native" });
+      await navigator.share({ title: target.user.name, text, url });
+      store.track("link_shared", { channel: "native" });
       onClose();
     } catch {
       // Dismissed (AbortError) or refused – the sheet stays open for the other options.
     }
   }
 
-  const rowClass = cn(sheetButtonClass, "bg-page text-ink hover:bg-zinc-200/60");
+  const rowClass = cn(sheetButtonClass, "bg-bg text-ink hover:bg-line/60");
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={store.currentUserId ? t("subtitle") : undefined}>
       <ul className="grid grid-cols-1 gap-2">
@@ -119,35 +106,5 @@ export function ShareSheet({ target, open, onClose }: { target: ShareTarget; ope
         )}
       </ul>
     </Sheet>
-  );
-}
-
-/** Round glass share button for photos (House cards): opens the share sheet without opening the card's link. */
-export function CardShareButton({ stay, variant = "glass", className }: { stay: Stay; /** "glass" on photos, "outline" on white */ variant?: "glass" | "outline"; className?: string }) {
-  const t = useTranslations("growth.share");
-  const [open, setOpen] = useState(false);
-
-  function openSheet(e: MouseEvent) {
-    // Cards are links – sharing must not open the House.
-    e.preventDefault();
-    e.stopPropagation();
-    setOpen(true);
-  }
-
-  return (
-    <>
-      <button type="button" onClick={openSheet} aria-label={t("buttonFor", { title: stay.title })} title={t("button")}
-        className={cn(
-          variant === "glass"
-            ? glassCircle
-            : "flex size-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-ink transition-colors hover:border-neutral-400",
-          className,
-        )}
-      >
-        <Share2 className="size-5" />
-      </button>
-      {/* Portaled: the card scales on hover, which would make the fixed sheet position itself inside the card. */}
-      {open && createPortal(<ShareSheet target={{ kind: "house", stay }} open onClose={() => setOpen(false)} />, document.body)}
-    </>
   );
 }

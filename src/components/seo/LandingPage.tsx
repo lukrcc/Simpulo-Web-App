@@ -25,7 +25,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
   return (
     <Container page>
       <JsonLd data={breadcrumbList(breadcrumbs)} />
-      <nav aria-label={t("breadcrumbs.label")} className="text-sm text-zinc-500">
+      <nav aria-label={t("breadcrumbs.label")} className="text-sm text-muted">
         <ol className="flex flex-wrap items-center gap-1.5">
           {breadcrumbs.map((crumb, i) => (
             <li key={crumb.path} className="flex items-center gap-1.5">
@@ -65,7 +65,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
             <ul className="mt-4 flex flex-wrap gap-2">
               {group.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-medium text-ink transition-colors hover:bg-zinc-100">
+                  <Link href={link.href} className="inline-flex h-10 items-center rounded-full bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-bg">
                     {link.label}
                   </Link>
                 </li>

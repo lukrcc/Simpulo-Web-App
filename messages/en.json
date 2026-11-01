@@ -27,7 +27,8 @@
       "adminHouses": "Prepared Houses",
       "adminNewHouse": "Prepare a House",
       "notifications": "Notifications",
-      "people": "People"
+      "people": "People",
+      "saved": "Saved houses"
     }
   },
   "common": {
@@ -146,26 +147,6 @@
         "onNetwork": "{name} on {network}",
         "website": "Website"
       },
-      "crewContacts": {
-        "channel": {
-          "whatsapp": "WhatsApp",
-          "telegram": "Telegram",
-          "signal": "Signal",
-          "discord": "Discord",
-          "phone": "Phone",
-          "facetime": "FaceTime"
-        },
-        "label": {
-          "whatsapp": "Message {name} on WhatsApp",
-          "telegram": "Message {name} on Telegram",
-          "signal": "Message {name} on Signal",
-          "discord": "Message {name} on Discord",
-          "phone": "Call {name}",
-          "facetime": "FaceTime {name}"
-        },
-        "crewOnly": "Crew only",
-        "reachMeOn": "Reach me on"
-      },
       "save": {
         "save": "Save {title}",
         "unsave": "Remove {title} from saved",
@@ -234,7 +215,8 @@
       "houses": "Houses",
       "messages": "Messages",
       "profile": "Profile",
-      "host": "Host"
+      "host": "Host",
+      "yourHouses": "Your houses"
     },
     "logIn": "Log in",
     "openHouse": "Open a House",
@@ -243,11 +225,13 @@
     "tagline": "Share a place. Find your people.",
     "menu": {
       "profile": "Profile",
+      "saved": "Saved houses",
       "settings": "Settings",
       "getTheApp": "Get the app",
       "logOut": "Log out",
       "close": "Close menu"
-    }
+    },
+    "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}"
   },
   "footer": {
     "label": "Footer",
@@ -480,7 +464,6 @@
       "noReminders": "No reminders for this user right now.",
       "fireNow": "Fire now",
       "overdue": "overdue – would send now",
-      "plusChat": "+ crew chat",
       "channel": {
         "email": "email",
         "emailPush": "email + push"
@@ -538,9 +521,9 @@
     },
     "sortOptions": {
       "soonest": "Soonest first",
-      "newest": "Newest"
+      "price": "Lowest price",
+      "newest": "Just opened"
     },
-    "all": "All",
     "anywhere": "Anywhere",
     "anyLanguage": "Any language",
     "country": "Country",
@@ -561,7 +544,7 @@
     },
     "featuredHouses": "Featured Houses",
     "featuredHousesKeyboard": "Featured Houses – use the arrow keys to browse",
-    "nextHouses": "Next houses",
+    "next": "Next",
     "slideLabel": "{index} of {count}: {title}",
     "houseWithHost": "{title} with {host}",
     "viewHouseWithHost": "View House: {title} with {host}",
@@ -576,7 +559,8 @@
       "photoAlt": "{title} – photo {number}",
       "prevPhoto": "Previous photo",
       "nextPhoto": "Next photo",
-      "showPhoto": "Photo {number} of {count}"
+      "showPhoto": "Photo {number} of {count}",
+      "invited": "You're invited"
     },
     "collections": {
       "scrollBack": "Scroll back",
@@ -670,24 +654,23 @@
     "showMore": "Show {count} more",
     "filterByCollection": "Filter by collection",
     "filtersUi": {
-      "clear": "Clear",
       "clearAll": "Clear all",
       "noMatches": "No matches",
       "month": "Month",
       "budget": "Budget",
-      "vibe": "Vibe",
       "perPerson": "per person, ≈ EUR",
       "budgetMin": "Minimum budget",
       "budgetMax": "Maximum budget",
-      "scrollBack": "Scroll back",
-      "scrollOn": "Scroll on",
-      "remove": "Remove {label}",
       "otherRegion": "Other",
       "filtersCount": "Filters, {count} active",
       "show": "Show {count, plural, one {# house} other {# houses}}",
-      "compactLabel": "Filters",
-      "editFilter": "Change filters – {label}"
-    }
+      "searchPlaceDate": "Place or month",
+      "noBudget": "No prices yet",
+      "noOptions": "Nothing to choose yet",
+      "categories": "Categories{count, plural, =0 {} other { (#)}}"
+    },
+    "more": "More",
+    "all": "All"
   },
   "house": {
     "notFound": {
@@ -787,7 +770,9 @@
       "text": "You lived together before. Your spot is held until you answer.",
       "acceptedToast": "You're in – {title}",
       "declinedToast": "Invite declined – your spot is free again"
-    }
+    },
+    "openCrewGroup": "Open crew group",
+    "messageHost": "Message {name}"
   },
   "request": {
     "cta": {
@@ -849,7 +834,8 @@
       "titleLength": "Titles are {min}–{max} characters.",
       "lookingFor": "One line at least (20+ characters) – it's the hook on your card.",
       "lookingForUnfinished": "Finish the sentence – say who you're looking for in your own words.",
-      "hostFeeTooHigh": "At most 30 % of the share – {max} at your lowest budget."
+      "hostFeeTooHigh": "At most 30 % of the share – {max} at your lowest budget.",
+      "crewGroupUrl": "Use a WhatsApp or Telegram invite link (wa.me, chat.whatsapp.com or t.me)."
     },
     "saved": "House saved",
     "published": "Your House is open 🎉",
@@ -913,7 +899,8 @@
         "where": "Where & when",
         "title": "Title",
         "crew": "Crew",
-        "budget": "Budget"
+        "budget": "Budget",
+        "crewGroup": "Crew group"
       },
       "vibeHint": "Pick one – it drives the suggestions.",
       "custom": "Custom",
@@ -1018,7 +1005,9 @@
       "currencyChange": "change",
       "currencyLabel": "Currency",
       "currencyHint": "From your country. Guests see an approximate amount in their own currency.",
-      "lockedNote": "The place is locked – its price and link are managed on the House's Manage page."
+      "lockedNote": "The place is locked – its price and link are managed on the House's Manage page.",
+      "crewGroupUrl": "Crew group link (WhatsApp or Telegram)",
+      "crewGroupHelper": "Optional. Your crew sees it once every spot is taken – until then, everyone talks in Messages."
     },
     "pitch": {
       "cards": {
@@ -1093,35 +1082,10 @@
       "countryEmpty": "No country matches.",
       "noLanguage": "No language matches."
     },
-    "socials": {
-      "instagram": "Instagram",
-      "tiktok": "TikTok",
-      "youtube": "YouTube",
-      "twitch": "Twitch",
-      "kick": "Kick",
-      "linkedin": "LinkedIn",
-      "x": "X",
-      "website": "Website",
-      "threads": "Threads"
-    },
-    "socialPlaceholders": {
-      "handle": "handle",
-      "username": "username",
-      "profileName": "profile name",
-      "url": "https://…"
-    },
     "edit": {
       "loginTitle": "Log in to edit your House",
       "notFound": "House not found",
       "backToHouses": "Back to Houses"
-    },
-    "contactPlaceholders": {
-      "whatsapp": "+49 176 1234 5678",
-      "telegram": "handle",
-      "signal": "+49 176 1234 5678",
-      "discord": "name#0421",
-      "phone": "+49 176 1234 5678",
-      "facetime": "phone or Apple ID"
     },
     "photoPlaceholder": "Your photo here",
     "starters": {
@@ -1487,14 +1451,14 @@
       }
     },
     "invite": {
-      "title": "Invite your crew",
-      "description": "Your People – everyone from your past and booked Houses. They get a notification and an email; each invite holds a spot until they answer.",
+      "title": "Invite people you've lived with",
+      "description": "People from your past Houses. They get a notification and see the House with “You’re invited”; each invite holds a spot until they answer.",
       "count": "{count} of {max, plural, one {# spot} other {# spots}} picked",
       "pickAll": "Pick everyone",
       "clear": "Clear",
       "full": "All {count, plural, one {# spot is} other {# spots are}} picked – add a spot on the first step to invite more.",
       "hint": "Optional. You can still take requests from anyone for the open spots.",
-      "search": "Search your people",
+      "search": "Search the people you lived with",
       "togetherIn": "Together in {houses}",
       "noMatch": "Nobody called “{query}”"
     }
@@ -1503,13 +1467,6 @@
     "title": "Houses",
     "loginTitle": "Log in to see your houses",
     "loginDescription": "Houses you host or joined show up here.",
-    "tabs": {
-      "hosting": "Hosting",
-      "joined": "Joined",
-      "people": "People",
-      "past": "Past",
-      "saved": "Saved"
-    },
     "emptyJoined": {
       "title": "Find a House in Explore",
       "description": "Ask to join a crew that matches your vibe – it shows up here.",
@@ -1521,7 +1478,7 @@
       "new": "{count} new",
       "pending": "Pending",
       "closed": "Closed",
-      "invited": "Invited"
+      "invited": "You're invited"
     },
     "firstHouse": {
       "title": "Open your first House<accent>.</accent>",
@@ -1664,9 +1621,13 @@
     },
     "openAnother": "Open another House",
     "saved": {
+      "title": "Saved houses",
+      "description": "Houses you tapped the heart on – only you see this list.",
       "emptyTitle": "No saved Houses yet",
       "emptyDescription": "Tap the heart on any House to keep it here.",
-      "unsave": "Unsave"
+      "explore": "Explore Houses",
+      "loginTitle": "Log in to see your saved Houses",
+      "loginDescription": "Tap the heart on any House to keep it here."
     },
     "hostAlerts": {
       "title": "Host alerts",
@@ -1696,6 +1657,12 @@
       "chatTitle": "Crew chat",
       "chatText": "Still open – plan the next one here.",
       "you": "You"
+    },
+    "sections": {
+      "hosting": "Hosting",
+      "joined": "Joined",
+      "past": "Past",
+      "toggle": "{label}, {count} Houses"
     }
   },
   "messages": {
@@ -1703,13 +1670,11 @@
       "joined": "{name} joined the crew",
       "left": "{name} left the crew",
       "removed": "{name} is no longer in the crew",
-      "locked": "{name} locked the accommodation · {price} per person",
-      "unlocked": "{name} unlocked the accommodation – the crew decides again",
       "closed": "{name} closed this House – it's no longer listed and takes no new requests",
-      "paid": "{name} paid · {paid} of {total}",
-      "bookingConfirmed": "Booking confirmed – the place is booked 🎉",
-      "reminderPayment": "Reminder: {name}'s share is due {payBy}",
-      "reminderArrival": "{days} days to go – arrival {date} 🎒"
+      "crewComplete": "Crew complete 🎉",
+      "bookingConfirmed": "Host confirmed the booking",
+      "addressShared": "The address is on the House page now",
+      "refund": "{count, plural, one {A paid share was refunded} other {# paid shares were refunded}}"
     },
     "notify": {
       "newRequest": "New request from {name} for {title}",
@@ -1784,24 +1749,10 @@
       "cancelReply": "Cancel reply",
       "messageLabel": "Message",
       "send": "Send",
-      "lockedBy": "{name} locked the accommodation",
-      "locked": "Accommodation locked",
-      "total": "Total",
-      "perPerson": "Per person",
-      "payBy": "Pay by",
-      "paid": "Paid",
-      "payShare": "Pay my share · {price}",
-      "replaced": "Replaced – this place was unlocked later.",
-      "lockedAccommodation": "Locked accommodation",
-      "lockThis": "Lock this accommodation",
       "whosIn": "Who's in",
-      "lockSummary": "{price} pp · pay by {date}",
-      "paidOf": "{paid} of {total} paid",
-      "payments": "Payments",
-      "accommodationOpen": "Accommodation open · {count, plural, =0 {no links suggested yet} one {# link suggested} other {# links suggested}}",
       "closed": "This House is closed – it's no longer listed and takes no new requests.",
       "unknown": "Unknown",
-      "about": "About {title}",
+      "about": "{title} · {dates}",
       "today": "Today",
       "yesterday": "Yesterday",
       "newMessages": "New messages",
@@ -1817,9 +1768,7 @@
       "whosInLabel": "Who's in – {count, plural, one {# person} other {# people}}",
       "memberCount": "{count, plural, one {# person} other {# people}} in this crew",
       "host": "Host",
-      "you": "You",
-      "chipOpen": "Open · {count, plural, one {# link} other {# links}}",
-      "chipLocked": "Locked · {price}"
+      "you": "You"
     }
   },
   "profile": {
@@ -1856,30 +1805,35 @@
       "photosHint": "1–{max} photos. The first one is your face photo – drag to reorder, × to remove.",
       "about": "About you",
       "name": "First name",
-      "age": "Age",
+      "birthDate": "Date of birth",
+      "birthDateHelper": "Only your age is shown – never the date.",
+      "birthDateAge": "Shown as {age} on your profile.",
+      "day": "Day",
+      "month": "Month",
+      "year": "Year",
       "country": "Country",
       "basedIn": "Based in",
       "languages": "Languages",
       "bio": "Bio",
       "bioCounter": "{count} / {max}",
       "publicLinks": "Public links",
-      "publicLinksHint": "Shown on your profile to everyone.",
-      "crewOnly": "Crew only",
-      "crewOnlyHint": "Only people who share an accepted crew with you see these.",
       "cancel": "Cancel",
       "save": "Save",
       "saved": "Profile saved",
       "errors": {
         "photo": "Add at least one photo – the first one shows your face.",
         "name": "Add your first name.",
-        "age": "Add your age (18–99).",
-        "country": "Add the country you're from."
+        "birthDate": "Add your full date of birth.",
+        "underAge": "You need to be 18 or older to use Simpulo.",
+        "country": "Add the country you're from.",
+        "links": "Check your links.",
+        "website": "Enter a full web address, like https://yoursite.com.",
+        "handle": "A handle uses letters, numbers, dots, _ or - only."
       },
       "basedInHelper": "The city you live in right now.",
       "languagesHelper": "Type a language and press Enter. × removes it.",
       "bioHelper": "What would your future housemates want to know?",
-      "linksHelper": "Paste a handle or a full link – we tidy it up when you save.",
-      "crewOnlyLine": "Only people in your Houses see these.",
+      "linksHelper": "Up to {max} – type your handle, or the full address for a website. Contact happens in Messages.",
       "addLink": "Add link",
       "removeLink": "Remove {platform}",
       "howOthersSeeYou": "How others see you",
@@ -1889,7 +1843,13 @@
       "noChanges": "No changes yet",
       "discardTitle": "Discard your changes?",
       "discardDescription": "You have unsaved changes on your profile. If you leave now, they're lost.",
-      "discardConfirm": "Discard"
+      "discardConfirm": "Discard",
+      "handlePlaceholder": "handle",
+      "linksFull": "That’s {max} links – remove one to add another.",
+      "countryPlaceholder": "Start typing a country",
+      "basedInPlaceholder": "Start typing a city",
+      "noCountry": "No country matches – check the spelling.",
+      "noPlace": "Not in the list – it's kept as you type it."
     },
     "settings": "Settings",
     "crews": {
@@ -1897,7 +1857,9 @@
       "counts": "{houses, plural, one {# house} other {# houses}} · {people, plural, one {# person} other {# people}}",
       "inCommon": "Houses you lived in together",
       "peopleIn": "People in {title}",
-      "people": "People"
+      "people": "People",
+      "livedWith": "Lived with",
+      "onlyYou": "Only you see this"
     }
   },
   "howItWorks": {
@@ -1969,28 +1931,23 @@
         "email": "Email link"
       },
       "logOut": "Log out",
-      "verify": {
-        "label": "Verify your ID",
-        "notVerified": "Not verified",
-        "verified": "Verified",
-        "action": "Verify"
-      }
+      "change": "Change",
+      "changeSoon": "Changing your email comes with the real login – soon.",
+      "session": "This device"
     },
     "notifications": {
       "title": "Notifications",
-      "description": "In-app shows under the bell. Push only reaches you once Simpulo is installed on your phone.",
-      "push": "Push",
-      "email": "Email",
-      "groups": {
-        "requests": "Requests & answers",
-        "payments": "Locks, payments & reminders",
-        "interests": "Houses opening where you're interested",
-        "hostAlerts": "Hosts you follow",
-        "messages": "Messages & crew updates",
-        "system": "From Simpulo"
+      "alwaysSent": "Payment and booking updates are always sent.",
+      "rows": {
+        "messages": "Messages",
+        "nextStop": "New Houses matching your Next stop",
+        "houseUpdates": "Updates from your Houses",
+        "news": "News from Simpulo"
       },
-      "toggleLabel": "{group} by {channel}",
-      "inApp": "In-app"
+      "channels": {
+        "push": "Push",
+        "email": "Email"
+      }
     },
     "preferences": {
       "title": "Preferences",
@@ -2002,21 +1959,59 @@
       "moreSoon": "More languages soon."
     },
     "privacy": {
-      "title": "Privacy",
+      "title": "Privacy & safety",
       "description": "Blocked people can't see your Houses or message you.",
       "noneBlocked": "You haven't blocked anyone.",
       "unblock": "Unblock",
-      "unblocked": "{name} is unblocked"
+      "unblocked": "{name} is unblocked",
+      "blockedTitle": "Blocked people",
+      "dataTitle": "Your data",
+      "dataLabel": "A copy of your profile, Houses, requests, payments and messages",
+      "download": "Download your data",
+      "downloaded": "Your data is downloading"
     },
     "danger": {
-      "title": "Danger zone",
-      "description": "Deletes your profile, your Houses and your messages. This can't be undone.",
       "delete": "Delete account",
       "sheetTitle": "Delete your account?",
       "sheetDescription": "Your profile, Houses, crews and messages will be removed for good.",
       "typeToConfirm": "Type {word} to confirm",
       "confirm": "Delete my account",
       "deleted": "Account deleted"
+    },
+    "nav": {
+      "account": "Account",
+      "profile": "Profile",
+      "notifications": "Notifications",
+      "payments": "Payments",
+      "preferences": "Preferences",
+      "privacy": "Privacy & safety"
+    },
+    "profile": {
+      "title": "Profile",
+      "edit": "Edit profile",
+      "text": "Photos, bio, languages and your links."
+    },
+    "payments": {
+      "methods": "Payment methods",
+      "cardEnding": "•••• {last4} · expires {expires}",
+      "wallet": "Set up on this device",
+      "add": "Add payment method",
+      "addSoon": "Coming with real payments – soon.",
+      "history": "Payment history",
+      "noHistory": "No payments yet.",
+      "unknownHouse": "A House",
+      "status": {
+        "paid": "Paid",
+        "refunded": "Refunded",
+        "pending": "Pending"
+      },
+      "payoutAccount": "Payout account",
+      "accountEnding": "•••• {last4}",
+      "change": "Change",
+      "payouts": "Payouts",
+      "noPayouts": "No payouts yet – they start once your crew pays their shares.",
+      "paidOut": "Paid out",
+      "onHold": "On hold until the booking is confirmed"
     }
   },
   "safety": {
@@ -2070,7 +2065,6 @@
   },
   "growth": {
     "share": {
-      "titleHouse": "Share this House",
       "titleProfile": "Share {name}'s profile",
       "titleOwnProfile": "Share your profile",
       "subtitle": "Your link carries your name – so we know who brought whom.",
@@ -2085,7 +2079,6 @@
         "native": "Share…"
       },
       "pasteHint": "Link copied – paste it into your {channel} story, bio or chat.",
-      "whatsappHouse": "Come live with us: {title}",
       "whatsappProfile": "{name} on Simpulo",
       "storyButton": "Download story image",
       "storyHint": "1080 × 1920 with a QR code to this House",
@@ -2098,7 +2091,8 @@
       "posterHint": "A4 PDF with the QR code and title",
       "posterBusy": "Creating poster…",
       "posterDone": "Poster ready to print",
-      "posterFailed": "Couldn't create the poster – try again."
+      "posterFailed": "Couldn't create the poster – try again.",
+      "prefill": "{title} · {place} · {dates} – {spots, plural, one {# spot} other {# spots}} left. Join: {url}"
     },
     "story": {
       "join": "Join on simpulo.app",

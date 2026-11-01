@@ -49,8 +49,8 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
   if (compact) {
     return (
       <div className={className}>
-        <p className={cn("font-semibold", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>{format.priceLabel(stay)}</p>
-        {hostFee && <p className="text-xs text-zinc-500">{tPremium("compactProgramme", { amount: hostFee })}</p>}
+        <p className={cn("font-semibold", price.kind === "tbd" ? "text-muted" : "text-ink")}>{format.priceLabel(stay)}</p>
+        {hostFee && <p className="text-xs text-muted">{tPremium("compactProgramme", { amount: hostFee })}</p>}
       </div>
     );
   }
@@ -64,17 +64,17 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
 
   return (
     <div className={className}>
-      <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-neutral-500" : "text-ink")}>
+      <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-muted" : "text-ink")}>
         {amount}
       </p>
       {hostFee && (
         <p className={cn("mt-1 text-ink", size === "lg" ? "text-base" : "text-sm")}>
-          {tPremium("programme")} <span className="text-zinc-300">·</span> <span className="font-medium tabular-nums">{hostFee}</span>
-          <span className="text-zinc-500"> {tPremium("perPerson")}</span>
+          {tPremium("programme")} <span className="text-muted/60">·</span> <span className="font-medium tabular-nums">{hostFee}</span>
+          <span className="text-muted"> {tPremium("perPerson")}</span>
         </p>
       )}
-      {approx && <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
-      <p className="mt-0.5 text-[13px] text-zinc-500">{t("ui.priceLine.note")}</p>
+      {approx && <p className="mt-0.5 text-[13px] text-muted">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
+      <p className="mt-0.5 text-[13px] text-muted">{t("ui.priceLine.note")}</p>
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const DEV_CARD = process.env.NODE_ENV === "production" ? "" : "4242 4242 4242 4242";
 
 const inputClass =
-  "h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-[15px] tabular-nums outline-none transition-colors placeholder:text-neutral-400 focus:border-ink";
+  "h-12 w-full rounded-xl border border-line bg-surface px-4 text-[15px] tabular-nums outline-none transition-colors placeholder:text-muted focus:border-accent";
 
 /**
  * Guest pays their share of the locked place (mock – no real card network). Entry points: the lock card in the
@@ -43,8 +43,8 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [declined, setDeclined] = useState(false);
 
-  if (!payment) return <p className="text-sm text-zinc-500">{t("nothingToPay")}</p>;
-  if (payment.status === "paid") return <p className="text-sm text-zinc-500">{t("alreadyPaid")}</p>;
+  if (!payment) return <p className="text-sm text-muted">{t("nothingToPay")}</p>;
+  if (payment.status === "paid") return <p className="text-sm text-muted">{t("alreadyPaid")}</p>;
 
   const money = (amount: number) => f.price(amount, stay.currency);
   const complete = card.replace(/\s/g, "").length >= 12 && expiry.trim().length >= 4 && cvc.trim().length >= 3;
@@ -66,7 +66,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 
   return (
     <form onSubmit={pay} className="space-y-5">
-      <dl className="divide-y divide-black/5 rounded-2xl bg-page px-4">
+      <dl className="divide-y divide-line rounded-2xl bg-bg px-4">
         <Row label={payment.hostFee ? tPremium("share") : t("share")} value={money(payment.share)} />
         {payment.hostFee ? <Row label={tPremium("fieldLabel")} value={money(payment.hostFee)} /> : null}
         <Row label={t("fee")} value={money(payment.fee)} />
@@ -107,7 +107,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
             className={inputClass}
           />
         </div>
-        <p className="text-xs text-zinc-500">{t("mockNote")}</p>
+        <p className="text-xs text-muted">{t("mockNote")}</p>
       </fieldset>
 
       {declined && (
@@ -119,7 +119,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
       <button
         type="submit"
         disabled={!complete || busy}
-        className={cn(sheetButtonClass, "justify-center bg-ink text-white hover:bg-[#2A2A30] disabled:bg-neutral-200 disabled:text-neutral-500")}
+        className={cn(sheetButtonClass, "justify-center bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted")}
       >
         {busy ? <Loader2 className="size-5 animate-spin" aria-label={t("processing")} /> : t("payButton", { amount: money(payment.total) })}
       </button>
@@ -130,7 +130,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between py-3 text-sm">
-      <dt className={strong ? "font-semibold text-ink" : "text-zinc-600"}>{label}</dt>
+      <dt className={strong ? "font-semibold text-ink" : "text-muted"}>{label}</dt>
       <dd className={cn("tabular-nums", strong ? "text-base font-semibold" : "text-ink")}>{value}</dd>
     </div>
   );

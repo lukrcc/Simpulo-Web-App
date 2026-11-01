@@ -19,7 +19,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
   return (
     <Container page>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">{t("devOnly")}</span>
+        <span className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-surface">{t("devOnly")}</span>
         <nav className="flex gap-1">
           {ADMIN_NAV.map(({ href, key }) => {
             const active = pathname.startsWith(href);
@@ -28,7 +28,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={cn("rounded-full px-3 py-1 text-sm font-medium transition-colors", active ? "bg-white text-ink" : "text-zinc-500 hover:text-ink")}
+                className={cn("rounded-full px-3 py-1 text-sm font-medium transition-colors", active ? "bg-surface text-ink" : "text-muted hover:text-ink")}
               >
                 {t(`nav.${key}`)}
               </Link>
@@ -39,7 +39,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-          {intro && <p className="mt-2 text-zinc-500">{intro}</p>}
+          {intro && <p className="mt-2 text-muted">{intro}</p>}
         </div>
         {aside}
       </div>

@@ -33,7 +33,7 @@ const cornerBelow =
  * before hydration) it still paints the page colour plus two inverted corners – right of it along the top edge, below
  * it along the left edge – over a rounded-tl-none card; globals.css drops them once the card is `data-notch="ready"`.
  */
-export function CardTab({ host, bg = "var(--color-page)", suffix, className, contentClassName, linked = false }: CardTabProps) {
+export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClassName, linked = false }: CardTabProps) {
   const t = useTranslations("common.ui.cardTab");
   // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
@@ -42,7 +42,7 @@ export function CardTab({ host, bg = "var(--color-page)", suffix, className, con
       <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
         <span className="min-w-0 truncate">{firstName(host)}</span>
         {host.verified && <VerifiedBadge size={14} className="shrink-0" />}
-        {suffix && <span className="shrink-0 font-normal text-zinc-500">· {suffix}</span>}
+        {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
       </span>
     </span>
   );

@@ -12,12 +12,14 @@ export type {
   MessageType,
   Attachment,
   Crew,
+  LivedWith,
   Reaction,
   Report,
   ReportReason,
   NotificationGroup,
   Payment,
-  PrivateContacts,
+  SocialLink,
+  SocialPlatform,
   PaymentRecordStatus,
   SystemEventKey,
   RequestStatus as JoinRequestStatus,
@@ -47,6 +49,7 @@ export type NewStayInput = Pick<
   | "pricePerPerson"
   | "budgetPerPerson"
   | "accommodationLink"
+  | "crewGroupUrl"
   | "accommodationStatus"
   | "description"
   | "whyText"

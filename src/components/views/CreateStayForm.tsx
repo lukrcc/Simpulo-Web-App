@@ -27,6 +27,7 @@ import {
   readDraft,
   stepErrors,
   stepsFor,
+  titleMaxFor,
   toInput,
   toProfilePatch,
   todayString,
@@ -45,7 +46,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
 import { useFormat } from "@/i18n/format";
-import { getCrew, getCurrentUser, getPeople, isBlocked, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
+import { getCrew, getCurrentUser, isBlocked, isCrewMember, livedWithFor, useStore, type PersonEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 
 const noSubscribe = () => () => {};
@@ -138,10 +139,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // The House being repeated: from the link, or from a restored draft that started as one.
   const againSourceId = againId ?? (form.againFrom || null);
   const againSource = againSourceId && me ? store.stays.find((s) => s.id === againSourceId && isCrewMember(store, s, me.id)) : undefined;
-  // Who can be invited: the host's People – the repeated House's crew first.
+  // Who can be invited: the people the host lived with (LivedWith, completed Houses) – the repeated House's crew first.
   const invitePeople = useMemo<PersonEntry[]>(() => {
     if (!me || editing) return [];
-    const people = getPeople(store, me.id).filter((p) => !isBlocked(store, p.user.id));
+    const people = livedWithFor(store, me.id)
+      .filter((entry) => !isBlocked(store, entry.user.id))
+      .map((entry) => ({ user: entry.user, houses: [entry.house] }));
     if (!againSource) return people;
     const crewIds = new Set(getCrew(store, againSource).map((u) => u.id));
     return [...people.filter((p) => crewIds.has(p.user.id)), ...people.filter((p) => !crewIds.has(p.user.id))];
@@ -330,6 +333,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     <>
       {step === 0 && (
         <HouseStep
+          titleMax={titleMaxFor(editing)}
           form={form}
           update={update}
           patch={patch}
@@ -376,7 +380,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             {t("back")}
           </button>
         )}
-        <p className="min-w-0 flex-1 truncate text-[13px] text-zinc-500">{t("stepOf", { current: step + 1, total: steps.length })}</p>
+        <p className="min-w-0 flex-1 truncate text-[13px] text-muted">{t("stepOf", { current: step + 1, total: steps.length })}</p>
         {step < publishStep && (
           // Looks disabled until the step is valid, but a tap still shows what's missing.
           <button
@@ -387,8 +391,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
               editing ? "secondary" : "dark",
               "md",
               editing
-                ? "aria-disabled:cursor-not-allowed aria-disabled:text-neutral-400"
-                : "aria-disabled:cursor-not-allowed aria-disabled:bg-neutral-200 aria-disabled:text-neutral-500 aria-disabled:hover:bg-neutral-200",
+                ? "aria-disabled:cursor-not-allowed aria-disabled:text-muted"
+                : "aria-disabled:cursor-not-allowed aria-disabled:bg-line aria-disabled:text-muted aria-disabled:hover:bg-line",
             )}
           >
             {/* Nobody picked: the invite step is skipped, not completed. */}
@@ -432,7 +436,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         title={editing ? t("title.edit") : t("title.create")}
         back={
           step > 0 && (
-            <button type="button" onClick={() => goTo(step - 1)} aria-label={t("previousStep")} className="-ml-2 rounded-full p-2 hover:bg-black/5">
+            <button type="button" onClick={() => goTo(step - 1)} aria-label={t("previousStep")} className="-ml-2 rounded-full p-2 hover:bg-ink/5">
               <ArrowLeft className="size-5" />
             </button>
           )

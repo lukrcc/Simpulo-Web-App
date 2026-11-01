@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 // Soft field style of Edit profile.
 const field =
-  "h-12 w-full rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] px-4 text-[15px] outline-none transition-shadow placeholder:text-neutral-400 focus:ring-2 focus:ring-ink/20";
+  "h-12 w-full rounded-xl border border-line bg-bg px-4 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent";
 const fieldInvalid = "border-red-300";
 
 type FieldKey = "photo" | "name" | "age" | "country";
@@ -87,10 +87,10 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
       {heading ? (
         <div>
           <h2 className="text-xl font-semibold tracking-tight">{t("title")}</h2>
-          <p className="mt-1 text-[15px] text-zinc-500">{t("subtitle")}</p>
+          <p className="mt-1 text-[15px] text-muted">{t("subtitle")}</p>
         </div>
       ) : (
-        <p className="-mt-2 text-[15px] text-zinc-500">{t("subtitle")}</p>
+        <p className="-mt-2 text-[15px] text-muted">{t("subtitle")}</p>
       )}
 
       <div role="group" aria-label={t("photo")}>
@@ -100,7 +100,7 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
           <div className="w-28 shrink-0">
             <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos, "photo")} slots={1} labels="profile" />
           </div>
-          <p className="text-[13px] text-zinc-500">{t("photoHint")}</p>
+          <p className="text-[13px] text-muted">{t("photoHint")}</p>
         </div>
         {errors.photo && <FieldError>{t("errors.photo")}</FieldError>}
       </div>
@@ -141,12 +141,12 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
 
       <div role="group" aria-label={t("languages")}>
         <span className="mb-1.5 block text-sm font-medium">
-          {t("languages")} <span className="font-normal text-zinc-500">{t("optional")}</span>
+          {t("languages")} <span className="font-normal text-muted">{t("optional")}</span>
         </span>
         <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} soft />
       </div>
 
-      <button type="submit" className={cn(sheetButtonClass, "justify-center bg-ink text-white hover:bg-[#2A2A30]")}>
+      <button type="submit" className={cn(sheetButtonClass, "justify-center bg-ink text-surface hover:bg-ink/90")}>
         {t("continue")}
       </button>
     </form>

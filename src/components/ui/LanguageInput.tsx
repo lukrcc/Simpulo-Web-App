@@ -50,17 +50,17 @@ export function LanguageInput({ languages, onChange, soft = false }: LanguageInp
         onClick={() => inputRef.current?.focus()}
         className={cn(
           "flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border px-2 py-1.5",
-          soft ? "border-[#E7E5E4] bg-[#FAFAF9] focus-within:ring-2 focus-within:ring-ink/20" : "border-neutral-200 bg-white focus-within:border-ink",
+          soft ? "border-line bg-bg focus-within:ring-2 focus-within:ring-accent" : "border-line bg-surface focus-within:border-accent",
         )}
       >
         {languages.map((language) => (
-          <span key={language} className="inline-flex items-center gap-1 rounded-full bg-white py-1 pl-3 pr-1.5 text-sm ring-1 ring-black/5">
+          <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-sm ring-1 ring-line">
             {language}
             <button
               type="button"
               onClick={() => onChange(languages.filter((l) => l !== language))}
               aria-label={t("removeLanguage", { language })}
-              className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-200 hover:text-ink"
+              className="rounded-full p-0.5 text-muted hover:bg-line hover:text-ink"
             >
               <X className="size-3.5" />
             </button>
@@ -88,7 +88,7 @@ export function LanguageInput({ languages, onChange, soft = false }: LanguageInp
           }}
           onKeyDown={onKeyDown}
           placeholder={languages.length === 0 ? t("languagesPlaceholder") : t("languagesPlaceholderMore")}
-          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-neutral-400"
+          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted"
         />
       </div>
       {open && (

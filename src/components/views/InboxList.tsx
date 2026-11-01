@@ -51,14 +51,14 @@ function InboxContent() {
   // Two crews of Houses with the same title: the dates tell them apart.
   const crewTitleCount = new Map<string, number>();
   for (const thread of mine) {
-    const title = thread.type === "crew" ? store.stays.find((s) => s.id === thread.stayId)?.title : undefined;
+    const title = thread.type === "house" ? store.stays.find((s) => s.id === thread.houseId)?.title : undefined;
     if (title) crewTitleCount.set(title, (crewTitleCount.get(title) ?? 0) + 1);
   }
 
   const rows: ThreadRow[] = mine.flatMap((thread) => {
-    const stay = store.stays.find((s) => s.id === thread.stayId);
+    const stay = store.stays.find((s) => s.id === thread.houseId);
     if (!stay) return [];
-    if (thread.type === "crew") {
+    if (thread.type === "house") {
       const title =
         (crewTitleCount.get(stay.title) ?? 0) > 1
           ? t("titleWithDates", { title: stay.title, dates: f.shortRange(stay.startDate, stay.endDate) })
@@ -73,7 +73,7 @@ function InboxContent() {
 
   const q = query.trim().toLowerCase();
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
-  const crews = rows.filter((r) => r.thread.type === "crew" && matches(r)).toSorted(newestFirst);
+  const crews = rows.filter((r) => r.thread.type === "house" && matches(r)).toSorted(newestFirst);
   const direct = rows.filter((r) => r.thread.type === "direct" && matches(r)).toSorted(newestFirst);
   const ordered = [...crews, ...direct];
 
@@ -104,7 +104,7 @@ function InboxContent() {
   const group = (label: string, items: ThreadRow[]) =>
     items.length > 0 && (
       <section className="mt-5">
-        <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</h2>
+        <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">{label}</h2>
         <ul className="space-y-0.5">
           {items.map((row) => (
             <li key={row.thread.id}>
@@ -121,20 +121,20 @@ function InboxContent() {
       detailFill
       list={
         <>
-          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 focus-within:border-ink">
-            <Search className="size-4 shrink-0 text-zinc-400" aria-hidden />
+          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 focus-within:border-accent">
+            <Search className="size-4 shrink-0 text-muted" aria-hidden />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("searchPlaceholder")}
               aria-label={t("searchLabel")}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
             />
           </label>
           {group(t("crews"), crews)}
           {group(t("direct"), direct)}
-          {ordered.length === 0 && <p className="mt-8 text-center text-sm text-zinc-500">{t("noMatch", { query: query.trim() })}</p>}
+          {ordered.length === 0 && <p className="mt-8 text-center text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>}
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
@@ -161,11 +161,11 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
   }
   const last = thread.messages.at(-1);
   const unread = isThreadUnread(store, thread);
-  const author = last?.userId === store.currentUserId ? t("you") : last?.userId && findUser(store, last.userId)?.name.split(" ")[0];
+  const author = last?.senderId === store.currentUserId ? t("you") : last?.senderId && findUser(store, last.senderId)?.name.split(" ")[0];
   const preview = !last
     ? t("noMessages")
     : // App lines (system, payments, lock cards) already name who did it.
-      last.userId === "system" || last.event || !author
+      last.senderId === "system" || last.event || !author
       ? previewText(last)
       : t("preview", { author, text: previewText(last) });
   // Today (UTC calendar day, like the formatters): the time; older: the day.
@@ -176,25 +176,25 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/inbox?id=${thread.id}` : `/inbox/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("flex h-16 items-center gap-3 rounded-2xl px-3 transition-colors", active ? "bg-white shadow-xs" : "hover:bg-black/[0.03]")}
+      className={cn("flex h-16 items-center gap-3 rounded-2xl px-3 transition-colors", active ? "bg-surface shadow-xs" : "hover:bg-ink/[0.03]")}
     >
       {avatar ? (
-        <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={44} className="size-11 bg-neutral-200" />
+        <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={44} className="size-11 bg-line" />
       ) : (
-        <span className="size-11 shrink-0 rounded-full bg-neutral-100" />
+        <span className="size-11 shrink-0 rounded-full bg-bg" />
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <p className={cn("min-w-0 truncate text-sm", unread ? "font-bold" : "font-semibold")}>
             {title}
             {/* Direct chats: the House they're about, on the same line. */}
-            {subtitle && <span className="font-normal text-neutral-400"> · {subtitle}</span>}
+            {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
           </p>
-          {time && <span className="shrink-0 text-xs text-neutral-400">{time}</span>}
+          {time && <span className="shrink-0 text-xs text-muted">{time}</span>}
         </div>
         <div className="flex items-center gap-2">
-          <p className={cn("min-w-0 flex-1 truncate text-sm", unread ? "font-medium text-ink" : "text-neutral-500")}>{preview}</p>
-          {unread && <span className="size-2.5 shrink-0 rounded-full bg-accent" aria-label={t("unread")} />}
+          <p className={cn("min-w-0 flex-1 truncate text-sm", unread ? "font-medium text-ink" : "text-muted")}>{preview}</p>
+          {unread && <span className="size-2.5 shrink-0 rounded-full bg-ink" aria-label={t("unread")} />}
         </div>
       </div>
     </Link>

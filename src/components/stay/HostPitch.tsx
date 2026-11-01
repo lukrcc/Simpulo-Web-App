@@ -15,7 +15,7 @@ export function HostPitch({ stay }: { stay: Stay }) {
     <>
       {sections.map(({ title, text }) => (
         <Section key={title} title={title}>
-          <p className="whitespace-pre-line leading-relaxed text-neutral-700">{text}</p>
+          <p className="whitespace-pre-line leading-relaxed text-ink">{text}</p>
         </Section>
       ))}
     </>

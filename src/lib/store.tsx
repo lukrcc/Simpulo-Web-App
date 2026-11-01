@@ -28,6 +28,7 @@ import type {
   Crew,
   Currency,
   JoinRequest,
+  LivedWith,
   LockDetails,
   Message,
   MessageType,
@@ -76,6 +77,8 @@ interface StoreState {
   interestInvites: Record<string, string>;
   /** Who lived together – one record per completed House (see Crew) */
   crews: Crew[];
+  /** Every pair of housemates from completed Houses, both ways (see LivedWith) – written with the Crew record */
+  livedWith: LivedWith[];
 }
 
 /** What a House prepared on someone's behalf needs (admin form). */
@@ -103,8 +106,6 @@ type StoreAction =
   | {
       type: "createStay";
       stay: Omit<Stay, "hostId">;
-      threadId: string;
-      firstMessages: Array<Omit<Message, "userId">>;
       attribution: Attribution;
       /** People from the host's past crews to invite (each holds a spot until they answer) */
       invite: string[];
@@ -134,7 +135,7 @@ type StoreAction =
   | { type: "requestToJoin"; request: Omit<JoinRequest, "userId">; at: string }
   | { type: "acceptRequest"; requestId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "declineRequest"; requestId: string }
-  | { type: "sendMessage"; threadId: string; message: Omit<Message, "userId"> }
+  | { type: "sendMessage"; threadId: string; message: Omit<Message, "senderId" | "threadId"> }
   | { type: "createThread"; thread: Thread }
   | { type: "markThreadRead"; threadId: string; at: string }
   | {
@@ -166,21 +167,13 @@ export type ProfilePatch = Partial<
     User,
     | "name"
     | "age"
+    | "birthDate"
     | "country"
     | "city"
     | "bio"
     | "languages"
     | "photos"
-    | "instagram"
-    | "tiktok"
-    | "youtube"
-    | "twitch"
-    | "kick"
-    | "linkedin"
-    | "x"
-    | "threads"
-    | "website"
-    | "privateContacts"
+    | "socials"
     | "verified"
     | "preferredCurrency"
   >
@@ -283,19 +276,19 @@ interface StoreActions {
 
 type StoreValue = StoreState & StoreActions;
 
-/** Every stay has exactly one crew thread – seed empty ones where the mock data has none. */
+/**
+ * A House has its thread once somebody joined (see threadsAfterJoin) – seed the ones the mock data leaves out: every
+ * House with a confirmed crew, host + crew as participants.
+ */
 function withCrewThreads(stays: Stay[], threads: Thread[], requests: JoinRequest[]): Thread[] {
   const missing = stays
-    // A House waiting to be claimed has nobody to talk to yet.
-    .filter((stay) => stay.hostId && !threads.some((t) => t.id === crewThreadId(stay.id)))
-    .map<Thread>((stay) => ({
+    .map((stay) => ({ stay, crew: requests.filter((r) => r.stayId === stay.id && r.status === "accepted").map((r) => r.userId) }))
+    .filter(({ stay, crew }) => stay.hostId && crew.length > 0 && !threads.some((t) => t.id === crewThreadId(stay.id)))
+    .map<Thread>(({ stay, crew }) => ({
       id: crewThreadId(stay.id),
-      type: "crew",
-      stayId: stay.id,
-      participantIds: [
-        stay.hostId,
-        ...requests.filter((r) => r.stayId === stay.id && r.status === "accepted").map((r) => r.userId),
-      ],
+      type: "house",
+      houseId: stay.id,
+      participantIds: [stay.hostId, ...crew],
       messages: [],
     }));
   return [...threads, ...missing];
@@ -407,7 +400,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
 
   const builders: Array<(i: number) => Omit<AppNotification, "id" | "userId" | "eventId" | "createdAt"> | null> = [
     (i) => { const s = pick(hosted, i); return s ? { key: "newRequest", values: { name: pick(names, i * 3)!, title: s.title }, stayId: s.id } : null; },
-    (i) => { const t = pick(chats, i); const s = t && stays.find((x) => x.id === t.stayId); return t && s ? { key: "newMessage", values: { name: pick(names, i * 5 + 1)!, title: s.title, preview: MOCK_PREVIEWS[i % MOCK_PREVIEWS.length] }, stayId: s.id, threadId: t.id } : null; },
+    (i) => { const t = pick(chats, i); const s = t && stays.find((x) => x.id === t.houseId); return t && s ? { key: "newMessage", values: { name: pick(names, i * 5 + 1)!, title: s.title, preview: MOCK_PREVIEWS[i % MOCK_PREVIEWS.length] }, stayId: s.id, threadId: t.id } : null; },
     (i) => { const s = pick(joined, i); return s ? { key: "accepted", values: { title: s.title }, stayId: s.id } : null; },
     (i) => { const s = pick(locked, i); return s ? { key: "reminderPayDue", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const s = pick(others, i * 7); return s ? { key: "interestOpened", values: { place: s.city || s.region, title: s.title }, stayId: s.id } : null; },
@@ -453,6 +446,13 @@ function mockCrewInbox(stays: Stay[], requests: JoinRequest[], users: User[], cr
   return [...again, ...invites];
 }
 
+/** A completed House's housemate pairs, both ways: for each member, one entry per other member. */
+function livedWithOf(crew: Crew): LivedWith[] {
+  return crew.memberIds.flatMap((userId) =>
+    crew.memberIds.filter((other) => other !== userId).map((otherUserId) => ({ userId, otherUserId, houseId: crew.houseId, endedAt: crew.endedAt })),
+  );
+}
+
 /** The Crew record of a House that just completed: the host plus everyone accepted right now. */
 function crewRecord(stay: Stay, requests: JoinRequest[], endedAt: string): Crew {
   return {
@@ -469,7 +469,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
   const joinRequests = withMockAttribution(rawRequests, rawStays);
   const stays = seedLockedStays(rawStays);
   const payments = seedPayments(stays, joinRequests, users);
-  const chat = withMockHistory(withCrewThreads(stays, threads, joinRequests), { stays, users, joinRequests, payments, lockFor: lockFromStay });
+  const chat = withMockHistory(withCrewThreads(stays, threads, joinRequests), { stays, users, joinRequests });
   const crews = stays.filter((s) => s.status === "completed").map((s) => crewRecord(s, joinRequests, s.endDate));
   return {
     users,
@@ -488,6 +488,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     interests: [...MOCK_INTERESTS],
     interestInvites: {},
     crews,
+    livedWith: crews.flatMap(livedWithOf),
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -541,10 +542,10 @@ function event(id: string, name: GrowthEventName, at: string, props: Omit<Growth
   return { id: `ev-${id}`, name, at, ...props };
 }
 
-/** text / image / link / lock / payment / system – stored, or derived for older messages. */
+/** text / image / link / system – stored, or derived for older messages. */
 export function messageType(message: Message): MessageType {
   if (message.type) return message.type;
-  if (message.userId === "system") return "system";
+  if (message.senderId === "system") return "system";
   if (message.attachments?.some((a) => a.kind === "image")) return "image";
   return findUrls(message.text).length > 0 ? "link" : "text";
 }
@@ -615,9 +616,36 @@ function notify(
   ];
 }
 
-/** A system line in the crew chat: no stored text, rendered from the event's translation. */
-function systemLine(base: Pick<Message, "id" | "createdAt">, key: SystemEventKey, values: Record<string, string | number>): Message {
-  return { ...base, userId: "system", text: "", event: { key, values } };
+/** A system line in a House thread: no stored text, rendered from the event's translation (centred, muted). */
+function systemLine(base: Pick<Message, "id" | "createdAt">, threadId: string, key: SystemEventKey, values: Record<string, string | number>): Message {
+  return { ...base, threadId, senderId: "system", text: "", event: { key, values } };
+}
+
+/** Lines at the end of a House's thread – nothing when the House has no thread yet (nobody joined). */
+function postToHouse(threads: Thread[], stayId: string, lines: Message[]): Thread[] {
+  return updateThread(threads, crewThreadId(stayId), (t) => ({ ...t, messages: [...t.messages, ...lines] }));
+}
+
+/**
+ * The House thread after `userId` joined: created with the first confirmed join (host + crew, opening with the host's
+ * accommodation ideas), the newcomer added, a "joined" line – and "Crew complete" when that took the last spot.
+ */
+function threadsAfterJoin(state: StoreState, stay: Stay, userId: string, base: Pick<Message, "id" | "createdAt">, complete: boolean): Thread[] {
+  const id = crewThreadId(stay.id);
+  const lines = [
+    systemLine(base, id, "joined", { name: firstNameOf(state, userId) }),
+    ...(complete ? [systemLine({ id: `${base.id}-complete`, createdAt: base.createdAt }, id, "crewComplete", {})] : []),
+  ];
+  if (state.threads.some((t) => t.id === id)) {
+    return updateThread(state.threads, id, (t) => ({
+      ...t,
+      participantIds: t.participantIds.includes(userId) ? t.participantIds : [...t.participantIds, userId],
+      messages: [...t.messages, ...lines],
+    }));
+  }
+  const ideas = (stay.accommodationIdeas ?? []).map<Message>((link, i) => ({ id: `${id}-idea-${i}`, threadId: id, senderId: stay.hostId, text: link, createdAt: stay.createdAt }));
+  const thread: Thread = { id, type: "house", houseId: stay.id, participantIds: [...new Set([...crewIds(state, stay), userId])], messages: [...ideas, ...lines] };
+  return [thread, ...state.threads];
 }
 
 /** Dev-only mock replies after you send a message. */
@@ -645,6 +673,9 @@ function updateThread(threads: Thread[], threadId: string, update: (t: Thread) =
 function withoutMember(state: StoreState, stay: Stay, userId: string, systemMessage: Message): StoreState {
   const request = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted");
   if (!request) return state;
+  // A paid share goes back – the thread says so (how much stays on the House page).
+  const refunded = state.payments.some((p) => p.stayId === stay.id && p.userId === userId && p.status === "paid");
+  const refund = refunded ? [systemLine({ id: `${systemMessage.id}-refund`, createdAt: systemMessage.createdAt }, systemMessage.threadId, "refund", { count: 1 })] : [];
   return {
     ...state,
     joinRequests: state.joinRequests.filter((r) => r.id !== request.id),
@@ -656,7 +687,7 @@ function withoutMember(state: StoreState, stay: Stay, userId: string, systemMess
     threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({
       ...t,
       participantIds: t.participantIds.filter((id) => id !== userId),
-      messages: [...t.messages, systemMessage],
+      messages: [...t.messages, systemMessage, ...refund],
     })),
   };
 }
@@ -676,12 +707,9 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
 
     case "createStay": {
       if (!me) return state;
-      // Every House gets its crew thread right away, with the host as first member.
-      const messages = action.firstMessages.map((m) => ({ ...m, userId: me }));
-      const thread: Thread = { id: action.threadId, type: "crew", stayId: action.stay.id, participantIds: [me], messages };
-      const lastMessage = messages.at(-1);
-      // Only the host's People (see getPeople), and never more than the spots besides the host's own.
-      const livedWith = new Set(getPeople(state, me).map((p) => p.user.id));
+      // No thread yet: it starts with the first confirmed join (the host's accommodation ideas open it).
+      // Only people the host lived with (LivedWith), and never more than the spots besides the host's own.
+      const livedWith = new Set(state.livedWith.filter((l) => l.userId === me).map((l) => l.otherUserId));
       const invited = [...new Set(action.invite)].filter((id) => livedWith.has(id)).slice(0, Math.max(0, action.stay.spotsTotal - 1));
       const invites = invited.map<JoinRequest>((userId) => ({
         id: `inv-${action.stay.id}-${userId}`,
@@ -699,9 +727,6 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         ...state,
         stays: [{ ...action.stay, hostId: me, ...(invited.length > 0 && { spotsInvited: invited.length }) }, ...state.stays],
         joinRequests: [...state.joinRequests, ...invites],
-        threads: [thread, ...state.threads],
-        // The host's own ideas aren't unread for the host.
-        lastReadAt: lastMessage ? { ...state.lastReadAt, [action.threadId]: lastMessage.createdAt } : state.lastReadAt,
         notifications: notifyInterested({ ...withInvites, notifications: notifyHostAlerts(withInvites, me, action.stay) }, action.stay),
         events: [
           ...state.events,
@@ -730,18 +755,15 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
     case "claimStay": {
       const stay = state.stays.find((s) => s.claim?.token === action.token);
       if (!stay?.claim || !me || stay.status !== "draft_unclaimed") return state;
-      const threadId = crewThreadId(stay.id);
       return {
         ...state,
-        // A draft of their own now: they edit it, then publish. Their profile photo replaces the prepared one.
+        // A draft of their own now: they edit it, then publish. Their profile photo replaces the prepared one. (Its
+        // thread comes with the first confirmed join, like any House's.)
         stays: state.stays.map((s) =>
           s.id === stay.id
             ? { ...s, hostId: me, status: "draft", acceptingRequests: false, claim: { ...stay.claim!, claimedAt: action.at, claimedBy: me } }
             : s,
         ),
-        threads: state.threads.some((t) => t.id === threadId)
-          ? updateThread(state.threads, threadId, (t) => ({ ...t, participantIds: [me] }))
-          : [{ id: threadId, type: "crew", stayId: stay.id, participantIds: [me], messages: [] }, ...state.threads],
       };
     }
 
@@ -760,7 +782,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         };
       }
       const name = firstNameOf(state, me);
-      const systemMessage = systemLine(action.systemMessage, "joined", { name });
+      const systemMessage = { ...action.systemMessage, threadId: crewThreadId(stay.id) };
       const spotsFilled = stay.spotsFilled + 1;
       return {
         ...state,
@@ -770,11 +792,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
             ? [...state.payments, { id: `pay-${stay.id}-${me}`, ...paymentFor(stay, me, stay.pricePerPerson, attributionFor(state, me, undefined)), status: "pending" }]
             : state.payments,
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled, spotsInvited } : s)),
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({
-          ...t,
-          participantIds: t.participantIds.includes(me) ? t.participantIds : [...t.participantIds, me],
-          messages: [...t.messages, systemMessage],
-        })),
+        threads: threadsAfterJoin(state, stay, me, systemMessage, spotsFilled >= stay.spotsTotal),
         notifications: notify(
           spotsFilled >= stay.spotsTotal
             ? { ...state, notifications: notify(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
@@ -814,6 +832,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "completed", acceptingRequests: false, spotsInvited: undefined } : s)),
         joinRequests: state.joinRequests.filter((r) => !(r.stayId === stay.id && r.status === "invited")),
         crews: [...state.crews.filter((c) => c.houseId !== stay.id), crewRecord(stay, state.joinRequests, action.at)],
+        livedWith: [...state.livedWith.filter((l) => l.houseId !== stay.id), ...livedWithOf(crewRecord(stay, state.joinRequests, action.at))],
       };
     }
 
@@ -908,7 +927,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       // The host can't leave their own House – they close it instead.
       if (!stay || !me || stay.hostId === me) return state;
       const name = firstNameOf(state, me);
-      const next = withoutMember(state, stay, me, systemLine(action.systemMessage, "left", { name }));
+      const next = withoutMember(state, stay, me, systemLine(action.systemMessage, crewThreadId(stay.id), "left", { name }));
       return next === state
         ? state
         : { ...next, notifications: notify(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id, stay.id) };
@@ -918,14 +937,15 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || action.userId === me) return state;
       const name = state.users.find((u) => u.id === action.userId)?.name.split(" ")[0] ?? "Someone";
-      return withoutMember(state, stay, action.userId, systemLine(action.systemMessage, "removed", { name }));
+      return withoutMember(state, stay, action.userId, systemLine(action.systemMessage, crewThreadId(stay.id), "removed", { name }));
     }
 
     case "unlockAccommodation": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || stay.accommodationStatus !== "locked") return state;
-      const name = state.users.find((u) => u.id === me)?.name.split(" ")[0] ?? "The host";
-      const systemMessage = systemLine(action.systemMessage, "unlocked", { name });
+      // The thread only hears about money going back – the lock itself is House-page business.
+      const refunds = state.payments.filter((p) => p.stayId === stay.id && p.status === "paid").length;
+      const refundLine = refunds > 0 ? [systemLine(action.systemMessage, crewThreadId(stay.id), "refund", { count: refunds })] : [];
       return {
         ...state,
         stays: state.stays.map((s) =>
@@ -948,7 +968,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         payments: state.payments
           .filter((p) => !(p.stayId === stay.id && p.status === "pending"))
           .map((p) => (p.stayId === stay.id && p.status === "paid" ? { ...p, status: "refunded" } : p)),
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, systemMessage] })),
+        threads: postToHouse(state.threads, stay.id, refundLine),
       };
     }
 
@@ -956,12 +976,12 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || stay.status === "closed") return state;
       const name = state.users.find((u) => u.id === me)?.name.split(" ")[0] ?? "The host";
-      const systemMessage = systemLine(action.systemMessage, "closed", { name });
+      const systemMessage = systemLine(action.systemMessage, crewThreadId(stay.id), "closed", { name });
       return {
         ...state,
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "closed", acceptingRequests: false } : s)),
-        // The system message makes the crew chat unread for every member – that's the notification.
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, systemMessage] })),
+        // The system message makes the House thread unread for every member – that's the notification.
+        threads: postToHouse(state.threads, stay.id, [systemMessage]),
       };
     }
 
@@ -1000,8 +1020,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         return state;
       }
       const spotsFilled = stay.spotsFilled + 1;
-      const name = state.users.find((u) => u.id === request.userId)?.name.split(" ")[0] ?? "Someone";
-      const systemMessage = systemLine(action.systemMessage, "joined", { name });
+      const systemMessage = { ...action.systemMessage, threadId: crewThreadId(stay.id) };
       return {
         ...state,
         joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "accepted" } : r)),
@@ -1019,11 +1038,8 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
             : state.payments,
         // Only the spot count changes – whether the House keeps taking requests is the host's call.
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled } : s)),
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({
-          ...t,
-          participantIds: t.participantIds.includes(request.userId) ? t.participantIds : [...t.participantIds, request.userId],
-          messages: [...t.messages, systemMessage],
-        })),
+        // The first confirmed join creates the House thread (see threadsAfterJoin).
+        threads: threadsAfterJoin(state, stay, request.userId, systemMessage, spotsFilled >= stay.spotsTotal),
         notifications: notify(
           // The last spot taken: the whole crew hears it's complete.
           spotsFilled >= stay.spotsTotal
@@ -1056,13 +1072,13 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
     case "sendMessage": {
       if (!me) return state;
       const thread = state.threads.find((t) => t.id === action.threadId);
-      const stay = thread && state.stays.find((s) => s.id === thread.stayId);
+      const stay = thread && state.stays.find((s) => s.id === thread.houseId);
       const preview = action.message.text.trim().slice(0, 80) || "📎";
       return {
         ...state,
         threads: updateThread(state.threads, action.threadId, (t) => ({
           ...t,
-          messages: [...t.messages, { ...action.message, userId: me }],
+          messages: [...t.messages, { ...action.message, threadId: action.threadId, senderId: me }],
         })),
         // Your own message is read by definition.
         lastReadAt: { ...state.lastReadAt, [action.threadId]: action.message.createdAt },
@@ -1091,16 +1107,8 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
     case "lockAccommodation": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me) return state;
-      const { lock } = action;
-      // The lock card is a message from the host – the crew chat stays the full history.
-      const message: Message = {
-        ...action.message,
-        userId: me,
-        type: "lock",
-        lock,
-        text: "",
-        event: { key: "locked", values: { name: firstNameOf(state, me, "The host"), price: lock.perPerson } },
-      };
+      const { lock, message } = action;
+      // Payment and booking status live on the House page – nothing goes into the thread.
       const crew = crewIds(state, stay);
       const payments: Payment[] = crew.map((userId) => ({
         id: `pay-${stay.id}-${userId}-${action.message.id}`,
@@ -1117,8 +1125,6 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
         ),
         // A new lock replaces any earlier, refunded round of payments.
         payments: [...state.payments.filter((p) => p.stayId !== stay.id || p.status === "refunded"), ...payments],
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, message] })),
-        lastReadAt: { ...state.lastReadAt, [crewThreadId(stay.id)]: message.createdAt },
         notifications: notify(state, crew.filter((id) => id !== me), "locked", { title: stay.title, price: lock.perPerson, payBy: lock.payBy }, message.id, stay.id),
       };
     }
@@ -1128,16 +1134,12 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const mine = state.payments.find((p) => p.stayId === action.stayId && p.userId === me && p.status === "pending");
       if (!stay || !me || stay.accommodationStatus !== "locked" || !mine) return state;
       const payments = state.payments.map((p) => (p.id === mine.id ? { ...p, status: "paid" as const, paidAt: action.message.createdAt } : p));
-      const active = payments.filter((p) => p.stayId === stay.id && p.status !== "refunded");
       const name = firstNameOf(state, me);
-      const message: Message = {
-        ...systemLine(action.message, "paid", { name, paid: active.filter((p) => p.status === "paid").length, total: active.length }),
-        type: "payment",
-      };
+      // Who paid shows on the House page, not in the thread.
+      const { message } = action;
       return {
         ...state,
         payments,
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, message] })),
         notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id, stay.id),
         events: [
           ...state.events,
@@ -1156,13 +1158,18 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
     case "confirmBooking": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || stay.accommodationStatus !== "locked") return state;
-      const systemMessage = systemLine(action.message, "bookingConfirmed", {});
+      // The House's milestone, and with the booking the address is on the House page for the crew.
+      const threadId = crewThreadId(stay.id);
+      const lines = [
+        systemLine(action.message, threadId, "bookingConfirmed", {}),
+        systemLine({ id: `${action.message.id}-address`, createdAt: action.message.createdAt }, threadId, "addressShared", {}),
+      ];
       return {
         ...state,
         stays: state.stays.map((s) =>
           s.id === stay.id ? { ...s, status: "booked", bookingConfirmedAt: action.message.createdAt, bookingProofUrl: action.proofUrl } : s,
         ),
-        threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({ ...t, messages: [...t.messages, systemMessage] })),
+        threads: postToHouse(state.threads, stay.id, lines),
       };
     }
 
@@ -1281,14 +1288,8 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
 
     case "fireReminder": {
       const { reminder } = action;
-      const notifications = notify(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`, reminder.stayId);
-      if (!reminder.chatEvent) return { ...state, notifications };
-      const line = systemLine(action.message, reminder.chatEvent, reminder.values);
-      return {
-        ...state,
-        notifications,
-        threads: updateThread(state.threads, crewThreadId(reminder.stayId), (t) => ({ ...t, messages: [...t.messages, line] })),
-      };
+      // Notification only – payment and arrival reminders stay out of the thread.
+      return { ...state, notifications: notify(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`, reminder.stayId) };
     }
 
     case "receiveMessage":
@@ -1424,13 +1425,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const slug = `${slugify(input.title) || "house"}-${id.slice(-4)}`;
     dispatch({
       type: "createStay",
-      threadId: crewThreadId(id),
-      // One message per link, a millisecond apart so they keep their order.
-      firstMessages: accommodationIdeas.map((link, i) => ({
-        id: makeId("m"),
-        text: link,
-        createdAt: new Date(now + i).toISOString(),
-      })),
       attribution: firstTouch(),
       invite: crew.invite,
       stay: {
@@ -1438,6 +1432,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         id,
         slug,
         ...(crew.againFrom && { duplicatedFrom: crew.againFrom }),
+        // They open the House thread once somebody joins.
+        ...(accommodationIdeas.length > 0 && { accommodationIdeas }),
         // No geocoding yet: created Houses have no coordinates and no static map preview.
         lat: 0,
         lng: 0,
@@ -1592,8 +1588,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (threadId: string, text: string, extra: { attachments?: Attachment[]; replyToId?: string } = {}) => {
       const trimmed = text.trim();
       if (!trimmed && !extra.attachments?.length) return;
-      const message: Omit<Message, "userId"> = { id: makeId("m"), text: trimmed, createdAt: new Date().toISOString(), ...extra };
-      dispatch({ type: "sendMessage", threadId, message: { ...message, type: messageType({ ...message, userId: "" }) } });
+      const message: Omit<Message, "senderId" | "threadId"> = { id: makeId("m"), text: trimmed, createdAt: new Date().toISOString(), ...extra };
+      dispatch({ type: "sendMessage", threadId, message: { ...message, type: messageType({ ...message, threadId, senderId: "" }) } });
 
       // Dev only: someone else in the crew "types" and answers, so the chat feels alive while testing.
       if (process.env.NODE_ENV === "production") return;
@@ -1610,7 +1606,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           threadId,
           message: {
             id: makeId("m"),
-            userId: replier,
+            threadId,
+            senderId: replier,
             text: CANNED_REPLIES[Math.floor(Math.random() * CANNED_REPLIES.length)],
             createdAt: new Date().toISOString(),
             type: "text",
@@ -1632,7 +1629,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const existing = threads.find(
         (t) =>
           t.type === "direct" &&
-          t.stayId === stayId &&
+          t.houseId === stayId &&
           t.participantIds.includes(me) &&
           t.participantIds.includes(userId),
       );
@@ -1640,7 +1637,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const thread: Thread = {
         id: makeId("direct"),
         type: "direct",
-        stayId,
+        houseId: stayId,
         participantIds: [me, userId],
         messages: [],
       };
@@ -1815,7 +1812,8 @@ const DEFAULT_SETTINGS: UserSettings = {
     payments: { push: true, email: true },
     hostAlerts: { push: true, email: true },
     interests: { push: true, email: true },
-    system: { push: false, email: true },
+    // "News from Simpulo" – off until switched on.
+    system: { push: false, email: false },
   },
   blockedUserIds: [],
 };
@@ -1833,7 +1831,8 @@ export function isProfileComplete(user: Pick<User, "photos" | "name" | "age" | "
 /** A user's settings with defaults filled in (everything on, nobody blocked). */
 export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettings {
   return {
-    notifications: { ...DEFAULT_SETTINGS.notifications, ...user?.settings?.notifications },
+    // Payment and booking updates always go out – whatever a stored setting says (Settings has no toggle for them).
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...user?.settings?.notifications, payments: { push: true, email: true, inApp: true } },
     blockedUserIds: user?.settings?.blockedUserIds ?? [],
   };
 }
@@ -1915,31 +1914,31 @@ export function getCrewThread(store: Pick<StoreState, "threads">, stayId: string
 /** Unread = the newest message is from someone else (or the system) and newer than the last read mark. */
 export function isThreadUnread(store: Pick<StoreState, "lastReadAt" | "currentUserId">, thread: Thread): boolean {
   const last = thread.messages.at(-1);
-  if (!last || last.userId === store.currentUserId) return false;
+  if (!last || last.senderId === store.currentUserId) return false;
   const readAt = store.lastReadAt[thread.id];
   return !readAt || readAt < last.createdAt;
 }
 
-/** Links shared in a stay's crew chat, oldest first, each once. */
-export function getCrewLinks(store: Pick<StoreState, "threads">, stayId: string): string[] {
-  const messages = getCrewThread(store, stayId)?.messages ?? [];
-  return [...new Set(messages.filter((m) => m.userId !== "system").flatMap((m) => findUrls(m.text)))];
+/** How many of the current user's threads have unread messages (direct chats with people they blocked don't count). */
+export function unreadThreadCount(store: Pick<StoreState, "threads" | "lastReadAt" | "currentUserId" | "users">): number {
+  const me = store.currentUserId;
+  if (!me) return 0;
+  return store.threads.filter(
+    (t) => t.participantIds.includes(me) && isThreadUnread(store, t) && !(t.type === "direct" && t.participantIds.some((id) => id !== me && isBlocked(store, id))),
+  ).length;
+}
+
+/** Links shared in a House's thread, oldest first, each once – before anyone joined: the host's accommodation ideas. */
+export function getCrewLinks(store: Pick<StoreState, "threads" | "stays">, stayId: string): string[] {
+  const thread = getCrewThread(store, stayId);
+  if (!thread) return store.stays.find((s) => s.id === stayId)?.accommodationIdeas ?? [];
+  return [...new Set(thread.messages.filter((m) => m.senderId !== "system").flatMap((m) => findUrls(m.text)))];
 }
 
 /** When someone joined: their accepted request's date (the host: when the House was opened). */
 export function joinedAt(store: Pick<StoreState, "joinRequests">, stay: Stay, userId: string): string {
   if (userId === stay.hostId) return stay.createdAt;
   return store.joinRequests.find((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted")?.createdAt ?? "";
-}
-
-/**
- * Crew-only contacts are visible to people who share an accepted crew with the user – as host or as accepted
- * member of the same House (any status, past Houses included). A rule, not a setting. Users always see their own.
- */
-export function canSeePrivateContacts(store: StoreData, viewerId: string | null, userId: string): boolean {
-  if (!viewerId) return false;
-  if (viewerId === userId) return true;
-  return store.stays.some((stay) => isCrewMember(store, stay, viewerId) && isCrewMember(store, stay, userId));
 }
 
 /** Payments of a stay's current lock (refunded ones from an earlier lock are left out). */
@@ -2069,4 +2068,36 @@ export function getPeople(store: Pick<StoreState, "crews" | "stays" | "users" | 
     .map(([id, houses]) => ({ user: store.users.find((u) => u.id === id), houses: houses.toSorted(newestFirst) }))
     .filter((p): p is PersonEntry => p.user !== undefined && !p.user.deletedAt)
     .toSorted((a, b) => newestFirst(a.houses[0], b.houses[0]) || a.user.name.localeCompare(b.user.name));
+}
+
+/** One person the user lived with: the most recent House they shared. */
+export interface LivedWithEntry {
+  user: User;
+  house: Stay;
+  endedAt: string;
+}
+
+/**
+ * Everyone `userId` lived with (from LivedWith), each person once with the most recent House they shared, most recent
+ * first. Deleted accounts are left out.
+ */
+export function livedWithFor(store: Pick<StoreState, "livedWith" | "stays" | "users">, userId: string): LivedWithEntry[] {
+  const latest = new Map<string, LivedWith>();
+  for (const entry of store.livedWith) {
+    if (entry.userId !== userId) continue;
+    const seen = latest.get(entry.otherUserId);
+    if (!seen || entry.endedAt > seen.endedAt) latest.set(entry.otherUserId, entry);
+  }
+  return [...latest.values()]
+    .toSorted((a, b) => b.endedAt.localeCompare(a.endedAt))
+    .flatMap((entry) => {
+      const user = store.users.find((u) => u.id === entry.otherUserId);
+      const house = store.stays.find((s) => s.id === entry.houseId);
+      return user && house && !user.deletedAt ? [{ user, house, endedAt: entry.endedAt }] : [];
+    });
+}
+
+/** The current user has an open invite to this House ("You're invited"). */
+export function isInvitedTo(store: Pick<StoreState, "joinRequests" | "currentUserId">, stayId: string): boolean {
+  return store.currentUserId !== null && store.joinRequests.some((r) => r.stayId === stayId && r.userId === store.currentUserId && r.status === "invited");
 }

@@ -52,10 +52,10 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
   }
 
   return (
-    <section className={cn("rounded-[24px] bg-white p-6", className)}>
+    <section className={cn("rounded-[24px] bg-surface p-6", className)}>
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-semibold">{t("title")}</h2>
-        {lock && <span className="text-sm text-zinc-500">{t("payBy", { date: f.day(lock.payBy) })}</span>}
+        {lock && <span className="text-sm text-muted">{t("payBy", { date: f.day(lock.payBy) })}</span>}
       </div>
 
       <p className="text-sm font-medium tabular-nums">
@@ -72,13 +72,13 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
         aria-valuemax={progress.count}
         aria-valuenow={progress.paidCount}
         aria-label={t("title")}
-        className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100"
+        className="mt-2 h-2 overflow-hidden rounded-full bg-bg"
       >
         <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${percent}%` }} />
       </div>
 
       <table className="mt-5 w-full text-left text-sm">
-        <thead className="text-xs text-zinc-500">
+        <thead className="text-xs text-muted">
           <tr>
             <th scope="col" className="pb-2 font-medium">{t("colName")}</th>
             <th scope="col" className="pb-2 text-right font-medium">{t("colShare")}</th>
@@ -90,7 +90,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-black/5 border-t border-black/5">
+        <tbody className="divide-y divide-line border-t border-line">
           {payments.map((payment) => (
             <PaymentRow key={payment.id} payment={payment} stay={stay} withProgramme={withProgramme} onPay={() => setPaying(true)} />
           ))}
@@ -100,7 +100,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
       {(progress.allPaid || stay.status === "booked") && <BookingBlock stay={stay} payments={payments} />}
 
       {!closed && (
-        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-black/5 pt-4">
+        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
           <button type="button" disabled={busyUnlock} onClick={() => setUnlocking(true)} className={buttonClass("secondary", "sm")}>
             {busyUnlock ? <Loader2 className="size-4 animate-spin" aria-label={t("unlocking")} /> : t("unlock")}
           </button>
@@ -111,7 +111,7 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
                 store.resetPayments(stay.id);
                 showToast(t("resetToast"));
               }}
-              className="ml-auto rounded-full px-2 py-1 text-xs text-zinc-400 underline-offset-2 hover:text-zinc-600 hover:underline"
+              className="ml-auto rounded-full px-2 py-1 text-xs text-muted underline-offset-2 hover:text-muted hover:underline"
             >
               {t("devReset")}
             </button>
@@ -152,12 +152,12 @@ function PaymentRow({ payment, stay, withProgramme, onPay }: { payment: Payment;
       </td>
       <td className="py-3 text-right tabular-nums">{f.price(payment.share, stay.currency)}</td>
       {withProgramme && (
-        <td className="py-3 pl-3 text-right tabular-nums text-zinc-600">{payment.hostFee ? f.price(payment.hostFee, stay.currency) : "–"}</td>
+        <td className="py-3 pl-3 text-right tabular-nums text-muted">{payment.hostFee ? f.price(payment.hostFee, stay.currency) : "–"}</td>
       )}
       <td className="py-3 pl-3">
         <StatusPill status={pending ? "pending" : "paid"} />
       </td>
-      <td className="hidden py-3 text-zinc-500 sm:table-cell">{payment.paidAt ? f.day(payment.paidAt) : "–"}</td>
+      <td className="hidden py-3 text-muted sm:table-cell">{payment.paidAt ? f.day(payment.paidAt) : "–"}</td>
       <td className="py-3 pl-2 text-right">
         {pending &&
           stay.status !== "closed" &&
@@ -226,12 +226,12 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   }
 
   return (
-    <div className="mt-5 rounded-2xl bg-page p-4">
+    <div className="mt-5 rounded-2xl bg-bg p-4">
       <p className="flex items-center gap-2 font-semibold">
         <Wallet className="size-5 shrink-0 text-emerald-600" aria-hidden />
         {t("fundsTitle", { amount: f.price(released, stay.currency) })}
       </p>
-      <p className="mt-1 text-sm text-zinc-600">{t("fundsText")}</p>
+      <p className="mt-1 text-sm text-muted">{t("fundsText")}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <input ref={input} type="file" accept="image/*,application/pdf" onChange={upload} className="hidden" />
         <button type="button" disabled={busy || stay.status === "closed"} onClick={() => input.current?.click()} className={buttonClass("dark", "sm")}>
@@ -256,7 +256,7 @@ function UploadCountdown({ from }: { from: string }) {
   const minutes = Math.max(0, Math.floor(left / 60_000));
 
   return (
-    <p className={cn("flex items-center gap-1.5 text-xs", left > 0 ? "text-zinc-500" : "font-medium text-red-600")} suppressHydrationWarning>
+    <p className={cn("flex items-center gap-1.5 text-xs", left > 0 ? "text-muted" : "font-medium text-red-600")} suppressHydrationWarning>
       <Clock className="size-3.5 shrink-0" aria-hidden />
       {left > 0
         ? `${t("uploadWithin")} · ${t("timeLeft", { hours: Math.floor(minutes / 60), minutes: minutes % 60 })}`

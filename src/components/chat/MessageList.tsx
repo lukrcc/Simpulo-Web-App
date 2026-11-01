@@ -8,7 +8,7 @@ import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
 import { findUser, isBlocked, useStore } from "@/lib/store";
-import type { Message, Stay, Thread } from "@/lib/types";
+import type { Message, Thread } from "@/lib/types";
 import { DayDivider, SystemLine } from "./ChatCards";
 import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
 import type { ReplyDraft } from "./Composer";
@@ -16,11 +16,8 @@ import { BlockedMessageRow, MessageBubble, quoteText } from "./MessageBubble";
 
 interface MessageListProps {
   thread: Thread;
-  stay: Stay;
   /** Shown when the chat has no messages yet */
   emptyText: string;
-  /** Host, crew chat, place still open: link cards get "Lock this" */
-  onLock?: (url: string) => void;
   onReply: (draft: ReplyDraft) => void;
   /** App card after the last message (e.g. "Do it again?" once the House is over) */
   footer?: ReactNode;
@@ -30,7 +27,7 @@ interface MessageListProps {
  * The scrolling message pane: day dividers, same-sender groups, the "New messages" divider (opens scrolled there),
  * auto-scroll at the bottom, a "↓ New messages" pill when scrolled up, and the typing indicator.
  */
-export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }: MessageListProps) {
+export function MessageList({ thread, emptyText, onReply, footer }: MessageListProps) {
   const t = useTranslations("messages.thread");
   const messageText = useMessageText();
   const store = useStore();
@@ -53,13 +50,11 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }
   const [firstUnreadId] = useState(() => {
     const readAt = store.lastReadAt[thread.id];
     if (!readAt) return null;
-    return thread.messages.find((m) => m.createdAt > readAt && m.userId !== me)?.id ?? null;
+    return thread.messages.find((m) => m.createdAt > readAt && m.senderId !== me)?.id ?? null;
   });
 
   const rows = useMemo(() => buildRows(thread.messages, firstUnreadId), [thread.messages, firstUnreadId]);
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
-  // Only the newest lock card can still be paid – older ones were replaced by an unlock and a new lock.
-  const latestLockId = stay.accommodationStatus === "locked" ? thread.messages.findLast((m) => m.type === "lock")?.id : undefined;
   const typingId = store.typing[thread.id];
   const typingUser = typingId && !isBlocked(store, typingId) ? findUser(store, typingId) : undefined;
 
@@ -80,7 +75,7 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }
 
   // New messages: follow them when at the bottom (or when they're ours), otherwise offer the pill.
   const count = thread.messages.length;
-  const lastFromMe = thread.messages.at(-1)?.userId === me;
+  const lastFromMe = thread.messages.at(-1)?.senderId === me;
   useLayoutEffect(() => {
     if (count <= countRef.current) {
       countRef.current = count;
@@ -121,55 +116,52 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }
   const closePicker = useCallback(() => setPickerId(null), []);
 
   function reply(message: Message) {
-    const author = findUser(store, message.userId);
+    const author = findUser(store, message.senderId);
     onReply({ id: message.id, name: author?.name.split(" ")[0] ?? t("unknown"), text: quoteText(message, messageText(message), t) });
     setActiveId(null);
   }
 
   return (
     // Slightly darker than the page, so the white / tinted bubbles stand out.
-    <div className="relative min-h-0 flex-1 bg-[#F0EEEA]">
+    <div className="relative min-h-0 flex-1 bg-bg">
       <div ref={paneRef} onScroll={onScroll} className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
-        {count === 0 && !footer && <p className="py-16 text-center text-sm text-zinc-500">{emptyText}</p>}
+        {count === 0 && !footer && <p className="py-16 text-center text-sm text-muted">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
               <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3">
-                <span className="h-px flex-1 bg-[#71717A]/30" aria-hidden />
-                <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#71717A] shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
+                <span className="h-px flex-1 bg-muted/30" aria-hidden />
+                <span className="rounded-full bg-surface/80 px-2.5 py-0.5 text-[11px] font-semibold text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
                   {t("newMessages")}
                 </span>
-                <span className="h-px flex-1 bg-[#71717A]/30" aria-hidden />
+                <span className="h-px flex-1 bg-muted/30" aria-hidden />
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
 
           const { message } = row;
           const original = message.replyToId ? byId.get(message.replyToId) : undefined;
-          const fromOther = message.userId !== me && message.userId !== "system";
-          if (fromOther && isBlocked(store, message.userId) && !shownIds.has(message.id))
+          const fromOther = message.senderId !== me && message.senderId !== "system";
+          if (fromOther && isBlocked(store, message.senderId) && !shownIds.has(message.id))
             return <BlockedMessageRow key={row.key} first={row.first} onShow={() => setShownIds((ids) => new Set(ids).add(message.id))} />;
           return (
             <MessageBubble
               key={row.key}
               message={message}
-              stay={stay}
-              author={findUser(store, message.userId)}
-              mine={message.userId === me}
+              author={findUser(store, message.senderId)}
+              mine={message.senderId === me}
               first={row.first}
               last={row.last}
-              showName={thread.type === "crew" && message.userId !== me}
+              showName={thread.type === "house" && message.senderId !== me}
               replyTo={
                 original && {
                   message: original,
-                  author: findUser(store, original.userId),
+                  author: findUser(store, original.senderId),
                   // A quote must not reveal what a blocked user wrote.
-                  blocked: original.userId !== "system" && isBlocked(store, original.userId),
+                  blocked: original.senderId !== "system" && isBlocked(store, original.senderId),
                 }
               }
-              currentLock={message.id === latestLockId}
-              onLock={onLock}
               active={activeId === message.id}
               picking={pickerId === message.id}
               highlighted={highlightId === message.id}
@@ -198,13 +190,13 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }
         {typingUser && (
           <div className="mt-3 flex items-center gap-2" aria-live="polite">
             <Avatar user={typingUser} size="sm" />
-            <div className="flex items-center gap-2 rounded-[18px] rounded-bl-[6px] bg-white px-3 py-2 shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-2 rounded-[18px] rounded-bl-[6px] bg-surface px-3 py-2 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
               <span className="flex gap-1" aria-hidden>
                 {[0, 150, 300].map((delay) => (
-                  <span key={delay} className="size-1.5 animate-bounce rounded-full bg-zinc-400" style={{ animationDelay: `${delay}ms` }} />
+                  <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />
                 ))}
               </span>
-              <span className="text-xs text-zinc-500">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
+              <span className="text-xs text-muted">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
             </div>
           </div>
         )}
@@ -215,7 +207,7 @@ export function MessageList({ thread, stay, emptyText, onLock, onReply, footer }
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-black/20 hover:bg-[#2A2A30]"
+          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-surface shadow-lg shadow-ink/20 hover:bg-ink/90"
         >
           <ArrowDown className="size-3.5" />
           {t("newMessages")}

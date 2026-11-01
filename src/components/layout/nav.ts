@@ -1,4 +1,5 @@
-import { Compass, House, Lightbulb, Megaphone, MessageCircle, User, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { NAV_ICONS } from "@/config/nav";
 
 export interface NavItem {
   href: "/" | "/host" | "/how-it-works" | "/my-stays" | "/inbox" | "/profile";
@@ -7,21 +8,30 @@ export interface NavItem {
   icon: LucideIcon;
   /** Who sees the tab: guests only, logged-in members only, or everyone */
   audience: "guest" | "member" | "all";
+  /** The desktop header's own label (message key under nav.items), e.g. "Your houses" – the tab bar keeps labelKey */
+  headerLabelKey?: "yourHouses";
+  /** Phones' tab bar only – on desktop the avatar menu leads there */
+  tabBarOnly?: true;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/", labelKey: "explore", icon: Compass, audience: "all" },
+  { href: "/", labelKey: "explore", icon: NAV_ICONS.explore, audience: "all" },
   // The page for potential hosts.
-  { href: "/host", labelKey: "host", icon: Megaphone, audience: "guest" },
-  { href: "/how-it-works", labelKey: "howItWorks", icon: Lightbulb, audience: "guest" },
-  { href: "/my-stays", labelKey: "houses", icon: House, audience: "member" },
-  { href: "/inbox", labelKey: "messages", icon: MessageCircle, audience: "member" },
-  { href: "/profile", labelKey: "profile", icon: User, audience: "member" },
+  { href: "/host", labelKey: "host", icon: NAV_ICONS.host, audience: "guest" },
+  { href: "/how-it-works", labelKey: "howItWorks", icon: NAV_ICONS.howItWorks, audience: "guest" },
+  { href: "/my-stays", labelKey: "houses", headerLabelKey: "yourHouses", icon: NAV_ICONS.houses, audience: "member" },
+  { href: "/inbox", labelKey: "messages", icon: NAV_ICONS.messages, audience: "member" },
+  { href: "/profile", labelKey: "profile", icon: NAV_ICONS.profile, audience: "member", tabBarOnly: true },
 ];
 
-/** Logged out: Explore · Host · How it works. Logged in: Explore · Houses · Messages · Profile. */
-export function navItemsFor(loggedIn: boolean): readonly NavItem[] {
-  return NAV_ITEMS.filter((item) => item.audience === "all" || item.audience === (loggedIn ? "member" : "guest"));
+/**
+ * Logged out: Explore · Host · How it works. Logged in – desktop header: Explore · Your houses · Messages (Profile is in
+ * the avatar menu); phones' tab bar: Explore · Houses · Messages · Profile.
+ */
+export function navItemsFor(loggedIn: boolean, place: "header" | "tabBar" = "tabBar"): readonly NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) => (item.audience === "all" || item.audience === (loggedIn ? "member" : "guest")) && !(place === "header" && item.tabBarOnly),
+  );
 }
 
 export function isNavActive(href: NavItem["href"], pathname: string | null): boolean {

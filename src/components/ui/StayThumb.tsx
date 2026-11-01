@@ -7,7 +7,7 @@ import { Img } from "./Img";
 export function StayThumb({ stay, size, className }: { stay: Pick<Stay, "mapPreviewUrl" | "title">; size: number; className?: string }) {
   if (!stay.mapPreviewUrl) {
     return (
-      <span className={cn("flex shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-400", className)}>
+      <span className={cn("flex shrink-0 items-center justify-center rounded-xl bg-bg text-muted", className)}>
         <MapPin className="size-6" aria-hidden />
       </span>
     );
@@ -18,7 +18,7 @@ export function StayThumb({ stay, size, className }: { stay: Pick<Stay, "mapPrev
       alt={stay.title}
       width={size}
       height={size}
-      className={cn("shrink-0 rounded-xl bg-neutral-100 object-cover", className)}
+      className={cn("shrink-0 rounded-xl bg-bg object-cover", className)}
     />
   );
 }

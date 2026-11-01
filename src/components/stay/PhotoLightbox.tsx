@@ -20,7 +20,7 @@ interface PhotoLightboxProps {
 const SWIPE_THRESHOLD = 50;
 
 const roundButton =
-  "glass-dark absolute z-10 flex size-12 items-center justify-center rounded-full outline-none transition-[background-color,opacity] hover:bg-black/45 focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-0";
+  "glass-dark absolute z-10 flex size-12 items-center justify-center rounded-full outline-none transition-[background-color,opacity] hover:bg-ink/45 focus-visible:ring-2 focus-visible:ring-surface disabled:pointer-events-none disabled:opacity-0";
 
 /**
  * Full-screen photo viewer, portaled to <body> so it sits above the sticky header and side column.
@@ -82,7 +82,7 @@ export function PhotoLightbox({ photos, index, onIndexChange, onClose, alt }: Ph
       aria-label={t("label", { name: alt })}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      className="animate-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-black/92 motion-reduce:animate-none"
+      className="animate-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/92 motion-reduce:animate-none"
     >
       {/* Backdrop: clicking around the photo closes. */}
       <button type="button" aria-label={t("close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-default" />

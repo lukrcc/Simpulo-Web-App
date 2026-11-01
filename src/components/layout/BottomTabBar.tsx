@@ -56,7 +56,7 @@ export function BottomTabBar() {
         className={cn(
           "fixed z-40 md:hidden",
           docked
-            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] border-t border-black/5 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
+            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
             : "glass inset-x-4 bottom-[calc(12px+env(safe-area-inset-bottom))] h-16 rounded-full",
           scrolledAway && "translate-y-full",
         )}
@@ -71,13 +71,13 @@ export function BottomTabBar() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex h-full flex-col items-center justify-center text-[10px] font-medium transition-colors",
-                    active ? "text-ink" : "text-zinc-500",
+                    active ? "text-ink" : "text-muted",
                   )}
                 >
                   <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
-                  {/* Active marker: a 6px orange dot under the icon (space kept for inactive tabs). */}
+                  {/* Active marker: a 6px ink dot under the icon (space kept for inactive tabs). */}
                   <span
-                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-accent" : "bg-transparent")}
+                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-ink" : "bg-transparent")}
                     aria-hidden
                   />
                   {t(`items.${labelKey}`)}
@@ -90,7 +90,7 @@ export function BottomTabBar() {
               <button
                 type="button"
                 onClick={() => requireAuth()}
-                className="flex h-full w-full flex-col items-center justify-center text-[10px] font-medium text-zinc-500"
+                className="flex h-full w-full flex-col items-center justify-center text-[10px] font-medium text-muted"
               >
                 <LogIn className="size-[22px]" strokeWidth={1.75} />
                 <span className="my-1 size-1.5" aria-hidden />

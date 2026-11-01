@@ -41,14 +41,14 @@ export function InterestInvite({ stay, className }: { stay: Stay; className?: st
   }
 
   return (
-    <section className={cn("rounded-[24px] bg-white p-6", className)} aria-labelledby={`invite-${stay.id}`}>
+    <section className={cn("rounded-[24px] bg-surface p-6", className)} aria-labelledby={`invite-${stay.id}`}>
       <h2 id={`invite-${stay.id}`} className="text-lg font-semibold tracking-tight text-ink">
         {t("title", { count: matches.length })}
       </h2>
-      <p className="mt-1 text-sm text-zinc-600">{t("text", { place: stay.city })}</p>
+      <p className="mt-1 text-sm text-muted">{t("text", { place: stay.city })}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {shown.length > 0 && <AvatarStack users={shown} size="sm" max={5} />}
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted">
           {names.length > 0 ? (more > 0 ? t("namesAndMore", { names: names.join(", "), count: more }) : names.join(", ")) : t("anonymous", { count: hidden })}
         </p>
       </div>

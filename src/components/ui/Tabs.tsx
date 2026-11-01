@@ -50,7 +50,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
     <div
       ref={ref}
       role="tablist"
-      className="no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-black/5 p-1"
+      className="no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-ink/5 p-1"
       style={fade ? { maskImage: fade, WebkitMaskImage: fade } : undefined}
     >
       {tabs.map((tab) => {
@@ -65,7 +65,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
             className={cn(
               // Tighter below sm; never narrower than the label – the row scrolls instead.
               "flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors sm:gap-1.5 sm:px-4 md:min-h-0",
-              active ? "bg-white text-ink shadow-sm" : "text-neutral-500 hover:text-ink",
+              active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
             )}
           >
             {tab.label}
@@ -73,7 +73,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
               <span
                 className={cn(
                   "rounded-full px-1.5 text-xs",
-                  active ? "bg-accent-soft text-accent" : "bg-neutral-200 text-neutral-600",
+                  active ? "bg-bg text-ink" : "bg-line text-muted",
                 )}
               >
                 {tab.count}

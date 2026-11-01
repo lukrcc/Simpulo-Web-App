@@ -33,7 +33,7 @@ export function CarouselControls({
   const item = itemLabel ?? t("defaultItem");
   return (
     <div className={cn("flex justify-center", className)}>
-      <div className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-1.5 md:h-10 md:px-2">
+      <div className="inline-flex h-9 items-center gap-1 rounded-full bg-surface px-1.5 md:h-10 md:px-2">
         <ControlButton label={t("previous", { item })} disabled={!canPrev} onClick={onPrev}>
           <ChevronLeft className="size-4" />
         </ControlButton>
@@ -49,7 +49,7 @@ export function CarouselControls({
               data-tap="none"
               className={cn(
                 "h-2 rounded-full transition-all duration-250",
-                i === active ? "w-6 bg-ink" : "w-2 bg-zinc-300 hover:bg-zinc-400",
+                i === active ? "w-6 bg-ink" : "w-2 bg-line hover:bg-muted",
               )}
             />
           ))}
@@ -79,7 +79,7 @@ function ControlButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-7 items-center justify-center rounded-full text-ink transition-colors hover:bg-zinc-100 disabled:text-zinc-300 disabled:hover:bg-transparent md:size-8"
+      className="flex size-7 items-center justify-center rounded-full text-ink transition-colors hover:bg-bg disabled:text-muted/60 disabled:hover:bg-transparent md:size-8"
     >
       {children}
     </button>

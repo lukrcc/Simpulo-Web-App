@@ -2,7 +2,7 @@
 // scheduled for real yet – later this becomes Cloud Functions (timers) + FCM push / email.
 import { mockInstalledUsers } from "./mock-extras";
 import type { NotifyEventKey } from "./store";
-import type { Crew, JoinRequest, Payment, Stay, SystemEventKey, User } from "./types";
+import type { Crew, JoinRequest, Payment, Stay, User } from "./types";
 
 export type ReminderType = "payDue" | "payToday" | "bookingUpload" | "pendingRequests" | "arrival" | "savedSoon" | "hostOpened" | "doItAgain";
 
@@ -17,8 +17,6 @@ export interface Reminder {
   channel: "email" | "email+push";
   notifyKey: NotifyEventKey;
   values: Record<string, string | number>;
-  /** Crew-related reminders also post a line into the crew chat */
-  chatEvent?: SystemEventKey;
 }
 
 interface ReminderData {
@@ -66,7 +64,7 @@ export function computeReminders(data: ReminderData, userId: string, now = Date.
     const mine = data.payments.find((p) => p.stayId === stay.id && p.userId === userId && p.status === "pending");
     if (mine && stay.accommodationStatus === "locked" && stay.payByDate) {
       const values = { title: stay.title, price: mine.total, payBy: stay.payByDate, name };
-      add({ type: "payDue", stayId: stay.id, due: iso(dayStart(stay.payByDate) - PAY_DUE_DAYS_BEFORE * DAY), notifyKey: "reminderPayDue", values, chatEvent: "reminderPayment" });
+      add({ type: "payDue", stayId: stay.id, due: iso(dayStart(stay.payByDate) - PAY_DUE_DAYS_BEFORE * DAY), notifyKey: "reminderPayDue", values });
       add({ type: "payToday", stayId: stay.id, due: iso(dayStart(stay.payByDate)), notifyKey: "reminderPayToday", values });
     }
 
@@ -106,7 +104,6 @@ export function computeReminders(data: ReminderData, userId: string, now = Date.
         due: iso(dayStart(stay.startDate) - ARRIVAL_DAYS_BEFORE * DAY),
         notifyKey: "reminderArrival",
         values: { title: stay.title, date: stay.startDate, days: ARRIVAL_DAYS_BEFORE },
-        chatEvent: "reminderArrival",
       });
     }
 

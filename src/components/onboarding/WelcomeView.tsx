@@ -34,7 +34,7 @@ function WelcomeGate({ next }: { next: string }) {
 
   return (
     <Container page width="narrow">
-      <div className="max-w-lg rounded-[24px] bg-white p-6 md:p-8">
+      <div className="max-w-lg rounded-[24px] bg-surface p-6 md:p-8">
         <h1 className="mb-4 text-2xl font-bold tracking-tight">{t("title")}</h1>
         {/* Keyed by user: switching the dev user starts a fresh form. */}
         <CompleteProfileForm key={me.id} user={me} onDone={() => router.replace(next)} />

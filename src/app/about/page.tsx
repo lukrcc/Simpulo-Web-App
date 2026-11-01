@@ -16,7 +16,7 @@ export default async function AboutPage() {
       <p>{t("houses")}</p>
       <p>{t("people")}</p>
       <p>
-        <Link href="/how-it-works" className="font-medium text-accent hover:underline">
+        <Link href="/how-it-works" className="font-medium text-ink hover:underline">
           {t("cta")}
         </Link>
       </p>

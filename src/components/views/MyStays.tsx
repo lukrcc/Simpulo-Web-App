@@ -1,28 +1,23 @@
 "use client";
 
-import { Compass, Heart, History, House, Plus, type LucideIcon } from "lucide-react";
+import { ChevronRight, Compass, House, Plus, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
-import { PeopleList, PersonPanel, usePeople } from "@/components/people/People";
 import { HouseDetail } from "@/components/stay/HouseDetail";
-import { HostCard } from "@/components/stay/HostCard";
-import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { AvatarStack } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { StayThumb } from "@/components/ui/StayThumb";
-import { Tabs } from "@/components/ui/Tabs";
-import { findUser, getCrew, getCurrentUser, isCrewMember, pendingRequestCount, useStore } from "@/lib/store";
-import type { JoinRequest, Stay, User } from "@/lib/types";
+import { findUser, getCrew, isCrewMember, pendingRequestCount, useStore } from "@/lib/store";
+import type { JoinRequest, Stay } from "@/lib/types";
 import { useFormat } from "@/i18n/format";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
-
-type Tab = "hosting" | "joined" | "people" | "past" | "saved";
 
 export function MyStays() {
   const t = useTranslations("houses");
@@ -33,15 +28,13 @@ export function MyStays() {
   );
 }
 
+type Section = "hosting" | "joined" | "past";
+
 function MyStaysContent() {
   const t = useTranslations("houses");
   const store = useStore();
   const isDesktop = useIsDesktop();
-  const params = useSearchParams();
-  const selectedId = params.get("id");
-  // People: ?tab=people (and ?person= for the desktop detail).
-  const personId = params.get("person");
-  const people = usePeople();
+  const selectedId = useSearchParams().get("id");
 
   // Completed Houses move to Past – for the host and the crew alike – and stay listed there.
   const hosting = store.stays
@@ -55,148 +48,125 @@ function MyStaysContent() {
     .filter((s) => s.status === "completed" && isCrewMember(store, s, store.currentUserId))
     .toSorted((a, b) => b.endDate.localeCompare(a.endDate));
 
-  // A deep link to a joined (or only saved) House opens that tab.
-  const savedIds = getCurrentUser(store)?.savedStayIds ?? [];
-  const saved = savedIds.map((id) => store.stays.find((s) => s.id === id)).filter((s): s is Stay => Boolean(s));
-  const [tab, setTab] = useState<Tab>(() =>
-    params.get("tab") === "people" || personId
-      ? "people"
-      : joined.some((j) => j.stay.id === selectedId)
-      ? "joined"
-      : past.some((s) => s.id === selectedId)
-        ? "past"
-        : !hosting.some((s) => s.id === selectedId) && saved.some((s) => s.id === selectedId)
-          ? "saved"
-          : "hosting",
+  // Hosting and Joined start open, Past closed – unless a deep link points into Past.
+  const [open, setOpen] = useState<ReadonlySet<Section>>(
+    () => new Set<Section>(["hosting", "joined", ...(past.some((s) => s.id === selectedId) ? (["past"] as const) : [])]),
   );
-  const stays = tab === "hosting" ? hosting : tab === "joined" ? joined.map((j) => j.stay) : tab === "past" ? past : tab === "saved" ? saved : [];
-  const active = stays.find((s) => s.id === selectedId) ?? stays[0];
+  const toggle = (section: Section) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (!next.delete(section)) next.add(section);
+      return next;
+    });
+
+  const all = [...hosting, ...joined.map((j) => j.stay), ...past];
+  const active = all.find((s) => s.id === selectedId) ?? all[0];
+  const row = (stay: Stay, props?: Partial<StayRowLinkProps>) => (
+    <StayRowLink stay={stay} active={isDesktop && stay.id === active?.id} isDesktop={isDesktop} {...props} />
+  );
 
   const list = (
-    <>
-      <Tabs
-        tabs={[
-          { value: "hosting", label: t("tabs.hosting"), count: hosting.length },
-          { value: "joined", label: t("tabs.joined"), count: joined.length },
-          { value: "people", label: t("tabs.people"), count: people.length },
-          { value: "past", label: t("tabs.past"), count: past.length },
-          { value: "saved", label: t("tabs.saved"), count: saved.length },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      <ul className="mt-4 space-y-1">
-        {tab === "hosting" &&
-          hosting.map((stay) => (
-            <li key={stay.id}>
-              <StayRowLink stay={stay} active={isDesktop && stay.id === active?.id} isDesktop={isDesktop} pending={pendingRequestCount(store, stay.id)} />
-            </li>
-          ))}
-        {tab === "joined" &&
-          joined.map(({ request, stay }) => (
-            <li key={request.id}>
-              <StayRowLink
-                stay={stay}
-                active={isDesktop && stay.id === active?.id}
-                isDesktop={isDesktop}
-                waiting={request.status === "pending"}
-                invited={request.status === "invited"}
-              />
-            </li>
-          ))}
-        {tab === "past" &&
-          past.map((stay) => (
-            <li key={stay.id}>
-              <StayRowLink stay={stay} active={isDesktop && stay.id === active?.id} isDesktop={isDesktop} />
-            </li>
-          ))}
-      </ul>
-      {/* Desktop: a row selects the person for the detail column; mobile: it opens their profile. */}
-      {tab === "people" && (
-        <div className="mt-4">
-          <PeopleList
-            variant="panel"
-            activeId={isDesktop ? (personId ?? people[0]?.user.id) : undefined}
-            hrefOf={(p) => (isDesktop ? `/my-stays?tab=people&person=${p.user.id}` : `/u/${p.user.id}`)}
+    <div className="space-y-2">
+      <ListSection label={t("sections.hosting")} count={hosting.length} open={open.has("hosting")} onToggle={() => toggle("hosting")}>
+        {hosting.length > 0 ? (
+          <>
+            <ul className="space-y-1">
+              {hosting.map((stay) => (
+                <li key={stay.id}>{row(stay, { pending: pendingRequestCount(store, stay.id) })}</li>
+              ))}
+            </ul>
+            {/* A quiet way to the next House while the list is short. */}
+            {hosting.length < 3 && <DashedRow href="/create" icon={Plus} label={t("openAnother")} />}
+          </>
+        ) : (
+          <OpenFirstHouseCard />
+        )}
+      </ListSection>
+
+      <ListSection label={t("sections.joined")} count={joined.length} open={open.has("joined")} onToggle={() => toggle("joined")}>
+        {joined.length > 0 ? (
+          <>
+            <ul className="space-y-1">
+              {joined.map(({ request, stay }) => (
+                <li key={request.id}>{row(stay, { waiting: request.status === "pending", invited: request.status === "invited" })}</li>
+              ))}
+            </ul>
+            <DashedRow href="/" icon={Compass} label={t("emptyJoined.title")} />
+          </>
+        ) : (
+          <EmptyState
+            icon={Compass}
+            title={t("emptyJoined.title")}
+            description={t("emptyJoined.description")}
+            action={
+              <Link href="/" className={buttonClass("dark", "sm")}>
+                {t("emptyJoined.action")}
+              </Link>
+            }
           />
-        </div>
-      )}
-      {tab === "past" && past.length === 0 && <EmptyState icon={History} title={t("pastEmpty.title")} description={t("pastEmpty.description")} />}
-      {/* Saved: on desktop a row selects the House for the detail panel, on mobile it opens the House page. */}
-      {tab === "saved" && saved.length > 0 && (
-        <ul className="space-y-1">
-          {saved.map((stay) => (
-            <li key={stay.id}>
-              <StayRowLink
-                stay={stay}
-                active={isDesktop && stay.id === active?.id}
-                isDesktop={isDesktop}
-                href={isDesktop ? undefined : `/house/${stay.slug}`}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-      {tab === "saved" && saved.length === 0 && (
-        <EmptyState
-          icon={Heart}
-          title={t("saved.emptyTitle")}
-          description={t("saved.emptyDescription")}
-          action={
-            <Link href="/" className={buttonClass("dark", "sm")}>
-              {t("emptyJoined.action")}
-            </Link>
-          }
-        />
-      )}
-      {/* Saved Houses first (or their empty state), then the hosts you get alerts from. */}
-      {tab === "saved" && <HostAlertsRow />}
-      {tab === "hosting" && hosting.length === 0 && <OpenFirstHouseCard />}
-      {/* A quiet way to the next House while the list is short. */}
-      {tab === "hosting" && hosting.length > 0 && hosting.length < 3 && <DashedRow href="/create" icon={Plus} label={t("openAnother")} />}
-      {tab === "joined" && joined.length > 0 && <DashedRow href="/" icon={Compass} label={t("emptyJoined.title")} />}
-      {tab === "joined" && joined.length === 0 && (
-        <EmptyState
-          icon={Compass}
-          title={t("emptyJoined.title")}
-          description={t("emptyJoined.description")}
-          action={
-            <Link href="/" className={buttonClass("dark", "sm")}>
-              {t("emptyJoined.action")}
-            </Link>
-          }
-        />
-      )}
-    </>
+        )}
+      </ListSection>
+
+      <ListSection label={t("sections.past")} count={past.length} open={open.has("past")} onToggle={() => toggle("past")}>
+        {past.length > 0 ? (
+          <ul className="space-y-1">
+            {past.map((stay) => (
+              <li key={stay.id}>{row(stay)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="px-2.5 pb-2 text-sm text-muted">{t("pastEmpty.description")}</p>
+        )}
+      </ListSection>
+    </div>
   );
 
   return (
     <MasterDetail
       panel
+      fixedList
       title={t("title")}
       list={list}
       // Desktop only – below lg a row opens /my-stays/[id].
       detail={
         isDesktop &&
-        (tab === "people" ? (
-          <PersonPanel personId={personId} />
-        ) : tab === "saved" ? (
-          active ? (
-            <SavedHouse key={active.id} stay={active} />
-          ) : (
-            <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-black/10">
-              <EmptyState icon={Heart} title={t("saved.emptyTitle")} />
-            </div>
-          )
-        ) : active ? (
+        (active ? (
           <HouseDetail key={active.id} stay={active} />
         ) : (
-          <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-black/10">
-            <EmptyState icon={tab === "past" ? History : House} title={tab === "hosting" ? t("noHouse") : tab === "past" ? t("pastEmpty.title") : t("noJoinedHouse")} />
+          <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-line">
+            <EmptyState icon={House} title={t("noHouse")} />
           </div>
         ))
       }
     />
+  );
+}
+
+/** A collapsible group of the list: "Hosting (3)" with a chevron, its rows below while open. */
+function ListSection({ label, count, open, onToggle, children }: { label: string; count: number; open: boolean; onToggle: () => void; children: ReactNode }) {
+  const t = useTranslations("houses.sections");
+  const id = useId();
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label={t("toggle", { label, count })}
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-ink hover:bg-ink/[0.03]"
+      >
+        <ChevronRight className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
+        <span className="flex-1">
+          {label} <span className="font-normal text-muted">({count})</span>
+        </span>
+      </button>
+      {open && (
+        <div id={id} className="mt-1">
+          {children}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -210,11 +180,9 @@ interface StayRowLinkProps {
   waiting?: boolean;
   /** Joined: invited from a past crew, not answered yet */
   invited?: boolean;
-  /** Overrides the Houses detail link (Saved rows on mobile open the House page) */
-  href?: string;
 }
 
-function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, invited = false, href }: StayRowLinkProps) {
+function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, invited = false }: StayRowLinkProps) {
   const t = useTranslations("houses.row");
   const tDraft = useTranslations("growth.draft");
   const f = useFormat();
@@ -224,10 +192,10 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
 
   return (
     <Link
-      href={href ?? (isDesktop ? `/my-stays?id=${stay.id}` : `/my-stays/${stay.id}`)}
+      href={isDesktop ? `/my-stays?id=${stay.id}` : `/my-stays/${stay.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition-colors", active ? "bg-page" : "hover:bg-black/[0.03]")}
+      className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition-colors", active ? "bg-bg" : "hover:bg-ink/[0.03]")}
     >
       {photo ? (
         <Img src={photo} alt={host.name} width={56} height={56} className="size-14 shrink-0 rounded-xl object-cover" />
@@ -238,23 +206,23 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-semibold">{stay.title}</p>
           {pending > 0 && (
-            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-white">{t("new", { count: pending })}</span>
+            <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-surface">{t("new", { count: pending })}</span>
           )}
-          {waiting && <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("pending")}</span>}
-          {invited && <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{t("invited")}</span>}
+          {waiting && <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{t("pending")}</span>}
+          {invited && <span className="shrink-0 rounded-full bg-bg px-2 py-0.5 text-[11px] font-semibold text-ink">{t("invited")}</span>}
           {stay.status === "closed" && (
-            <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{t("closed")}</span>
+            <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{t("closed")}</span>
           )}
           {stay.status === "draft" && (
-            <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{tDraft("badge")}</span>
+            <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{tDraft("badge")}</span>
           )}
         </div>
-        <p className="truncate text-xs text-zinc-500">
+        <p className="truncate text-xs text-muted">
           {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <AvatarStack users={getCrew(store, stay)} size="xs" />
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-muted">
             {stay.spotsFilled}/{stay.spotsTotal}
           </span>
         </div>
@@ -263,14 +231,14 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
   );
 }
 
-/** Empty Hosting tab: invites the first House. */
+/** The quiet next step under a section ("Open another House", "Find a House"). */
 function DashedRow({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
   return (
     <Link
       href={href}
-      className="mt-1 flex items-center gap-3 rounded-2xl border-2 border-dashed border-black/10 p-2.5 text-sm font-medium text-zinc-500 transition-colors hover:border-black/20 hover:text-ink"
+      className="mt-1 flex items-center gap-3 rounded-2xl border-2 border-dashed border-line p-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-ink"
     >
-      <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-page">
+      <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-bg">
         <Icon className="size-5" aria-hidden />
       </span>
       {label}
@@ -283,97 +251,15 @@ function OpenFirstHouseCard() {
   return (
     <Link
       href="/create"
-      className="mt-2 flex flex-col items-center rounded-[24px] border-2 border-dashed border-black/10 p-8 text-center transition-colors hover:border-black/20 hover:bg-white/60"
+      className="mt-2 flex flex-col items-center rounded-[24px] border-2 border-dashed border-line p-8 text-center transition-colors hover:bg-surface/60"
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-ink text-white">
+      <span className="flex size-12 items-center justify-center rounded-full bg-ink text-surface">
         <Plus className="size-5" aria-hidden />
       </span>
       <p className="mt-4 font-semibold">
-        {t.rich("title", { accent: (chunks) => <span className="text-accent">{chunks}</span> })}
+        {t.rich("title", { accent: (chunks) => <span className="text-ink">{chunks}</span> })}
       </p>
-      <p className="mt-1 text-sm text-zinc-500">{t("description")}</p>
+      <p className="mt-1 text-sm text-muted">{t("description")}</p>
     </Link>
-  );
-}
-
-/** Saved detail (desktop): the selected saved House – summary, host, and a way to unsave it. */
-function SavedHouse({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses");
-  const f = useFormat();
-  const store = useStore();
-  const host = findUser(store, stay.hostId);
-
-  return (
-    <section className="rounded-[24px] bg-white p-6">
-      <h2 className="text-2xl font-bold tracking-tight">{stay.title}</h2>
-      <p className="mt-1 text-zinc-500">
-        {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
-      </p>
-      {host && (
-        <div className="mt-5 border-t border-black/5 pt-5">
-          <HostCard host={host} />
-        </div>
-      )}
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link href={`/house/${stay.slug}`} className={buttonClass("dark", "sm")}>
-          {t("detail.viewPage")}
-        </Link>
-        <button type="button" onClick={() => store.toggleSaved(stay.id)} className={buttonClass("secondary", "sm")}>
-          <Heart className="size-3.5 fill-current" aria-hidden />
-          {t("saved.unsave")}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-/** Saved segment: hosts with alerts on ("Notify me" on their profile) as rows with a switch. */
-function HostAlertsRow() {
-  const t = useTranslations("houses.hostAlerts");
-  const store = useStore();
-  const alertIds = getCurrentUser(store)?.hostAlerts ?? [];
-  // Hosts switched off here stay listed until the page is left, so a mis-tap can be undone.
-  const [shownIds, setShownIds] = useState(alertIds);
-  const ids = [...shownIds, ...alertIds.filter((id) => !shownIds.includes(id))];
-  if (ids.length !== shownIds.length) setShownIds(ids);
-  const hosts = ids.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
-  if (hosts.length === 0) return null;
-
-  return (
-    <section className="mt-6 border-t border-black/5 pt-4">
-      <h2 className="text-sm font-semibold">{t("title")}</h2>
-      <p className="mt-0.5 text-xs text-zinc-500">{t("description")}</p>
-      <ul className="mt-2 divide-y divide-black/5">
-        {hosts.map((host) => {
-          const on = alertIds.includes(host.id);
-          return (
-            <li key={host.id} className="flex items-center gap-3 py-2.5">
-              <Avatar user={host} size="md" linked />
-              <Link href={`/u/${host.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline">
-                {host.name}
-              </Link>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={on}
-                aria-label={t("notifyLabel", { name: host.name.split(" ")[0] })}
-                onClick={() => store.toggleHostAlert(host.id)}
-                className="flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-600"
-              >
-                {t("notifyMe")}
-                <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-accent" : "bg-neutral-300")}>
-                  <span
-                    className={cn(
-                      "absolute left-0 top-0.5 size-4 rounded-full bg-white shadow transition-transform",
-                      on ? "translate-x-4.5" : "translate-x-0.5",
-                    )}
-                  />
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
   );
 }

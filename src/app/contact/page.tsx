@@ -17,7 +17,7 @@ export default async function ContactPage() {
         {t.rich("text", {
           email: CONTACT_EMAIL,
           mail: (chunks) => (
-            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-accent hover:underline">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-ink hover:underline">
               {chunks}
             </a>
           ),

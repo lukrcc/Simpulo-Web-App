@@ -1,14 +1,37 @@
 @import "tailwindcss";
 
-/* static: also emit variables that are only read via var() (e.g. --color-page in CardTab and body). */
+/*
+ * The colour system – these six and nothing else (components use them as bg-bg, bg-surface, text-ink, text-muted,
+ * border-line, outline-accent …; white with alpha only as overlays on photos).
+ */
+:root {
+  color-scheme: light;
+  --bg: #F7F6F3;        /* Seitenhintergrund */
+  --surface: #FFFFFF;   /* Karten, Kapseln, Drawer, Header */
+  --ink: #1E1E22;       /* Primärtext, schwarze Buttons, aktive Chips */
+  --muted: #6B6B70;     /* Sekundärtext: Daten, Preise, Zähler */
+  --line: #E6E4DF;      /* Rahmen, Trennlinien */
+  --accent: #F0633A;    /* Logo-Punkt, Verified-Häkchen, Filter-Zähler, Fokusring */
+}
+
+/* The six as Tailwind theme colours (inline: utilities read the variables above directly). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+}
+
+/* static: also emit variables that are only read via var(). */
 @theme static {
-  --color-accent: #f0633a;
-  --color-accent-dark: #d9552f;
-  --color-accent-soft: #fdeee8;
-  --color-ink: #1e1e22;
-  --color-muted: #71717a;
-  /* Warm page background; cards and sheets stay white. */
-  --color-page: #f5f4f1;
+  /* Explore's filter panel: in from the right edge. */
+  --animate-panel-in: panel-in 240ms ease-out;
+  @keyframes panel-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
   /* Spotlight: slow zoom on the active slide (Ken Burns). */
   --animate-kenburns: kenburns 6s linear forwards;
   @keyframes kenburns {
@@ -24,6 +47,10 @@
  * Below md there is no top header (the tab bar sits at the bottom), only the iOS status bar area.
  */
 :root {
+  /* Explore's filter row – the header's second row there */
+  --filter-row-h: 56px;
+  /* The header bar once scrolled (HeaderShrink, md up) – where scrolled-to content lines up */
+  --header-bar-h-compact: 52px;
   --header-h: env(safe-area-inset-top, 0px);
   /* The visible header bar – what sticky bars sit under. Same as the slot, except while the header is compact. */
   --header-bar-h: var(--header-h);
@@ -34,7 +61,7 @@
   }
   /* Scrolled (HeaderShrink): the bar shrinks inside its unchanged slot and the claim under the wordmark goes. */
   :root[data-header-compact] {
-    --header-bar-h: 52px;
+    --header-bar-h: var(--header-bar-h-compact);
   }
 }
 .logo-tagline {
@@ -72,8 +99,8 @@ html {
 }
 
 body {
-  background: var(--color-page);
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--ink);
   overscroll-behavior: none;
 }
 
@@ -127,7 +154,7 @@ main:has([data-app-pane="always"]) {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   &:hover {
-    scrollbar-color: #d4d4d8 transparent;
+    scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
   }
   /* WebKit/Blink without scrollbar-color support */
   &::-webkit-scrollbar {
@@ -138,32 +165,83 @@ main:has([data-app-pane="always"]) {
     background: transparent;
   }
   &:hover::-webkit-scrollbar-thumb {
-    background: #d4d4d8;
+    background: color-mix(in srgb, var(--muted) 45%, transparent);
   }
 }
 
 /* Liquid Glass for floating UI. In the components layer, so utilities (border-b-only, hover:bg-…) still win. */
 @layer components {
   .glass {
-    background: rgba(255, 255, 255, 0.55);
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: 1px solid color-mix(in srgb, var(--surface) 60%, transparent);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 8px 24px rgba(0, 0, 0, 0.08);
+      inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
+      0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
   }
   /* Over photos */
   .glass-dark {
-    background: rgba(30, 30, 34, 0.35);
+    background: color-mix(in srgb, var(--ink) 35%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: #ffffff;
+    border: 1px solid color-mix(in srgb, var(--surface) 25%, transparent);
+    color: var(--surface);
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .glass { background: rgba(255, 255, 255, 0.92); }
-    .glass-dark { background: rgba(30, 30, 34, 0.85); }
+    .glass { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+    .glass-dark { background: color-mix(in srgb, var(--ink) 85%, transparent); }
+  }
+}
+
+/* Share and heart buttons on cards: a click presses them in (class "pressed", taken off again after 140ms), and the heart
+   pops when it's switched on (class "heart-pop"). Reduced motion: just the state change. */
+.press-feedback {
+  /* Replaces the buttons' own colour transition (this rule wins over utilities), so the colours are listed again. */
+  transition: transform 120ms ease-out, background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.press-feedback.pressed {
+  transform: scale(0.85);
+}
+@keyframes heart-pop {
+  50% { transform: scale(1.25); }
+}
+.heart-pop {
+  animation: heart-pop 300ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .press-feedback.pressed { transform: none; }
+  .heart-pop { animation: none; }
+}
+
+/* The rows run edge to edge; this pads them to the page gutter (Container: 16px, from md 32px, centred at 1600px). */
+.lift-row {
+  --row-gutter: 16px;
+}
+@media (min-width: 48rem) {
+  .lift-row {
+    --row-gutter: max(32px, calc((100vw - var(--scrollbar-w, 0px) - 1600px) / 2 + 32px));
+  }
+}
+/* Carousel rows (ScrollRow): only the card under the pointer moves – up 12px and a little larger, above its neighbours,
+   with a shadow. Transform only (no layout shift); the row has room around it. Reduced motion: just the shadow.
+   drop-shadow instead of box-shadow: it follows the card's rounded, notched shape (a box-shadow would be square). */
+.lift-row > * {
+  position: relative;
+  transform-origin: bottom center;
+  transform: translateY(0) scale(1);
+  filter: drop-shadow(0 16px 40px transparent);
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (hover: hover) {
+  .lift-row > *:hover {
+    z-index: 2;
+    filter: drop-shadow(0 16px 40px color-mix(in srgb, var(--ink) 22%, transparent));
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .lift-row > *:hover {
+    transform: translateY(-12px) scale(1.04);
   }
 }
 
@@ -188,6 +266,13 @@ main:has([data-app-pane="always"]) {
 }
 .animate-toast-in { animation: toast-in 180ms ease-out; }
 .animate-sheet-in { animation: sheet-in 220ms ease-out; }
+/* The hero's Next button: on release the icon turns half way – BentoTop adds "spin" and takes it off on animationend.
+   The circular arrows look the same at 180°, so dropping back to 0° afterwards doesn't show. */
+@keyframes spin-half {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
+}
+.spin { animation: spin-half 300ms ease-in-out; }
 .animate-fade-in { animation: fade-in 180ms ease-out; }
 /* Photo lightbox: fade + scale 0.98 → 1. */
 @keyframes lightbox-in {
@@ -195,6 +280,26 @@ main:has([data-app-pane="always"]) {
   to { opacity: 1; transform: scale(1); }
 }
 .animate-lightbox-in { animation: lightbox-in 200ms ease-out; }
+/* Edit profile's save bar: slides up once there's something to save. */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 200ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up { animation: none; }
+}
+
+/* Number fields everywhere: no spinners – typed, never stepped. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 
 /* Notched cards (useNotchClip): once the card clips itself around the host tab, the tab needs no page-coloured
    background or corner pieces – they were what left a hairline along the notch. Unlayered, so it beats utilities. */
@@ -215,13 +320,13 @@ main:has([data-app-pane="always"]) {
 /* Focus overlay behind a dialog (ModalOverlay): blur + light dim; without backdrop-filter a stronger dim instead.
    The panel slides up as a bottom sheet on phones and fades + scales 0.98 → 1 from md; reduced motion: fade only. */
 .modal-backdrop {
-  background: rgba(30, 30, 34, 0.25);
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   animation: fade-in 200ms ease-out;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .modal-backdrop { background: rgba(30, 30, 34, 0.55); }
+  .modal-backdrop { background: color-mix(in srgb, var(--ink) 55%, transparent); }
 }
 @keyframes modal-sheet-up {
   from { transform: translateY(100%); }
@@ -255,17 +360,17 @@ main:has([data-app-pane="always"]) {
     height: 36px;
     padding: 0 14px;
     border-radius: 9999px;
-    border: 1px solid #1e1e22;
-    color: #1e1e22;
-    background: #fff;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    background: var(--surface);
     font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
     transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .open-house-btn:hover {
-    background: #1e1e22;
-    color: #fff;
+    background: var(--ink);
+    color: var(--surface);
   }
   .open-house-btn:active {
     transform: scale(0.97);
@@ -276,25 +381,25 @@ main:has([data-app-pane="always"]) {
   /* The header pill: filled primary. Ink fill, white semibold text; hover lifts 1px and lightens, pressed it sits
      back down in ink. A hairline shadow keeps its edge crisp on the glass header over bright photos. */
   .open-house-btn--primary {
-    background: #1e1e22;
-    color: #fff;
+    background: var(--ink);
+    color: var(--surface);
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(30, 30, 34, 0.18);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 18%, transparent);
     transition: background-color 0.15s ease, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease;
   }
   .open-house-btn--primary:hover {
-    background: #2e2e33;
+    background: color-mix(in srgb, var(--ink) 90%, var(--surface));
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(30, 30, 34, 0.22);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--ink) 22%, transparent);
   }
   .open-house-btn--primary:active {
-    background: #1e1e22;
+    background: var(--ink);
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(30, 30, 34, 0.18);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 18%, transparent);
   }
   .open-house-btn--primary:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(30, 30, 34, 0.3);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
   }
   .open-house-btn--round {
     width: 36px;

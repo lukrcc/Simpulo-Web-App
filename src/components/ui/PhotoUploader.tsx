@@ -90,8 +90,8 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                 onDragEnd={() => setDragFrom(null)}
                 className={cn(
                   "group relative aspect-4/5 overflow-hidden rounded-2xl",
-                  src ? "cursor-grab bg-neutral-200 active:cursor-grabbing" : "border-2 border-dashed",
-                  !src && (slot === 0 ? "border-accent/60 bg-accent-soft/50" : "border-neutral-300 bg-white"),
+                  src ? "cursor-grab bg-line active:cursor-grabbing" : "border-2 border-dashed",
+                  !src && (slot === 0 ? "border-line bg-bg" : "border-line bg-surface"),
                   dragFrom === slot && "opacity-50",
                 )}
               >
@@ -117,20 +117,20 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                   <button
                     type="button"
                     onClick={() => pick(slot)}
-                    className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-zinc-500"
+                    className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-muted"
                   >
-                    <ImagePlus className={cn("size-6", slot === 0 && "text-accent")} aria-hidden />
+                    <ImagePlus className={cn("size-6", slot === 0 && "text-ink")} aria-hidden />
                     <span className="text-xs font-medium">{profile ? t("addPhoto") : t(slotLabel(slot))}</span>
-                    {slot === 0 && !profile && <span className="text-[10px] uppercase tracking-wide text-accent">{t("required")}</span>}
+                    {slot === 0 && !profile && <span className="text-[10px] uppercase tracking-wide text-ink">{t("required")}</span>}
                   </button>
                 )}
               </div>
-              {profile && slot === 0 && <p className="mt-1.5 text-center text-xs font-medium text-zinc-500">{t("face")}</p>}
+              {profile && slot === 0 && <p className="mt-1.5 text-center text-xs font-medium text-muted">{t("face")}</p>}
             </div>
           );
         })}
       </div>
-      {!profile && photos.length > 1 && <p className="mt-2 hidden text-xs text-zinc-500 md:block">{t("reorderHint")}</p>}
+      {!profile && photos.length > 1 && <p className="mt-2 hidden text-xs text-muted md:block">{t("reorderHint")}</p>}
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
     </div>
   );

@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Container } from "@/components/layout/Container";
 import { CardTab } from "@/components/ui/CardTab";
 import { NotchedCard } from "@/components/ui/NotchedCard";
@@ -11,6 +11,7 @@ import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { Img } from "@/components/ui/Img";
 import { PlaceText } from "@/components/ui/PlaceText";
 import { useFormat } from "@/i18n/format";
+import { markHeroSeen } from "@/lib/heroRotation";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
@@ -20,8 +21,10 @@ import { cn, firstName, firstSentence } from "@/lib/utils";
 /** One cell switches this often – A, then B, then C, then A again. */
 const TICK_MS = 5_000;
 const CELL_COUNT = 3;
-/** Crossfade of the switching cell (and of all three on shuffle). */
+/** Crossfade of the switching cell on autoplay … */
 const FADE_MS = 600;
+/** … and of all three on "Next". */
+const NEXT_FADE_MS = 300;
 /** A House stays up for a full round (one tick per cell) – its photo zooms 1 → 1.06 over that time. */
 const ZOOM_MS = TICK_MS * CELL_COUNT;
 
@@ -59,8 +62,10 @@ interface Rotation {
   ticks: number;
   /** Every switch (tick or shuffle) – restarts the timer and the ring */
   steps: number;
-  /** Shuffles – spin the icon */
+  /** Shuffles ("Next") */
   shuffles: number;
+  /** Crossfade of the last switch (ms): Next is quicker than autoplay */
+  fadeMs: number;
 }
 
 const initialRotation = (cells: number): Rotation => ({
@@ -70,14 +75,15 @@ const initialRotation = (cells: number): Rotation => ({
   ticks: 0,
   steps: 0,
   shuffles: 0,
+  fadeMs: FADE_MS,
 });
 
 /**
  * Desktop (≥ lg) top section: one large and two small featured Houses. Every 5 seconds ONE cell switches to the next
- * House that isn't on screen – A, B, C, A … – with a 600ms crossfade; each photo zooms slowly (Ken Burns) while it's
+ * House that isn't on screen – A, B, C, A … – with a 600ms crossfade (Next: all three, 300ms); each photo zooms slowly (Ken Burns) while it's
  * up. Shuffle switches all three at once and starts the round over at A. Every cell keeps its upcoming House mounted
  * (invisible), so the photo is loaded before it's shown. Pauses while hovered and while the tab is hidden; resuming
- * gives the cell a full 5 seconds. Reduced motion: no zoom, instant swaps.
+ * gives the cell a full 5 seconds. Reduced motion: no zoom, no turning icon – the crossfades stay.
  */
 export function BentoTop({ stays }: { stays: Stay[] }) {
   const t = useTranslations("explore");
@@ -121,6 +127,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
         cursor: next + 1,
         ticks: r.ticks + 1,
         steps: r.steps + 1,
+        fadeMs: FADE_MS,
       };
     });
   }, [claimSwitch, items.length]);
@@ -138,9 +145,23 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
         ticks: 0,
         steps: r.steps + 1,
         shuffles: r.shuffles + 1,
+        fadeMs: NEXT_FADE_MS,
       };
     });
   }, [claimSwitch, items.length]);
+
+  // What's on screen won't lead the hero again this session round (src/lib/heroRotation.ts).
+  const shownIds = rotation.shown.map((index) => items[index]?.stay.id).filter(Boolean).join(",");
+  useEffect(() => {
+    if (shownIds) markHeroSeen(shownIds.split(","));
+  }, [shownIds]);
+
+  // Keyboard on the hero card (cell A's link or its Next capsule): → or Space = Next.
+  const onHeroKey = (e: KeyboardEvent) => {
+    if (e.key !== "ArrowRight" && e.key !== " ") return;
+    e.preventDefault();
+    shuffle();
+  };
 
   // One timeout per tick: every switch (tick or shuffle) and every resume after a pause starts a full 5 seconds.
   useEffect(() => {
@@ -176,7 +197,8 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
             ...(previousIndex === null ? [] : [{ index: previousIndex, visible: false, leaving: true }]),
             ...preload.filter((p) => p !== undefined).map((p) => ({ index: p, visible: false, leaving: false })),
           ].filter((layer, n, all) => all.findIndex((l) => l.index === layer.index) === n);
-          const fade: CSSProperties = reducedMotion ? { transition: "none" } : { transition: `opacity ${FADE_MS}ms ease-in-out` };
+          // Crossfade also with reduced motion – it's only the turning and zooming that stop.
+          const fade: CSSProperties = { transition: `opacity ${rotation.fadeMs}ms ease-in-out` };
           return (
             // One clipped silhouette per cell, notched around its host tab (NotchedCard). Cell A is the hover group
             // for the shuffle control.
@@ -218,18 +240,11 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
               <Link
                 href={`/house/${shown.stay.slug}`}
                 aria-label={t("houseWithHost", { title: shown.stay.title, host: firstName(shown.host) })}
+                aria-keyshortcuts={large && canRotate ? "ArrowRight Space" : undefined}
+                onKeyDown={large && canRotate ? onHeroKey : undefined}
                 className="absolute inset-0 cursor-pointer"
               />
-              {large && canRotate && (
-                <ShuffleButton
-                  label={t("nextHouses")}
-                  steps={rotation.steps}
-                  shuffles={rotation.shuffles}
-                  running={running}
-                  showRing={!reducedMotion}
-                  onClick={shuffle}
-                />
-              )}
+              {large && canRotate && <NextButton label={t("next")} onClick={shuffle} />}
             </NotchedCard>
           );
         })}
@@ -238,112 +253,110 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
   );
 }
 
-/** The 40px ring: r = 19 with a 2px stroke, so the stroke sits just inside the edge. */
-const RING_SIZE = 40;
-const RING_RADIUS = 19;
-
-interface ShuffleButtonProps {
+interface NextButtonProps {
   label: string;
-  /** Switches so far (ticks and shuffles) – each one restarts the ring */
-  steps: number;
-  /** Shuffles so far – each one spins the icon */
-  shuffles: number;
-  /** False while paused (hover, hidden tab): the ring holds; resuming starts it over, like the timer */
-  running: boolean;
-  /** Off under reduced motion: no ring, just the icon. */
-  showRing: boolean;
   onClick: () => void;
 }
 
+/** Keys that press the Next button: Enter and Space like any button, → as the hero's own shortcut. */
+const PRESS_KEYS = new Set(["Enter", " ", "ArrowRight"]);
+
 /**
- * Shuffle control, bottom-right of cell A: by default only a thin ring (35%) that fills over the 5 seconds to the next
- * switch; hovering cell A (or focusing the button) brightens it and fades in the icon on a glass circle.
+ * "Next" capsule, bottom-right of cell A: solid surface, ink text and icon, 44px, a soft shadow; hover a shade darker.
+ * Held down – mouse (:active) or Enter / Space / → (data-pressed) – it sinks: scale 0.90, darker, the shadow turned
+ * inward, for as long as it's held (in 120ms; back out in 160ms). Next happens on release, not on press: then the icon
+ * turns half way (180°, 300ms – class "spin", off again on animationend) and the Houses crossfade. Reduced motion: the press is colour
+ * only, no turn.
  */
-function ShuffleButton({ label, steps, shuffles, running, showRing, onClick }: ShuffleButtonProps) {
-  const gradientId = useId();
-  const progressRef = useRef<SVGCircleElement>(null);
-  const fillRef = useRef<Animation | null>(null);
+function NextButton({ label, onClick }: NextButtonProps) {
+  const iconRef = useRef<SVGSVGElement>(null);
+  const [keyPressed, setKeyPressed] = useState(false);
+  /** Just acted on a key release – a native click that may follow it is the same press, not another one. */
+  const keyReleased = useRef(false);
 
-  const lastSteps = useRef(steps);
-
-  // Web Animations API: a pause freezes the ring where it is; a switch empties it (also while paused, e.g. a shuffle
-  // click with the pointer on the bento); running again starts a fresh fill, like the timer's fresh 5 seconds.
-  useEffect(() => {
-    const ring = progressRef.current;
-    if (!ring) return;
-    const switched = steps !== lastSteps.current;
-    lastSteps.current = steps;
-    if (!running && !switched) {
-      fillRef.current?.pause();
-      return;
+  function release() {
+    const icon = iconRef.current;
+    if (icon && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // Off, a forced reflow, on again: restarts the turn even while one is still running.
+      icon.classList.remove("spin");
+      void icon.getBoundingClientRect();
+      icon.classList.add("spin");
     }
-    fillRef.current?.cancel();
-    fillRef.current = ring.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }], { duration: TICK_MS, easing: "linear", fill: "forwards" });
-    if (!running) fillRef.current.pause();
-  }, [steps, running, showRing]);
-
-  // Unmount (or ring hidden): drop the fill so a remounted ring starts fresh.
-  useEffect(
-    () => () => {
-      fillRef.current?.cancel();
-      fillRef.current = null;
-    },
-    [showRing],
-  );
+    onClick();
+  }
 
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-label={label}
+      data-pressed={keyPressed || undefined}
+      // Mouse / touch (and screen readers): the click comes on release by itself.
+      onClick={() => {
+        if (keyReleased.current) return;
+        release();
+      }}
+      onKeyDown={(e) => {
+        if (!PRESS_KEYS.has(e.key)) return;
+        // Held down: show the press, don't act yet (and no native Enter click, no page scroll on Space).
+        e.preventDefault();
+        setKeyPressed(true);
+      }}
+      onKeyUp={(e) => {
+        if (!PRESS_KEYS.has(e.key) || !keyPressed) return;
+        e.preventDefault();
+        setKeyPressed(false);
+        release();
+        keyReleased.current = true;
+        setTimeout(() => (keyReleased.current = false));
+      }}
+      onBlur={() => setKeyPressed(false)}
       className={cn(
-        "group/shuffle absolute bottom-10 right-10 z-20 flex size-10 items-center justify-center rounded-full text-white outline-none transition-[background-color,backdrop-filter] duration-200",
-        "group-hover/a:bg-[rgba(20,20,22,0.45)] group-hover/a:backdrop-blur-[16px] focus-visible:bg-[rgba(20,20,22,0.45)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent",
-        // Reduced motion has no ring – the icon is all there is, so it stays visible.
-        !showRing && "bg-[rgba(20,20,22,0.45)]",
+        "absolute bottom-10 right-10 z-20 inline-flex h-11 touch-manipulation items-center gap-2 rounded-full bg-surface px-[18px] text-sm font-semibold text-ink outline-none",
+        // Rest – and the way back to it after a press: 160ms.
+        "scale-100 shadow-[0_2px_8px_color-mix(in_srgb,var(--ink)_25%,transparent)] transition-[scale,background-color,box-shadow] duration-160 ease-out",
+        // #F0EFEC: 60 % line on surface.
+        "hover:bg-[color-mix(in_srgb,var(--line)_60%,var(--surface))] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent",
+        // Pressed (into it in 120ms): #E8E6E1 (line with a little surface), the shadow inward, smaller – not with reduced motion.
+        "active:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] active:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)] active:duration-120 motion-safe:active:scale-90",
+        "data-pressed:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] data-pressed:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)] data-pressed:duration-120 motion-safe:data-pressed:scale-90",
       )}
     >
-      {showRing && (
-        <svg
-          aria-hidden
-          width={RING_SIZE}
-          height={RING_SIZE}
-          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-          // -rotate-90: the stroke starts at 12 o'clock.
-          className="pointer-events-none absolute inset-0 -rotate-90 opacity-35 transition-opacity duration-200 group-hover/a:opacity-100 group-focus-visible/shuffle:opacity-100"
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#F7A27A" />
-              <stop offset="100%" stopColor="#F0633A" />
-            </linearGradient>
-          </defs>
-          <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS} fill="none" strokeWidth={2} className="stroke-white/40" />
-          <circle
-            ref={progressRef}
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RING_RADIUS}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth={2}
-            strokeLinecap="round"
-            // pathLength 100: dash offsets are percentages of the circle. Starts empty until the fill runs.
-            pathLength={100}
-            strokeDasharray={100}
-            strokeDashoffset={100}
-          />
-        </svg>
-      )}
-      <RefreshCw
-        className={cn(
-          "size-4.5 transition-opacity duration-200 motion-safe:transition-[opacity,transform] motion-safe:duration-900 motion-safe:ease-in-out",
-          showRing && "opacity-0 group-hover/a:opacity-100 group-focus-visible/shuffle:opacity-100",
-        )}
-        style={{ transform: `rotate(${shuffles * 360}deg)` }}
-        aria-hidden
-      />
+      <RefreshCw ref={iconRef} onAnimationEnd={(e) => e.currentTarget.classList.remove("spin")} className="size-4" aria-hidden />
+      {label}
     </button>
+  );
+}
+
+/** The large cell's title: at most this size once it runs to two lines. */
+const TWO_LINE_TITLE_MAX_PX = 56;
+
+/**
+ * The large cell's title at its standard size – and if that runs to two lines, capped at TWO_LINE_TITLE_MAX_PX. Measured
+ * with a ResizeObserver, always at the standard size (the cap off while measuring), so the result can't flip back and
+ * forth between one and two lines.
+ */
+function HeroTitle({ title }: { title: string }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      delete el.dataset.twoLines;
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+      if (lineHeight > 0 && Math.round(el.scrollHeight / lineHeight) >= 2) el.dataset.twoLines = "";
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [title]);
+  return (
+    <h2
+      ref={ref}
+      style={{ "--two-line-max": `${TWO_LINE_TITLE_MAX_PX}px` } as CSSProperties}
+      className="line-clamp-2 text-[clamp(32px,3.4vw,48px)] font-bold leading-[1.05] tracking-[-0.02em] data-two-lines:text-[min(clamp(32px,3.4vw,48px),var(--two-line-max))]"
+    >
+      {title}
+    </h2>
   );
 }
 
@@ -382,13 +395,15 @@ function CellLayer({ stay, host, guests, large, zoom, zoomPaused, eager, preload
           />
         </div>
         {/* Bottom 55%: transparent → 70% black, eased through a midpoint so it stays soft. */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 via-25% to-transparent to-55%" />
+        <div className="absolute inset-0 bg-linear-to-t from-ink/70 via-ink/30 via-25% to-transparent to-55%" />
       </div>
 
       <div className={cn("pointer-events-none absolute text-white", large ? "inset-x-10 bottom-10 pr-16" : "inset-x-8 bottom-8")}>
-        <h2 className={cn("line-clamp-2 font-bold leading-[1.05] tracking-[-0.02em]", large ? "text-[clamp(32px,3.4vw,48px)]" : "text-2xl")}>
-          {stay.title}
-        </h2>
+        {large ? (
+          <HeroTitle title={stay.title} />
+        ) : (
+          <h2 className="line-clamp-2 text-2xl font-bold leading-[1.05] tracking-[-0.02em]">{stay.title}</h2>
+        )}
         {large && <p className="mt-3 line-clamp-2 max-w-xl text-lg text-white/90">{firstSentence(stay.lookingForText)}</p>}
         <p className={cn("flex items-center gap-1.5 text-sm text-white/80", large ? "mt-3" : "mt-2")}>
           <span className="shrink-0">{format.shortRange(stay.startDate, stay.endDate)} ·</span>

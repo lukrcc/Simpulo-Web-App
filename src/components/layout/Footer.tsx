@@ -58,8 +58,8 @@ export async function Footer() {
   ];
 
   return (
-    <footer className="border-t border-neutral-100">
-      <Container className="py-10 text-sm text-zinc-500">
+    <footer className="border-t border-line">
+      <Container className="py-10 text-sm text-muted">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-baseline md:gap-6">
           {/* Wordmark, claim and socials at the top: the grid aligns first baselines, so the wordmark sits on the
               column headings' baseline. Phones: first, above the links. */}
@@ -74,7 +74,7 @@ export async function Footer() {
                   const Icon = SOCIAL_ICONS[network];
                   return (
                     <li key={network}>
-                      <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-[#8A8A8E] transition-colors hover:text-ink">
+                      <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-muted transition-colors hover:text-ink">
                         <Icon className="size-5" aria-hidden />
                       </a>
                     </li>
@@ -104,7 +104,7 @@ export async function Footer() {
         </div>
 
         {/* Bottom row across the full width. */}
-        <div className="mt-8 flex flex-col gap-3 border-t border-[#E8E6E1] pt-6 text-xs md:flex-row md:items-center md:justify-between">
+        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 text-xs md:flex-row md:items-center md:justify-between">
           <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
           <nav aria-label={t("legalLabel")}>
             <ul className="flex flex-wrap items-center gap-x-1.5">

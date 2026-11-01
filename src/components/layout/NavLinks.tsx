@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
+import { unreadThreadCount, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/lib/store";
 import { isNavActive, navItemsFor } from "./nav";
 
 export function NavLinksFallback() {
@@ -19,10 +19,12 @@ export function NavLinks() {
 /** Gap between the text baseline of the active tab and the underline. */
 const UNDERLINE_OFFSET_PX = 6;
 
-/** Plain text tabs with one orange underline that slides to the active tab. */
+/** Text tabs with one ink underline that slides to the active tab; Messages carries the unread dot. */
 function NavLinksView({ pathname }: { pathname: string | null }) {
-  const loggedIn = useStore().currentUserId !== null;
-  const items = navItemsFor(loggedIn);
+  const store = useStore();
+  const loggedIn = store.currentUserId !== null;
+  const unread = unreadThreadCount(store);
+  const items = navItemsFor(loggedIn, "header");
   const t = useTranslations("nav");
   const navRef = useRef<HTMLElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
@@ -66,19 +68,20 @@ function NavLinksView({ pathname }: { pathname: string | null }) {
 
   return (
     <nav ref={navRef} className="relative flex items-center gap-8">
-      {items.map(({ href, labelKey }) => {
+      {items.map(({ href, labelKey, headerLabelKey }) => {
         const active = isNavActive(href, pathname);
+        const showUnread = labelKey === "messages" && unread > 0;
         return (
           <Link
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={cn(
-              "py-2 text-sm font-medium transition-colors",
-              active ? "text-ink" : "text-zinc-500 hover:text-ink",
-            )}
+            aria-label={showUnread ? t("itemUnread", { label: t(`items.${headerLabelKey ?? labelKey}`), count: unread }) : undefined}
+            className={cn("relative py-2 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted hover:text-ink")}
           >
-            {t(`items.${labelKey}`)}
+            {t(`items.${headerLabelKey ?? labelKey}`)}
+            {/* Unread messages: a 6px orange dot at the text's top-right – outside the flow, so the underline keeps the text width. */}
+            {showUnread && <span aria-hidden className="absolute -right-2 top-2 size-1.5 rounded-full bg-accent" />}
             {/* Empty inline-block: sits exactly on the text baseline, so offsetTop measures it. */}
             <span data-baseline aria-hidden className="inline-block" />
           </Link>
@@ -87,7 +90,7 @@ function NavLinksView({ pathname }: { pathname: string | null }) {
       <span
         ref={barRef}
         aria-hidden
-        className="absolute left-0 top-0 h-0.5 w-0 rounded-full bg-accent opacity-0 transition-[transform,width,opacity] duration-250 ease-[cubic-bezier(.2,.8,.2,1)]"
+        className="absolute left-0 top-0 h-0.5 w-0 rounded-full bg-ink opacity-0 transition-[transform,width,opacity] duration-250 ease-[cubic-bezier(.2,.8,.2,1)]"
       />
     </nav>
   );

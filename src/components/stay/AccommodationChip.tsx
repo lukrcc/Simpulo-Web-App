@@ -13,7 +13,7 @@ export function AccommodationChip({ stay }: { stay: Stay }) {
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
-        locked ? "bg-accent-soft text-accent" : "bg-black/5 text-zinc-600",
+        locked ? "bg-bg text-ink" : "bg-ink/5 text-muted",
       )}
     >
       {locked ? <Lock className="size-3" aria-hidden /> : <LockOpen className="size-3" aria-hidden />}

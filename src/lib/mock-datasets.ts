@@ -44,7 +44,7 @@ export function getMockDataset(preset: DatasetPreset): MockDataset {
     stays: kept,
     users: users.filter((u) => u.id === CURRENT_USER_ID || visible.has(u.id) || !everyone.has(u.id)),
     joinRequests: requests,
-    threads: threads.filter((t) => keptIds.has(t.stayId)),
+    threads: threads.filter((t) => t.houseId !== undefined && keptIds.has(t.houseId)),
   };
 }
 

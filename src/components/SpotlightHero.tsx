@@ -20,6 +20,7 @@ import { Img } from "@/components/ui/Img";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { PlaceText } from "@/components/ui/PlaceText";
 import { useFormat } from "@/i18n/format";
+import { markHeroSeen } from "@/lib/heroRotation";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
@@ -73,6 +74,11 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
   const count = isPhone ? Math.min(slides.length, MOBILE_MAX_SLIDES) : slides.length;
 
   const [active, setActive] = useState(0);
+  // Shown → it won't lead the hero again this session round (src/lib/heroRotation.ts).
+  const activeId = slides[active]?.stay.id;
+  useEffect(() => {
+    if (activeId) markHeroSeen([activeId]);
+  }, [activeId]);
   const [photoIndex, setPhotoIndex] = useState<Record<string, number>>({});
   const [hovered, setHovered] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -211,7 +217,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
         onTouchEnd={() => setTouched(false)}
         onTouchCancel={() => setTouched(false)}
         aria-label={t("featuredHousesKeyboard")}
-        className="no-scrollbar relative flex snap-x snap-mandatory overflow-x-auto px-[12vw] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink md:scroll-px-8 md:gap-8 md:px-8"
+        className="no-scrollbar relative flex snap-x snap-mandatory overflow-x-auto px-[12vw] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:scroll-px-8 md:gap-8 md:px-8"
       >
         {slides.map(({ stay, host, guests }, i) => (
           <Slide
@@ -337,8 +343,8 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               <Img src={host.photos[0]} alt={t("cards.hostAlt", { name: host.name, title: stay.title })} fill sizes="100vw" className="object-cover md:hidden" />
             )}
           </div>
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 to-transparent to-50%" />
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/45 to-transparent to-30% md:from-black/35" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/75 to-transparent to-50%" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/45 to-transparent to-30% md:from-ink/35" />
 
           <Link href={href} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
@@ -358,7 +364,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                   }}
                   className={cn(
                     "relative size-14 overflow-hidden rounded-xl shadow-md transition-transform hover:scale-105",
-                    i === photo ? "border-2 border-white" : "border border-white/40",
+                    i === photo ? "border-2 border-surface" : "border border-white/40",
                   )}
                 >
                   <Img src={src} alt={t("showHostPhoto", { index: i + 1, name: host.name })} fill sizes="56px" className="object-cover" />
@@ -416,7 +422,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               </Link>
               <span
                 aria-hidden
-                className="hidden h-11 items-center rounded-full bg-white px-7 text-sm font-semibold text-ink md:inline-flex"
+                className="hidden h-11 items-center rounded-full bg-surface px-7 text-sm font-semibold text-ink md:inline-flex"
               >
                 {t("viewHouse")}
               </span>
@@ -441,14 +447,14 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                   data-tap="none"
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-250 motion-reduce:transition-none",
-                    i === index ? "w-[18px] bg-white" : "w-1.5 bg-white/50",
+                    i === index ? "w-[18px] bg-surface" : "w-1.5 bg-white/50",
                   )}
                 />
               ))}
             </div>
           )}
           {/* Phones: dims the cards beside the centred one (opacity follows the scroll). Under the host tab (z-10). */}
-          <div ref={dimRef} aria-hidden className="pointer-events-none absolute inset-0 z-[5] bg-black/25 opacity-0 md:hidden" />
+          <div ref={dimRef} aria-hidden className="pointer-events-none absolute inset-0 z-[5] bg-ink/25 opacity-0 md:hidden" />
         </div>
         {/* Phones: the notched host tab in the top-left corner, on the page. */}
         <CardTab host={host} linked className="md:hidden" />

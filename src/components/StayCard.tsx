@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CardTab } from "@/components/ui/CardTab";
 import { useNotchClip } from "@/components/ui/notch";
-import { CardShareButton } from "@/components/share/ShareSheet";
+import { CardShareButton } from "@/components/share/HouseShare";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
@@ -17,10 +17,11 @@ import { PlaceText } from "@/components/ui/PlaceText";
 import { useApproxAmount } from "@/components/ui/PriceLine";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
+import { isInvitedTo, useStore } from "@/lib/store";
 import type { CardVariant } from "@/lib/exploreLayout";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName, openSpots, stayPhotos, stayPrice } from "@/lib/utils";
+import { cn, firstName, openSpots, stayPhotos } from "@/lib/utils";
 
 interface StayCardProps {
   stay: Stay;
@@ -46,9 +47,17 @@ const FACE_POSITION = "object-cover object-[center_30%]";
 /** A soft shadow under text on photos – keeps it readable on bright ones, on top of the gradient. */
 const TEXT_SHADOW = "[text-shadow:0_1px_3px_rgb(0_0_0/0.35)]";
 const MAX_PHOTOS = 5;
+/**
+ * Hover (desktop): the card grows a little and, inside its clip, the photo grows a little more – same duration and
+ * curve, so it reads as one movement. Reduced motion: only the card. (Tailwind's scale utilities use the CSS `scale`
+ * property, so that's what's transitioned and hinted.)
+ */
+const HOVER_MOTION = "duration-350 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[scale]";
+const PHOTO_ZOOM = cn("scale-100 transition-[scale] md:motion-safe:group-hover:scale-[1.04]", HOVER_MOTION);
+
 /** The photo arrows: desktop only, shown on hover or keyboard focus. */
 const PHOTO_ARROW =
-  "glass-dark absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-black/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
+  "glass-dark absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-ink/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
 /** One card API for every House tile: `variant` picks the layout. */
 export function StayCard({ variant = "default", ...props }: StayCardProps) {
@@ -74,9 +83,9 @@ function DefaultStayCard({
 }: Omit<StayCardProps, "variant"> & { tall?: boolean }) {
   const t = useTranslations("explore");
   const tCommon = useTranslations("common");
+  const invited = isInvitedTo(useStore(), stay.id);
   const format = useFormat();
   const approx = useApproxAmount(stay);
-  const hasPrice = stayPrice(stay).kind !== "tbd";
   // The host's face first, then the world of the House – never the accommodation.
   // Tall and compact cards show one photo: no swiping, no arrows, no dots.
   const photos = host ? (tall || compact ? stayPhotos(stay, host).slice(0, 1) : stayPhotos(stay, host).slice(0, MAX_PHOTOS)) : [];
@@ -95,7 +104,10 @@ function DefaultStayCard({
       ref={revealRef}
       data-notch="pending"
       className={cn(
-        "notch-frame group relative isolate transition-[opacity,translate,scale] duration-300 md:hover:scale-[1.02]",
+        "notch-frame group relative isolate transition-[opacity,translate,scale]",
+        // In a row (compact) the row lifts the card instead (.lift-row in globals.css) – and its photo doesn't zoom.
+        !compact && "md:hover:scale-[1.02]",
+        HOVER_MOTION,
         !tall && "aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
         !revealed && "max-md:motion-safe:translate-y-3 max-md:motion-safe:opacity-0",
@@ -103,19 +115,19 @@ function DefaultStayCard({
       )}
     >
       {/* Before the clip is measured: a rounded card, the tab's corner pieces over its top-left. */}
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-[28px] bg-neutral-200", host && "rounded-tl-none")}>
+      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-[28px] bg-line", host && "rounded-tl-none")}>
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
         <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
           {photos.length === 0 &&
             (photoPlaceholder ? (
-              <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-neutral-200 pb-24 text-zinc-500">
+              <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">
                 <span className="flex size-20 items-center justify-center rounded-full bg-white/70">
-                  <UserRound className="size-10 text-zinc-400" strokeWidth={1.5} aria-hidden />
+                  <UserRound className="size-10 text-muted" strokeWidth={1.5} aria-hidden />
                 </span>
                 <span className="text-sm font-medium">{photoPlaceholder}</span>
               </div>
             ) : (
-              <div className="h-full w-full shrink-0 bg-linear-to-br from-accent-soft to-neutral-300" />
+              <div className="h-full w-full shrink-0 bg-linear-to-br from-bg to-line" />
             ))}
           {photos.map((src, i) => {
             // Photos only change by swipe, arrow or dot – never on hover.
@@ -125,10 +137,11 @@ function DefaultStayCard({
                 alt={i === 0 && host ? t("cards.hostAlt", { name: host.name, title: stay.title }) : t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
                 sizes={CARD_SIZES}
-                className={tall ? FACE_POSITION : "object-cover"}
+                className={cn(tall ? FACE_POSITION : "object-cover", !compact && PHOTO_ZOOM)}
               />
             );
-            const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always";
+            // Each slide clips its own photo, so the zoom never spills into the next one.
+            const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden";
             return preview ? (
               <div key={src} className={slideClass}>
                 {image}
@@ -150,7 +163,7 @@ function DefaultStayCard({
 
         {/* Readability gradient; it gets stronger on hover. */}
         <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 h-3/4", imageGradient)} />
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         {!preview && (
           <div className="absolute right-4 top-4 z-10 flex gap-2">
@@ -161,6 +174,11 @@ function DefaultStayCard({
 
         {/* Bottom content – pointer-events pass through to the photo links. */}
         <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 text-white", TEXT_SHADOW, compact ? "px-4 pb-7" : "px-5 pb-8")}>
+          {invited && (
+            <span className="mb-2 inline-flex rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-ink [text-shadow:none]">
+              {t("cards.invited")}
+            </span>
+          )}
           <h3 className={cn("line-clamp-2 font-bold tracking-tight", compact ? "text-xl" : "text-2xl")}>{stay.title || t("untitledHouse")}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
             <span className="shrink-0">
@@ -172,12 +190,11 @@ function DefaultStayCard({
             {stay.language && stay.language !== "en" && <span className="shrink-0 text-white/60">· {format.language(stay.language)}</span>}
           </p>
           {/* The House's own currency; the viewer's ≈ amount muted after it (only a hint, never charged). */}
-          {hasPrice && (
-            <p className="mt-1 truncate text-sm font-semibold text-white/90">
-              {format.priceLabel(stay)}
-              {approx && <span className="font-normal text-white/60"> · {tCommon("ui.priceLine.approxShort", { amount: approx })}</span>}
-            </p>
-          )}
+          {/* Every card the same fields: without a price or budget yet, "Budget TBD" holds the line. */}
+          <p className="mt-1 truncate text-sm font-semibold text-white/90">
+            {format.priceLabel(stay)}
+            {approx && <span className="font-normal text-white/60"> · {tCommon("ui.priceLine.approxShort", { amount: approx })}</span>}
+          </p>
           {stay.hostNote && !compact && (
             <p className={cn("mt-1 flex gap-1.5 text-sm text-white/85", tall ? "items-start" : "items-center")}>
               <MessageCircle className={cn("size-3.5 shrink-0", tall && "mt-[3px]")} aria-hidden />
@@ -218,7 +235,7 @@ function DefaultStayCard({
                   aria-current={i === active || undefined}
                   className="flex h-5 items-center px-0.5"
                 >
-                  <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-white" : "w-1 bg-white/50")} />
+                  <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-surface" : "w-1 bg-white/50")} />
                 </button>
               ))}
             </div>
@@ -240,12 +257,12 @@ function CrewFaces({ crew }: { crew: User[] }) {
     <ul className="flex gap-3">
       {shown.map((member) => (
         <li key={member.id} className="flex w-11 flex-col items-center">
-          <PersonPhoto src={member.photos[0]} alt={member.name} size={44} className="size-11 border-2 border-white" />
+          <PersonPhoto src={member.photos[0]} alt={member.name} size={44} className="size-11 border-2 border-surface" />
           <span className="mt-1 w-full truncate text-center text-xs text-white/85">{firstName(member)}</span>
         </li>
       ))}
       {rest > 0 && (
-        <li className="glass-dark flex size-11 items-center justify-center rounded-full border-2 border-white text-xs font-semibold">+{rest}</li>
+        <li className="glass-dark flex size-11 items-center justify-center rounded-full border-2 border-surface text-xs font-semibold">+{rest}</li>
       )}
     </ul>
   );
@@ -280,23 +297,24 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
   return (
     <article
       className={cn(
-        "group relative isolate h-full overflow-hidden rounded-[28px] bg-neutral-200 transition-transform duration-300 md:hover:scale-[1.02]",
+        "group relative isolate h-full overflow-hidden rounded-[28px] bg-line transition-[scale] md:hover:scale-[1.02]",
+        HOVER_MOTION,
         className,
       )}
     >
       <ul className="pointer-events-none absolute inset-0 flex gap-0.5">
         {shown.map((member) => (
-          <li key={member.id} className={cn(tile, "bg-neutral-300")}>
-            <Img src={member.photos[0]} alt={member.name} fill sizes="(min-width: 1440px) 140px, (min-width: 1024px) 18vw, 25vw" className={FACE_POSITION} />
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-black/65 to-transparent" />
+          <li key={member.id} className={cn(tile, "bg-line")}>
+            <Img src={member.photos[0]} alt={member.name} fill sizes="(min-width: 1440px) 140px, (min-width: 1024px) 18vw, 25vw" className={cn(FACE_POSITION, PHOTO_ZOOM)} />
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-ink/65 to-transparent" />
             <span className={cn("absolute inset-x-0 bottom-0 truncate px-3 pb-3 text-sm font-semibold text-white", TEXT_SHADOW)}>{firstName(member)}</span>
           </li>
         ))}
-        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink text-lg font-semibold text-white")}>+{rest}</li>}
+        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink text-lg font-semibold text-surface")}>+{rest}</li>}
         {openTiles > 0 && (
           // No padding on the tile itself: with flex-basis 0 it would make this tile wider than the others.
-          <li className={cn(tile, "flex flex-col items-center justify-center gap-2 bg-page text-center text-zinc-500")}>
-            <span className="flex size-10 items-center justify-center rounded-full border-2 border-dashed border-zinc-300">
+          <li className={cn(tile, "flex flex-col items-center justify-center gap-2 bg-bg text-center text-muted")}>
+            <span className="flex size-10 items-center justify-center rounded-full border-2 border-dashed border-line">
               <Plus className="size-5" aria-hidden />
             </span>
             <span className="px-2 text-sm font-medium">{tFacts("spotsLeft", { count: spotsLeft })}</span>
@@ -305,7 +323,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
       </ul>
 
       {/* Readability gradient for the text on top. */}
-      <div style={overPhotos} className="pointer-events-none absolute left-0 top-0 h-1/2 bg-linear-to-b from-black/65 via-black/25 to-transparent" />
+      <div style={overPhotos} className="pointer-events-none absolute left-0 top-0 h-1/2 bg-linear-to-b from-ink/65 via-ink/25 to-transparent" />
       <div style={overPhotos} className={cn("pointer-events-none absolute left-0 top-0 px-5 pt-5 text-white", TEXT_SHADOW)}>
         <h3 className="line-clamp-2 text-2xl font-bold tracking-tight">{stay.title || t("untitledHouse")}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">

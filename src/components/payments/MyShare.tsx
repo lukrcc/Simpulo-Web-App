@@ -25,7 +25,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
 
   if (payment.status === "paid") {
     return (
-      <p className={cn("flex items-center gap-1.5 text-sm text-zinc-500", className)}>
+      <p className={cn("flex items-center gap-1.5 text-sm text-muted", className)}>
         <Check className="size-4 text-emerald-600" aria-hidden />
         {variant === "panel" && payment.paidAt ? t("paidOn", { date: f.day(payment.paidAt) }) : t("paid")}
       </p>
@@ -37,16 +37,16 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
     <div
       className={cn(
         "flex flex-wrap items-center gap-3",
-        variant === "banner" ? "rounded-2xl bg-white p-4" : "rounded-2xl bg-page p-4",
+        variant === "banner" ? "rounded-2xl bg-surface p-4" : "rounded-2xl bg-bg p-4",
         className,
       )}
     >
       {variant === "banner" && (
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
           <CreditCard className="size-5" aria-hidden />
         </span>
       )}
-      <p className="min-w-0 flex-1 text-sm text-neutral-700">
+      <p className="min-w-0 flex-1 text-sm text-ink">
         {t.rich("yourShare", {
           amount: f.price(payment.total, stay.currency),
           date: due ? f.day(due) : "–",

@@ -63,7 +63,7 @@ export function AdminGrowth() {
 
   return (
     <AdminShell title={t("growthTitle")} intro={t("growthIntro")}>
-      <p className="text-sm font-medium tabular-nums text-zinc-600">{t("summary", { events: events.length, visits, paid })}</p>
+      <p className="text-sm font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
 
       <div className="mt-6 space-y-6">
         <GrowthTable title={t("byChannel")} keyLabel={t("cols.channel")} rows={byChannel} label={(key) => (key === DIRECT ? t("direct") : key)} />
@@ -116,15 +116,15 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
   const num = "py-2.5 pl-4 text-right tabular-nums";
 
   return (
-    <section className="rounded-[24px] bg-white p-6">
+    <section className="rounded-[24px] bg-surface p-6">
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-zinc-500">{t("none")}</p>
+        <p className="text-sm text-muted">{t("none")}</p>
       ) : (
         // Scrolls inside the card on narrow screens – the page itself never scrolls sideways.
         <div className="-mx-6 overflow-x-auto px-6">
           <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="text-xs text-zinc-500">
+            <thead className="text-xs text-muted">
               <tr>
                 <th scope="col" className="pb-2 font-medium">{keyLabel}</th>
                 <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.visits")}</th>
@@ -134,7 +134,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
                 <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.revenue")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/5 border-t border-black/5">
+            <tbody className="divide-y divide-line border-t border-line">
               {shown.map((row) => (
                 <tr key={row.key}>
                   <td className="max-w-64 truncate py-2.5 font-medium">{label(row.key)}</td>
@@ -146,7 +146,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
                 </tr>
               ))}
             </tbody>
-            <tfoot className="border-t border-black/10 font-semibold">
+            <tfoot className="border-t border-line font-semibold">
               <tr>
                 <td className="py-2.5" />
                 <td className={num}>{total.visits}</td>
@@ -160,7 +160,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
         </div>
       )}
       {rows.length > COLLAPSED_ROWS && (
-        <button type="button" onClick={() => setExpanded((e) => !e)} className="mt-3 text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-ink">
+        <button type="button" onClick={() => setExpanded((e) => !e)} className="mt-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink">
           {expanded ? t("showLess") : t("showAll", { count: rows.length })}
         </button>
       )}
@@ -174,12 +174,12 @@ function AlertsCard() {
   const f = useFormat();
   const { alerts } = useStore();
   return (
-    <section className="rounded-[24px] bg-white p-6">
+    <section className="rounded-[24px] bg-surface p-6">
       <h2 className="mb-4 text-lg font-semibold">{t("alerts")}</h2>
       {alerts.length === 0 ? (
-        <p className="text-sm text-zinc-500">{t("none")}</p>
+        <p className="text-sm text-muted">{t("none")}</p>
       ) : (
-        <ul className="divide-y divide-black/5 text-sm">
+        <ul className="divide-y divide-line text-sm">
           {alerts.toReversed().map((a) => (
             <li key={a.id} className="py-2.5">
               {t("alertRow", {
@@ -187,7 +187,7 @@ function AlertsCard() {
                 place: a.region || tAlert("anywhere"),
                 dates: a.from && a.to ? f.longRange(a.from, a.to) : tAlert("anyDates"),
               })}
-              <span className="block text-xs text-zinc-500">{f.day(a.createdAt)}</span>
+              <span className="block text-xs text-muted">{f.day(a.createdAt)}</span>
             </li>
           ))}
         </ul>
@@ -202,23 +202,23 @@ function ApplicationsCard() {
   const f = useFormat();
   const { applications } = useStore();
   return (
-    <section className="rounded-[24px] bg-white p-6">
+    <section className="rounded-[24px] bg-surface p-6">
       <h2 className="mb-4 text-lg font-semibold">{t("applications")}</h2>
       {applications.length === 0 ? (
-        <p className="text-sm text-zinc-500">{t("none")}</p>
+        <p className="text-sm text-muted">{t("none")}</p>
       ) : (
-        <ul className="divide-y divide-black/5 text-sm">
+        <ul className="divide-y divide-line text-sm">
           {applications.toReversed().map((a) => (
             <li key={a.id} className="py-3">
               <p className="font-medium">
-                {a.name} · <span className="font-normal text-zinc-600">{a.email}</span>
+                {a.name} · <span className="font-normal text-muted">{a.email}</span>
               </p>
-              <p className="mt-0.5 text-zinc-600">
+              <p className="mt-0.5 text-muted">
                 {tHost(`audienceSizes.${a.audienceSize}`)} · {a.place}
                 {a.from && a.to && ` · ${f.longRange(a.from, a.to)}`}
               </p>
-              <p className="mt-1 text-neutral-700">{a.idea}</p>
-              <p className="mt-1 break-all text-xs text-zinc-500">{a.platformLinks.join(" · ")}</p>
+              <p className="mt-1 text-ink">{a.idea}</p>
+              <p className="mt-1 break-all text-xs text-muted">{a.platformLinks.join(" · ")}</p>
             </li>
           ))}
         </ul>

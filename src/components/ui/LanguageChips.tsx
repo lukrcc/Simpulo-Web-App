@@ -23,7 +23,7 @@ export function LanguageChips({ languages, variant = "light", compact = false, c
             compact ? "px-2.5 py-0.5 text-[13px]" : "px-3 py-1 text-sm",
             variant === "glass"
               ? "border border-white/20 bg-white/15 text-xs font-medium text-white backdrop-blur-md"
-              : "bg-neutral-100 text-ink",
+              : "bg-bg text-ink",
           )}
         >
           {language}

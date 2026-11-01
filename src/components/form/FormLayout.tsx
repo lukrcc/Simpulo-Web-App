@@ -54,11 +54,11 @@ export function FormHeader({ title, back, aside }: { title: string; back?: React
 /** A white section card with a small heading. `id` lets checklists jump to it. */
 export function FormCard({ title, description, id, children, className }: { title?: string; description?: ReactNode; id?: string; children: ReactNode; className?: string }) {
   return (
-    <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)] space-y-4 rounded-[24px] bg-white p-6", className)}>
+    <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)] space-y-4 rounded-[24px] bg-surface p-6", className)}>
       {(title || description) && (
         <div>
           {title && <h2 className="text-base font-semibold">{title}</h2>}
-          {description && <p className="mt-0.5 text-[13px] text-zinc-500">{description}</p>}
+          {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
         </div>
       )}
       {children}
@@ -92,7 +92,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
     <Wrapper id={id} className="block scroll-mt-[calc(var(--header-h)+32px)]" {...(group ? { role: "group", "aria-label": label } : {})}>
       <span className="mb-1.5 flex items-baseline justify-between gap-3">
         <span className="text-sm font-medium text-ink">{label}</span>
-        {aside ?? (optional && <span className="text-xs text-zinc-400">{t("optional")}</span>)}
+        {aside ?? (optional && <span className="text-xs text-muted">{t("optional")}</span>)}
       </span>
       {children}
       {error ? (
@@ -100,7 +100,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
           {error}
         </span>
       ) : (
-        helper && <span className="mt-1.5 block text-[13px] text-zinc-500">{helper}</span>
+        helper && <span className="mt-1.5 block text-[13px] text-muted">{helper}</span>
       )}
     </Wrapper>
   );
@@ -108,7 +108,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
 
 /** The one input style of the form pages: h-11, rounded-xl, warm grey fill, soft focus ring. */
 export const formInput =
-  "h-11 w-full rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] px-4 text-[15px] outline-none transition-shadow placeholder:text-neutral-400 focus:ring-2 focus:ring-ink/20 disabled:cursor-not-allowed disabled:text-zinc-400 aria-invalid:border-red-300";
+  "h-11 w-full rounded-xl border border-line bg-bg px-4 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
 /** Textarea variant (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
@@ -128,8 +128,8 @@ export function StepProgress({ steps, current, reachable = current, onSelect }: 
               aria-current={i === current ? "step" : undefined}
               className="block w-full text-left disabled:cursor-default"
             >
-              <span className={cn("block h-1.5 rounded-full transition-colors", done ? "bg-ink" : "bg-black/10")} />
-              <span className={cn("mt-2 block truncate text-[13px]", i === current ? "font-semibold text-ink" : "text-zinc-500")}>{label}</span>
+              <span className={cn("block h-1.5 rounded-full transition-colors", done ? "bg-ink" : "bg-ink/10")} />
+              <span className={cn("mt-2 block truncate text-[13px]", i === current ? "font-semibold text-ink" : "text-muted")}>{label}</span>
             </button>
           </li>
         );
@@ -139,9 +139,14 @@ export function StepProgress({ steps, current, reachable = current, onSelect }: 
 }
 
 /** Sticky footer bar inside the form column (above the safe area on phones, 16px off the bottom on desktop). */
-export function StickyFormBar({ children }: { children: ReactNode }) {
+export function StickyFormBar({ children, slideIn = false }: { children: ReactNode; /** Slides up when mounted (shown only while there's something to save) */ slideIn?: boolean }) {
   return (
-    <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-2xl border-t border-black/5 bg-white/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4">
+    <div
+      className={cn(
+        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-2xl border-t border-line bg-surface/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
+        slideIn && "animate-slide-up",
+      )}
+    >
       {children}
     </div>
   );
@@ -152,7 +157,7 @@ export function PreviewColumn({ label, children }: { label?: string; children: R
   const t = useTranslations("common.ui.form");
   return (
     <div>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">{label ?? t("preview")}</p>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">{label ?? t("preview")}</p>
       {children}
     </div>
   );

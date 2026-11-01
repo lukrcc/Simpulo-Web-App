@@ -29,7 +29,7 @@ export function Avatar({ user, size = "md", linked = false, className }: AvatarP
       src={user.photos[0]}
       alt={user.name}
       size={sizePx[size]}
-      className={cn("bg-neutral-200", sizeClasses[size], className)}
+      className={cn("bg-line", sizeClasses[size], className)}
     />
   );
   if (!linked) return image;
@@ -53,12 +53,12 @@ export function AvatarStack({ users, max = 4, size = "sm", linked = false }: Ava
   return (
     <div className="flex items-center -space-x-2">
       {visible.map((user) => (
-        <Avatar key={user.id} user={user} size={size} linked={linked} className="ring-2 ring-white" />
+        <Avatar key={user.id} user={user} size={size} linked={linked} className="ring-2 ring-surface" />
       ))}
       {rest > 0 && (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-neutral-100 text-xs font-medium text-neutral-600 ring-2 ring-white",
+            "flex items-center justify-center rounded-full bg-bg text-xs font-medium text-muted ring-2 ring-surface",
             sizeClasses[size],
           )}
         >

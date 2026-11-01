@@ -14,7 +14,7 @@ import type { Currency, Stay } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 
-const inputClass = "h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm outline-none focus:border-ink";
+const inputClass = "h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm outline-none focus:border-accent";
 
 function isUrl(value: string): boolean {
   try {
@@ -93,7 +93,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium">{t("totalLabel")}</span>
             <span className="relative block">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500">{f.currencySymbol(currency)}</span>
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">{f.currencySymbol(currency)}</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -120,7 +120,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
               ))}
             </select>
           </label>
-          <span className="col-span-2 -mt-1.5 block text-xs text-neutral-500">{t("currencyHint")}</span>
+          <span className="col-span-2 -mt-1.5 block text-xs text-muted">{t("currencyHint")}</span>
         </div>
 
         <div role="group" aria-label={t("splitBetween")}>
@@ -134,14 +134,14 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
                 onClick={() => setSpots(n)}
                 className={cn(
                   "min-w-12 flex-1 rounded-full border px-4 py-2 text-sm transition-colors",
-                  spots === n ? "border-ink bg-ink text-white" : "border-neutral-200 bg-white hover:border-neutral-400",
+                  spots === n ? "border-ink bg-ink text-surface" : "border-line bg-surface hover:bg-bg",
                 )}
               >
                 {n}
               </button>
             ))}
           </div>
-          <span className="mt-1.5 block text-xs text-neutral-500">
+          <span className="mt-1.5 block text-xs text-muted">
             {t("occupancy", { people: f.people(crewSize), spots: f.spots(stay.spotsTotal) })}
           </span>
         </div>
@@ -156,10 +156,10 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
             onChange={(e) => setPayBy(e.target.value)}
             className={inputClass}
           />
-          <span className="mt-1.5 block text-xs text-neutral-500">{t("payByHint")}</span>
+          <span className="mt-1.5 block text-xs text-muted">{t("payByHint")}</span>
         </label>
 
-        <div className="rounded-2xl bg-page p-4">
+        <div className="rounded-2xl bg-bg p-4">
           <p className="text-sm font-medium tabular-nums text-ink">
             {perPerson === 0
               ? t("previewEmpty")
@@ -180,10 +180,10 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
                   })}
           </p>
           {split.hostFee > 0 && (
-            <p className="mt-1 text-[13px] text-zinc-600">{tPremium("youReceive", { amount: f.price(split.hostReceives, currency) })}</p>
+            <p className="mt-1 text-[13px] text-muted">{tPremium("youReceive", { amount: f.price(split.hostReceives, currency) })}</p>
           )}
-          {programmeCapped && <p className="mt-1 text-[13px] text-zinc-600">{tPremium("capped", { amount: f.price(split.hostFee, currency) })}</p>}
-          <p className="mt-1 text-[13px] text-zinc-500">{t("hint")}</p>
+          {programmeCapped && <p className="mt-1 text-[13px] text-muted">{tPremium("capped", { amount: f.price(split.hostFee, currency) })}</p>}
+          <p className="mt-1 text-[13px] text-muted">{t("hint")}</p>
         </div>
 
         <button type="submit" disabled={!canSubmit} className={buttonClass("dark", "lg", "w-full")}>

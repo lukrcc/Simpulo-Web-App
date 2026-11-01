@@ -84,7 +84,7 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
         subline={t(`${collection.id}.subline`)}
         seeAll={{ href: `/collections/${collection.slug}`, label: t("seeAll"), ariaLabel: t("seeAllLabel", { title: t(`${collection.id}.title`) }) }}
       />
-      <ScrollRow className="mt-5">
+      <ScrollRow>
         {stays.map((stay) => (
           <div key={stay.id} className="w-65 shrink-0 snap-start">
             <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
@@ -103,7 +103,7 @@ export function RowHeader({ id, title, subline, seeAll }: { id: string; title: s
         <h2 id={id} className="text-2xl font-bold tracking-tight text-ink">
           {title}
         </h2>
-        <p className="mt-1 text-zinc-500">{subline}</p>
+        <p className="mt-1 text-muted">{subline}</p>
       </div>
       {seeAll && (
         <Link href={seeAll.href} aria-label={seeAll.ariaLabel} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline-offset-4 hover:underline">
@@ -133,9 +133,15 @@ export function ScrollRow({ children, className }: { children: ReactNode; classN
   }, []);
 
   useEffect(() => {
-    updateEdges();
-    window.addEventListener("resize", updateEdges);
-    return () => window.removeEventListener("resize", updateEdges);
+    // The scroller is as wide as the window without its scrollbar (100vw would include one and overflow the page).
+    const root = document.documentElement;
+    const onResize = () => {
+      root.style.setProperty("--scrollbar-w", `${window.innerWidth - root.clientWidth}px`);
+      updateEdges();
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [updateEdges]);
 
   function page(direction: 1 | -1) {
@@ -145,27 +151,32 @@ export function ScrollRow({ children, className }: { children: ReactNode; classN
     el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: reduced ? "auto" : "smooth" });
   }
 
+  // On the content edges (the page gutter), centred on the cards, above them.
   const arrow =
-    "absolute top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-ink shadow-md transition-opacity duration-200 hover:bg-zinc-50 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
+    "absolute top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-ink shadow-md transition-opacity duration-200 hover:bg-bg md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
   return (
-    <div className={cn("group relative", className)}>
+    // 8px under the row's heading: with the scroller's 28px room on top, a lifted card stays 8px+ clear of the heading.
+    <div className={cn("group relative mt-2", className)}>
       <div
         ref={scrollerRef}
         onScroll={updateEdges}
         {...dragHandlers}
-        className="no-scrollbar -mx-4 -my-3 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 py-3 md:mx-0 md:cursor-grab md:scroll-px-0 md:px-0 md:active:cursor-grabbing"
+        // Edge to edge: as wide as the window and centred on it (left 50% + translate, no negative margins), padded by the
+        // page gutter (--row-gutter), so the first card lines up with the heading and nothing is cut off at rest. 28px
+        // above and below for lifted cards and their shadow. No background, border or mask.
+        className="lift-row no-scrollbar relative left-1/2 flex w-[calc(100vw-var(--scrollbar-w,0px))] -translate-x-1/2 snap-x snap-mandatory scroll-px-(--row-gutter) gap-4 overflow-x-auto px-(--row-gutter) py-7 md:cursor-grab md:active:cursor-grabbing"
       >
         {children}
       </div>
       {/* Only where there's more to see in that direction. */}
       {!edges.start && (
-        <button type="button" aria-label={t("scrollBack")} onClick={() => page(-1)} className={cn(arrow, "-left-5")}>
+        <button type="button" aria-label={t("scrollBack")} onClick={() => page(-1)} className={cn(arrow, "left-0 -translate-x-1/2")}>
           <ChevronLeft className="size-5" aria-hidden />
         </button>
       )}
       {!edges.end && (
-        <button type="button" aria-label={t("scrollOn")} onClick={() => page(1)} className={cn(arrow, "-right-5")}>
+        <button type="button" aria-label={t("scrollOn")} onClick={() => page(1)} className={cn(arrow, "right-0 translate-x-1/2")}>
           <ChevronRight className="size-5" aria-hidden />
         </button>
       )}

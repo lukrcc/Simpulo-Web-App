@@ -7,7 +7,7 @@ export function HouseSkeleton() {
     <SkeletonRoot>
       <Container className="md:pt-10 lg:grid lg:grid-cols-12 lg:gap-8">
         <div className="min-w-0 lg:col-span-7">
-          <div className="-mx-4 aspect-4/5 bg-black/5 md:mx-0 md:aspect-video md:rounded-[28px] lg:aspect-3/2" />
+          <div className="-mx-4 aspect-4/5 bg-ink/5 md:mx-0 md:aspect-video md:rounded-[28px] lg:aspect-3/2" />
           <div className="pt-6">
             <Bone className="h-8 w-3/4 rounded-xl" />
             <Bone className="mt-3 h-4 w-1/2" />
@@ -24,15 +24,15 @@ export function HouseSkeleton() {
             <Bone className="h-4 w-5/6" />
             <Bone className="h-4 w-2/3" />
           </div>
-          <div className="mt-10 aspect-8/5 rounded-[24px] bg-black/5" />
+          <div className="mt-10 aspect-8/5 rounded-[24px] bg-ink/5" />
         </div>
         <div className="hidden space-y-6 lg:col-span-5 lg:block">
-          <div className="space-y-3 rounded-[24px] bg-white p-6">
+          <div className="space-y-3 rounded-[24px] bg-surface p-6">
             <Bone className="h-7 w-1/2" />
             <Bone className="h-4 w-2/3" />
             <Bone className="mt-6 h-12" />
           </div>
-          <div className="flex items-center gap-4 rounded-[24px] bg-white p-6">
+          <div className="flex items-center gap-4 rounded-[24px] bg-surface p-6">
             <Bone className="size-14 shrink-0" />
             <div className="flex-1 space-y-2">
               <Bone className="h-5 w-1/3" />

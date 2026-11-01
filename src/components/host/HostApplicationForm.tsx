@@ -70,13 +70,13 @@ export function HostApplicationForm() {
 
   if (sentTo) {
     return (
-      <div role="status" className="mt-6 flex max-w-2xl items-start gap-4 rounded-[24px] bg-white p-6">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-ink">
+      <div role="status" className="mt-6 flex max-w-2xl items-start gap-4 rounded-[24px] bg-surface p-6">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
           <Check className="size-5" strokeWidth={2.5} aria-hidden />
         </span>
         <div>
           <p className="text-lg font-semibold">{t("sentTitle")}</p>
-          <p className="mt-1 text-zinc-600">{t("sentText", { email: sentTo })}</p>
+          <p className="mt-1 text-muted">{t("sentText", { email: sentTo })}</p>
           <button
             type="button"
             onClick={() => {
@@ -84,7 +84,7 @@ export function HostApplicationForm() {
               setTried(false);
               setSentTo(null);
             }}
-            className="mt-3 text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
+            className="mt-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink"
           >
             {t("another")}
           </button>
@@ -108,7 +108,7 @@ export function HostApplicationForm() {
   );
 
   return (
-    <form onSubmit={submit} noValidate className="mt-6 max-w-2xl space-y-5 rounded-[24px] bg-white p-6">
+    <form onSubmit={submit} noValidate className="mt-6 max-w-2xl space-y-5 rounded-[24px] bg-surface p-6">
       <div className="grid gap-5 sm:grid-cols-2">
         {input("name", { autoComplete: "name" })}
         {input("email", { type: "email", autoComplete: "email" })}

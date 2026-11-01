@@ -32,25 +32,25 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
     <Sheet open={open} onClose={close} title={t("title")}>
       {step === "done" ? (
         <div className="flex flex-col items-center py-4 text-center">
-          <BadgeCheck size={48} strokeWidth={1.75} color="#F0633A" fill="none" aria-hidden />
+          <BadgeCheck size={48} strokeWidth={1.75} fill="none" className="text-accent" aria-hidden />
           <p className="mt-4 text-lg font-semibold">{t("successTitle")}</p>
-          <p className="mt-1 text-sm text-zinc-500">{t("successText")}</p>
+          <p className="mt-1 text-sm text-muted">{t("successText")}</p>
           <button type="button" onClick={close} className={buttonClass("dark", "lg", "mt-6 w-full")}>
             {t("done")}
           </button>
         </div>
       ) : (
         <>
-          <p className="text-sm leading-relaxed text-neutral-600">{t("intro")}</p>
+          <p className="text-sm leading-relaxed text-muted">{t("intro")}</p>
           <ul className="mt-5 space-y-3 text-sm">
             <li className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-page">
+              <span className="flex size-9 items-center justify-center rounded-full bg-bg">
                 <IdCard className="size-4" aria-hidden />
               </span>
               {t("stepId")}
             </li>
             <li className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-page">
+              <span className="flex size-9 items-center justify-center rounded-full bg-bg">
                 <Camera className="size-4" aria-hidden />
               </span>
               {t("stepSelfie")}
@@ -66,7 +66,7 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
               t("start")
             )}
           </button>
-          <p className="mt-3 text-center text-xs text-zinc-400">{t("mockNote")}</p>
+          <p className="mt-3 text-center text-xs text-muted">{t("mockNote")}</p>
         </>
       )}
     </Sheet>

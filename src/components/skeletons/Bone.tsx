@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /** One grey placeholder shape – size and radius come from `className`. */
 export function Bone({ className }: { className?: string }) {
-  return <div className={cn("rounded-full bg-black/5", className)} />;
+  return <div className={cn("rounded-full bg-ink/5", className)} />;
 }
 
 /** Pulsing wrapper that announces "Loading" once for everything inside it. */

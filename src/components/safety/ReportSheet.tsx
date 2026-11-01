@@ -53,7 +53,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
   return (
     <Sheet open={open} onClose={close} title={title}>
       <form onSubmit={handleSubmit}>
-        <p className="mb-3 text-sm text-neutral-600">{t("intro")}</p>
+        <p className="mb-3 text-sm text-muted">{t("intro")}</p>
         <fieldset className="space-y-2">
           <legend className="sr-only">{title}</legend>
           {REASONS.map((r) => (
@@ -61,7 +61,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
               key={r}
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors",
-                reason === r ? "border-ink bg-page" : "border-neutral-200 hover:border-neutral-300",
+                reason === r ? "border-line bg-bg font-medium" : "border-line hover:bg-bg",
               )}
             >
               <input
@@ -84,7 +84,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
             rows={3}
             maxLength={1000}
             placeholder={t("detailsPlaceholder")}
-            className="w-full resize-none rounded-2xl border border-neutral-200 p-4 text-sm outline-none focus:border-ink"
+            className="w-full resize-none rounded-2xl border border-line p-4 text-sm outline-none focus:border-accent"
           />
         </label>
         <button type="submit" disabled={!reason} className={buttonClass("dark", "lg", "mt-4 w-full")}>

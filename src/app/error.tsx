@@ -22,11 +22,11 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
   return (
     <Container page>
       <div className="flex flex-col items-center py-16 text-center md:py-24">
-        <div className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <div className="flex size-14 items-center justify-center rounded-full bg-bg text-ink">
           <TriangleAlert className="size-7" aria-hidden />
         </div>
         <h1 className="mt-6 text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
-        <p className="mt-2 max-w-sm text-neutral-500">{t("description")}</p>
+        <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
         <button type="button" onClick={() => retry()} className={buttonClass("dark", "md", "mt-8")}>
           <RotateCcw className="size-4" aria-hidden />
           {t("retry")}

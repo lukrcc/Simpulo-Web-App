@@ -1,17 +1,16 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/Avatar";
 import { useFormat } from "@/i18n/format";
-import { crewsOf, getPeople, peopleLivedWith, type CrewGroup, type StoreData } from "@/lib/store";
-import type { Crew, User } from "@/lib/types";
+import { crewsOf, livedWithFor, peopleLivedWith, type CrewGroup, type LivedWithEntry, type StoreData } from "@/lib/store";
+import type { Crew, LivedWith } from "@/lib/types";
 
-/** Your own profile: "People · N" – the way to /people. */
+/** Your own profile: "Lived with" – everyone from your completed Houses (only you see it). */
 export interface OwnPeople {
   kind: "own";
-  people: User[];
+  entries: LivedWithEntry[];
 }
 
 /** Someone else's: the counts, plus the Houses you lived in together. */
@@ -28,14 +27,13 @@ export interface ProfileCrews {
 }
 
 /**
- * What the profile shows under the bio. Your own: "People · N" (everyone from your completed and locked Houses).
- * Someone else's: "Crews" – the counts, plus the Houses you lived in together (none when logged out). Nothing to
- * show: null.
+ * What the profile shows under the bio. Your own: "Lived with" (from LivedWith – nobody else ever sees it). Someone
+ * else's: "Crews" – the counts, plus the Houses you lived in together (none when logged out). Nothing to show: null.
  */
-export function profileCrews(store: StoreData & { crews: Crew[] }, userId: string, viewerId: string | null): OwnPeople | ProfileCrews | null {
+export function profileCrews(store: StoreData & { crews: Crew[]; livedWith: LivedWith[] }, userId: string, viewerId: string | null): OwnPeople | ProfileCrews | null {
   if (viewerId === userId) {
-    const people = getPeople(store, userId).map((p) => p.user);
-    return people.length > 0 ? { kind: "own", people } : null;
+    const entries = livedWithFor(store, userId);
+    return entries.length > 0 ? { kind: "own", entries } : null;
   }
   const groups = crewsOf(store, userId);
   if (groups.length === 0) return null;
@@ -48,22 +46,32 @@ export function profileCrews(store: StoreData & { crews: Crew[] }, userId: strin
   };
 }
 
-/** Own profile: "People · 10" with a few faces – opens /people. */
-export function PeopleLink({ people }: { people: User[] }) {
+/**
+ * Own profile only: "Lived with" – one row per person (avatar, name, the House you shared most recently), each opening
+ * their profile. It replaces the People list Your houses used to have.
+ */
+export function LivedWithSection({ entries }: { entries: LivedWithEntry[] }) {
   const t = useTranslations("profile.crews");
   return (
-    <Link
-      href="/people"
-      className="-mx-2 mt-5 flex items-center gap-3 rounded-2xl border-t border-black/5 px-2 pb-2 pt-5 transition-colors hover:bg-black/[0.02]"
-    >
-      <span className="text-sm font-semibold">
-        {t("people")} <span className="font-normal text-zinc-500">· {people.length}</span>
-      </span>
-      <span className="ml-auto">
-        <AvatarStack users={people} max={5} size="sm" />
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-zinc-400" aria-hidden />
-    </Link>
+    <section aria-labelledby="profile-lived-with" className="mt-5 border-t border-line pt-5">
+      <h2 id="profile-lived-with" className="text-sm font-semibold">
+        {t("livedWith")} <span className="font-normal text-muted">· {entries.length}</span>
+      </h2>
+      <p className="mt-0.5 text-xs text-muted">{t("onlyYou")}</p>
+      <ul className="mt-3 space-y-1">
+        {entries.map(({ user, house }) => (
+          <li key={user.id}>
+            <Link href={`/u/${user.id}`} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-bg">
+              <Avatar user={user} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">{user.name}</span>
+                <span className="block truncate text-xs text-muted">{house.title}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -72,22 +80,22 @@ export function Crews({ crews }: { crews: ProfileCrews }) {
   const t = useTranslations("profile.crews");
   const f = useFormat();
   return (
-    <section aria-labelledby="profile-crews" className="mt-5 border-t border-black/5 pt-5">
+    <section aria-labelledby="profile-crews" className="mt-5 border-t border-line pt-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="profile-crews" className="text-sm font-semibold">
           {t("title")}
         </h2>
-        <p className="text-sm text-zinc-500 tabular-nums">{t("counts", { houses: crews.houses, people: crews.people })}</p>
+        <p className="text-sm text-muted tabular-nums">{t("counts", { houses: crews.houses, people: crews.people })}</p>
       </div>
       {crews.groups.length > 0 && (
         <>
-          {crews.inCommon && <p className="mt-3 text-xs font-medium text-zinc-500">{t("inCommon")}</p>}
+          {crews.inCommon && <p className="mt-3 text-xs font-medium text-muted">{t("inCommon")}</p>}
           <ul className="mt-3 space-y-4">
             {crews.groups.map(({ crew, stay, people }) => (
               <li key={crew.houseId}>
                 <p className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate font-medium text-ink">{stay.title}</span>
-                  <span className="shrink-0 text-xs text-zinc-500">{f.shortRange(stay.startDate, stay.endDate)}</span>
+                  <span className="shrink-0 text-xs text-muted">{f.shortRange(stay.startDate, stay.endDate)}</span>
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t("peopleIn", { title: stay.title })}>
                   {people.map((person) => (

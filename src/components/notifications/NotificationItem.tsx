@@ -47,18 +47,18 @@ export function NotificationItem({ notification, onOpen, onRead }: { notificatio
 
   const body = (
     <>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-page text-ink">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
         <Icon className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={cn("block truncate text-sm", unread ? "font-semibold text-ink" : "font-medium text-zinc-700")}>{t(`types.${type}`)}</span>
-        <span className={cn("block truncate text-sm", unread ? "text-zinc-700" : "text-zinc-500")}>{text(notification)}</span>
-        <span className="mt-0.5 block text-xs text-zinc-500">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>
+        <span className={cn("block truncate text-sm", unread ? "font-semibold text-ink" : "font-medium text-ink")}>{t(`types.${type}`)}</span>
+        <span className={cn("block truncate text-sm", unread ? "text-ink" : "text-muted")}>{text(notification)}</span>
+        <span className="mt-0.5 block text-xs text-muted">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>
       </span>
-      {unread && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-accent" role="img" aria-label={t("unread")} />}
+      {unread && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-ink" role="img" aria-label={t("unread")} />}
     </>
   );
-  const className = "flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-neutral-50";
+  const className = "flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-bg";
   const open = () => {
     onRead(notification.id);
     onOpen?.();

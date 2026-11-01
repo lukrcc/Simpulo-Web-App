@@ -99,17 +99,17 @@ function ClaimOffer({ stay }: { stay: Stay }) {
         </div>
       </div>
       <div className="mt-8 lg:col-span-7 lg:mt-0 lg:pt-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-accent">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-ink">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">{t("title")}</h1>
-        <p className="mt-3 max-w-xl text-lg leading-relaxed text-neutral-600">{t("intro")}</p>
+        <p className="mt-3 max-w-xl text-lg leading-relaxed text-muted">{t("intro")}</p>
 
-        {stay.whyText && <p className="mt-6 max-w-xl rounded-2xl bg-white p-5 leading-relaxed text-neutral-700">{stay.whyText}</p>}
+        {stay.whyText && <p className="mt-6 max-w-xl rounded-2xl bg-surface p-5 leading-relaxed text-ink">{stay.whyText}</p>}
         {claim.sourceLink && (
           <a
             href={claim.sourceLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 flex w-fit items-center gap-1.5 text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
+            className="mt-3 flex w-fit items-center gap-1.5 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink"
           >
             <ExternalLink className="size-3.5" aria-hidden />
             {t("viewPost")} · {linkDomain(claim.sourceLink)}
@@ -126,7 +126,7 @@ function ClaimOffer({ stay }: { stay: Stay }) {
               <StepNumber n={i + 1} />
               <div>
                 <p className="font-semibold">{step.title}</p>
-                <p className="text-sm text-zinc-600">{step.text}</p>
+                <p className="text-sm text-muted">{step.text}</p>
               </div>
             </li>
           ))}

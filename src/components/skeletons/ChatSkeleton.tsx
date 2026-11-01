@@ -25,7 +25,7 @@ export function ChatSkeleton({ className }: { className?: string }) {
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 overflow-hidden px-4 py-4">
         {BUBBLES.map((bubble, i) => (
           <div key={i} className={cn("flex", bubble.mine ? "justify-end" : "justify-start")}>
-            <Bone className={cn("h-10 rounded-2xl", bubble.width, bubble.mine && "bg-black/10")} />
+            <Bone className={cn("h-10 rounded-2xl", bubble.width, bubble.mine && "bg-ink/10")} />
           </div>
         ))}
       </div>

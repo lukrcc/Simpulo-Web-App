@@ -20,7 +20,7 @@ export function PersonPhoto({ src, alt, size, className }: PersonPhotoProps) {
         role="img"
         aria-label={t("noPhoto", { name: alt })}
         style={{ width: size, height: size }}
-        className={cn("flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-400", className)}
+        className={cn("flex shrink-0 items-center justify-center rounded-full bg-line text-muted", className)}
       >
         <UserIcon style={{ width: size * 0.55, height: size * 0.55 }} aria-hidden />
       </span>

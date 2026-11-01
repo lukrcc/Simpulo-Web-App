@@ -84,7 +84,7 @@ async function SimilarHouses({ stay }: { stay: Stay }) {
         <h2 id="similar-houses" className="text-2xl font-bold tracking-tight">
           {t("similar")}
         </h2>
-        <p className="mt-1 text-zinc-500">{t("similarText")}</p>
+        <p className="mt-1 text-muted">{t("similarText")}</p>
         <div className="mt-6">
           <HouseGrid stays={similar} />
         </div>

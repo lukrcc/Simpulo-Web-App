@@ -34,6 +34,8 @@ export interface User extends Attribution {
   id: string;
   name: string;
   age: number;
+  /** YYYY-MM-DD, private – Edit profile asks for it and derives `age` (the only thing shown) */
+  birthDate?: string;
   country: string;          // plain text, no flag
   city: string;             // current base
   languages: string[];      // ISO-ish labels shown as text: "English", "German"
@@ -48,17 +50,10 @@ export interface User extends Attribution {
   canChargeHostFee: boolean;
   /** One line on pro profiles, e.g. "Surf coach · ISA Level 2" */
   proTitle?: string;
-  instagram?: string;
-  tiktok?: string;
-  youtube?: string;
-  linkedin?: string;
-  x?: string;
-  threads?: string;
-  twitch?: string;
-  kick?: string;            // Kick username
-  website?: string;
+  /** Public links, at most 4, in the order the host added them. Contact happens in Messages – no phone, WhatsApp,
+   *  FaceTime or email fields. URLs are built from the handle (see src/lib/socialLinks.ts). */
+  socials?: SocialLink[];
   preferredCurrency?: Currency; // for approximate conversions only; unset = from the browser locale
-  privateContacts?: PrivateContacts; // crew only – see canSeePrivateContacts in the store
   savedStayIds?: string[];  // hearted Houses ("Saved" on the Houses page)
   hostAlerts?: string[];    // host ids: notify me when they open a House ("Notify me" on profiles; no counts anywhere)
   email?: string;           // account email (mock) – shown in Settings
@@ -87,14 +82,13 @@ export interface UserSettings {
   blockedUserIds: string[];
 }
 
-/** Direct channels a user shares only with people they live with (accepted crews). */
-export interface PrivateContacts {
-  whatsapp?: string;        // E.164, e.g. '+4917612345678'
-  telegram?: string;        // handle without @
-  signal?: string;          // E.164
-  discord?: string;         // 'nico#0421' or an invite handle
-  phone?: string;           // E.164
-  facetime?: string;        // phone or Apple ID email – shown on Apple devices only
+/** The platforms a profile can link to. */
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'twitch' | 'kick' | 'x' | 'website';
+
+/** One public link: the handle as typed (without "@") – or, for a website, the full https URL. */
+export interface SocialLink {
+  platform: SocialPlatform;
+  value: string;
 }
 
 export interface Stay {
@@ -129,6 +123,8 @@ export interface Stay {
   status: StayStatus;
   acceptingRequests: boolean; // host's "Taking requests" switch – never flipped automatically
   featured: boolean;        // shown in Spotlight (later: boosted)
+  /** Reserved: a manual Spotlight pick. No effect yet – the hero rotation picks by its own rules (src/lib/heroRotation.ts). */
+  spotlight?: boolean;
   hostNote?: string;        // short personal line from the host, max 60 chars (shown on cards)
   customVibe?: string;      // host's own vibe label (max 20 chars); `vibe` is then 'mixed'
   themeQueries?: string[];  // Pixabay searches for the House's theme photos (mock only)
@@ -154,6 +150,11 @@ export interface Stay {
   claim?: StayClaim;
   /** "Do it again?": the House this draft was copied from */
   duplicatedFrom?: string;
+  /** Optional WhatsApp / Telegram invite link (wa.me, chat.whatsapp.com, t.me) – shown to confirmed members once the
+   *  crew is complete ("Open crew group") */
+  crewGroupUrl?: string;
+  /** Places the host suggested when opening it – the House thread starts with them once it exists */
+  accommodationIdeas?: string[];
 }
 
 /**
@@ -164,6 +165,18 @@ export interface Crew {
   houseId: string;
   /** Host first, then the accepted members */
   memberIds: string[];
+  /** When the House ended (ISO) */
+  endedAt: string;
+}
+
+/**
+ * Two people who lived in the same House – written when it completes, one entry per person and housemate (so each user
+ * finds theirs by userId). The base for "Lived with" and inviting them to the next House; never shown to anyone else.
+ */
+export interface LivedWith {
+  userId: string;
+  otherUserId: string;
+  houseId: string;
   /** When the House ended (ISO) */
   endedAt: string;
 }
@@ -203,7 +216,7 @@ export interface JoinRequest extends Attribution {
   createdAt: string;
 }
 
-export type MessageType = 'text' | 'image' | 'link' | 'lock' | 'payment' | 'system';
+export type MessageType = 'text' | 'image' | 'link' | 'system';
 
 export interface Attachment {
   kind: 'image' | 'file';
@@ -229,30 +242,39 @@ export interface LockDetails {
 
 export interface Message {
   id: string;
-  userId: string | 'system';
+  /** The thread it belongs to */
+  threadId: string;
+  /** Who wrote it – 'system' for app lines (joined, crew complete …), shown centred and muted */
+  senderId: string | 'system';
   text: string;
   createdAt: string;
   type?: MessageType;       // missing = derived: system → 'system', images → 'image', has a link → 'link', else 'text'
-  lock?: LockDetails;       // type 'lock' only
   attachments?: Attachment[];
   replyToId?: string;
   reactions?: Reaction[];
-  event?: MessageEvent;     // app-generated lines (joined, locked, paid …) – rendered from translations; text stays ''
+  event?: MessageEvent;     // app-generated lines (joined, crew complete …) – rendered from translations; text stays ''
 }
 
-/** App-generated chat line: a translation key plus its values (numbers like prices are formatted when shown). */
+/**
+ * App-generated line in a House thread: a translation key plus its values. Membership and the House's milestones only
+ * – payments and booking status stay on the House page, never in the chat.
+ */
 export type SystemEventKey =
-  | 'joined' | 'left' | 'removed' | 'locked' | 'unlocked' | 'closed' | 'paid' | 'bookingConfirmed'
-  | 'reminderPayment' | 'reminderArrival';
+  | 'joined' | 'left' | 'removed' | 'closed' | 'crewComplete' | 'bookingConfirmed' | 'addressShared' | 'refund';
 export interface MessageEvent {
   key: SystemEventKey;
   values: Record<string, string | number>;
 }
 
+/**
+ * house: the House's group chat – created with the first confirmed join; host + confirmed crew.
+ * direct: one guest and the host, about a House ("Message host").
+ */
 export interface Thread {
   id: string;
-  type: 'crew' | 'direct';
-  stayId: string;
+  type: 'house' | 'direct';
+  /** The House it's about (both kinds are tied to one) */
+  houseId?: string;
   participantIds: string[];
   messages: Message[];
 }
@@ -264,309 +286,309 @@ export const CURRENT_USER_ID = 'u1';
 /** The original people; isPro / canChargeHostFee are filled in below (see `users`). */
 const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
   {
-    id: 'u1', name: 'Lukas', age: 30, country: 'Germany', city: 'Osaka',
+    id: 'u1', name: 'Lukas', age: 30, birthDate: '1996-05-14', country: 'Germany', city: 'Osaka',
     languages: ['German', 'English'],
     bio: 'Remote app-dev teacher. Train every morning, work German hours, free before 3 pm.',
     photos: [userFace('u1')],
-    verified: true, instagram: 'lukas.moves', website: 'https://simpulo.app', savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
+    verified: true, socials: [{ platform: 'instagram', value: 'lukas.moves' }, { platform: 'website', value: 'https://simpulo.app' }], savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
     email: 'lukas@simpulo.app', signInMethod: 'apple',
     settings: {
-      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, interests: { push: true, email: true }, system: { push: false, email: true } },
+      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, interests: { push: true, email: true }, system: { push: false, email: false } },
       blockedUserIds: ['u14'],
     },
-    privateContacts: { whatsapp: '+4917612345678', telegram: 'lukasmoves', facetime: 'lukas.moves@icloud.com' },
+   
   },
   {
     id: 'u2', name: 'Mara', age: 27, country: 'Netherlands', city: 'Canggu',
     languages: ['Dutch', 'English', 'Spanish'],
     bio: 'Travel creator, 18k on TikTok. Filming a Bali series this winter.',
     photos: [userFace('u2')],
-    verified: true, instagram: 'mara.goes', tiktok: 'mara.goes', youtube: '@maragoes', linkedin: 'mara-de-vries', x: 'maragoes', threads: 'mara.goes', website: 'https://maragoes.com', privateContacts: { whatsapp: '+31612345678', telegram: 'mara_goes', signal: '+31612345678', facetime: '+31612345678' },
+    verified: true, socials: [{ platform: 'instagram', value: 'mara.goes' }, { platform: 'tiktok', value: 'mara.goes' }, { platform: 'youtube', value: 'maragoes' }, { platform: 'x', value: 'maragoes' }],
   },
   {
     id: 'u3', name: 'Tom', age: 33, country: 'United Kingdom', city: 'Lisbon',
     languages: ['English', 'Portuguese'],
     bio: 'Building a fintech side project. Surf before standup.',
     photos: [userFace('u3')],
-    verified: true, linkedin: 'tom-ellis', x: 'tomellis', website: 'https://tomellis.dev', privateContacts: { phone: '+447700900123' },
+    verified: true, socials: [{ platform: 'x', value: 'tomellis' }, { platform: 'website', value: 'https://tomellis.dev' }],
   },
   {
     id: 'u4', name: 'Aisha', age: 29, country: 'Australia', city: 'Melbourne',
     languages: ['English'],
     bio: 'Physio & Muay Thai nerd. Looking for people who train seriously and eat well.',
     photos: [userFace('u4')],
-    verified: true, instagram: 'aisha.fights', youtube: '@aishafights', tiktok: 'aisha.fights', privateContacts: { whatsapp: '+61412345678', telegram: 'aishafights' },
+    verified: true, socials: [{ platform: 'instagram', value: 'aisha.fights' }, { platform: 'youtube', value: 'aishafights' }, { platform: 'tiktok', value: 'aisha.fights' }],
   },
   {
     id: 'u5', name: 'Jonas', age: 25, country: 'Sweden', city: 'Chiang Mai',
     languages: ['Swedish', 'English', 'German'],
     bio: 'Freelance motion designer. Night owl, coffee snob, always up for a hike.',
     photos: [userFace('u5')],
-    verified: false, instagram: 'jonas.motion', threads: 'jonas.motion', linkedin: 'jonas-lind', privateContacts: { whatsapp: '+46701234567', signal: '+46701234567' },
+    verified: false, socials: [{ platform: 'instagram', value: 'jonas.motion' }],
   },
   {
     id: 'u6', name: 'Priya', age: 31, country: 'India', city: 'Bangkok',
     languages: ['Hindi', 'English'],
     bio: 'Product manager on a 6-month sabbatical. Yoga, markets, slow mornings.',
     photos: [userFace('u6')],
-    verified: true, linkedin: 'priya-nair', instagram: 'priya.slow', privateContacts: { whatsapp: '+919812345678' },
+    verified: true, socials: [{ platform: 'instagram', value: 'priya.slow' }],
   },
   {
     id: 'u7', name: 'Diego', age: 28, country: 'Mexico', city: 'Da Nang',
     languages: ['Spanish', 'English'],
     bio: 'Streams indie game dev on Twitch. Need a house with fast wifi and a pool.',
     photos: [userFace('u7')],
-    verified: true, twitch: 'diegobuilds', x: 'diegobuilds', website: 'https://diegobuilds.gg', privateContacts: { whatsapp: '+525512345678', discord: 'diegobuilds#7731' },
+    verified: true, socials: [{ platform: 'twitch', value: 'diegobuilds' }, { platform: 'x', value: 'diegobuilds' }, { platform: 'website', value: 'https://diegobuilds.gg' }],
   },
   {
     id: 'u8', name: 'Lena', age: 24, country: 'Austria', city: 'Berlin',
     languages: ['German', 'English', 'French'],
     bio: 'Medical student on a gap semester. First solo trip – want a crew, not a hostel.',
     photos: [userFace('u8')],
-    verified: false, instagram: 'lena.wanders', tiktok: 'lena.wanders', threads: 'lena.wanders', privateContacts: {},
+    verified: false, socials: [{ platform: 'instagram', value: 'lena.wanders' }, { platform: 'tiktok', value: 'lena.wanders' }],
   },
   { id: 'u9', name: 'Sofia', age: 26, country: 'Italy', city: 'Canggu',
     languages: ['Italian', 'English'],
     bio: 'Pilates instructor and sunrise person. Teaching at two studios in Canggu this season.',
     photos: [userFace('u9')],
-    verified: true, instagram: 'sofia.flows', tiktok: 'sofia.flows', youtube: '@sofiaflows', privateContacts: { whatsapp: '+393471234567', telegram: 'sofiaflows', facetime: 'sofia.flows@icloud.com' },
+    verified: true, socials: [{ platform: 'instagram', value: 'sofia.flows' }, { platform: 'tiktok', value: 'sofia.flows' }, { platform: 'youtube', value: 'sofiaflows' }],
   },
   { id: 'u10', name: 'Ben', age: 35, country: 'Canada', city: 'Mexico City',
     languages: ['English', 'French', 'Spanish'],
     bio: 'Ex-agency, now solo consultant. Cooking is how I make friends.',
     photos: [userFace('u10')],
-    verified: true, linkedin: 'ben-carter', website: 'https://bencarter.co', privateContacts: { whatsapp: '+14165550123' },
+    verified: true, socials: [{ platform: 'website', value: 'https://bencarter.co' }],
   },
   { id: 'u11', name: 'Yuki', age: 28, country: 'Japan', city: 'Osaka',
     languages: ['Japanese', 'English'],
     bio: 'UX designer, first long trip outside Japan. Quiet, tidy, loves a good café.',
     photos: [userFace('u11')],
-    verified: true, instagram: 'yuki.makes', threads: 'yuki.makes', privateContacts: { telegram: 'yukimakes' },
+    verified: true, socials: [{ platform: 'instagram', value: 'yuki.makes' }],
   },
   { id: 'u12', name: 'Marco', age: 32, country: 'Brazil', city: 'Florianópolis',
     languages: ['Portuguese', 'English', 'Spanish'],
     bio: 'Jiu-jitsu brown belt, runs a small SaaS. Looking for mats and a pool.',
     photos: [userFace('u12')],
-    verified: true, instagram: 'marco.rolls', youtube: '@marcorolls', x: 'marcorolls', privateContacts: { whatsapp: '+5548991234567' },
+    verified: true, socials: [{ platform: 'instagram', value: 'marco.rolls' }, { platform: 'youtube', value: 'marcorolls' }, { platform: 'x', value: 'marcorolls' }],
   },
   { id: 'u13', name: 'Hannah', age: 29, country: 'Ireland', city: 'Lisbon',
     languages: ['English'],
     bio: 'Writes a newsletter about slow travel (9k subs). Tea, books, long walks.',
     photos: [userFace('u13')],
-    verified: true, instagram: 'hannah.slowly', website: 'https://slowly.substack.com', privateContacts: { whatsapp: '+353851234567', telegram: 'hannahslowly' },
+    verified: true, socials: [{ platform: 'instagram', value: 'hannah.slowly' }, { platform: 'website', value: 'https://slowly.substack.com' }],
   },
   { id: 'u14', name: 'Karim', age: 27, country: 'France', city: 'Bangkok',
     languages: ['French', 'English', 'Arabic'],
     bio: 'Runs a Shopify store from anywhere with wifi. Gym at 6, calls at 15.',
     photos: [userFace('u14')],
-    verified: false, instagram: 'karim.ships', tiktok: 'karim.ships', privateContacts: { whatsapp: '+33612345678' },
+    verified: false, socials: [{ platform: 'instagram', value: 'karim.ships' }, { platform: 'tiktok', value: 'karim.ships' }],
   },
   { id: 'u15', name: 'Emma', age: 24, country: 'Denmark', city: 'Copenhagen',
     languages: ['Danish', 'English', 'German'],
     bio: 'Nursing degree done, three months off before the first job. First time in Asia.',
     photos: [userFace('u15')],
-    verified: false, instagram: 'emma.away', tiktok: 'emma.away', threads: 'emma.away', privateContacts: {},
+    verified: false, socials: [{ platform: 'instagram', value: 'emma.away' }, { platform: 'tiktok', value: 'emma.away' }],
   },
   { id: 'u16', name: 'Raj', age: 31, country: 'Singapore', city: 'Singapore',
     languages: ['English', 'Tamil', 'Mandarin'],
     bio: 'Backend engineer, remote for a US startup. Nights are free, days are mine.',
     photos: [userFace('u16')],
-    verified: true, linkedin: 'raj-menon', x: 'rajbuilds', twitch: 'rajbuilds', privateContacts: { phone: '+6581234567' },
+    verified: true, socials: [{ platform: 'x', value: 'rajbuilds' }, { platform: 'twitch', value: 'rajbuilds' }],
   },
   // No photos yet – exercises the "No photo yet" / "Add a photo" paths.
   { id: 'u17', name: 'Noah', age: 26, country: 'Belgium', city: 'Ghent',
     languages: ['Dutch', 'English', 'French'],
     bio: 'Just signed up – looking for my first shared house.',
-    photos: [], verified: false, instagram: 'noah.ghent', linkedin: 'noah-peeters', privateContacts: { whatsapp: '+32470123456' },
+    photos: [], verified: false, socials: [{ platform: 'instagram', value: 'noah.ghent' }],
   },
   // Streaming hosts
   { id: 'u18', name: 'Nico', age: 29, country: 'Germany', city: 'Lisbon',
     languages: ['German', 'English', 'Portuguese'],
     bio: 'Twitch variety streamer, 40k followers. Live most evenings, always up for a raid.',
     photos: [userFace('u17')],
-    verified: true, twitch: 'nicoplays', kick: 'nicoplays', youtube: '@nicoplays', instagram: 'nico.plays', privateContacts: { whatsapp: '+4915112345678', telegram: 'nicoplays', discord: 'nico#0421' },
+    verified: true, socials: [{ platform: 'twitch', value: 'nicoplays' }, { platform: 'kick', value: 'nicoplays' }, { platform: 'youtube', value: 'nicoplays' }, { platform: 'instagram', value: 'nico.plays' }],
   },
   { id: 'u19', name: 'Sasha', age: 26, country: 'Ukraine', city: 'Bangkok',
     languages: ['Ukrainian', 'English', 'Russian'],
     bio: 'IRL and travel streamer. Street food, night markets and a backpack full of batteries.',
     photos: [userFace('u19')],
-    verified: true, kick: 'sashairl', twitch: 'sashairl', tiktok: 'sasha.irl', privateContacts: { telegram: 'sashairl', discord: 'sashairl' },
+    verified: true, socials: [{ platform: 'kick', value: 'sashairl' }, { platform: 'twitch', value: 'sashairl' }, { platform: 'tiktok', value: 'sasha.irl' }],
   },
   { id: 'u20', name: 'Leo', age: 31, country: 'Spain', city: 'Canggu',
     languages: ['Spanish', 'English', 'Catalan'],
     bio: 'Chess and cozy-games streamer. Works EU evenings, surfs in the morning.',
     photos: [userFace('u20')],
-    verified: true, twitch: 'leomoves', kick: 'leomoves', x: 'leomoves', privateContacts: { whatsapp: '+34612345678', discord: 'leomoves#1990' },
+    verified: true, socials: [{ platform: 'twitch', value: 'leomoves' }, { platform: 'kick', value: 'leomoves' }, { platform: 'x', value: 'leomoves' }],
   },
   // ── 20 more hosts, one per community House (s26–s45) ──
   { id: 'u21', name: 'Arjun', age: 31, country: 'India', city: 'Bangkok',
     languages: ['English', 'Hindi'],
     bio: 'Futures day trader for six years. Trades the US open from Bangkok at night, gym and sleep by day.',
     photos: [userFace('u21')],
-    verified: true, x: 'arjuntrades', youtube: '@arjunmehta', linkedin: 'arjun-mehta',
-    privateContacts: { whatsapp: '+66812345678', telegram: 'arjunmehta' } },
+    verified: true, socials: [{ platform: 'x', value: 'arjuntrades' }, { platform: 'youtube', value: 'arjunmehta' }], 
+   },
   { id: 'u22', name: 'Sven', age: 29, country: 'Norway', city: 'Lisbon',
     languages: ['Norwegian', 'English'],
     bio: 'Solidity dev, shipped two DeFi protocols. Now building wallet UX that normal people can use.',
     photos: [userFace('u22')],
-    verified: true, x: 'svenbuilds', website: 'https://svenolsen.xyz', linkedin: 'sven-olsen',
-    privateContacts: { telegram: 'svenbuilds', signal: '+4791234567' } },
+    verified: true, socials: [{ platform: 'x', value: 'svenbuilds' }, { platform: 'website', value: 'https://svenolsen.xyz' }], 
+   },
   { id: 'u23', name: 'Omar', age: 34, country: 'Jordan', city: 'Dubai',
     languages: ['Arabic', 'English'],
     bio: 'Funded FX trader, trains twice a day, asleep by ten. London session is my office.',
     photos: [userFace('u23')],
-    verified: true, instagram: 'omar.trades', x: 'omarhaddadfx',
-    privateContacts: { whatsapp: '+971501234567', facetime: '+971501234567' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'omar.trades' }, { platform: 'x', value: 'omarhaddadfx' }], 
+   },
   { id: 'u24', name: 'Lucía', age: 28, country: 'Spain', city: 'Sevilla',
     languages: ['Spanish', 'English', 'French'],
     bio: 'Profe de español y examinadora DELE. Organizo semanas de inmersión en mi ciudad.',
     photos: [userFace('u24')],
-    verified: true, instagram: 'lucia.habla', tiktok: 'luciahabla', youtube: '@luciahabla',
-    privateContacts: { whatsapp: '+34654123456' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'lucia.habla' }, { platform: 'tiktok', value: 'luciahabla' }, { platform: 'youtube', value: 'luciahabla' }], 
+   },
   { id: 'u25', name: 'Freya', age: 30, country: 'Sweden', city: 'Ubud',
     languages: ['Swedish', 'English'],
     bio: 'Yoga teacher (E-RYT 500). I mentor people through their first 200-hour training.',
     photos: [userFace('u25')],
-    verified: true, instagram: 'freya.flows', website: 'https://freyaflows.com',
-    privateContacts: { whatsapp: '+46731234567', telegram: 'freyaflows', facetime: 'freya.flows@icloud.com' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'freya.flows' }, { platform: 'website', value: 'https://freyaflows.com' }], 
+   },
   { id: 'u26', name: 'João', age: 33, country: 'Portugal', city: 'Ericeira',
     languages: ['Portuguese', 'English', 'Spanish'],
     bio: 'ISA-certified surf coach, 15 winters in Ericeira. Video analysis nerd.',
     photos: [userFace('u26')],
-    verified: true, instagram: 'joao.surfcoach', youtube: '@joaosurfcoach',
-    privateContacts: { whatsapp: '+351912345678' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'joao.surfcoach' }, { platform: 'youtube', value: 'joaosurfcoach' }], 
+   },
   { id: 'u27', name: 'Maya', age: 27, country: 'Australia', city: 'Gili Air',
     languages: ['English', 'Indonesian'],
     bio: 'PADI Course Director. Took 300 people from their first breath underwater to Divemaster.',
     photos: [userFace('u27')],
-    verified: true, instagram: 'maya.dives', tiktok: 'mayadives', youtube: '@mayadives',
-    privateContacts: { whatsapp: '+6281234567890', telegram: 'mayadives' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'maya.dives' }, { platform: 'tiktok', value: 'mayadives' }, { platform: 'youtube', value: 'mayadives' }], 
+   },
   { id: 'u28', name: 'Tomáš', age: 32, country: 'Czech Republic', city: 'Krabi',
     languages: ['Czech', 'English'],
     bio: 'Climbing guide, 8a on a good day. Every dry season in Tonsai since 2018.',
     photos: [userFace('u28')],
-    verified: true, instagram: 'tomas.climbs', website: 'https://tomasclimbs.cz',
-    privateContacts: { whatsapp: '+420601234567', signal: '+420601234567' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'tomas.climbs' }, { platform: 'website', value: 'https://tomasclimbs.cz' }], 
+   },
   { id: 'u29', name: 'Carla', age: 29, country: 'Spain', city: 'Barcelona',
     languages: ['Spanish', 'Catalan', 'English'],
     bio: 'Hyrox Elite athlete and coach. Programming for 40 members at my box in Poblenou.',
     photos: [userFace('u29')],
-    verified: true, instagram: 'carla.hyrox', tiktok: 'carlahyrox', youtube: '@carlahyrox',
-    privateContacts: { whatsapp: '+34612987654', facetime: '+34612987654' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'carla.hyrox' }, { platform: 'tiktok', value: 'carlahyrox' }, { platform: 'youtube', value: 'carlahyrox' }], 
+   },
   { id: 'u30', name: 'Thabo', age: 35, country: 'South Africa', city: 'Cape Town',
     languages: ['English', 'Zulu', 'Afrikaans'],
     bio: '2:38 marathoner and run coach. Knows every hill on the Atlantic seaboard.',
     photos: [userFace('u30')],
-    verified: true, instagram: 'thabo.runs', x: 'thaboruns', website: 'https://thaboruns.co.za',
-    privateContacts: { whatsapp: '+27821234567' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'thabo.runs' }, { platform: 'x', value: 'thaboruns' }, { platform: 'website', value: 'https://thaboruns.co.za' }], 
+   },
   { id: 'u31', name: 'Nora', age: 38, country: 'Ireland', city: 'Tbilisi',
     languages: ['English', 'Russian'],
     bio: 'Novelist – two books out, the third in edits. I host a quiet residency for people finishing a draft.',
     photos: [userFace('u31')],
-    verified: true, website: 'https://norahayes.com', instagram: 'nora.writes', threads: 'nora.writes',
-    privateContacts: { telegram: 'norahayes' } },
+    verified: true, socials: [{ platform: 'website', value: 'https://norahayes.com' }, { platform: 'instagram', value: 'nora.writes' }], 
+   },
   { id: 'u32', name: 'Jannik', age: 27, country: 'Germany', city: 'Berlin',
     languages: ['German', 'English'],
     bio: 'Producer und Mixing Engineer, Techno und Leftfield. Studio in Kreuzberg.',
     photos: [userFace('u32')],
-    verified: true, instagram: 'jannik.wav', youtube: '@jannikwav', website: 'https://jannikwav.de',
-    privateContacts: { whatsapp: '+4915712345678', telegram: 'jannikwav' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'jannik.wav' }, { platform: 'youtube', value: 'jannikwav' }, { platform: 'website', value: 'https://jannikwav.de' }], 
+   },
   { id: 'u33', name: 'Ingrid', age: 36, country: 'Norway', city: 'Reine',
     languages: ['Norwegian', 'English', 'German'],
     bio: 'Landscape photographer and aurora guide. Shoots for Nordic tourism boards.',
     photos: [userFace('u33')],
-    verified: true, instagram: 'ingrid.north', website: 'https://ingridnorth.no', youtube: '@ingridnorth',
-    privateContacts: { whatsapp: '+4790123456', facetime: 'ingrid.solberg@icloud.com' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'ingrid.north' }, { platform: 'website', value: 'https://ingridnorth.no' }, { platform: 'youtube', value: 'ingridnorth' }], 
+   },
   { id: 'u34', name: 'Priyanka', age: 24, country: 'United Kingdom', city: 'Cape Town',
     languages: ['English', 'Hindi'],
     bio: 'Final-year medical student at UCL, doing my surgery elective at Groote Schuur.',
     photos: [userFace('u34')],
-    verified: true, instagram: 'priya.med', linkedin: 'priyanka-rao',
-    privateContacts: { whatsapp: '+447911123456', telegram: 'priyarao' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'priya.med' }], 
+   },
   { id: 'u35', name: 'Daniel', age: 22, country: 'Canada', city: 'Seoul',
     languages: ['English', 'Korean'],
     bio: 'Exchange semester at Yonsei, studying CS. Already knows every late-night jjigae spot.',
     photos: [userFace('u35')],
-    verified: false, instagram: 'dan.in.seoul', tiktok: 'daninseoul',
-    privateContacts: { whatsapp: '+16475551234', telegram: 'dankim' } },
+    verified: false, socials: [{ platform: 'instagram', value: 'dan.in.seoul' }, { platform: 'tiktok', value: 'daninseoul' }], 
+   },
   { id: 'u36', name: 'Valeria', age: 31, country: 'Mexico', city: 'Mexico City',
     languages: ['Spanish', 'English'],
     bio: 'Product designer, remote for a Berlin startup. Building the house I wish I had on my first solo trip.',
     photos: [userFace('u36')],
-    verified: true, instagram: 'vale.designs', linkedin: 'valeria-ruiz', x: 'valeruiz',
-    privateContacts: { whatsapp: '+5215512345678', telegram: 'valeruiz', facetime: '+5215512345678' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'vale.designs' }, { platform: 'x', value: 'valeruiz' }], 
+   },
   { id: 'u37', name: 'Richard', age: 44, country: 'United Kingdom', city: 'Funchal',
     languages: ['English', 'Portuguese'],
     bio: 'Second-time founder (exited a logistics SaaS), now building in climate. Dad of two.',
     photos: [userFace('u37')],
-    verified: true, linkedin: 'richard-hale', x: 'richhale', website: 'https://richardhale.co',
-    privateContacts: { whatsapp: '+447700900456' } },
+    verified: true, socials: [{ platform: 'x', value: 'richhale' }, { platform: 'website', value: 'https://richardhale.co' }], 
+   },
   { id: 'u38', name: 'Ava', age: 34, country: 'New Zealand', city: 'Koh Phangan',
     languages: ['English'],
     bio: 'Breathwork facilitator, five years sober. Koh Phangan is more than full-moon parties.',
     photos: [userFace('u38')],
-    verified: true, instagram: 'ava.breathes', tiktok: 'avabreathes', website: 'https://avabreathes.com',
-    privateContacts: { whatsapp: '+64211234567', telegram: 'avabreathes' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'ava.breathes' }, { platform: 'tiktok', value: 'avabreathes' }, { platform: 'website', value: 'https://avabreathes.com' }], 
+   },
   { id: 'u39', name: 'Bram', age: 26, country: 'Belgium', city: 'Antwerp',
     languages: ['Dutch', 'English', 'French'],
     bio: 'Tomorrowland every year since 2017. Plans the timetable in a spreadsheet.',
     photos: [userFace('u39')],
-    verified: false, instagram: 'bram.festivals', tiktok: 'bramfestivals',
-    privateContacts: { whatsapp: '+32478123456', telegram: 'bramfest' } },
+    verified: false, socials: [{ platform: 'instagram', value: 'bram.festivals' }, { platform: 'tiktok', value: 'bramfestivals' }], 
+   },
   { id: 'u40', name: 'Chloé', age: 29, country: 'France', city: 'Chamonix',
     languages: ['French', 'English'],
     bio: 'Ski instructor (ESF) and backcountry splitboarder. Fifth winter in Chamonix.',
     photos: [userFace('u40')],
-    verified: true, instagram: 'chloe.peaks', youtube: '@chloepeaks', tiktok: 'chloepeaks',
-    privateContacts: { whatsapp: '+33612398765', facetime: '+33612398765' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'chloe.peaks' }, { platform: 'youtube', value: 'chloepeaks' }, { platform: 'tiktok', value: 'chloepeaks' }], 
+   },
   { id: 'u41', name: 'Marta', age: 32, country: 'Spain', city: 'Las Palmas',
     languages: ['Spanish', 'English', 'German'],
     bio: 'Canarian product designer, remote for a Munich scale-up. Knows every coworking and every quiet beach on Gran Canaria.',
     photos: [userFace('u41')],
-    verified: true, instagram: 'marta.remote', linkedin: 'martasuarezdesign', website: 'https://martasuarez.design',
-    privateContacts: { whatsapp: '+34628123456', telegram: 'martaremote' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'marta.remote' }, { platform: 'website', value: 'https://martasuarez.design' }], 
+   },
   { id: 'u42', name: 'Felix', age: 29, country: 'Germany', city: 'El Médano',
     languages: ['German', 'English', 'Spanish'],
     bio: 'Data analyst, four hours of overlap with Berlin, the rest belongs to the ocean. Surfing El Médano since 2021.',
     photos: [userFace('u42')],
-    verified: true, instagram: 'felix.surfs.data', youtube: '@felixsurfsdata',
-    privateContacts: { whatsapp: '+4915123456789', signal: '+4915123456789' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'felix.surfs.data' }, { platform: 'youtube', value: 'felixsurfsdata' }], 
+   },
   { id: 'u43', name: 'Inês', age: 34, country: 'Portugal', city: 'Ponta do Sol',
     languages: ['Portuguese', 'English', 'French'],
     bio: 'Community lead for remote workers on Madeira. Sunset at the pier, levada hikes on Sundays, cake in between.',
     photos: [userFace('u43')],
-    verified: true, instagram: 'ines.madeira', linkedin: 'inesferreira', tiktok: 'inesonmadeira',
-    privateContacts: { whatsapp: '+351912345678', telegram: 'inesmadeira', facetime: 'ines.madeira@icloud.com' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'ines.madeira' }, { platform: 'tiktok', value: 'inesonmadeira' }], 
+   },
   { id: 'u44', name: 'Moritz', age: 27, country: 'Austria', city: 'Innsbruck',
     languages: ['German', 'English'],
     bio: 'Bauingenieur, an jedem Wochenende im Winter auf der Piste. Organisiert die Hütte, die Après-Ski-Playlist und den Frühstückseinkauf.',
     photos: [userFace('u44')],
-    verified: false, instagram: 'moritz.powder', tiktok: 'moritzpowder',
-    privateContacts: { whatsapp: '+436641234567' } },
+    verified: false, socials: [{ platform: 'instagram', value: 'moritz.powder' }, { platform: 'tiktok', value: 'moritzpowder' }], 
+   },
   { id: 'u45', name: 'Clara', age: 26, country: 'Germany', city: 'Berlin',
     languages: ['German', 'English', 'Italian'],
     bio: 'Vor einem Jahr für den ersten Job nach Berlin gezogen und die ersten Wochen allein in einem WG-Zimmer gesessen. Das soll niemand mehr müssen.',
     photos: [userFace('u45')],
-    verified: true, instagram: 'clara.inberlin', linkedin: 'claraweber', threads: 'clara.inberlin',
-    privateContacts: { whatsapp: '+4917698765432', telegram: 'clarainberlin', signal: '+4917698765432' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'clara.inberlin' }], 
+   },
   { id: 'u46', name: 'Minjun', age: 24, country: 'South Korea', city: 'Seoul',
     languages: ['Korean', 'English'],
     bio: 'Former semi-pro Valorant player, now coaching and streaming. Knows the best PC bangs in Hongdae and where to eat at 3 am.',
     photos: [userFace('u46')],
-    verified: true, twitch: 'minjungg', youtube: '@minjungg', x: 'minjun_gg', kick: 'minjungg',
-    privateContacts: { discord: 'minjun#2207', telegram: 'minjungg' } },
+    verified: true, socials: [{ platform: 'twitch', value: 'minjungg' }, { platform: 'youtube', value: 'minjungg' }, { platform: 'x', value: 'minjun_gg' }, { platform: 'kick', value: 'minjungg' }], 
+   },
   { id: 'u47', name: 'Alba', age: 30, country: 'Spain', city: 'Tarifa',
     languages: ['Spanish', 'English', 'Italian'],
     bio: 'IKO kite instructor, eight seasons in Tarifa. Reads the Levante forecast like other people read the news.',
     photos: [userFace('u47')],
-    verified: true, instagram: 'alba.kites', youtube: '@albakites',
-    privateContacts: { whatsapp: '+34611987654', facetime: '+34611987654' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'alba.kites' }, { platform: 'youtube', value: 'albakites' }], 
+   },
   { id: 'u48', name: 'James', age: 36, country: 'United Kingdom', city: 'Marbella',
     languages: ['English', 'Spanish'],
     bio: 'Ex-tennis coach turned padel coach. Runs a club academy in Marbella, drinks his coffee courtside.',
     photos: [userFace('u48')],
-    verified: true, instagram: 'james.padel', linkedin: 'jamesholtpadel', website: 'https://padelwithjames.com',
-    privateContacts: { whatsapp: '+34655123987', phone: '+34655123987' } },
+    verified: true, socials: [{ platform: 'instagram', value: 'james.padel' }, { platform: 'website', value: 'https://padelwithjames.com' }], 
+   },
 ];
 
 const coreStays: Stay[] = [
@@ -582,7 +604,7 @@ const coreStays: Stay[] = [
     lookingForText: 'People who actually train, keep a clean house and don\'t need a party every night. Mixed group preferred.',
     houseRules: ['No smoking inside', 'Quiet after 23:00', 'Clean up the same day'],
     interests: ['gym', 'surfing', 'healthy food', 'remote work'],
-    hostNote: 'Gym is 5 min away, I checked', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
+    hostNote: 'Gym is 5 min away, I checked', crewGroupUrl: 'https://chat.whatsapp.com/CanggFitnessCrew', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-18T09:00:00Z',
   },
   {
     id: 's2', hostFeePerPerson: 100, slug: 'creator-house-uluwatu', title: 'Creator House Uluwatu', hostId: 'u2', vibe: 'creator', language: 'en',
@@ -622,7 +644,7 @@ const coreStays: Stay[] = [
     lookingForText: 'Anyone who has trained before and can handle two sessions a day.',
     houseRules: ['No alcohol in the house', 'Meal-prep Sunday is a team job'],
     interests: ['muay thai', 'nutrition', 'recovery'],
-    acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-01T10:00:00Z',
+    hostNote: 'Two fights a week, ice baths after', acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-01T10:00:00Z',
   },
   {
     id: 's5', slug: 'mountain-coliving-chiang-mai', title: 'Mountain Coliving Chiang Mai', hostId: 'u5', vibe: 'remote-work', language: 'en',
@@ -641,7 +663,7 @@ const coreStays: Stay[] = [
     id: 's6', slug: 'slow-house-bangkok', title: 'Slow House Bangkok', hostId: 'u6', vibe: 'wellness', language: 'en',
     city: 'Ari', region: 'Bangkok, Thailand', lat: 13.78, lng: 100.54, mapPreviewUrl: map('bangkok'),
     startDate: '2026-11-28', endDate: '2026-12-12', spotsTotal: 3, spotsFilled: 1,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 450, max: 600 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Two weeks in Ari: yoga, markets, no plans after 20:00. For people who want a calm base in a loud city.',
     whyText: 'I\'m on a sabbatical and want company that slows me down instead of speeding me up.',
     dayText: '07:00 yoga on the terrace · market breakfast · free day · tea on the roof at sunset.',
@@ -736,7 +758,7 @@ const coreStays: Stay[] = [
     dayText: 'Early walk · work until 14:00 · one neighbourhood per afternoon · onsen on Sundays.',
     lookingForText: 'Tidy, quiet people who respect house etiquette. No late nights.',
     houseRules: ['Shoes off', 'Quiet after 21:00', 'Separate the trash properly'],
-    interests: ['temples', 'coffee', 'design', 'walking'], acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-20T05:00:00Z' },
+    interests: ['temples', 'coffee', 'design', 'walking'], hostNote: 'Silent mornings, temples after lunch', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-20T05:00:00Z' },
   { id: 's14', slug: 'bjj-house-floripa', title: 'BJJ House Floripa', hostId: 'u12', vibe: 'fitness', language: 'en',
     city: 'Campeche', region: 'Florianópolis, Brazil', lat: -27.67, lng: -48.48, mapPreviewUrl: map('floripa'),
     startDate: '2027-01-08', endDate: '2027-02-08', spotsTotal: 5, spotsFilled: 3,
@@ -756,7 +778,7 @@ const coreStays: Stay[] = [
     dayText: 'Nothing before 10. Long walk, long lunch, reading, one dinner out.',
     lookingForText: 'Readers, writers, people who are fine with silence.',
     houseRules: ['Phones away at dinner'],
-    interests: ['reading', 'writing', 'walking', 'wine'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-18T16:00:00Z' },
+    interests: ['reading', 'writing', 'walking', 'wine'], hostNote: 'Books, port wine and early nights', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-18T16:00:00Z' },
   { id: 's16', slug: 'ecom-house-bangkok', title: 'E-com House Bangkok', hostId: 'u14', vibe: 'founder', language: 'en',
     city: 'Thonglor', region: 'Bangkok, Thailand', lat: 13.73, lng: 100.58, mapPreviewUrl: map('thonglor'),
     startDate: '2026-12-01', endDate: '2026-12-22', spotsTotal: 4, spotsFilled: 2,
@@ -796,7 +818,7 @@ const coreStays: Stay[] = [
     dayText: 'Lifts at 9 · back at 16 · sauna · raclette.',
     lookingForText: 'Intermediate skiers/boarders. Gear rental nearby.',
     houseRules: ['Boots in the hallway'],
-    interests: ['skiing', 'sauna', 'raclette'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T12:00:00Z' },
+    interests: ['skiing', 'sauna', 'raclette'], hostNote: 'First lift at 8:30, fondue at 19:00', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T12:00:00Z' },
   { id: 's20', slug: 'editing-house-lisbon', title: 'Editing House Lisbon', hostId: 'u2', vibe: 'creator', language: 'en',
     city: 'Alfama', region: 'Lisbon, Portugal', lat: 38.71, lng: -9.13, mapPreviewUrl: map('alfama'),
     startDate: '2027-03-01', endDate: '2027-03-15', spotsTotal: 4, spotsFilled: 0,
@@ -806,7 +828,7 @@ const coreStays: Stay[] = [
     dayText: 'Edit 09:00–15:00 · city afternoons · screening night on the last day.',
     lookingForText: 'Editors and creators with a backlog. Must bring your own machine.',
     houseRules: ['Headphones during edit hours'],
-    interests: ['editing', 'content', 'city walks'], acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
+    interests: ['editing', 'content', 'city walks'], hostNote: 'Two editing bays, espresso on tap', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T09:30:00Z' },
   // Streaming houses (all featured, so they join the Spotlight rotation)
   { id: 's21', hostFeePerPerson: 150, slug: 'streaming-villa-lisbon', title: 'Streaming Villa Lisbon', hostId: 'u18', vibe: 'creator', language: 'en',
     city: 'Lisbon', region: 'Portugal', lat: 38.72, lng: -9.15, mapPreviewUrl: map('lisbon-stream'),
@@ -955,14 +977,14 @@ const coreStays: Stay[] = [
   { id: 's31', slug: 'surf-coach-house-ericeira', title: 'Surf Coach House Ericeira', hostId: 'u26', vibe: 'surf', language: 'en',
     city: 'Ericeira', region: 'Portugal', lat: 38.963, lng: -9.417, mapPreviewUrl: map('ericeira-coach'),
     startDate: '2026-11-08', endDate: '2026-11-29', spotsTotal: 4, spotsFilled: 1,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 850, max: 1100 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Three weeks of coached sessions on Ericeira\'s reef and beach breaks, with video review every evening.',
     whyText: 'Most people plateau because nobody ever shows them their own surfing. I coach four people for three weeks, film every session and we fix one thing at a time.',
     dayText: 'Dawn session with coaching · breakfast and video review · land training or yoga · second session if the tide works · dinner and a surf film.',
     lookingForText: 'Intermediates who can paddle into green waves and want to turn properly. You\'re fine being filmed and hearing honest feedback.',
     houseRules: ['Boards and wetsuits rinse outside', 'Video review is mandatory', 'Lights out by 22:30 before dawn sessions'],
     interests: ['surfing', 'coaching', 'video analysis'],
-    acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T14:00:00Z' },
+    hostNote: 'Every session filmed, one fix at a time', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T14:00:00Z' },
   { id: 's32', slug: 'dive-house-gili-air', title: 'Dive House Gili Air', hostId: 'u27', vibe: 'holiday', language: 'en',
     city: 'Gili Air', region: 'Lombok, Indonesia', lat: -8.358, lng: 116.081, mapPreviewUrl: map('gili-air'),
     startDate: '2027-03-01', endDate: '2027-04-12', spotsTotal: 6, spotsFilled: 4,
@@ -989,7 +1011,7 @@ const coreStays: Stay[] = [
   { id: 's34', slug: 'hyrox-training-house-barcelona', title: 'Hyrox Training House Barcelona', hostId: 'u29', vibe: 'fitness', language: 'en',
     city: 'Poblenou', region: 'Catalonia, Spain', lat: 41.403, lng: 2.2, mapPreviewUrl: map('poblenou'),
     startDate: '2027-02-15', endDate: '2027-03-21', spotsTotal: 4, spotsFilled: 4,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 900, max: 1200 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Five weeks of race prep for Hyrox Barcelona: programmed sessions at my box, sleds on the beach, recovery done right.',
     whyText: 'Training camps work because everyone does the same plan and nobody skips the boring parts. I want a house that eats, sleeps and trains for race day together.',
     dayText: '07:00 run intervals on the beach · 10:00 stations at the box (sleds, wall balls, burpee broad jumps) · lunch and nap · mobility · early dinner.',
@@ -1022,7 +1044,7 @@ const coreStays: Stay[] = [
   { id: 's37', slug: 'music-producer-house-berlin', title: 'Music Producer House Berlin', hostId: 'u32', vibe: 'creator', language: 'de',
     city: 'Kreuzberg', region: 'Berlin, Germany', lat: 52.499, lng: 13.403, mapPreviewUrl: map('kreuzberg'),
     startDate: '2027-01-08', endDate: '2027-02-19', spotsTotal: 3, spotsFilled: 2,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 700, max: 950 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Ein Altbau in Kreuzberg mit gedämmtem Studio, zwei Arbeitsplätzen und Monitoren, die nicht lügen.',
     whyText: 'Allein im Schlafzimmer produzieren heißt: nichts wird fertig. Ich will drei Leute, die jeden Tag Tracks abschließen und sich gegenseitig ehrliches Feedback geben.',
     dayText: 'Vormittags Produktion im Studio im Schichtplan · Mittagessen zusammen · Feedback-Runde zu den Tracks des Tages · abends Clubs oder Plattenläden.',
@@ -1052,7 +1074,7 @@ const coreStays: Stay[] = [
     lookingForText: 'Medical, nursing or physio students with a confirmed elective at a Cape Town hospital. Shift workers welcome – we keep the house calm.',
     houseRules: ['Sleeping night-shifters are sacred', 'Patient details never leave the hospital', 'Weekend trips are open to all'],
     interests: ['medicine', 'hiking', 'surfing'],
-    acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-08T18:00:00Z' },
+    hostNote: 'Hospital by day, Table Mountain on weekends', acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-08T18:00:00Z' },
   { id: 's40', slug: 'exchange-semester-house-seoul', title: 'Exchange Semester House Seoul', hostId: 'u35', vibe: 'mixed', language: 'en',
     city: 'Sinchon', region: 'South Korea', lat: 37.559, lng: 126.942, mapPreviewUrl: map('sinchon'),
     startDate: '2027-02-25', endDate: '2027-04-30', spotsTotal: 5, spotsFilled: 1,
@@ -1078,7 +1100,7 @@ const coreStays: Stay[] = [
   { id: 's42', slug: 'over-35-founders-house-madeira', title: 'Over-35 Founders House Madeira', hostId: 'u37', vibe: 'founder', language: 'en',
     city: 'Funchal', region: 'Madeira, Portugal', lat: 32.65, lng: -16.908, mapPreviewUrl: map('funchal'),
     startDate: '2027-03-01', endDate: '2027-03-28', spotsTotal: 5, spotsFilled: 2,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 900, max: 1300 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'A month in a quinta above Funchal for founders past their first company – strategy days, levada hikes, honest conversations.',
     whyText: 'Most founder houses are 25-year-olds pulling all-nighters. I want peers who\'ve already built and maybe sold something, have families and still want to build big.',
     dayText: 'Deep work 08:00–13:00 · lunch on the terrace · weekly strategy session where we pressure-test each other\'s plans · levada hikes · dinner by 19:30.',
@@ -1100,7 +1122,7 @@ const coreStays: Stay[] = [
   { id: 's44', slug: 'festival-house-antwerp-tomorrowland', title: 'Festival House Antwerp', hostId: 'u39', vibe: 'holiday', language: 'en',
     city: 'Antwerp', region: 'Belgium', lat: 51.219, lng: 4.402, mapPreviewUrl: map('antwerp'),
     startDate: '2027-07-20', endDate: '2027-07-27', spotsTotal: 6, spotsFilled: 3,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 350, max: 500 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'A townhouse in Antwerp for Tomorrowland weekend one – shuttles to Boom, real beds, a hot shower after the mainstage.',
     whyText: 'DreamVille is great once. After that you want a real bed and a crew that has the timetable down. Antwerp is 20 minutes from the gates.',
     dayText: 'Late breakfast and timetable planning · shuttle to Boom at 13:00 · festival until close · shuttle back · pancakes at 3am · sleep till noon.',
@@ -1145,7 +1167,7 @@ const coreStays: Stay[] = [
   { id: 's48', slug: 'nomad-village-house-ponta-do-sol', title: 'Nomad Village House Ponta do Sol', hostId: 'u43', vibe: 'remote-work', language: 'en',
     city: 'Ponta do Sol', region: 'Madeira, Portugal', lat: 32.681, lng: -17.104, mapPreviewUrl: map('ponta-do-sol'),
     startDate: '2027-01-17', endDate: '2027-02-14', spotsTotal: 6, spotsFilled: 4,
-    currency: 'EUR', accommodationStatus: 'open',
+    budgetPerPerson: { min: 600, max: 800 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Four weeks in the original nomad village – a house above the pier, the community coworking downstairs and Madeira\'s levadas on the weekends.',
     whyText: 'I\'ve watched hundreds of remote workers arrive here alone. The ones who stayed happy had a house and a few people to hike with. That\'s what I want to build for this month.',
     dayText: 'Coffee at the pier · coworking 09:00–13:00 · lunch at the bar on the beach · afternoon work or a swim · sunset drinks with the community · levada hike on Sundays.',
@@ -1179,7 +1201,7 @@ const coreStays: Stay[] = [
   { id: 's51', slug: 'gaming-bootcamp-house-seoul', title: 'Gaming Bootcamp House Seoul', hostId: 'u46', vibe: 'streaming', language: 'en',
     city: 'Hongdae', region: 'Seoul, South Korea', lat: 37.556, lng: 126.923, mapPreviewUrl: map('hongdae'),
     startDate: '2027-04-05', endDate: '2027-04-26', spotsTotal: 5, spotsFilled: 3,
-    currency: 'USD', accommodationStatus: 'open',
+    budgetPerPerson: { min: 800, max: 1100 }, currency: 'USD', accommodationStatus: 'open',
     description: 'Three weeks of scrims, VOD reviews and streams from Hongdae – gigabit internet, one room for setups, PC bangs on every corner.',
     whyText: 'Seoul is the best place in the world to grind games, but it\'s hard to break in alone. I want a house that trains like a team and streams like friends.',
     dayText: 'Late breakfast · VOD review at 13:00 · scrims 14:00–18:00 · dinner in Hongdae · streams 20:00–01:00 · Sunday off for the city.',
@@ -1217,17 +1239,21 @@ const coreStays: Stay[] = [
 /** Language names in the extra data → the codes Stay.language uses. */
 const LANGUAGE_CODES: Record<string, string> = { English: 'en', German: 'de', Spanish: 'es', Portuguese: 'pt', French: 'fr', Italian: 'it', Dutch: 'nl', Japanese: 'ja' };
 
+const SOCIAL_PLATFORM_KEYS: readonly SocialPlatform[] = ['instagram', 'tiktok', 'youtube', 'twitch', 'kick', 'x', 'website'];
+
 function hostToUser(host: ExtraHost): User {
   const { socials, imageQueries, ...rest } = host;
-  const handle = socials.instagram ?? socials.tiktok ?? host.name.toLowerCase();
   return {
     ...rest,
-    ...socials,
+    // In the order they're listed; only the platforms profiles can link to, at most four.
+    socials: (Object.entries(socials) as [string, string][])
+      .filter((entry): entry is [SocialPlatform, string] => SOCIAL_PLATFORM_KEYS.includes(entry[0] as SocialPlatform))
+      .slice(0, 4)
+      .map(([platform, value]) => ({ platform, value: platform === 'website' ? value : value.replace(/^@/, '') })),
     imageQueries,
     facePhotoQuery: FACE_QUERIES[host.id] ?? imageQueries[0],
     // portrait + two lifestyle photos (paths only – the photo pass below doesn't add House photos for these hosts)
     photos: [userFace(host.id), userPhotoPath(host.id, 2), userPhotoPath(host.id, 3)],
-    privateContacts: { telegram: handle.replace(/[^a-z0-9_]/gi, '_') },
   };
 }
 
@@ -1373,27 +1399,27 @@ const EXTRA_CREW_MESSAGES = [
 
 export const threads: Thread[] = [
   {
-    id: 't-s1', type: 'crew', stayId: 's1', participantIds: ['u1', 'u4', 'u8', 'u2', 'u13'],
+    id: 't-s1', type: 'house', houseId: 's1', participantIds: ['u1', 'u4', 'u8', 'u2', 'u13'],
     messages: [
-      { id: 'm1', userId: 'system', text: 'Aisha joined the crew', createdAt: '2026-10-18T12:05:00Z' },
-      { id: 'm2', userId: 'u4', text: 'Hi all! Which gym are we talking – Nirvana or Body Factory?', createdAt: '2026-10-18T12:20:00Z' },
-      { id: 'm3', userId: 'u1', text: 'Body Factory, 5 min on the scooter. Villa is locked, link is pinned.', createdAt: '2026-10-18T12:45:00Z' },
-      { id: 'm4', userId: 'system', text: 'Lena joined the crew', createdAt: '2026-10-18T14:30:00Z' },
-      { id: 'm5', userId: 'u8', text: 'Hello!! So happy. Who\'s arriving when?', createdAt: '2026-10-18T14:32:00Z' },
+      { id: 'm1', threadId: 't-s1', senderId: 'system', text: 'Aisha joined the crew', createdAt: '2026-10-18T12:05:00Z' },
+      { id: 'm2', threadId: 't-s1', senderId: 'u4', text: 'Hi all! Which gym are we talking – Nirvana or Body Factory?', createdAt: '2026-10-18T12:20:00Z' },
+      { id: 'm3', threadId: 't-s1', senderId: 'u1', text: 'Body Factory, 5 min on the scooter. Villa is locked, link is pinned.', createdAt: '2026-10-18T12:45:00Z' },
+      { id: 'm4', threadId: 't-s1', senderId: 'system', text: 'Lena joined the crew', createdAt: '2026-10-18T14:30:00Z' },
+      { id: 'm5', threadId: 't-s1', senderId: 'u8', text: 'Hello!! So happy. Who\'s arriving when?', createdAt: '2026-10-18T14:32:00Z' },
     ],
   },
   {
-    id: 't-s3', type: 'crew', stayId: 's3', participantIds: ['u3', 'u1'],
+    id: 't-s3', type: 'house', houseId: 's3', participantIds: ['u3', 'u1'],
     messages: [
-      { id: 'm6', userId: 'system', text: 'Lukas joined the crew', createdAt: '2026-10-16T09:30:00Z' },
-      { id: 'm7', userId: 'u3', text: 'Welcome. Three houses in the chat so far – vote by Sunday?', createdAt: '2026-10-16T10:00:00Z' },
+      { id: 'm6', threadId: 't-s3', senderId: 'system', text: 'Lukas joined the crew', createdAt: '2026-10-16T09:30:00Z' },
+      { id: 'm7', threadId: 't-s3', senderId: 'u3', text: 'Welcome. Three houses in the chat so far – vote by Sunday?', createdAt: '2026-10-16T10:00:00Z' },
     ],
   },
   {
-    id: 't-d1', type: 'direct', stayId: 's1', participantIds: ['u1', 'u5'],
+    id: 't-d1', type: 'direct', houseId: 's1', participantIds: ['u1', 'u5'],
     messages: [
-      { id: 'm8', userId: 'u1', text: 'Hey Jonas – what time zone do you work? We\'re all up at 6:30.', createdAt: '2026-10-19T21:00:00Z' },
-      { id: 'm9', userId: 'u5', text: 'European clients, so I\'m free mornings. 6:30 is fine if there\'s coffee.', createdAt: '2026-10-19T21:40:00Z' },
+      { id: 'm8', threadId: 't-d1', senderId: 'u1', text: 'Hey Jonas – what time zone do you work? We\'re all up at 6:30.', createdAt: '2026-10-19T21:00:00Z' },
+      { id: 'm9', threadId: 't-d1', senderId: 'u5', text: 'European clients, so I\'m free mornings. 6:30 is fine if there\'s coffee.', createdAt: '2026-10-19T21:40:00Z' },
     ],
   },
 ];

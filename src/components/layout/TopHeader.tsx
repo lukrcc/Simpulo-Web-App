@@ -18,7 +18,7 @@ export function TopHeader() {
     <>
       <HeaderShrink />
       <header className="pointer-events-none sticky top-0 z-40 hidden h-(--header-h) md:block">
-        <div className="glass pointer-events-auto relative h-(--header-bar-h) rounded-none border-0 bg-[rgba(245,244,241,0.72)] transition-[height] duration-200 ease-out after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-black/5 motion-reduce:transition-none">
+        <div className="glass pointer-events-auto relative h-(--header-bar-h) rounded-none border-0 bg-surface/72 transition-[height] duration-200 ease-out after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-line motion-reduce:transition-none">
           <Container className="grid h-full grid-cols-[1fr_auto_1fr] items-center">
             <Logo />
             {/* usePathname suspends on dynamic routes during prerender, so it needs its own boundary. */}

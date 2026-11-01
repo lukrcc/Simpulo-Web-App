@@ -1,36 +1,24 @@
-import { Globe } from "lucide-react";
-import type { ComponentType } from "react";
-import { SiInstagram, SiKick, SiTiktok, SiTwitch, SiYoutube } from "react-icons/si";
+import { MAX_SOCIAL_LINKS } from "@/lib/socialLinks";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SOCIAL_ICONS } from "./socialIcons";
 
-type CardNetwork = "instagram" | "tiktok" | "youtube" | "twitch" | "kick" | "website";
-
-/** The host's public profiles shown on cards, in this order – never privateContacts. */
-const CARD_NETWORKS: readonly { key: CardNetwork; icon: ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
-  { key: "instagram", icon: SiInstagram },
-  { key: "tiktok", icon: SiTiktok },
-  { key: "youtube", icon: SiYoutube },
-  { key: "twitch", icon: SiTwitch },
-  { key: "kick", icon: SiKick },
-  // Simple Icons has no generic website mark; lucide's globe, a touch heavier so it matches the filled brand marks.
-  { key: "website", icon: Globe },
-];
 const MAX_ICONS = 3;
 
 /**
- * Up to three small white icons for the host's public socials, "+N" for the rest – on a card's photo, beside the
- * crew. Decorative: not links (the card opens the House; the profile has the links). Nothing when there are none.
+ * Up to three small white icons for the host's public links (in their order), "+N" for the rest – on a card's photo,
+ * beside the crew. Decorative: not links (the card opens the House; the profile has the links). Nothing without links.
  */
-export function HostSocialIcons({ host, className }: { host: Pick<User, CardNetwork>; className?: string }) {
-  const networks = CARD_NETWORKS.filter(({ key }) => host[key]?.trim());
-  if (networks.length === 0) return null;
-  const rest = networks.length - MAX_ICONS;
+export function HostSocialIcons({ host, className }: { host: Pick<User, "socials">; className?: string }) {
+  const links = (host.socials ?? []).slice(0, MAX_SOCIAL_LINKS);
+  if (links.length === 0) return null;
+  const rest = links.length - MAX_ICONS;
   return (
     <span aria-hidden data-host-socials className={cn("flex shrink-0 items-center gap-2.5 text-white/85", className)}>
-      {networks.slice(0, MAX_ICONS).map(({ key, icon: Icon }) => (
-        <Icon key={key} className="size-3.5" {...(key === "website" ? { strokeWidth: 2.5 } : {})} />
-      ))}
+      {links.slice(0, MAX_ICONS).map((link) => {
+        const Icon = SOCIAL_ICONS[link.platform].icon;
+        return <Icon key={`${link.platform}-${link.value}`} className="size-3.5" color="currentColor" />;
+      })}
       {rest > 0 && <span className="text-xs font-medium leading-none">+{rest}</span>}
     </span>
   );

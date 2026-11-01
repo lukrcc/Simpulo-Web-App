@@ -1,11 +1,13 @@
+import { COLORS } from "@/lib/colors";
+
 // The host's share tools, drawn on a canvas in the browser: the "Download story image" PNG (1080×1920, Instagram /
 // TikTok story) and the "Print QR poster" PDF (A4).
 
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
 
-const INK = "#1e1e22";
-const ACCENT = "#f0633a";
+const INK = COLORS.ink;
+const ACCENT = COLORS.accent;
 const SIDE = 88;
 const QR_SIZE = 300;
 
@@ -104,19 +106,19 @@ export async function renderStoryImage(content: StoryContent): Promise<Blob> {
 
   // Wordmark, top left.
   ctx.textBaseline = "alphabetic";
-  drawWordmark(ctx, SIDE, 170, 64, font, "#ffffff");
+  drawWordmark(ctx, SIDE, 170, 64, font, COLORS.surface);
 
   // From the bottom up: QR row, host line, meta line, title.
   const qrTop = STORY_HEIGHT - 150 - QR_SIZE;
   const { toCanvas } = await import("qrcode");
   const qr = document.createElement("canvas");
-  await toCanvas(qr, content.url, { width: QR_SIZE - 40, margin: 0, color: { dark: INK, light: "#ffffff" }, errorCorrectionLevel: "M" });
-  ctx.fillStyle = "#ffffff";
+  await toCanvas(qr, content.url, { width: QR_SIZE - 40, margin: 0, color: { dark: INK, light: COLORS.surface }, errorCorrectionLevel: "M" });
+  ctx.fillStyle = COLORS.surface;
   roundRect(ctx, SIDE, qrTop, QR_SIZE, QR_SIZE, 36);
   ctx.drawImage(qr, SIDE + 20, qrTop + 20, QR_SIZE - 40, QR_SIZE - 40);
 
   const textLeft = SIDE + QR_SIZE + 48;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = COLORS.surface;
   ctx.font = `700 50px ${font}`;
   ctx.fillText(content.join, textLeft, qrTop + QR_SIZE / 2 - 6);
   ctx.fillStyle = "rgba(255,255,255,0.75)";
@@ -136,7 +138,7 @@ export async function renderStoryImage(content: StoryContent): Promise<Blob> {
     ctx.clip();
     drawCover(ctx, avatar, SIDE, top, size, size);
     ctx.restore();
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = COLORS.surface;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(SIDE + size / 2, top + size / 2, size / 2, 0, Math.PI * 2);
@@ -147,7 +149,7 @@ export async function renderStoryImage(content: StoryContent): Promise<Blob> {
   ctx.font = `500 38px ${font}`;
   ctx.fillText(content.hostedBy, hostLeft, y);
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = COLORS.surface;
   ctx.font = `500 44px ${font}`;
   y -= 72;
   for (const line of wrap(ctx, content.meta, STORY_WIDTH - SIDE * 2, 2).toReversed()) {
@@ -202,7 +204,7 @@ export async function renderPosterPdf(content: PosterContent): Promise<Blob> {
   const side = 220;
   const centre = POSTER_WIDTH / 2;
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = COLORS.surface;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
   ctx.textBaseline = "alphabetic";
   drawWordmark(ctx, side, 360, 120, font, INK);
@@ -216,7 +218,7 @@ export async function renderPosterPdf(content: PosterContent): Promise<Blob> {
     ctx.fillText(line, centre, y);
     y += 190;
   }
-  ctx.fillStyle = "#6b6b72";
+  ctx.fillStyle = COLORS.muted;
   ctx.font = `500 76px ${font}`;
   ctx.fillText(wrap(ctx, content.meta, POSTER_WIDTH - side * 2, 1)[0] ?? "", centre, y + 10);
 
@@ -225,13 +227,13 @@ export async function renderPosterPdf(content: PosterContent): Promise<Blob> {
   const qrTop = y + 160;
   const { toCanvas } = await import("qrcode");
   const qr = document.createElement("canvas");
-  await toCanvas(qr, content.url, { width: qrSize, margin: 0, color: { dark: INK, light: "#ffffff" }, errorCorrectionLevel: "M" });
+  await toCanvas(qr, content.url, { width: qrSize, margin: 0, color: { dark: INK, light: COLORS.surface }, errorCorrectionLevel: "M" });
   ctx.drawImage(qr, centre - qrSize / 2, qrTop, qrSize, qrSize);
 
   ctx.fillStyle = INK;
   ctx.font = `700 96px ${font}`;
   ctx.fillText(content.scan, centre, qrTop + qrSize + 190);
-  ctx.fillStyle = "#6b6b72";
+  ctx.fillStyle = COLORS.muted;
   ctx.font = `500 56px ${font}`;
   ctx.fillText(content.shortUrl, centre, qrTop + qrSize + 290);
 

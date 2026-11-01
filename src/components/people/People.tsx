@@ -69,12 +69,12 @@ function TogetherIn({ houses, className }: { houses: Stay[]; className?: string 
   const t = useTranslations("people");
   const f = useFormat();
   return (
-    <p className={cn("text-[13px] text-zinc-500", className)}>
+    <p className={cn("text-[13px] text-muted", className)}>
       {t("togetherIn")}{" "}
       {houses.map((h, i) => (
         <span key={h.id}>
           {i > 0 && ", "}
-          <span className="font-medium text-zinc-700">{h.title}</span> ({f.shortRange(h.startDate, h.endDate)})
+          <span className="font-medium text-ink">{h.title}</span> ({f.shortRange(h.startDate, h.endDate)})
         </span>
       ))}
     </p>
@@ -118,20 +118,20 @@ export function PeopleList({ variant, hrefOf = (p) => `/u/${p.user.id}`, activeI
   return (
     <div>
       <label className="relative block">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+        <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("search")}
           aria-label={t("search")}
-          className={cn(formInput, "pl-10", !panel && "bg-white")}
+          className={cn(formInput, "pl-10", !panel && "bg-surface")}
         />
       </label>
       {shown.length === 0 ? (
-        <p className="px-2 py-6 text-sm text-zinc-500">{t("noMatch", { query: query.trim() })}</p>
+        <p className="px-2 py-6 text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>
       ) : (
-        <ul className={cn("mt-4", panel ? "space-y-1" : "divide-y divide-black/5 rounded-[24px] bg-white")}>
+        <ul className={cn("mt-4", panel ? "space-y-1" : "divide-y divide-line rounded-[24px] bg-surface")}>
           {shown.map((person) => (
             <li key={person.user.id}>
               <PersonRow
@@ -163,9 +163,9 @@ interface PersonRowProps {
 function PersonRow({ person, href, active, panel, onMessage, onInvite }: PersonRowProps) {
   const t = useTranslations("people");
   const { user } = person;
-  const iconButton = "flex size-10 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-black/5";
+  const iconButton = "flex size-10 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5";
   return (
-    <div className={cn("flex items-center gap-3", panel ? cn("rounded-2xl p-2.5", active ? "bg-page" : "hover:bg-black/[0.03]") : "px-4 py-4 md:px-5")}>
+    <div className={cn("flex items-center gap-3", panel ? cn("rounded-2xl p-2.5", active ? "bg-bg" : "hover:bg-ink/[0.03]") : "px-4 py-4 md:px-5")}>
       {/* Photo, name and houses open the person; the actions sit outside the link. */}
       <Link href={href} scroll={false} aria-current={active ? "page" : undefined} className="flex min-w-0 flex-1 items-center gap-3">
         <Avatar user={user} size="lg" />
@@ -238,7 +238,7 @@ function InviteToHouseSheet({ person, houses, onClose }: { person: User | null; 
                   showToast(t("sentToast", { name, title: stay.title }));
                   onClose();
                 }}
-                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-black/[0.03] disabled:cursor-default disabled:hover:bg-transparent"
+                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-ink/[0.03] disabled:cursor-default disabled:hover:bg-transparent"
               >
                 {stay.photos?.[0] ? (
                   <Img src={stay.photos[0]} alt="" width={48} height={48} className="size-12 shrink-0 rounded-xl object-cover" />
@@ -247,12 +247,12 @@ function InviteToHouseSheet({ person, houses, onClose }: { person: User | null; 
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{stay.title}</span>
-                  <span className="block truncate text-xs text-zinc-500">
+                  <span className="block truncate text-xs text-muted">
                     {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)} · {t("spotsLeft", { count: openSpots(stay) })}
                   </span>
                 </span>
                 {reason ? (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-black/5 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-ink/5 px-2.5 py-1 text-xs font-medium text-muted">
                     {reason === t("invited") && <Check className="size-3" aria-hidden />}
                     {reason}
                   </span>
@@ -267,16 +267,16 @@ function InviteToHouseSheet({ person, houses, onClose }: { person: User | null; 
           <Link
             href={person ? inviteHref(person.id) : "/create"}
             onClick={onClose}
-            className="flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-black/[0.03]"
+            className="flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-ink/[0.03]"
           >
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-black/15 text-ink">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-line text-ink">
               <Plus className="size-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold">{t("openNew")}</span>
-              <span className="block text-xs text-zinc-500">{t("openNewText", { name })}</span>
+              <span className="block text-xs text-muted">{t("openNewText", { name })}</span>
             </span>
-            <ChevronRight className="size-4 shrink-0 text-zinc-400" aria-hidden />
+            <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
           </Link>
         </li>
       </ul>
@@ -294,7 +294,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
   const person = people.find((p) => p.user.id === personId) ?? people[0];
   if (!person) {
     return (
-      <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-black/10">
+      <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-line">
         <EmptyState icon={Users} title={t("emptyTitle")} />
       </div>
     );
@@ -303,7 +303,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[24px] bg-white p-6">
+      <section className="rounded-[24px] bg-surface p-6">
         <div className="flex items-center gap-4">
           <Avatar user={user} size="xl" />
           <div className="min-w-0">
@@ -311,10 +311,10 @@ export function PersonPanel({ personId }: { personId: string | null }) {
               <span className="truncate">{user.name}</span>
               {user.verified && <VerifiedBadge />}
             </h2>
-            <p className="text-zinc-500">{f.ageAndCountry(user)}</p>
+            <p className="text-muted">{f.ageAndCountry(user)}</p>
           </div>
         </div>
-        {user.bio && <p className="mt-4 leading-relaxed text-neutral-700">{user.bio}</p>}
+        {user.bio && <p className="mt-4 leading-relaxed text-ink">{user.bio}</p>}
         <div className="mt-5 flex flex-wrap gap-2">
           <button type="button" onClick={() => invite.start(user)} className={buttonClass("dark", "md")}>
             <UserPlus className="size-4" aria-hidden />
@@ -330,9 +330,9 @@ export function PersonPanel({ personId }: { personId: string | null }) {
         </div>
       </section>
 
-      <section className="rounded-[24px] bg-white p-6">
+      <section className="rounded-[24px] bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">{t("housesTitle", { count: houses.length })}</h2>
-        <ul className="divide-y divide-black/5">
+        <ul className="divide-y divide-line">
           {houses.map((stay) => (
             <li key={stay.id} className="py-3 first:pt-0 last:pb-0">
               <Link href={`/my-stays?id=${stay.id}`} className="flex items-center gap-3 hover:opacity-80">
@@ -343,11 +343,11 @@ export function PersonPanel({ personId }: { personId: string | null }) {
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{stay.title}</span>
-                  <span className="block truncate text-xs text-zinc-500">
+                  <span className="block truncate text-xs text-muted">
                     {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-page px-2.5 py-1 text-xs font-medium text-zinc-600">
+                <span className="shrink-0 rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">
                   {stay.status === "completed" ? t("completed") : t("locked")}
                 </span>
               </Link>
@@ -357,10 +357,10 @@ export function PersonPanel({ personId }: { personId: string | null }) {
       </section>
 
       {user.photos.length > 1 && (
-        <section className="rounded-[24px] bg-white p-6">
+        <section className="rounded-[24px] bg-surface p-6">
           <div className="grid grid-cols-3 gap-3 xl:grid-cols-4">
             {user.photos.slice(0, 4).map((src) => (
-              <span key={src} className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-neutral-200">
+              <span key={src} className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-line">
                 <Img src={src} alt="" fill sizes="200px" className="object-cover" />
               </span>
             ))}

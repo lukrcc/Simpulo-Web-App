@@ -63,7 +63,7 @@ function ManageStayGate({ id }: { id: string }) {
 
   return (
     <Container page width="narrow">
-      <Link href="/my-stays" className="-ml-2 mb-3 inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-500 hover:text-ink">
+      <Link href="/my-stays" className="-ml-2 mb-3 inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         {t("title")}
       </Link>

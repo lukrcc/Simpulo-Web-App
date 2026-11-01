@@ -11,7 +11,8 @@ interface ToastState {
   tone: ToastTone;
 }
 
-type ShowToast = (message: string, tone?: ToastTone) => void;
+/** `durationMs`: how long it stays (default TOAST_MS) */
+type ShowToast = (message: string, tone?: ToastTone, durationMs?: number) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
 
@@ -24,14 +25,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(0);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
-  const showToast = useCallback<ShowToast>((message, tone = "done") => {
+  const showToast = useCallback<ShowToast>((message, tone = "done", durationMs = TOAST_MS) => {
     nextId.current += 1;
     const id = nextId.current;
     setToasts((list) => [...list, { id, message, tone }].slice(-MAX_TOASTS));
     const timer = setTimeout(() => {
       timers.current.delete(timer);
       setToasts((list) => list.filter((t) => t.id !== id));
-    }, TOAST_MS);
+    }, durationMs);
     timers.current.add(timer);
   }, []);
 
@@ -50,12 +51,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="animate-toast-in flex max-w-full items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-lg"
+            className="animate-toast-in flex max-w-full items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-lg"
           >
             {toast.tone === "notify" ? (
-              <Bell className="size-4 shrink-0 text-white/70" />
+              <Bell className="size-4 shrink-0 text-surface/70" />
             ) : (
-              <CircleCheck className="size-4 shrink-0 text-accent" />
+              <CircleCheck className="size-4 shrink-0 text-surface" />
             )}
             <span className="truncate">{toast.message}</span>
           </div>

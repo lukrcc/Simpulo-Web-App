@@ -1,23 +1,45 @@
 "use client";
 
-import { ChevronDown, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, CreditCard, Download, Lock } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
-import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
-import { FormCard, FormCards, FormContainer, FormField, FormHeader, formInput } from "@/components/form/FormLayout";
+import { FormField, formInput } from "@/components/form/FormLayout";
+import { Container } from "@/components/layout/Container";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
-import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
-import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
+import { useFormat } from "@/i18n/format";
+import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
 
-const GROUPS: readonly NotificationGroup[] = ["requests", "payments", "interests", "hostAlerts", "messages", "system"];
-const CHANNELS = ["inApp", "push", "email"] as const;
+/** The sections, in the side navigation's order – each is also its URL hash (#notifications). */
+const SECTIONS = ["account", "profile", "notifications", "payments", "preferences", "privacy"] as const;
+type Section = (typeof SECTIONS)[number];
+
+/**
+ * The four notification toggles – each one channel of one group. Payment and booking updates aren't here: they always
+ * go out (see settingsOf).
+ */
+const NOTIFICATION_ROWS: ReadonlyArray<{ key: "messages" | "nextStop" | "houseUpdates" | "news"; group: NotificationGroup; channel: Exclude<NotificationChannel, "inApp"> }> = [
+  { key: "messages", group: "messages", channel: "push" },
+  { key: "nextStop", group: "interests", channel: "push" },
+  { key: "houseUpdates", group: "requests", channel: "push" },
+  { key: "news", group: "system", channel: "email" },
+];
+
+/** ⚠ MOCK: saved cards and wallets (no payment provider yet). */
+const MOCK_PAYMENT_METHODS = [
+  { id: "pm-1", kind: "card", brand: "Visa", last4: "4242", expires: "08/28" },
+  { id: "pm-2", kind: "wallet", brand: "Apple Pay" },
+] as const;
+/** ⚠ MOCK: the host's payout account. */
+const MOCK_PAYOUT_ACCOUNT = { bank: "N26", last4: "1234" };
+
 /** What has to be typed to delete the account. */
 const DELETE_WORD = "DELETE";
 
@@ -37,167 +59,329 @@ function SettingsGate() {
   return me ? <SettingsContent me={me} /> : null;
 }
 
-/** /settings – account, notifications, preferences, privacy, danger zone. Everything is mock state in the store. */
+/** The section in the URL hash (#payments); account by default – and on the server, which has no hash. */
+function useSection(): Section {
+  const hash = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("hashchange", onChange);
+      return () => window.removeEventListener("hashchange", onChange);
+    },
+    () => window.location.hash.slice(1),
+    () => "",
+  );
+  return SECTIONS.find((s) => s === hash) ?? "account";
+}
+
+/**
+ * /settings – two columns in the page container (the same edges as Explore): the section navigation on the left
+ * (220px, sticky under the header; a row of tabs on phones) and the chosen section on the right (up to 720px, left
+ * aligned). Everything is mock state in the store.
+ */
 function SettingsContent({ me }: { me: User }) {
   const t = useTranslations("settings");
+  const section = useSection();
+
+  return (
+    <Container page className="pb-10">
+      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+      <div className="mt-6 md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
+        <nav aria-label={t("title")} className="self-start md:sticky md:top-[calc(var(--header-h)+40px)]">
+          <ul className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0">
+            {SECTIONS.map((key) => (
+              <li key={key} className="shrink-0">
+                <a
+                  href={`#${key}`}
+                  aria-current={section === key ? "page" : undefined}
+                  className={cn(
+                    "flex h-10 items-center rounded-full px-3 text-[15px] font-medium transition-colors md:rounded-lg",
+                    section === key ? "text-ink" : "text-muted hover:text-ink",
+                    section === key && "max-md:bg-surface",
+                  )}
+                >
+                  {t(`nav.${key}`)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="mt-6 max-w-180 space-y-4 md:mt-0">
+          {section === "account" && <AccountSection me={me} />}
+          {section === "profile" && <ProfileSection />}
+          {section === "notifications" && <NotificationsSection me={me} />}
+          {section === "payments" && <PaymentsSection me={me} />}
+          {section === "preferences" && <PreferencesSection me={me} />}
+          {section === "privacy" && <PrivacySection me={me} />}
+        </div>
+      </div>
+    </Container>
+  );
+}
+
+/** Email (read-only, "Change"), sign-in method, log out – and "Delete account" as a red text link at the bottom. */
+function AccountSection({ me }: { me: User }) {
+  const t = useTranslations("settings.account");
+  const tDanger = useTranslations("settings.danger");
   const store = useStore();
   const router = useRouter();
   const showToast = useToast();
   const [deleting, setDeleting] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const settings = settingsOf(me);
-  const blocked = settings.blockedUserIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
-
-  function logOut() {
-    store.logout();
-    router.push("/");
-  }
 
   return (
-    <FormContainer className="pb-10">
-      {/* No preview column here – the cards keep a comfortable reading width inside the 1120px container. */}
-      <div className="max-w-[720px]">
-        <FormHeader title={t("title")} />
-        <FormCards>
-          <Card title={t("account.title")}>
-            <Row label={t("account.email")}>
-              <span className="truncate text-sm text-ink">{me.email ?? t("account.noEmail")}</span>
-            </Row>
-            <Row label={t("account.signIn")}>
-              <span className="text-sm text-ink">{t(`account.method.${me.signInMethod ?? "email"}`)}</span>
-            </Row>
-            <Row label={t("account.verify.label")}>
-              {me.verified ? (
-                <span className="inline-flex items-center gap-1 text-sm font-medium text-ink">
-                  {t("account.verify.verified")}
-                  <VerifiedBadge />
-                </span>
-              ) : (
-                <span className="flex items-center gap-3">
-                  <span className="text-sm text-zinc-500">{t("account.verify.notVerified")}</span>
-                  <button type="button" onClick={() => setVerifying(true)} className={buttonClass("dark", "sm")}>
-                    {t("account.verify.action")}
-                  </button>
-                </span>
-              )}
-            </Row>
-            <div className="pt-2">
-              <button type="button" onClick={logOut} className={buttonClass("secondary", "md")}>
-                {t("account.logOut")}
-              </button>
-            </div>
-          </Card>
-          <VerifyIdSheet open={verifying} onClose={() => setVerifying(false)} />
-
-          <Card title={t("notifications.title")} description={t("notifications.description")}>
-            <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem_3.5rem] items-center gap-y-1 text-sm">
-              <span />
-              {CHANNELS.map((channel) => (
-                <span key={channel} className="text-center text-xs font-medium text-zinc-500">
-                  {t(`notifications.${channel}`)}
-                </span>
-              ))}
-              {GROUPS.map((group) => (
-                <div key={group} className="contents">
-                  <span className="py-3 font-medium">{t(`notifications.groups.${group}`)}</span>
-                  {CHANNELS.map((channel) => (
-                    <span key={channel} className="flex justify-center">
-                      <Switch
-                        // In-app is on unless switched off (older settings don't have it yet).
-                        on={settings.notifications[group][channel] !== false}
-                        label={t("notifications.toggleLabel", {
-                          group: t(`notifications.groups.${group}`),
-                          channel: t(`notifications.${channel}`),
-                        })}
-                        onChange={(on) => store.setNotification(group, channel, on)}
-                      />
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title={t("preferences.title")}>
-            <FormField label={t("preferences.currency")} helper={t("preferences.currencyHelper")}>
-              <SelectWrap>
-                <select
-                  className={select}
-                  value={me.preferredCurrency ?? ""}
-                  onChange={(e) =>
-                    store.updateCurrentUser({
-                      preferredCurrency: (e.target.value || undefined) as Currency | undefined,
-                    })
-                  }
-                >
-                  <option value="">{t("preferences.currencyAuto")}</option>
-                  {CURRENCIES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
-                </select>
-              </SelectWrap>
-            </FormField>
-            <FormField label={t("preferences.language")} helper={t("preferences.moreSoon")}>
-              <SelectWrap>
-                <select className={select} value="en" disabled>
-                  <option value="en">{t("preferences.english")}</option>
-                </select>
-              </SelectWrap>
-            </FormField>
-          </Card>
-
-          <Card title={t("privacy.title")} description={t("privacy.description")}>
-            {blocked.length === 0 ? (
-              <p className="text-sm text-zinc-500">{t("privacy.noneBlocked")}</p>
-            ) : (
-              <ul className="divide-y divide-black/5">
-                {blocked.map((user) => (
-                  <li key={user.id} className="flex items-center gap-3 py-3">
-                    <Avatar user={user} size="md" />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{user.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        store.unblockUser(user.id);
-                        showToast(t("privacy.unblocked", { name: user.name }));
-                      }}
-                      className={buttonClass("secondary", "sm", "min-h-11 sm:min-h-0")}
-                    >
-                      {t("privacy.unblock")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card title={t("danger.title")} danger>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="max-w-md text-sm text-zinc-600">{t("danger.description")}</p>
-              <button
-                type="button"
-                onClick={() => setDeleting(true)}
-                className="inline-flex h-11 items-center rounded-full border border-red-200 px-5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-              >
-                {t("danger.delete")}
-              </button>
-            </div>
-          </Card>
-        </FormCards>
+    <Card title={t("title")}>
+      <Row label={t("email")}>
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="truncate text-sm text-ink">{me.email ?? t("noEmail")}</span>
+          {/* Mock: no real account system to change it in yet. */}
+          <button type="button" onClick={() => showToast(t("changeSoon"))} className="shrink-0 text-sm font-semibold text-ink underline-offset-4 hover:underline">
+            {t("change")}
+          </button>
+        </span>
+      </Row>
+      <Row label={t("signIn")}>
+        <span className="text-sm text-ink">{t(`method.${me.signInMethod ?? "email"}`)}</span>
+      </Row>
+      <Row label={t("session")}>
+        <button
+          type="button"
+          onClick={() => {
+            store.logout();
+            router.push("/");
+          }}
+          className={buttonClass("secondary", "sm")}
+        >
+          {t("logOut")}
+        </button>
+      </Row>
+      <div className="pt-4">
+        <button type="button" onClick={() => setDeleting(true)} className="text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
+          {tDanger("delete")}
+        </button>
       </div>
-
       <DeleteAccountSheet
         open={deleting}
         onClose={() => setDeleting(false)}
         onConfirm={() => {
           store.deleteAccount();
-          showToast(t("danger.deleted"));
+          showToast(tDanger("deleted"));
           router.push("/");
         }}
       />
-    </FormContainer>
+    </Card>
+  );
+}
+
+/** Only the way to Edit profile – the profile itself is edited there. */
+function ProfileSection() {
+  const t = useTranslations("settings.profile");
+  return (
+    <Card title={t("title")}>
+      <Link href="/profile/edit" className="-mx-2 flex items-center justify-between gap-4 rounded-lg px-2 py-2 text-sm hover:bg-bg">
+        <span>
+          <span className="block font-medium text-ink">{t("edit")}</span>
+          <span className="block text-muted">{t("text")}</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
+      </Link>
+    </Card>
+  );
+}
+
+/** Exactly four toggles; payment and booking updates always go out. */
+function NotificationsSection({ me }: { me: User }) {
+  const t = useTranslations("settings.notifications");
+  const store = useStore();
+  const settings = settingsOf(me);
+  return (
+    <Card title={t("title")} description={t("alwaysSent")}>
+      {NOTIFICATION_ROWS.map(({ key, group, channel }) => (
+        <Row key={key} label={t(`rows.${key}`)} hint={t(`channels.${channel}`)}>
+          <Switch on={settings.notifications[group][channel] !== false} label={t(`rows.${key}`)} onChange={(on) => store.setNotification(group, channel, on)} />
+        </Row>
+      ))}
+    </Card>
+  );
+}
+
+/** Payment methods and history; hosts also see their payout account and payouts. All mock data. */
+function PaymentsSection({ me }: { me: User }) {
+  const t = useTranslations("settings.payments");
+  const f = useFormat();
+  const store = useStore();
+  const showToast = useToast();
+  const stayOf = (id: string) => store.stays.find((s) => s.id === id);
+  const history = store.payments
+    .filter((p) => p.userId === me.id && p.status !== "pending")
+    .toSorted((a, b) => (b.paidAt ?? "").localeCompare(a.paidAt ?? ""));
+  const hosted = store.stays.filter((s) => s.hostId === me.id && s.status !== "draft" && s.status !== "draft_unclaimed");
+  // Payouts: what the crew paid into each of the host's locked Houses (shares + host programme; Simpulo's fee isn't theirs).
+  const payouts = hosted
+    .map((stay) => {
+      const paid = store.payments.filter((p) => p.stayId === stay.id && p.userId !== me.id && p.status === "paid");
+      return { stay, amount: paid.reduce((sum, p) => sum + p.share + (p.hostFee ?? 0), 0), done: stay.status === "booked" || stay.status === "completed" };
+    })
+    .filter((p) => p.amount > 0);
+
+  return (
+    <>
+      <Card title={t("methods")}>
+        {MOCK_PAYMENT_METHODS.map((method) => (
+          <Row key={method.id} label={method.brand}>
+            <span className="flex items-center gap-2 text-sm text-ink">
+              <CreditCard className="size-4 text-muted" aria-hidden />
+              {method.kind === "card" ? t("cardEnding", { last4: method.last4, expires: method.expires }) : t("wallet")}
+            </span>
+          </Row>
+        ))}
+        <div className="pt-4">
+          <button type="button" onClick={() => showToast(t("addSoon"))} className={buttonClass("secondary", "sm")}>
+            {t("add")}
+          </button>
+        </div>
+      </Card>
+
+      <Card title={t("history")}>
+        {history.length === 0 ? (
+          <p className="text-sm text-muted">{t("noHistory")}</p>
+        ) : (
+          history.map((payment) => {
+            const stay = stayOf(payment.stayId);
+            return (
+              <Row key={payment.id} label={stay?.title ?? t("unknownHouse")} hint={payment.paidAt ? f.day(payment.paidAt) : undefined}>
+                <span className="text-right text-sm">
+                  <span className="block font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>
+                  <span className="block text-xs text-muted">{t(`status.${payment.status}`)}</span>
+                </span>
+              </Row>
+            );
+          })
+        )}
+      </Card>
+
+      {hosted.length > 0 && (
+        <>
+          <Card title={t("payoutAccount")}>
+            <Row label={MOCK_PAYOUT_ACCOUNT.bank}>
+              <span className="flex items-center gap-3 text-sm text-ink">
+                {t("accountEnding", { last4: MOCK_PAYOUT_ACCOUNT.last4 })}
+                <button type="button" onClick={() => showToast(t("addSoon"))} className="font-semibold underline-offset-4 hover:underline">
+                  {t("change")}
+                </button>
+              </span>
+            </Row>
+          </Card>
+          <Card title={t("payouts")}>
+            {payouts.length === 0 ? (
+              <p className="text-sm text-muted">{t("noPayouts")}</p>
+            ) : (
+              payouts.map(({ stay, amount, done }) => (
+                <Row key={stay.id} label={stay.title} hint={f.shortRange(stay.startDate, stay.endDate)}>
+                  <span className="text-right text-sm">
+                    <span className="block font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>
+                    <span className="block text-xs text-muted">{done ? t("paidOut") : t("onHold")}</span>
+                  </span>
+                </Row>
+              ))
+            )}
+          </Card>
+        </>
+      )}
+    </>
+  );
+}
+
+function PreferencesSection({ me }: { me: User }) {
+  const t = useTranslations("settings.preferences");
+  const store = useStore();
+  return (
+    <Card title={t("title")}>
+      <div className="space-y-4">
+        <FormField label={t("currency")} helper={t("currencyHelper")}>
+          <SelectWrap>
+            <select
+              className={select}
+              value={me.preferredCurrency ?? ""}
+              onChange={(e) => store.updateCurrentUser({ preferredCurrency: (e.target.value || undefined) as Currency | undefined })}
+            >
+              <option value="">{t("currencyAuto")}</option>
+              {CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </SelectWrap>
+        </FormField>
+        <FormField label={t("language")} helper={t("moreSoon")}>
+          <SelectWrap>
+            <select className={select} value="en" disabled>
+              <option value="en">{t("english")}</option>
+            </select>
+          </SelectWrap>
+        </FormField>
+      </div>
+    </Card>
+  );
+}
+
+/** Blocked people, and a copy of everything Simpulo holds about you (mock: a JSON file from the store). */
+function PrivacySection({ me }: { me: User }) {
+  const t = useTranslations("settings.privacy");
+  const store = useStore();
+  const showToast = useToast();
+  const blocked = settingsOf(me).blockedUserIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
+
+  function downloadData() {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      profile: me,
+      housesHosted: store.stays.filter((s) => s.hostId === me.id),
+      requests: store.joinRequests.filter((r) => r.userId === me.id),
+      payments: store.payments.filter((p) => p.userId === me.id),
+      messages: store.threads.flatMap((th) => th.messages.filter((m) => m.senderId === me.id)),
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "simpulo-data.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(t("downloaded"));
+  }
+
+  return (
+    <>
+      <Card title={t("blockedTitle")} description={t("description")}>
+        {blocked.length === 0 ? (
+          <p className="text-sm text-muted">{t("noneBlocked")}</p>
+        ) : (
+          blocked.map((user) => (
+            <div key={user.id} className="flex items-center gap-3 py-3">
+              <Avatar user={user} size="md" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{user.name}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  store.unblockUser(user.id);
+                  showToast(t("unblocked", { name: user.name }));
+                }}
+                className={buttonClass("secondary", "sm")}
+              >
+                {t("unblock")}
+              </button>
+            </div>
+          ))
+        )}
+      </Card>
+      <Card title={t("dataTitle")}>
+        <Row label={t("dataLabel")}>
+          <button type="button" onClick={downloadData} className={buttonClass("secondary", "sm")}>
+            <Download className="size-4" aria-hidden />
+            {t("download")}
+          </button>
+        </Row>
+      </Card>
+    </>
   );
 }
 
@@ -216,7 +400,7 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
       }}
       title={t("sheetTitle")}
     >
-      <p className="text-sm leading-relaxed text-neutral-600">{t("sheetDescription")}</p>
+      <p className="text-sm leading-relaxed text-muted">{t("sheetDescription")}</p>
       <div className="mt-5">
         <FormField label={t("typeToConfirm", { word: DELETE_WORD })}>
           <input
@@ -232,7 +416,7 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
         type="button"
         disabled={!ready}
         onClick={onConfirm}
-        className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-red-600 px-6 text-base font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-neutral-200 disabled:text-neutral-500"
+        className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-red-600 px-6 text-base font-semibold text-surface transition-colors hover:bg-red-700 disabled:bg-line disabled:text-muted"
       >
         <Lock className="size-4" aria-hidden />
         {t("confirm")}
@@ -241,11 +425,14 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
   );
 }
 
-function Card({ title, description, danger = false, children }: { title: string; description?: string; danger?: boolean; children: ReactNode }) {
+/** A section card: surface, line border, 12px radius, an 18px heading; its rows are divided by lines. */
+function Card({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <FormCard title={title} description={description} className={cn(danger && "ring-1 ring-red-100")}>
-      {children}
-    </FormCard>
+    <section className="rounded-xl border border-line bg-surface p-6">
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+      <div className="mt-3 divide-y divide-line">{children}</div>
+    </section>
   );
 }
 
@@ -254,15 +441,19 @@ function SelectWrap({ children }: { children: ReactNode }) {
   return (
     <span className="relative block">
       {children}
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
     </span>
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** Label (and a muted hint under it) on the left, the control on the right. */
+function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-black/5 pb-3 last:border-0">
-      <span className="shrink-0 text-sm text-zinc-500">{label}</span>
+    <div className="flex min-h-14 items-center justify-between gap-4 py-2">
+      <span className="min-w-0">
+        <span className="block truncate text-sm text-ink">{label}</span>
+        {hint && <span className="block text-xs text-muted">{hint}</span>}
+      </span>
       {children}
     </div>
   );
@@ -271,10 +462,10 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 /** 44px tap target around a 44×24 switch. */
 function Switch({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => void }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className="flex size-11 items-center justify-center">
-      <span className={cn("relative h-6 w-11 rounded-full transition-colors", on ? "bg-accent" : "bg-neutral-300")}>
+    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className="flex size-11 shrink-0 items-center justify-center">
+      <span className={cn("relative h-6 w-11 rounded-full transition-colors", on ? "bg-ink" : "bg-line")}>
         <span
-          className={cn("absolute left-0 top-0.5 size-5 rounded-full bg-white shadow transition-transform", on ? "translate-x-[22px]" : "translate-x-0.5")}
+          className={cn("absolute left-0 top-0.5 size-5 rounded-full bg-surface shadow transition-transform", on ? "translate-x-[22px]" : "translate-x-0.5")}
         />
       </span>
     </button>

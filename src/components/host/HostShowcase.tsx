@@ -59,7 +59,7 @@ export function HostHousesRow() {
         subline={t("housesSubline")}
         seeAll={{ href: "/explore", label: t("housesSeeAll"), ariaLabel: t("housesSeeAllLabel") }}
       />
-      <ScrollRow className="mt-5">
+      <ScrollRow>
         {stays.map((stay) => (
           <div key={stay.id} className="w-65 shrink-0 snap-start">
             <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />

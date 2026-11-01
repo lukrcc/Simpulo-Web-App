@@ -24,7 +24,7 @@ import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useFormat } from "@/i18n/format";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
-import { crewThreadId, findUser, getCrew, getCurrentUser, getCrewLinks, getInvited, getLockDetails, isCrewMember, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getCrewLinks, getInvited, getLockDetails, isCrewMember, joinedAt, paidCount, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { cn, openSpots } from "@/lib/utils";
 import { AccommodationChip } from "./AccommodationChip";
@@ -34,7 +34,7 @@ import { HostCard } from "./HostCard";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { LockSheet } from "./LockSheet";
 
-const card = "rounded-[24px] bg-white p-6";
+const card = "rounded-[24px] bg-surface p-6";
 
 /** Houses detail: the host's management panel, a member's view of a joined House, or – once it's over – the crew. */
 export function HouseDetail({ stay }: { stay: Stay }) {
@@ -47,7 +47,7 @@ function CardTitle({ title, aside }: { title: string; aside?: ReactNode }) {
   return (
     <div className="mb-4 flex items-baseline justify-between gap-3">
       <h2 className="text-lg font-semibold">{title}</h2>
-      {aside && <span className="text-sm text-zinc-500">{aside}</span>}
+      {aside && <span className="text-sm text-muted">{aside}</span>}
     </div>
   );
 }
@@ -72,14 +72,14 @@ function HouseManage({ stay }: { stay: Stay }) {
     <div className="space-y-6">
       <section className={card}>
         <h2 className="text-2xl font-bold tracking-tight">{stay.title}</h2>
-        <p className="mt-1 text-zinc-500">
+        <p className="mt-1 text-muted">
           {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {closed ? (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{t("closed")}</span>
+            <span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">{t("closed")}</span>
           ) : draft ? (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{tDraft("badge")}</span>
+            <span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">{tDraft("badge")}</span>
           ) : (
             <RequestsToggle stay={stay} />
           )}
@@ -88,9 +88,9 @@ function HouseManage({ stay }: { stay: Stay }) {
         </div>
         {/* Claimed or duplicated: nobody sees it until it's published – through the stepper, which checks it. */}
         {draft && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page px-4 py-3">
-            <p className="flex items-start gap-2 text-sm text-neutral-700">
-              <FilePen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-bg px-4 py-3">
+            <p className="flex items-start gap-2 text-sm text-ink">
+              <FilePen className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
               <span>
                 <span className="block font-medium text-ink">{tDraft("bannerTitle")}</span>
                 {tDraft("bannerText")}
@@ -102,9 +102,9 @@ function HouseManage({ stay }: { stay: Stay }) {
           </div>
         )}
         {fullButOpen && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page px-4 py-3">
-            <p className="flex items-center gap-2 text-sm text-neutral-700">
-              <Users className="size-4 shrink-0 text-zinc-500" aria-hidden />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-bg px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-ink">
+              <Users className="size-4 shrink-0 text-muted" aria-hidden />
               {t("fullBanner")}
             </p>
             <button type="button" onClick={() => store.setAcceptingRequests(stay.id, false)} className={buttonClass("secondary", "sm")}>
@@ -114,9 +114,9 @@ function HouseManage({ stay }: { stay: Stay }) {
         )}
         {/* Payouts need a verified host – a soft nudge, never a blocker for running the House. */}
         {me && !me.verified && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-accent-soft/60 px-4 py-3">
-            <p className="flex items-center gap-2 text-sm text-neutral-700">
-              <IdCard className="size-4 shrink-0 text-accent" aria-hidden />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-bg/60 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-ink">
+              <IdCard className="size-4 shrink-0 text-ink" aria-hidden />
               {t("verifyHint")}
             </p>
             <button type="button" onClick={() => setVerifying(true)} className={buttonClass("secondary", "sm")}>
@@ -150,10 +150,10 @@ function HouseManage({ stay }: { stay: Stay }) {
       <section className={cn(card, "ring-1 ring-red-100")}>
         <CardTitle title={t("dangerZone")} />
         {closed ? (
-          <p className="text-sm text-zinc-600">{t("closedNote")}</p>
+          <p className="text-sm text-muted">{t("closedNote")}</p>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="max-w-md text-sm text-zinc-600">{t("closeExplainer")}</p>
+            <p className="max-w-md text-sm text-muted">{t("closeExplainer")}</p>
             <button
               type="button"
               onClick={() => setClosing(true)}
@@ -201,10 +201,10 @@ function RequestsToggle({ stay }: { stay: Stay }) {
       role="switch"
       aria-checked={on}
       onClick={() => setAcceptingRequests(stay.id, !on)}
-      className="inline-flex items-center gap-2 rounded-full bg-black/5 py-1 pl-1 pr-3 text-xs font-medium text-ink transition-colors hover:bg-black/10"
+      className="inline-flex items-center gap-2 rounded-full bg-ink/5 py-1 pl-1 pr-3 text-xs font-medium text-ink transition-colors hover:bg-ink/10"
     >
-      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-accent" : "bg-neutral-300")}>
-        <span className={cn("absolute left-0 top-0.5 size-4 rounded-full bg-white shadow transition-transform", on ? "translate-x-4.5" : "translate-x-0.5")} />
+      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-ink" : "bg-line")}>
+        <span className={cn("absolute left-0 top-0.5 size-4 rounded-full bg-surface shadow transition-transform", on ? "translate-x-4.5" : "translate-x-0.5")} />
       </span>
       {on ? t("takingRequests") : t("notTakingRequests")}
     </button>
@@ -225,9 +225,9 @@ function RequestsCard({ stay }: { stay: Stay }) {
     <section className={card}>
       <CardTitle title={t("title")} aside={pending.length > 0 ? t("pendingCount", { count: pending.length }) : undefined} />
       {pending.length === 0 ? (
-        <p className="text-sm text-zinc-500">{stay.acceptingRequests ? t("noneOpen") : t("none")}</p>
+        <p className="text-sm text-muted">{stay.acceptingRequests ? t("noneOpen") : t("none")}</p>
       ) : (
-        <ul className="divide-y divide-black/5">
+        <ul className="divide-y divide-line">
           {pending.map((request) => {
             const applicant = findUser(store, request.userId);
             return applicant ? <RequestRow key={request.id} request={request} applicant={applicant} stay={stay} /> : null;
@@ -236,12 +236,12 @@ function RequestsCard({ stay }: { stay: Stay }) {
       )}
 
       {earlier.length > 0 && (
-        <details className="group mt-4 border-t border-black/5 pt-3">
-          <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-zinc-600 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <details className="group mt-4 border-t border-line pt-3">
+          <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
             {t("earlier", { count: earlier.length })}
           </summary>
-          <ul className="mt-2 divide-y divide-black/5">
+          <ul className="mt-2 divide-y divide-line">
             {earlier.map((request) => {
               const applicant = findUser(store, request.userId);
               return applicant ? <RequestRow key={request.id} request={request} applicant={applicant} stay={stay} /> : null;
@@ -285,15 +285,15 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
               {applicant.verified && <VerifiedBadge />}
             </span>
             {!pending && <StatusPill status={request.status} />}
-            {applicant.photos.length === 0 && <span className="text-xs text-zinc-500">{t("noPhoto")}</span>}
+            {applicant.photos.length === 0 && <span className="text-xs text-muted">{t("noPhoto")}</span>}
           </div>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted">
             {f.ageAndCountry(applicant)} · {f.day(request.createdAt)}
           </p>
           <SocialRow user={applicant} size="sm" className="mt-2" />
         </div>
       </div>
-      {pending && <p className="mt-3 text-sm leading-relaxed text-neutral-700">{request.message}</p>}
+      {pending && <p className="mt-3 text-sm leading-relaxed text-ink">{request.message}</p>}
 
       <div className="mt-3 flex gap-2">
         {pending && (
@@ -345,7 +345,7 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
   return (
     <section className={card}>
       <CardTitle title={t("title")} aside={`${stay.spotsFilled}/${stay.spotsTotal}`} />
-      <ul className="divide-y divide-black/5">
+      <ul className="divide-y divide-line">
         {crew.map((member) => {
           const isHost = member.id === stay.hostId;
           const joined = joinedAt(store, stay, member.id);
@@ -359,14 +359,14 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
                   </Link>
                   {member.verified && <VerifiedBadge />}
                 </span>
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-xs text-muted">
                   {member.country}
                   {joined && ` · ${t(isHost ? "opened" : "joined", { date: f.day(joined) })}`}
                 </p>
               </div>
               {locked && <StatusPill status={paymentStatus(store, stay.id, member.id)} />}
               {isHost ? (
-                <span className="rounded-full bg-page px-2.5 py-1 text-xs font-medium text-zinc-600">{t("host")}</span>
+                <span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">{t("host")}</span>
               ) : (
                 manage && <MoreMenu label={t("moreFor", { name: member.name })} items={[{ label: t("remove"), onSelect: () => setRemoving(member), danger: true }]} />
               )}
@@ -378,16 +378,16 @@ function CrewCard({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
           <li key={person.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
             <Avatar user={person} size="md" linked className="opacity-60" />
             <div className="min-w-0 flex-1">
-              <Link href={`/u/${person.id}`} className="block truncate text-sm font-medium text-zinc-600 hover:underline">
+              <Link href={`/u/${person.id}`} className="block truncate text-sm font-medium text-muted hover:underline">
                 {person.name}
               </Link>
-              <p className="truncate text-xs text-zinc-500">{t("invitedNote")}</p>
+              <p className="truncate text-xs text-muted">{t("invitedNote")}</p>
             </div>
             <StatusPill status="invited" />
           </li>
         ))}
       </ul>
-      <p className="mt-4 border-t border-black/5 pt-4 text-sm text-zinc-500">
+      <p className="mt-4 border-t border-line pt-4 text-sm text-muted">
         {t("upTo", { count: stay.spotsTotal })}
         {locked && stay.pricePerPerson && (
           <>
@@ -439,16 +439,16 @@ function HostAccommodationCard({ stay }: { stay: Stay }) {
           )}
           {lock && (
             <dl className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl bg-page p-4">
-                <dt className="text-xs text-zinc-500">{t("total")}</dt>
+              <div className="rounded-2xl bg-bg p-4">
+                <dt className="text-xs text-muted">{t("total")}</dt>
                 <dd className="mt-0.5 text-lg font-semibold">{f.price(lock.total, stay.currency)}</dd>
               </div>
-              <div className="rounded-2xl bg-page p-4">
-                <dt className="text-xs text-zinc-500">{t("perPersonShares", { count: lock.spots })}</dt>
+              <div className="rounded-2xl bg-bg p-4">
+                <dt className="text-xs text-muted">{t("perPersonShares", { count: lock.spots })}</dt>
                 <dd className="mt-0.5 text-lg font-semibold">{f.price(lock.perPerson, stay.currency)}</dd>
               </div>
-              <div className="rounded-2xl bg-page p-4">
-                <dt className="text-xs text-zinc-500">{t("paid")}</dt>
+              <div className="rounded-2xl bg-bg p-4">
+                <dt className="text-xs text-muted">{t("paid")}</dt>
                 <dd className="mt-0.5 text-lg font-semibold">
                   {t("paidOf", { paid: paidCount(store, stay), total: getCrew(store, stay).length })}
                 </dd>
@@ -458,10 +458,10 @@ function HostAccommodationCard({ stay }: { stay: Stay }) {
         </>
       ) : links.length > 0 ? (
         <>
-          <p className="mb-4 text-sm text-zinc-500">{t("suggested")}</p>
+          <p className="mb-4 text-sm text-muted">{t("suggested")}</p>
           <ul className="space-y-3">
             {links.map((url) => (
-              <li key={url} className="flex flex-wrap items-center gap-4 rounded-2xl border border-black/5 p-3">
+              <li key={url} className="flex flex-wrap items-center gap-4 rounded-2xl border border-line p-3">
                 <div className="min-w-0 flex-1">
                   <LinkPreviewCard href={url} preview={mockPreviewForUrl(url)} layout="row" />
                 </div>
@@ -476,14 +476,17 @@ function HostAccommodationCard({ stay }: { stay: Stay }) {
           </ul>
         </>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-page p-4">
-          <p className="flex items-center gap-2 text-sm text-zinc-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-bg p-4">
+          <p className="flex items-center gap-2 text-sm text-muted">
             <Link2 className="size-4 shrink-0" aria-hidden />
             {t("noLinks")}
           </p>
-          <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonClass("secondary", "sm")}>
-            {t("openChat")}
-          </Link>
+          {/* The House thread starts with the first confirmed join – before that there's no chat to open. */}
+          {getCrewThread(store, stay.id) && (
+            <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonClass("secondary", "sm")}>
+              {t("openChat")}
+            </Link>
+          )}
         </div>
       )}
 
@@ -522,7 +525,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-2xl font-bold tracking-tight">{stay.title}</h2>
-            <p className="mt-1 text-zinc-500">
+            <p className="mt-1 text-muted">
               {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
             </p>
           </div>
@@ -530,14 +533,14 @@ function JoinedHouse({ stay }: { stay: Stay }) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {request && <StatusPill status={request.status} />}
-          {stay.status === "closed" && <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{t("detail.closed")}</span>}
+          {stay.status === "closed" && <span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">{t("detail.closed")}</span>}
           <AccommodationChip stay={stay} />
           <BookedChip stay={stay} />
         </div>
         {accepted && <MyShare stay={stay} variant="panel" className="mt-4" />}
         {invited && (
-          <p className="mt-4 flex items-start gap-2 rounded-2xl bg-page px-4 py-3 text-sm text-neutral-700">
-            <MailOpen className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+          <p className="mt-4 flex items-start gap-2 rounded-2xl bg-bg px-4 py-3 text-sm text-ink">
+            <MailOpen className="mt-0.5 size-4 shrink-0 text-ink" aria-hidden />
             <span>
               <span className="block font-medium text-ink">{t("invite.title", { name: host?.name.split(" ")[0] ?? "" })}</span>
               {t("invite.text")}
@@ -545,7 +548,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
           </p>
         )}
         {host && (
-          <div className="mt-5 border-t border-black/5 pt-5">
+          <div className="mt-5 border-t border-line pt-5">
             <HostCard host={host} />
           </div>
         )}
@@ -564,7 +567,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               </button>
             </>
           ) : (
-            <p className="flex items-center gap-1.5 text-sm text-zinc-500">
+            <p className="flex items-center gap-1.5 text-sm text-muted">
               <Check className="size-4" aria-hidden />
               {host ? t("joined.waiting", { name: host.name.split(" ")[0] }) : t("joined.waitingForHost")}
             </p>
@@ -602,15 +605,15 @@ function PastHouse({ stay }: { stay: Stay }) {
   return (
     <div className="space-y-6">
       <section className={card}>
-        <span className="inline-flex items-center gap-1 rounded-full bg-page px-2.5 py-1 text-xs font-medium text-zinc-600">
+        <span className="inline-flex items-center gap-1 rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-muted">
           <Check className="size-3" aria-hidden />
           {t("badge")}
         </span>
         <h2 className="mt-3 text-2xl font-bold tracking-tight">{stay.title}</h2>
-        <p className="mt-1 text-zinc-500">
+        <p className="mt-1 text-muted">
           {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
         </p>
-        <p className="mt-4 text-neutral-700">{others > 0 ? t("livedWith", { count: others }) : t("livedAlone")}</p>
+        <p className="mt-4 text-ink">{others > 0 ? t("livedWith", { count: others }) : t("livedAlone")}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href={againHref(stay.id)} className={buttonClass("dark", "md")}>
             <RotateCcw className="size-4" aria-hidden />
@@ -628,7 +631,7 @@ function PastHouse({ stay }: { stay: Stay }) {
           {crew.map((member) => (
             <li key={member.id}>
               <Link href={`/u/${member.id}`} className="group block">
-                <span className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-neutral-200">
+                <span className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-line">
                   {member.photos[0] ? (
                     <Img
                       src={member.photos[0]}
@@ -638,37 +641,39 @@ function PastHouse({ stay }: { stay: Stay }) {
                       className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   ) : (
-                    <span className="flex h-full items-center justify-center text-neutral-400">
+                    <span className="flex h-full items-center justify-center text-muted">
                       <UserIcon className="size-10" aria-hidden />
                     </span>
                   )}
                   {member.id === stay.hostId && (
-                    <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-ink">{tCrew("host")}</span>
+                    <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2 py-0.5 text-[11px] font-semibold text-ink">{tCrew("host")}</span>
                   )}
                 </span>
                 <span className="mt-2 flex min-w-0 items-center gap-1 text-sm font-semibold">
                   <span className="truncate group-hover:underline">{member.id === store.currentUserId ? t("you") : member.name}</span>
                   {member.verified && <VerifiedBadge />}
                 </span>
-                <span className="block truncate text-xs text-zinc-500">{member.country}</span>
+                <span className="block truncate text-xs text-muted">{member.country}</span>
               </Link>
             </li>
           ))}
         </ul>
       </section>
 
+      {getCrewThread(store, stay.id) && (
       <section aria-labelledby={`past-chat-${stay.id}`}>
         <div className="mb-3 px-1">
           <h2 id={`past-chat-${stay.id}`} className="text-lg font-semibold">
             {t("chatTitle")}
           </h2>
-          <p className="text-sm text-zinc-500">{t("chatText")}</p>
+          <p className="text-sm text-muted">{t("chatText")}</p>
         </div>
         {/* The real crew chat, embedded: a fixed height so only the messages scroll. */}
         <div className="h-[min(600px,75dvh)]">
           <ThreadPanel threadId={crewThreadId(stay.id)} inline />
         </div>
       </section>
+      )}
     </div>
   );
 }

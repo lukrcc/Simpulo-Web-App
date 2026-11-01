@@ -1,9 +1,9 @@
 "use client";
 
-import { Eye, Lock, Plus, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { ChevronDown, Eye, Plus, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import {
   FormCard,
@@ -19,28 +19,29 @@ import {
 } from "@/components/form/FormLayout";
 import { profileCrews } from "@/components/profile/Crews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
-import { CONTACT_FIELDS, SOCIAL_FIELDS, contactInputMode, normalizeContact, normalizeSocial, type SocialKey } from "@/components/profile/profileFields";
 import { buttonClass } from "@/components/ui/button";
 import { CardTab } from "@/components/ui/CardTab";
+import { Combobox, type ComboOption } from "@/components/ui/Combobox";
 import { NotchedCard } from "@/components/ui/NotchedCard";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { CONTACT_CHANNELS } from "@/components/ui/CrewContacts";
 import { Img } from "@/components/ui/Img";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { Sheet } from "@/components/ui/Sheet";
-import { SOCIAL_NETWORKS } from "@/components/ui/SocialRow";
+import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { useToast } from "@/components/ui/Toast";
+import { MAX_AGE, MIN_AGE, ageOn, isoOf, partsOf, useTodayIso, type DateParts } from "@/lib/birthDate";
+import { COUNTRIES, PLACES } from "@/lib/places";
 import { getCurrentUser, useStore, type ProfilePatch } from "@/lib/store";
-import type { PrivateContacts, User } from "@/lib/types";
+import { HANDLE_PREFIX, MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS, isValidHandle, isValidWebsite, normalizeSocialValue } from "@/lib/socialLinks";
+import type { SocialLink, SocialPlatform, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTOS = 5;
 const BIO_MAX = 600;
-/** Link rows shown before "+ Add link" (filled ones always show). */
-const VISIBLE_LINK_ROWS = 3;
 
-type ContactKey = (typeof CONTACT_FIELDS)[number];
+/** "Based in" suggestions – a mock list now, Google Places later; anything else typed is kept. */
+const CITY_OPTIONS: ComboOption[] = PLACES.map((p) => ({ value: p.name, label: p.name, hint: p.country }));
 
 export function EditProfile() {
   const t = useTranslations("profile.edit");
@@ -60,60 +61,69 @@ function EditProfileGate() {
 interface FormState {
   photos: string[];
   name: string;
-  age: string;
+  birth: DateParts;
   country: string;
   city: string;
   languages: string[];
   bio: string;
-  socials: Partial<Record<SocialKey, string>>;
-  contacts: Partial<Record<ContactKey, string>>;
+  /** Public links as typed, in the order they were added (at most MAX_SOCIAL_LINKS) */
+  socials: SocialLink[];
 }
 
 function formOf(me: User): FormState {
   return {
     photos: me.photos,
     name: me.name,
-    age: String(me.age),
+    birth: partsOf(me.birthDate),
     country: me.country,
     city: me.city,
     languages: me.languages,
     bio: me.bio,
-    socials: Object.fromEntries(SOCIAL_FIELDS.map(({ key }) => [key, me[key] ?? ""])),
-    contacts: Object.fromEntries(CONTACT_FIELDS.map((key) => [key, me.privateContacts?.[key] ?? ""])),
+    socials: me.socials ?? [],
   };
 }
 
 /** The profile as it would look after saving – drives the live preview and the saved patch. */
-function draftOf(me: User, form: FormState): User {
-  const privateContacts: PrivateContacts = {};
-  for (const key of CONTACT_FIELDS) {
-    const value = normalizeContact(key, form.contacts[key] ?? "");
-    if (value) privateContacts[key] = value;
-  }
-  const draft: User = {
+function draftOf(me: User, form: FormState, today: string | null): User {
+  const birthDate = isoOf(form.birth);
+  return {
     ...me,
     photos: form.photos,
     name: form.name.trim() || me.name,
-    age: Number(form.age) || me.age,
+    birthDate: birthDate ?? me.birthDate,
+    // The age is always derived from the date (until a full date is picked: the saved age).
+    age: birthDate && today ? ageOn(birthDate, today) : me.age,
     country: form.country.trim(),
     city: form.city.trim(),
     languages: form.languages,
     bio: form.bio.trim().slice(0, BIO_MAX),
-    privateContacts,
+    // Empty rows are dropped; a handle is stored bare, a website as its full URL.
+    socials: form.socials
+      .map((link) => ({ platform: link.platform, value: normalizeSocialValue(link.platform, link.value) }))
+      .filter((link) => link.value !== "")
+      .slice(0, MAX_SOCIAL_LINKS),
   };
-  for (const { key } of SOCIAL_FIELDS) draft[key] = normalizeSocial(key, form.socials[key] ?? "") || undefined;
-  return draft;
 }
 
-type FormError = "photo" | "name" | "age" | "country";
+/** A link's problem, if any: a website must be a full, valid address; a handle only the characters handles use. */
+function linkError(link: SocialLink): "website" | "handle" | null {
+  const value = normalizeSocialValue(link.platform, link.value);
+  if (!value) return null;
+  if (link.platform === "website") return isValidWebsite(value) ? null : "website";
+  return isValidHandle(value) ? null : "handle";
+}
 
-/** Required: a photo, first name, age, country. Everything else is optional. */
-function validate(form: FormState): FormError | null {
+type FormError = "photo" | "name" | "birthDate" | "underAge" | "country" | "links";
+
+/** Required: a photo, first name, date of birth (18+), country. Links are optional – but the ones given must be valid. */
+function validate(form: FormState, today: string | null): FormError | null {
   if (form.photos.length === 0) return "photo";
   if (!form.name.trim()) return "name";
-  const age = Number(form.age);
-  if (!(age >= 18 && age <= 99)) return "age";
+  const birthDate = isoOf(form.birth);
+  if (!birthDate) return "birthDate";
+  if (today && ageOn(birthDate, today) < MIN_AGE) return "underAge";
   if (!form.country.trim()) return "country";
+  if (form.socials.some((link) => linkError(link))) return "links";
   return null;
 }
 
@@ -121,8 +131,10 @@ function validate(form: FormState): FormError | null {
 const ERROR_TARGET: Record<FormError, string> = {
   photo: "edit-photos",
   name: "edit-name",
-  age: "edit-age",
+  birthDate: "edit-birth-date",
+  underAge: "edit-birth-date",
   country: "edit-country",
+  links: "edit-links",
 };
 
 /** /profile/edit – form left, live preview right (behind a "Preview" button on mobile). */
@@ -135,11 +147,12 @@ function EditProfileForm({ me }: { me: User }) {
   const [form, setForm] = useState<FormState>(initial);
   const [error, setError] = useState<FormError | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const today = useTodayIso();
   /** Where the user wanted to go while there were unsaved changes */
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
-  const draft = draftOf(me, form);
+  const draft = draftOf(me, form, today);
 
   // router.push (Save, discard) is programmatic – the guard only intercepts link clicks and tab closes.
   useLeaveGuard(dirty, setPendingHref);
@@ -156,7 +169,7 @@ function EditProfileForm({ me }: { me: User }) {
   function save(e: FormEvent) {
     e.preventDefault();
     if (!dirty) return;
-    const problem = validate(form);
+    const problem = validate(form, today);
     if (problem) {
       setError(problem);
       document.getElementById(ERROR_TARGET[problem])?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -166,20 +179,23 @@ function EditProfileForm({ me }: { me: User }) {
       photos: draft.photos,
       name: draft.name,
       age: draft.age,
+      birthDate: draft.birthDate,
       country: draft.country,
       city: draft.city,
       languages: draft.languages,
       bio: draft.bio,
-      privateContacts: draft.privateContacts,
+      socials: draft.socials,
     };
-    // An emptied link is removed (undefined overrides the stored value).
-    for (const { key } of SOCIAL_FIELDS) patch[key] = draft[key];
     store.updateCurrentUser(patch);
     showToast(t("saved"));
     leave("/profile");
   }
 
   const errorText = (key: FormError) => (error === key ? t(`errors.${key}`) : null);
+  const birthDate = isoOf(form.birth);
+  const countryOptions: ComboOption[] = (COUNTRIES.includes(form.country) || !form.country ? COUNTRIES : [form.country, ...COUNTRIES]).map(
+    (c) => ({ value: c, label: c }),
+  );
 
   const formColumn = (
     <form onSubmit={save} noValidate>
@@ -194,41 +210,48 @@ function EditProfileForm({ me }: { me: User }) {
         </FormCard>
 
         <FormCard title={t("about")}>
-          <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
-            <FormField id={ERROR_TARGET.name} label={t("name")} error={errorText("name")}>
-              <input
-                className={formInput}
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                autoComplete="given-name"
-                aria-invalid={error === "name" || undefined}
-              />
-            </FormField>
-            <FormField id={ERROR_TARGET.age} label={t("age")} error={errorText("age")}>
-              <input
-                className={formInput}
-                type="number"
-                inputMode="numeric"
-                min={18}
-                max={99}
-                value={form.age}
-                onChange={(e) => update("age", e.target.value)}
-                aria-invalid={error === "age" || undefined}
-              />
-            </FormField>
-          </div>
+          <FormField id={ERROR_TARGET.name} label={t("name")} error={errorText("name")}>
+            <input
+              className={formInput}
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+              autoComplete="given-name"
+              aria-invalid={error === "name" || undefined}
+            />
+          </FormField>
+          <FormField
+            id={ERROR_TARGET.birthDate}
+            label={t("birthDate")}
+            group
+            error={errorText("birthDate") ?? errorText("underAge")}
+            helper={birthDate && today ? t("birthDateAge", { age: ageOn(birthDate, today) }) : t("birthDateHelper")}
+          >
+            <BirthDateSelects value={form.birth} onChange={(birth) => update("birth", birth)} today={today} invalid={error === "birthDate" || error === "underAge"} />
+          </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField id={ERROR_TARGET.country} label={t("country")} error={errorText("country")}>
-              <input
-                className={formInput}
+            <FormField id={ERROR_TARGET.country} label={t("country")} error={errorText("country")} group>
+              <Combobox
                 value={form.country}
-                onChange={(e) => update("country", e.target.value)}
-                autoComplete="country-name"
-                aria-invalid={error === "country" || undefined}
+                options={countryOptions}
+                onPick={(option) => update("country", option.value)}
+                isSelected={(option) => option.value === form.country}
+                placeholder={t("countryPlaceholder")}
+                empty={t("noCountry")}
+                invalid={error === "country"}
+                aria-label={t("country")}
               />
             </FormField>
-            <FormField label={t("basedIn")} helper={t("basedInHelper")} optional>
-              <input className={formInput} value={form.city} onChange={(e) => update("city", e.target.value)} />
+            <FormField label={t("basedIn")} helper={t("basedInHelper")} optional group>
+              <Combobox
+                value={form.city}
+                options={CITY_OPTIONS}
+                onPick={(option) => update("city", option.value)}
+                onFreeText={(text) => update("city", text)}
+                isSelected={(option) => option.value === form.city}
+                placeholder={t("basedInPlaceholder")}
+                empty={t("noPlace")}
+                aria-label={t("basedIn")}
+              />
             </FormField>
           </div>
           <FormField label={t("languages")} helper={t("languagesHelper")} optional group>
@@ -237,62 +260,33 @@ function EditProfileForm({ me }: { me: User }) {
           <BioField value={form.bio} onChange={(bio) => update("bio", bio)} />
         </FormCard>
 
-        <FormCard title={t("publicLinks")} description={t("linksHelper")}>
-          <LinkRows
-            options={SOCIAL_FIELDS.map(({ key }) => {
-              const network = SOCIAL_NETWORKS.find((n) => n.key === key);
-              return {
-                key,
-                label: network?.label ?? "",
-                icon: network?.icon,
-                color: network?.color,
-                dark: network?.dark,
-              };
-            })}
-            values={form.socials}
-            onChange={(socials) => update("socials", socials)}
-          />
-        </FormCard>
-
-        <FormCard
-          title={t("crewOnly")}
-          description={
-            <span className="flex items-center gap-1.5">
-              <Lock className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
-              {t("crewOnlyLine")}
-            </span>
-          }
-        >
-          <LinkRows
-            options={CONTACT_FIELDS.map((key) => {
-              const channel = CONTACT_CHANNELS.find((c) => c.key === key);
-              return {
-                key,
-                label: "",
-                icon: channel?.icon,
-                color: channel?.color,
-                inputMode: contactInputMode(key),
-              };
-            })}
-            values={form.contacts}
-            onChange={(contacts) => update("contacts", contacts)}
-            channelLabels
-          />
+        <FormCard id={ERROR_TARGET.links} title={t("publicLinks")} description={t("linksHelper", { max: MAX_SOCIAL_LINKS })}>
+          <SocialLinksEditor links={form.socials} onChange={(socials) => update("socials", socials)} showErrors={error === "links"} />
         </FormCard>
       </FormCards>
 
-      {/* Save bar: sticks to the bottom of the form column (no tab bar on this page on mobile). */}
-      <StickyFormBar>
-        <p className="min-w-0 flex-1 truncate text-sm text-zinc-500" aria-live="polite">
-          {dirty ? t("unsaved") : t("noChanges")}
-        </p>
-        <button type="button" onClick={() => (dirty ? setPendingHref("/profile") : leave("/profile"))} className={buttonClass("ghost", "md")}>
-          {t("cancel")}
-        </button>
-        <button type="submit" disabled={!dirty} className={buttonClass("dark", "md")}>
-          {t("save")}
-        </button>
-      </StickyFormBar>
+      {/* Save bar: only while there are unsaved changes – slides up, sticks to the bottom of the form column.
+          Cancel puts the form back to the saved profile. */}
+      {dirty && (
+        <StickyFormBar slideIn>
+          <p className="min-w-0 flex-1 truncate text-sm text-muted" aria-live="polite">
+            {t("unsaved")}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setForm(initial);
+              setError(null);
+            }}
+            className={buttonClass("ghost", "md")}
+          >
+            {t("cancel")}
+          </button>
+          <button type="submit" className={buttonClass("dark", "md")}>
+            {t("save")}
+          </button>
+        </StickyFormBar>
+      )}
     </form>
   );
 
@@ -378,8 +372,8 @@ function LivePreview({ user }: { user: User }) {
     <div>
       <ProfileCard
         user={user}
-        showCrewContacts
-        crews={profileCrews(store, user.id, user.id)}
+        // How others see you: never your own "Lived with".
+        crews={profileCrews(store, user.id, null)}
         stats={tProfile.rich("stats", {
           hosted,
           joined,
@@ -388,16 +382,57 @@ function LivePreview({ user }: { user: User }) {
           joinedLink: (chunks) => <span>{chunks}</span>,
         })}
       />
-      <div className="mt-4 flex items-center gap-4 rounded-[24px] bg-white p-4">
+      <div className="mt-4 flex items-center gap-4 rounded-[24px] bg-surface p-4">
         <NotchedCard
           className="aspect-4/5 w-24 shrink-0"
-          clipClassName="rounded-2xl bg-neutral-200"
-          tab={<CardTab host={user} bg="#ffffff" className="h-7 scale-[0.8] origin-top-left" />}
+          clipClassName="rounded-2xl bg-line"
+          tab={<CardTab host={user} bg="var(--surface)" className="h-7 scale-[0.8] origin-top-left" />}
         >
           {user.photos[0] && <Img src={user.photos[0]} alt="" fill sizes="96px" className="object-cover" />}
         </NotchedCard>
-        <p className="text-sm text-zinc-600">{t("photoOnHouses")}</p>
+        <p className="text-sm text-muted">{t("photoOnHouses")}</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Date of birth as three native selects (day, month, year) – typing jumps to an option, no stepper. Years run from
+ * MIN_AGE to MAX_AGE back from today; a day that doesn't exist in the month is caught by validation.
+ */
+function BirthDateSelects({ value, onChange, today, invalid }: { value: DateParts; onChange: (value: DateParts) => void; today: string | null; invalid: boolean }) {
+  const t = useTranslations("profile.edit");
+  const locale = useLocale();
+  const monthName = new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" });
+  const thisYear = today ? Number(today.slice(0, 4)) : null;
+  const years = thisYear ? Array.from({ length: MAX_AGE - MIN_AGE + 1 }, (_, i) => String(thisYear - MIN_AGE - i)) : [];
+  // A saved year outside the range (or before today is known) stays selectable.
+  if (value.year && !years.includes(value.year)) years.unshift(value.year);
+  const select = (key: keyof DateParts, label: string, options: Array<{ value: string; label: string }>) => (
+    <span className="relative">
+      <select
+        value={value[key]}
+        onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        className={cn(formInput, "appearance-none pr-9", !value[key] && "text-muted")}
+      >
+        <option value="">{label}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value} className="text-ink">
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-3.5 size-4 text-muted" aria-hidden />
+    </span>
+  );
+
+  return (
+    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_6.5rem] gap-3">
+      {select("day", t("day"), Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })))}
+      {select("month", t("month"), Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: monthName.format(Date.UTC(2000, i, 1)) })))}
+      {select("year", t("year"), years.map((y) => ({ value: y, label: y })))}
     </div>
   );
 }
@@ -429,106 +464,77 @@ function BioField({ value, onChange }: { value: string; onChange: (value: string
   );
 }
 
-interface LinkOption<K extends string> {
-  key: K;
-  /** Platform name (public links); crew channels use the translated channel names */
-  label: string;
-  icon?: ComponentType<{ className?: string; style?: CSSProperties }>;
-  color?: string;
-  dark?: boolean;
-  inputMode?: "text" | "tel";
-}
-
 /**
- * One row per platform with its icon as the input prefix. Filled rows always show; empty ones only up to
- * VISIBLE_LINK_ROWS, the rest via "+ Add link". × empties a row and hides it.
+ * Public links in the order they were added, at most MAX_SOCIAL_LINKS: each row is the platform's mark and the start
+ * of its URL ("instagram.com/") before the handle – or a full URL for a website – and × to remove it. "Add link" offers
+ * the platforms not used yet. Problems show per row once a save was tried.
  */
-function LinkRows<K extends string>({
-  options,
-  values,
-  onChange,
-  channelLabels = false,
-}: {
-  options: LinkOption<K>[];
-  values: Partial<Record<K, string>>;
-  onChange: (values: Partial<Record<K, string>>) => void;
-  /** Use the crew-contact channel names as labels */
-  channelLabels?: boolean;
-}) {
+function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[]; onChange: (links: SocialLink[]) => void; showErrors: boolean }) {
   const t = useTranslations("profile.edit");
-  const tChannel = useTranslations("common.ui.crewContacts.channel");
-  const [shown, setShown] = useState<K[]>(() => {
-    const filled = options.filter((o) => values[o.key]?.trim()).map((o) => o.key);
-    const fillers = options.filter((o) => !filled.includes(o.key)).map((o) => o.key);
-    return [...filled, ...fillers.slice(0, Math.max(0, VISIBLE_LINK_ROWS - filled.length))];
-  });
+  const tWebsite = useTranslations("common.ui.socialRow");
   const [picking, setPicking] = useState(false);
-  const hidden = options.filter((o) => !shown.includes(o.key));
-  const labelOf = (o: LinkOption<K>) => (channelLabels ? tChannel(o.key as ContactKey) : o.label);
+  const unused = SOCIAL_PLATFORMS.filter((p) => !links.some((l) => l.platform === p));
+  const nameOf = (platform: SocialPlatform) => SOCIAL_ICONS[platform].brand ?? tWebsite("website");
+  const set = (index: number, value: string) => onChange(links.map((l, i) => (i === index ? { ...l, value } : l)));
 
   return (
     <div className="space-y-3">
-      {options
-        .filter((o) => shown.includes(o.key))
-        .map((option) => {
-          const Icon = option.icon;
-          const label = labelOf(option);
-          return (
-            <FormField key={option.key} label={label} optional>
-              <span className="relative block">
-                <span
-                  className={cn(
-                    "pointer-events-none absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg",
-                    option.dark || !option.color ? "bg-ink text-white" : "bg-white shadow-xs ring-1 ring-black/5",
-                  )}
-                >
-                  {Icon && <Icon className="size-4" style={option.color ? { color: option.color } : undefined} />}
-                </span>
-                <input
-                  className={cn(formInput, "pl-12 pr-10")}
-                  value={values[option.key] ?? ""}
-                  inputMode={option.inputMode}
-                  onChange={(e) => onChange({ ...values, [option.key]: e.target.value })}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange({ ...values, [option.key]: "" });
-                    setShown((s) => s.filter((k) => k !== option.key));
-                  }}
-                  aria-label={t("removeLink", { platform: label })}
-                  className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-black/5 hover:text-ink"
-                >
-                  <X className="size-4" />
-                </button>
-              </span>
-            </FormField>
-          );
-        })}
+      {links.map((link, index) => {
+        const { icon: Icon } = SOCIAL_ICONS[link.platform];
+        const problem = showErrors ? linkError(link) : null;
+        const name = nameOf(link.platform);
+        return (
+          <FormField key={link.platform} label={name} error={problem ? t(`errors.${problem}`) : null}>
+            <span className={cn(formInput, "flex items-center gap-2 focus-within:ring-2 focus-within:ring-accent")}>
+              <Icon className="size-4 shrink-0 text-ink" aria-hidden />
+              {link.platform !== "website" && <span className="shrink-0 text-[15px] text-muted">{HANDLE_PREFIX[link.platform]}</span>}
+              <input
+                value={link.value}
+                onChange={(e) => set(index, e.target.value)}
+                placeholder={link.platform === "website" ? "https://…" : t("handlePlaceholder")}
+                inputMode={link.platform === "website" ? "url" : "text"}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-invalid={Boolean(problem) || undefined}
+                className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
+              />
+              <button
+                type="button"
+                onClick={() => onChange(links.filter((_, i) => i !== index))}
+                aria-label={t("removeLink", { platform: name })}
+                className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
+              >
+                <X className="size-4" />
+              </button>
+            </span>
+          </FormField>
+        );
+      })}
 
-      {hidden.length > 0 && (
-        <div className="relative">
+      {links.length < MAX_SOCIAL_LINKS ? (
+        <div>
           <button type="button" onClick={() => setPicking((p) => !p)} aria-expanded={picking} className={buttonClass("ghost", "sm", "-ml-2")}>
             <Plus className="size-4" />
             {t("addLink")}
           </button>
           {picking && (
             <ul role="menu" className="mt-1 flex flex-wrap gap-2">
-              {hidden.map((option) => {
-                const Icon = option.icon;
+              {unused.map((platform) => {
+                const { icon: Icon } = SOCIAL_ICONS[platform];
                 return (
-                  <li key={option.key}>
+                  <li key={platform}>
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => {
-                        setShown((s) => [...s, option.key]);
+                        onChange([...links, { platform, value: "" }]);
                         setPicking(false);
                       }}
-                      className="flex h-9 items-center gap-2 rounded-full border border-[#E7E5E4] bg-[#FAFAF9] pl-2 pr-3 text-sm hover:border-neutral-400"
+                      className="flex h-9 items-center gap-2 rounded-full border border-line bg-surface pl-2.5 pr-3 text-sm text-ink hover:bg-bg"
                     >
-                      {Icon && <Icon className="size-4" style={option.color && !option.dark ? { color: option.color } : undefined} />}
-                      {labelOf(option)}
+                      <Icon className="size-4" aria-hidden />
+                      {nameOf(platform)}
                     </button>
                   </li>
                 );
@@ -536,6 +542,8 @@ function LinkRows<K extends string>({
             </ul>
           )}
         </div>
+      ) : (
+        <p className="text-[13px] text-muted">{t("linksFull", { max: MAX_SOCIAL_LINKS })}</p>
       )}
     </div>
   );

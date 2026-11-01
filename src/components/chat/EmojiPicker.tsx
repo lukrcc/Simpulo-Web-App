@@ -35,7 +35,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={t("emoji")}
         aria-expanded={open}
-        className={cn("flex size-10 items-center justify-center rounded-full hover:bg-black/5", open ? "text-ink" : "text-zinc-500")}
+        className={cn("flex size-10 items-center justify-center rounded-full hover:bg-ink/5", open ? "text-ink" : "text-muted")}
       >
         <Smile className="size-5" />
       </button>
@@ -43,7 +43,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         <div
           role="dialog"
           aria-label={t("emoji")}
-          className="absolute bottom-full left-0 z-40 mb-2 grid w-[288px] grid-cols-8 gap-0.5 rounded-2xl border border-zinc-200 bg-white p-2 shadow-xl"
+          className="absolute bottom-full left-0 z-40 mb-2 grid w-[288px] grid-cols-8 gap-0.5 rounded-2xl border border-line bg-surface p-2 shadow-xl"
         >
           {PICKER_EMOJIS.map((emoji) => (
             <button
@@ -52,7 +52,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
               // Keep the textarea's focus and selection, so the emoji lands at the cursor.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(emoji)}
-              className="flex size-8 items-center justify-center rounded-lg text-xl hover:bg-zinc-100"
+              className="flex size-8 items-center justify-center rounded-lg text-xl hover:bg-bg"
             >
               {emoji}
             </button>

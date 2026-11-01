@@ -1,13 +1,14 @@
 "use client";
 
-import { ArrowLeft, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import { CardTab } from "@/components/ui/CardTab";
 import { NotchedCard } from "@/components/ui/NotchedCard";
 import { glassCircle, imageGradient } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
+import { pressFeedback } from "@/components/ui/pressFeedback";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -24,10 +25,12 @@ interface HostGalleryProps {
   photos: string[];
   onBack: () => void;
   onShare: () => void;
+  /** The link was just copied: a check mark instead of the share icon */
+  shareCopied?: boolean;
 }
 
 /** Mobile/tablet: full-width carousel of the host's portraits with their identity overlaid. */
-export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGalleryProps) {
+export function HostGallery({ host, photos: allPhotos, onBack, onShare, shareCopied = false }: HostGalleryProps) {
   const t = useTranslations("house.gallery");
   const tCommon = useTranslations("common");
   const format = useFormat();
@@ -35,7 +38,7 @@ export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGa
   const { ref, active, onScroll } = useSnapCarousel<HTMLDivElement>(photos.length);
 
   return (
-    <div className="relative isolate aspect-4/5 overflow-hidden bg-neutral-200 md:aspect-video md:rounded-[28px]">
+    <div className="relative isolate aspect-4/5 overflow-hidden bg-line md:aspect-video md:rounded-[28px]">
       <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
         {photos.map((src, i) => (
           <div key={src} className="relative h-full w-full shrink-0 snap-center snap-always">
@@ -51,15 +54,15 @@ export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGa
         ))}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-black/35 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-ink/35 to-transparent" />
       <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 h-2/3", imageGradient)} />
 
       <div className="absolute inset-x-0 top-0 flex justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <button type="button" onClick={onBack} aria-label={tCommon("back")} className={cn(glassCircle, "md:invisible")}>
           <ArrowLeft className="size-5" />
         </button>
-        <button type="button" onClick={onShare} aria-label={t("share")} className={glassCircle}>
-          <Share2 className="size-5" />
+        <button type="button" onClick={(e) => sharePressed(e, onShare)} aria-label={t("share")} className={cn("press-feedback", glassCircle)}>
+          {shareCopied ? <Check className="size-5" aria-hidden /> : <Share2 className="size-5" />}
         </button>
       </div>
 
@@ -79,7 +82,7 @@ export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGa
       {photos.length > 1 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3.5 flex justify-center gap-1.5">
           {photos.map((src, i) => (
-            <span key={src} className={cn("h-1.5 rounded-full transition-all", i === active ? "w-4 bg-white" : "w-1.5 bg-white/50")} />
+            <span key={src} className={cn("h-1.5 rounded-full transition-all", i === active ? "w-4 bg-surface" : "w-1.5 bg-white/50")} />
           ))}
         </div>
       )}
@@ -87,13 +90,13 @@ export function HostGallery({ host, photos: allPhotos, onBack, onShare }: HostGa
   );
 }
 
-const tile = "relative block size-full overflow-hidden bg-neutral-200 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent";
+const tile = "relative block size-full overflow-hidden bg-line outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent";
 
 /**
  * Desktop: main photo left (60%), two stacked right (40%) – at most 520px tall. Any photo opens the lightbox.
  * The notched tab top-left links to the host's profile.
  */
-export function HostPhotoGrid({ host, photos: allPhotos, onShare }: Omit<HostGalleryProps, "onBack">) {
+export function HostPhotoGrid({ host, photos: allPhotos, onShare, shareCopied = false }: Omit<HostGalleryProps, "onBack">) {
   const t = useTranslations("house.gallery");
   const photos = allPhotos.slice(0, MAX_PHOTOS);
   const [open, setOpen] = useState<number | null>(null);
@@ -103,7 +106,7 @@ export function HostPhotoGrid({ host, photos: allPhotos, onShare }: Omit<HostGal
   return (
     <>
       {/* One clipped silhouette notched around the host tab (the lightbox stays outside – the clip would cut it). */}
-      <NotchedCard className="aspect-3/2 max-h-[520px] w-full" clipClassName="rounded-[28px] bg-neutral-200" tab={<CardTab host={host} linked />}>
+      <NotchedCard className="aspect-3/2 max-h-[520px] w-full" clipClassName="rounded-[28px] bg-line" tab={<CardTab host={host} linked />}>
         {main && (
           <div className={cn("grid size-full gap-2", side.length > 0 && "grid-cols-[3fr_2fr]")}>
             <Tile src={main} alt={host.name} onOpen={() => setOpen(0)} preload sizes="(min-width: 1600px) 480px, 35vw" />
@@ -121,8 +124,8 @@ export function HostPhotoGrid({ host, photos: allPhotos, onShare }: Omit<HostGal
           </div>
         )}
 
-        <button type="button" onClick={onShare} aria-label={t("share")} className={cn(glassCircle, "absolute right-4 top-4 z-10")}>
-          <Share2 className="size-5" />
+        <button type="button" onClick={(e) => sharePressed(e, onShare)} aria-label={t("share")} className={cn("press-feedback", glassCircle, "absolute right-4 top-4 z-10")}>
+          {shareCopied ? <Check className="size-5" aria-hidden /> : <Share2 className="size-5" />}
         </button>
       </NotchedCard>
       <PhotoLightbox photos={photos} index={open} onIndexChange={setOpen} onClose={() => setOpen(null)} alt={host.name} />
@@ -147,4 +150,10 @@ function Tile({ src, alt, onOpen, sizes, preload = false, children }: TileProps)
       {children}
     </button>
   );
+}
+
+/** The share button presses in (like the cards'), then shares. */
+function sharePressed(e: MouseEvent<HTMLButtonElement>, onShare: () => void) {
+  pressFeedback(e.currentTarget);
+  onShare();
 }

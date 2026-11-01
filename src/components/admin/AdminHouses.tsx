@@ -51,11 +51,11 @@ export function AdminHouses() {
         </Link>
       }
     >
-      <section className="rounded-[24px] bg-white p-6">
+      <section className="rounded-[24px] bg-surface p-6">
         {prepared.length === 0 ? (
-          <p className="text-sm text-zinc-500">{t("none")}</p>
+          <p className="text-sm text-muted">{t("none")}</p>
         ) : (
-          <ul className="divide-y divide-black/5">
+          <ul className="divide-y divide-line">
             {prepared.map((stay) => (
               <PreparedRow key={stay.id} stay={stay} />
             ))}
@@ -79,7 +79,7 @@ function PreparedRow({ stay }: { stay: Stay }) {
       {claim.photoUrl ? (
         <Img src={claim.photoUrl} alt="" width={56} height={56} className="size-14 shrink-0 rounded-xl object-cover" />
       ) : (
-        <span className="size-14 shrink-0 rounded-xl bg-page" aria-hidden />
+        <span className="size-14 shrink-0 rounded-xl bg-bg" aria-hidden />
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -87,17 +87,17 @@ function PreparedRow({ stay }: { stay: Stay }) {
           <span
             className={cn(
               "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-              claim.claimedAt ? "bg-emerald-50 text-emerald-700" : "bg-black/5 text-zinc-600",
+              claim.claimedAt ? "bg-emerald-50 text-emerald-700" : "bg-ink/5 text-muted",
             )}
           >
             {claim.claimedAt ? t("claimed") : t("unclaimed")}
           </span>
         </div>
-        <p className="truncate text-sm text-zinc-500">
+        <p className="truncate text-sm text-muted">
           {claim.name} · {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
         </p>
         {claim.claimedAt && (
-          <p className="text-xs text-zinc-500">{t("claimedBy", { name: claimedBy?.name ?? claim.claimedBy ?? "", date: f.day(claim.claimedAt) })}</p>
+          <p className="text-xs text-muted">{t("claimedBy", { name: claimedBy?.name ?? claim.claimedBy ?? "", date: f.day(claim.claimedAt) })}</p>
         )}
       </div>
       <div className="flex gap-2">
@@ -179,8 +179,8 @@ export function AdminNewHouse() {
     const link = claimLink(created.token);
     return (
       <AdminShell title={t("createdTitle")} intro={t("createdText", { name: created.name })}>
-        <section className="max-w-2xl rounded-[24px] bg-white p-6">
-          <p className="break-all rounded-xl bg-page px-4 py-3 font-mono text-sm">{link}</p>
+        <section className="max-w-2xl rounded-[24px] bg-surface p-6">
+          <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-sm">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => void copy(created.token)} className={buttonClass("dark", "sm")}>
               <Copy className="size-3.5" aria-hidden />
@@ -224,7 +224,7 @@ export function AdminNewHouse() {
 
   return (
     <AdminShell title={t("newTitle")} intro={t("newIntro")}>
-      <form onSubmit={submit} noValidate className="max-w-2xl space-y-5 rounded-[24px] bg-white p-6">
+      <form onSubmit={submit} noValidate className="max-w-2xl space-y-5 rounded-[24px] bg-surface p-6">
         <div className="grid gap-5 sm:grid-cols-2">
           {text("name")}
           {text("photoUrl", { type: "url", placeholder: "https://…" })}

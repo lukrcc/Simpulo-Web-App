@@ -18,20 +18,20 @@ export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /*
         {action}
       </div>
       {stay.language !== "en" && (
-        <p className="mt-1 text-sm text-zinc-500">{t("language", { language: format.language(stay.language) })}</p>
+        <p className="mt-1 text-sm text-muted">{t("language", { language: format.language(stay.language) })}</p>
       )}
-      <p className="mt-2 text-neutral-600">
+      <p className="mt-2 text-muted">
         {t("line", {
           dates: format.longRange(stay.startDate, stay.endDate),
           nights: format.nights(stayNights(stay)),
           place: format.shortPlaceLabel(stay),
         })}
       </p>
-      {stay.ageRange && <p className="mt-1 text-sm text-zinc-500">{t("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
+      {stay.ageRange && <p className="mt-1 text-sm text-muted">{t("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
       <div className="mt-4 flex items-center gap-3">
         {/* Host first, then accepted guests – each links to their profile. */}
         <AvatarStack users={crew} size="sm" max={6} linked />
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-muted">
           <span className="font-medium text-ink">
             {t("spotsIn", { filled: stay.spotsFilled, total: stay.spotsTotal })}
           </span>{" "}

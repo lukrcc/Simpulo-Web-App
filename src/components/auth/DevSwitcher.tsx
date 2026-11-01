@@ -35,7 +35,7 @@ function useRouteStay(): Stay | undefined {
   if (section === "my-stays") return store.stays.find((s) => s.id === (param ?? id));
   if (section === "inbox") {
     const thread = store.threads.find((t) => t.id === (param ?? id));
-    return thread && store.stays.find((s) => s.id === thread.stayId);
+    return thread && store.stays.find((s) => s.id === thread.houseId);
   }
   return undefined;
 }
@@ -56,7 +56,7 @@ function DevSwitcherInner() {
     setPanel(null);
   }
 
-  const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-zinc-600 hover:bg-black/5 aria-pressed:bg-black/5 aria-pressed:text-ink";
+  const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted hover:bg-ink/5 aria-pressed:bg-ink/5 aria-pressed:text-ink";
   return (
     // Mobile: small "D" top-right (no header there for logged-in users), opens downward – never near the bottom CTAs.
     // Desktop: "Dev" bottom-right, the free corner next to the form columns, opens upward.
@@ -66,9 +66,9 @@ function DevSwitcherInner() {
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
           <div
             id="dev-switcher-panel"
-            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white text-xs shadow-xl ring-1 ring-black/5"
+            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-xs shadow-xl ring-1 ring-line"
           >
-            <div className="flex items-center gap-2 border-b border-black/5 px-4 py-2.5">
+            <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
               <select
                 value={currentUserId ?? ""}
                 onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
@@ -92,7 +92,7 @@ function DevSwitcherInner() {
             <FlagSwitch flag="hostPremium" />
             <DataPreset />
             {(currentUserId || stay) && (
-              <div className="flex items-center gap-1 border-t border-black/5 px-2 py-1.5">
+              <div className="flex items-center gap-1 border-t border-line px-2 py-1.5">
                 {currentUserId && (
                   <button
                     type="button"
@@ -119,7 +119,7 @@ function DevSwitcherInner() {
               </div>
             )}
             {panel && (
-              <div className="border-t border-black/5">
+              <div className="border-t border-line">
                 {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : <ScheduledPanel reminders={reminders} />}
               </div>
             )}
@@ -132,7 +132,7 @@ function DevSwitcherInner() {
         aria-expanded={open}
         aria-controls="dev-switcher-panel"
         aria-label={open ? t("closePanel") : t("openPanel")}
-        className="glass relative flex size-8 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-600 hover:text-ink md:size-9"
+        className="glass relative flex size-8 items-center justify-center rounded-full text-[11px] font-semibold text-muted hover:text-ink md:size-9"
       >
         <span className="md:hidden">{t("labelShort")}</span>
         <span className="max-md:hidden">{t("label")}</span>
@@ -151,7 +151,7 @@ function FlagSwitch({ flag }: { flag: FeatureFlag }) {
       <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag(flag, e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
-        className="relative h-5 w-8 shrink-0 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/30"
+        className="relative h-5 w-8 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
       />
     </label>
   );
@@ -164,7 +164,7 @@ function DataPreset() {
   return (
     <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
       <span className="font-medium text-ink">{t("data")}</span>
-      <div role="radiogroup" aria-label={t("data")} className="flex rounded-full bg-black/5 p-0.5">
+      <div role="radiogroup" aria-label={t("data")} className="flex rounded-full bg-ink/5 p-0.5">
         {DATASET_PRESETS.map((preset) => (
           <button
             key={preset}
@@ -176,7 +176,7 @@ function DataPreset() {
               savePreset(preset);
               window.location.reload();
             }}
-            className="rounded-full px-2 py-1 font-medium text-zinc-600 aria-checked:bg-white aria-checked:text-ink aria-checked:shadow-sm"
+            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
           >
             {t(`presets.${preset}`)}
           </button>
@@ -187,10 +187,10 @@ function DataPreset() {
 }
 
 const ROLE_STYLES: Record<Role, string> = {
-  host: "bg-accent-soft text-accent",
+  host: "bg-bg text-ink",
   crew: "bg-emerald-50 text-emerald-700",
   pending: "bg-amber-50 text-amber-700",
-  none: "bg-black/5 text-zinc-500",
+  none: "bg-ink/5 text-muted",
 };
 
 function roleIn(store: ReturnType<typeof useStore>, stay: Stay, userId: string): Role {
@@ -216,7 +216,7 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
     onDone();
   }
 
-  const item = "block w-full px-4 py-2.5 text-left hover:bg-neutral-50 disabled:cursor-default disabled:text-zinc-400 disabled:hover:bg-transparent";
+  const item = "block w-full px-4 py-2.5 text-left hover:bg-bg disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent";
   return (
     <div className="py-1">
       {host && (
@@ -254,9 +254,9 @@ function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
   return (
     <div>
       {reminders.length === 0 ? (
-        <p className="px-4 py-4 text-zinc-500">{t("noReminders")}</p>
+        <p className="px-4 py-4 text-muted">{t("noReminders")}</p>
       ) : (
-        <ul className="scroll-pane max-h-80 divide-y divide-black/5">
+        <ul className="scroll-pane max-h-80 divide-y divide-line">
           {reminders.map((reminder) => {
             const stay = store.stays.find((s) => s.id === reminder.stayId);
             const overdue = reminder.due < now;
@@ -266,19 +266,18 @@ function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
                   type="button"
                   onClick={() => store.fireReminder(reminder)}
                   title={t("fireNow")}
-                  className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-neutral-50"
+                  className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-bg"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium text-ink">{t(`types.${reminder.type}`)}</span>
-                    <span className={cn("shrink-0 tabular-nums", overdue ? "text-red-600" : "text-zinc-500")}>
+                    <span className={cn("shrink-0 tabular-nums", overdue ? "text-red-600" : "text-muted")}>
                       {overdue ? t("overdue") : `${f.day(reminder.due)} ${f.time(reminder.due)}`}
                     </span>
                   </span>
-                  <span className="flex items-center justify-between gap-2 text-zinc-500">
+                  <span className="flex items-center justify-between gap-2 text-muted">
                     <span className="truncate">{stay?.title}</span>
                     <span className="shrink-0">
                       {t(`channel.${reminder.channel === "email+push" ? "emailPush" : "email"}`)}
-                      {reminder.chatEvent && ` · ${t("plusChat")}`}
                     </span>
                   </span>
                 </button>

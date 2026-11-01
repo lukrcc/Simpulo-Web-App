@@ -9,7 +9,7 @@ export function Logo() {
         simpulo<span className="text-accent">.</span>
       </span>
       {/* Hidden while the header is compact (globals.css). */}
-      <span className="logo-tagline mt-1 text-[11px] text-neutral-500">{t("tagline")}</span>
+      <span className="logo-tagline mt-1 text-[11px] text-muted">{t("tagline")}</span>
     </Link>
   );
 }

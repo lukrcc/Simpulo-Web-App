@@ -30,14 +30,14 @@ export function ProHostSection() {
         <h2 id="pro-hosts-title" className="text-2xl font-bold tracking-tight">
           {t("proTitle")}
         </h2>
-        <p className="mt-2 max-w-xl leading-relaxed text-zinc-600">{t("proText")}</p>
+        <p className="mt-2 max-w-xl leading-relaxed text-muted">{t("proText")}</p>
       </div>
-      <div className="rounded-[24px] bg-white p-5 lg:col-span-5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("exampleTitle")}</h3>
-        <dl className="mt-2 divide-y divide-black/5">
+      <div className="rounded-[24px] bg-surface p-5 lg:col-span-5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("exampleTitle")}</h3>
+        <dl className="mt-2 divide-y divide-line">
           {rows.map((row) => (
             <div key={row.label} className="flex items-center justify-between py-2 text-sm">
-              <dt className="text-zinc-600">{row.label}</dt>
+              <dt className="text-muted">{row.label}</dt>
               <dd className="tabular-nums">{row.value}</dd>
             </div>
           ))}
@@ -46,12 +46,12 @@ export function ProHostSection() {
             <dd className="tabular-nums">{eur(EXAMPLE.total)}</dd>
           </div>
         </dl>
-        <div className="mt-2 rounded-2xl bg-page px-4 py-3">
+        <div className="mt-2 rounded-2xl bg-bg px-4 py-3">
           <p className="flex items-center justify-between text-sm font-semibold">
             <span>{t("exampleYouGet")}</span>
             <span className="tabular-nums text-ink">{eur(EXAMPLE.hostReceives)}</span>
           </p>
-          <p className="mt-0.5 text-xs text-zinc-500">{t("exampleNote")}</p>
+          <p className="mt-0.5 text-xs text-muted">{t("exampleNote")}</p>
         </div>
       </div>
     </section>

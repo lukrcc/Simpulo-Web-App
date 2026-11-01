@@ -1,7 +1,7 @@
 // Mock chat history: every crew thread with 2+ people gets several days of realistic conversation, direct threads
 // a short exchange. Deterministic (seeded per thread, anchored to MOCK_NOW) so server and client build the same
 // data. Message texts are user content – written as the crew would, never translated.
-import type { Attachment, JoinRequest, LockDetails, Message, Payment, Reaction, Stay, Thread, User } from "./types";
+import type { Attachment, JoinRequest, Message, Reaction, Stay, Thread, User } from "./types";
 
 /** "Now" for the mock data – the newest generated messages land shortly before it. */
 export const MOCK_NOW = "2026-10-22T19:30:00Z";
@@ -127,8 +127,6 @@ interface Seed {
   stays: Stay[];
   users: User[];
   joinRequests: JoinRequest[];
-  payments: Payment[];
-  lockFor: (stay: Stay) => LockDetails | undefined;
 }
 
 /** Evening-heavy timestamps over the last few days: clusters 17:00–23:30, a few mornings, nothing overnight. */
@@ -170,7 +168,7 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
   const userName = (id: string) => seed.users.find((u) => u.id === id)?.name.split(" ")[0] ?? "";
 
   const result = threads.map((thread) => {
-    const stay = seed.stays.find((s) => s.id === thread.stayId);
+    const stay = seed.stays.find((s) => s.id === thread.houseId);
     const people = [...new Set(thread.participantIds)];
     if (!stay || people.length < 2) return thread;
     const random = rng(thread.id);
@@ -186,13 +184,16 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
           ? new Date(stay.bookingConfirmedAt).getTime() - HOUR
           : endAt;
 
-    const say = (userId: string, text: string, extra: Partial<Message> = {}): Message => ({
+    const say = (senderId: string, text: string, extra: Partial<Message> = {}): Message => ({
       id: nextId(thread.id),
-      userId,
+      threadId: thread.id,
+      senderId,
       text,
       createdAt: "",
       ...extra,
     });
+    const line = (key: NonNullable<Message["event"]>["key"], values: Record<string, string | number> = {}) =>
+      say("system", "", { type: "system", event: { key, values } });
     const someoneElse = (userId: string) => userName(pick(random, people.filter((p) => p !== userId)));
 
     if (thread.type === "direct") {
@@ -205,30 +206,20 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
       const total = between(random, 25, 60);
       const host = stay.hostId;
       const members = people.filter((p) => p !== host);
-      const lock = stay.accommodationStatus === "locked" ? seed.lockFor(stay) : undefined;
-      // Story beats in order; chatter fills the gaps up to `total`.
+      // Story beats in order; chatter fills the gaps up to `total`. Payments and the lock never show here – they're on
+      // the House page.
       const beats: Message[] = [];
-      for (const member of members) beats.push(say(member, fill(pick(random, GREETINGS), { name: userName(host), city, activity })));
+      for (const member of members) {
+        beats.push(line("joined", { name: userName(member) }));
+        beats.push(say(member, fill(pick(random, GREETINGS), { name: userName(host), city, activity })));
+      }
+      if (stay.spotsFilled >= stay.spotsTotal) beats.push(line("crewComplete"));
       const linkCount = between(random, 2, 3);
       for (let i = 0; i < linkCount; i++) {
         const url = i === linkCount - 1 && stay.accommodationLink ? stay.accommodationLink : `https://www.${pick(random, ["airbnb.com/rooms", "booking.com/hotel"])}/${stay.slug}-${i + 1}`;
         beats.push(say(pick(random, people), `${pick(random, LINK_INTROS)} ${url}`, { type: "link" }));
       }
       beats.push(say(pick(random, people), fill(pick(random, PLANS), { name: "", city, activity })));
-      if (lock) {
-        beats.push(say(host, "", { type: "lock", lock, event: { key: "locked", values: { name: userName(host), price: lock.perPerson } } }));
-        const paid = seed.payments.filter((p) => p.stayId === stay.id && p.status === "paid");
-        paid.forEach((payment, i) =>
-          beats.push({
-            id: nextId(thread.id),
-            userId: "system",
-            text: "",
-            createdAt: "",
-            type: "payment",
-            event: { key: "paid", values: { name: userName(payment.userId), paid: i + 1, total: people.length } },
-          }),
-        );
-      }
       const imageCount = between(random, 1, 2);
       for (let i = 0; i < imageCount; i++) {
         const attachments: Attachment[] = Array.from({ length: i === 0 ? 1 : between(random, 2, 3) }, (_, n) => ({
@@ -239,7 +230,7 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
         beats.push(say(pick(random, people), i === 0 ? "View from the place 😍" : "", { type: "image", attachments }));
       }
       const beatSlots = new Set<number>();
-      // Spread beats across the history, links/lock in the first two thirds.
+      // Spread beats across the history.
       beats.forEach((_, i) => beatSlots.add(Math.min(total - 1, Math.round(((i + 1) / (beats.length + 2)) * total))));
       let beat = 0;
       for (let i = 0; i < total; i++) {
@@ -265,14 +256,14 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
     }));
 
     // Replies and reactions on some messages (only on people's messages).
-    const human = stamped.filter((m) => m.userId !== "system" && m.type !== "lock");
+    const human = stamped.filter((m) => m.senderId !== "system");
     human.forEach((message, i) => {
       if (i > 3 && random() < 0.08) {
         const target = human[between(random, Math.max(0, i - 6), i - 1)];
         message.replyToId = target.id;
       }
       if (random() < 0.18) {
-        const reactors = people.filter((p) => p !== message.userId && random() < 0.6);
+        const reactors = people.filter((p) => p !== message.senderId && random() < 0.6);
         if (reactors.length > 0) {
           const reactions: Reaction[] = [{ emoji: pick(random, REACTIONS), userIds: reactors }];
           if (random() < 0.25) reactions.push({ emoji: pick(random, REACTIONS.filter((r) => r !== reactions[0].emoji)), userIds: [reactors[0]] });
@@ -281,8 +272,9 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
       }
     });
 
-    if (thread.type === "crew" && stay.bookingConfirmedAt) {
-      stamped.push({ id: nextId(thread.id), userId: "system", text: "", createdAt: stay.bookingConfirmedAt, type: "system", event: { key: "bookingConfirmed", values: {} } });
+    // Booked: the host confirmed it, and the address is on the House page now.
+    if (thread.type === "house" && stay.bookingConfirmedAt) {
+      stamped.push({ ...line("bookingConfirmed"), createdAt: stay.bookingConfirmedAt }, { ...line("addressShared"), createdAt: stay.bookingConfirmedAt });
     }
     const messages = [...thread.messages, ...stamped].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt));
     // Leave the newest few unread in about half the threads.

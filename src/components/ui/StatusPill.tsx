@@ -6,8 +6,8 @@ const styles: Record<JoinRequestStatus | PaymentStatus, string> = {
   accepted: "bg-emerald-50 text-emerald-700",
   paid: "bg-emerald-50 text-emerald-700",
   pending: "bg-amber-50 text-amber-700",
-  declined: "bg-neutral-100 text-neutral-500",
-  invited: "bg-accent-soft text-accent",
+  declined: "bg-bg text-muted",
+  invited: "bg-bg text-ink",
 };
 
 export function StatusPill({ status }: { status: JoinRequestStatus | PaymentStatus }) {

@@ -5,8 +5,9 @@ import { FLEXIBLE, worldRegionOf, type WorldRegion } from "./interests";
 import { convertApprox } from "./mock-extras";
 import type { Stay, Vibe } from "./types";
 
-export type SortKey = "soonest" | "newest";
-export const SORT_KEYS: readonly SortKey[] = ["soonest", "newest"];
+/** soonest: start date · price: lowest per person first (≈ EUR; no price yet: last) · newest: just opened */
+export type SortKey = "soonest" | "price" | "newest";
+export const SORT_KEYS: readonly SortKey[] = ["soonest", "price", "newest"];
 
 export interface ExploreFilters {
   vibes: Vibe[];
@@ -52,7 +53,7 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     // "Flexible" means any month – the same as no month filter.
     months: list(params.get("month")).filter((m) => MONTH.test(m) && m !== FLEXIBLE),
     budget: Number.isFinite(min) && Number.isFinite(max) && max >= min && max > 0 ? { min, max } : null,
-    sort: params.get("sort") === "newest" ? "newest" : "soonest",
+    sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
   };
 }
 

@@ -67,12 +67,12 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
       id={id}
       role="listbox"
       onMouseDown={(e) => e.preventDefault()}
-      className="scroll-pane absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 rounded-2xl bg-white p-1.5 shadow-xl ring-1 ring-black/5"
+      className="scroll-pane absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 rounded-2xl bg-surface p-1.5 shadow-xl ring-1 ring-line"
     >
-      {options.length === 0 && empty && <p className="px-3 py-2.5 text-sm text-zinc-500">{empty}</p>}
+      {options.length === 0 && empty && <p className="px-3 py-2.5 text-sm text-muted">{empty}</p>}
       {groups.map((group, g) => (
         <div key={group.name ?? `group-${g}`} role="group" aria-label={group.name}>
-          {group.name && <p className="px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{group.name}</p>}
+          {group.name && <p className="px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{group.name}</p>}
           {group.items.map(({ option, index }) => {
             const isSelected = selected?.(option) ?? false;
             return (
@@ -85,12 +85,12 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
                 onMouseMove={() => onHover(index)}
                 className={cn(
                   "flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm",
-                  index === active && "bg-black/5",
+                  index === active && "bg-ink/5",
                 )}
               >
                 <span className="min-w-0 flex-1 truncate">
                   {option.label}
-                  {option.hint && <span className="ml-1.5 text-zinc-400">{option.hint}</span>}
+                  {option.hint && <span className="ml-1.5 text-muted">{option.hint}</span>}
                 </span>
                 {isSelected && <Check className="size-4 shrink-0 text-ink" aria-hidden />}
               </div>
@@ -159,6 +159,9 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
       const exact = options.find((o) => fold(o.label) === fold(text));
       if (exact) onPick(exact);
       else if (onFreeText) onFreeText(text);
+    } else if (query !== null && onFreeText) {
+      // Emptied the field: clears the value (free-text fields are the optional ones).
+      onFreeText("");
     }
     close();
   }
@@ -201,11 +204,11 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
           onBlur?.();
         }}
         onKeyDown={onKeyDown}
-        className="h-11 w-full rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] pl-4 pr-10 text-[15px] outline-none transition-shadow placeholder:text-neutral-400 focus:ring-2 focus:ring-ink/20 aria-invalid:border-red-300"
+        className="h-11 w-full rounded-xl border border-line bg-bg pl-4 pr-10 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent aria-invalid:border-red-300"
         {...aria}
       />
       <ChevronDown
-        className={cn("pointer-events-none absolute right-3.5 top-3.5 size-4 text-zinc-400 transition-transform", open && "rotate-180")}
+        className={cn("pointer-events-none absolute right-3.5 top-3.5 size-4 text-muted transition-transform", open && "rotate-180")}
         aria-hidden
       />
       {open && (

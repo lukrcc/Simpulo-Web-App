@@ -22,14 +22,14 @@ export function PlaceMap({ stay }: { stay: Stay }) {
           href={googleMapsUrl(stay)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 hover:text-zinc-600"
+          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 hover:text-muted"
         >
           {t("openInMaps")}
           <ArrowUpRight className="size-4" />
         </a>
       }
     >
-      <div className="relative aspect-video max-h-[320px] w-full overflow-hidden rounded-[20px] bg-[#eef0ea]">
+      <div className="relative aspect-video max-h-[320px] w-full overflow-hidden rounded-[20px] bg-bg">
         <iframe
           src={`https://www.google.com/maps?q=${query}&z=${zoom}&output=embed`}
           title={t("mapOf", { place: format.placeLabel(stay) })}
@@ -38,7 +38,7 @@ export function PlaceMap({ stay }: { stay: Stay }) {
           className="absolute inset-0 size-full border-0"
         />
       </div>
-      {cityOpen && <p className="mt-2 text-sm text-zinc-500">{t("areaOpen")}</p>}
+      {cityOpen && <p className="mt-2 text-sm text-muted">{t("areaOpen")}</p>}
     </Section>
   );
 }

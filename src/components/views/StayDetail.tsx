@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, DoorClosed, Lock, MailOpen, Plus, RotateCcw, SearchX, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -11,7 +11,7 @@ import { useInstallNudge } from "@/components/InstallNudge";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
-import { ShareSheet } from "@/components/share/ShareSheet";
+import { useHouseShare } from "@/components/share/HouseShare";
 import { StayCard } from "@/components/StayCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
@@ -31,12 +31,12 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewLinks, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
-import { cn, findUrls, openSpots, stayNights, stayPhotos } from "@/lib/utils";
+import { cn, openSpots, stayNights, stayPhotos } from "@/lib/utils";
 
 /** Side column cards on the House page. */
-const sideCard = "rounded-[24px] bg-white p-6";
+const sideCard = "rounded-[24px] bg-surface p-6";
 
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -118,7 +118,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     offerInstall(hostFirstName);
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
+  // Share: the system dialog where there is one, else the link is copied (see useHouseShare).
+  const houseShare = useHouseShare(stay);
 
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
@@ -131,7 +132,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const isHost = stay.hostId === store.currentUserId && !previewing;
   const isMember = !previewing && isCrewMember(store, stay, store.currentUserId);
   const spotsLeft = openSpots(stay);
-  const chatLinkCount = (getCrewThread(store, stay.id)?.messages ?? []).reduce((count, m) => count + findUrls(m.text).length, 0);
+  const chatLinkCount = getCrewLinks(store, stay.id).length;
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
@@ -204,10 +205,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         {host && (
           <>
             <div className="-mx-4 md:mx-0 lg:hidden">
-              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={() => setShareOpen(true)} />
+              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={houseShare.share} shareCopied={houseShare.copied} />
             </div>
             <div className="hidden lg:block">
-              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={() => setShareOpen(true)} />
+              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={houseShare.share} shareCopied={houseShare.copied} />
             </div>
           </>
         )}
@@ -233,13 +234,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
           {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
           {myRequest?.status === "invited" && (
-            <div className="mt-6 flex items-start gap-4 rounded-2xl bg-white p-4">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <div className="mt-6 flex items-start gap-4 rounded-2xl bg-surface p-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
                 <MailOpen className="size-5" aria-hidden />
               </span>
               <div className="min-w-0 text-sm">
                 <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
-                <p className="mt-0.5 text-neutral-600">{t("invite.text")}</p>
+                <p className="mt-0.5 text-muted">{t("invite.text")}</p>
               </div>
             </div>
           )}
@@ -247,15 +248,23 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {/* The host, right after opening it: people who want this city and month – invite them. */}
           {isHost && <InterestInvite stay={stay} className="mt-6" />}
 
+          {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
+          {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
+            <a href={stay.crewGroupUrl} target="_blank" rel="noopener" className={buttonClass("secondary", "md", "mt-6 self-start")}>
+              <ExternalLink className="size-4" aria-hidden />
+              {t("openCrewGroup")}
+            </a>
+          )}
+
           {/* Crew with an open share: pay right from the House page (also on mobile – this column is always shown). */}
           {isMember && <MyShare stay={stay} className="mt-6" />}
 
           {askForPhoto && (
-            <div className="mt-6 flex items-center gap-4 rounded-2xl bg-white p-4">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <div className="mt-6 flex items-center gap-4 rounded-2xl bg-surface p-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
                 <Camera className="size-5" aria-hidden />
               </span>
-              <p className="min-w-0 flex-1 text-sm text-neutral-700">{t("photoPrompt", { name: hostFirstName })}</p>
+              <p className="min-w-0 flex-1 text-sm text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
               <button
                 type="button"
                 onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}
@@ -269,6 +278,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {host && (
             <div className={cn(sideCard, "mt-6 lg:hidden")}>
               <HostCard host={host} />
+              {me && !isHost && (
+                <button type="button" onClick={messageHost} className={buttonClass("secondary", "md", "mt-4 w-full")}>
+                  <MessageCircle className="size-4" aria-hidden />
+                  {t("messageHost", { name: hostFirstName })}
+                </button>
+              )}
             </div>
           )}
 
@@ -284,8 +299,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             <Section title={t("houseRules")}>
               <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
                 {stay.houseRules.map((rule) => (
-                  <li key={rule} className="flex gap-2 text-neutral-700">
-                    <Check className="mt-1 size-4 shrink-0 text-accent" />
+                  <li key={rule} className="flex gap-2 text-ink">
+                    <Check className="mt-1 size-4 shrink-0 text-ink" />
                     {rule}
                   </li>
                 ))}
@@ -309,11 +324,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         <div className="space-y-4">
           <div className={cn(sideCard, "hidden lg:block")}>
             <PriceLine stay={stay} size="lg" />
-            <p className="mt-3 text-sm text-neutral-600">
+            <p className="mt-3 text-sm text-muted">
               {t("datesAndNights", { dates: format.longRange(stay.startDate, stay.endDate), nights: format.nights(stayNights(stay)) })}
             </p>
             <div className="mt-5">{cta}</div>
-            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-xs text-zinc-500">{t("loginBeforeSending")}</p>}
+            {/* A 1:1 thread with the host about this House – logged-in guests only. */}
+            {me && !isHost && (
+              <button type="button" onClick={messageHost} className={buttonClass("secondary", "lg", "mt-2 w-full")}>
+                <MessageCircle className="size-4" aria-hidden />
+                {t("messageHost", { name: hostFirstName })}
+              </button>
+            )}
+            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-xs text-muted">{t("loginBeforeSending")}</p>}
           </div>
           {host && (
             <div className={cn(sideCard, "hidden lg:block")}>
@@ -322,13 +344,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           )}
           <div className={sideCard}>
             <h2 className="mb-3 text-base font-semibold">{t("accommodation")}</h2>
-            <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember} inCard />
+            <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} inCard />
           </div>
         </div>
       </aside>
 
       {/* Mobile/tablet: sticky bottom CTA (replaces the tab bar on this route) */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
         <div className="flex items-center gap-4">
           <PriceLine stay={stay} compact className="shrink-0" />
           <div className="flex-1">{cta}</div>
@@ -336,7 +358,6 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       </div>
 
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
-      <ShareSheet target={{ kind: "house", stay }} open={shareOpen} onClose={() => setShareOpen(false)} />
       <RequestSheet
         key={requestKey}
         open={sheetOpen}
@@ -369,15 +390,15 @@ function HostOffer({ stay, offer }: { stay: Stay; offer: string[] }) {
     <Section
       title={t("offerTitle")}
       action={
-        <span className="shrink-0 text-sm text-zinc-500">
+        <span className="shrink-0 text-sm text-muted">
           <span className="font-medium tabular-nums text-ink">{format.price(stay.hostFeePerPerson ?? 0, stay.currency)}</span> {t("perPerson")}
         </span>
       }
     >
       <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
         {offer.map((item) => (
-          <li key={item} className="flex gap-2 text-neutral-700">
-            <Check className="mt-1 size-4 shrink-0 text-zinc-500" aria-hidden />
+          <li key={item} className="flex gap-2 text-ink">
+            <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
             {item}
           </li>
         ))}
@@ -403,9 +424,9 @@ function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
   const dates = format.longRange(stay.startDate, stay.endDate);
   const place = format.placeName(stay);
   return (
-    <div className="mt-6 rounded-2xl bg-white p-5">
+    <div className="mt-6 rounded-2xl bg-surface p-5">
       <p className="font-semibold">{declined ? t("titleDeclined") : t("titleFull")}</p>
-      <p className="mt-1 text-sm text-neutral-600">
+      <p className="mt-1 text-sm text-muted">
         {stay.startDate && stay.endDate ? t("text", { dates, place }) : t("textNoDates", { place })}
       </p>
       <Link
@@ -520,7 +541,7 @@ function StayCta({ stay, isHost, request, spotsLeft, onRequest, onMessageHost, o
       </button>
     );
   }
-  // The only orange-filled button in the app.
+  // Primary: ink fill, surface text (no orange buttons).
   return (
     <button type="button" onClick={onRequest} className={buttonClass("primary", "lg", full)}>
       {t("join")}
@@ -543,7 +564,7 @@ interface RequestSheetProps {
 
 const MIN_MESSAGE_LENGTH = 20;
 /** Same 56px pill as the login options, so all three steps read as one component. */
-const darkSheetButton = "bg-ink text-white hover:bg-[#2A2A30] disabled:bg-neutral-200 disabled:text-neutral-500";
+const darkSheetButton = "bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted";
 
 type RequestStep = "message" | "login" | "sent";
 const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
@@ -597,7 +618,7 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
         >
           <Pane active={step === "message"}>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-muted">
                 {t.rich("intro", {
                   name: hostName,
                   title: stay.title,
@@ -605,7 +626,7 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
                 })}
               </p>
               {!loggedIn && (
-                <p className="flex items-center gap-2 rounded-xl bg-page px-3 py-2 text-[13px] text-zinc-500">
+                <p className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-[13px] text-muted">
                   <Lock className="size-3.5 shrink-0" aria-hidden />
                   {t("loginNote")}
                 </p>
@@ -616,14 +637,14 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
                 rows={6}
                 autoFocus
                 placeholder={t("placeholder")}
-                className="w-full resize-none rounded-2xl border border-neutral-200 p-4 text-sm outline-none focus:border-ink"
+                className="w-full resize-none rounded-2xl border border-line p-4 text-sm outline-none focus:border-accent"
               />
-              <div className="flex items-center justify-between text-xs text-neutral-500">
+              <div className="flex items-center justify-between text-xs text-muted">
                 <span>{valid ? t("looksGood") : t("minLength", { count: MIN_MESSAGE_LENGTH })}</span>
                 <span>{message.trim().length}</span>
               </div>
               {blocked && blockedNote && (
-                <p role="alert" className="rounded-xl bg-page px-4 py-3 text-sm text-ink">
+                <p role="alert" className="rounded-xl bg-bg px-4 py-3 text-sm text-ink">
                   {blockedNote}
                 </p>
               )}
@@ -640,12 +661,12 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
 
           <Pane active={step === "sent"}>
             <div className="flex flex-col items-center pt-8 text-center">
-              <span className="flex size-14 items-center justify-center rounded-full bg-zinc-100 text-ink">
+              <span className="flex size-14 items-center justify-center rounded-full bg-bg text-ink">
                 <Check className="size-7" strokeWidth={2.5} />
               </span>
               <p className="mt-5 text-lg font-semibold">{t("sentTitle")}</p>
-              <p className="mt-1 text-neutral-600">{t("waitingFor", { name: hostName })}</p>
-              <p className="mt-1 text-sm text-zinc-500">{t("answerInMessages")}</p>
+              <p className="mt-1 text-muted">{t("waitingFor", { name: hostName })}</p>
+              <p className="mt-1 text-sm text-muted">{t("answerInMessages")}</p>
               <button type="button" onClick={close} className={cn(sheetButtonClass, darkSheetButton, "mt-8")}>
                 <span className="flex-1 text-center">{t("done")}</span>
               </button>
