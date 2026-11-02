@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { formInput } from "@/components/form/FormLayout";
@@ -11,6 +11,8 @@ import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
+import { Anchored } from "@/components/ui/Anchored";
+import type { SortKey } from "@/lib/exploreFilters";
 
 /**
  * "Filters" – a secondary button (never the primary "Open a House"). Active: "Filters" with the number of active
@@ -21,7 +23,7 @@ export function FiltersButton({
   onClick,
   expanded,
   controls,
-  small = false,
+  size = "lg",
   className,
 }: {
   count: number;
@@ -29,8 +31,8 @@ export function FiltersButton({
   expanded?: boolean;
   /** id of the popover it opens */
   controls?: string;
-  /** 36px (the sticky bar) instead of 44px; "mid": 40px (Explore's header) */
-  small?: boolean | "mid";
+  /** lg 44px (the page) · md 36px (the sticky bar, Explore's header) · sm 32px (Explore's compact header) */
+  size?: ButtonSize;
   className?: string;
 }) {
   const t = useTranslations("explore");
@@ -43,7 +45,7 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={buttonStyles("secondary", small === "mid" ? "mid" : small ? "md" : "lg", className)}
+      className={buttonStyles("secondary", size, className)}
     >
       <SlidersHorizontal aria-hidden />
       {t("filters")}
@@ -203,13 +205,10 @@ export function CategoryRow({
   more,
   value,
   onSelect,
-  size = "row",
 }: {
   label: string;
   allLabel: string;
   moreLabel: string;
-  /** "row": 36px chips; "explore": Explore's header (44px from md, shown at 0.82 when the header is compact) */
-  size?: "row" | "explore";
   /** The visible category chips, in order (the last one is the changing slot) */
   chips: ReadonlyArray<ChipOption>;
   /** Everything else, for the More popover */
@@ -244,23 +243,14 @@ export function CategoryRow({
     };
   }, [open]);
 
-  const chip = (active: boolean) => chipStyles(active, { size });
-  const { ref: scrollerRef, edges, page } = useChipScroller();
+  const chip = (active: boolean) => chipStyles(active, { size: "row" });
+  const { ref: scrollerRef, edges } = useChipScroller();
   // A click on the only active chip goes back to All; any other click makes that chip the one.
   const pick = (option: string) => onSelect(value.length === 1 && value[0] === option ? null : option);
   const moreActive = more.some((o) => value.includes(o.value));
 
   return (
     <div ref={rootRef} className="chip-row group/chips relative flex min-w-0 items-center" data-at-start={edges.atStart || undefined} data-at-end={edges.atEnd || undefined}>
-      {/* A fixed slot either side of the scroller (36px in the compact header, 0 elsewhere – globals.css): the arrow
-          circle when there is more to scroll to in that direction, else empty. A click moves 60 % of the visible width. */}
-      <span className="chip-slot">
-        {!edges.atStart && (
-          <button type="button" tabIndex={-1} aria-hidden onClick={() => page(-1)} className="chip-arrow">
-            <ChevronLeft aria-hidden />
-          </button>
-        )}
-      </span>
       {/* The chips keep their width (never squeezed or cut): the row scrolls sideways – also with the mouse wheel – its
           ends fading out where there's more (.chip-scroller in globals.css). */}
       <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto py-1">
@@ -273,7 +263,7 @@ export function CategoryRow({
             role="radio"
             aria-checked={value.includes(o.value)}
             active={value.includes(o.value)}
-            size={size}
+            size="row"
             title={o.label}
             onClick={() => pick(o.value)}
           >
@@ -295,13 +285,6 @@ export function CategoryRow({
           </button>
         )}
       </div>
-      <span className="chip-slot">
-        {!edges.atEnd && (
-          <button type="button" tabIndex={-1} aria-hidden onClick={() => page(1)} className="chip-arrow">
-            <ChevronRight aria-hidden />
-          </button>
-        )}
-      </span>
       {open && (
         <div
           ref={popoverRef}
@@ -365,17 +348,11 @@ function useChipScroller() {
       el.removeEventListener("wheel", onWheel);
     };
   }, []);
-  function page(direction: 1 | -1) {
-    const el = ref.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollBy({ left: direction * el.clientWidth * 0.6, behavior: reduce ? "auto" : "smooth" });
-  }
-  return { ref, edges, page };
+  return { ref, edges };
 }
 
-/** Closes something on a pointer down outside `root` and on Escape (focus back to `returnTo`). */
-function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>, returnTo?: React.RefObject<HTMLElement | null>) {
+/** Closes something on a pointer down outside `root` (and outside `also`, e.g. a portalled panel) and on Escape (focus back to `returnTo`). */
+function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>, returnTo?: React.RefObject<HTMLElement | null>, also?: React.RefObject<HTMLElement | null>) {
   const closeRef = useRef(close);
   useEffect(() => {
     closeRef.current = close;
@@ -383,7 +360,8 @@ function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTML
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) closeRef.current();
+      const target = e.target as Node;
+      if (!root.current?.contains(target) && !also?.current?.contains(target)) closeRef.current();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -396,7 +374,22 @@ function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTML
       document.removeEventListener("pointerdown", onPointer);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, root, returnTo]);
+  }, [open, root, returnTo, also]);
+}
+
+/** The sort choices as radio rows – the capsule's popover and the panel's Sort section. */
+export function SortList({ options, value, onChange }: { options: ReadonlyArray<{ value: SortKey; label: string }>; value: SortKey; onChange: (sort: SortKey) => void }) {
+  // Its own radio group name: the list can be on the page more than once (header, compact header, panel).
+  const name = useId();
+  return (
+    <div role="radiogroup" className="divide-y divide-line">
+      {options.map((o) => (
+        <label key={o.value} className="block cursor-pointer px-2">
+          <ListRow title={o.label} action={<Checkbox radio name={name} checked={value === o.value} onChange={() => onChange(o.value)} />} />
+        </label>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -408,8 +401,9 @@ export function SortCapsule({ label, children, size = "md" }: { label: string; c
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const id = useId();
-  useDismiss(open, () => setOpen(false), rootRef, buttonRef);
+  useDismiss(open, () => setOpen(false), rootRef, buttonRef, panelRef);
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
@@ -425,15 +419,18 @@ export function SortCapsule({ label, children, size = "md" }: { label: string; c
         <span className="max-sm:sr-only">{label}</span>
       </button>
       {open && (
-        <div
-          id={id}
-          role="dialog"
-          aria-label={t("sort")}
-          onChange={() => setOpen(false)}
-          className="animate-fade-in absolute right-0 top-full z-40 mt-2 w-60 rounded-xl border border-line bg-surface p-2 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
-        >
-          {children}
-        </div>
+        // In a portal: the site header clips its overflow.
+        <Anchored anchor={buttonRef} ref={panelRef} align="end">
+          <div
+            id={id}
+            role="dialog"
+            aria-label={t("sort")}
+            onChange={() => setOpen(false)}
+            className="animate-fade-in w-60 rounded-xl border border-line bg-surface p-2 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
+          >
+            {children}
+          </div>
+        </Anchored>
       )}
     </div>
   );

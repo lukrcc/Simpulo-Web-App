@@ -10,7 +10,16 @@ import { NextResponse, type NextRequest } from "next/server";
 const USER = "simpulo";
 
 /** The web app manifest and its icons: browsers fetch the manifest without credentials, so it must stay public. */
-const PUBLIC_PATHS = new Set(["/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/icon.png", "/icon.svg", "/apple-icon.png", "/favicon.ico", "/robots.txt"]);
+const PUBLIC_PATHS = new Set([
+  "/manifest.webmanifest",
+  "/favicon-v2.svg",
+  "/favicon-v2-32.png",
+  "/favicon-v2-192.png",
+  "/favicon-v2-512.png",
+  "/apple-touch-icon-v2.png",
+  "/icon-maskable-512.png",
+  "/robots.txt",
+]);
 
 /** Constant-time comparison, so response timing doesn't leak how much of the password matched. */
 function same(a: string, b: string): boolean {

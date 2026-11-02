@@ -4,18 +4,20 @@ import { Download, Heart, LogOut, Settings, User as UserIcon, type LucideIcon } 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Anchored } from "@/components/ui/Anchored";
 import { Avatar } from "@/components/ui/Avatar";
 import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { GET_THE_APP_HREF } from "./secondaryLinks";
 
-/** Avatar → Profile · Settings · Get the app · Log out. */
-export function AccountMenu({ me }: { me: User }) {
+/** Avatar → Profile · Settings · Get the app · Log out. `size`: base 36px (the header), sm 32px (its compact state). */
+export function AccountMenu({ me, size = "base" }: { me: User; size?: "base" | "sm" }) {
   const t = useTranslations("nav");
   const { logout } = useStore();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -35,6 +37,7 @@ export function AccountMenu({ me }: { me: User }) {
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("yourProfile")}
@@ -42,12 +45,13 @@ export function AccountMenu({ me }: { me: User }) {
         aria-expanded={open}
         className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       >
-        <Avatar user={me} size="md" />
+        <Avatar user={me} size={size} />
       </button>
       {open && (
-        <>
-          <button type="button" aria-label={t("menu.close")} tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" />
-          <div role="menu" className="animate-fade-in absolute right-0 top-full z-50 mt-2 w-[220px] overflow-hidden rounded-2xl bg-surface py-1.5 shadow-xl ring-1 ring-line">
+        // In a portal: the site header clips its overflow. The backdrop closes it; it sits under the menu.
+        <Anchored anchor={buttonRef} align="end">
+          <button type="button" aria-label={t("menu.close")} tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 -z-10 cursor-default" />
+          <div role="menu" className="animate-fade-in w-[220px] overflow-hidden rounded-2xl bg-surface py-1.5 shadow-xl ring-1 ring-line">
             <p className="truncate px-4 pb-2 pt-1.5 text-xs text-muted">{me.name}</p>
             {items.map(({ href, label, icon: Icon }) => (
               <Link key={href} role="menuitem" href={href} onClick={() => setOpen(false)} className={itemClass}>
@@ -70,7 +74,7 @@ export function AccountMenu({ me }: { me: User }) {
               {t("menu.logOut")}
             </button>
           </div>
-        </>
+        </Anchored>
       )}
     </div>
   );

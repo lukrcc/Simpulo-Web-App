@@ -20,7 +20,7 @@ export default async function ExplorePage() {
     "@type": "Organization",
     name: SITE_NAME,
     url: absoluteUrl("/"),
-    logo: absoluteUrl("/icon.png"),
+    logo: absoluteUrl("/favicon-v2-512.png"),
     email: CONTACT_EMAIL,
   };
   const website = {

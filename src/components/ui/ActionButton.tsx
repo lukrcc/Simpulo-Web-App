@@ -3,8 +3,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "tertiary";
-/** lg 44px · mid 40px · md 36px (tertiary is a text link – the size only sets its type) */
-export type ButtonSize = "lg" | "mid" | "md";
+/** lg 44px · mid 40px · md 36px · sm 32px, 13px text (tertiary is a text link – the size only sets its type) */
+export type ButtonSize = "lg" | "mid" | "md" | "sm";
 
 const variants: Record<ButtonVariant, string> = {
   primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted",
@@ -13,13 +13,13 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonVariant, Record<ButtonSize, string>> = {
-  primary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm" },
-  secondary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm" },
-  tertiary: { lg: "text-[15px]", mid: "text-sm", md: "text-sm" },
+  primary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm", sm: "h-8 px-3.5 text-[13px]" },
+  secondary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm", sm: "h-8 px-3.5 text-[13px]" },
+  tertiary: { lg: "text-[15px]", mid: "text-sm", md: "text-sm", sm: "text-[13px]" },
 };
 
-/** Icon-only buttons: a circle of the size's height (44 / 36px). */
-const iconSizes: Record<ButtonSize, string> = { lg: "size-11", mid: "size-10", md: "size-9" };
+/** Icon-only buttons: a circle of the size's height (44 / 40 / 36 / 32px). */
+const iconSizes: Record<ButtonSize, string> = { lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8" };
 
 /** The one button system: primary (ink), secondary (surface + line border), tertiary (text link in ink). */
 export function buttonStyles(variant: ButtonVariant = "primary", size: ButtonSize = "md", className?: string, icon = false): string {

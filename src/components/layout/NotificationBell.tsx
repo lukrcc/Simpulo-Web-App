@@ -9,6 +9,8 @@ import { useNotifications } from "@/components/notifications/useNotifications";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { cn } from "@/lib/utils";
+import { Anchored } from "@/components/ui/Anchored";
+import { headerDot } from "./header/dot";
 
 /** The panel lists this many – the rest are on /notifications. */
 const PANEL_ITEMS = 10;
@@ -27,21 +29,25 @@ function useIsPhone(): boolean {
  * The bell (logged in, desktop and mobile header): unread count ("9+" past nine), opening the 10 newest
  * notifications – a 380px popover on desktop, a bottom sheet on phones – with "Mark all as read" and
  * "See all notifications". Apart from Messages.
- * `variant="header"`: the desktop header's 40px circle (surface, line border); default: the bare icon (mobile header).
+ * `variant="header"`: the desktop header's 36px circle (surface, line border), `"compact"`: its compact 32px circle with a
+ * 16px icon – both mark unread with the header dot only; default: the bare icon with the count (mobile header).
  */
-export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "header" }) {
+export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "header" | "compact" }) {
   const t = useTranslations("notifications");
   const repo = useNotifications();
   const isPhone = useIsPhone();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const unread = repo.unreadCount();
   const items = repo.list({ limit: PANEL_ITEMS }).items;
 
   useEffect(() => {
     if (!open || isPhone) return;
     const onPointer = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current && !rootRef.current.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("pointerdown", onPointer);
@@ -82,6 +88,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={unread > 0 ? t("labelUnread", { count: unread }) : t("label")}
@@ -89,14 +96,16 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         aria-expanded={open}
         className={cn(
           "relative flex items-center justify-center rounded-full transition-colors",
-          variant === "header" ? "size-10 border border-line bg-surface text-ink hover:bg-bg" : "size-9 text-muted hover:bg-ink/5 hover:text-ink",
+          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "border border-line bg-surface text-ink hover:bg-bg",
+          variant === "header" && "size-9",
+          variant === "compact" && "size-8",
         )}
       >
-        <Bell className="size-5" aria-hidden />
-        {/* Header: an 8px accent dot (the count is in the label); elsewhere the count itself. */}
+        <Bell className={variant === "plain" ? "size-5" : variant === "header" ? "size-[18px]" : "size-4"} aria-hidden />
+        {/* Header: the dot only (the count is in the label); elsewhere the count itself. */}
         {unread > 0 &&
-          (variant === "header" ? (
-            <span aria-hidden className="absolute right-1.5 top-1.5 size-2 rounded-full border border-surface bg-accent" />
+          (variant !== "plain" ? (
+            <span aria-hidden className={headerDot} />
           ) : (
             <span
               aria-hidden
@@ -108,18 +117,21 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
       </button>
 
       {open && !isPhone && (
-        <div
-          role="dialog"
-          aria-label={t("title")}
-          className="animate-fade-in absolute right-0 top-full z-50 mt-2 flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_12px_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] ring-1 ring-line"
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <p className="font-semibold text-ink">{t("title")}</p>
-            {markAll}
+        // In a portal: the site header clips its overflow.
+        <Anchored anchor={buttonRef} ref={panelRef} align="end">
+          <div
+            role="dialog"
+            aria-label={t("title")}
+            className="animate-fade-in flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_12px_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] ring-1 ring-line"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+              <p className="font-semibold text-ink">{t("title")}</p>
+              {markAll}
+            </div>
+            <div className="scroll-pane min-h-0 flex-1 px-2">{list}</div>
+            <div className="border-t border-line">{seeAll}</div>
           </div>
-          <div className="scroll-pane min-h-0 flex-1 px-2">{list}</div>
-          <div className="border-t border-line">{seeAll}</div>
-        </div>
+        </Anchored>
       )}
 
       {/* Phones: the same list in a bottom sheet. */}

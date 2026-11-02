@@ -3,17 +3,18 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * md 36px · sm 32px · fit 36px with tight padding (grid cells) · row: the header's category row (padding grows with
- * the width) · explore: Explore's header row – 40px, 15px text, 18px sides (the compact header shows it at 0.9: 36px)
+ * md 36px, 14px text, 16px sides (Explore's header row) · sm 32px, 12px sides · compact 32px, 13px text, 14px sides
+ * (Explore's compact header) · fit 36px with tight padding (grid cells) · row: the page's own category row (padding
+ * grows with the width)
  */
-export type ChipSize = "md" | "sm" | "fit" | "row" | "explore";
+export type ChipSize = "md" | "sm" | "compact" | "fit" | "row";
 
 const sizes: Record<ChipSize, string> = {
   md: "h-9 px-4 text-sm",
   sm: "h-8 px-3 text-[13px]",
+  compact: "h-8 px-3.5 text-[13px]",
   fit: "h-9 justify-center px-2 text-sm",
   row: "h-9 px-2.5 text-sm lg:px-3 xl:px-[14px]",
-  explore: "h-10 px-[18px] text-[15px]",
 };
 
 /**

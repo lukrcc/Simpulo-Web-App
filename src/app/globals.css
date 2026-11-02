@@ -72,28 +72,17 @@
 }
 
 /*
- * The site header (SiteHeader, ≥ md) – one DOM for all pages and both of Explore's states. The header's slot in the
- * page (--header-slot) never changes: 88px, 152px with the chip row. The bar's height (--header-h) does – 152 → 72px
- * compact – with one transition; everything inside only moves and fades (transform, opacity; visibility switches
- * when the transition is over, so hidden parts can't be hit). 400ms on one curve (--hx), no delay; reduced motion:
- * none.
- * Unlayered, so it beats utilities.
+ * The site header (SiteHeader, ≥ md): a fixed bar whose height (--header-h) is the one thing that animates – 128px
+ * with the chip row, 64px compact, 72px elsewhere – and two layouts in it that cross-fade by opacity alone
+ * (static classes in SiteHeader.tsx). The page starts under it (--header-slot, never changes per page). Sizes: "Header sizes – do not
+ * change without explicit instruction" in SiteHeader.tsx. Unlayered, so it beats utilities.
  */
-/* The chip row's arrow slots: nothing in the page's own rows, 36px (after the 0.9 scale) in the compact header. */
-.chip-slot {
-  display: flex;
-  flex: none;
-  width: 0;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  transition: width var(--hx, 400ms cubic-bezier(0.32, 0.72, 0, 1));
-}
+/* The compact chip scroller's arrow circles (32px, over its padded ends). */
 .chip-arrow {
   display: flex;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
@@ -102,10 +91,11 @@
   color: var(--ink);
 }
 .chip-arrow svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
-/* The chip row's fades: only on a side with more to scroll to (data-at-start / data-at-end on .chip-row). */
+/* The chip rows' fades: only on a side with more to scroll to (data-at-start / data-at-end on .chip-row); --fade is
+   the row's (40px in the compact header, 12px elsewhere). */
 .chip-scroller {
   --fade: 12px;
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-start, var(--fade)), #000 calc(100% - var(--fade-end, var(--fade))), transparent 100%);
@@ -117,125 +107,25 @@
 .chip-row[data-at-end] .chip-scroller {
   --fade-end: 0px;
 }
-.sh-placeholder {
-  display: none;
-}
-.sh-slot:empty + .sh-placeholder {
-  display: flex;
-}
 @media (min-width: 768px) {
   :root {
-    --hx: 400ms cubic-bezier(0.32, 0.72, 0, 1);
-    --header-h: 80px;
-    --header-slot: 80px;
+    --hdr-ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --header-h: 72px;
+    --header-slot: 72px;
   }
   :root:has([data-site-header][data-rows="2"]) {
-    --header-h: 152px;
-    --header-slot: 152px;
+    --header-h: 128px;
+    --header-slot: 128px;
   }
   :root:has([data-site-header][data-state="compact"]) {
-    --header-h: 72px;
+    --header-h: 64px;
   }
-  /* The bar and row 1 (which shrinks to the bar's 72px when compact, so its centre line is the bar's). */
-  [data-site-header] .sh-bar,
-  [data-site-header] .sh-row1 {
-    transition: height var(--hx);
-  }
-  [data-site-header] .sh-frame {
-    container-type: inline-size;
-  }
-  /* Every moving part: shown … */
-  .sh-logo,
-  .sh-tagline,
-  .sh-nav,
-  .sh-chips,
-  .sh-controls {
-    transition: transform var(--hx), opacity var(--hx), width var(--hx), visibility 0s;
-  }
-  /* … or hidden (visibility flips once the fade is over). */
-  [data-site-header][data-state="compact"] .sh-tagline,
-  [data-site-header][data-state="compact"] .sh-nav {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(-6px);
-    transition: transform var(--hx), opacity var(--hx), visibility 0s 400ms;
-  }
-  /* Row 1's centre line is the compact bar's already (its height follows); the wordmark only shrinks 32 → 28px. */
-  .sh-logo {
-    transform-origin: left center;
-  }
-  [data-site-header][data-state="compact"] .sh-logo {
-    transform: scale(0.875);
-  }
-
-  /* The right side's children (.sh-c): a flex item as wide as its content (--w; circles 40px) that collapses to 0
-     and gives back the row's 8px gap when its state doesn't show it – the only width the header animates besides
-     the heights. The content keeps its size and fades in place. .sh-c-16: 16px to the one before (gap + 8). */
-  .sh-c {
-    display: flex;
-    flex: none;
-    align-items: center;
-    width: var(--w, 40px);
-    overflow: visible;
-    transition: width var(--hx), margin-left var(--hx), opacity var(--hx), visibility 0s;
-  }
-  .sh-c-16 {
-    margin-left: 8px;
-  }
-  .sh-c > * {
-    flex: none;
-  }
-  [data-site-header][data-state="expanded"] .sh-compact-only,
-  [data-site-header][data-state="compact"] .sh-expanded-only {
-    width: 0;
-    margin-left: -8px;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: width var(--hx), margin-left var(--hx), opacity var(--hx), visibility 0s 400ms;
-  }
-
-  /* Row 2 (centre 108px): the chips – as wide as the controls leave them – and the controls. The row's width changes
-     with the state (its chips sit in one scrolling line, so nothing re-flows); its ends fade 48px (after the scale). */
-  .sh-chips {
-    width: calc(100cqw - var(--controls-w) - 24px);
-    flex: none;
-    transform-origin: left center;
-  }
-  .sh-chips .chip-scroller {
-    --fade: 53px;
-  }
-  .sh-controls {
-    transform-origin: right center;
-  }
-  /* Compact, on the bar's centre line (36px): 72px up, past the wordmark, at 0.9 (40 → 36px), as wide as what's left
-     before the controls (visible width / 0.9, the scale undone): chips → Sort 24px, Filters → icons 24px. The
-     controls: left of the icon circles, at 0.9 too. The arrow slots open to 40px (36 after the scale). */
-  [data-site-header][data-state="compact"] .sh-chips {
-    width: calc((100cqw - var(--logo-col) - var(--controls-w) * 0.9 - var(--icons-w) - 48px) / 0.9);
-    transform: translate(var(--logo-col), -72px) scale(0.9);
-  }
-  [data-site-header][data-state="compact"] .sh-controls {
-    transform: translate(calc(-1 * (var(--icons-w) + 24px)), -72px) scale(0.9);
-  }
-  [data-site-header][data-state="compact"] .sh-chips .chip-slot {
-    width: 40px;
+  .hdr {
+    transition: height 400ms var(--hdr-ease);
   }
 }
 @media (min-width: 768px) and (prefers-reduced-motion: reduce) {
-  [data-site-header] .sh-bar,
-  [data-site-header] .sh-row1,
-  .sh-logo,
-  .sh-tagline,
-  .sh-nav,
-  .sh-chips,
-  .sh-controls,
-  .sh-c,
-  [data-site-header][data-state="compact"] .sh-tagline,
-  [data-site-header][data-state="compact"] .sh-nav,
-  [data-site-header][data-state="expanded"] .sh-compact-only,
-  [data-site-header][data-state="compact"] .sh-expanded-only {
+  .hdr {
     transition: none;
   }
 }

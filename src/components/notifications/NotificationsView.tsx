@@ -84,7 +84,7 @@ function NotificationsList() {
 
       {nothingAtAll ? (
         <div className="mt-12 flex flex-col items-center text-center">
-          <Img src="/icon.svg" alt="" width={72} height={72} className="size-18" />
+          <Img src="/favicon-v2.svg" alt="" width={72} height={72} className="size-18" />
           <p className="mt-5 max-w-sm text-muted">{t("empty")}</p>
         </div>
       ) : items.length === 0 ? (

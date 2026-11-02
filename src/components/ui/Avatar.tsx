@@ -3,13 +3,15 @@ import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
 
-type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
+/** xs 24 · sm 32 · base 36 (the site header) · md 40 · lg 56 · xl 96 */
+type AvatarSize = "xs" | "sm" | "base" | "md" | "lg" | "xl";
 
-const sizePx: Record<AvatarSize, number> = { xs: 24, sm: 32, md: 40, lg: 56, xl: 96 };
+const sizePx: Record<AvatarSize, number> = { xs: 24, sm: 32, base: 36, md: 40, lg: 56, xl: 96 };
 
 const sizeClasses: Record<AvatarSize, string> = {
   xs: "size-6",
   sm: "size-8",
+  base: "size-9",
   md: "size-10",
   lg: "size-14",
   xl: "size-24",

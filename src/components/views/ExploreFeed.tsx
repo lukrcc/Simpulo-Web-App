@@ -3,26 +3,23 @@
 import { BellRing, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BentoTop } from "@/components/BentoTop";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { BudgetSlider, CategoryRow, CheckboxList, FilterPanel, FiltersButton, PlaceDateSearch, SortCapsule, type CheckOption } from "@/components/explore/Filters";
+import { BudgetSlider, CategoryRow, CheckboxList, FilterPanel, FiltersButton, PlaceDateSearch, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
 import { SEARCH_INLINE_THRESHOLD, SORT_INLINE_THRESHOLD, VISIBLE_CHIPS } from "@/config/explore";
 import { AddPlaceSheet, DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
 import { MonthChips } from "@/components/form/MonthChips";
 import { Container } from "@/components/layout/Container";
-import { useHeaderSlot } from "@/components/layout/HeaderSlot";
+import { useRegisterExploreControls } from "@/components/explore/ExploreControls";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { StayCard } from "@/components/StayCard";
 import { Img } from "@/components/ui/Img";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SurfaceBand } from "@/components/ui/SurfaceBand";
 import { cardClass } from "@/components/ui/Card";
-import { ListRow } from "@/components/ui/ListRow";
 import { useFormat } from "@/i18n/format";
 import { useFormatter } from "next-intl";
 import { collectionsFor, COLLECTIONS, type Collection } from "@/lib/collections";
@@ -76,7 +73,7 @@ function useGridColumns(): number {
 /** From this many public Houses on, collection rows appear (fewer: launch – the grid and the demand row only). */
 const COLLECTIONS_FROM = 8;
 /** Explore's compact header bar (desktop, SiteHeader / globals.css). */
-const COMPACT_HEADER_PX = 72;
+const COMPACT_HEADER_PX = 64;
 /** Cards per page of the grid ("Show more" adds as many) – divisible by 1–4 columns, so every page ends on full rows. */
 const PAGE_SIZE = 24;
 /** Budget slider ends are rounded to this (EUR). */
@@ -269,14 +266,11 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const moreOptions = vibeOptions.filter((o) => !rowVibes.includes(o.value));
   const eur = (amount: number) => formatter.number(amount, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-  // Explore (not the city / vibe pages): from md the chip row lives in the site header's second row (HeaderSlot);
-  // on phones it is a sticky row of its own at the top.
-  const headerSlot = useHeaderSlot().el;
+  // Explore (not the city / vibe pages): from md the chips, Sort and Filters are the site header's (ExploreControls);
+  // on phones they are a sticky row of their own at the top.
   const md = useMediaQuery(MD_QUERY);
   const inHeader = !headless && md;
 
-  // No public House at all (yet): one intentional screen instead of an empty feed.
-  if (!scoped && listed.length === 0) return <ExploreEmpty />;
 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
   const panelCount =
@@ -308,36 +302,43 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       update({ vibes: vibe ? [vibe as Vibe] : [] });
     },
   };
-  const chipRow = showVibes && <CategoryRow {...vibeRow} size={inHeader ? "explore" : "row"} />;
+  const chipRow = showVibes && <CategoryRow {...vibeRow} />;
+  useRegisterExploreControls(
+    inHeader
+      ? {
+          chips: showVibes ? rowOptions : [],
+          more: showVibes ? moreOptions : [],
+          labels: { row: t("filterByVibe"), all: t("all"), more: t("more") },
+          onSelect: vibeRow.onSelect,
+          sort: sortInline ? { options: sortOptions, onChange: (sort) => update({ sort }) } : null,
+          filters: { count: panelCount, open: panelOpen, onOpen: () => setPanelOpen(true) },
+        }
+      : null,
+  );
+
+  // No public House at all (yet): one intentional screen instead of an empty feed.
+  if (!scoped && listed.length === 0) return <ExploreEmpty />;
+
   // Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway.
   const controls = (
     <>
       {base.length >= SEARCH_INLINE_THRESHOLD && <PlaceDateSearch onSearch={searchPlaceDate} />}
       {sortInline && (
-        <SortCapsule label={t(`sortOptions.${filters.sort}`)} size={inHeader ? "mid" : "md"}>
+        <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
           <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
         </SortCapsule>
       )}
-      <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} small={inHeader ? "mid" : true} />
+      <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} size="lg" />
     </>
   );
   const Wrap = headless ? Fragment : Container;
   const RowWrap = headless ? "div" : Container;
   return (
     <div>
-      {inHeader ? (
-        // Into the site header's second row (its .sh-chips / .sh-controls move with the compact state, globals.css).
-        headerSlot &&
-        createPortal(
-          <>
-            <div className="sh-chips min-w-0 flex-1">{chipRow}</div>
-            <div className="sh-controls flex w-(--controls-w) shrink-0 items-center justify-end gap-2">{controls}</div>
-          </>,
-          headerSlot,
-        )
-      ) : (
-        // City / vibe pages, and phones: the chips, Sort and Filters as a plain sticky row at the top of the page.
-        <div className="filter-row header-surface sticky top-(--header-h) z-30">
+      {/* Desktop Explore: nothing here – the header has them. City / vibe pages, and phones: the chips, Sort and
+          Filters as a plain sticky row at the top of the page. */}
+      {!inHeader && (
+        <div className={cn("filter-row header-surface sticky top-(--header-h) z-30", !headless && "md:hidden")}>
           <RowWrap className="flex h-(--filter-row-h) items-center gap-3">
             <div className="min-w-0 flex-1">{chipRow}</div>
             <div className="flex shrink-0 items-center gap-2">{controls}</div>
@@ -533,19 +534,6 @@ function FilterSection({ title, children }: { title: string; children: ReactNode
 }
 
 /** Sort as a short radio list of ListRows (in its popover and in the mobile sheet). */
-function SortList({ options, value, onChange }: { options: ReadonlyArray<{ value: SortKey; label: string }>; value: SortKey; onChange: (sort: SortKey) => void }) {
-  // Its own radio group name: the list can be on the page more than once (pills row, sheet, sticky bar).
-  const name = useId();
-  return (
-    <div role="radiogroup" className="divide-y divide-line">
-      {options.map((o) => (
-        <label key={o.value} className="block cursor-pointer px-2">
-          <ListRow title={o.label} action={<Checkbox radio name={name} checked={value === o.value} onChange={() => onChange(o.value)} />} />
-        </label>
-      ))}
-    </div>
-  );
-}
 
 /**
  * Pre-launch (no public House yet): the smiley, "The first houses are opening soon", Open a House / Get notified –
@@ -559,7 +547,7 @@ function ExploreEmpty() {
   return (
     <Container page>
       <section className="flex flex-col items-center text-center">
-        <Img src="/icon.svg" alt="" width={80} height={80} className="size-20" />
+        <Img src="/favicon-v2.svg" alt="" width={80} height={80} className="size-20" />
         <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink md:text-4xl">{t("title")}</h1>
         <p className="mt-2 max-w-md text-lg text-muted">{t("text")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
