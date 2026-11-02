@@ -1,14 +1,13 @@
 "use client";
 
 import { ArrowLeft, SearchX } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { use, useEffect } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
 import { HouseDetail } from "@/components/stay/HouseDetail";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useStore } from "@/lib/store";
@@ -50,9 +49,9 @@ function ManageStayGate({ id }: { id: string }) {
           icon={SearchX}
           title={t("manage.notFound")}
           action={
-            <Link href="/my-stays" className={buttonClass("dark", "sm")}>
+            <Button href="/my-stays">
               {t("manage.backToHouses")}
-            </Link>
+            </Button>
           }
         />
       </Container>
@@ -63,10 +62,10 @@ function ManageStayGate({ id }: { id: string }) {
 
   return (
     <Container page width="narrow">
-      <Link href="/my-stays" className="-ml-2 mb-3 inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-muted hover:text-ink">
-        <ArrowLeft className="size-4" />
+      <Button href="/my-stays" variant="tertiary" className="mb-3">
+        <ArrowLeft />
         {t("title")}
-      </Link>
+      </Button>
       <HouseDetail stay={stay} />
     </Container>
   );

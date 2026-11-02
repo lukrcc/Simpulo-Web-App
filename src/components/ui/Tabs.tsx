@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Badge } from "./Badge";
 
 interface Tab<T extends string> {
   value: T;
@@ -69,16 +70,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
             )}
           >
             {tab.label}
-            {tab.count !== undefined && (
-              <span
-                className={cn(
-                  "rounded-full px-1.5 text-xs",
-                  active ? "bg-bg text-ink" : "bg-line text-muted",
-                )}
-              >
-                {tab.count}
-              </span>
-            )}
+            {tab.count !== undefined && <Badge>{tab.count}</Badge>}
           </button>
         );
       })}

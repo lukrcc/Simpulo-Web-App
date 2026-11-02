@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { pageMetadata } from "@/lib/seo";
 import { GetTheApp, StepNumber } from "@/components/GetTheApp";
 import { Container } from "@/components/layout/Container";
+import { cardClass } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("seo.pages.howItWorks");
@@ -24,7 +26,7 @@ export default async function HowItWorksPage() {
 
       {/* Grid items stretch, so both cards share the taller one's height. */}
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <section className="rounded-[28px] bg-surface p-8 lg:col-span-7">
+        <section className={cn(cardClass, "lg:col-span-7")}>
           <h2 className="text-xl font-semibold tracking-tight text-ink">{t("stepsTitle")}</h2>
           <ol className="mt-6 space-y-5">
             {STEPS.map((step, i) => (

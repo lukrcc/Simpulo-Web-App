@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { buttonClass } from "@/components/ui/button";
+import { buttonStyles } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { cardClass } from "@/components/ui/Card";
 import { Img } from "@/components/ui/Img";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
@@ -45,13 +47,13 @@ export function AdminHouses() {
       title={t("housesTitle")}
       intro={t("housesIntro")}
       aside={
-        <Link href="/admin/houses/new" className={buttonClass("dark", "md")}>
+        <Link href="/admin/houses/new" className={buttonStyles("primary", "lg")}>
           <Plus className="size-4" aria-hidden />
           {t("newHouse")}
         </Link>
       }
     >
-      <section className="rounded-[24px] bg-surface p-6">
+      <section className={cardClass}>
         {prepared.length === 0 ? (
           <p className="text-sm text-muted">{t("none")}</p>
         ) : (
@@ -84,14 +86,7 @@ function PreparedRow({ stay }: { stay: Stay }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate font-semibold">{stay.title}</p>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-              claim.claimedAt ? "bg-emerald-50 text-emerald-700" : "bg-ink/5 text-muted",
-            )}
-          >
-            {claim.claimedAt ? t("claimed") : t("unclaimed")}
-          </span>
+          <Badge>{claim.claimedAt ? t("claimed") : t("unclaimed")}</Badge>
         </div>
         <p className="truncate text-sm text-muted">
           {claim.name} · {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
@@ -102,12 +97,12 @@ function PreparedRow({ stay }: { stay: Stay }) {
       </div>
       <div className="flex gap-2">
         {!claim.claimedAt && (
-          <button type="button" onClick={() => void copy(claim.token)} className={buttonClass("secondary", "sm")}>
+          <button type="button" onClick={() => void copy(claim.token)} className={buttonStyles("secondary", "md")}>
             <Copy className="size-3.5" aria-hidden />
             {t("copyLink")}
           </button>
         )}
-        <Link href={`/claim/${claim.token}`} className={buttonClass("ghost", "sm")}>
+        <Link href={`/claim/${claim.token}`} className={buttonStyles("tertiary", "md")}>
           {t("open")}
         </Link>
       </div>
@@ -179,14 +174,14 @@ export function AdminNewHouse() {
     const link = claimLink(created.token);
     return (
       <AdminShell title={t("createdTitle")} intro={t("createdText", { name: created.name })}>
-        <section className="max-w-2xl rounded-[24px] bg-surface p-6">
+        <section className={cn("max-w-2xl", cardClass)}>
           <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-sm">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => void copy(created.token)} className={buttonClass("dark", "sm")}>
+            <button type="button" onClick={() => void copy(created.token)} className={buttonStyles("secondary", "md")}>
               <Copy className="size-3.5" aria-hidden />
               {t("copyLink")}
             </button>
-            <Link href={`/claim/${created.token}`} className={buttonClass("secondary", "sm")}>
+            <Link href={`/claim/${created.token}`} className={buttonStyles("secondary", "md")}>
               {t("open")}
             </Link>
             <button
@@ -196,11 +191,11 @@ export function AdminNewHouse() {
                 setTried(false);
                 setCreated(null);
               }}
-              className={buttonClass("ghost", "sm")}
+              className={buttonStyles("tertiary", "md")}
             >
               {t("another")}
             </button>
-            <Link href="/admin/houses" className={buttonClass("ghost", "sm")}>
+            <Link href="/admin/houses" className={buttonStyles("tertiary", "md")}>
               {t("viewAll")}
             </Link>
           </div>
@@ -224,7 +219,7 @@ export function AdminNewHouse() {
 
   return (
     <AdminShell title={t("newTitle")} intro={t("newIntro")}>
-      <form onSubmit={submit} noValidate className="max-w-2xl space-y-5 rounded-[24px] bg-surface p-6">
+      <form onSubmit={submit} noValidate className={cn("max-w-2xl space-y-5", cardClass)}>
         <div className="grid gap-5 sm:grid-cols-2">
           {text("name")}
           {text("photoUrl", { type: "url", placeholder: "https://…" })}
@@ -264,7 +259,7 @@ export function AdminNewHouse() {
           />
         </FormField>
         {text("sourceLink", { type: "url", placeholder: t("fields.sourceLinkPlaceholder") })}
-        <button type="submit" className={buttonClass("dark", "lg", "w-full sm:w-auto")}>
+        <button type="submit" className={buttonStyles("primary", "lg", "w-full sm:w-auto")}>
           {t("create")}
         </button>
       </form>

@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { StayCard } from "@/components/StayCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { Collection } from "@/lib/collections";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -77,16 +77,17 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
   const t = useTranslations("explore.collections");
   const store = useStore();
   return (
-    <section aria-labelledby={`collection-${collection.id}`} className="py-2">
+    <section aria-labelledby={`collection-${collection.id}`}>
       <RowHeader
         id={`collection-${collection.id}`}
+        eyebrow={t(`${collection.id}.eyebrow`)}
         title={t(`${collection.id}.title`)}
         subline={t(`${collection.id}.subline`)}
         seeAll={{ href: `/collections/${collection.slug}`, label: t("seeAll"), ariaLabel: t("seeAllLabel", { title: t(`${collection.id}.title`) }) }}
       />
       <ScrollRow>
         {stays.map((stay) => (
-          <div key={stay.id} className="w-65 shrink-0 snap-start">
+          <div key={stay.id} className="w-90 shrink-0 snap-start">
             <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
           </div>
         ))}
@@ -95,25 +96,8 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
   );
 }
 
-/** Heading + subline on the left, "See all →" on the right – the header of every horizontal row. */
-export function RowHeader({ id, title, subline, seeAll }: { id: string; title: string; subline: string; seeAll?: { href: string; label: string; ariaLabel?: string } }) {
-  return (
-    <div className="flex items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h2 id={id} className="text-2xl font-bold tracking-tight text-ink">
-          {title}
-        </h2>
-        <p className="mt-1 text-muted">{subline}</p>
-      </div>
-      {seeAll && (
-        <Link href={seeAll.href} aria-label={seeAll.ariaLabel} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline-offset-4 hover:underline">
-          {seeAll.label}
-          <ArrowRight className="size-4" aria-hidden />
-        </Link>
-      )}
-    </div>
-  );
-}
+/** The header of every horizontal row – the section heading (SectionHeader): title, "See all →", count badge. */
+export const RowHeader = SectionHeader;
 
 /**
  * Horizontal snap row of fixed-width items (they set their own width and snap-start): trackpad, shift + wheel and
@@ -156,16 +140,20 @@ export function ScrollRow({ children, className }: { children: ReactNode; classN
     "absolute top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-ink shadow-md transition-opacity duration-200 hover:bg-bg md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
   return (
-    // 8px under the row's heading: with the scroller's 28px room on top, a lifted card stays 8px+ clear of the heading.
-    <div className={cn("group relative mt-2", className)}>
+    // 32px from the row's heading to the cards; the scroller's room for lifted cards and their shadow is cancelled by
+    // its negative margins, so it costs no layout.
+    <div className={cn("group relative mt-8", className)}>
       <div
         ref={scrollerRef}
         onScroll={updateEdges}
         {...dragHandlers}
-        // Edge to edge: as wide as the window and centred on it (left 50% + translate, no negative margins), padded by the
-        // page gutter (--row-gutter), so the first card lines up with the heading and nothing is cut off at rest. 28px
-        // above and below for lifted cards and their shadow. No background, border or mask.
-        className="lift-row no-scrollbar relative left-1/2 flex w-[calc(100vw-var(--scrollbar-w,0px))] -translate-x-1/2 snap-x snap-mandatory scroll-px-(--row-gutter) gap-4 overflow-x-auto px-(--row-gutter) py-7 md:cursor-grab md:active:cursor-grabbing"
+        // Edge to edge: as wide as the window and centred on it (left 50% + translate), padded by the page gutter
+        // (--row-gutter, ≥ 24px), so the first card lines up with the heading and a lifted card's shadow isn't cut off
+        // at the left; to the right the row runs to the window's edge. 40px above and below for the lift and the
+        // 40px-blur shadow (overflow-x: auto clips vertically too, so this is what keeps the shadow whole), taken back
+        // by the same negative margins – the layout stays as it is. Cards 360px wide, 24px apart. No background,
+        // border or mask.
+        className="lift-row no-scrollbar relative left-1/2 -my-10 flex w-[calc(100vw-var(--scrollbar-w,0px))] -translate-x-1/2 snap-x snap-mandatory scroll-px-(--row-gutter) gap-6 overflow-x-auto px-(--row-gutter) py-10 md:cursor-grab md:active:cursor-grabbing"
       >
         {children}
       </div>

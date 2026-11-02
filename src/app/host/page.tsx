@@ -1,75 +1,94 @@
-import { ChevronDown, MessagesSquare, UserCheck } from "lucide-react";
+import { ArrowRight, ChevronDown, Link2, MapPin, MessagesSquare, UserCheck, Wallet, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { getFormatter, getMessages, getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { pageMetadata } from "@/lib/seo";
-import { HostHeroCard, HostHousesRow } from "@/components/host/HostShowcase";
-import { ProHostSection } from "@/components/host/ProHostSection";
+import { HostHeroCard, HostHousesRow, HostWays } from "@/components/host/HostShowcase";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SurfaceBand } from "@/components/ui/SurfaceBand";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("seo.pages.host");
   return pageMetadata({ title: t("title"), description: t("description"), path: "/host" });
 }
 
+/** The three "How it works" cards' icons, in the order of growth.host.why. */
+const HOW_ICONS: LucideIcon[] = [UserCheck, Wallet, MessagesSquare];
+
 /**
- * /host – "Anyone can host": hero with a real House, why host (three cards), Houses people opened, the optional host
- * experience (featureFlags.hostPremium only, ProHostSection), a two-question FAQ and a closing CTA. The steps live on
- * /how-it-works.
+ * /host – "Anyone can host": the hero on a surface band with a real House, "Two ways to host" (the page's one sum),
+ * Houses people opened (a carousel band), How it works (three cards), Questions and the closing ink band. Sections
+ * 96px apart, no lines; "Open a House" only in the hero, the header and the closing band.
  */
 export default async function HostPage() {
   const t = await getTranslations("growth.host");
   const messages = await getMessages();
-  const format = await getFormatter();
   const { why, faq } = messages.growth.host;
-  const zero = format.number(0, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const points: Array<{ icon: LucideIcon; text: string }> = [
+    { icon: MapPin, text: t("points.place") },
+    { icon: Link2, text: t("points.link") },
+    { icon: Wallet, text: t("points.share") },
+  ];
 
   return (
-    <Container page>
-      <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-8">
-        <div className="lg:col-span-7">
-          <p className="text-sm font-semibold uppercase tracking-wide text-muted">{t("eyebrow")}</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-5xl">{t("title")}</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted">{t("intro")}</p>
-          <Link href="/create" className={buttonClass("dark", "lg", "mt-6")}>
-            {t("openHouse")}
-          </Link>
-        </div>
-        <HostHeroCard className="w-full max-w-[440px] lg:col-span-5 lg:justify-self-end" />
-      </section>
+    <Container>
+      {/* Hero: text left, the House card (512 × 640) right, centred on each other. */}
+      <SurfaceBand padding="py-20">
+        <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-8">
+          <div className="lg:col-span-7">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">{t("eyebrow")}</p>
+            <h1 className="mt-3 text-5xl font-bold leading-[1.02] tracking-tight text-ink md:text-[64px]">{t("title")}</h1>
+            <p className="mt-6 max-w-140 text-xl leading-relaxed text-muted">{t("intro")}</p>
+            <div className="mt-8 flex flex-wrap items-center gap-6">
+              <Button href="/create" size="lg">
+                {t("openHouse")}
+              </Button>
+              <Button href="/how-it-works" variant="tertiary" size="lg">
+                {t("howItWorks")}
+                <ArrowRight aria-hidden />
+              </Button>
+            </div>
+            <ul className="mt-12 flex flex-wrap gap-x-8 gap-y-3">
+              {points.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-2 text-[15px] text-ink">
+                  <Icon className="size-5 shrink-0 text-muted" aria-hidden />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <HostHeroCard className="w-full max-w-lg lg:col-span-5 lg:justify-self-end" />
+        </section>
+      </SurfaceBand>
 
-      <section aria-labelledby="host-why" className="mt-16">
-        <h2 id="host-why" className="text-2xl font-bold tracking-tight">
-          {t("whyTitle")}
-        </h2>
-        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {why.map((item, i) => (
-            <li key={item.title} className="flex flex-col rounded-[24px] bg-surface p-6">
-              {/* The middle card's "€0" is the section's only accent; the others get a quiet icon. */}
-              {i === 1 ? (
-                <p className="text-4xl font-bold leading-11 tracking-tight text-ink tabular-nums">{zero}</p>
-              ) : (
-                <span className="flex size-11 items-center justify-center rounded-full bg-bg text-ink">
-                  {i === 0 ? <UserCheck className="size-5" aria-hidden /> : <MessagesSquare className="size-5" aria-hidden />}
+      <HostWays className="mt-24" />
+
+      <HostHousesRow className="mt-24" />
+
+      <section aria-labelledby="host-how" className="mt-24">
+        <SectionHeader id="host-how" title={t("howTitle")} />
+        <ul className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {why.map((item, i) => {
+            const Icon = HOW_ICONS[i] ?? MessagesSquare;
+            return (
+              <li key={item.title} className={cn(cardClass, "flex flex-col")}>
+                <span className="flex size-14 items-center justify-center rounded-full bg-bg text-ink">
+                  <Icon className="size-6" aria-hidden />
                 </span>
-              )}
-              <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted">{item.text}</p>
-            </li>
-          ))}
+                <h3 className="mt-5 text-[22px] font-semibold tracking-tight text-ink">{item.title}</h3>
+                <p className="mt-2 text-base leading-relaxed text-muted">{item.text}</p>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      <HostHousesRow />
-
-      <ProHostSection />
-
-      <section aria-labelledby="host-faq" className="mt-14 max-w-3xl">
-        <h2 id="host-faq" className="text-2xl font-bold tracking-tight">
-          {t("faqTitle")}
-        </h2>
-        <div className="mt-4 divide-y divide-line rounded-[24px] bg-surface px-6">
+      <section aria-labelledby="host-faq" className="mt-24">
+        <SectionHeader id="host-faq" title={t("faqTitle")} />
+        <div className="mt-6 divide-y divide-line rounded-xl border border-line bg-surface px-6">
           {faq.map((item) => (
             <details key={item.question} className="group py-1">
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
@@ -82,14 +101,15 @@ export default async function HostPage() {
         </div>
       </section>
 
-      <section className="mt-14 flex flex-col items-start gap-5 rounded-[28px] bg-ink p-8 text-surface md:flex-row md:items-center md:justify-between md:p-10">
+      {/* The page's one dark block. */}
+      <section className="mt-24 flex flex-col items-start gap-6 rounded-3xl bg-ink p-16 text-surface md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t.rich("ctaTitle", { accent: (chunks) => <span className="text-ink">{chunks}</span> })}</h2>
-          <p className="mt-1 text-surface/70">{t("ctaText")}</p>
+          <h2 className="text-[32px] font-semibold leading-tight tracking-tight">{t("ctaTitle")}</h2>
+          <p className="mt-2 text-lg text-surface/70">{t("ctaText")}</p>
         </div>
-        <Link href="/create" className={buttonClass("secondary", "lg", "shrink-0 border-transparent")}>
+        <Button href="/create" variant="secondary" size="lg" className="border-transparent">
           {t("openHouse")}
-        </Link>
+        </Button>
       </section>
     </Container>
   );

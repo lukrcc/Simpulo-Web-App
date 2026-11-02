@@ -4,13 +4,12 @@ import { Link2, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { SiInstagram, SiTiktok, SiTwitch, SiWhatsapp } from "react-icons/si";
-import { sheetButtonClass } from "@/components/ui/sheetButton";
+import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { SHARE_CHANNELS, shareUrl } from "@/lib/growth";
 import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 /** Houses are shared with HouseShare (system dialog / "Share this House"); this sheet shares profiles. */
 export type ShareTarget = { kind: "profile"; user: User };
@@ -80,27 +79,22 @@ export function ShareSheet({ target, open, onClose }: { target: ShareTarget; ope
     }
   }
 
-  const rowClass = cn(sheetButtonClass, "bg-bg text-ink hover:bg-line/60");
+  // Each option is one list row (the whole row is the button), separated by 1px lines.
+  const rowClass = "block w-full text-left outline-none hover:bg-bg focus-visible:bg-bg";
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={store.currentUserId ? t("subtitle") : undefined}>
-      <ul className="grid grid-cols-1 gap-2">
+      <ul className="divide-y divide-line">
         {channels.map((channel) => (
           <li key={channel}>
             <button type="button" onClick={() => void share(channel)} className={rowClass}>
-              <span className="flex w-6 shrink-0 justify-center" aria-hidden>
-                {CHANNEL_ICONS[channel]}
-              </span>
-              <span className="flex-1 text-center">{t(`channels.${channel}`)}</span>
+              <ListRow lead={<span aria-hidden>{CHANNEL_ICONS[channel]}</span>} title={t(`channels.${channel}`)} />
             </button>
           </li>
         ))}
         {canNativeShare && (
           <li>
             <button type="button" onClick={() => void nativeShare()} className={rowClass}>
-              <span className="flex w-6 shrink-0 justify-center" aria-hidden>
-                <Share2 className="size-5" />
-              </span>
-              <span className="flex-1 text-center">{t("channels.native")}</span>
+              <ListRow lead={<Share2 aria-hidden />} title={t("channels.native")} />
             </button>
           </li>
         )}

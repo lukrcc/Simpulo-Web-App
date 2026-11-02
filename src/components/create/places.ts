@@ -1,8 +1,10 @@
-import type { ComboOption } from "@/components/ui/Combobox";
+import { PLACES } from "@/lib/places";
+import type { PlaceProvider, PlaceSuggestion } from "@/lib/placeSearch";
 
 /*
- * Suggestions for "Where" and "Area" in Open a House. A House stores `region` ("Bali, Indonesia") and `city`
- * (the area, "Canggu" – empty = still open). Anything typed that isn't listed is kept as free text.
+ * Suggestions for "Where" and "Area" in Open a House (the mock PlaceProvider). A House stores `region`
+ * ("Bali, Indonesia") and `city` (the area, "Canggu" – empty = still open). Anything typed that isn't listed is kept
+ * as free text.
  */
 
 interface Region {
@@ -48,24 +50,49 @@ function findRegion(region: string): Region | undefined {
   return REGIONS.find((r) => regionValue(r).toLowerCase() === value || r.name.toLowerCase() === value.split(",")[0].trim());
 }
 
-/** "Where" suggestions grouped by country: regions plus a few well-known areas (with their region as hint). */
-export const WHERE_OPTIONS: ComboOption[] = REGIONS.flatMap((r) => [
-  { value: `region:${r.name}`, label: r.name, group: r.country },
-  ...(r.featuredAreas ?? []).map((area) => ({ value: `area:${r.name}:${area}`, label: area, group: r.country, hint: r.name })),
-]);
+/** Case- and accent-insensitive ("sao" finds "São Lourenço"). */
+const fold = (text: string) => text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-/** What picking a "Where" option sets: the region, and the area when an area was picked directly. */
-export function placeOf(option: ComboOption): { region: string; city?: string } {
-  const [kind, name, area] = option.value.split(":");
-  const region = REGIONS.find((r) => r.name === name);
-  if (!region) return { region: option.label };
-  return kind === "area" ? { region: regionValue(region), city: area } : { region: regionValue(region) };
+/** Everything "Where" can suggest: the regions with areas, a few well-known areas, and cities worldwide. */
+const WHERE: PlaceSuggestion[] = [
+  ...REGIONS.flatMap((r) => [
+    { id: `local:${r.name}`, label: r.name, secondary: r.country, region: regionValue(r) },
+    ...(r.featuredAreas ?? []).map((area) => ({ id: `local:${r.name}:${area}`, label: area, secondary: regionValue(r), region: regionValue(r), city: area })),
+  ]),
+  ...PLACES.filter((p) => !REGIONS.some((r) => fold(r.name) === fold(p.name) || r.featuredAreas?.some((a) => fold(a) === fold(p.name)))).map((p) => ({
+    id: p.placeId,
+    label: p.name,
+    secondary: p.country,
+    region: `${p.name}, ${p.country}`,
+  })),
+];
+
+/** Shown on focus before anything is typed. */
+const POPULAR = ["Bali", "Lisbon", "Chiang Mai", "Mexico City", "Cape Town", "Tokyo"];
+
+function rank(items: PlaceSuggestion[], query: string, limit = 8): PlaceSuggestion[] {
+  const q = fold(query.trim());
+  const starts = items.filter((p) => fold(p.label).startsWith(q));
+  const contains = items.filter((p) => !starts.includes(p) && (fold(p.label).includes(q) || fold(p.secondary ?? "").includes(q)));
+  return [...starts, ...contains].slice(0, limit);
 }
 
-/** "Area" suggestions for the chosen region (none for a free-text region). */
-export function areaOptions(region: string): ComboOption[] {
-  return (findRegion(region)?.areas ?? []).map((area) => ({ value: area, label: area }));
-}
+/** The mock provider: the lists above, answered at once. */
+export const mockPlaceProvider: PlaceProvider = {
+  async search(query, { kind, within }) {
+    if (kind === "area") {
+      const region = findRegion(within ?? "");
+      if (!region) return [];
+      const areas = region.areas.map((area) => ({ id: `local:${region.name}:${area}`, label: area, region: regionValue(region), city: area }));
+      return query.trim() ? rank(areas, query) : areas;
+    }
+    if (!query.trim()) return POPULAR.flatMap((name) => WHERE.find((p) => p.label === name && !p.city) ?? []);
+    return rank(WHERE, query);
+  },
+};
+
+/** The provider the app uses – swap for createGooglePlacesProvider once the key is set up. */
+export const placeProvider: PlaceProvider = mockPlaceProvider;
 
 /** "Bali" from "Bali, Indonesia" – the short form used in title suggestions. */
 export function regionShortName(region: string): string {

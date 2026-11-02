@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { FLEXIBLE } from "@/lib/interests";
 import { cn } from "@/lib/utils";
-import { chipActiveClass, chipClass, chipInactiveClass } from "./chips";
+import { Chip } from "@/components/ui/Chip";
 
 /** Months to choose from, starting with this one. */
 const MONTH_COUNT = 12;
@@ -43,14 +43,14 @@ export function MonthChips({ value, onChange, label, columns = "responsive" }: {
         const active = value.includes(month);
         const withYear = i > 0 && month.slice(0, 4) !== months[i - 1].slice(0, 4);
         return (
-          <button key={month} type="button" aria-pressed={active} onClick={() => toggle(month)} className={cn(chipClass, "whitespace-nowrap px-2", active ? chipActiveClass : chipInactiveClass)}>
+          <Chip key={month} active={active} size="fit" onClick={() => toggle(month)}>
             {shortMonth(format, month, withYear)}
-          </button>
+          </Chip>
         );
       })}
-      <button type="button" aria-pressed={flexible} onClick={() => toggle(FLEXIBLE)} className={cn(chipClass, "px-2", flexible ? chipActiveClass : chipInactiveClass)}>
+      <Chip active={flexible} size="fit" onClick={() => toggle(FLEXIBLE)}>
         {t("flexible")}
-      </button>
+      </Chip>
     </div>
   );
 }

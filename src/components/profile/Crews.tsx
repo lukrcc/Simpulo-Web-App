@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { ListRow } from "@/components/ui/ListRow";
 import { useFormat } from "@/i18n/format";
 import { crewsOf, livedWithFor, peopleLivedWith, type CrewGroup, type LivedWithEntry, type StoreData } from "@/lib/store";
 import type { Crew, LivedWith } from "@/lib/types";
@@ -54,19 +56,15 @@ export function LivedWithSection({ entries }: { entries: LivedWithEntry[] }) {
   const t = useTranslations("profile.crews");
   return (
     <section aria-labelledby="profile-lived-with" className="mt-5 border-t border-line pt-5">
-      <h2 id="profile-lived-with" className="text-sm font-semibold">
-        {t("livedWith")} <span className="font-normal text-muted">· {entries.length}</span>
+      <h2 id="profile-lived-with" className="flex items-center gap-2 text-sm font-semibold">
+        {t("livedWith")} <Badge>{entries.length}</Badge>
       </h2>
       <p className="mt-0.5 text-xs text-muted">{t("onlyYou")}</p>
-      <ul className="mt-3 space-y-1">
+      <ul className="mt-2 divide-y divide-line">
         {entries.map(({ user, house }) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-bg">
-              <Avatar user={user} size="sm" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">{user.name}</span>
-                <span className="block truncate text-xs text-muted">{house.title}</span>
-              </span>
+            <Link href={`/u/${user.id}`} className="block">
+              <ListRow lead={<Avatar user={user} size="md" />} title={user.name} subtitle={house.title} />
             </Link>
           </li>
         ))}
@@ -81,11 +79,11 @@ export function Crews({ crews }: { crews: ProfileCrews }) {
   const f = useFormat();
   return (
     <section aria-labelledby="profile-crews" className="mt-5 border-t border-line pt-5">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <h2 id="profile-crews" className="text-sm font-semibold">
           {t("title")}
         </h2>
-        <p className="text-sm text-muted tabular-nums">{t("counts", { houses: crews.houses, people: crews.people })}</p>
+        <Badge>{t("counts", { houses: crews.houses, people: crews.people })}</Badge>
       </div>
       {crews.groups.length > 0 && (
         <>

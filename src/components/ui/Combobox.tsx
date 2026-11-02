@@ -2,7 +2,9 @@
 
 import { Check, ChevronDown } from "lucide-react";
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { formInput } from "@/components/form/FormLayout";
 import { cn } from "@/lib/utils";
+import { ValueCheck } from "./ValueCheck";
 
 export interface ComboOption {
   value: string;
@@ -67,7 +69,7 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
       id={id}
       role="listbox"
       onMouseDown={(e) => e.preventDefault()}
-      className="scroll-pane absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 rounded-2xl bg-surface p-1.5 shadow-xl ring-1 ring-line"
+      className="scroll-pane absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 rounded-xl border border-line bg-surface p-1.5 shadow-xl"
     >
       {options.length === 0 && empty && <p className="px-3 py-2.5 text-sm text-muted">{empty}</p>}
       {groups.map((group, g) => (
@@ -92,7 +94,7 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
                   {option.label}
                   {option.hint && <span className="ml-1.5 text-muted">{option.hint}</span>}
                 </span>
-                {isSelected && <Check className="size-4 shrink-0 text-ink" aria-hidden />}
+                {isSelected && <Check className="size-4 shrink-0 text-accent" strokeWidth={3} aria-hidden />}
               </div>
             );
           })}
@@ -204,9 +206,12 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
           onBlur?.();
         }}
         onKeyDown={onKeyDown}
-        className="h-11 w-full rounded-xl border border-line bg-bg pl-4 pr-10 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent aria-invalid:border-red-300"
+        // The form field look (44px, surface, 1px line, accent ring) with room for the chevron; typing filters.
+        className={cn(formInput, "pr-10")}
         {...aria}
       />
+      {/* A picked value (not while typing): the accent check right after it. */}
+      {query === null && value && options.some((o) => isSelected?.(o)) && <ValueCheck text={value} />}
       <ChevronDown
         className={cn("pointer-events-none absolute right-3.5 top-3.5 size-4 text-muted transition-transform", open && "rotate-180")}
         aria-hidden

@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState, type KeyboardEvent } from "react";
-import { LANGUAGES, cn } from "@/lib/utils";
+import { LANGUAGES } from "@/lib/utils";
 import { OptionList, filterOptions, useListNavigation, type ComboOption } from "./Combobox";
 
 const OPTIONS: ComboOption[] = LANGUAGES.map((l) => ({ value: l.name, label: l.name }));
@@ -12,12 +12,12 @@ interface LanguageInputProps {
   /** English names as stored on profiles ("German") */
   languages: string[];
   onChange: (languages: string[]) => void;
-  /** Soft field style of the form pages (warm grey fill, focus ring) instead of the white field */
+  /** @deprecated No-op: every language field has the form field look (surface, 1px line, accent focus ring). */
   soft?: boolean;
 }
 
 /** Language chips plus a searchable list to add more – picked from the list, never typed free. */
-export function LanguageInput({ languages, onChange, soft = false }: LanguageInputProps) {
+export function LanguageInput({ languages, onChange }: LanguageInputProps) {
   const t = useTranslations("create.about");
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,10 +48,8 @@ export function LanguageInput({ languages, onChange, soft = false }: LanguageInp
     <div className="relative">
       <div
         onClick={() => inputRef.current?.focus()}
-        className={cn(
-          "flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border px-2 py-1.5",
-          soft ? "border-line bg-bg focus-within:ring-2 focus-within:ring-accent" : "border-line bg-surface focus-within:border-accent",
-        )}
+        // The form field look (formInput) around chips + a typed search: grows past 44px as chips wrap.
+        className="flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border border-line bg-surface px-2 py-1.5 transition-shadow focus-within:ring-2 focus-within:ring-accent"
       >
         {languages.map((language) => (
           <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-sm ring-1 ring-line">
@@ -88,7 +86,7 @@ export function LanguageInput({ languages, onChange, soft = false }: LanguageInp
           }}
           onKeyDown={onKeyDown}
           placeholder={languages.length === 0 ? t("languagesPlaceholder") : t("languagesPlaceholderMore")}
-          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted"
+          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-[15px] text-ink outline-none placeholder:text-muted"
         />
       </div>
       {open && (

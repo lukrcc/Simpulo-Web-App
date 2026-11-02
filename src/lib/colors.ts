@@ -1,12 +1,12 @@
 /**
  * The six colours of globals.css (:root) as values, for what can't read CSS variables: the OG images (Satori) and
- * the story image / QR poster (canvas). Change them in both places.
+ * the story image (canvas). Change them in both places.
  */
 export const COLORS = {
-  bg: "#F7F6F3",
-  surface: "#FFFFFF",
+  bg: "#F2F0EB",
+  surface: "#FBFAF7",
   ink: "#1E1E22",
   muted: "#6B6B70",
-  line: "#E6E4DF",
+  line: "#E3E0D9",
   accent: "#F0633A",
 } as const;

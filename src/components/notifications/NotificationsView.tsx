@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Chip } from "@/components/ui/Chip";
+import { Button } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
 import { NOTIFICATION_CATEGORIES, type AppNotification, type NotificationCategory } from "@/lib/data/notifications";
-import { cn } from "@/lib/utils";
 import { NotificationItem } from "./NotificationItem";
 import { useNotifications } from "./useNotifications";
 
@@ -67,25 +67,18 @@ function NotificationsList() {
       <div className="flex items-end justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-ink">{t("title")}</h1>
         {unread > 0 && (
-          <button type="button" onClick={repo.markAllRead} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
-            <CheckCheck className="size-4" aria-hidden />
+          <Button variant="tertiary" size="md" onClick={repo.markAllRead}>
+            <CheckCheck aria-hidden />
             {t("markAll")}
-          </button>
+          </Button>
         )}
       </div>
 
       <div role="tablist" aria-label={t("title")} className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
         {[null, ...NOTIFICATION_CATEGORIES].map((c) => (
-          <button
-            key={c ?? "all"}
-            type="button"
-            role="tab"
-            aria-selected={category === c}
-            onClick={() => setCategory(c)}
-            className={cn("h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors", category === c ? "bg-ink text-surface" : "bg-surface text-ink hover:bg-bg")}
-          >
+          <Chip key={c ?? "all"} role="tab" aria-selected={category === c} active={category === c} check={c !== null} onClick={() => setCategory(c)}>
             {t(`tabs.${c ?? "all"}`)}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -106,7 +99,7 @@ function NotificationsList() {
                 <h2 id={`n-${group}`} className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">
                   {t(`groups.${group}`)}
                 </h2>
-                <ul className="space-y-0.5 rounded-[24px] bg-surface p-1.5">
+                <ul className="divide-y divide-line rounded-xl border border-line bg-surface px-4">
                   {list.map((n) => (
                     <li key={n.id}>
                       <NotificationItem notification={n} onRead={repo.markRead} />
@@ -118,9 +111,9 @@ function NotificationsList() {
           })}
           {nextCursor && (
             <div className="flex justify-center">
-              <button type="button" onClick={() => setCursors({ category, list: [...pageCursors, nextCursor] })} className={buttonClass("secondary", "md")}>
+              <Button variant="secondary" size="md" onClick={() => setCursors({ category, list: [...pageCursors, nextCursor] })}>
                 {t("loadMore")}
-              </button>
+              </Button>
             </div>
           )}
         </div>

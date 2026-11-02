@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Eye, Plus, X } from "lucide-react";
+import { Eye, Plus, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
@@ -19,7 +19,8 @@ import {
 } from "@/components/form/FormLayout";
 import { profileCrews } from "@/components/profile/Crews";
 import { ProfileCard } from "@/components/profile/ProfileCard";
-import { buttonClass } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
 import { CardTab } from "@/components/ui/CardTab";
 import { Combobox, type ComboOption } from "@/components/ui/Combobox";
 import { NotchedCard } from "@/components/ui/NotchedCard";
@@ -29,6 +30,7 @@ import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { Sheet } from "@/components/ui/Sheet";
 import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { MAX_AGE, MIN_AGE, ageOn, isoOf, partsOf, useTodayIso, type DateParts } from "@/lib/birthDate";
 import { COUNTRIES, PLACES } from "@/lib/places";
@@ -272,19 +274,16 @@ function EditProfileForm({ me }: { me: User }) {
           <p className="min-w-0 flex-1 truncate text-sm text-muted" aria-live="polite">
             {t("unsaved")}
           </p>
-          <button
-            type="button"
+          <Button
+            variant="tertiary"
             onClick={() => {
               setForm(initial);
               setError(null);
             }}
-            className={buttonClass("ghost", "md")}
           >
             {t("cancel")}
-          </button>
-          <button type="submit" className={buttonClass("dark", "md")}>
-            {t("save")}
-          </button>
+          </Button>
+          <Button type="submit">{t("save")}</Button>
         </StickyFormBar>
       )}
     </form>
@@ -295,10 +294,10 @@ function EditProfileForm({ me }: { me: User }) {
       <FormHeader
         title={t("title")}
         aside={
-          <button type="button" onClick={() => setPreviewOpen(true)} className={buttonClass("secondary", "sm", "lg:hidden")}>
-            <Eye className="size-4" />
+          <Button variant="secondary" onClick={() => setPreviewOpen(true)} className="lg:hidden">
+            <Eye />
             {t("previewButton")}
-          </button>
+          </Button>
         }
       />
       <FormGrid
@@ -382,7 +381,7 @@ function LivePreview({ user }: { user: User }) {
           joinedLink: (chunks) => <span>{chunks}</span>,
         })}
       />
-      <div className="mt-4 flex items-center gap-4 rounded-[24px] bg-surface p-4">
+      <div className={cn(cardClass, "mt-4 flex items-center gap-4")}>
         <NotchedCard
           className="aspect-4/5 w-24 shrink-0"
           clipClassName="rounded-2xl bg-line"
@@ -409,23 +408,14 @@ function BirthDateSelects({ value, onChange, today, invalid }: { value: DatePart
   // A saved year outside the range (or before today is known) stays selectable.
   if (value.year && !years.includes(value.year)) years.unshift(value.year);
   const select = (key: keyof DateParts, label: string, options: Array<{ value: string; label: string }>) => (
-    <span className="relative">
-      <select
-        value={value[key]}
-        onChange={(e) => onChange({ ...value, [key]: e.target.value })}
-        aria-label={label}
-        aria-invalid={invalid || undefined}
-        className={cn(formInput, "appearance-none pr-9", !value[key] && "text-muted")}
-      >
-        <option value="">{label}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="text-ink">
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-3.5 size-4 text-muted" aria-hidden />
-    </span>
+    <Select value={value[key]} onChange={(e) => onChange({ ...value, [key]: e.target.value })} aria-label={label} aria-invalid={invalid || undefined}>
+      <option value="">{label}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </Select>
   );
 
   return (
@@ -499,14 +489,9 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
                 aria-invalid={Boolean(problem) || undefined}
                 className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
               />
-              <button
-                type="button"
-                onClick={() => onChange(links.filter((_, i) => i !== index))}
-                aria-label={t("removeLink", { platform: name })}
-                className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
-              >
-                <X className="size-4" />
-              </button>
+              <Button variant="tertiary" onClick={() => onChange(links.filter((_, i) => i !== index))} aria-label={t("removeLink", { platform: name })} className="-mr-2 size-8">
+                <X />
+              </Button>
             </span>
           </FormField>
         );
@@ -514,10 +499,10 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
 
       {links.length < MAX_SOCIAL_LINKS ? (
         <div>
-          <button type="button" onClick={() => setPicking((p) => !p)} aria-expanded={picking} className={buttonClass("ghost", "sm", "-ml-2")}>
-            <Plus className="size-4" />
+          <Button variant="tertiary" onClick={() => setPicking((p) => !p)} aria-expanded={picking}>
+            <Plus />
             {t("addLink")}
-          </button>
+          </Button>
           {picking && (
             <ul role="menu" className="mt-1 flex flex-wrap gap-2">
               {unused.map((platform) => {
@@ -531,9 +516,9 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
                         onChange([...links, { platform, value: "" }]);
                         setPicking(false);
                       }}
-                      className="flex h-9 items-center gap-2 rounded-full border border-line bg-surface pl-2.5 pr-3 text-sm text-ink hover:bg-bg"
+                      className={buttonStyles("secondary", "md")}
                     >
-                      <Icon className="size-4" aria-hidden />
+                      <Icon aria-hidden />
                       {nameOf(platform)}
                     </button>
                   </li>

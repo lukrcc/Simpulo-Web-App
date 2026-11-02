@@ -8,8 +8,10 @@ import { useId, useState, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
 import { HouseDetail } from "@/components/stay/HouseDetail";
+import { Button } from "@/components/ui/ActionButton";
 import { AvatarStack } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/button";
+import { Badge } from "@/components/ui/Badge";
+import { cardClass } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { StayThumb } from "@/components/ui/StayThumb";
@@ -29,6 +31,26 @@ export function MyStays() {
 }
 
 type Section = "hosting" | "joined" | "past";
+const SECTIONS: readonly Section[] = ["hosting", "joined", "past"];
+const DEFAULT_OPEN: readonly Section[] = ["hosting", "joined"];
+const OPEN_KEY = "simpulo:houses-open";
+
+function readOpenSections(): readonly Section[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "null");
+    return Array.isArray(saved) ? SECTIONS.filter((s) => saved.includes(s)) : DEFAULT_OPEN;
+  } catch {
+    return DEFAULT_OPEN;
+  }
+}
+
+function saveOpenSections(sections: ReadonlySet<Section>) {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify([...sections]));
+  } catch {
+    // not remembered – the defaults next time
+  }
+}
 
 function MyStaysContent() {
   const t = useTranslations("houses");
@@ -48,14 +70,19 @@ function MyStaysContent() {
     .filter((s) => s.status === "completed" && isCrewMember(store, s, store.currentUserId))
     .toSorted((a, b) => b.endDate.localeCompare(a.endDate));
 
-  // Hosting and Joined start open, Past closed – unless a deep link points into Past.
-  const [open, setOpen] = useState<ReadonlySet<Section>>(
-    () => new Set<Section>(["hosting", "joined", ...(past.some((s) => s.id === selectedId) ? (["past"] as const) : [])]),
-  );
+  // Hosting and Joined start open, Past closed; afterwards what the user left open (this browser). A deep link into a
+  // closed section opens it.
+  const [open, setOpen] = useState<ReadonlySet<Section>>(() => {
+    const sections = new Set(readOpenSections());
+    const target = hosting.some((s) => s.id === selectedId) ? "hosting" : joined.some((j) => j.stay.id === selectedId) ? "joined" : past.some((s) => s.id === selectedId) ? "past" : null;
+    if (target) sections.add(target);
+    return sections;
+  });
   const toggle = (section: Section) =>
     setOpen((current) => {
       const next = new Set(current);
       if (!next.delete(section)) next.add(section);
+      saveOpenSections(next);
       return next;
     });
 
@@ -76,7 +103,7 @@ function MyStaysContent() {
               ))}
             </ul>
             {/* A quiet way to the next House while the list is short. */}
-            {hosting.length < 3 && <DashedRow href="/create" icon={Plus} label={t("openAnother")} />}
+            {hosting.length < 3 && <NextStep href="/create" icon={Plus} label={t("openAnother")} />}
           </>
         ) : (
           <OpenFirstHouseCard />
@@ -91,7 +118,7 @@ function MyStaysContent() {
                 <li key={request.id}>{row(stay, { waiting: request.status === "pending", invited: request.status === "invited" })}</li>
               ))}
             </ul>
-            <DashedRow href="/" icon={Compass} label={t("emptyJoined.title")} />
+            <NextStep href="/" icon={Compass} label={t("emptyJoined.title")} />
           </>
         ) : (
           <EmptyState
@@ -99,9 +126,9 @@ function MyStaysContent() {
             title={t("emptyJoined.title")}
             description={t("emptyJoined.description")}
             action={
-              <Link href="/" className={buttonClass("dark", "sm")}>
+              <Button href="/" variant="secondary">
                 {t("emptyJoined.action")}
-              </Link>
+              </Button>
             }
           />
         )}
@@ -123,7 +150,6 @@ function MyStaysContent() {
 
   return (
     <MasterDetail
-      panel
       fixedList
       title={t("title")}
       list={list}
@@ -133,9 +159,7 @@ function MyStaysContent() {
         (active ? (
           <HouseDetail key={active.id} stay={active} />
         ) : (
-          <div className="flex h-full items-center justify-center rounded-[24px] border-2 border-dashed border-line">
-            <EmptyState icon={House} title={t("noHouse")} />
-          </div>
+          <EmptyState icon={House} title={t("noHouse")} />
         ))
       }
     />
@@ -154,12 +178,11 @@ function ListSection({ label, count, open, onToggle, children }: { label: string
         aria-expanded={open}
         aria-controls={id}
         aria-label={t("toggle", { label, count })}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-ink hover:bg-ink/[0.03]"
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-ink hover:bg-surface/60"
       >
         <ChevronRight className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
-        <span className="flex-1">
-          {label} <span className="font-normal text-muted">({count})</span>
-        </span>
+        <span className="flex-1">{label}</span>
+        <Badge>{count}</Badge>
       </button>
       {open && (
         <div id={id} className="mt-1">
@@ -185,6 +208,7 @@ interface StayRowLinkProps {
 function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, invited = false }: StayRowLinkProps) {
   const t = useTranslations("houses.row");
   const tDraft = useTranslations("growth.draft");
+  const tDetail = useTranslations("houses.detail");
   const f = useFormat();
   const store = useStore();
   const host = findUser(store, stay.hostId);
@@ -195,7 +219,11 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
       href={isDesktop ? `/my-stays?id=${stay.id}` : `/my-stays/${stay.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("flex items-center gap-3 rounded-2xl p-2.5 transition-colors", active ? "bg-bg" : "hover:bg-ink/[0.03]")}
+      // Straight on the page background: a light surface on hover, and when active also a 3px ink bar at the left edge.
+      className={cn(
+        "relative flex items-center gap-3 rounded-2xl p-2.5 transition-colors",
+        active ? "bg-surface before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full before:bg-ink" : "hover:bg-surface/60",
+      )}
     >
       {photo ? (
         <Img src={photo} alt={host.name} width={56} height={56} className="size-14 shrink-0 rounded-xl object-cover" />
@@ -205,54 +233,40 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-semibold">{stay.title}</p>
-          {pending > 0 && (
-            <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-surface">{t("new", { count: pending })}</span>
-          )}
-          {waiting && <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{t("pending")}</span>}
-          {invited && <span className="shrink-0 rounded-full bg-bg px-2 py-0.5 text-[11px] font-semibold text-ink">{t("invited")}</span>}
-          {stay.status === "closed" && (
-            <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{t("closed")}</span>
-          )}
-          {stay.status === "draft" && (
-            <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-muted">{tDraft("badge")}</span>
-          )}
+          {pending > 0 && <Badge>{t("new", { count: pending })}</Badge>}
+          {waiting && <Badge>{t("pending")}</Badge>}
+          {invited && <Badge>{t("invited")}</Badge>}
+          {stay.status === "closed" && <Badge>{t("closed")}</Badge>}
+          {stay.status === "draft" && <Badge>{tDraft("badge")}</Badge>}
         </div>
         <p className="truncate text-xs text-muted">
           {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <AvatarStack users={getCrew(store, stay)} size="xs" />
-          <span className="text-xs text-muted">
-            {stay.spotsFilled}/{stay.spotsTotal}
-          </span>
+          <Badge>{tDetail("badges.occupancy", { filled: stay.spotsFilled, total: stay.spotsTotal })}</Badge>
         </div>
       </div>
     </Link>
   );
 }
 
-/** The quiet next step under a section ("Open another House", "Find a House"). */
-function DashedRow({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+/** The quiet next step under a section ("Open another House", "Find a House"): a tertiary link, level with the row text. */
+function NextStep({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
   return (
-    <Link
-      href={href}
-      className="mt-1 flex items-center gap-3 rounded-2xl border-2 border-dashed border-line p-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-ink"
-    >
-      <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-bg">
-        <Icon className="size-5" aria-hidden />
-      </span>
+    <Button href={href} variant="tertiary" className="ml-2.5 mt-2 py-2">
+      <Icon aria-hidden />
       {label}
-    </Link>
+    </Button>
   );
 }
 
+/** No hosted House yet: a card with the round + as illustration and "Open a House" as a secondary button. */
 function OpenFirstHouseCard() {
   const t = useTranslations("houses.firstHouse");
+  const tNav = useTranslations("nav");
   return (
-    <Link
-      href="/create"
-      className="mt-2 flex flex-col items-center rounded-[24px] border-2 border-dashed border-line p-8 text-center transition-colors hover:bg-surface/60"
-    >
+    <div className={cn(cardClass, "mt-2 flex flex-col items-center text-center")}>
       <span className="flex size-12 items-center justify-center rounded-full bg-ink text-surface">
         <Plus className="size-5" aria-hidden />
       </span>
@@ -260,6 +274,9 @@ function OpenFirstHouseCard() {
         {t.rich("title", { accent: (chunks) => <span className="text-ink">{chunks}</span> })}
       </p>
       <p className="mt-1 text-sm text-muted">{t("description")}</p>
-    </Link>
+      <Button href="/create" variant="secondary" className="mt-5">
+        {tNav("openHouse")}
+      </Button>
+    </div>
   );
 }

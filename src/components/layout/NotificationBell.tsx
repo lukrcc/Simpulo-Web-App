@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useNotifications } from "@/components/notifications/useNotifications";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { cn } from "@/lib/utils";
 
@@ -55,21 +56,16 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
   const close = () => setOpen(false);
 
   const markAll = (
-    <button
-      type="button"
-      onClick={repo.markAllRead}
-      disabled={unread === 0}
-      className="inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-ink disabled:text-muted/60"
-    >
-      <CheckCheck className="size-4" aria-hidden />
+    <Button variant="tertiary" size="md" onClick={repo.markAllRead} disabled={unread === 0}>
+      <CheckCheck aria-hidden />
       {t("markAll")}
-    </button>
+    </Button>
   );
   const list =
     items.length === 0 ? (
       <p className="px-4 py-10 text-center text-sm text-muted">{t("empty")}</p>
     ) : (
-      <ul className="space-y-0.5">
+      <ul className="divide-y divide-line">
         {items.map((n) => (
           <li key={n.id}>
             <NotificationItem notification={n} onRead={repo.markRead} onOpen={close} />
@@ -78,7 +74,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
       </ul>
     );
   const seeAll = (
-    <Link href="/notifications" onClick={close} className="block py-3 text-center text-sm font-medium text-ink hover:underline">
+    <Link href="/notifications" onClick={close} className={buttonStyles("tertiary", "md", "w-full py-3")}>
       {t("seeAll")}
     </Link>
   );
@@ -97,16 +93,18 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         )}
       >
         <Bell className="size-5" aria-hidden />
-        {unread > 0 && (
-          <span
-            aria-hidden
-            className={cn(
-              "absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-ink px-1 text-[10px] font-semibold leading-none text-surface",
-            )}
-          >
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
+        {/* Header: an 8px accent dot (the count is in the label); elsewhere the count itself. */}
+        {unread > 0 &&
+          (variant === "header" ? (
+            <span aria-hidden className="absolute right-1.5 top-1.5 size-2 rounded-full border border-surface bg-accent" />
+          ) : (
+            <span
+              aria-hidden
+              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-ink px-1 text-[10px] font-semibold leading-none text-surface"
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ))}
       </button>
 
       {open && !isPhone && (
@@ -119,7 +117,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
             <p className="font-semibold text-ink">{t("title")}</p>
             {markAll}
           </div>
-          <div className="scroll-pane min-h-0 flex-1 p-1.5">{list}</div>
+          <div className="scroll-pane min-h-0 flex-1 px-2">{list}</div>
           <div className="border-t border-line">{seeAll}</div>
         </div>
       )}

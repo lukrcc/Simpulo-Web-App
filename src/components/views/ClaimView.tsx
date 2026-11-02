@@ -1,7 +1,6 @@
 "use client";
 
 import { ExternalLink, SearchX } from "lucide-react";
-import Link from "next/link";
 import { useMessages, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { use } from "react";
@@ -9,7 +8,8 @@ import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { StepNumber } from "@/components/GetTheApp";
 import { Container } from "@/components/layout/Container";
 import { StayCard } from "@/components/StayCard";
-import { buttonClass } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { linkDomain } from "@/lib/mock-extras";
@@ -31,9 +31,7 @@ export function ClaimView({ params }: { params: Promise<{ token: string }> }) {
           title={t("notFoundTitle")}
           description={t("notFoundText")}
           action={
-            <Link href="/" className={buttonClass("dark", "sm")}>
-              {t("explore")}
-            </Link>
+            <Button href="/">{t("explore")}</Button>
           }
         />
       </Container>
@@ -48,9 +46,7 @@ export function ClaimView({ params }: { params: Promise<{ token: string }> }) {
           title={mine ? t("mineTitle") : t("claimedTitle")}
           description={mine ? t("mineText") : t("claimedText")}
           action={
-            <Link href={mine ? `/my-stays/${stay.id}` : "/"} className={buttonClass("dark", "sm")}>
-              {mine ? t("openDraft") : t("explore")}
-            </Link>
+            <Button href={mine ? `/my-stays/${stay.id}` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
           }
         />
       </Container>
@@ -103,22 +99,22 @@ function ClaimOffer({ stay }: { stay: Stay }) {
         <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">{t("title")}</h1>
         <p className="mt-3 max-w-xl text-lg leading-relaxed text-muted">{t("intro")}</p>
 
-        {stay.whyText && <p className="mt-6 max-w-xl rounded-2xl bg-surface p-5 leading-relaxed text-ink">{stay.whyText}</p>}
+        {stay.whyText && <p className={`${cardClass} mt-6 max-w-xl leading-relaxed text-ink`}>{stay.whyText}</p>}
         {claim.sourceLink && (
           <a
             href={claim.sourceLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 flex w-fit items-center gap-1.5 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink"
+            className={buttonStyles("tertiary", "md", "mt-3")}
           >
-            <ExternalLink className="size-3.5" aria-hidden />
+            <ExternalLink aria-hidden />
             {t("viewPost")} · {linkDomain(claim.sourceLink)}
           </a>
         )}
 
-        <button type="button" onClick={claimIt} className={buttonClass("primary", "lg", "mt-8 w-full sm:w-auto")}>
+        <Button size="lg" onClick={claimIt} className="mt-8 w-full sm:w-auto">
           {t("claim")}
-        </button>
+        </Button>
 
         <ol className="mt-10 max-w-xl space-y-4">
           {messages.growth.claim.steps.map((step, i) => (

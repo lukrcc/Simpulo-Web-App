@@ -7,8 +7,8 @@ export const GUEST_FEE_MAX = 50;
 
 /** A host programme may add at most 30 % of the stay share per person. */
 export const HOST_FEE_MAX_RATE = 0.3;
-/** Simpulo keeps 20 % of the host programme; the host gets the other 80 %. */
-export const PLATFORM_COMMISSION_RATE = 0.2;
+/** Simpulo keeps 10 % of the host programme; the host gets the other 90 %. */
+export const PLATFORM_COMMISSION_RATE = 0.1;
 
 export function guestFee(share: number): number {
   if (share <= 0) return 0;
@@ -20,6 +20,11 @@ export function maxHostFee(share: number): number {
   return Math.floor(share * HOST_FEE_MAX_RATE);
 }
 
+/** What the host keeps of a host programme fee per guest, after Simpulo's commission. */
+export function hostProgrammeEarning(fee: number): number {
+  return Math.max(0, Math.round(fee * (1 - PLATFORM_COMMISSION_RATE)));
+}
+
 /** What one guest's payment is made of, and where it goes. */
 export interface PaymentSplit {
   share: number;
@@ -29,7 +34,7 @@ export interface PaymentSplit {
   total: number;
   /** Simpulo's cut of the host programme */
   commission: number;
-  /** Share + 80 % of the host programme */
+  /** Share + 90 % of the host programme */
   hostReceives: number;
   /** What Simpulo earns on this payment: guest fee + commission */
   revenue: number;

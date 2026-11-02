@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/layout/Container";
 import { TodoNote } from "@/components/layout/ContentPage";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { ExploreFeed, type FeedScope } from "@/components/views/ExploreFeed";
 import { breadcrumbList } from "@/lib/seo";
 import type { Stay } from "@/lib/types";
@@ -65,7 +66,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
             <ul className="mt-4 flex flex-wrap gap-2">
               {group.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="inline-flex h-10 items-center rounded-full bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-bg">
+                  <Link href={link.href} className={buttonStyles("secondary", "md")}>
                     {link.label}
                   </Link>
                 </li>

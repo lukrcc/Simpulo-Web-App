@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { GET_THE_APP_HREF } from "@/components/layout/secondaryLinks";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { isStandalone } from "@/lib/install";
 
@@ -51,19 +51,20 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
           <p className="text-ink">{t("text", { name: hostName ?? "" })}</p>
         </div>
         <div className="mt-6 flex gap-2">
-          <button type="button" onClick={close} className={buttonClass("ghost", "lg", "flex-1")}>
+          <Button variant="secondary" size="lg" onClick={close} className="flex-1">
             {t("later")}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
             onClick={() => {
               close();
               router.push(GET_THE_APP_HREF);
             }}
-            className={buttonClass("dark", "lg", "flex-1")}
+            className="flex-1"
           >
             {t("showMe")}
-          </button>
+          </Button>
         </div>
       </Sheet>
     </InstallNudgeContext.Provider>

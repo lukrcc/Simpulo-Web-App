@@ -22,7 +22,8 @@ interface SocialRowProps {
 
 /**
  * The host's public links, in the order they added them (at most 4): surface circles with a line border and the
- * platform's mark in ink – in its brand colour on hover. Each opens in a new tab. Nothing without links.
+ * platform's mark in its brand colour (website: the globe in ink; Kick: on an ink circle). Hover: the circle takes a
+ * 10 % tint of that colour. Each opens in a new tab. Nothing without links.
  */
 export function SocialRow({ user, size = "md", className }: SocialRowProps) {
   const t = useTranslations("common.ui.socialRow");
@@ -32,7 +33,7 @@ export function SocialRow({ user, size = "md", className }: SocialRowProps) {
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       {links.map((link) => {
-        const { icon: Icon, brand, hex } = SOCIAL_ICONS[link.platform];
+        const { icon: Icon, brand, hex, onInk } = SOCIAL_ICONS[link.platform];
         const label = brand ?? t("website");
         return (
           <a
@@ -43,9 +44,11 @@ export function SocialRow({ user, size = "md", className }: SocialRowProps) {
             onClick={stop}
             aria-label={t("onNetwork", { name: user.name.split(" ")[0], network: label })}
             title={label}
-            style={{ "--brand": hex ? `#${hex.replace(/^#/, "")}` : "var(--ink)" } as CSSProperties}
+            style={{ "--brand": hex ?? "var(--ink)", "--circle": onInk ? "var(--ink)" : "var(--surface)" } as CSSProperties}
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:text-(--brand)",
+              // Hover: the circle takes a 10 % tint of the brand colour; the icon stays as it is.
+              "flex shrink-0 items-center justify-center rounded-full border bg-(--circle) text-(--brand) transition-colors hover:bg-[color-mix(in_srgb,var(--brand)_10%,var(--circle))]",
+              onInk ? "border-ink" : "border-line",
               sizes[size].button,
             )}
           >

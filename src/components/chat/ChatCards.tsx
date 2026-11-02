@@ -1,11 +1,11 @@
 "use client";
 
 import { FileText, RotateCcw } from "lucide-react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { againHref } from "@/components/create/model";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
 import { Img } from "@/components/ui/Img";
 import { useMessageText } from "@/i18n/events";
 import { mockPreviewForUrl } from "@/lib/mock-extras";
@@ -130,7 +130,7 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
 /** A pasted link as a preview card. (Locking a place happens on the House page – the chat shows no booking status.) */
 export function ChatLinkCard({ url }: { url: string }) {
   return (
-    <div className={cn(CARD_WIDTH, "rounded-2xl bg-surface p-3 text-left text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]")}>
+    <div className={cn(CARD_WIDTH, cardClass, "text-left text-ink")}>
       <LinkPreviewCard href={url} preview={mockPreviewForUrl(url)} layout="row" />
     </div>
   );
@@ -144,15 +144,16 @@ export function DoItAgainCard({ stay, isHost }: { stay: Stay; isHost: boolean })
   const t = useTranslations("growth.again");
   return (
     <div className="mt-6 flex justify-center">
-      <div className={cn(CARD_WIDTH, "rounded-2xl bg-surface p-4 text-center text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]")}>
+      <div className={cn(CARD_WIDTH, cardClass, "text-center text-ink")}>
         <p className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink">
           <RotateCcw className="size-3.5" aria-hidden />
           {t("title")}
         </p>
         <p className="mt-2 text-sm text-ink">{isHost ? t("hostText", { title: stay.title }) : t("guestText")}</p>
-        <Link href={againHref(stay.id)} className={buttonClass("dark", "md", "mt-4 w-full")}>
+        {/* Secondary: the chat page's one primary is Send. */}
+        <Button href={againHref(stay.id)} variant="secondary" size="lg" className="mt-4 w-full">
           {t("action")}
-        </Link>
+        </Button>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-// Selection chips of the forms (Open a House stepper, "Add a place"): one look everywhere.
-export const chipClass = "rounded-full border px-4 py-2 text-sm transition-colors";
-export const chipInactiveClass = "border-line bg-surface hover:bg-bg";
-export const chipActiveClass = "border-ink bg-ink text-surface";
+// Tap-to-use suggestions (title ideas, starters): smaller, solid line border; picked = ink border. Selection chips are
+// the Chip component (components/ui/Chip.tsx).
+export const suggestionChipClass = "max-w-full truncate rounded-full border bg-surface px-3 py-1.5 text-[13px] text-ink transition-colors hover:bg-bg";

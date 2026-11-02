@@ -6,11 +6,11 @@
  */
 :root {
   color-scheme: light;
-  --bg: #F7F6F3;        /* Seitenhintergrund */
-  --surface: #FFFFFF;   /* Karten, Kapseln, Drawer, Header */
+  --bg: #F2F0EB;        /* Seitenhintergrund */
+  --surface: #FBFAF7;   /* Karten, Kapseln, Drawer, Header */
   --ink: #1E1E22;       /* Primärtext, schwarze Buttons, aktive Chips */
   --muted: #6B6B70;     /* Sekundärtext: Daten, Preise, Zähler */
-  --line: #E6E4DF;      /* Rahmen, Trennlinien */
+  --line: #E3E0D9;      /* Rahmen, Trennlinien */
   --accent: #F0633A;    /* Logo-Punkt, Verified-Häkchen, Filter-Zähler, Fokusring */
 }
 
@@ -47,37 +47,195 @@
  * Below md there is no top header (the tab bar sits at the bottom), only the iOS status bar area.
  */
 :root {
-  /* Explore's filter row – the header's second row there */
+  /* Explore's chip row – the header's second row there (phones: a row of its own) */
   --filter-row-h: 56px;
-  /* The header bar once scrolled (HeaderShrink, md up) – where scrolled-to content lines up */
-  --header-bar-h-compact: 52px;
+  /* Phones: no top header, only the status bar's inset. From md: the site header (see the block below). */
   --header-h: env(safe-area-inset-top, 0px);
-  /* The visible header bar – what sticky bars sit under. Same as the slot, except while the header is compact. */
-  --header-bar-h: var(--header-h);
+  --header-slot: var(--header-h);
+}
+
+/*
+ * The page's own chip row (phones; the city / vibe pages on every size): page colour, one line under it. No
+ * `position` here – unlayered, it would beat the row's `sticky` utility.
+ */
+.header-surface {
+  background: var(--bg);
+}
+.header-surface::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+/*
+ * The site header (SiteHeader, ≥ md) – one DOM for all pages and both of Explore's states. The header's slot in the
+ * page (--header-slot) never changes: 88px, 152px with the chip row. The bar's height (--header-h) does – 152 → 72px
+ * compact – with one transition; everything inside only moves and fades (transform, opacity; visibility switches
+ * when the transition is over, so hidden parts can't be hit). 400ms on one curve (--hx), no delay; reduced motion:
+ * none.
+ * Unlayered, so it beats utilities.
+ */
+/* The chip row's arrow slots: nothing in the page's own rows, 36px (after the 0.9 scale) in the compact header. */
+.chip-slot {
+  display: flex;
+  flex: none;
+  width: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: width var(--hx, 400ms cubic-bezier(0.32, 0.72, 0, 1));
+}
+.chip-arrow {
+  display: flex;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.chip-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+/* The chip row's fades: only on a side with more to scroll to (data-at-start / data-at-end on .chip-row). */
+.chip-scroller {
+  --fade: 12px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-start, var(--fade)), #000 calc(100% - var(--fade-end, var(--fade))), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-start, var(--fade)), #000 calc(100% - var(--fade-end, var(--fade))), transparent 100%);
+}
+.chip-row[data-at-start] .chip-scroller {
+  --fade-start: 0px;
+}
+.chip-row[data-at-end] .chip-scroller {
+  --fade-end: 0px;
+}
+.sh-placeholder {
+  display: none;
+}
+.sh-slot:empty + .sh-placeholder {
+  display: flex;
 }
 @media (min-width: 768px) {
   :root {
-    --header-h: 64px;
+    --hx: 400ms cubic-bezier(0.32, 0.72, 0, 1);
+    --header-h: 80px;
+    --header-slot: 80px;
   }
-  /* Scrolled (HeaderShrink): the bar shrinks inside its unchanged slot and the claim under the wordmark goes. */
-  :root[data-header-compact] {
-    --header-bar-h: var(--header-bar-h-compact);
+  :root:has([data-site-header][data-rows="2"]) {
+    --header-h: 152px;
+    --header-slot: 152px;
   }
-}
-.logo-tagline {
-  max-height: 16px;
-  overflow: hidden;
-  transition: opacity 200ms ease-out, max-height 200ms ease-out, margin-top 200ms ease-out;
-}
-@media (min-width: 768px) {
-  :root[data-header-compact] .logo-tagline {
-    max-height: 0;
-    margin-top: 0;
+  :root:has([data-site-header][data-state="compact"]) {
+    --header-h: 72px;
+  }
+  /* The bar and row 1 (which shrinks to the bar's 72px when compact, so its centre line is the bar's). */
+  [data-site-header] .sh-bar,
+  [data-site-header] .sh-row1 {
+    transition: height var(--hx);
+  }
+  [data-site-header] .sh-frame {
+    container-type: inline-size;
+  }
+  /* Every moving part: shown … */
+  .sh-logo,
+  .sh-tagline,
+  .sh-nav,
+  .sh-chips,
+  .sh-controls {
+    transition: transform var(--hx), opacity var(--hx), width var(--hx), visibility 0s;
+  }
+  /* … or hidden (visibility flips once the fade is over). */
+  [data-site-header][data-state="compact"] .sh-tagline,
+  [data-site-header][data-state="compact"] .sh-nav {
     opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: transform var(--hx), opacity var(--hx), visibility 0s 400ms;
+  }
+  /* Row 1's centre line is the compact bar's already (its height follows); the wordmark only shrinks 32 → 28px. */
+  .sh-logo {
+    transform-origin: left center;
+  }
+  [data-site-header][data-state="compact"] .sh-logo {
+    transform: scale(0.875);
+  }
+
+  /* The right side's children (.sh-c): a flex item as wide as its content (--w; circles 40px) that collapses to 0
+     and gives back the row's 8px gap when its state doesn't show it – the only width the header animates besides
+     the heights. The content keeps its size and fades in place. .sh-c-16: 16px to the one before (gap + 8). */
+  .sh-c {
+    display: flex;
+    flex: none;
+    align-items: center;
+    width: var(--w, 40px);
+    overflow: visible;
+    transition: width var(--hx), margin-left var(--hx), opacity var(--hx), visibility 0s;
+  }
+  .sh-c-16 {
+    margin-left: 8px;
+  }
+  .sh-c > * {
+    flex: none;
+  }
+  [data-site-header][data-state="expanded"] .sh-compact-only,
+  [data-site-header][data-state="compact"] .sh-expanded-only {
+    width: 0;
+    margin-left: -8px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: width var(--hx), margin-left var(--hx), opacity var(--hx), visibility 0s 400ms;
+  }
+
+  /* Row 2 (centre 108px): the chips – as wide as the controls leave them – and the controls. The row's width changes
+     with the state (its chips sit in one scrolling line, so nothing re-flows); its ends fade 48px (after the scale). */
+  .sh-chips {
+    width: calc(100cqw - var(--controls-w) - 24px);
+    flex: none;
+    transform-origin: left center;
+  }
+  .sh-chips .chip-scroller {
+    --fade: 53px;
+  }
+  .sh-controls {
+    transform-origin: right center;
+  }
+  /* Compact, on the bar's centre line (36px): 72px up, past the wordmark, at 0.9 (40 → 36px), as wide as what's left
+     before the controls (visible width / 0.9, the scale undone): chips → Sort 24px, Filters → icons 24px. The
+     controls: left of the icon circles, at 0.9 too. The arrow slots open to 40px (36 after the scale). */
+  [data-site-header][data-state="compact"] .sh-chips {
+    width: calc((100cqw - var(--logo-col) - var(--controls-w) * 0.9 - var(--icons-w) - 48px) / 0.9);
+    transform: translate(var(--logo-col), -72px) scale(0.9);
+  }
+  [data-site-header][data-state="compact"] .sh-controls {
+    transform: translate(calc(-1 * (var(--icons-w) + 24px)), -72px) scale(0.9);
+  }
+  [data-site-header][data-state="compact"] .sh-chips .chip-slot {
+    width: 40px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .logo-tagline {
+@media (min-width: 768px) and (prefers-reduced-motion: reduce) {
+  [data-site-header] .sh-bar,
+  [data-site-header] .sh-row1,
+  .sh-logo,
+  .sh-tagline,
+  .sh-nav,
+  .sh-chips,
+  .sh-controls,
+  .sh-c,
+  [data-site-header][data-state="compact"] .sh-tagline,
+  [data-site-header][data-state="compact"] .sh-nav,
+  [data-site-header][data-state="expanded"] .sh-compact-only,
+  [data-site-header][data-state="compact"] .sh-expanded-only {
     transition: none;
   }
 }
@@ -113,6 +271,9 @@ body:has([data-app-pane="always"]) footer {
   display: none;
 }
 main:has([data-app-pane="always"]) {
+  padding-bottom: 0;
+}
+main:has([data-explore-blocks]) {
   padding-bottom: 0;
 }
 @media (min-width: 1024px) {
@@ -198,11 +359,35 @@ main:has([data-app-pane="always"]) {
    pops when it's switched on (class "heart-pop"). Reduced motion: just the state change. */
 .press-feedback {
   /* Replaces the buttons' own colour transition (this rule wins over utilities), so the colours are listed again. */
-  transition: transform 120ms ease-out, background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: transform 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
 }
+/* Hover: a little smaller (the colour a shade darker comes from the button's own hover class). */
+@media (hover: hover) {
+  .press-feedback:hover {
+    transform: scale(0.92);
+  }
+}
+/* The click: pressed in for 140ms (pressFeedback), then back to the hover state while the pointer stays. */
 .press-feedback.pressed {
   transform: scale(0.85);
+  transition-duration: 120ms;
 }
+/* Hero "Next": hover 0.97, held down 0.88 (mouse :active, keys data-pressed) – in 120ms, back out in 150ms.
+   Reduced motion: colour only. Unlayered, like .press-feedback, so it wins over the button's utilities. */
+.hero-next {
+  transition: scale 150ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) {
+    .hero-next:hover { scale: 0.97; }
+  }
+  .hero-next:active,
+  .hero-next[data-pressed] {
+    scale: 0.88;
+    transition-duration: 120ms;
+  }
+}
+
 @keyframes heart-pop {
   50% { transform: scale(1.25); }
 }
@@ -210,6 +395,7 @@ main:has([data-app-pane="always"]) {
   animation: heart-pop 300ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
+  .press-feedback:hover,
   .press-feedback.pressed { transform: none; }
   .heart-pop { animation: none; }
 }
@@ -223,25 +409,44 @@ main:has([data-app-pane="always"]) {
     --row-gutter: max(32px, calc((100vw - var(--scrollbar-w, 0px) - 1600px) / 2 + 32px));
   }
 }
-/* Carousel rows (ScrollRow): only the card under the pointer moves – up 12px and a little larger, above its neighbours,
-   with a shadow. Transform only (no layout shift); the row has room around it. Reduced motion: just the shadow.
-   drop-shadow instead of box-shadow: it follows the card's rounded, notched shape (a box-shadow would be square). */
-.lift-row > * {
+/* Carousel rows (ScrollRow): only the card under the pointer moves – scale 1.03 (no lift; the grid's cards keep their
+   translateY −12px + 1.04), above its neighbours, with a shadow. The card itself (.lift-card: the element that also carries the radius – or, for notched cards, the
+   frame around the clipped layer) takes the transform and the shadow; no wrapper, ring or outline around it. Transform
+   only (no layout shift); the row has room around it. Keyboard focus inside shows the same lift. Reduced motion: just
+   the shadow. drop-shadow instead of box-shadow: it follows the rounded, notched shape. */
+.lift-row .lift-card {
   position: relative;
-  transform-origin: bottom center;
-  transform: translateY(0) scale(1);
+  transform-origin: center;
   filter: drop-shadow(0 16px 40px transparent);
   transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+.lift-row > *:has(.lift-card:hover),
+.lift-row > *:has(:focus-visible) {
+  z-index: 2;
+}
 @media (hover: hover) {
-  .lift-row > *:hover {
-    z-index: 2;
-    filter: drop-shadow(0 16px 40px color-mix(in srgb, var(--ink) 22%, transparent));
+  .lift-row .lift-card:hover {
+    filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.18));
+  }
+  /* On a surface band the same shadow reads harder – a little lighter there. */
+  .surface-band .lift-row .lift-card:hover {
+    filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.14));
   }
 }
+.lift-row .lift-card:has(:focus-visible) {
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.18));
+}
+.surface-band .lift-row .lift-card:has(:focus-visible) {
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.14));
+}
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .lift-row > *:hover {
-    transform: translateY(-12px) scale(1.04);
+  .lift-row .lift-card:hover {
+    transform: scale(1.03);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lift-row .lift-card:has(:focus-visible) {
+    transform: scale(1.03);
   }
 }
 

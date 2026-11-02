@@ -4,9 +4,12 @@ import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import { AUDIENCE_SIZES, type AudienceSize } from "@/lib/growth";
 import { getCurrentUser, useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -70,24 +73,24 @@ export function HostApplicationForm() {
 
   if (sentTo) {
     return (
-      <div role="status" className="mt-6 flex max-w-2xl items-start gap-4 rounded-[24px] bg-surface p-6">
+      <div role="status" className={cn(cardClass, "mt-6 flex max-w-2xl items-start gap-4")}>
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
           <Check className="size-5" strokeWidth={2.5} aria-hidden />
         </span>
         <div>
           <p className="text-lg font-semibold">{t("sentTitle")}</p>
           <p className="mt-1 text-muted">{t("sentText", { email: sentTo })}</p>
-          <button
-            type="button"
+          <Button
+            variant="tertiary"
             onClick={() => {
               setFields(empty);
               setTried(false);
               setSentTo(null);
             }}
-            className="mt-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink"
+            className="mt-3"
           >
             {t("another")}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -108,26 +111,21 @@ export function HostApplicationForm() {
   );
 
   return (
-    <form onSubmit={submit} noValidate className="mt-6 max-w-2xl space-y-5 rounded-[24px] bg-surface p-6">
+    <form onSubmit={submit} noValidate className={cn(cardClass, "mt-6 max-w-2xl space-y-5")}>
       <div className="grid gap-5 sm:grid-cols-2">
         {input("name", { autoComplete: "name" })}
         {input("email", { type: "email", autoComplete: "email" })}
       </div>
       {input("links", { placeholder: t("fields.linksPlaceholder") })}
       <FormField label={t("fields.audience")} error={errorOf("audienceSize")}>
-        <select
-          value={fields.audienceSize}
-          onChange={(e) => set("audienceSize", e.target.value)}
-          aria-invalid={errorOf("audienceSize") ? true : undefined}
-          className={formInput}
-        >
+        <Select value={fields.audienceSize} onChange={(e) => set("audienceSize", e.target.value)} aria-invalid={errorOf("audienceSize") ? true : undefined}>
           <option value="">{t("fields.audienceChoose")}</option>
           {AUDIENCE_SIZES.map((size) => (
             <option key={size} value={size}>
               {t(`audienceSizes.${size}`)}
             </option>
           ))}
-        </select>
+        </Select>
       </FormField>
       <FormField label={t("fields.idea")} error={errorOf("idea")}>
         <textarea
@@ -148,9 +146,9 @@ export function HostApplicationForm() {
           <input type="date" value={fields.to} min={fields.from || undefined} onChange={(e) => set("to", e.target.value)} className={formInput} />
         </FormField>
       </div>
-      <button type="submit" className={buttonClass("dark", "lg", "w-full sm:w-auto")}>
+      <Button type="submit" size="lg" className="w-full sm:w-auto">
         {t("submit")}
-      </button>
+      </Button>
     </form>
   );
 }

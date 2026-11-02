@@ -3,7 +3,10 @@
 import { Loader2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { buttonClass } from "@/components/ui/button";
+import { FormField, formInput } from "@/components/form/FormLayout";
+import { Button } from "@/components/ui/ActionButton";
+import { Chip } from "@/components/ui/Chip";
+import { Select } from "@/components/ui/Select";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
@@ -13,8 +16,6 @@ import { defaultPayBy, getCrew, getCrewLinks, useStore } from "@/lib/store";
 import type { Currency, Stay } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
 import { LinkPreviewCard } from "./LinkPreviewCard";
-
-const inputClass = "h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm outline-none focus:border-accent";
 
 function isUrl(value: string): boolean {
   try {
@@ -74,8 +75,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
   return (
     <Sheet open onClose={() => !busy && onClose()} title={t("title")}>
       <form onSubmit={handleLock} className="space-y-5">
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">{t("linkLabel")}</span>
+        <FormField label={t("linkLabel")} error={cleanUrl !== "" && !urlValid ? t("linkInvalid") : null}>
           <input
             type="url"
             inputMode="url"
@@ -83,83 +83,62 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
             onChange={(e) => setUrl(e.target.value)}
             placeholder={t("linkPlaceholder")}
             aria-invalid={cleanUrl !== "" && !urlValid}
-            className={inputClass}
+            className={formInput}
           />
-          {cleanUrl !== "" && !urlValid && <span className="mt-1.5 block text-xs text-red-600">{t("linkInvalid")}</span>}
-        </label>
+        </FormField>
         {urlValid && <LinkPreviewCard href={cleanUrl} preview={mockPreviewForUrl(cleanUrl)} layout="row" />}
 
         <div className="grid grid-cols-[1fr_auto] gap-3">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium">{t("totalLabel")}</span>
+          <FormField label={t("totalLabel")}>
             <span className="relative block">
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">{f.currencySymbol(currency)}</span>
+              {/* Plain text field (no number stepper) – digits only. */}
               <input
-                type="number"
-                inputMode="numeric"
-                min={1}
+                type="text"
+                inputMode="decimal"
                 autoFocus={Boolean(link)}
                 value={total}
-                onChange={(e) => setTotal(e.target.value)}
+                onChange={(e) => setTotal(e.target.value.replace(/[^\d.]/g, ""))}
                 placeholder={t("totalPlaceholder")}
-                className={cn(inputClass, "pl-11")}
+                className={cn(formInput, "pl-11 tabular-nums")}
               />
             </span>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium">{t("currency")}</span>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-              className={cn(inputClass, "w-auto pr-8")}
-            >
+          </FormField>
+          <FormField label={t("currency")}>
+            <Select fit value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
               {CURRENCIES.map((code) => (
                 <option key={code} value={code}>
                   {code}
                 </option>
               ))}
-            </select>
-          </label>
-          <span className="col-span-2 -mt-1.5 block text-xs text-muted">{t("currencyHint")}</span>
+            </Select>
+          </FormField>
+          <span className="col-span-2 -mt-1.5 block text-[13px] text-muted">{t("currencyHint")}</span>
         </div>
 
-        <div role="group" aria-label={t("splitBetween")}>
-          <span className="mb-1.5 block text-sm font-medium">{t("splitBetween")}</span>
+        <FormField label={t("splitBetween")} group helper={t("occupancy", { people: f.people(crewSize), spots: f.spots(stay.spotsTotal) })}>
           <div className="flex flex-wrap gap-2">
             {spotChoices.map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-pressed={spots === n}
-                onClick={() => setSpots(n)}
-                className={cn(
-                  "min-w-12 flex-1 rounded-full border px-4 py-2 text-sm transition-colors",
-                  spots === n ? "border-ink bg-ink text-surface" : "border-line bg-surface hover:bg-bg",
-                )}
-              >
+              <Chip key={n} active={spots === n} size="fit" onClick={() => setSpots(n)} className="min-w-12 flex-1">
                 {n}
-              </button>
+              </Chip>
             ))}
           </div>
-          <span className="mt-1.5 block text-xs text-muted">
-            {t("occupancy", { people: f.people(crewSize), spots: f.spots(stay.spotsTotal) })}
-          </span>
-        </div>
+        </FormField>
 
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">{t("payBy")}</span>
+        <FormField label={t("payBy")} helper={t("payByHint")}>
           <input
             type="date"
             value={payBy}
             min={today()}
             max={stay.startDate || undefined}
             onChange={(e) => setPayBy(e.target.value)}
-            className={inputClass}
+            className={formInput}
           />
-          <span className="mt-1.5 block text-xs text-muted">{t("payByHint")}</span>
-        </label>
+        </FormField>
 
-        <div className="rounded-2xl bg-bg p-4">
+        {/* The split, as plain text under a line – no box inside the sheet. */}
+        <div className="border-t border-line pt-4">
           <p className="text-sm font-medium tabular-nums text-ink">
             {perPerson === 0
               ? t("previewEmpty")
@@ -186,16 +165,16 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
           <p className="mt-1 text-[13px] text-muted">{t("hint")}</p>
         </div>
 
-        <button type="submit" disabled={!canSubmit} className={buttonClass("dark", "lg", "w-full")}>
+        <Button type="submit" size="lg" disabled={!canSubmit} className="w-full">
           {busy ? (
-            <Loader2 className="size-5 animate-spin" aria-label={t("locking")} />
+            <Loader2 className="animate-spin" aria-label={t("locking")} />
           ) : (
             <>
-              <Lock className="size-4" />
+              <Lock aria-hidden />
               {t("submit")}
             </>
           )}
-        </button>
+        </Button>
       </form>
     </Sheet>
   );

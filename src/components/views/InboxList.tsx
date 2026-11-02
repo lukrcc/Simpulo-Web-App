@@ -7,8 +7,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListRow } from "@/components/ui/ListRow";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useMessageText } from "@/i18n/events";
@@ -90,9 +91,9 @@ function InboxContent() {
             title={t("emptyTitle")}
             description={t("emptyDescription")}
             action={
-              <Link href="/" className={buttonClass("dark", "sm")}>
+              <Button href="/" variant="secondary">
                 {t("explore")}
-              </Link>
+              </Button>
             }
           />
         }
@@ -105,7 +106,7 @@ function InboxContent() {
     items.length > 0 && (
       <section className="mt-5">
         <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">{label}</h2>
-        <ul className="space-y-0.5">
+        <ul className="divide-y divide-line">
           {items.map((row) => (
             <li key={row.thread.id}>
               <ThreadRowLink row={row} active={isDesktop && row.thread.id === activeId} isDesktop={isDesktop} />
@@ -121,7 +122,7 @@ function InboxContent() {
       detailFill
       list={
         <>
-          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 focus-within:border-accent">
+          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 transition-shadow focus-within:ring-2 focus-within:ring-accent">
             <Search className="size-4 shrink-0 text-muted" aria-hidden />
             <input
               type="search"
@@ -129,7 +130,7 @@ function InboxContent() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("searchPlaceholder")}
               aria-label={t("searchLabel")}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
             />
           </label>
           {group(t("crews"), crews)}
@@ -176,27 +177,29 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/inbox?id=${thread.id}` : `/inbox/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("flex h-16 items-center gap-3 rounded-2xl px-3 transition-colors", active ? "bg-surface shadow-xs" : "hover:bg-ink/[0.03]")}
+      className={cn("block rounded-xl px-3 transition-colors", active ? "bg-surface shadow-xs" : "hover:bg-ink/[0.03]")}
     >
-      {avatar ? (
-        <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={44} className="size-11 bg-line" />
-      ) : (
-        <span className="size-11 shrink-0 rounded-full bg-bg" />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className={cn("min-w-0 truncate text-sm", unread ? "font-bold" : "font-semibold")}>
-            {title}
-            {/* Direct chats: the House they're about, on the same line. */}
-            {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
-          </p>
-          {time && <span className="shrink-0 text-xs text-muted">{time}</span>}
-        </div>
-        <div className="flex items-center gap-2">
-          <p className={cn("min-w-0 flex-1 truncate text-sm", unread ? "font-medium text-ink" : "text-muted")}>{preview}</p>
-          {unread && <span className="size-2.5 shrink-0 rounded-full bg-ink" aria-label={t("unread")} />}
-        </div>
-      </div>
+      <ListRow
+        lead={
+          avatar ? (
+            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={40} className="size-10 bg-line" />
+          ) : (
+            <span className="size-10 shrink-0 rounded-full bg-bg" />
+          )
+        }
+        title={
+          <span className="flex items-baseline justify-between gap-2">
+            <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>
+              {title}
+              {/* Direct chats: the House they're about, on the same line. */}
+              {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
+            </span>
+            {time && <span className="shrink-0 text-xs text-muted">{time}</span>}
+          </span>
+        }
+        subtitle={<span className={unread ? "font-medium text-ink" : undefined}>{preview}</span>}
+        aside={unread && <span className="size-2.5 shrink-0 rounded-full bg-ink" role="img" aria-label={t("unread")} />}
+      />
     </Link>
   );
 }

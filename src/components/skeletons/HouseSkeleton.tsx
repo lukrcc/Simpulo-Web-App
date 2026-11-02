@@ -27,12 +27,12 @@ export function HouseSkeleton() {
           <div className="mt-10 aspect-8/5 rounded-[24px] bg-ink/5" />
         </div>
         <div className="hidden space-y-6 lg:col-span-5 lg:block">
-          <div className="space-y-3 rounded-[24px] bg-surface p-6">
+          <div className="space-y-3 rounded-xl border border-line bg-surface p-6">
             <Bone className="h-7 w-1/2" />
             <Bone className="h-4 w-2/3" />
             <Bone className="mt-6 h-12" />
           </div>
-          <div className="flex items-center gap-4 rounded-[24px] bg-surface p-6">
+          <div className="flex items-center gap-4 rounded-xl border border-line bg-surface p-6">
             <Bone className="size-14 shrink-0" />
             <div className="flex-1 space-y-2">
               <Bone className="h-5 w-1/3" />

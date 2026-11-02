@@ -2,12 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { cardClass } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
 /*
  * Shared building blocks of the form pages (Open a House, Edit profile, Settings) so they look and behave the same:
- * a 1120px container, a form column + 360px sticky preview column, white section cards, labelled fields with a
- * muted "Optional", one input style, a segmented step bar and a sticky footer bar inside the form column.
+ * a 1120px container, a form column + 360px sticky preview column, section cards (cardClass), fields with a 14px
+ * muted label above, a muted "Optional", one 44px input style, 13px helper text below, a thin progress bar and a
+ * sticky footer bar inside the form column (one primary button in it).
  */
 
 /**
@@ -15,7 +17,7 @@ import { cn } from "@/lib/utils";
  * "wide" (Open a House): 1280px, for the 400px preview column.
  */
 export function FormContainer({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cn("mx-auto w-full px-4 pt-6 md:px-8 md:pt-10", wide ? "max-w-[1280px]" : "max-w-[1120px]", className)}>{children}</div>;
+  return <div className={cn("mx-auto w-full px-4 pt-6 md:px-8 md:pt-8", wide ? "max-w-[1280px]" : "max-w-[1120px]", className)}>{children}</div>;
 }
 
 /**
@@ -24,15 +26,11 @@ export function FormContainer({ children, className, wide = false }: { children:
  */
 export function FormGrid({ form, preview, wide = false }: { form: ReactNode; preview?: ReactNode; wide?: boolean }) {
   return (
-    <div className={cn("lg:grid lg:gap-10", wide ? "lg:grid-cols-[minmax(0,1fr)_400px]" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
+    <div className={cn("lg:grid lg:items-start lg:gap-10", wide ? "lg:grid-cols-[minmax(0,1fr)_400px]" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
       <div className="min-w-0">{form}</div>
       {preview && (
-        <aside
-          className={cn(
-            "hidden self-start lg:sticky lg:block",
-            wide ? "lg:top-[calc(var(--header-h)+24px)] lg:max-h-[calc(100dvh-var(--header-h)-48px)]" : "lg:top-[calc(var(--header-h)+32px)]",
-          )}
-        >
+        // Starts level with the form's first card; sticky 32px under the header.
+        <aside className={cn("hidden self-start lg:sticky lg:top-[calc(var(--header-h)+32px)] lg:block", wide && "lg:max-h-[calc(100dvh-var(--header-h)-64px)]")}>
           {preview}
         </aside>
       )}
@@ -51,13 +49,13 @@ export function FormHeader({ title, back, aside }: { title: string; back?: React
   );
 }
 
-/** A white section card with a small heading. `id` lets checklists jump to it. */
+/** A section card (cardClass) with a 16px/500 heading. `id` lets checklists jump to it. Never nest cards inside. */
 export function FormCard({ title, description, id, children, className }: { title?: string; description?: ReactNode; id?: string; children: ReactNode; className?: string }) {
   return (
-    <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)] space-y-4 rounded-[24px] bg-surface p-6", className)}>
+    <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)] space-y-4", cardClass, className)}>
       {(title || description) && (
         <div>
-          {title && <h2 className="text-base font-semibold">{title}</h2>}
+          {title && <h2 className="text-base font-medium text-ink">{title}</h2>}
           {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
         </div>
       )}
@@ -81,17 +79,19 @@ interface FormFieldProps {
   group?: boolean;
   /** Content right of the label row (e.g. a counter) */
   aside?: ReactNode;
+  /** The label in ink 15px/500 (one-question steps) instead of 14px muted */
+  prominent?: boolean;
   id?: string;
   children: ReactNode;
 }
 
-export function FormField({ label, optional = false, helper, error, group = false, aside, id, children }: FormFieldProps) {
+export function FormField({ label, optional = false, helper, error, group = false, aside, prominent = false, id, children }: FormFieldProps) {
   const t = useTranslations("common.ui.form");
   const Wrapper = group ? "div" : "label";
   return (
     <Wrapper id={id} className="block scroll-mt-[calc(var(--header-h)+32px)]" {...(group ? { role: "group", "aria-label": label } : {})}>
       <span className="mb-1.5 flex items-baseline justify-between gap-3">
-        <span className="text-sm font-medium text-ink">{label}</span>
+        <span className={prominent ? "text-[15px] font-medium text-ink" : "text-sm text-muted"}>{label}</span>
         {aside ?? (optional && <span className="text-xs text-muted">{t("optional")}</span>)}
       </span>
       {children}
@@ -106,44 +106,39 @@ export function FormField({ label, optional = false, helper, error, group = fals
   );
 }
 
-/** The one input style of the form pages: h-11, rounded-xl, warm grey fill, soft focus ring. */
+/**
+ * The one field style of the app: 44px, rounded-xl, surface background, 1px line border, accent focus ring, ink 15px
+ * text (red border when aria-invalid). For inputs, native selects and field-like triggers (Combobox, date range).
+ * Numbers are typed (inputMode="numeric") – never steppers; the global CSS hides number spinners.
+ */
 export const formInput =
-  "h-11 w-full rounded-xl border border-line bg-bg px-4 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
-/** Textarea variant (auto-grow is up to the caller). */
+  "h-11 w-full rounded-xl border border-line bg-surface px-4 text-[15px] text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
+/** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
-/** Segmented progress: equal segments, filled dark up to the current step, 13px labels underneath. */
-export function StepProgress({ steps, current, reachable = current, onSelect }: { steps: string[]; current: number; reachable?: number; onSelect?: (step: number) => void }) {
+/** A thin progress bar (accent fill) with "Step N of 9" above it – no step labels. */
+export function FlowProgress({ value, label, className }: { /** 0–1 */ value: number; label: string; className?: string }) {
   return (
-    <ol className="mb-6 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-      {steps.map((label, i) => {
-        const done = i <= current;
-        const canJump = Boolean(onSelect) && i <= reachable && i !== current;
-        return (
-          <li key={label}>
-            <button
-              type="button"
-              disabled={!canJump}
-              onClick={() => onSelect?.(i)}
-              aria-current={i === current ? "step" : undefined}
-              className="block w-full text-left disabled:cursor-default"
-            >
-              <span className={cn("block h-1.5 rounded-full transition-colors", done ? "bg-ink" : "bg-ink/10")} />
-              <span className={cn("mt-2 block truncate text-[13px]", i === current ? "font-semibold text-ink" : "text-muted")}>{label}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
+    <div className={className}>
+      <p className="mb-2 text-[13px] text-muted" aria-live="polite">
+        {label}
+      </p>
+      <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label} className="h-1 overflow-hidden rounded-full bg-line">
+        <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${value * 100}%` }} />
+      </div>
+    </div>
   );
 }
 
-/** Sticky footer bar inside the form column (above the safe area on phones, 16px off the bottom on desktop). */
+/**
+ * Sticky footer bar inside the form column (above the safe area on phones, 16px off the bottom on desktop): Back /
+ * Cancel as tertiary on the left, the form's one primary (Next, Publish, Save) on the right.
+ */
 export function StickyFormBar({ children, slideIn = false }: { children: ReactNode; /** Slides up when mounted (shown only while there's something to save) */ slideIn?: boolean }) {
   return (
     <div
       className={cn(
-        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-2xl border-t border-line bg-surface/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
+        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-xl border border-line bg-surface/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
         slideIn && "animate-slide-up",
       )}
     >
@@ -152,12 +147,12 @@ export function StickyFormBar({ children, slideIn = false }: { children: ReactNo
   );
 }
 
-/** Right column: "Preview" label (12px uppercase muted) above the preview content. */
+/** Right column: "PREVIEW" as an eyebrow (12px/600, accent, upper case) above the preview content. */
 export function PreviewColumn({ label, children }: { label?: string; children: ReactNode }) {
   const t = useTranslations("common.ui.form");
   return (
     <div>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">{label ?? t("preview")}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-accent">{label ?? t("preview")}</p>
       {children}
     </div>
   );

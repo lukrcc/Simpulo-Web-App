@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Container } from "@/components/layout/Container";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
 
 const ADMIN_NAV = [
   { href: "/admin/growth", key: "growth" },
@@ -19,7 +20,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
   return (
     <Container page>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-surface">{t("devOnly")}</span>
+        <Badge>{t("devOnly")}</Badge>
         <nav className="flex gap-1">
           {ADMIN_NAV.map(({ href, key }) => {
             const active = pathname.startsWith(href);

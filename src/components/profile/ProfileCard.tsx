@@ -6,6 +6,7 @@ import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
+import { cardClass } from "@/components/ui/Card";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import type { User } from "@/lib/types";
@@ -27,7 +28,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
   const f = useFormat();
 
   return (
-    <div className="rounded-[24px] bg-surface p-6">
+    <div className={cardClass}>
       {/* Header: photo left; name, meta and stats right. */}
       <div className="flex items-center gap-4">
         <PersonPhoto src={user.photos[0]} alt={user.name} size={80} className="size-20" />

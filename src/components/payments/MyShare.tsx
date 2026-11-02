@@ -3,8 +3,11 @@
 import { Check, CreditCard } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { ListRow } from "@/components/stay/DetailSection";
 import { PaySheet } from "@/components/stay/PaySheet";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { cardClass } from "@/components/ui/Card";
 import { useFormat } from "@/i18n/format";
 import { getLockDetails, getMyPayment, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -13,39 +16,54 @@ import { cn } from "@/lib/utils";
 /**
  * The current user's own share of a locked House: "Your share: €528 · due Jan 20 · Pay now" while pending,
  * a quiet paid line afterwards. Nothing when they owe nothing (not in the crew, or not locked).
- * `variant="panel"`: the compact form for the joined-House panel ("Paid ✓ · Jan 18").
+ * `variant="panel"`: a list row for Your houses (amount, status badge, Pay now).
  */
 export function MyShare({ stay, variant = "banner", className }: { stay: Stay; variant?: "banner" | "panel"; className?: string }) {
   const t = useTranslations("house.banner");
   const f = useFormat();
   const store = useStore();
   const [paying, setPaying] = useState(false);
+  const tSection = useTranslations("houses.detail.sections");
   const payment = getMyPayment(store, stay.id);
   if (!payment || stay.accommodationStatus !== "locked") return null;
+  const due = stay.payByDate ?? getLockDetails(store, stay)?.payBy;
+
+  // Your houses (Joined → Your payment): one list row – amount, status, Pay now as a tertiary action.
+  if (variant === "panel") {
+    const amount = f.price(payment.total, stay.currency);
+    const paid = payment.status === "paid";
+    return (
+      <div className={className}>
+        <ListRow
+          lead={<CreditCard aria-hidden />}
+          title={amount}
+          subtitle={paid && payment.paidAt ? t("paidOn", { date: f.day(payment.paidAt) }) : due ? tSection("payBy", { date: f.day(due) }) : undefined}
+          aside={<StatusBadge status={paid ? "paid" : "pending"} />}
+          action={
+            !paid && (
+              <Button variant="tertiary" onClick={() => setPaying(true)}>
+                {t("payNow")}
+              </Button>
+            )
+          }
+        />
+        <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
+      </div>
+    );
+  }
 
   if (payment.status === "paid") {
     return (
       <p className={cn("flex items-center gap-1.5 text-sm text-muted", className)}>
         <Check className="size-4 text-emerald-600" aria-hidden />
-        {variant === "panel" && payment.paidAt ? t("paidOn", { date: f.day(payment.paidAt) }) : t("paid")}
+        {t("paid")}
       </p>
     );
   }
 
-  const due = stay.payByDate ?? getLockDetails(store, stay)?.payBy;
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-3",
-        variant === "banner" ? "rounded-2xl bg-surface p-4" : "rounded-2xl bg-bg p-4",
-        className,
-      )}
-    >
-      {variant === "banner" && (
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
-          <CreditCard className="size-5" aria-hidden />
-        </span>
-      )}
+    <div className={cn(cardClass, "flex flex-wrap items-center gap-3", className)}>
+      <CreditCard className="size-5 shrink-0 text-muted" aria-hidden />
       <p className="min-w-0 flex-1 text-sm text-ink">
         {t.rich("yourShare", {
           amount: f.price(payment.total, stay.currency),
@@ -53,9 +71,9 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
           b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
         })}
       </p>
-      <button type="button" onClick={() => setPaying(true)} className={buttonClass("dark", "sm", "shrink-0")}>
+      <Button variant="secondary" onClick={() => setPaying(true)}>
         {t("payNow")}
-      </button>
+      </Button>
       <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
     </div>
   );

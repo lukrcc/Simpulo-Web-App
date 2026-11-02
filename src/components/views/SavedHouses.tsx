@@ -8,8 +8,10 @@ import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
 import { StayCard } from "@/components/StayCard";
 import { Avatar } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListRow } from "@/components/ui/ListRow";
+import { Switch } from "@/components/ui/Switch";
 import { findUser, getCrew, getCurrentUser, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -51,10 +53,11 @@ function SavedContent() {
             icon={Heart}
             title={t("emptyTitle")}
             description={t("emptyDescription")}
+            // Secondary: the header's "Open a House" is this page's one primary.
             action={
-              <Link href="/" className={buttonClass("dark", "sm")}>
+              <Button href="/" variant="secondary" size="md">
                 {t("explore")}
-              </Link>
+              </Button>
             }
           />
         </div>
@@ -64,7 +67,7 @@ function SavedContent() {
   );
 }
 
-/** Hosts with alerts on ("Notify me" on their profile) as rows with a switch. */
+/** Hosts with alerts on ("Notify me" on their profile) as ListRows with a switch. */
 function HostAlerts() {
   const t = useTranslations("houses.hostAlerts");
   const store = useStore();
@@ -84,26 +87,21 @@ function HostAlerts() {
         {hosts.map((host) => {
           const on = alertIds.includes(host.id);
           return (
-            <li key={host.id} className="flex items-center gap-3 py-2.5">
-              <Avatar user={host} size="md" linked />
-              <Link href={`/u/${host.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline">
-                {host.name}
-              </Link>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={on}
-                aria-label={t("notifyLabel", { name: host.name.split(" ")[0] })}
-                onClick={() => store.toggleHostAlert(host.id)}
-                className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted"
-              >
-                {t("notifyMe")}
-                <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-ink" : "bg-line")}>
-                  <span
-                    className={cn("absolute left-0 top-0.5 size-4 rounded-full bg-surface shadow transition-transform", on ? "translate-x-4.5" : "translate-x-0.5")}
-                  />
-                </span>
-              </button>
+            <li key={host.id}>
+              <ListRow
+                lead={<Avatar user={host} size="md" linked />}
+                title={
+                  <Link href={`/u/${host.id}`} className="hover:underline">
+                    {host.name}
+                  </Link>
+                }
+                action={
+                  <span className="flex items-center gap-1 text-[13px] text-muted">
+                    <span aria-hidden>{t("notifyMe")}</span>
+                    <Switch on={on} label={t("notifyLabel", { name: host.name.split(" ")[0] })} onChange={() => store.toggleHostAlert(host.id)} />
+                  </span>
+                }
+              />
             </li>
           );
         })}

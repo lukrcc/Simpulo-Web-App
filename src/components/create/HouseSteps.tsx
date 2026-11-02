@@ -1,24 +1,25 @@
 "use client";
 
-import { Check, ChevronUp, Circle, Link2, Minus, Plus, Search, X } from "lucide-react";
-import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
-import { FormCard, FormCards, FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { StepNumber } from "@/components/GetTheApp";
+import { Check, ChevronDown, Link2, Minus, Plus, Sparkles, Users, X, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
+import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
+import { suggestionChipClass } from "@/components/form/chips";
 import { Avatar } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Chip } from "@/components/ui/Chip";
 import { Combobox } from "@/components/ui/Combobox";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
-import { Img } from "@/components/ui/Img";
-import { PhotoUploader } from "@/components/ui/PhotoUploader";
+import { ListRow } from "@/components/ui/ListRow";
 import { RangeSlider } from "@/components/ui/RangeSlider";
-import { chipActiveClass, chipClass, chipInactiveClass } from "@/components/form/chips";
+import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
+import { hostProgrammeEarning } from "@/lib/fees";
 import { linkDomain } from "@/lib/mock-extras";
-import type { PersonEntry } from "@/lib/store";
 import type { Currency, Stay, User, Vibe } from "@/lib/types";
-import { CURRENCIES, VIBES, cn, countryNames, nightsBetween } from "@/lib/utils";
+import { CURRENCIES, VIBES, addDays, addMonths, cn, nightsBetween } from "@/lib/utils";
 import {
   BUDGET_SCALE,
   CUSTOM_VIBE_MAX,
@@ -26,284 +27,353 @@ import {
   LOOKING_FOR_MAX,
   MAX_IDEAS,
   MAX_NIGHTS,
-  PITCH_FIELDS,
+  SPOTS_MAX,
+  SPOTS_QUICK,
   fieldId,
   isLink,
-  joinDayParts,
-  pitchCount,
   suggestionVibe,
-  type About,
-  type AboutField,
   type FieldKey,
   type FormState,
+  type HouseTemplate,
+  type StepKey,
 } from "./model";
-import { WHERE_OPTIONS, areaOptions, placeOf, regionShortName } from "./places";
+import { PlaceSearch } from "./PlaceSearch";
+import { regionShortName } from "./places";
 
-export type Update = <K extends keyof FormState>(key: K, value: FormState[K]) => void;
 /** Several fields at once (e.g. region + area from one pick) */
 export type Patch = (patch: Partial<FormState>) => void;
 
-/** Shared by the steps: the visible error of a field (null until touched / Next attempted) and marking it touched. */
-export interface FieldHelpers {
+/** Shared by the steps: the form, the visible error of a field (null until touched / Next tried) and marking it touched. */
+export interface StepProps {
+  form: FormState;
+  patch: Patch;
   errorOf: (key: FieldKey) => string | null;
   touch: (key: FieldKey) => void;
 }
 
-// No class merging here, so active and inactive each set their own background.
-/** Smaller tap-to-insert suggestion chips (starters, title ideas, card note examples) */
-const suggestionClass =
-  "max-w-full truncate rounded-full border border-dashed border-line bg-surface px-3 py-1.5 text-[13px] text-muted transition-colors hover:bg-bg hover:text-ink";
-
-/* ───────────────────────── 1 · The House ───────────────────────── */
-
-interface HouseStepProps extends FieldHelpers {
-  form: FormState;
-  update: Update;
-  patch: Patch;
-  minSpots: number;
-  /** Earliest start (tomorrow), "" before hydration */
-  minStart: string;
-  languages: { own: string[]; common: string[] };
-  language: string;
-  currency: Currency;
-  /** Editing a House whose place is locked: price and currency are managed on the Manage page. */
-  locked: boolean;
-  /** Title length limit: 28 for a new House, 60 when editing (see titleMaxFor) */
-  titleMax: number;
-  /** Host fee: only hosts who may charge one can set it; `max` = 30 % of the lowest share (unknown without a budget).
-   *  Unset (feature flag hostPremium off): no host fee field at all. */
-  hostFee?: { allowed: boolean; max?: number };
-}
-
-export function HouseStep({ form, update, patch, minSpots, minStart, languages, language, currency, locked, titleMax, hostFee, errorOf, touch }: HouseStepProps) {
-  const t = useTranslations("create.house");
-  const format = useFormat();
-  const areas = areaOptions(form.region);
-  const titles = useTitleSuggestions(form, titleMax);
-  const dateError = errorOf("startDate") ?? errorOf("endDate");
-
+/** A tap-to-use suggestion chip; the one in use gets an ink border. */
+function SuggestionChip({ label, active = false, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
-    <FormCards>
-      <FormCard title={t("cards.vibe")} description={t("vibeHint")}>
-        <VibePicker form={form} patch={patch} />
-      </FormCard>
-
-      <FormCard title={t("cards.where")}>
-        <FormField id={fieldId("region")} label={t("where")} error={errorOf("region")} group>
-          <Combobox
-            aria-label={t("where")}
-            value={form.region}
-            options={WHERE_OPTIONS}
-            onPick={(option) => {
-              const place = placeOf(option);
-              // Picking an area directly fills both; a region leaves the area open.
-              patch({ region: place.region, city: place.city ?? "", cityOpen: !place.city });
-              touch("region");
-            }}
-            onFreeText={(text) => {
-              if (text !== form.region) patch({ region: text, city: "", cityOpen: true });
-              touch("region");
-            }}
-            isSelected={(option) => {
-              const place = placeOf(option);
-              return place.region === form.region && (place.city === undefined || place.city === form.city);
-            }}
-            placeholder={t("wherePlaceholder")}
-            empty={t("whereEmpty")}
-            invalid={Boolean(errorOf("region"))}
-            onBlur={() => touch("region")}
-          />
-        </FormField>
-        {form.region.trim() && (
-          <FormField label={t("area")} optional group>
-            <Combobox
-              aria-label={t("area")}
-              value={form.cityOpen ? t("stillOpen") : form.city}
-              pinned={{ value: "__open", label: t("stillOpen"), hint: t("stillOpenHint") }}
-              options={areas}
-              onPick={(option) => patch(option.value === "__open" ? { city: "", cityOpen: true } : { city: option.label, cityOpen: false })}
-              onFreeText={(text) => patch({ city: text, cityOpen: false })}
-              isSelected={(option) => (option.value === "__open" ? form.cityOpen : !form.cityOpen && option.label === form.city)}
-              placeholder={t("areaPlaceholder")}
-              empty={t("areaEmpty")}
-            />
-          </FormField>
-        )}
-        <FormField id={fieldId("startDate")} label={t("when")} error={dateError} group>
-          {/* Jump target for end-date problems – the one control covers both dates. */}
-          <span id={fieldId("endDate")} className="block">
-            <DateRangePicker
-              start={form.startDate}
-              end={form.endDate}
-              min={minStart}
-              maxNights={MAX_NIGHTS}
-              invalid={Boolean(dateError)}
-              onChange={(start, end) => {
-                patch({ startDate: start, endDate: end });
-                if (end) {
-                  touch("startDate");
-                  touch("endDate");
-                }
-              }}
-              onClose={() => {
-                touch("startDate");
-                touch("endDate");
-              }}
-            />
-          </span>
-        </FormField>
-      </FormCard>
-
-      <FormCard title={t("cards.title")}>
-        <FormField
-          id={fieldId("title")}
-          label={t("title")}
-          error={errorOf("title")}
-          aside={<span className="text-xs tabular-nums text-muted">{t("titleCount", { count: form.title.trim().length, max: titleMax })}</span>}
-          helper={titles.length > 0 ? t("titleSuggestionsHint") : t("titleSuggestionsLater")}
-        >
-          <input
-            className={formInput}
-            value={form.title}
-            onChange={(e) => update("title", e.target.value)}
-            onBlur={() => touch("title")}
-            placeholder={titles[0] ?? t("titlePlaceholder")}
-            maxLength={titleMax}
-            aria-invalid={Boolean(errorOf("title")) || undefined}
-          />
-        </FormField>
-        {titles.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {titles.map((title) => (
-              <button
-                key={title}
-                type="button"
-                onClick={() => {
-                  update("title", title);
-                  touch("title");
-                }}
-                aria-pressed={form.title === title}
-                className={cn(suggestionClass, form.title === title && "border-solid border-ink bg-ink text-surface hover:bg-ink hover:text-surface")}
-              >
-                {title}
-              </button>
-            ))}
-          </div>
-        )}
-      </FormCard>
-
-      <FormCard title={t("cards.crew")}>
-        <FormField id={fieldId("spotsTotal")} label={t("crewSize")} error={errorOf("spotsTotal")} group>
-          <div className="flex gap-1 rounded-xl border border-line bg-bg p-1">
-            {[2, 3, 4, 5, 6].map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-pressed={form.spotsTotal === n}
-                disabled={n < minSpots}
-                onClick={() => update("spotsTotal", n)}
-                className={cn(
-                  "h-9 flex-1 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                  form.spotsTotal === n ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
-                )}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </FormField>
-        <FormField label={t("language")} helper={t("languageHint")}>
-          <select className={formInput} value={language} onChange={(e) => update("language", e.target.value)}>
-            <optgroup label={t("languagesYours")}>
-              {languages.own.map((code) => (
-                <option key={code} value={code}>
-                  {format.language(code)}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label={t("languagesOther")}>
-              {languages.common.map((code) => (
-                <option key={code} value={code}>
-                  {format.language(code)}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </FormField>
-      </FormCard>
-
-      <FormCard title={t("cards.budget")}>
-        {locked ? <p className="text-sm text-muted">{t("lockedNote")}</p> : <BudgetField form={form} patch={patch} currency={currency} />}
-        {hostFee && <HostFeeField form={form} update={update} currency={currency} {...hostFee} errorOf={errorOf} touch={touch} />}
-      </FormCard>
-
-      {/* Optional: the crew's own WhatsApp / Telegram group – shown to confirmed members once the crew is complete. */}
-      <FormCard title={t("cards.crewGroup")}>
-        <FormField id={fieldId("crewGroupUrl")} label={t("crewGroupUrl")} helper={t("crewGroupHelper")} error={errorOf("crewGroupUrl")} optional>
-          <input
-            className={formInput}
-            value={form.crewGroupUrl}
-            onChange={(e) => update("crewGroupUrl", e.target.value)}
-            onBlur={() => touch("crewGroupUrl")}
-            placeholder="https://chat.whatsapp.com/…"
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            aria-invalid={Boolean(errorOf("crewGroupUrl")) || undefined}
-          />
-        </FormField>
-      </FormCard>
-    </FormCards>
+    <button type="button" onClick={onClick} aria-pressed={active} className={cn(suggestionChipClass, active ? "border-ink" : "border-line")}>
+      {label}
+    </button>
   );
 }
 
+/** A field's error line under a group of chips (FormField shows it for single fields). */
+function ErrorLine({ text }: { text: string | null }) {
+  return text ? (
+    <p role="alert" className="text-[13px] text-red-600">
+      {text}
+    </p>
+  ) : null;
+}
+
+/* ───────────────────────── 1 · Vibe ───────────────────────── */
+
 /** The vibe chips (single select) plus "+ Custom", which turns into a small inline input. */
-function VibePicker({ form, patch }: { form: FormState; patch: Patch }) {
+export function VibeStep({ form, patch, errorOf }: StepProps) {
   const t = useTranslations("create.house");
   const format = useFormat();
   const custom = form.customVibe !== null;
   return (
-    <div role="group" aria-label={t("cards.vibe")} className="flex flex-wrap gap-2">
-      {VIBES.map((v) => {
-        const active = !custom && form.vibe === v.key;
-        return (
-          <button
-            key={v.key}
-            type="button"
-            aria-pressed={active}
-            onClick={() => patch({ vibe: v.key, customVibe: null })}
-            className={cn(chipClass, active ? chipActiveClass : chipInactiveClass)}
-          >
+    <div id={fieldId("vibe")} className="space-y-3">
+      <div role="group" aria-label={t("vibe")} className="flex flex-wrap gap-2">
+        {VIBES.map((v) => (
+          <Chip key={v.key} active={!custom && form.vibe === v.key} onClick={() => patch({ vibe: v.key, customVibe: null })}>
             {format.vibe(v.key)}
-          </button>
-        );
-      })}
-      {custom ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-ink bg-surface py-0.5 pl-4 pr-1">
-          <input
-            autoFocus
-            value={form.customVibe ?? ""}
-            maxLength={CUSTOM_VIBE_MAX}
-            onChange={(e) => patch({ customVibe: e.target.value })}
-            placeholder={t("customPlaceholder")}
-            aria-label={t("customLabel")}
-            className="h-8 w-32 bg-transparent text-sm outline-none placeholder:text-muted"
+          </Chip>
+        ))}
+        {custom ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-ink bg-surface py-0.5 pl-4 pr-1">
+            <input
+              autoFocus
+              value={form.customVibe ?? ""}
+              maxLength={CUSTOM_VIBE_MAX}
+              onChange={(e) => patch({ customVibe: e.target.value })}
+              placeholder={t("customPlaceholder")}
+              aria-label={t("customLabel")}
+              className="h-8 w-32 bg-transparent text-sm outline-none placeholder:text-muted"
+            />
+            <Button variant="tertiary" onClick={() => patch({ customVibe: null })} aria-label={t("customRemove")} className="size-8">
+              <X />
+            </Button>
+          </span>
+        ) : (
+          <Chip active={false} icon={<Plus aria-hidden />} onClick={() => patch({ customVibe: "" })}>
+            {t("custom")}
+          </Chip>
+        )}
+      </div>
+      <ErrorLine text={errorOf("vibe")} />
+    </div>
+  );
+}
+
+/* ───────────────────────── 2 · Where ───────────────────────── */
+
+export function WhereStep({ form, patch, errorOf, touch }: StepProps) {
+  const t = useTranslations("create.house");
+  return (
+    <div className="space-y-5">
+      <FormField id={fieldId("region")} label={t("where")} error={errorOf("region")} group prominent>
+        <PlaceSearch
+          kind="region"
+          aria-label={t("where")}
+          value={form.region}
+          onPick={(place) => {
+            // Picking an area directly fills both; a region keeps the area only if it's the same region.
+            patch({ region: place.region, city: place.city ?? (place.region === form.region ? form.city : "") });
+            touch("region");
+          }}
+          onFreeText={(text) => {
+            if (text !== form.region) patch({ region: text, city: "" });
+            touch("region");
+          }}
+          placeholder={t("wherePlaceholder")}
+          empty={t("whereEmpty")}
+          invalid={Boolean(errorOf("region"))}
+          onBlur={() => touch("region")}
+        />
+      </FormField>
+      {form.region.trim() && (
+        <FormField label={t("area")} optional group prominent>
+          <PlaceSearch
+            kind="area"
+            within={form.region}
+            aria-label={t("area")}
+            value={form.city}
+            onPick={(place) => patch({ city: place.city ?? place.label })}
+            onFreeText={(text) => patch({ city: text })}
+            placeholder={t("areaPlaceholder")}
+            empty={t("areaEmpty")}
           />
-          <button
-            type="button"
-            onClick={() => patch({ customVibe: null })}
-            aria-label={t("customLabel")}
-            className="flex size-8 items-center justify-center rounded-full text-muted hover:bg-ink/5"
-          >
-            <X className="size-3.5" />
-          </button>
+        </FormField>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────── 3 · When ───────────────────────── */
+
+const QUICK_DATES = [
+  { key: "week", end: (start: string) => addDays(start, 7) },
+  { key: "twoWeeks", end: (start: string) => addDays(start, 14) },
+  { key: "month", end: (start: string) => addMonths(start, 1) },
+] as const;
+
+export function WhenStep({ form, patch, errorOf, touch, minStart }: StepProps & { /** Earliest start (tomorrow), "" before hydration */ minStart: string }) {
+  const t = useTranslations("create.house");
+  const tQuick = useTranslations("common.ui.dateRange.quick");
+  const dateError = errorOf("startDate") ?? errorOf("endDate");
+  // Quick picks run from the chosen start – or from the earliest one when none is chosen yet.
+  const from = form.startDate || minStart;
+  return (
+    <div className="space-y-4">
+      <FormField id={fieldId("startDate")} label={t("when")} error={dateError} group prominent>
+        {/* Jump target for end-date problems – the one control covers both dates. */}
+        <span id={fieldId("endDate")} className="block">
+          <DateRangePicker
+            start={form.startDate}
+            end={form.endDate}
+            min={minStart}
+            maxNights={MAX_NIGHTS}
+            invalid={Boolean(dateError)}
+            onChange={(start, end) => {
+              patch({ startDate: start, endDate: end });
+              if (end) {
+                touch("startDate");
+                touch("endDate");
+              }
+            }}
+            onClose={() => {
+              touch("startDate");
+              touch("endDate");
+            }}
+          />
         </span>
-      ) : (
-        <button type="button" onClick={() => patch({ customVibe: "" })} className={cn(chipClass, chipInactiveClass, "inline-flex items-center gap-1")}>
-          <Plus className="size-3.5" aria-hidden />
-          {t("custom")}
-        </button>
+      </FormField>
+      <div role="group" aria-label={t("quickDates")} className="flex flex-wrap gap-2">
+        {QUICK_DATES.map(({ key, end }) => (
+          <Chip
+            key={key}
+            disabled={!from}
+            active={Boolean(form.startDate) && form.endDate === end(form.startDate)}
+            onClick={() => {
+              patch({ startDate: from, endDate: end(from) });
+              touch("startDate");
+              touch("endDate");
+            }}
+          >
+            {tQuick(key)}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────── 4 · Crew size ───────────────────────── */
+
+export function CrewStep({ form, patch, errorOf, minSpots }: StepProps & { /** The crew already in (editing) – it can't get smaller */ minSpots: number }) {
+  const t = useTranslations("create.house");
+  const n = form.spotsTotal;
+  const set = (value: number) => patch({ spotsTotal: Math.min(Math.max(value, minSpots), SPOTS_MAX) });
+  return (
+    <div id={fieldId("spotsTotal")} className="space-y-5">
+      <div className="flex items-center gap-4">
+        <Button variant="secondary" size="lg" icon onClick={() => set(n - 1)} disabled={n <= minSpots} aria-label={t("crewMinus")}>
+          <Minus />
+        </Button>
+        <output aria-live="polite" className="w-14 text-center text-3xl font-semibold tabular-nums">
+          {n}
+        </output>
+        <Button variant="secondary" size="lg" icon onClick={() => set(n + 1)} disabled={n >= SPOTS_MAX} aria-label={t("crewPlus")}>
+          <Plus />
+        </Button>
+        <span className="text-[15px] text-muted">{t("crewUnit")}</span>
+      </div>
+      <div role="group" aria-label={t("crewQuick")} className="flex flex-wrap gap-2">
+        {SPOTS_QUICK.map((size) => (
+          <Chip key={size} active={n === size} disabled={size < minSpots} onClick={() => set(size)}>
+            {size}
+          </Chip>
+        ))}
+      </div>
+      <ErrorLine text={errorOf("spotsTotal")} />
+    </div>
+  );
+}
+
+/* ───────────────────────── 5 · Budget ───────────────────────── */
+
+/** Typed amount with the currency symbol inside the field: digits only, no stepper. */
+function AmountInput({ id, value, onChange, currency, label, invalid, onBlur }: { id?: string; value: string; onChange: (value: string) => void; currency: Currency; label: string; invalid?: boolean; onBlur?: () => void }) {
+  const format = useFormat();
+  return (
+    <span className="relative block">
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-muted">{format.currencySymbol(currency)}</span>
+      <input
+        id={id}
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        onBlur={onBlur}
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        placeholder="0"
+        className={cn(formInput, "pl-11 tabular-nums")}
+      />
+    </span>
+  );
+}
+
+export function BudgetStep({ form, patch, errorOf, touch, currency, locked }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean }) {
+  const t = useTranslations("create.house");
+  const format = useFormat();
+  const scale = BUDGET_SCALE[currency];
+  const empty = !form.budgetMin && !form.budgetMax;
+
+  // Fresh budget: start from the currency's typical range, so the slider and the fields agree from the first look.
+  const fillStart = useEffectEvent(() => patch({ budgetMin: String(scale.start[0]), budgetMax: String(scale.start[1]) }));
+  useEffect(() => {
+    if (!locked && !form.budgetTbd && empty) fillStart();
+  }, [locked, form.budgetTbd, empty]);
+
+  if (locked) return <p className="text-[15px] text-muted">{t("lockedNote")}</p>;
+
+  const clamp = (n: number) => Math.min(Math.max(n, scale.min), scale.max);
+  const low = Number(form.budgetMin) || scale.start[0];
+  const high = Number(form.budgetMax) || scale.start[1];
+  const sliderValue: [number, number] = [clamp(Math.min(low, high)), clamp(Math.max(low, high))];
+  const currencies = CURRENCIES.map((code) => ({ value: code, label: code }));
+
+  return (
+    <div className="space-y-5">
+      <FormField label={t("currencyLabel")} group prominent>
+        <Combobox
+          aria-label={t("currencyLabel")}
+          value={currency}
+          options={currencies}
+          onPick={(option) => {
+            // Another currency means another scale – the range starts over at its defaults.
+            const next = option.value as Currency;
+            if (next !== currency) patch({ currency: next, budgetMin: String(BUDGET_SCALE[next].start[0]), budgetMax: String(BUDGET_SCALE[next].start[1]) });
+          }}
+          isSelected={(option) => option.value === currency}
+          className="max-w-40"
+        />
+      </FormField>
+
+      <div className="flex items-center justify-between gap-3 border-y border-line py-1">
+        <span className="text-[15px] font-medium text-ink">{t("decideTogether")}</span>
+        <Switch on={form.budgetTbd} label={t("decideTogether")} onChange={(on) => patch({ budgetTbd: on })} />
+      </div>
+
+      {!form.budgetTbd && (
+        <div id={fieldId("budget")} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label={t("budgetFrom")} prominent>
+              <AmountInput value={form.budgetMin} onChange={(v) => patch({ budgetMin: v })} currency={currency} label={t("budgetFrom")} invalid={Boolean(errorOf("budget"))} onBlur={() => touch("budget")} />
+            </FormField>
+            <FormField label={t("budgetTo")} prominent>
+              <AmountInput value={form.budgetMax} onChange={(v) => patch({ budgetMax: v })} currency={currency} label={t("budgetTo")} invalid={Boolean(errorOf("budget"))} onBlur={() => touch("budget")} />
+            </FormField>
+          </div>
+          <RangeSlider
+            min={scale.min}
+            max={scale.max}
+            step={scale.step}
+            value={sliderValue}
+            onChange={([min, max]) => patch({ budgetMin: String(min), budgetMax: String(max) })}
+            labels={[t("budgetFrom"), t("budgetTo")]}
+            formatValue={(n) => format.price(n, currency)}
+          />
+          <ErrorLine text={errorOf("budget")} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────── 6 · Title ───────────────────────── */
+
+export function TitleStep({ form, patch, errorOf, touch, titleMax }: StepProps & { titleMax: number }) {
+  const t = useTranslations("create.house");
+  const titles = useTitleSuggestions(form, titleMax);
+  return (
+    <div className="space-y-3">
+      <FormField
+        id={fieldId("title")}
+        label={t("title")}
+        prominent
+        error={errorOf("title")}
+        aside={<span className="text-xs tabular-nums text-muted">{t("titleCount", { count: form.title.length, max: titleMax })}</span>}
+      >
+        <input
+          className={formInput}
+          value={form.title}
+          onChange={(e) => patch({ title: e.target.value })}
+          onBlur={() => touch("title")}
+          placeholder={titles[0] ?? t("titlePlaceholder")}
+          maxLength={titleMax}
+          aria-invalid={Boolean(errorOf("title")) || undefined}
+        />
+      </FormField>
+      {titles.length > 0 && (
+        <div role="group" aria-label={t("titleSuggestions")} className="flex flex-wrap gap-2">
+          {titles.map((title) => (
+            <SuggestionChip
+              key={title}
+              label={title}
+              active={form.title === title}
+              onClick={() => {
+                patch({ title });
+                touch("title");
+              }}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -316,7 +386,7 @@ function useTitleSuggestions(form: FormState, titleMax: number): string[] {
   const vibe: Vibe | "" = form.customVibe !== null ? (customLabel ? "mixed" : "") : form.vibe;
   const region = regionShortName(form.region);
   if (!vibe || !region) return [];
-  const place = !form.cityOpen && form.city.trim() ? form.city.trim() : region;
+  const place = form.city.trim() || region;
   const vibeWord = customLabel ? customLabel.replace(/^\p{Ll}/u, (c) => c.toUpperCase()) : t(`titleVibes.${vibe}`);
   const activity = customLabel || t(`activities.${vibe}`);
   const nights = form.startDate && form.endDate ? nightsBetween(form.startDate, form.endDate) : 0;
@@ -341,276 +411,18 @@ function durationKey(nights: number) {
   return null;
 }
 
-/**
- * Budget per person as a two-handle slider in the House currency (from the host's country – "EUR · change").
- * "Skip – decide together" is on while both ends are empty; dragging turns it off.
- */
-function BudgetField({ form, patch, currency }: { form: FormState; patch: Patch; currency: Currency }) {
-  const t = useTranslations("create.house");
-  const format = useFormat();
-  const [changingCurrency, setChangingCurrency] = useState(false);
-  const scale = BUDGET_SCALE[currency];
-  const skipped = !form.budgetMin && !form.budgetMax;
-  const clamp = (n: number) => Math.min(Math.max(n, scale.min), scale.max);
-  const value: [number, number] = skipped ? scale.start : [clamp(Number(form.budgetMin || form.budgetMax)), clamp(Number(form.budgetMax || form.budgetMin))];
-  const setRange = ([min, max]: [number, number]) => patch({ budgetMin: String(min), budgetMax: String(max) });
+/* ───────────────────────── 7 · Pitch ───────────────────────── */
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-medium">{t("budget")}</p>
-        {changingCurrency ? (
-          <select
-            autoFocus
-            aria-label={t("currencyLabel")}
-            value={currency}
-            onChange={(e) => {
-              // Another currency means another scale – a set range starts over at its defaults.
-              const next = e.target.value as Currency;
-              patch({ currency: next, ...(!skipped && { budgetMin: String(BUDGET_SCALE[next].start[0]), budgetMax: String(BUDGET_SCALE[next].start[1]) }) });
-              setChangingCurrency(false);
-            }}
-            onBlur={() => setChangingCurrency(false)}
-            className="h-8 rounded-lg border border-line bg-bg px-2 text-[13px] outline-none"
-          >
-            {CURRENCIES.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <p className="text-[13px] text-muted">
-            {currency} ·{" "}
-            <button type="button" onClick={() => setChangingCurrency(true)} className="font-medium text-ink underline underline-offset-2">
-              {t("currencyChange")}
-            </button>
-          </p>
-        )}
-      </div>
-
-      <p className={cn("text-xl font-semibold tabular-nums", skipped && "text-muted")} aria-live="polite">
-        {t("budgetRange", { range: format.priceRange(value[0], value[1], currency) })}
-      </p>
-      <RangeSlider
-        min={scale.min}
-        max={scale.max}
-        step={scale.step}
-        value={value}
-        onChange={setRange}
-        muted={skipped}
-        labels={[t("budgetMinLabel"), t("budgetMaxLabel")]}
-        formatValue={(n) => format.price(n, currency)}
-      />
-      <div className="flex justify-between text-xs tabular-nums text-muted">
-        <span>{format.price(scale.min, currency)}</span>
-        <span>{format.price(scale.max, currency)}</span>
-      </div>
-
-      <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 border-t border-line pt-3 text-sm">
-        <span>
-          <span className="block font-medium">{t("skipBudget")}</span>
-          {skipped && <span className="block text-[13px] text-muted">{t("budgetSkipped")}</span>}
-        </span>
-        <input
-          type="checkbox"
-          role="switch"
-          checked={skipped}
-          onChange={(e) => (e.target.checked ? patch({ budgetMin: "", budgetMax: "" }) : setRange(scale.start))}
-          className="peer sr-only"
-        />
-        <span
-          aria-hidden
-          className="relative h-6 w-10 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
-        />
-      </label>
-      <p className="text-[13px] text-muted">{t("currencyHint")}</p>
-    </div>
-  );
-}
-
-/**
- * Optional host fee per person (coaching, guestlists, sessions …), on top of the stay – hosts who may charge one,
- * at most 30 % of the share. Everyone else sees one quiet line instead.
- */
-function HostFeeField({
-  form,
-  update,
-  currency,
-  allowed,
-  max,
-  errorOf,
-  touch,
-}: { form: FormState; update: Update; currency: Currency; allowed: boolean; max?: number } & FieldHelpers) {
-  const t = useTranslations("growth.premium");
-  const format = useFormat();
-  if (!allowed) return <p className="mt-4 border-t border-line pt-4 text-[13px] text-muted">{t("verifiedOnly")}</p>;
-  return (
-    <div className="mt-4 border-t border-line pt-4">
-      <FormField
-        id={fieldId("hostFee")}
-        label={t("fieldLabel")}
-        optional
-        error={errorOf("hostFee")}
-        helper={max !== undefined ? t("fieldHintMax", { max: format.price(max, currency) }) : t("fieldHint")}
-      >
-        <span className="relative block">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-muted">{format.currencySymbol(currency)}</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            step={10}
-            value={form.hostFee}
-            onChange={(e) => update("hostFee", e.target.value)}
-            onBlur={() => touch("hostFee")}
-            aria-invalid={errorOf("hostFee") ? true : undefined}
-            placeholder="0"
-            className={cn(formInput, "pl-11 tabular-nums")}
-          />
-        </span>
-      </FormField>
-    </div>
-  );
-}
-
-/* ───────────────────────── 2 · Your pitch ───────────────────────── */
-
-interface PitchStepProps extends FieldHelpers {
-  form: FormState;
-  update: Update;
-  patch: Patch;
-  showIdeas: boolean;
-}
-
-export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: PitchStepProps) {
+export function PitchStep({ form, patch, errorOf, touch }: StepProps) {
   const t = useTranslations("create.pitch");
   const tStarters = useTranslations("create.starters");
-  const vibe = suggestionVibe(form);
-  const starters = (field: "lookingFor" | "why" | "day") => tStarters.raw(`${vibe}.${field}`) as string[];
-  const lookingForRef = useRef<HTMLTextAreaElement>(null);
-  const whyRef = useRef<HTMLTextAreaElement>(null);
-  const dayRef = useRef<HTMLTextAreaElement>(null);
-  const partLabels: [string, string, string] = [t("dayParts.morning"), t("dayParts.afternoon"), t("dayParts.evening")];
-
-  return (
-    <FormCards>
-      <FormCard title={t("cards.pitch")} description={t("cards.pitchDescription")}>
-        <div className="space-y-2">
-          <FormField
-            id={fieldId("lookingForText")}
-            label={t("lookingFor")}
-            error={errorOf("lookingForText")}
-            helper={t("lookingForHint")}
-            aside={<span className="text-xs tabular-nums text-muted">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
-          >
-            <Starters items={starters("lookingFor")} onPick={(s) => insert("lookingForText", s, lookingForRef)} />
-            <AutoTextarea
-              ref={lookingForRef}
-              rows={2}
-              maxLength={LOOKING_FOR_MAX}
-              value={form.lookingForText}
-              onChange={(e) => update("lookingForText", e.target.value)}
-              onBlur={() => touch("lookingForText")}
-              placeholder={t("lookingForPlaceholder")}
-              aria-invalid={Boolean(errorOf("lookingForText")) || undefined}
-            />
-          </FormField>
-        </div>
-
-        <FormField id={fieldId("whyText")} label={t("why")} optional>
-          <Starters items={starters("why")} onPick={(s) => insert("whyText", s, whyRef)} />
-          <AutoTextarea ref={whyRef} value={form.whyText} onChange={(e) => update("whyText", e.target.value)} placeholder={t("whyPlaceholder")} />
-        </FormField>
-
-        <FormField id={fieldId("dayText")} label={t("day")} optional group>
-          <div className="mb-2 inline-flex rounded-full border border-line bg-bg p-0.5 text-[13px]">
-            {([false, true] as const).map((template) => {
-              const active = (form.dayParts !== null) === template;
-              return (
-                <button
-                  key={String(template)}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => patch({ dayParts: template ? (form.dayParts ?? ["", "", ""]) : null })}
-                  className={cn("h-8 rounded-full px-3 font-medium transition-colors", active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink")}
-                >
-                  {template ? t("dayModeTemplate") : t("dayModeFree")}
-                </button>
-              );
-            })}
-          </div>
-          {form.dayParts ? (
-            <div className="space-y-2">
-              {form.dayParts.map((part, i) => (
-                <label key={i} className="flex items-center gap-3">
-                  <span className="w-20 shrink-0 text-[13px] font-medium text-muted">{partLabels[i]}</span>
-                  <input
-                    className={formInput}
-                    value={part}
-                    maxLength={80}
-                    onChange={(e) => {
-                      const parts = form.dayParts!.map((p, j) => (j === i ? e.target.value : p)) as [string, string, string];
-                      patch({ dayParts: parts, dayText: joinDayParts(parts, partLabels) });
-                    }}
-                    placeholder={t(`dayPartPlaceholders.${(["morning", "afternoon", "evening"] as const)[i]}`)}
-                  />
-                </label>
-              ))}
-            </div>
-          ) : (
-            <>
-              <Starters items={starters("day")} onPick={(s) => insert("dayText", s, dayRef)} />
-              <AutoTextarea ref={dayRef} value={form.dayText} onChange={(e) => update("dayText", e.target.value)} placeholder={t("dayPlaceholder")} />
-            </>
-          )}
-        </FormField>
-      </FormCard>
-
-      <FormCard title={t("cards.hostNote")}>
-        <FormField
-          id={fieldId("hostNote")}
-          label={t("hostNote")}
-          optional
-          aside={<span className="text-xs tabular-nums text-muted">{t("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}
-        >
-          <input
-            className={formInput}
-            value={form.hostNote}
-            maxLength={HOST_NOTE_MAX}
-            onChange={(e) => update("hostNote", e.target.value)}
-            placeholder={t("hostNotePlaceholder")}
-          />
-        </FormField>
-        <div className="flex flex-wrap gap-2">
-          {(t.raw("hostNoteExamples") as string[]).map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => update("hostNote", example)}
-              aria-pressed={form.hostNote === example}
-              className={cn(suggestionClass, form.hostNote === example && "border-solid border-ink bg-ink text-surface hover:bg-ink hover:text-surface")}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </FormCard>
-
-      {/* Create only – after publishing, ideas go straight into the crew chat. */}
-      {showIdeas && (
-        <FormCard title={t("cards.ideas")} description={t("ideasHint")}>
-          <IdeasField ideas={form.accommodationIdeas} onChange={(ideas) => update("accommodationIdeas", ideas)} />
-        </FormCard>
-      )}
-    </FormCards>
-  );
+  const starters = (tStarters.raw(`${suggestionVibe(form)}.lookingFor`) as string[]).slice(0, 3);
+  const ref = useRef<HTMLTextAreaElement>(null);
 
   /** Adds a starter (after what's there) and puts the cursor at the end, ready to finish the sentence. */
-  function insert(key: "lookingForText" | "whyText" | "dayText", starter: string, ref: { current: HTMLTextAreaElement | null }) {
-    const current = form[key].trimEnd();
-    const next = current ? `${current} ${starter}` : starter;
-    update(key, key === "lookingForText" ? next.slice(0, LOOKING_FOR_MAX) : next);
+  function insert(starter: string) {
+    const current = form.lookingForText.trimEnd();
+    patch({ lookingForText: (current ? `${current} ${starter}` : starter).slice(0, LOOKING_FOR_MAX) });
     requestAnimationFrame(() => {
       const el = ref.current;
       if (!el) return;
@@ -618,18 +430,32 @@ export function PitchStep({ form, update, patch, showIdeas, errorOf, touch }: Pi
       el.setSelectionRange(el.value.length, el.value.length);
     });
   }
-}
 
-/** Tap-to-insert sentence starters, shown as "Early risers who…". */
-function Starters({ items, onPick }: { items: string[]; onPick: (starter: string) => void }) {
-  const t = useTranslations("create.pitch");
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("startWith")}>
-      {items.map((starter) => (
-        <button key={starter} type="button" onClick={() => onPick(starter)} className={suggestionClass}>
-          {starter.replace(/[\s–-]+$/, "")}…
-        </button>
-      ))}
+    <div className="space-y-3">
+      <FormField
+        id={fieldId("lookingForText")}
+        label={t("lookingFor")}
+        prominent
+        error={errorOf("lookingForText")}
+        aside={<span className="text-xs tabular-nums text-muted">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
+      >
+        <AutoTextarea
+          ref={ref}
+          rows={3}
+          maxLength={LOOKING_FOR_MAX}
+          value={form.lookingForText}
+          onChange={(e) => patch({ lookingForText: e.target.value })}
+          onBlur={() => touch("lookingForText")}
+          placeholder={t("lookingForPlaceholder")}
+          aria-invalid={Boolean(errorOf("lookingForText")) || undefined}
+        />
+      </FormField>
+      <div role="group" aria-label={t("startWith")} className="flex flex-wrap gap-2">
+        {starters.map((starter) => (
+          <SuggestionChip key={starter} label={`${starter.replace(/[\s–-]+$/, "")}…`} onClick={() => insert(starter)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -657,7 +483,163 @@ function AutoTextarea({ ref, rows = 3, ...props }: Omit<TextareaHTMLAttributes<H
   );
 }
 
-/** One link input to start, "+ Add" up to 3; each valid link gets a placeholder preview row. */
+/* ───────────────────────── 8 · Host experience ───────────────────────── */
+
+interface HostStepProps extends StepProps {
+  currency: Currency;
+  /** Only hosts who may charge one can offer a program */
+  allowed: boolean;
+}
+
+export function HostStep({ form, patch, errorOf, touch, currency, allowed }: HostStepProps) {
+  const t = useTranslations("create.host");
+  const format = useFormat();
+  const program = form.hostExperience === "program" && allowed;
+  const fee = Math.round(Number(form.hostFee)) || 0;
+  const earning = hostProgrammeEarning(fee);
+  const options: Array<{ key: FormState["hostExperience"]; icon: LucideIcon; disabled?: boolean }> = [
+    { key: "rent", icon: Users },
+    { key: "program", icon: Sparkles, disabled: !allowed },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div role="radiogroup" aria-label={t("label")} className="grid gap-3 sm:grid-cols-2">
+        {options.map(({ key, icon: Icon, disabled }) => {
+          const active = form.hostExperience === key && !disabled;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => patch({ hostExperience: key })}
+              className={cn(
+                "flex flex-col items-start gap-3 rounded-xl border bg-surface p-5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                active ? "border-ink ring-1 ring-ink" : "border-line hover:bg-bg",
+              )}
+            >
+              <Icon className="size-6 text-ink" aria-hidden />
+              <span>
+                <span className="block text-[15px] font-medium text-ink">{t(`${key}.title`)}</span>
+                <span className="mt-0.5 block text-[13px] text-muted">{disabled ? t("proOnly") : t(`${key}.text`)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {program && (
+        <div className="space-y-3">
+          <FormField label={t("amount")} prominent error={errorOf("hostFee")}>
+            <AmountInput
+              id={fieldId("hostFee")}
+              value={form.hostFee}
+              onChange={(v) => patch({ hostFee: v })}
+              currency={currency}
+              label={t("amount")}
+              invalid={Boolean(errorOf("hostFee"))}
+              onBlur={() => touch("hostFee")}
+            />
+          </FormField>
+          {fee > 0 && (
+            <p className="text-[15px] font-medium text-accent" aria-live="polite">
+              {t("earn", { amount: format.price(earning, currency), total: format.price(earning * Math.max(0, form.spotsTotal - 1), currency) })}
+            </p>
+          )}
+          <p className="text-[13px] text-muted">{t("note")}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────── Make it better (optional) ───────────────────────── */
+
+type ExtraKey = "why" | "day" | "hostNote" | "ideas" | "crewGroup";
+
+export function ExtrasStep({ form, patch, errorOf, touch, showIdeas }: StepProps & { /** Create only – ideas are posted into the crew chat on publish */ showIdeas: boolean }) {
+  const t = useTranslations("create.extras");
+  const tPitch = useTranslations("create.pitch");
+  const tHouse = useTranslations("create.house");
+  const filled: Record<ExtraKey, boolean> = {
+    why: form.whyText.trim() !== "",
+    day: form.dayText.trim() !== "",
+    hostNote: form.hostNote.trim() !== "",
+    ideas: form.accommodationIdeas.some((l) => l.trim() !== ""),
+    crewGroup: form.crewGroupUrl.trim() !== "",
+  };
+  // A wrong crew group link opens its row, so the error is in view.
+  const [open, setOpen] = useState<ExtraKey | null>(errorOf("crewGroupUrl") ? "crewGroup" : null);
+  const keys: ExtraKey[] = showIdeas ? ["why", "day", "hostNote", "ideas", "crewGroup"] : ["why", "day", "hostNote", "crewGroup"];
+
+  const fields: Record<ExtraKey, ReactNode> = {
+    why: <AutoTextarea aria-label={t("rows.why")} value={form.whyText} onChange={(e) => patch({ whyText: e.target.value })} placeholder={tPitch("whyPlaceholder")} />,
+    day: <AutoTextarea aria-label={t("rows.day")} value={form.dayText} onChange={(e) => patch({ dayText: e.target.value })} placeholder={tPitch("dayPlaceholder")} />,
+    hostNote: (
+      <div className="space-y-3">
+        <FormField label={t("rows.hostNote")} aside={<span className="text-xs tabular-nums text-muted">{tPitch("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}>
+          <input className={formInput} value={form.hostNote} maxLength={HOST_NOTE_MAX} onChange={(e) => patch({ hostNote: e.target.value })} placeholder={tPitch("hostNotePlaceholder")} />
+        </FormField>
+        <div className="flex flex-wrap gap-2">
+          {(tPitch.raw("hostNoteExamples") as string[]).map((example) => (
+            <SuggestionChip key={example} label={example} active={form.hostNote === example} onClick={() => patch({ hostNote: example })} />
+          ))}
+        </div>
+      </div>
+    ),
+    ideas: <IdeasField ideas={form.accommodationIdeas} onChange={(ideas) => patch({ accommodationIdeas: ideas })} />,
+    crewGroup: (
+      <FormField id={fieldId("crewGroupUrl")} label={tHouse("crewGroupUrl")} error={errorOf("crewGroupUrl")}>
+        <input
+          className={formInput}
+          value={form.crewGroupUrl}
+          onChange={(e) => patch({ crewGroupUrl: e.target.value })}
+          onBlur={() => touch("crewGroupUrl")}
+          placeholder="https://chat.whatsapp.com/…"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-invalid={Boolean(errorOf("crewGroupUrl")) || undefined}
+        />
+      </FormField>
+    ),
+  };
+
+  return (
+    <ul className="-my-2 divide-y divide-line">
+      {keys.map((key) => (
+        <ExtraRow key={key} title={t(`rows.${key}`)} added={filled[key]} open={open === key} onToggle={() => setOpen(open === key ? null : key)}>
+          {fields[key]}
+        </ExtraRow>
+      ))}
+    </ul>
+  );
+}
+
+/** One collapsible row: 56px head (title, "Added" badge, chevron), the field below while open. */
+function ExtraRow({ title, added, open, onToggle, children }: { title: string; added: boolean; open: boolean; onToggle: () => void; children: ReactNode }) {
+  const t = useTranslations("create.extras");
+  const id = useId();
+  return (
+    <li>
+      <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={id} className="flex min-h-14 w-full items-center gap-3 text-left">
+        <span className="flex-1 text-[15px] text-ink">{title}</span>
+        {added && <Badge icon={<Check aria-hidden />}>{t("added")}</Badge>}
+        <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div id={id} className="pb-4">
+          {children}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** One link input to start, "+ Add" up to 3; each valid link gets a preview row. */
 function IdeasField({ ideas, onChange }: { ideas: string[]; onChange: (ideas: string[]) => void }) {
   const t = useTranslations("create.pitch");
   const slots = ideas.length > 0 ? ideas : [""];
@@ -678,393 +660,189 @@ function IdeasField({ ideas, onChange }: { ideas: string[]; onChange: (ideas: st
                 placeholder={i === 0 ? t("ideaPlaceholder") : t("ideaPlaceholderMore")}
               />
               {slots.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onChange(slots.filter((_, j) => j !== i))}
-                  aria-label={t("removeIdea", { number: i + 1 })}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5"
-                >
-                  <X className="size-4" />
-                </button>
+                <Button variant="tertiary" size="lg" icon onClick={() => onChange(slots.filter((_, j) => j !== i))} aria-label={t("removeIdea", { number: i + 1 })}>
+                  <X />
+                </Button>
               )}
             </div>
-            {link && isLink(link) && (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-line bg-surface p-2">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-bg text-muted">
-                  <Link2 className="size-5" aria-hidden />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{linkDomain(link)}</span>
-                  <span className="block text-xs text-muted">{t("ideaPreview")}</span>
-                </span>
-              </div>
-            )}
+            {link && isLink(link) && <ListRow lead={<Link2 aria-hidden />} title={linkDomain(link)} subtitle={t("ideaPreview")} />}
           </div>
         );
       })}
       {slots.length < MAX_IDEAS && (
-        <button type="button" onClick={() => onChange([...slots, ""])} className={buttonClass("ghost", "sm", "-ml-2")}>
-          <Plus className="size-4" />
+        <Button variant="tertiary" onClick={() => onChange([...slots, ""])}>
+          <Plus />
           {t("addIdea")}
-        </button>
+        </Button>
       )}
     </div>
   );
 }
 
-/* ───────────────────────── 3 · About you ───────────────────────── */
+/* ───────────────────────── 9 · Publish ───────────────────────── */
 
-/** Complete profile: a compact summary with "Edit profile" and "Looks good". */
-export function AboutSummary({ me, onContinue }: { me: User; onContinue: () => void }) {
-  const t = useTranslations("create.about");
-  const format = useFormat();
-  return (
-    <FormCard id={fieldId("photo")} title={t("cards.summary")} description={t("cards.summaryDescription")}>
-      <div className="flex items-center gap-3">
-        <Avatar user={me} size="lg" />
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{me.name}</p>
-          <p className="truncate text-sm text-muted">{format.ageAndCountry(me)}</p>
-        </div>
-      </div>
-      {me.photos.length > 0 && (
-        <div className="no-scrollbar flex gap-2 overflow-x-auto">
-          {me.photos.map((src, i) => (
-            <div key={`${src}-${i}`} className="relative aspect-4/5 w-16 shrink-0 overflow-hidden rounded-xl bg-bg">
-              <Img src={src} alt="" fill sizes="64px" className="object-cover" />
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onContinue} className={buttonClass("dark", "md")}>
-          {t("looksGood")}
-        </button>
-        <Link href="/profile/edit" className={buttonClass("secondary", "md")}>
-          {t("editProfile")}
-        </Link>
-      </div>
-    </FormCard>
-  );
+interface PublishStepProps {
+  stay: Stay;
+  form: FormState;
+  me?: User;
+  editing: boolean;
+  /** The steps of this flow (without "host" when host experiences are off) */
+  steps: StepKey[];
+  /** Steps that still have a problem – their rows say "Missing" */
+  missing: StepKey[];
+  /** "Edit": opens that question; its Next leads back here */
+  onEdit: (step: StepKey) => void;
+  /** People invited on publish ("Open again", "Invite to a House") – and whether they will be */
+  invites: { count: number; on: boolean; set: (on: boolean) => void };
+  template: { on: boolean; set: (on: boolean) => void };
 }
 
-interface AboutFieldsProps extends FieldHelpers {
-  about: About;
-  update: Update;
-  /** Which fields to show: all four when logged out, only the missing ones for an incomplete profile */
-  fields: AboutField[];
-  full: boolean;
-}
-
-/** Only what a House needs: face photo, first name, age, country. Links and bio live in Edit profile. */
-export function AboutFields({ about, update, fields, full, errorOf, touch }: AboutFieldsProps) {
-  const t = useTranslations("create");
-  const locale = useLocale();
-  const countries = useMemo(() => countryNames(locale).map((name) => ({ value: name, label: name })), [locale]);
-  const show = (field: AboutField) => full || fields.includes(field);
-  const showPerson = show("name") || show("age") || show("country");
-  const age = Number(about.age) || 0;
-  const setAge = (n: number) => update("aboutAge", String(Math.min(Math.max(n, 18), 99)));
-
-  return (
-    <FormCards>
-      {!full && <p className="rounded-[24px] bg-surface px-6 py-4 text-sm text-muted">{t("about.missingIntro")}</p>}
-      {show("photo") && (
-        <FormCard id={fieldId("photo")} title={t("about.photos")} description={t("about.photosHint")}>
-          <div className="max-w-40">
-            <PhotoUploader
-              photos={about.photos.slice(0, 1)}
-              slots={1}
-              labels="profile"
-              onChange={(photos) => {
-                update("aboutPhotos", photos);
-                touch("photo");
-              }}
-            />
-          </div>
-          {errorOf("photo") && (
-            <p role="alert" className="text-[13px] text-red-600">
-              {errorOf("photo")}
-            </p>
-          )}
-        </FormCard>
-      )}
-
-      {showPerson && (
-        <FormCard title={t("about.cards.you")}>
-          {show("name") && (
-            <FormField id={fieldId("name")} label={t("about.name")} error={errorOf("name")}>
-              <input
-                className={formInput}
-                value={about.name}
-                onChange={(e) => update("aboutName", e.target.value)}
-                onBlur={() => touch("name")}
-                placeholder={t("about.namePlaceholder")}
-                autoComplete="given-name"
-                aria-invalid={Boolean(errorOf("name")) || undefined}
-              />
-            </FormField>
-          )}
-          {show("age") && (
-            <FormField id={fieldId("age")} label={t("about.age")} error={errorOf("age")} group>
-              <div className="inline-flex items-center gap-1 rounded-xl border border-line bg-bg p-1">
-                <button
-                  type="button"
-                  onClick={() => setAge(age ? age - 1 : 25)}
-                  disabled={age > 0 && age <= 18}
-                  aria-label={t("about.younger")}
-                  className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface disabled:opacity-30"
-                >
-                  <Minus className="size-4" />
-                </button>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={18}
-                  max={99}
-                  value={about.age}
-                  onChange={(e) => update("aboutAge", e.target.value)}
-                  onBlur={() => touch("age")}
-                  placeholder={t("about.agePlaceholder")}
-                  aria-label={t("about.age")}
-                  aria-invalid={Boolean(errorOf("age")) || undefined}
-                  className="h-9 w-14 bg-transparent text-center text-[15px] tabular-nums outline-none [appearance:textfield] placeholder:text-muted [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setAge(age ? age + 1 : 25)}
-                  disabled={age >= 99}
-                  aria-label={t("about.older")}
-                  className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface disabled:opacity-30"
-                >
-                  <Plus className="size-4" />
-                </button>
-              </div>
-            </FormField>
-          )}
-          {show("country") && (
-            <FormField id={fieldId("country")} label={t("about.country")} error={errorOf("country")} group>
-              <Combobox
-                aria-label={t("about.country")}
-                value={about.country}
-                options={countries}
-                onPick={(option) => {
-                  update("aboutCountry", option.value);
-                  touch("country");
-                }}
-                isSelected={(option) => option.value === about.country}
-                placeholder={t("about.countryPlaceholder")}
-                empty={t("about.countryEmpty")}
-                invalid={Boolean(errorOf("country"))}
-                onBlur={() => touch("country")}
-              />
-            </FormField>
-          )}
-        </FormCard>
-      )}
-      <p className="px-2 text-[13px] text-muted">{t("about.laterHint")}</p>
-    </FormCards>
-  );
-}
-
-/* ───────────────────────── 4 · Invite (with a past crew) ───────────────────────── */
-
-interface InviteStepProps {
-  /** The host's People (see getPeople) – "Do it again": the repeated House's crew first */
-  people: PersonEntry[];
-  selected: string[];
-  /** Spots besides the host's – no more invites than that */
-  max: number;
-  onChange: (ids: string[]) => void;
-}
-
-/** "Invite your crew": the host's People as avatar chips, with search; picked people are invited on publish. Optional. */
-export function InviteStep({ people, selected, max, onChange }: InviteStepProps) {
-  const t = useTranslations("create.invite");
-  const [query, setQuery] = useState("");
-  const picked = selected.filter((id) => people.some((p) => p.user.id === id));
-  const full = picked.length >= max;
-  const q = query.trim().toLowerCase();
-  const shown = q ? people.filter((p) => p.user.name.toLowerCase().includes(q)) : people;
-  const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((x) => x !== id) : full ? picked : [...picked, id]);
-
-  return (
-    <FormCards>
-      <FormCard title={t("title")} description={t("description")}>
-        <label className="relative block">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("search")}
-            aria-label={t("search")}
-            className={cn(formInput, "pl-10")}
-          />
-        </label>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium tabular-nums" aria-live="polite">
-            {t("count", { count: picked.length, max })}
-          </p>
-          {people.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onChange(picked.length > 0 ? [] : people.map((p) => p.user.id).slice(0, max))}
-              className={buttonClass("ghost", "sm", "-mr-2")}
-            >
-              {picked.length > 0 ? t("clear") : t("pickAll")}
-            </button>
-          )}
-        </div>
-        {shown.length > 0 ? (
-          <div role="group" aria-label={t("title")} className="flex flex-wrap gap-2">
-            {shown.map(({ user: person, houses }) => {
-              const on = picked.includes(person.id);
-              return (
-                <button
-                  key={person.id}
-                  type="button"
-                  aria-pressed={on}
-                  disabled={!on && full}
-                  onClick={() => toggle(person.id)}
-                  title={t("togetherIn", { houses: houses.map((h) => h.title).join(", ") })}
-                  className={cn(
-                    chipClass,
-                    on ? chipActiveClass : chipInactiveClass,
-                    "inline-flex h-11 items-center gap-2 py-0 pl-1.5 pr-3.5 disabled:cursor-not-allowed disabled:opacity-40",
-                  )}
-                >
-                  <Avatar user={person} size="sm" />
-                  {person.name.split(" ")[0]}
-                  {on && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>
-        )}
-        {full && max > 0 && <p className="text-[13px] text-muted">{t("full", { count: max })}</p>}
-      </FormCard>
-      <p className="px-2 text-[13px] text-muted">{t("hint")}</p>
-    </FormCards>
-  );
-}
-
-/* ───────────────────────── 5 · Publish ───────────────────────── */
-
-/** Left column of the last step: the card as it shows up in the feed. */
-export function PublishCard({ card, loginNote }: { card: ReactNode; loginNote: boolean }) {
+/** The review: every answer as a row with "Edit", the host's profile, "Save as template". The card is in the preview. */
+export function PublishStep({ stay, form, me, editing, steps, missing, onEdit, invites, template }: PublishStepProps) {
   const t = useTranslations("create.publish");
-  return (
-    <div className="space-y-3">
-      <p className="text-center text-sm text-muted">{t("intro")}</p>
-      <div className="mx-auto w-full max-w-100">{card}</div>
-      {loginNote && <p className="text-center text-sm text-muted">{t("loginBeforeLive")}</p>}
-    </div>
-  );
-}
-
-/** Right (sticky) column of the last step: summary and what happens next. */
-export function PublishAside({ stay, form, invited = 0 }: { stay: Stay; form: FormState; invited?: number }) {
-  const t = useTranslations("create.publish");
+  const tRows = useTranslations("create.extras.rows");
+  const tHost = useTranslations("create.host");
   const format = useFormat();
   const nights = stay.startDate && stay.endDate ? nightsBetween(stay.startDate, stay.endDate) : 0;
-  const dates = format.longRange(stay.startDate, stay.endDate);
-  const rows: Array<[string, string, boolean?]> = [
-    [t("place"), format.placeLabel(stay)],
-    [t("dates"), nights > 0 ? t("datesNights", { dates, nights: format.nights(nights) }) : dates, true],
-    [t("crew"), format.people(stay.spotsTotal)],
-    ...(invited > 0 ? ([[t("invited"), t("invitedCount", { count: invited })]] as Array<[string, string]>) : []),
-    [t("budget"), format.priceLabel(stay)],
-    [t("language"), format.language(stay.language)],
-    [t("pitch"), t("pitchCount", { count: pitchCount(form), total: PITCH_FIELDS.length })],
+  const ideas = form.accommodationIdeas.map((l) => l.trim()).filter(isLink);
+  const vibe = form.customVibe !== null ? form.customVibe.trim() : form.vibe ? format.vibe(form.vibe) : "";
+
+  const required: Array<{ step: StepKey; label: string; value: string }> = [
+    { step: "vibe", label: t("rows.vibe"), value: vibe },
+    { step: "where", label: t("rows.where"), value: stay.region.trim() ? format.placeLabel(stay) : "" },
+    { step: "when", label: t("rows.when"), value: nights > 0 ? t("datesNights", { dates: format.shortRange(stay.startDate, stay.endDate), nights: format.nights(nights) }) : "" },
+    { step: "crew", label: t("rows.crew"), value: format.people(stay.spotsTotal) },
+    { step: "budget", label: t("rows.budget"), value: format.priceLabel(stay) },
+    { step: "title", label: t("rows.title"), value: form.title.trim() },
+    { step: "pitch", label: t("rows.pitch"), value: form.lookingForText.trim() },
+    {
+      step: "host",
+      label: t("rows.host"),
+      value: stay.hostFeePerPerson ? t("programValue", { amount: format.price(stay.hostFeePerPerson, stay.currency) }) : tHost("rent.title"),
+    },
   ];
-  const next = ["share", "requests", "pick"] as const;
+  // Optional answers only when given – all of them are edited on "Make it better".
+  const optional: Array<{ key: string; label: string; value: string }> = [
+    { key: "why", label: tRows("why"), value: form.whyText.trim() },
+    { key: "day", label: tRows("day"), value: form.dayText.trim() },
+    { key: "hostNote", label: tRows("hostNote"), value: form.hostNote.trim() },
+    { key: "ideas", label: tRows("ideas"), value: !editing && ideas.length > 0 ? ideas.map(linkDomain).join(", ") : "" },
+    { key: "crewGroup", label: tRows("crewGroup"), value: form.crewGroupUrl.trim() },
+  ];
+  const rows = [
+    ...required.filter((row) => steps.includes(row.step)).map((row) => ({ ...row, key: row.step, missing: missing.includes(row.step) })),
+    ...optional.filter((row) => row.value).map((row) => ({ ...row, step: "extras" as const, missing: missing.includes("extras") && row.key === "crewGroup" })),
+  ];
+
   return (
-    <FormCards>
-      <FormCard title={t("summary")}>
-        <dl className="divide-y divide-line text-sm">
-          {rows.map(([label, value, nowrap]) => (
-            <div key={label} className="flex justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-              <dt className="shrink-0 text-muted">{label}</dt>
-              <dd className={cn("min-w-0 text-right font-medium", nowrap && "whitespace-nowrap")}>{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </FormCard>
-      <FormCard title={t("next")}>
-        <ol className="space-y-4">
-          {next.map((key, i) => (
-            <li key={key} className="flex gap-3">
-              <StepNumber n={i + 1} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{t(`steps.${key}.title`)}</p>
-                <p className="text-[13px] text-muted">{t(`steps.${key}.text`)}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </FormCard>
-    </FormCards>
+    <div className="space-y-6">
+      <ul className="-mt-2 divide-y divide-line">
+        {rows.map(({ key, step, label, value, missing: isMissing }) => (
+          <li key={key}>
+            <ListRow
+              title={
+                <span className="flex items-baseline gap-3">
+                  <span className="w-32 shrink-0 text-[13px] text-muted">{label}</span>
+                  {isMissing ? (
+                    <span className="font-medium text-red-600">{t("missing")}</span>
+                  ) : (
+                    <span className="min-w-0 truncate text-ink">{value}</span>
+                  )}
+                </span>
+              }
+              action={
+                <Button variant="tertiary" onClick={() => onEdit(step)} aria-label={t("editLabel", { field: label })}>
+                  {t("edit")}
+                </Button>
+              }
+            />
+          </li>
+        ))}
+      </ul>
+
+      <ProfileSection me={me} />
+
+      {(invites.count > 0 || !editing) && (
+        <div className="space-y-1 border-t border-line pt-4">
+          {invites.count > 0 && <CheckRow label={t("inviteCrew", { count: invites.count })} checked={invites.on} onChange={invites.set} />}
+          {!editing && <CheckRow label={t("saveTemplate")} checked={template.on} onChange={template.set} />}
+        </div>
+      )}
+    </div>
   );
 }
 
-/* ───────────────────────── Checklist ───────────────────────── */
-
-export type ChecklistKey = "title" | "place" | "dates" | "lookingFor" | "photo" | "hostNote";
-type ChecklistItem = { key: ChecklistKey; done: boolean };
-
-/**
- * One progress line ("4 of 6 done ▾") that opens the items as an overlay above it – the preview column never
- * grows. `expanded`: always open, as a plain list (the mobile preview sheet).
- */
-export function Checklist({ items, onJump, expanded = false }: { items: ChecklistItem[]; onJump: (key: ChecklistKey) => void; expanded?: boolean }) {
-  const t = useTranslations("create.checklist");
-  const [open, setOpen] = useState(false);
-  const done = items.filter((i) => i.done).length;
-  const list = (
-    <ul className={cn("rounded-[24px] bg-surface p-2", !expanded && "absolute inset-x-0 bottom-full z-20 mb-2 shadow-xl ring-1 ring-line")}>
-      {items.map(({ key, done: itemDone }) => (
-        <li key={key}>
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              onJump(key);
-            }}
-            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm hover:bg-ink/5"
-          >
-            {itemDone ? (
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-surface">
-                <Check className="size-3" strokeWidth={3} aria-hidden />
-              </span>
-            ) : (
-              <Circle className="size-5 shrink-0 text-muted/60" aria-hidden />
-            )}
-            <span className={cn("flex-1", itemDone ? "text-ink" : "text-muted")}>{t(`items.${key}`)}</span>
-            <span className="sr-only">{itemDone ? t("done") : t("missing")}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-  if (expanded) return <div className="mt-4">{list}</div>;
+/** "Your profile": avatar, name, languages – what the card shows. No photo or name: a note with "Edit profile". */
+function ProfileSection({ me }: { me?: User }) {
+  const t = useTranslations("create.publish.profile");
+  if (!me) {
+    return (
+      <section className="border-t border-line pt-5">
+        <h3 className="text-base font-medium text-ink">{t("title")}</h3>
+        <p className="mt-1 text-[13px] text-muted">{t("loggedOut")}</p>
+      </section>
+    );
+  }
+  const missing = [!me.photos[0] && t("photo"), !me.name.trim() && t("name")].filter((item): item is string => Boolean(item));
   return (
-    <div className="relative mt-3">
-      {open && list}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex h-12 w-full items-center gap-3 rounded-2xl bg-surface px-4 text-left text-sm hover:bg-surface/70"
-      >
-        <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
-          <span className="absolute inset-y-0 left-0 rounded-full bg-ink transition-[width]" style={{ width: `${(done / items.length) * 100}%` }} />
-        </span>
-        <span className="shrink-0 font-medium tabular-nums">{t("progress", { done, total: items.length })}</span>
-        <ChevronUp className={cn("size-4 shrink-0 text-muted transition-transform", !open && "rotate-180")} aria-hidden />
-      </button>
-    </div>
+    <section className="border-t border-line pt-5">
+      <h3 className="text-base font-medium text-ink">{t("title")}</h3>
+      <ListRow
+        lead={<Avatar user={me} size="md" />}
+        title={me.name.trim() || <span className="font-medium text-red-600">{t("noName")}</span>}
+        subtitle={me.languages.length > 0 ? me.languages.join(", ") : t("noLanguages")}
+      />
+      {missing.length > 0 && (
+        <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-red-600">
+          {t("hint", { items: missing.join(" & ") })}
+          <Button variant="tertiary" href="/profile/edit">
+            {t("edit")}
+          </Button>
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** A checkbox row: 44px, the box on the left. */
+function CheckRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-ink">
+      <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+/* ───────────────────────── Templates ───────────────────────── */
+
+/** "Start from a template": the saved templates as cards above step 1; picking one fills everything but the dates. */
+export function TemplatePicker({ templates, onPick, onRemove, className }: { templates: HouseTemplate[]; onPick: (template: HouseTemplate) => void; onRemove: (id: string) => void; className?: string }) {
+  const t = useTranslations("create.templates");
+  const format = useFormat();
+  return (
+    <section className={cn("max-w-160", className)}>
+      <h2 className="mb-3 text-base font-medium text-ink">{t("title")}</h2>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {templates.map((template) => {
+          const { form } = template;
+          const vibe = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
+          const title = form.title.trim() || t("untitled");
+          return (
+            <li key={template.id} className="flex items-start gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-ink">
+              <button type="button" onClick={() => onPick(template)} className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-[15px] font-medium text-ink">{title}</span>
+                <span className="mt-0.5 block truncate text-[13px] text-muted">
+                  {[vibe, regionShortName(form.region), format.people(form.spotsTotal)].filter(Boolean).join(" · ")}
+                </span>
+              </button>
+              <Button variant="tertiary" onClick={() => onRemove(template.id)} aria-label={t("remove", { title })} className="size-6">
+                <X />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

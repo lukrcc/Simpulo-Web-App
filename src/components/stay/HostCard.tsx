@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
@@ -27,7 +28,7 @@ export function HostCard({ host }: { host: User }) {
         {host.languages.length > 0 && <p className="mt-0.5 text-sm text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialRow user={host} size="sm" className="mt-3" />
         {host.bio && <p className="mt-3 line-clamp-2 text-sm text-ink">{host.bio}</p>}
-        <Link href={profile} className="mt-2 inline-block text-sm font-medium text-ink underline underline-offset-2 hover:text-muted">
+        <Link href={profile} className={buttonStyles("tertiary", "md", "mt-2")}>
           {t("viewProfile")}
         </Link>
       </div>

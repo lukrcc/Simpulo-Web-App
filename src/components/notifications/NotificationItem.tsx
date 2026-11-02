@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 import { useNotificationText } from "@/i18n/events";
 import { typeOf, type AppNotification, type NotificationType } from "@/lib/data/notifications";
+import { ListRow } from "@/components/ui/ListRow";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { hrefOf } from "./useNotifications";
@@ -31,8 +32,8 @@ function useNow(): number | null {
 }
 
 /**
- * One notification – the same in the bell and on /notifications: type icon, title (bold while unread, with a dot),
- * one line of text, relative time. Clicking marks it read and opens what it's about.
+ * One notification – the same in the bell and on /notifications, as a ListRow: type icon, title (bold while unread,
+ * with a dot), one line of text, relative time. Clicking marks it read and opens what it's about.
  */
 export function NotificationItem({ notification, onOpen, onRead }: { notification: AppNotification; onOpen?: () => void; onRead: (id: string) => void }) {
   const t = useTranslations("notifications");
@@ -45,20 +46,17 @@ export function NotificationItem({ notification, onOpen, onRead }: { notificatio
   const unread = !notification.readAt;
   const href = hrefOf(notification, store.stays, store.currentUserId);
 
+  // A ListRow: type icon, title (semibold while unread), text, then the relative time and the unread dot on the right.
   const body = (
-    <>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn("block truncate text-sm", unread ? "font-semibold text-ink" : "font-medium text-ink")}>{t(`types.${type}`)}</span>
-        <span className={cn("block truncate text-sm", unread ? "text-ink" : "text-muted")}>{text(notification)}</span>
-        <span className="mt-0.5 block text-xs text-muted">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>
-      </span>
-      {unread && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-ink" role="img" aria-label={t("unread")} />}
-    </>
+    <ListRow
+      lead={<Icon aria-hidden />}
+      title={<span className={unread ? "font-semibold" : undefined}>{t(`types.${type}`)}</span>}
+      subtitle={text(notification)}
+      aside={<span className="shrink-0 text-[13px] text-muted">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>}
+      action={unread ? <span className="size-2 rounded-full bg-ink" role="img" aria-label={t("unread")} /> : undefined}
+    />
   );
-  const className = "flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-bg";
+  const className = "block px-2 text-left hover:bg-bg";
   const open = () => {
     onRead(notification.id);
     onOpen?.();

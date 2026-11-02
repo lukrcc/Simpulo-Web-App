@@ -1,5 +1,6 @@
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { Container } from "./Container";
 
@@ -34,14 +35,10 @@ export function ContentPage({ title, intro, updated, children }: ContentPageProp
   );
 }
 
-/** Small amber pill marking copy that still needs a (legal) review. */
+/** Badge marking copy that still needs a (legal) review. */
 export function DraftPill() {
   const t = useTranslations("legal");
-  return (
-    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-      {t("draft")}
-    </span>
-  );
+  return <Badge>{t("draft")}</Badge>;
 }
 
 interface LegalSectionProps {

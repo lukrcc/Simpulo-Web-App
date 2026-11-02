@@ -8,6 +8,7 @@ import { useFormat } from "@/i18n/format";
 import { citySlugOf } from "@/lib/data/stays";
 import { VIBES } from "@/lib/mock";
 import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui/ActionButton";
 import { cn } from "@/lib/utils";
 import { Container } from "./Container";
 
@@ -18,8 +19,8 @@ const MIN_CITIES = 3;
 /** Links visible while collapsed (the top cities). */
 const COLLAPSED_LINKS = 8;
 
-/** Logged-in areas and flows – no index there (matches robots.ts). */
-const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/people", "/saved", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim"];
+/** Logged-in areas and flows – no index there (matches robots.ts) – and /host, which ends on its own closing band. */
+const PRIVATE_PREFIXES = ["/inbox", "/notifications", "/my-stays", "/people", "/saved", "/profile", "/settings", "/create", "/welcome", "/admin", "/claim", "/host"];
 
 /**
  * "Explore by city and vibe" above the footer, on public pages: the top cities as plain links, "Show all" for every
@@ -79,15 +80,9 @@ function ExploreIndexBlock() {
             {t("title")}
           </h2>
           {canExpand && (
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-controls={`${id}-list`}
-              onClick={() => setOpen((o) => !o)}
-              className="text-[13px] font-medium text-muted underline-offset-4 hover:text-ink hover:underline"
-            >
+            <Button variant="tertiary" size="md" aria-expanded={open} aria-controls={`${id}-list`} onClick={() => setOpen((o) => !o)}>
               {open ? t("showLess") : t("showAll")}
-            </button>
+            </Button>
           )}
         </div>
         {/* All links always rendered; collapsed, only the top cities show. */}

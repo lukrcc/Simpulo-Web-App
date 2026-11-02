@@ -1,24 +1,25 @@
 "use client";
 
-import { Download, Link2, Loader2, Printer, type LucideIcon } from "lucide-react";
+import { Link2, Loader2, QrCode, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { DetailSection, ListRow } from "@/components/stay/DetailSection";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { shareUrl, type ShareChannel } from "@/lib/growth";
 import { findUser, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
-import { cn, stayPhotos } from "@/lib/utils";
-import { downloadBlob, renderPosterPdf, renderStoryImage } from "./storyImage";
+import { openSpots, stayPhotos } from "@/lib/utils";
+import { downloadBlob, renderStoryImage } from "./storyImage";
 
-type Tool = "copy" | "story" | "poster";
+type Tool = "copy" | "story";
 
 /**
- * "Share your House" – the host's tools on their own House page (guests never see them): copy the link, download the
- * story image (1080×1920: House photo, title, dates · place, host face, wordmark, QR) and print the QR poster (A4
- * PDF). Every link carries the host's ref and its channel, like the share sheet.
+ * "Share" – the host's tools in Your houses (guests never see them): copy the link and download the story image
+ * (1080×1920: House photo, title, dates · place · open spots, host face, wordmark, QR). Every link carries the host's ref and its
+ * channel, like the share sheet.
  */
-export function HostShareTools({ stay, className }: { stay: Stay; className?: string }) {
+export function HostShareTools({ stay, title, className }: { stay: Stay; /** Section heading */ title: string; className?: string }) {
   const t = useTranslations("growth.share");
   const tStory = useTranslations("growth.story");
   const tCommon = useTranslations("common");
@@ -29,7 +30,9 @@ export function HostShareTools({ stay, className }: { stay: Stay; className?: st
   const host = findUser(store, stay.hostId);
   const path = `/house/${stay.slug}`;
   const link = (channel: ShareChannel, medium?: string) => shareUrl(path, { refUserId: store.currentUserId, channel, medium });
-  const meta = `${f.longRange(stay.startDate, stay.endDate)} · ${f.placeName(stay)}`;
+  const spots = openSpots(stay);
+  // Dates · place · open spots (left out once the crew is full).
+  const meta = [f.longRange(stay.startDate, stay.endDate), f.placeName(stay), spots > 0 && tStory("spotsOpen", { count: spots })].filter(Boolean).join(" · ");
 
   async function run(tool: Tool, action: () => Promise<void>, failed: string) {
     setBusy(tool);
@@ -48,7 +51,7 @@ export function HostShareTools({ stay, className }: { stay: Stay; className?: st
       async () => {
         await navigator.clipboard.writeText(link("copy"));
         store.track("link_shared", { houseId: stay.id, channel: "copy" });
-        showToast(tCommon("linkCopied"));
+        showToast(t("linkCopied"));
       },
       tCommon("linkCopyFailed"),
     );
@@ -75,49 +78,27 @@ export function HostShareTools({ stay, className }: { stay: Stay; className?: st
       t("storyFailed"),
     );
 
-  const poster = () =>
-    run(
-      "poster",
-      async () => {
-        const url = link("poster", "qr");
-        const blob = await renderPosterPdf({ title: stay.title, meta, scan: tStory("scan"), url, shortUrl: new URL(path, url).host + path });
-        downloadBlob(blob, `simpulo-${stay.slug}-poster.pdf`);
-        store.track("link_shared", { houseId: stay.id, channel: "poster" });
-        showToast(t("posterDone"));
-      },
-      t("posterFailed"),
-    );
-
   const tools: { key: Tool; icon: LucideIcon; label: string; hint?: string; busyLabel?: string; onClick: () => void }[] = [
     { key: "copy", icon: Link2, label: t("channels.copy"), onClick: () => void copy() },
-    { key: "story", icon: Download, label: t("storyButton"), hint: t("storyHint"), busyLabel: t("storyBusy"), onClick: () => void story() },
-    { key: "poster", icon: Printer, label: t("posterButton"), hint: t("posterHint"), busyLabel: t("posterBusy"), onClick: () => void poster() },
+    { key: "story", icon: QrCode, label: t("storyButton"), hint: t("storyHint"), busyLabel: t("storyBusy"), onClick: () => void story() },
   ];
 
+  // Two list rows, each a button as a whole (icon, label, hint) – no right-hand label, no boxes, no header action.
   return (
-    <section aria-labelledby="share-your-house" className={cn("rounded-[24px] bg-surface p-6", className)}>
-      <h2 id="share-your-house" className="text-lg font-semibold">
-        {t("hostTitle")}
-      </h2>
-      <p className="mt-1 text-sm text-muted">{t("hostText")}</p>
-      <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <DetailSection title={title} className={className}>
+      <ul className="divide-y divide-line">
         {tools.map(({ key, icon: Icon, label, hint, busyLabel, onClick }) => (
           <li key={key}>
-            <button
-              type="button"
+            <ListRow
               onClick={onClick}
               disabled={busy !== null}
-              className="flex h-full w-full items-start gap-3 rounded-2xl bg-bg px-4 py-3 text-left text-ink transition-colors hover:bg-line/60 disabled:opacity-60"
-            >
-              {busy === key ? <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin" aria-hidden /> : <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />}
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{busy === key && busyLabel ? busyLabel : label}</span>
-                {hint && <span className="block text-xs text-muted">{hint}</span>}
-              </span>
-            </button>
+              lead={busy === key ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />}
+              title={busy === key && busyLabel ? busyLabel : label}
+              subtitle={hint}
+            />
           </li>
         ))}
       </ul>
-    </section>
+    </DetailSection>
   );
 }

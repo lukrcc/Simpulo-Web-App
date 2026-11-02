@@ -35,8 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  // Renders <meta name="theme-color" content="#F7F6F3"> – the page background (--bg).
-  themeColor: "#F7F6F3",
+  // Renders <meta name="theme-color" content="#F2F0EB"> – the page background (--bg).
+  themeColor: "#F2F0EB",
   // Lets the page draw under the status bar; safe-area insets are handled per component.
   viewportFit: "cover",
 };

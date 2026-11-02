@@ -4,7 +4,7 @@ import { RotateCcw, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 
 interface ErrorPageProps {
   error: unknown;
@@ -27,10 +27,10 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
         </div>
         <h1 className="mt-6 text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
-        <button type="button" onClick={() => retry()} className={buttonClass("dark", "md", "mt-8")}>
-          <RotateCcw className="size-4" aria-hidden />
+        <Button variant="primary" size="lg" onClick={() => retry()} className="mt-8">
+          <RotateCcw aria-hidden />
           {t("retry")}
-        </button>
+        </Button>
       </div>
     </Container>
   );

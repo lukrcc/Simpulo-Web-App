@@ -9,6 +9,7 @@ import { convertApprox } from "@/lib/mock-extras";
 import { findUser, useStore } from "@/lib/store";
 import type { Currency } from "@/lib/types";
 import { AdminShell } from "./AdminShell";
+import { cardClass } from "@/components/ui/Card";
 
 /** One row of a growth table: a channel, a referrer or a House. */
 interface Row {
@@ -116,7 +117,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
   const num = "py-2.5 pl-4 text-right tabular-nums";
 
   return (
-    <section className="rounded-[24px] bg-surface p-6">
+    <section className={cardClass}>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-muted">{t("none")}</p>
@@ -174,7 +175,7 @@ function AlertsCard() {
   const f = useFormat();
   const { alerts } = useStore();
   return (
-    <section className="rounded-[24px] bg-surface p-6">
+    <section className={cardClass}>
       <h2 className="mb-4 text-lg font-semibold">{t("alerts")}</h2>
       {alerts.length === 0 ? (
         <p className="text-sm text-muted">{t("none")}</p>
@@ -202,7 +203,7 @@ function ApplicationsCard() {
   const f = useFormat();
   const { applications } = useStore();
   return (
-    <section className="rounded-[24px] bg-surface p-6">
+    <section className={cardClass}>
       <h2 className="mb-4 text-lg font-semibold">{t("applications")}</h2>
       {applications.length === 0 ? (
         <p className="text-sm text-muted">{t("none")}</p>

@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { buttonClass } from "@/components/ui/button";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
 import type { LinkPreview } from "@/lib/mock-extras";
 
@@ -27,10 +27,10 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 hover:text-muted"
+            className={buttonStyles("tertiary", "md", "mt-2")}
           >
             {t("open")}
-            <ExternalLink className="size-3.5" />
+            <ExternalLink aria-hidden />
           </a>
         </div>
       </div>
@@ -45,7 +45,7 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
           <p className="truncate text-sm font-medium">{preview.title}</p>
           <p className="truncate text-xs text-muted">{preview.domain}</p>
         </div>
-        <a href={href} target="_blank" rel="noopener noreferrer" className={buttonClass("dark", "sm", "h-8 px-3 text-xs")}>
+        <a href={href} target="_blank" rel="noopener noreferrer" className={buttonStyles("secondary", "md")}>
           {t("open")}
         </a>
       </div>
@@ -53,7 +53,7 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="overflow-hidden rounded-xl border border-line bg-surface">
       <div className="relative aspect-video bg-bg">
         <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />
       </div>
@@ -62,9 +62,9 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
           <p className="line-clamp-2 font-medium">{preview.title}</p>
           <p className="mt-0.5 truncate text-sm text-muted">{preview.domain}</p>
         </div>
-        <a href={href} target="_blank" rel="noopener noreferrer" className={buttonClass("dark", "sm")}>
+        <a href={href} target="_blank" rel="noopener noreferrer" className={buttonStyles("secondary", "md")}>
           {t("open")}
-          <ExternalLink className="size-3.5" />
+          <ExternalLink aria-hidden />
         </a>
       </div>
     </div>

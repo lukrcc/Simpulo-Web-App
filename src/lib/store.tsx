@@ -27,6 +27,7 @@ import type {
   Attribution,
   Crew,
   Currency,
+  HouseInvite,
   JoinRequest,
   LivedWith,
   LockDetails,
@@ -79,6 +80,8 @@ interface StoreState {
   crews: Crew[];
   /** Every pair of housemates from completed Houses, both ways (see LivedWith) – written with the Crew record */
   livedWith: LivedWith[];
+  /** Hosts' invite links (?invite=token) – kept in this browser across reloads, so a copied link still opens */
+  houseInvites: HouseInvite[];
 }
 
 /** What a House prepared on someone's behalf needs (admin form). */
@@ -116,6 +119,11 @@ type StoreAction =
   | { type: "respondToInvite"; stayId: string; accept: boolean; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "completeStay"; stayId: string; at: string }
   | { type: "inviteToStay"; stayId: string; userId: string; at: string }
+  | { type: "createHouseInvite"; invite: HouseInvite }
+  | { type: "resendHouseInvite"; token: string; at: string }
+  | { type: "cancelHouseInvite"; token: string }
+  | { type: "expireHouseInvites"; at: string }
+  | { type: "redeemHouseInvite"; token: string; paid: boolean; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "track"; event: GrowthEvent }
   | { type: "attributeUser"; userId: string; attribution: Attribution }
   | { type: "addAlert"; alert: DemandAlert }
@@ -189,6 +197,7 @@ interface StoreActions {
    * lived with before (anyone else is ignored) – notified and emailed, each holding a spot as 'invited' until they
    * answer. `crew.againFrom`: the completed House this one repeats ("Do it again").
    */
+  /** Returns the new House's id */
   createStay: (input: NewStayInput, accommodationIdeas?: string[], crew?: { invite: string[]; againFrom?: string }) => string;
   /** Host only: saves the edited House (slug and crew stay as they are). */
   updateStay: (stayId: string, patch: NewStayInput) => void;
@@ -204,6 +213,17 @@ interface StoreActions {
   completeStay: (stayId: string) => void;
   /** Host: invites someone from their People to an open House – 'invited', holds a spot, notification + email. */
   inviteToStay: (stayId: string, userId: string) => void;
+  /** Host: an invite link for someone by name or email – reserves a spot for 48h; with an email it's mailed (mock). */
+  createHouseInvite: (stayId: string, to: { name?: string; email?: string }) => HouseInvite | null;
+  /** Host: another 48h from now – and the mail again, if it has an email. */
+  resendHouseInvite: (token: string) => void;
+  /** Host: the link stops working and the spot is free again. */
+  cancelHouseInvite: (token: string) => void;
+  /**
+   * Guest with a valid invite link: joins the House. A locked place is paid first (mock card – 0000… is declined);
+   * otherwise they join now and pay their share once the place is locked, like everyone.
+   */
+  redeemHouseInvite: (token: string, cardNumber?: string) => Promise<"joined" | "declined" | "invalid">;
   /** Analytics: records an event with the browser's first-touch attribution (and logs it to the console). */
   track: (name: GrowthEventName, props?: { houseId?: string; channel?: ShareChannel; userId?: string }) => void;
   /** "Notify me" on an empty Explore. */
@@ -489,6 +509,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     interestInvites: {},
     crews,
     livedWith: crews.flatMap(livedWithOf),
+    houseInvites: [],
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -505,6 +526,8 @@ interface PersistedGrowth {
   claimStays: Stay[];
   /** Attribution attached to users at signup in this browser */
   userAttribution: Record<string, Attribution>;
+  /** Invite links made here – so a copied link still opens after a reload or in a new tab */
+  houseInvites: HouseInvite[];
 }
 
 const GROWTH_KEY = "simpulo:growth";
@@ -518,6 +541,7 @@ function persistedGrowth(state: StoreState): PersistedGrowth {
     userAttribution: Object.fromEntries(
       state.users.filter((u) => attributionOf(u).utmSource || u.refUserId).map((u) => [u.id, attributionOf(u)]),
     ),
+    houseInvites: state.houseInvites,
   };
 }
 
@@ -532,6 +556,7 @@ function readPersistedGrowth(): PersistedGrowth | null {
       applications: Array.isArray(saved.applications) ? saved.applications : [],
       claimStays: Array.isArray(saved.claimStays) ? saved.claimStays : [],
       userAttribution: saved.userAttribution && typeof saved.userAttribution === "object" ? saved.userAttribution : {},
+      houseInvites: Array.isArray(saved.houseInvites) ? saved.houseInvites : [],
     };
   } catch {
     return null;
@@ -823,6 +848,89 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
+    case "createHouseInvite": {
+      const { invite } = action;
+      const stay = state.stays.find((s) => s.id === invite.houseId);
+      // Only the host, on a House that's open to join, with a spot to reserve.
+      if (!stay || !me || stay.hostId !== me || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) === 0) return state;
+      return withInvites(state, [...state.houseInvites, invite]);
+    }
+
+    case "resendHouseInvite": {
+      const invite = state.houseInvites.find((i) => i.token === action.token);
+      const stay = invite && state.stays.find((s) => s.id === invite.houseId);
+      if (!invite || !stay || stay.hostId !== me || invite.status !== "pending") return state;
+      return withInvites(
+        state,
+        state.houseInvites.map((i) => (i === invite ? { ...i, expiresAt: inviteExpiry(action.at), ...(i.email && { emailedAt: action.at }) } : i)),
+      );
+    }
+
+    case "cancelHouseInvite": {
+      const invite = state.houseInvites.find((i) => i.token === action.token);
+      const stay = invite && state.stays.find((s) => s.id === invite.houseId);
+      if (!invite || !stay || stay.hostId !== me || invite.status !== "pending") return state;
+      return withInvites(state, state.houseInvites.map((i) => (i === invite ? { ...i, status: "cancelled" } : i)));
+    }
+
+    case "expireHouseInvites": {
+      if (!state.houseInvites.some((i) => i.status === "pending" && i.expiresAt <= action.at)) return state;
+      return withInvites(state, state.houseInvites.map((i) => (i.status === "pending" && i.expiresAt <= action.at ? { ...i, status: "expired" } : i)));
+    }
+
+    case "redeemHouseInvite": {
+      const invite = state.houseInvites.find((i) => i.token === action.token);
+      const stay = invite && state.stays.find((s) => s.id === invite.houseId);
+      if (!invite || !stay || !me || invite.status !== "pending" || invite.expiresAt <= action.systemMessage.createdAt) return state;
+      // Not for the host or someone already in; a locked place needs its share paid first.
+      if (stay.hostId === me || isCrewMember(state, stay, me)) return state;
+      const locked = stay.accommodationStatus === "locked" && Boolean(stay.pricePerPerson);
+      if (locked && !action.paid) return state;
+      const systemMessage = { ...action.systemMessage, threadId: crewThreadId(stay.id) };
+      const spotsFilled = stay.spotsFilled + 1;
+      const request: JoinRequest = {
+        id: `hinv-${invite.token}`,
+        stayId: stay.id,
+        userId: me,
+        message: "",
+        status: "accepted",
+        createdAt: systemMessage.createdAt,
+        ...attributionFor(state, me, undefined),
+      };
+      // The reservation becomes the member: the spot moves from reserved to taken in one step.
+      const joined: StoreState = withInvites(
+        {
+          ...state,
+          stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled } : s)),
+          // Any earlier request or past-crew invite of theirs gives way to the membership.
+          joinRequests: [...state.joinRequests.filter((r) => !(r.stayId === stay.id && r.userId === me)), request],
+        },
+        state.houseInvites.map((i) => (i === invite ? { ...i, status: "used", usedBy: me } : i)),
+      );
+      const name = firstNameOf(state, me);
+      return {
+        ...joined,
+        payments:
+          locked && stay.pricePerPerson
+            ? [
+                ...state.payments.filter((p) => p.id !== `pay-${stay.id}-${me}`),
+                { id: `pay-${stay.id}-${me}`, ...paymentFor(stay, me, stay.pricePerPerson, request), status: "paid", paidAt: systemMessage.createdAt },
+              ]
+            : state.payments,
+        threads: threadsAfterJoin(joined, stay, me, systemMessage, spotsFilled >= stay.spotsTotal),
+        notifications: notify(
+          spotsFilled >= stay.spotsTotal
+            ? { ...state, notifications: notify(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
+            : state,
+          [stay.hostId],
+          "inviteAccepted",
+          { name, title: stay.title },
+          systemMessage.id,
+          stay.id,
+        ),
+      };
+    }
+
     case "completeStay": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || stay.status === "completed" || stay.status === "closed" || stay.status === "draft" || stay.status === "draft_unclaimed") return state;
@@ -902,9 +1010,10 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       const { saved } = action;
       const known = new Set(state.events.map((e) => e.id));
       const savedIds = new Set(saved.claimStays.map((s) => s.id));
-      const stays = [...state.stays.filter((s) => !savedIds.has(s.id)), ...saved.claimStays];
+      const stays = withReservedSpots([...state.stays.filter((s) => !savedIds.has(s.id)), ...saved.claimStays], saved.houseInvites);
       return {
         ...state,
+        houseInvites: saved.houseInvites,
         events: [...state.events, ...saved.events.filter((e) => !known.has(e.id))],
         alerts: saved.alerts,
         applications: saved.applications,
@@ -1325,7 +1434,21 @@ function withoutHostPremium({ stays, payments, users }: Pick<StoreState, "stays"
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const hostPremium = useFeatureFlag("hostPremium");
-  const { currentUserId, threads, stays } = state;
+  const { currentUserId, threads, stays, houseInvites } = state;
+
+  // Invite links lapse after 48h: swept now, and again when the next one is due (and every minute as a backstop).
+  const nextExpiry = houseInvites.filter((i) => i.status === "pending").reduce<string | null>((min, i) => (!min || i.expiresAt < min ? i.expiresAt : min), null);
+  useEffect(() => {
+    if (!nextExpiry) return;
+    const sweep = () => dispatch({ type: "expireHouseInvites", at: new Date().toISOString() });
+    sweep();
+    const due = setTimeout(sweep, Math.min(Math.max(0, new Date(nextExpiry).getTime() - Date.now()) + 50, 2 ** 31 - 1));
+    const backstop = setInterval(sweep, 60_000);
+    return () => {
+      clearTimeout(due);
+      clearInterval(backstop);
+    };
+  }, [nextExpiry]);
   /** Events already in the console (or seeded/restored) – the log effect only prints new ones. */
   const loggedEvents = useRef<Set<string> | null>(null);
   /** Growth data is written back only after it was read, so the first render can't overwrite it. */
@@ -1359,7 +1482,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     // Only these parts are persisted; the rest of the state doesn't need a write.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.events, state.alerts, state.applications, state.stays, state.users]);
+  }, [state.events, state.alerts, state.applications, state.stays, state.users, state.houseInvites]);
 
   // Analytics: every new event goes to the console as well (mock – no analytics backend).
   useEffect(() => {
@@ -1447,7 +1570,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         createdAt: new Date(now).toISOString(),
       },
     });
-    return slug;
+    return id;
   }, []);
 
   // Flag off, the form never shows the host fee – an edit then keeps whatever fee the House has.
@@ -1513,6 +1636,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const inviteToStay = useCallback(
     (stayId: string, userId: string) => dispatch({ type: "inviteToStay", stayId, userId, at: new Date().toISOString() }),
     [],
+  );
+  const createHouseInvite = useCallback(
+    (stayId: string, to: { name?: string; email?: string }): HouseInvite | null => {
+      const stay = stays.find((s) => s.id === stayId);
+      if (!stay || stay.hostId !== currentUserId || openSpots(stay) === 0) return null;
+      const now = new Date().toISOString();
+      const email = to.email?.trim().toLowerCase() || undefined;
+      const invite: HouseInvite = {
+        token: inviteToken(),
+        houseId: stayId,
+        ...(to.name?.trim() && { invitedName: to.name.trim() }),
+        ...(email && { email, emailedAt: now }),
+        createdAt: now,
+        expiresAt: inviteExpiry(now),
+        status: "pending",
+      };
+      dispatch({ type: "createHouseInvite", invite });
+      return invite;
+    },
+    [stays, currentUserId],
+  );
+  const resendHouseInvite = useCallback((token: string) => dispatch({ type: "resendHouseInvite", token, at: new Date().toISOString() }), []);
+  const cancelHouseInvite = useCallback((token: string) => dispatch({ type: "cancelHouseInvite", token }), []);
+  const redeemHouseInvite = useCallback(
+    async (token: string, cardNumber?: string): Promise<"joined" | "declined" | "invalid"> => {
+      const invite = houseInvites.find((i) => i.token === token && i.status === "pending");
+      const stay = invite && stays.find((s) => s.id === invite.houseId);
+      if (!invite || !stay || invite.expiresAt <= new Date().toISOString()) return "invalid";
+      const locked = stay.accommodationStatus === "locked" && Boolean(stay.pricePerPerson);
+      if (locked) {
+        await sleep(MOCK_DELAY_MS);
+        // Mock card network: 0000… is the test number for a declined card.
+        if (!cardNumber || cardNumber.replace(/\s/g, "").startsWith("0000")) return "declined";
+      }
+      const now = new Date().toISOString();
+      dispatch({ type: "redeemHouseInvite", token, paid: locked, systemMessage: { id: makeId("m"), createdAt: now } });
+      return "joined";
+    },
+    [houseInvites, stays],
   );
   const track = useCallback(
     (name: GrowthEventName, props: { houseId?: string; channel?: ShareChannel; userId?: string } = {}) => {
@@ -1752,6 +1914,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       respondToInvite,
       completeStay,
       inviteToStay,
+      createHouseInvite,
+      resendHouseInvite,
+      cancelHouseInvite,
+      redeemHouseInvite,
       track,
       addAlert,
       toggleInterest,
@@ -1785,7 +1951,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       fireReminder,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, track, addAlert, toggleInterest, addInterest, markNotificationRead, markAllNotificationsRead, inviteInterested, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, toggleInterest, addInterest, markNotificationRead, markAllNotificationsRead, inviteInterested, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2100,4 +2266,44 @@ export function livedWithFor(store: Pick<StoreState, "livedWith" | "stays" | "us
 /** The current user has an open invite to this House ("You're invited"). */
 export function isInvitedTo(store: Pick<StoreState, "joinRequests" | "currentUserId">, stayId: string): boolean {
   return store.currentUserId !== null && store.joinRequests.some((r) => r.stayId === stayId && r.userId === store.currentUserId && r.status === "invited");
+}
+
+/** Invite links stay valid this long – from creating (or resending) them. */
+export const INVITE_VALID_MS = 48 * 60 * 60 * 1000;
+const inviteExpiry = (from: string) => new Date(new Date(from).getTime() + INVITE_VALID_MS).toISOString();
+
+/** Every House's reserved spots, counted from its pending invite links. */
+function withReservedSpots(stays: Stay[], invites: HouseInvite[]): Stay[] {
+  const reserved = new Map<string, number>();
+  for (const i of invites) if (i.status === "pending") reserved.set(i.houseId, (reserved.get(i.houseId) ?? 0) + 1);
+  return stays.map((s) => {
+    const count = reserved.get(s.id);
+    if ((s.spotsReserved ?? 0) === (count ?? 0)) return s;
+    return { ...s, spotsReserved: count };
+  });
+}
+
+/** New invite list – and the reserved spots that follow from it. */
+function withInvites(state: StoreState, houseInvites: HouseInvite[]): StoreState {
+  return { ...state, houseInvites, stays: withReservedSpots(state.stays, houseInvites) };
+}
+
+/** A House's invite links still waiting to be used (Host view), newest first. */
+export function openHouseInvites(store: Pick<StoreState, "houseInvites">, stayId: string): HouseInvite[] {
+  return store.houseInvites.filter((i) => i.houseId === stayId && i.status === "pending").toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** The invite behind ?invite=token on this House – only while it can still be used (pending; expiry is swept). */
+export function validHouseInvite(store: Pick<StoreState, "houseInvites">, stayId: string, token: string | null): HouseInvite | undefined {
+  return token ? store.houseInvites.find((i) => i.token === token && i.houseId === stayId && i.status === "pending") : undefined;
+}
+
+/** The House URL with the invite token. */
+export const houseInviteUrl = (origin: string, stay: Pick<Stay, "slug">, invite: Pick<HouseInvite, "token">) =>
+  `${origin}/house/${stay.slug}?invite=${invite.token}`;
+
+/** An unguessable token for an invite link. */
+function inviteToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

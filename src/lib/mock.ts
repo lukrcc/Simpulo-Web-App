@@ -109,6 +109,8 @@ export interface Stay {
   spotsFilled: number;
   /** Invites from past crews still waiting for an answer – each holds a spot, so Explore shows only the rest as open */
   spotsInvited?: number;
+  /** Open invite links (HouseInvite, pending and not expired) – each reserves a spot: not free, not taken yet. Derived. */
+  spotsReserved?: number;
   budgetPerPerson?: { min: number; max: number };
   pricePerPerson?: number;  // only when locked
   currency: Currency;       // everything on the House is stored and charged in this currency
@@ -195,6 +197,27 @@ export interface StayClaim {
 export type PaymentRecordStatus = 'pending' | 'paid' | 'refunded';
 
 /** One crew member's share of a locked place. Fee rules: src/lib/fees.ts. */
+export type HouseInviteStatus = 'pending' | 'used' | 'expired' | 'cancelled';
+
+/**
+ * A host's invite link to their House (House URL + ?invite=token), for someone by name or email. While pending and
+ * not expired it reserves a spot; joining through it (after paying, if the place is locked) makes them a member.
+ */
+export interface HouseInvite {
+  token: string;
+  houseId: string;
+  invitedName?: string;
+  /** With an email the invite is also mailed (mock) – otherwise the host copies the link */
+  email?: string;
+  createdAt: string;
+  /** createdAt (or the last resend) + 48h */
+  expiresAt: string;
+  /** When the (mock) mail last went out */
+  emailedAt?: string;
+  status: HouseInviteStatus;
+  usedBy?: string;
+}
+
 export interface Payment extends Attribution {
   id: string;
   stayId: string;

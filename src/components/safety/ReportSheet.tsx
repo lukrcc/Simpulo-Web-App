@@ -2,7 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { buttonClass } from "@/components/ui/button";
+import { FormField, formTextarea } from "@/components/form/FormLayout";
+import { Button } from "@/components/ui/ActionButton";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/store";
@@ -64,32 +66,26 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
                 reason === r ? "border-line bg-bg font-medium" : "border-line hover:bg-bg",
               )}
             >
-              <input
-                type="radio"
-                name="report-reason"
-                value={r}
-                checked={reason === r}
-                onChange={() => setReason(r)}
-                className="size-4 shrink-0 accent-ink"
-              />
+              <Checkbox radio name="report-reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
               {t(`reasons.${r}`)}
             </label>
           ))}
         </fieldset>
-        <label className="mt-4 block">
-          <span className="mb-1.5 block text-sm font-medium">{t("detailsLabel")}</span>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            maxLength={1000}
-            placeholder={t("detailsPlaceholder")}
-            className="w-full resize-none rounded-2xl border border-line p-4 text-sm outline-none focus:border-accent"
-          />
-        </label>
-        <button type="submit" disabled={!reason} className={buttonClass("dark", "lg", "mt-4 w-full")}>
+        <div className="mt-4">
+          <FormField label={t("detailsLabel")}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder={t("detailsPlaceholder")}
+              className={formTextarea}
+            />
+          </FormField>
+        </div>
+        <Button type="submit" size="lg" disabled={!reason} className="mt-4 w-full">
           {t("send")}
-        </button>
+        </Button>
       </form>
     </Sheet>
   );

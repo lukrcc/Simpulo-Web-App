@@ -1,6 +1,7 @@
 import { LockOpen } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { crewThreadId, mockLinkPreview } from "@/lib/mock-extras";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,8 @@ export function AccommodationSection({ stay, chatLinkCount, canOpenChat = false,
   }
 
   return (
-    <div className={cn("flex items-start gap-3 bg-bg", compact ? "rounded-xl px-3 py-2" : "rounded-2xl p-4")}>
+    // In a card: plain content (never a box inside the card).
+    <div className={cn("flex items-start gap-3", !inCard && "bg-bg", !inCard && (compact ? "rounded-xl px-3 py-2" : "rounded-2xl p-4"))}>
       <LockOpen className={cn("shrink-0 text-muted", compact ? "mt-px size-4" : "mt-0.5 size-5")} />
       <div className="text-sm text-ink">
         <p>
@@ -35,7 +37,7 @@ export function AccommodationSection({ stay, chatLinkCount, canOpenChat = false,
           {chatLinkCount !== undefined && ` · ${t("chatLinks", { count: chatLinkCount })}`}
         </p>
         {canOpenChat && (
-          <Link href={`/inbox/${crewThreadId(stay.id)}`} className="mt-1 inline-block font-medium text-ink underline underline-offset-2 hover:text-muted">
+          <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "md", "mt-1")}>
             {t("openCrewChat")}
           </Link>
         )}

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 
 export default function NotFound() {
   const t = useTranslations("states.notFound");
@@ -14,12 +13,12 @@ export default function NotFound() {
         <h1 className="mt-8 text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/" className={buttonClass("dark", "md")}>
+          <Button variant="primary" size="lg" href="/">
             {t("explore")}
-          </Link>
-          <Link href="/how-it-works" className={buttonClass("secondary", "md")}>
+          </Button>
+          <Button variant="secondary" size="lg" href="/how-it-works">
             {t("howItWorks")}
-          </Link>
+          </Button>
         </div>
       </div>
     </Container>

@@ -4,6 +4,8 @@ import { Bell, CircleCheck, EllipsisVertical, Share, SquarePlus, type LucideIcon
 import { useTranslations } from "next-intl";
 import { useState, type ComponentType } from "react";
 import { SiAndroid, SiApple } from "react-icons/si";
+import { Button } from "@/components/ui/ActionButton";
+import { cardClass } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { clearInstallPrompt, useInstallPrompt, useIsStandalone, usePlatform } from "@/lib/install";
 import { cn } from "@/lib/utils";
@@ -64,13 +66,13 @@ export function GetTheApp({ className }: { className?: string }) {
     <section
       id="get-the-app"
       // The anchor lands below the header via the global scroll-padding-top (--header-h).
-      className={cn("rounded-[28px] bg-surface p-8", className)}
+      className={cn(cardClass, className)}
     >
       <h2 className="text-xl font-semibold tracking-tight text-ink">{t("title")}</h2>
       <p className="mt-1 text-sm text-muted">{t("intro")}</p>
 
       {standalone ? (
-        <p className="mt-5 flex items-center gap-2 rounded-2xl bg-bg p-4 text-sm text-ink">
+        <p className="mt-5 flex items-center gap-2 rounded-xl bg-bg p-4 text-sm text-ink">
           <CircleCheck className="size-5 shrink-0 text-ink" />
           {t("installed")}
         </p>
@@ -108,17 +110,10 @@ export function GetTheApp({ className }: { className?: string }) {
             ))}
           </ol>
 
-          <button
-            type="button"
-            onClick={install}
-            className={cn(
-              "mt-7 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-ink px-6 text-sm font-semibold text-surface outline-none transition-[background-color,transform] duration-200",
-              "hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98]",
-            )}
-          >
-            <CtaIcon className="size-5" />
+          <Button variant="primary" size="lg" onClick={install} className="mt-7 w-full">
+            <CtaIcon />
             {selected === "iphone" ? t("ctaIphone") : t("ctaAndroid")}
-          </button>
+          </Button>
           <p className="mt-3 text-center text-xs text-muted">{t("desktopHint")}</p>
         </>
       )}

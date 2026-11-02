@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { GET_THE_APP_HREF, LEGAL_LINKS } from "@/components/layout/secondaryLinks";
+import { ListRow } from "@/components/ui/ListRow";
 import { cn } from "@/lib/utils";
 
 /** Labels: keys under footer.links. */
@@ -15,7 +16,8 @@ const MORE_LINKS: ReadonlyArray<{ href: string; labelKey: "getTheApp" | "howSimp
   { href: "/contact", labelKey: "contact", icon: Mail },
 ];
 
-const rowClass = "flex w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] transition-colors active:bg-bg";
+const rowClass = "block w-full px-4 text-left transition-colors active:bg-bg";
+const chevron = <ChevronRight className="size-4 text-muted" aria-hidden />;
 
 /** Mobile-only grouped list on /profile – the desktop footer covers the same links. */
 export function MoreList() {
@@ -26,13 +28,11 @@ export function MoreList() {
   return (
     <section className="mt-10 md:hidden">
       <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">{tCommon("more")}</h2>
-      <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {MORE_LINKS.map(({ href, labelKey, icon: Icon }) => (
           <li key={href}>
             <Link href={href} className={rowClass}>
-              <Icon className="size-5 text-muted" aria-hidden />
-              <span className="flex-1">{t(`links.${labelKey}`)}</span>
-              <ChevronRight className="size-4 text-muted" aria-hidden />
+              <ListRow lead={<Icon aria-hidden />} title={t(`links.${labelKey}`)} action={chevron} />
             </Link>
           </li>
         ))}
@@ -44,17 +44,19 @@ export function MoreList() {
             onClick={() => setLegalOpen((open) => !open)}
             className={rowClass}
           >
-            <Scale className="size-5 text-muted" aria-hidden />
-            <span className="flex-1">{t("links.legal")}</span>
-            <ChevronDown className={cn("size-4 text-muted transition-transform", legalOpen && "rotate-180")} aria-hidden />
+            <ListRow
+              lead={<Scale aria-hidden />}
+              title={t("links.legal")}
+              action={<ChevronDown className={cn("size-4 text-muted transition-transform", legalOpen && "rotate-180")} aria-hidden />}
+            />
           </button>
           {legalOpen && (
-            <ul id="more-legal" className="border-t border-line bg-bg/60">
+            <ul id="more-legal" className="divide-y divide-line border-t border-line bg-bg/60">
               {LEGAL_LINKS.map(({ href, labelKey }) => (
                 <li key={href}>
-                  <Link href={href} className={cn(rowClass, "pl-12")}>
-                    <span className="flex-1">{t(`links.${labelKey}`)}</span>
-                    <ChevronRight className="size-4 text-muted" aria-hidden />
+                  {/* An empty lead keeps the titles on the parent row's text axis. */}
+                  <Link href={href} className={rowClass}>
+                    <ListRow lead={null} title={t(`links.${labelKey}`)} action={chevron} />
                   </Link>
                 </li>
               ))}

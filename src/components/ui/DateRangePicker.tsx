@@ -4,6 +4,8 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useFormat } from "@/i18n/format";
+import { formInput } from "@/components/form/FormLayout";
+import { Chip } from "@/components/ui/Chip";
 import { addDays, addMonths, cn, nightsBetween } from "@/lib/utils";
 
 interface DateRangePickerProps {
@@ -113,10 +115,9 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
         onClick={toggle}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={cn(
-          "flex h-11 w-full items-center gap-2.5 rounded-xl border bg-bg px-4 text-left text-[15px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-accent",
-          invalid ? "border-red-300" : "border-line",
-        )}
+        data-invalid={invalid || undefined}
+        // The form field look: 44px, surface, 1px line (red when invalid), accent focus ring.
+        className={cn(formInput, "flex items-center gap-2.5 text-left data-invalid:border-red-300")}
       >
         <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
         {start ? (
@@ -134,28 +135,24 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
           ref={popoverRef}
           role="dialog"
           aria-label={t("dialog")}
-          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-[24px] bg-surface p-4 shadow-xl ring-1 ring-line sm:w-[min(100%,36rem)] sm:p-5"
+          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-xl border border-line bg-surface p-4 shadow-xl sm:w-[min(100%,36rem)] sm:p-5"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {QUICK.map(({ key, apply }) => {
               const target = start ? apply(start) : "";
               const active = Boolean(start) && end === target;
               return (
-                <button
+                <Chip
                   key={key}
-                  type="button"
+                  active={active}
                   disabled={!start || nightsBetween(start, target) > maxNights}
                   onClick={() => {
                     onChange(start, target);
                     close();
                   }}
-                  className={cn(
-                    "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                    active ? "border-ink bg-ink text-surface" : "border-line bg-surface hover:bg-bg",
-                  )}
                 >
                   {t(`quick.${key}`)}
-                </button>
+                </Chip>
               );
             })}
             <span className="ml-auto text-[13px] text-muted">{pickingEnd ? t("pickEnd") : t("pickStart")}</span>

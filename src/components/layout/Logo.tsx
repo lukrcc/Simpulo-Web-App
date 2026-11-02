@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
-export function Logo() {
+/** Wordmark (32px/700) with the tagline (14px muted, 2px under it). The class hooks let the site header move and fade them. */
+export function Logo({ className, taglineClassName }: { className?: string; taglineClassName?: string }) {
   const t = useTranslations("nav");
   return (
-    <Link href="/" aria-label={t("home")} className="flex flex-col leading-none">
-      <span className="text-2xl font-bold tracking-tight text-ink">
+    <Link href="/" aria-label={t("home")} className={cn("flex flex-col self-center justify-self-start leading-none", className)}>
+      <span className="text-[32px] font-bold tracking-tight text-ink">
         simpulo<span className="text-accent">.</span>
       </span>
-      {/* Hidden while the header is compact (globals.css). */}
-      <span className="logo-tagline mt-1 text-[11px] text-muted">{t("tagline")}</span>
+      <span className={cn("mt-0.5 text-sm text-muted", taglineClassName)}>{t("tagline")}</span>
     </Link>
   );
 }

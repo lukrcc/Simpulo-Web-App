@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { CardTab } from "@/components/ui/CardTab";
 import { useNotchClip } from "@/components/ui/notch";
@@ -201,7 +202,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
     // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1600px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-6 lg:hidden"
+      className="mx-auto max-w-[1600px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-8 lg:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
@@ -327,7 +328,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
         data-notch="pending"
         className="notch-frame relative isolate h-full w-full max-md:origin-center"
       >
-        <div ref={clipRef} className="relative h-full w-full overflow-hidden rounded-[28px] bg-ink max-md:rounded-tl-none">
+        <div ref={clipRef} className="relative h-full w-full overflow-hidden rounded-3xl bg-ink max-md:rounded-tl-none">
           {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
           <div className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
             <Img
@@ -411,7 +412,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               <div className="hidden md:block">
                 <CrewAvatars host={host} members={guests} />
               </div>
-              {/* Phones: glass pill; md+: white pill (visual only there – the whole slide is the link). */}
+              {/* Phones: glass pill over the photo; md+: a secondary button (visual only there – the whole slide is the link). */}
               <Link
                 href={href}
                 tabIndex={-1}
@@ -420,11 +421,8 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               >
                 {t("viewHouse")}
               </Link>
-              <span
-                aria-hidden
-                className="hidden h-11 items-center rounded-full bg-surface px-7 text-sm font-semibold text-ink md:inline-flex"
-              >
-                {t("viewHouse")}
+              <span aria-hidden className="hidden md:block">
+                <span className={buttonStyles("secondary", "lg")}>{t("viewHouse")}</span>
               </span>
             </div>
           </div>

@@ -1,18 +1,15 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { sheetButtonClass } from "@/components/ui/sheetButton";
+import { useLocale, useTranslations } from "next-intl";
+import { useMemo, useState, type FormEvent } from "react";
+import { FormField, formInput } from "@/components/form/FormLayout";
+import { Button } from "@/components/ui/ActionButton";
+import { Combobox } from "@/components/ui/Combobox";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
-
-// Soft field style of Edit profile.
-const field =
-  "h-12 w-full rounded-xl border border-line bg-bg px-4 text-[15px] outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent";
-const fieldInvalid = "border-red-300";
+import { countryNames } from "@/lib/utils";
 
 type FieldKey = "photo" | "name" | "age" | "country";
 type Errors = Partial<Record<FieldKey, true>>;
@@ -59,6 +56,8 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
     languages: user.languages,
   }));
   const [errors, setErrors] = useState<Errors>({});
+  const locale = useLocale();
+  const countries = useMemo(() => countryNames(locale).map((name) => ({ value: name, label: name })), [locale]);
 
   /** Sets a field and drops its error message, if any. */
   function update<K extends keyof FormState>(key: K, value: FormState[K], clears?: FieldKey) {
@@ -93,8 +92,7 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
         <p className="-mt-2 text-[15px] text-muted">{t("subtitle")}</p>
       )}
 
-      <div role="group" aria-label={t("photo")}>
-        <span className="mb-1.5 block text-sm font-medium">{t("photo")}</span>
+      <FormField label={t("photo")} error={errors.photo && t("errors.photo")} group>
         <div className="flex items-center gap-4">
           {/* One slot of the 5-column profile grid, so it matches the face tile on Edit profile. */}
           <div className="w-28 shrink-0">
@@ -102,67 +100,53 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
           </div>
           <p className="text-[13px] text-muted">{t("photoHint")}</p>
         </div>
-        {errors.photo && <FieldError>{t("errors.photo")}</FieldError>}
-      </div>
+      </FormField>
 
       <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
-        <Field label={t("name")} error={errors.name && t("errors.name")}>
+        <FormField label={t("name")} error={errors.name && t("errors.name")}>
           <input
-            className={cn(field, errors.name && fieldInvalid)}
+            className={formInput}
             value={form.name}
             onChange={(e) => update("name", e.target.value, "name")}
             autoComplete="given-name"
             aria-invalid={errors.name}
           />
-        </Field>
-        <Field label={t("age")} error={errors.age && t("errors.age")}>
+        </FormField>
+        <FormField label={t("age")} error={errors.age && t("errors.age")}>
+          {/* Typed, no spinner: digits only, 18–99 checked on submit. */}
           <input
-            className={cn(field, errors.age && fieldInvalid)}
-            type="number"
+            className={formInput}
+            type="text"
             inputMode="numeric"
-            min={18}
-            max={99}
+            pattern="[0-9]*"
+            maxLength={2}
             value={form.age}
-            onChange={(e) => update("age", e.target.value, "age")}
+            onChange={(e) => update("age", e.target.value.replace(/\D/g, ""), "age")}
             aria-invalid={errors.age}
           />
-        </Field>
+        </FormField>
       </div>
 
-      <Field label={t("country")} error={errors.country && t("errors.country")}>
-        <input
-          className={cn(field, errors.country && fieldInvalid)}
+      <FormField label={t("country")} error={errors.country && t("errors.country")} group>
+        {/* Suggestions while typing; anything else typed is kept. */}
+        <Combobox
+          aria-label={t("country")}
           value={form.country}
-          onChange={(e) => update("country", e.target.value, "country")}
-          autoComplete="country-name"
-          aria-invalid={errors.country}
+          options={countries}
+          onPick={(option) => update("country", option.value, "country")}
+          onFreeText={(text) => update("country", text, "country")}
+          isSelected={(option) => option.value === form.country}
+          invalid={errors.country}
         />
-      </Field>
+      </FormField>
 
-      <div role="group" aria-label={t("languages")}>
-        <span className="mb-1.5 block text-sm font-medium">
-          {t("languages")} <span className="font-normal text-muted">{t("optional")}</span>
-        </span>
-        <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} soft />
-      </div>
+      <FormField label={t("languages")} optional group>
+        <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} />
+      </FormField>
 
-      <button type="submit" className={cn(sheetButtonClass, "justify-center bg-ink text-surface hover:bg-ink/90")}>
+      <Button type="submit" size="lg" className="w-full">
         {t("continue")}
-      </button>
+      </Button>
     </form>
   );
-}
-
-function Field({ label, error, children }: { label: string; error?: string | false; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}</span>
-      {children}
-      {error && <FieldError>{error}</FieldError>}
-    </label>
-  );
-}
-
-function FieldError({ children }: { children: ReactNode }) {
-  return <span className="mt-1.5 block text-[13px] text-red-600">{children}</span>;
 }

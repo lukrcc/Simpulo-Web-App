@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, MessageCircle, Plus, UserRound } from "lucid
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
 import { useNotchClip } from "@/components/ui/notch";
 import { CardShareButton } from "@/components/share/HouseShare";
@@ -104,9 +105,10 @@ function DefaultStayCard({
       ref={revealRef}
       data-notch="pending"
       className={cn(
-        "notch-frame group relative isolate transition-[opacity,translate,scale]",
-        // In a row (compact) the row lifts the card instead (.lift-row in globals.css) – and its photo doesn't zoom.
-        !compact && "md:hover:scale-[1.02]",
+        "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
+        // In a row (compact) the row lifts the card and casts the shadow instead (.lift-row in globals.css) – and its
+        // photo doesn't zoom. In the grid: scale and the hover shadow, following the notched silhouette.
+        compact ? "lift-card" : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
         HOVER_MOTION,
         !tall && "aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
@@ -115,13 +117,16 @@ function DefaultStayCard({
       )}
     >
       {/* Before the clip is measured: a rounded card, the tab's corner pieces over its top-left. */}
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-[28px] bg-line", host && "rounded-tl-none")}>
+      {/* The one rounded layer: 24px radius, overflow hidden (notched by clip-path), surface behind the photo so no edge
+          shows while it lifts; no border, ring or outline. Transform and shadow sit on the frame around it – the
+          notch's clip-path would cut off a shadow on this layer. */}
+      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", host && "rounded-tl-none")}>
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
         <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
           {photos.length === 0 &&
             (photoPlaceholder ? (
               <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">
-                <span className="flex size-20 items-center justify-center rounded-full bg-white/70">
+                <span className="flex size-20 items-center justify-center rounded-full bg-surface/70">
                   <UserRound className="size-10 text-muted" strokeWidth={1.5} aria-hidden />
                 </span>
                 <span className="text-sm font-medium">{photoPlaceholder}</span>
@@ -141,7 +146,8 @@ function DefaultStayCard({
               />
             );
             // Each slide clips its own photo, so the zoom never spills into the next one.
-            const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden";
+            // No outline: keyboard focus shows as the card's lift (has-focus-visible on the frame).
+            const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden outline-none";
             return preview ? (
               <div key={src} className={slideClass}>
                 {image}
@@ -166,7 +172,7 @@ function DefaultStayCard({
         <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         {!preview && (
-          <div className="absolute right-4 top-4 z-10 flex gap-2">
+          <div className="absolute right-3 top-3 z-10 flex gap-2">
             <CardShareButton stay={stay} />
             <SaveButton stay={stay} />
           </div>
@@ -175,9 +181,7 @@ function DefaultStayCard({
         {/* Bottom content – pointer-events pass through to the photo links. */}
         <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 text-white", TEXT_SHADOW, compact ? "px-4 pb-7" : "px-5 pb-8")}>
           {invited && (
-            <span className="mb-2 inline-flex rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-ink [text-shadow:none]">
-              {t("cards.invited")}
-            </span>
+            <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>
           )}
           <h3 className={cn("line-clamp-2 font-bold tracking-tight", compact ? "text-xl" : "text-2xl")}>{stay.title || t("untitledHouse")}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
@@ -242,7 +246,8 @@ function DefaultStayCard({
           </>
         )}
       </div>
-      {host && <CardTab host={host} />}
+      {/* The two 40px circles top right (12px in, 8px apart) take 100px; the tab stops 12px short of them. */}
+      {host && <CardTab host={host} className="max-w-[calc(100%-112px)]" />}
     </article>
   );
 }
@@ -297,7 +302,8 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
   return (
     <article
       className={cn(
-        "group relative isolate h-full overflow-hidden rounded-[28px] bg-line transition-[scale] md:hover:scale-[1.02]",
+        // One element: 24px radius, overflow hidden and – on hover only – the shadow. No border; the tiles fill it.
+        "group relative isolate h-full overflow-hidden rounded-3xl bg-surface transition-[scale,box-shadow] md:hover:scale-[1.02] md:hover:shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
         HOVER_MOTION,
         className,
       )}
@@ -346,7 +352,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
             aria-label={t("houseWithHost", { title: stay.title, host: firstName(host) })}
             className="absolute inset-0 z-0 rounded-[inherit]"
           />
-          <div className="absolute right-4 top-4 z-10 flex gap-2">
+          <div className="absolute right-3 top-3 z-10 flex gap-2">
             <CardShareButton stay={stay} />
             <SaveButton stay={stay} />
           </div>

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
@@ -29,18 +29,18 @@ function PhotoSheetBody({ onDone }: { onDone: () => void }) {
     <div className="space-y-4">
       <PhotoUploader photos={photos} onChange={setPhotos} />
       <p className="text-xs text-muted">{t("hint")}</p>
-      <button
-        type="button"
+      <Button
+        size="lg"
         disabled={!photos[0]}
         onClick={() => {
           store.updateCurrentUser({ photos });
           showToast(t("added"));
           onDone();
         }}
-        className={buttonClass("dark", "lg", "w-full")}
+        className="w-full"
       >
         {t("save")}
-      </button>
+      </Button>
     </div>
   );
 }

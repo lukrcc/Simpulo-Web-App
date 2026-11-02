@@ -1,17 +1,25 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { Sparkles, Users } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { ScrollRow, RowHeader } from "@/components/explore/CollectionRow";
 import { StayCard } from "@/components/StayCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SurfaceBand } from "@/components/ui/SurfaceBand";
+import { useFeatureFlag } from "@/lib/featureFlags";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /** The row's vibes, in this order – one House each, the rest filled with any other open Houses. */
 const ROW_VIBES = ["party", "founder", "surf", "singles", "study", "fitness", "creator", "remote-work", "yoga", "adventure"];
 const ROW_SIZE = 8;
 /** Fewer than this and the row isn't worth showing (sparse datasets). */
 const MIN_ROW = 3;
+
+/** The page's one worked example (per guest): what a guest pays, Simpulo's 10 %, what reaches the host. */
+const EXAMPLE = { guestPays: 650, fee: 65, youReceive: 585 };
 
 function useOpenHouses(): Stay[] {
   const store = useStore();
@@ -40,8 +48,56 @@ export function HostHeroCard({ className }: { className?: string }) {
   );
 }
 
-/** "Houses people opened": up to 8 open Houses across different vibes, as an Explore collection row. */
-export function HostHousesRow() {
+/**
+ * "Two ways to host": share the cost, or add a host experience on top – two equal cards (surface, line, 24px radius,
+ * 40px padding), the right one with the page's only sum. Only with featureFlags.hostPremium – off, there is one way,
+ * and the section isn't shown.
+ */
+export function HostWays({ className }: { className?: string }) {
+  const t = useTranslations("growth.host");
+  const format = useFormatter();
+  const premium = useFeatureFlag("hostPremium");
+  if (!premium) return null;
+
+  const eur = (amount: number) => format.number(amount, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const rows: Array<{ label: string; value: string; strong?: boolean }> = [
+    { label: t("calc.guestPays"), value: eur(EXAMPLE.guestPays) },
+    { label: t("calc.fee"), value: eur(EXAMPLE.fee) },
+    { label: t("calc.youReceive"), value: eur(EXAMPLE.youReceive), strong: true },
+  ];
+  const card = "flex flex-col rounded-3xl border border-line bg-surface p-10";
+
+  return (
+    <section aria-labelledby="host-ways" className={className}>
+      <SectionHeader id="host-ways" title={t("waysTitle")} subline={t("waysSubline")} />
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+        <article className={card}>
+          <Users className="size-6 text-ink" aria-hidden />
+          <h3 className="mt-5 text-[22px] font-semibold tracking-tight text-ink">{t("shareTitle")}</h3>
+          <p className="mt-2 text-base leading-relaxed text-muted">{t("shareText")}</p>
+          <p className="mt-auto pt-8 text-[15px] text-muted">{t("shareLine")}</p>
+        </article>
+        <article className={card}>
+          <Sparkles className="size-6 text-ink" aria-hidden />
+          <h3 className="mt-5 text-[22px] font-semibold tracking-tight text-ink">{t("proTitle")}</h3>
+          <p className="mt-2 text-base leading-relaxed text-muted">{t("addText")}</p>
+          {/* The sum: three 44px rows split by lines, the last one weighted. */}
+          <dl className="mt-auto divide-y divide-line pt-8">
+            {rows.map(({ label, value, strong }) => (
+              <div key={label} className={cn("flex min-h-11 items-center justify-between gap-4 text-[15px]", strong ? "font-semibold text-ink" : "text-ink")}>
+                <dt className={strong ? undefined : "text-muted"}>{label}</dt>
+                <dd className="tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+/** "Houses people opened": up to 8 open Houses across different vibes, as an Explore collection row on a surface band. */
+export function HostHousesRow({ className }: { className?: string }) {
   const t = useTranslations("growth.host");
   const store = useStore();
   const open = useOpenHouses();
@@ -52,20 +108,22 @@ export function HostHousesRow() {
   }, [open]);
   if (stays.length < MIN_ROW) return null;
   return (
-    <section aria-labelledby="host-houses" className="mt-14">
-      <RowHeader
-        id="host-houses"
-        title={t("housesTitle")}
-        subline={t("housesSubline")}
-        seeAll={{ href: "/explore", label: t("housesSeeAll"), ariaLabel: t("housesSeeAllLabel") }}
-      />
-      <ScrollRow>
-        {stays.map((stay) => (
-          <div key={stay.id} className="w-65 shrink-0 snap-start">
-            <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
-          </div>
-        ))}
-      </ScrollRow>
-    </section>
+    <SurfaceBand className={className}>
+      <section aria-labelledby="host-houses">
+        <RowHeader
+          id="host-houses"
+          title={t("housesTitle")}
+          subline={t("housesSubline")}
+          seeAll={{ href: "/explore", label: t("housesSeeAll"), ariaLabel: t("housesSeeAllLabel") }}
+        />
+        <ScrollRow>
+          {stays.map((stay) => (
+            <div key={stay.id} className="w-90 shrink-0 snap-start">
+              <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
+            </div>
+          ))}
+        </ScrollRow>
+      </section>
+    </SurfaceBand>
   );
 }

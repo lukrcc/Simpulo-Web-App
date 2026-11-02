@@ -8,8 +8,6 @@ interface MasterDetailProps {
   list: ReactNode;
   /** Right column, lg and up only (below lg a row opens its own detail page). */
   detail: ReactNode;
-  /** Desktop: the list sits on a white panel (Houses) instead of the page background (Messages). */
-  panel?: boolean;
   /**
    * Desktop: the detail fills the column and scrolls itself (chat: pinned header, scrolling messages, composer)
    * instead of the whole column being one scroll pane.
@@ -27,13 +25,12 @@ const column = "lg:scroll-pane lg:h-full lg:min-h-0";
  * On desktop the page is exactly the viewport under the header – `data-app-pane="desktop"` also hides the footer and the
  * main's bottom padding (globals.css).
  */
-export function MasterDetail({ title, list, detail, panel = false, detailFill = false, fixedList = false }: MasterDetailProps) {
+export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false }: MasterDetailProps) {
   return (
-    <Container className="pt-6 md:pt-10 lg:h-[calc(100dvh-var(--header-h))] lg:overflow-hidden lg:py-6">
+    <Container className="pt-6 md:pt-8 lg:h-[calc(100dvh-var(--header-h))] lg:overflow-hidden lg:pb-6 lg:pt-8">
       <div data-app-pane="desktop" className={cn("lg:grid lg:h-full lg:gap-6", fixedList ? "lg:grid-cols-[380px_minmax(0,1fr)]" : "lg:grid-cols-12")}>
-        <div className={cn("min-w-0", !fixedList && "lg:col-span-4", panel ? "lg:rounded-[24px] lg:bg-surface lg:p-4" : "lg:pr-2", column)}>
-          {/* The title lives in the list column, so it scrolls with the list and starts level with the detail. */}
-          <h1 className={cn("mb-6 text-2xl font-bold tracking-tight md:text-3xl", panel && "lg:mb-4 lg:text-2xl")}>{title}</h1>
+        {/* No page title – the list starts 32px under the header; the name stays as the region's label. */}
+        <div aria-label={title} className={cn("min-w-0", !fixedList && "lg:col-span-4", "lg:pr-2", column)}>
           {list}
         </div>
         <div

@@ -6,8 +6,8 @@ export type { Attribution };
 
 /** Channels a share link can be made for (the share sheet). `story` is the downloadable story image's QR code. */
 export const SHARE_CHANNELS = ["whatsapp", "instagram", "tiktok", "twitch", "copy"] as const;
-/** Plus the host tools (story image, QR poster) and the system share dialog (navigator.share). */
-export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "poster" | "native";
+/** Plus the host tools (story image) and the system share dialog (navigator.share). */
+export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "native";
 
 export const REF_PARAM = "ref";
 const UTM_PARAMS = { utmSource: "utm_source", utmMedium: "utm_medium", utmCampaign: "utm_campaign" } as const;
@@ -124,7 +124,7 @@ export interface GrowthEvent extends Attribution {
   userId?: string;
   /** link_shared: where it was shared to */
   channel?: ShareChannel;
-  /** payment_completed: what the guest paid, and Simpulo's part of it (guest fee + 20 % of the host programme) */
+  /** payment_completed: what the guest paid, and Simpulo's part of it (guest fee + 10 % of the host programme) */
   amount?: number;
   revenue?: number;
   currency?: string;

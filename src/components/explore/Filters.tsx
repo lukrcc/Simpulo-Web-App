@@ -1,22 +1,20 @@
 "use client";
 
-import { ArrowUpDown, Check, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { formInput } from "@/components/form/FormLayout";
+import { buttonStyles, type ButtonSize } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { ListRow } from "@/components/ui/ListRow";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 
-/** Pill trigger shared by every filter popover: white, 1px border, "Country · 2" when active (then an ink border). */
-export const pillClass = (active: boolean, small = false) =>
-  cn(
-    "inline-flex shrink-0 items-center gap-1.5 rounded-full border text-sm font-medium transition-colors",
-    small ? "h-9 px-3.5" : "h-10 px-4",
-    active ? "border-ink bg-ink text-surface" : "border-line bg-surface text-ink hover:bg-bg",
-  );
-
 /**
- * "Filters" – the same white 1px capsule as the filter pills (never the dark "Open a House" button). Active:
- * "Filters · 2" with a small orange dot before the text instead of the icon.
+ * "Filters" – a secondary button (never the primary "Open a House"). Active: "Filters" with the number of active
+ * filters as a Badge.
  */
 export function FiltersButton({
   count,
@@ -31,8 +29,8 @@ export function FiltersButton({
   expanded?: boolean;
   /** id of the popover it opens */
   controls?: string;
-  /** 36px (the sticky bar) instead of 40px */
-  small?: boolean;
+  /** 36px (the sticky bar) instead of 44px; "mid": 40px (Explore's header) */
+  small?: boolean | "mid";
   className?: string;
 }) {
   const t = useTranslations("explore");
@@ -45,10 +43,11 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={cn(pillClass(count > 0, small), className)}
+      className={buttonStyles("secondary", small === "mid" ? "mid" : small ? "md" : "lg", className)}
     >
-      {count > 0 ? <span aria-hidden className="size-2 rounded-full bg-accent" /> : <SlidersHorizontal className="size-4" aria-hidden />}
-      {count > 0 ? `${t("filters")} · ${count}` : t("filters")}
+      <SlidersHorizontal aria-hidden />
+      {t("filters")}
+      {count > 0 && <Badge>{count}</Badge>}
     </button>
   );
 }
@@ -61,7 +60,10 @@ export interface CheckOption {
   group?: string;
 }
 
-/** Checkbox list with optional search and group headings; options with no Houses for the other filters dim. */
+/**
+ * Checkbox list (ListRows: checkbox, label, number of Houses as a Badge) with optional search and group headings;
+ * options with no Houses for the other filters dim.
+ */
 export function CheckboxList({
   options,
   value,
@@ -82,48 +84,40 @@ export function CheckboxList({
   return (
     <div>
       {searchPlaceholder && (
-        <label className="mb-2 flex items-center gap-2 rounded-xl bg-bg px-3 py-2.5">
-          <Search className="size-4 shrink-0 text-muted" aria-hidden />
+        <label className="relative mb-2 block">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
+            className={cn(formInput, "pl-10")}
           />
         </label>
       )}
-      {visible.length === 0 && <p className="px-2 py-3 text-sm text-muted">{t("noMatches")}</p>}
+      {visible.length === 0 && <p className="py-3 text-sm text-muted">{t("noMatches")}</p>}
       {groups.map((group) => (
         <div key={group || "all"} className="mt-1 first:mt-0">
-          {group && <p className="px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">{group}</p>}
-          {visible
-            .filter((o) => (o.group ?? "") === group)
-            .map((option) => {
-              const checked = value.includes(option.value);
-              return (
-                <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-bg">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onChange(checked ? value.filter((v) => v !== option.value) : [...value, option.value])}
-                    className="peer sr-only"
-                  />
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded-md border peer-focus-visible:ring-2 peer-focus-visible:ring-accent",
-                      checked ? "border-ink bg-ink text-surface" : "border-line bg-surface",
-                    )}
-                  >
-                    {checked && <Check className="size-3.5" strokeWidth={3} />}
-                  </span>
-                  <span className={cn("min-w-0 flex-1 truncate text-[15px]", option.count === 0 && !checked ? "text-muted" : "text-ink")}>{option.label}</span>
-                  <span className="shrink-0 text-sm tabular-nums text-muted">{option.count}</span>
-                </label>
-              );
-            })}
+          {group && <p className="pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">{group}</p>}
+          <ul className="divide-y divide-line">
+            {visible
+              .filter((o) => (o.group ?? "") === group)
+              .map((option) => {
+                const checked = value.includes(option.value);
+                return (
+                  <li key={option.value}>
+                    <label className="block cursor-pointer">
+                      <ListRow
+                        lead={<Checkbox checked={checked} onChange={() => onChange(checked ? value.filter((v) => v !== option.value) : [...value, option.value])} />}
+                        title={<span className={option.count === 0 && !checked ? "text-muted" : undefined}>{option.label}</span>}
+                        aside={<Badge>{option.count}</Badge>}
+                      />
+                    </label>
+                  </li>
+                );
+              })}
+          </ul>
         </div>
       ))}
     </div>
@@ -209,10 +203,13 @@ export function CategoryRow({
   more,
   value,
   onSelect,
+  size = "row",
 }: {
   label: string;
   allLabel: string;
   moreLabel: string;
+  /** "row": 36px chips; "explore": Explore's header (44px from md, shown at 0.82 when the header is compact) */
+  size?: "row" | "explore";
   /** The visible category chips, in order (the last one is the changing slot) */
   chips: ReadonlyArray<ChipOption>;
   /** Everything else, for the More popover */
@@ -247,33 +244,41 @@ export function CategoryRow({
     };
   }, [open]);
 
-  const chip = (active: boolean) =>
-    cn(
-      "h-9 rounded-full border text-sm font-medium whitespace-nowrap transition-colors px-2.5 lg:px-3 xl:px-[14px]",
-      active ? "border-ink bg-ink text-surface" : "border-line bg-surface text-ink hover:bg-bg",
-    );
+  const chip = (active: boolean) => chipStyles(active, { size });
+  const { ref: scrollerRef, edges, page } = useChipScroller();
   // A click on the only active chip goes back to All; any other click makes that chip the one.
   const pick = (option: string) => onSelect(value.length === 1 && value[0] === option ? null : option);
   const moreActive = more.some((o) => value.includes(o.value));
 
   return (
-    <div ref={rootRef} className="relative min-w-0">
-      <div role="radiogroup" aria-label={label} className="flex min-w-0 gap-1.5 xl:gap-2">
+    <div ref={rootRef} className="chip-row group/chips relative flex min-w-0 items-center" data-at-start={edges.atStart || undefined} data-at-end={edges.atEnd || undefined}>
+      {/* A fixed slot either side of the scroller (36px in the compact header, 0 elsewhere – globals.css): the arrow
+          circle when there is more to scroll to in that direction, else empty. A click moves 60 % of the visible width. */}
+      <span className="chip-slot">
+        {!edges.atStart && (
+          <button type="button" tabIndex={-1} aria-hidden onClick={() => page(-1)} className="chip-arrow">
+            <ChevronLeft aria-hidden />
+          </button>
+        )}
+      </span>
+      {/* The chips keep their width (never squeezed or cut): the row scrolls sideways – also with the mouse wheel – its
+          ends fading out where there's more (.chip-scroller in globals.css). */}
+      <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto py-1">
         <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={cn(chip(value.length === 0), "shrink-0")}>
           {allLabel}
         </button>
         {chips.map((o) => (
-          <button
+          <Chip
             key={o.value}
-            type="button"
             role="radio"
             aria-checked={value.includes(o.value)}
+            active={value.includes(o.value)}
+            size={size}
             title={o.label}
             onClick={() => pick(o.value)}
-            className={cn(chip(value.includes(o.value)), "min-w-0 shrink truncate")}
           >
             {o.label}
-          </button>
+          </Chip>
         ))}
         {more.length > 0 && (
           <button
@@ -282,40 +287,91 @@ export function CategoryRow({
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-haspopup="true"
-            className={cn(chip(moreActive), "inline-flex shrink-0 items-center gap-1")}
+            className={chip(moreActive)}
           >
+            {moreActive && <ChipCheck />}
             {moreLabel}
             <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
         )}
       </div>
+      <span className="chip-slot">
+        {!edges.atEnd && (
+          <button type="button" tabIndex={-1} aria-hidden onClick={() => page(1)} className="chip-arrow">
+            <ChevronRight aria-hidden />
+          </button>
+        )}
+      </span>
       {open && (
         <div
           ref={popoverRef}
           role="group"
           aria-label={moreLabel}
           style={{ width: `min(${MORE_POPOVER_MAX_WIDTH}px, calc(100vw - 32px))` }}
-          className="animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
+          className="chip-more-popover animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
         >
           {more.map((o) => (
-            <button
+            <Chip
               key={o.value}
-              type="button"
-              aria-pressed={value.includes(o.value)}
+              active={value.includes(o.value)}
+              size="row"
               title={o.label}
               onClick={() => {
                 onSelect(o.value);
                 setOpen(false);
               }}
-              className={cn(chip(value.includes(o.value)), "min-w-0 truncate")}
+              className="shrink"
             >
               {o.label}
-            </button>
+            </Chip>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * The chip row's scroller: whether it can scroll back / on (re-measured on scroll and resize), a page of 60 % of its
+ * visible width per arrow click (smooth, instant with reduced motion), and the mouse wheel's vertical turn as sideways
+ * scroll while there's room – at either end the page scrolls as usual.
+ */
+function useChipScroller() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: true });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const atStart = el.scrollLeft <= 1;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      setEdges((e) => (e.atStart === atStart && e.atEnd === atEnd ? e : { atStart, atEnd }));
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0 || (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    el.addEventListener("scroll", measure, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", measure);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+  function page(direction: 1 | -1) {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollBy({ left: direction * el.clientWidth * 0.6, behavior: reduce ? "auto" : "smooth" });
+  }
+  return { ref, edges, page };
 }
 
 /** Closes something on a pointer down outside `root` and on Escape (focus back to `returnTo`). */
@@ -347,7 +403,7 @@ function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTML
  * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px capsule with the current order
  * that opens the same choices as the panel's Sort section, right under it.
  */
-export function SortCapsule({ label, children }: { label: string; children: ReactNode }) {
+export function SortCapsule({ label, children, size = "md" }: { label: string; children: ReactNode; /** "lg": 44px (Explore's header) */ size?: ButtonSize }) {
   const t = useTranslations("explore");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -363,9 +419,9 @@ export function SortCapsule({ label, children }: { label: string; children: Reac
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${t("sort")}: ${label}`}
-        className={pillClass(false, true)}
+        className={buttonStyles("secondary", size)}
       >
-        <ArrowUpDown className="size-4 opacity-70" aria-hidden />
+        <ArrowUpDown aria-hidden />
         <span className="max-sm:sr-only">{label}</span>
       </button>
       {open && (
@@ -448,17 +504,18 @@ export function FilterPanel({ open, onClose, title, footer, children }: { open: 
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col bg-surface shadow-[-12px_0_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] outline-none motion-safe:animate-panel-in"
+        className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col border-l border-line bg-surface shadow-[-12px_0_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] outline-none motion-safe:animate-panel-in"
       >
         <div className="flex items-center justify-between gap-4 border-b border-line px-6 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <h2 id={titleId} className="text-lg font-semibold">
+          <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-ink">
             {title}
           </h2>
-          <button type="button" onClick={onClose} aria-label={tCommon("close")} className="rounded-full p-1.5 text-muted hover:bg-bg hover:text-ink">
+          <button type="button" onClick={onClose} aria-label={tCommon("close")} className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:bg-bg">
             <X className="size-5" aria-hidden />
           </button>
         </div>
-        <div className="scroll-pane min-h-0 flex-1 space-y-6 px-6 py-5">{children}</div>
+        {/* The sections one under the other, each split from the next by a line. */}
+        <div className="scroll-pane min-h-0 flex-1 divide-y divide-line px-6 [&>*]:py-6">{children}</div>
         <div className="flex items-center justify-between gap-4 border-t border-line px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">{footer}</div>
       </div>
     </div>

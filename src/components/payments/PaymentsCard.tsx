@@ -3,11 +3,12 @@
 import { CircleCheck, Clock, FileUp, Loader2, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { DetailSection, ListRow } from "@/components/stay/DetailSection";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { Avatar } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { StatusPill } from "@/components/ui/StatusPill";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { paymentSplit } from "@/lib/fees";
@@ -19,12 +20,13 @@ const UPLOAD_WINDOW_MS = 48 * 60 * 60 * 1000;
 const IS_DEV = process.env.NODE_ENV !== "production";
 
 /**
- * Host's payment status of a locked House: progress, who paid what, reminders, unlock (with refunds) and – once
- * everyone paid – the booking confirmation upload. Renders nothing while the accommodation is open.
+ * Your houses → "Payments" for the host of a locked House: progress, who paid what, reminders, the payout, unlock
+ * (with refunds) and – once everyone paid – the booking confirmation upload. Renders nothing while the accommodation
+ * is open.
  */
-export function PaymentsCard({ stay, className }: { stay: Stay; className?: string }) {
+export function PaymentsSection({ stay }: { stay: Stay }) {
   const t = useTranslations("houses.payments");
-  const tPremium = useTranslations("growth.premium");
+  const tSection = useTranslations("houses.detail.sections");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
@@ -38,10 +40,9 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
   const progress = paymentProgress(store, stay.id);
   const lock = getLockDetails(store, stay);
   const money = (amount: number) => f.price(amount, stay.currency);
+  const payout = payments.filter((p) => p.status === "paid").reduce((sum, p) => sum + paymentSplit(p.share, p.hostFee).hostReceives, 0);
   const percent = progress.count > 0 ? Math.round((progress.paidCount / progress.count) * 100) : 0;
   const closed = stay.status === "closed";
-  // The programme column only for Houses that have one.
-  const withProgramme = payments.some((p) => p.hostFee);
 
   async function unlock() {
     setUnlocking(false);
@@ -52,19 +53,16 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
   }
 
   return (
-    <section className={cn("rounded-[24px] bg-surface p-6", className)}>
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold">{t("title")}</h2>
-        {lock && <span className="text-sm text-muted">{t("payBy", { date: f.day(lock.payBy) })}</span>}
-      </div>
-
-      <p className="text-sm font-medium tabular-nums">
+    // No header action – the status line says where it stands.
+    <DetailSection title={t("title")}>
+      <p className="text-[15px] tabular-nums text-ink">
         {t("progress", {
           paid: progress.paidCount,
           count: progress.count,
           paidAmount: money(progress.paidAmount),
           totalAmount: money(progress.totalAmount),
         })}
+        {lock && <span className="text-[13px] text-muted"> · {tSection("payBy", { date: f.day(lock.payBy) })}</span>}
       </p>
       <div
         role="progressbar"
@@ -77,44 +75,36 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
         <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${percent}%` }} />
       </div>
 
-      <table className="mt-5 w-full text-left text-sm">
-        <thead className="text-xs text-muted">
-          <tr>
-            <th scope="col" className="pb-2 font-medium">{t("colName")}</th>
-            <th scope="col" className="pb-2 text-right font-medium">{t("colShare")}</th>
-            {withProgramme && <th scope="col" className="pb-2 pl-3 text-right font-medium">{tPremium("colProgramme")}</th>}
-            <th scope="col" className="pb-2 pl-3 font-medium">{t("colStatus")}</th>
-            <th scope="col" className="hidden pb-2 font-medium sm:table-cell">{t("colPaid")}</th>
-            <th scope="col" className="pb-2">
-              <span className="sr-only">{t("remind")}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line border-t border-line">
-          {payments.map((payment) => (
-            <PaymentRow key={payment.id} payment={payment} stay={stay} withProgramme={withProgramme} onPay={() => setPaying(true)} />
-          ))}
-        </tbody>
-      </table>
+      <ul className="mt-3 divide-y divide-line">
+        {payments.map((payment) => (
+          <PaymentRow key={payment.id} payment={payment} stay={stay} onPay={() => setPaying(true)} />
+        ))}
+      </ul>
 
       {(progress.allPaid || stay.status === "booked") && <BookingBlock stay={stay} payments={payments} />}
+      {/* What reaches the host: every paid share and programme fee, minus the commission – paid out once booked. */}
+      <p className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-sm">
+        <span className="font-medium text-ink">{tSection("payout")}</span>
+        <span className="text-right text-muted">
+          {tSection(stay.status === "booked" ? "payoutDone" : "payoutPending", { amount: money(payout) })}
+        </span>
+      </p>
 
       {!closed && (
-        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
-          <button type="button" disabled={busyUnlock} onClick={() => setUnlocking(true)} className={buttonClass("secondary", "sm")}>
-            {busyUnlock ? <Loader2 className="size-4 animate-spin" aria-label={t("unlocking")} /> : t("unlock")}
-          </button>
+        <div className="mt-4 flex flex-wrap items-center gap-6">
+          <Button variant="tertiary" disabled={busyUnlock} onClick={() => setUnlocking(true)}>
+            {busyUnlock ? <Loader2 className="animate-spin" aria-label={t("unlocking")} /> : tSection("unlock")}
+          </Button>
           {IS_DEV && (
-            <button
-              type="button"
+            <Button
+              variant="tertiary"
               onClick={() => {
                 store.resetPayments(stay.id);
                 showToast(t("resetToast"));
               }}
-              className="ml-auto rounded-full px-2 py-1 text-xs text-muted underline-offset-2 hover:text-muted hover:underline"
             >
               {t("devReset")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -128,12 +118,14 @@ export function PaymentsCard({ stay, className }: { stay: Stay; className?: stri
         onClose={() => setUnlocking(false)}
         onConfirm={() => void unlock()}
       />
-    </section>
+    </DetailSection>
   );
 }
 
-function PaymentRow({ payment, stay, withProgramme, onPay }: { payment: Payment; stay: Stay; withProgramme: boolean; onPay: () => void }) {
+/** One crew member's share: avatar, name, "€480 · paid Jan 2" / "€480 · open", status badge, Pay now / Remind. */
+function PaymentRow({ payment, stay, onPay }: { payment: Payment; stay: Stay; onPay: () => void }) {
   const t = useTranslations("houses.payments");
+  const tSection = useTranslations("houses.detail.sections");
   const f = useFormat();
   const store = useStore();
   const showToast = useToast();
@@ -141,42 +133,31 @@ function PaymentRow({ payment, stay, withProgramme, onPay }: { payment: Payment;
   const isMe = payment.userId === store.currentUserId;
   const firstName = user?.name.split(" ")[0] ?? "";
   const pending = payment.status === "pending";
+  // Share plus the host programme, if any – what this person owes the House.
+  const amount = f.price(payment.share + (payment.hostFee ?? 0), stay.currency);
 
   return (
-    <tr>
-      <td className="py-3 pr-3">
-        <span className="flex min-w-0 items-center gap-2.5">
-          {user && <Avatar user={user} size="sm" />}
-          <span className="truncate font-medium">{isMe && user ? t("you", { name: user.name }) : (user?.name ?? payment.userId)}</span>
-        </span>
-      </td>
-      <td className="py-3 text-right tabular-nums">{f.price(payment.share, stay.currency)}</td>
-      {withProgramme && (
-        <td className="py-3 pl-3 text-right tabular-nums text-muted">{payment.hostFee ? f.price(payment.hostFee, stay.currency) : "–"}</td>
-      )}
-      <td className="py-3 pl-3">
-        <StatusPill status={pending ? "pending" : "paid"} />
-      </td>
-      <td className="hidden py-3 text-muted sm:table-cell">{payment.paidAt ? f.day(payment.paidAt) : "–"}</td>
-      <td className="py-3 pl-2 text-right">
-        {pending &&
+    <li>
+      <ListRow
+        lead={user && <Avatar user={user} size="md" />}
+        title={isMe && user ? t("you", { name: user.name }) : (user?.name ?? payment.userId)}
+        subtitle={payment.paidAt ? tSection("paidOn", { amount, date: f.day(payment.paidAt) }) : tSection("due", { amount })}
+        aside={<StatusBadge status={pending ? "pending" : "paid"} />}
+        action={
+          pending &&
           stay.status !== "closed" &&
           (isMe ? (
-            <button type="button" onClick={onPay} className={buttonClass("dark", "sm", "h-8 px-3")}>
+            <Button variant="tertiary" onClick={onPay}>
               {t("payNow")}
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              aria-label={t("remindFor", { name: firstName })}
-              onClick={() => showToast(t("remindedToast", { name: firstName }))}
-              className={buttonClass("secondary", "sm", "h-8 px-3")}
-            >
+            <Button variant="tertiary" aria-label={t("remindFor", { name: firstName })} onClick={() => showToast(t("remindedToast", { name: firstName }))}>
               {t("remind")}
-            </button>
-          ))}
-      </td>
-    </tr>
+            </Button>
+          ))
+        }
+      />
+    </li>
   );
 }
 
@@ -188,22 +169,22 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   const showToast = useToast();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  // What the host gets: every share plus 80 % of each host programme (Simpulo keeps the guest fees and 20 %).
+  // What the host gets: every share plus 90 % of each host programme (Simpulo keeps the guest fees and 10 %).
   const released = payments.reduce((sum, p) => sum + paymentSplit(p.share, p.hostFee).hostReceives, 0);
 
   if (stay.status === "booked" && stay.bookingConfirmedAt) {
     return (
-      <div className="mt-5 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4">
+      <div className="mt-4 flex items-start gap-3 border-t border-line pt-4">
         <CircleCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-emerald-900">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
-          <p className="mt-0.5 text-sm text-emerald-800">{t("confirmedText")}</p>
+          <p className="font-semibold text-ink">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
+          <p className="mt-0.5 text-sm text-muted">{t("confirmedText")}</p>
           {stay.bookingProofUrl && (
             <a
               href={stay.bookingProofUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm font-medium text-emerald-900 underline underline-offset-2"
+              className={buttonStyles("tertiary", "md", "mt-2")}
             >
               {t("viewProof")}
             </a>
@@ -226,7 +207,8 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   }
 
   return (
-    <div className="mt-5 rounded-2xl bg-bg p-4">
+    // Part of the Payments section: plain content under a line, never a box inside the card.
+    <div className="mt-4 border-t border-line pt-4">
       <p className="flex items-center gap-2 font-semibold">
         <Wallet className="size-5 shrink-0 text-emerald-600" aria-hidden />
         {t("fundsTitle", { amount: f.price(released, stay.currency) })}
@@ -234,10 +216,10 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
       <p className="mt-1 text-sm text-muted">{t("fundsText")}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <input ref={input} type="file" accept="image/*,application/pdf" onChange={upload} className="hidden" />
-        <button type="button" disabled={busy || stay.status === "closed"} onClick={() => input.current?.click()} className={buttonClass("dark", "sm")}>
-          {busy ? <Loader2 className="size-4 animate-spin" aria-label={t("uploading")} /> : <FileUp className="size-4" aria-hidden />}
+        <Button variant="secondary" disabled={busy || stay.status === "closed"} onClick={() => input.current?.click()}>
+          {busy ? <Loader2 className="animate-spin" aria-label={t("uploading")} /> : <FileUp aria-hidden />}
           {t("upload")}
-        </button>
+        </Button>
         {lastPaidAt && <UploadCountdown from={lastPaidAt} />}
       </div>
     </div>

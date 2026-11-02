@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { pageMetadata } from "@/lib/seo";
 import { ContentPage } from "@/components/layout/ContentPage";
+import { Button } from "@/components/ui/ActionButton";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("seo.pages.about");
@@ -16,9 +16,9 @@ export default async function AboutPage() {
       <p>{t("houses")}</p>
       <p>{t("people")}</p>
       <p>
-        <Link href="/how-it-works" className="font-medium text-ink hover:underline">
+        <Button variant="tertiary" size="lg" href="/how-it-works">
           {t("cta")}
-        </Link>
+        </Button>
       </p>
     </ContentPage>
   );

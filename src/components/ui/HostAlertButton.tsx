@@ -6,13 +6,12 @@ import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { usePreviewGuard } from "@/components/PreviewMode";
 import { getCurrentUser, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { buttonClass } from "./button";
+import { Button } from "./ActionButton";
 import { useToast } from "./Toast";
 
 /**
- * "Notify me" on a host's profile: an alert when they open a House. Outline when off, filled dark "Notifying"
- * when on. No counts anywhere – it's a personal reminder, not a follower relation.
+ * "Notify me" on a host's profile: an alert when they open a House. Secondary in both states (a toggle, never the
+ * page's primary) – off a bell, on a ringing bell and "Notifying". No counts anywhere – it's a personal reminder, not a follower relation.
  */
 export function HostAlertButton({ host }: { host: Pick<User, "id" | "name"> }) {
   const t = useTranslations("common.ui.hostAlert");
@@ -33,15 +32,15 @@ export function HostAlertButton({ host }: { host: Pick<User, "id" | "name"> }) {
   }
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
+      size="md"
       onClick={toggle}
       aria-pressed={on}
       aria-label={on ? t("notifyingLabel", { name }) : t("notifyMeLabel", { name })}
-      className={cn(buttonClass(on ? "dark" : "secondary", "sm"))}
     >
-      {on ? <BellRing className="size-4" /> : <Bell className="size-4" />}
+      {on ? <BellRing /> : <Bell />}
       {on ? t("notifying") : t("notifyMe")}
-    </button>
+    </Button>
   );
 }

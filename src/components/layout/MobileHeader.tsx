@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/ActionButton";
 import { Logo } from "./Logo";
 import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
 import { cn } from "@/lib/utils";
@@ -35,9 +36,9 @@ export function MobileHeader() {
       <div className="flex h-16 items-center justify-between gap-4 px-4">
         <Logo />
         <div className="flex items-center gap-5">
-          <button type="button" onClick={() => requireAuth()} className="text-sm font-medium text-ink">
+          <Button variant="tertiary" size="md" onClick={() => requireAuth()}>
             {t("logIn")}
-          </button>
+          </Button>
           <Link
             href="/create"
             aria-label={t("openHouse")}

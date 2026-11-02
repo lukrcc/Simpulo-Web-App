@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, CreditCard, Download, Lock } from "lucide-react";
+import { ChevronRight, CreditCard, Download, Landmark, Lock } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,12 @@ import { RequireLogin } from "@/components/auth/RequireLogin";
 import { FormField, formInput } from "@/components/form/FormLayout";
 import { Container } from "@/components/layout/Container";
 import { Avatar } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/button";
+import { Switch } from "@/components/ui/Switch";
+import { Button } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { cardClass } from "@/components/ui/Card";
+import { ListRow } from "@/components/ui/ListRow";
+import { Select } from "@/components/ui/Select";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
@@ -25,7 +30,8 @@ type Section = (typeof SECTIONS)[number];
  * The four notification toggles – each one channel of one group. Payment and booking updates aren't here: they always
  * go out (see settingsOf).
  */
-const NOTIFICATION_ROWS: ReadonlyArray<{ key: "messages" | "nextStop" | "houseUpdates" | "news"; group: NotificationGroup; channel: Exclude<NotificationChannel, "inApp"> }> = [
+type NotificationKey = "messages" | "nextStop" | "houseUpdates" | "news";
+const NOTIFICATION_ROWS: ReadonlyArray<{ key: NotificationKey; group: NotificationGroup; channel: Exclude<NotificationChannel, "inApp"> }> = [
   { key: "messages", group: "messages", channel: "push" },
   { key: "nextStop", group: "interests", channel: "push" },
   { key: "houseUpdates", group: "requests", channel: "push" },
@@ -43,7 +49,6 @@ const MOCK_PAYOUT_ACCOUNT = { bank: "N26", last4: "1234" };
 /** What has to be typed to delete the account. */
 const DELETE_WORD = "DELETE";
 
-const select = cn(formInput, "appearance-none pr-10");
 
 export function Settings() {
   const t = useTranslations("settings");
@@ -73,17 +78,61 @@ function useSection(): Section {
 }
 
 /**
+ * The page's unsaved changes: notification toggles and the currency. Each entry is only there while it was touched;
+ * "Save" commits them all to the store at once.
+ */
+interface Draft {
+  notifications: Partial<Record<NotificationKey, boolean>>;
+  /** "" = automatic; undefined = untouched */
+  currency?: Currency | "";
+}
+
+const EMPTY_DRAFT: Draft = { notifications: {} };
+
+/**
  * /settings – two columns in the page container (the same edges as Explore): the section navigation on the left
  * (220px, sticky under the header; a row of tabs on phones) and the chosen section on the right (up to 720px, left
  * aligned). Everything is mock state in the store.
  */
 function SettingsContent({ me }: { me: User }) {
   const t = useTranslations("settings");
+  const store = useStore();
+  const showToast = useToast();
   const section = useSection();
+  // Kept here, above the sections, so switching sections doesn't drop what's unsaved.
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const saved = settingsOf(me).notifications;
+  const savedOn = (key: NotificationKey) => {
+    const row = NOTIFICATION_ROWS.find((r) => r.key === key)!;
+    return saved[row.group][row.channel] !== false;
+  };
+  const dirty =
+    NOTIFICATION_ROWS.some(({ key }) => draft.notifications[key] !== undefined && draft.notifications[key] !== savedOn(key)) ||
+    (draft.currency !== undefined && draft.currency !== (me.preferredCurrency ?? ""));
+
+  function save() {
+    for (const { key, group, channel } of NOTIFICATION_ROWS) {
+      const on = draft.notifications[key];
+      if (on !== undefined && on !== savedOn(key)) store.setNotification(group, channel, on);
+    }
+    if (draft.currency !== undefined && draft.currency !== (me.preferredCurrency ?? "")) {
+      store.updateCurrentUser({ preferredCurrency: draft.currency || undefined });
+    }
+    setDraft(EMPTY_DRAFT);
+    showToast(t("saved"));
+  }
 
   return (
     <Container page className="pb-10">
-      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+        <div className="flex items-center gap-3">
+          {dirty && <span className="text-sm text-muted">{t("unsaved")}</span>}
+          <Button variant="primary" size="md" disabled={!dirty} onClick={save}>
+            {t("save")}
+          </Button>
+        </div>
+      </div>
       <div className="mt-6 md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
         <nav aria-label={t("title")} className="self-start md:sticky md:top-[calc(var(--header-h)+40px)]">
           <ul className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0">
@@ -108,9 +157,16 @@ function SettingsContent({ me }: { me: User }) {
         <div className="mt-6 max-w-180 space-y-4 md:mt-0">
           {section === "account" && <AccountSection me={me} />}
           {section === "profile" && <ProfileSection />}
-          {section === "notifications" && <NotificationsSection me={me} />}
+          {section === "notifications" && (
+            <NotificationsSection
+              isOn={(key) => draft.notifications[key] ?? savedOn(key)}
+              onChange={(key, on) => setDraft((d) => ({ ...d, notifications: { ...d.notifications, [key]: on } }))}
+            />
+          )}
           {section === "payments" && <PaymentsSection me={me} />}
-          {section === "preferences" && <PreferencesSection me={me} />}
+          {section === "preferences" && (
+            <PreferencesSection currency={draft.currency ?? me.preferredCurrency ?? ""} onCurrencyChange={(currency) => setDraft((d) => ({ ...d, currency }))} />
+          )}
           {section === "privacy" && <PrivacySection me={me} />}
         </div>
       </div>
@@ -128,36 +184,46 @@ function AccountSection({ me }: { me: User }) {
   const [deleting, setDeleting] = useState(false);
 
   return (
-    <Card title={t("title")}>
-      <Row label={t("email")}>
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="truncate text-sm text-ink">{me.email ?? t("noEmail")}</span>
-          {/* Mock: no real account system to change it in yet. */}
-          <button type="button" onClick={() => showToast(t("changeSoon"))} className="shrink-0 text-sm font-semibold text-ink underline-offset-4 hover:underline">
-            {t("change")}
+    <>
+      <Card title={t("title")}>
+        <li>
+          <ListRow
+            title={t("email")}
+            subtitle={me.email ?? t("noEmail")}
+            action={
+              // Mock: no real account system to change it in yet.
+              <Button variant="tertiary" onClick={() => showToast(t("changeSoon"))}>
+                {t("change")}
+              </Button>
+            }
+          />
+        </li>
+        <li>
+          <ListRow title={t("signIn")} subtitle={t(`method.${me.signInMethod ?? "email"}`)} />
+        </li>
+        <li>
+          <ListRow
+            title={t("session")}
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  store.logout();
+                  router.push("/");
+                }}
+              >
+                {t("logOut")}
+              </Button>
+            }
+          />
+        </li>
+        <li className="pt-4">
+          {/* The one destructive text link of the app – red on purpose. */}
+          <button type="button" onClick={() => setDeleting(true)} className="text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
+            {tDanger("delete")}
           </button>
-        </span>
-      </Row>
-      <Row label={t("signIn")}>
-        <span className="text-sm text-ink">{t(`method.${me.signInMethod ?? "email"}`)}</span>
-      </Row>
-      <Row label={t("session")}>
-        <button
-          type="button"
-          onClick={() => {
-            store.logout();
-            router.push("/");
-          }}
-          className={buttonClass("secondary", "sm")}
-        >
-          {t("logOut")}
-        </button>
-      </Row>
-      <div className="pt-4">
-        <button type="button" onClick={() => setDeleting(true)} className="text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
-          {tDanger("delete")}
-        </button>
-      </div>
+        </li>
+      </Card>
       <DeleteAccountSheet
         open={deleting}
         onClose={() => setDeleting(false)}
@@ -167,7 +233,7 @@ function AccountSection({ me }: { me: User }) {
           router.push("/");
         }}
       />
-    </Card>
+    </>
   );
 }
 
@@ -176,28 +242,28 @@ function ProfileSection() {
   const t = useTranslations("settings.profile");
   return (
     <Card title={t("title")}>
-      <Link href="/profile/edit" className="-mx-2 flex items-center justify-between gap-4 rounded-lg px-2 py-2 text-sm hover:bg-bg">
-        <span>
-          <span className="block font-medium text-ink">{t("edit")}</span>
-          <span className="block text-muted">{t("text")}</span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-      </Link>
+      <li>
+        <Link href="/profile/edit" className="block">
+          <ListRow title={t("edit")} subtitle={t("text")} action={<ChevronRight className="size-4 text-muted" aria-hidden />} />
+        </Link>
+      </li>
     </Card>
   );
 }
 
-/** Exactly four toggles; payment and booking updates always go out. */
-function NotificationsSection({ me }: { me: User }) {
+/** Exactly four toggles (drafts until Save); payment and booking updates always go out. */
+function NotificationsSection({ isOn, onChange }: { isOn: (key: NotificationKey) => boolean; onChange: (key: NotificationKey, on: boolean) => void }) {
   const t = useTranslations("settings.notifications");
-  const store = useStore();
-  const settings = settingsOf(me);
   return (
     <Card title={t("title")} description={t("alwaysSent")}>
-      {NOTIFICATION_ROWS.map(({ key, group, channel }) => (
-        <Row key={key} label={t(`rows.${key}`)} hint={t(`channels.${channel}`)}>
-          <Switch on={settings.notifications[group][channel] !== false} label={t(`rows.${key}`)} onChange={(on) => store.setNotification(group, channel, on)} />
-        </Row>
+      {NOTIFICATION_ROWS.map(({ key, channel }) => (
+        <li key={key}>
+          <ListRow
+            title={t(`rows.${key}`)}
+            subtitle={t(`channels.${channel}`)}
+            action={<Switch on={isOn(key)} label={t(`rows.${key}`)} onChange={(on) => onChange(key, on)} />}
+          />
+        </li>
       ))}
     </Card>
   );
@@ -226,33 +292,36 @@ function PaymentsSection({ me }: { me: User }) {
     <>
       <Card title={t("methods")}>
         {MOCK_PAYMENT_METHODS.map((method) => (
-          <Row key={method.id} label={method.brand}>
-            <span className="flex items-center gap-2 text-sm text-ink">
-              <CreditCard className="size-4 text-muted" aria-hidden />
-              {method.kind === "card" ? t("cardEnding", { last4: method.last4, expires: method.expires }) : t("wallet")}
-            </span>
-          </Row>
+          <li key={method.id}>
+            <ListRow
+              lead={<CreditCard aria-hidden />}
+              title={method.brand}
+              subtitle={method.kind === "card" ? t("cardEnding", { last4: method.last4, expires: method.expires }) : t("wallet")}
+            />
+          </li>
         ))}
-        <div className="pt-4">
-          <button type="button" onClick={() => showToast(t("addSoon"))} className={buttonClass("secondary", "sm")}>
+        <li className="pt-4">
+          <Button variant="secondary" onClick={() => showToast(t("addSoon"))}>
             {t("add")}
-          </button>
-        </div>
+          </Button>
+        </li>
       </Card>
 
       <Card title={t("history")}>
         {history.length === 0 ? (
-          <p className="text-sm text-muted">{t("noHistory")}</p>
+          <li className="py-2 text-sm text-muted">{t("noHistory")}</li>
         ) : (
           history.map((payment) => {
             const stay = stayOf(payment.stayId);
             return (
-              <Row key={payment.id} label={stay?.title ?? t("unknownHouse")} hint={payment.paidAt ? f.day(payment.paidAt) : undefined}>
-                <span className="text-right text-sm">
-                  <span className="block font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>
-                  <span className="block text-xs text-muted">{t(`status.${payment.status}`)}</span>
-                </span>
-              </Row>
+              <li key={payment.id}>
+                <ListRow
+                  title={stay?.title ?? t("unknownHouse")}
+                  subtitle={payment.paidAt ? f.day(payment.paidAt) : undefined}
+                  aside={<span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>}
+                  action={<Badge>{t(`status.${payment.status}`)}</Badge>}
+                />
+              </li>
             );
           })
         )}
@@ -261,26 +330,33 @@ function PaymentsSection({ me }: { me: User }) {
       {hosted.length > 0 && (
         <>
           <Card title={t("payoutAccount")}>
-            <Row label={MOCK_PAYOUT_ACCOUNT.bank}>
-              <span className="flex items-center gap-3 text-sm text-ink">
-                {t("accountEnding", { last4: MOCK_PAYOUT_ACCOUNT.last4 })}
-                <button type="button" onClick={() => showToast(t("addSoon"))} className="font-semibold underline-offset-4 hover:underline">
-                  {t("change")}
-                </button>
-              </span>
-            </Row>
+            <li>
+              <ListRow
+                lead={<Landmark aria-hidden />}
+                title={MOCK_PAYOUT_ACCOUNT.bank}
+                subtitle={t("accountEnding", { last4: MOCK_PAYOUT_ACCOUNT.last4 })}
+                action={
+                  <Button variant="tertiary" onClick={() => showToast(t("addSoon"))}>
+                    {t("change")}
+                  </Button>
+                }
+              />
+            </li>
           </Card>
           <Card title={t("payouts")}>
             {payouts.length === 0 ? (
-              <p className="text-sm text-muted">{t("noPayouts")}</p>
+              <li className="py-2 text-sm text-muted">{t("noPayouts")}</li>
             ) : (
               payouts.map(({ stay, amount, done }) => (
-                <Row key={stay.id} label={stay.title} hint={f.shortRange(stay.startDate, stay.endDate)}>
-                  <span className="text-right text-sm">
-                    <span className="block font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>
-                    <span className="block text-xs text-muted">{done ? t("paidOut") : t("onHold")}</span>
-                  </span>
-                </Row>
+                <li key={stay.id}>
+                  <ListRow
+                    title={stay.title}
+                    subtitle={done ? f.shortRange(stay.startDate, stay.endDate) : `${f.shortRange(stay.startDate, stay.endDate)} · ${t("onHold")}`}
+                    aside={<span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>}
+                    // "On hold until the booking is confirmed" is a sentence – it reads as the subtitle, the Badge says the state.
+                    action={<Badge>{done ? t("paidOut") : t("status.pending")}</Badge>}
+                  />
+                </li>
               ))
             )}
           </Card>
@@ -290,36 +366,28 @@ function PaymentsSection({ me }: { me: User }) {
   );
 }
 
-function PreferencesSection({ me }: { me: User }) {
+/** Currency (a draft until Save) and language (English only for now). */
+function PreferencesSection({ currency, onCurrencyChange }: { currency: Currency | ""; onCurrencyChange: (currency: Currency | "") => void }) {
   const t = useTranslations("settings.preferences");
-  const store = useStore();
   return (
     <Card title={t("title")}>
-      <div className="space-y-4">
+      <li className="space-y-4 py-2">
         <FormField label={t("currency")} helper={t("currencyHelper")}>
-          <SelectWrap>
-            <select
-              className={select}
-              value={me.preferredCurrency ?? ""}
-              onChange={(e) => store.updateCurrentUser({ preferredCurrency: (e.target.value || undefined) as Currency | undefined })}
-            >
-              <option value="">{t("currencyAuto")}</option>
-              {CURRENCIES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </SelectWrap>
+          <Select value={currency} onChange={(e) => onCurrencyChange(e.target.value as Currency | "")}>
+            <option value="">{t("currencyAuto")}</option>
+            {CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </Select>
         </FormField>
         <FormField label={t("language")} helper={t("moreSoon")}>
-          <SelectWrap>
-            <select className={select} value="en" disabled>
-              <option value="en">{t("english")}</option>
-            </select>
-          </SelectWrap>
+          <Select value="en" disabled>
+            <option value="en">{t("english")}</option>
+          </Select>
         </FormField>
-      </div>
+      </li>
     </Card>
   );
 }
@@ -353,33 +421,36 @@ function PrivacySection({ me }: { me: User }) {
     <>
       <Card title={t("blockedTitle")} description={t("description")}>
         {blocked.length === 0 ? (
-          <p className="text-sm text-muted">{t("noneBlocked")}</p>
+          <li className="py-2 text-sm text-muted">{t("noneBlocked")}</li>
         ) : (
           blocked.map((user) => (
-            <div key={user.id} className="flex items-center gap-3 py-3">
-              <Avatar user={user} size="md" />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{user.name}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  store.unblockUser(user.id);
-                  showToast(t("unblocked", { name: user.name }));
-                }}
-                className={buttonClass("secondary", "sm")}
-              >
-                {t("unblock")}
-              </button>
-            </div>
+            <li key={user.id}>
+              <ListRow
+                lead={<Avatar user={user} size="md" />}
+                title={user.name}
+                action={
+                  <Button
+                    variant="tertiary"
+                    onClick={() => {
+                      store.unblockUser(user.id);
+                      showToast(t("unblocked", { name: user.name }));
+                    }}
+                  >
+                    {t("unblock")}
+                  </Button>
+                }
+              />
+            </li>
           ))
         )}
       </Card>
-      <Card title={t("dataTitle")}>
-        <Row label={t("dataLabel")}>
-          <button type="button" onClick={downloadData} className={buttonClass("secondary", "sm")}>
-            <Download className="size-4" aria-hidden />
+      <Card title={t("dataTitle")} description={t("dataLabel")}>
+        <li className="pt-4">
+          <Button variant="secondary" onClick={downloadData}>
+            <Download aria-hidden />
             {t("download")}
-          </button>
-        </Row>
+          </Button>
+        </li>
       </Card>
     </>
   );
@@ -412,62 +483,23 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
           />
         </FormField>
       </div>
-      <button
-        type="button"
-        disabled={!ready}
-        onClick={onConfirm}
-        className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-red-600 px-6 text-base font-semibold text-surface transition-colors hover:bg-red-700 disabled:bg-line disabled:text-muted"
-      >
-        <Lock className="size-4" aria-hidden />
+      <Button variant="primary" size="lg" disabled={!ready} onClick={onConfirm} className="mt-5 w-full">
+        <Lock aria-hidden />
         {t("confirm")}
-      </button>
+      </Button>
     </Sheet>
   );
 }
 
-/** A section card: surface, line border, 12px radius, an 18px heading; its rows are divided by lines. */
+/** A section card (cardClass) with an 18px heading; its children are <li> rows, divided by 1px lines. */
 function Card({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-line bg-surface p-6">
+    <section className={cardClass}>
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
       {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-      <div className="mt-3 divide-y divide-line">{children}</div>
+      <ul className="mt-3 divide-y divide-line">{children}</ul>
     </section>
   );
 }
 
-/** Native select with our chevron (the browser's arrow is hidden by appearance-none). */
-function SelectWrap({ children }: { children: ReactNode }) {
-  return (
-    <span className="relative block">
-      {children}
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-    </span>
-  );
-}
 
-/** Label (and a muted hint under it) on the left, the control on the right. */
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex min-h-14 items-center justify-between gap-4 py-2">
-      <span className="min-w-0">
-        <span className="block truncate text-sm text-ink">{label}</span>
-        {hint && <span className="block text-xs text-muted">{hint}</span>}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-/** 44px tap target around a 44×24 switch. */
-function Switch({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className="flex size-11 shrink-0 items-center justify-center">
-      <span className={cn("relative h-6 w-11 rounded-full transition-colors", on ? "bg-ink" : "bg-line")}>
-        <span
-          className={cn("absolute left-0 top-0.5 size-5 rounded-full bg-surface shadow transition-transform", on ? "translate-x-[22px]" : "translate-x-0.5")}
-        />
-      </span>
-    </button>
-  );
-}

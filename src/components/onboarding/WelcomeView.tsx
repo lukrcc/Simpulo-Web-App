@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
+import { cardClass } from "@/components/ui/Card";
 import { getCurrentUser, isProfileComplete, useStore } from "@/lib/store";
 import { CompleteProfileForm } from "./CompleteProfileForm";
 import { safeNextPath } from "./welcome";
@@ -34,7 +35,7 @@ function WelcomeGate({ next }: { next: string }) {
 
   return (
     <Container page width="narrow">
-      <div className="max-w-lg rounded-[24px] bg-surface p-6 md:p-8">
+      <div className={`${cardClass} max-w-lg`}>
         <h1 className="mb-4 text-2xl font-bold tracking-tight">{t("title")}</h1>
         {/* Keyed by user: switching the dev user starts a fresh form. */}
         <CompleteProfileForm key={me.id} user={me} onDone={() => router.replace(next)} />

@@ -4,6 +4,7 @@ import { BellRing, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { BentoTop } from "@/components/BentoTop";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
@@ -12,10 +13,16 @@ import { SEARCH_INLINE_THRESHOLD, SORT_INLINE_THRESHOLD, VISIBLE_CHIPS } from "@
 import { AddPlaceSheet, DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
 import { MonthChips } from "@/components/form/MonthChips";
 import { Container } from "@/components/layout/Container";
+import { useHeaderSlot } from "@/components/layout/HeaderSlot";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { StayCard } from "@/components/StayCard";
 import { Img } from "@/components/ui/Img";
-import { buttonClass } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SurfaceBand } from "@/components/ui/SurfaceBand";
+import { cardClass } from "@/components/ui/Card";
+import { ListRow } from "@/components/ui/ListRow";
 import { useFormat } from "@/i18n/format";
 import { useFormatter } from "next-intl";
 import { collectionsFor, COLLECTIONS, type Collection } from "@/lib/collections";
@@ -38,9 +45,11 @@ import { setExploreFilters, useExploreFilters } from "@/lib/exploreFilterState";
 import { useHeroStays } from "@/lib/heroRotation";
 import { getCardVariant, MAX_COLLECTIONS, sectionsOf, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
 import { FLEXIBLE, WORLD_REGIONS, type DemandSpot } from "@/lib/interests";
+import { MD_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { VIBES } from "@/lib/mock";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /** Grid columns by width: 4 from 1440px, 3 from 1024px, 2 from 768px, else 1. */
 const COLUMN_QUERIES = [
@@ -66,6 +75,8 @@ function useGridColumns(): number {
 
 /** From this many public Houses on, collection rows appear (fewer: launch – the grid and the demand row only). */
 const COLLECTIONS_FROM = 8;
+/** Explore's compact header bar (desktop, SiteHeader / globals.css). */
+const COMPACT_HEADER_PX = 72;
 /** Cards per page of the grid ("Show more" adds as many) – divisible by 1–4 columns, so every page ends on full rows. */
 const PAGE_SIZE = 24;
 /** Budget slider ends are rounded to this (EUR). */
@@ -227,23 +238,42 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // the very end. Before the column count is known (server render) there are none.
   const collections = filtered || scoped || listed.length < COLLECTIONS_FROM || cols === 0 ? [] : collectionsFor(results).slice(0, MAX_COLLECTIONS);
   const sections = sectionsOf(cards, cols || 4);
-  const groups: { cards: FeedCard[]; collection?: (typeof collections)[number] }[] = [];
-  let pending: FeedCard[] = [];
+  // The rhythm: Open Houses (grid) → Short trips → Where do you want to go next → Party houses, then grid and
+  // carousels taking turns. "Where next" is always there – with no collections (filtered, scoped, few Houses) it ends
+  // the feed. Carousels only go between grid sections; what doesn't fit comes after "Show more".
+  const carousels: Carousel[] =
+    collections.length > 0 ? [{ kind: "collection", ...collections[0] }, { kind: "interests" }, ...collections.slice(1).map((c) => ({ kind: "collection" as const, ...c }))] : [];
+  const blocks: FeedBlock[] = [];
+  let nextCarousel = 0;
+  // Grid chunks with nothing between them are one grid (the cards keep their 24px gap).
+  const pushGrid = (cards: FeedCard[]) => {
+    const last = blocks.at(-1);
+    if (last?.kind === "grid") last.cards = [...last.cards, ...cards];
+    else blocks.push({ kind: "grid", cards });
+  };
   sections.forEach((section, i) => {
-    pending.push(...section);
-    const next = i < sections.length - 1 ? collections[i] : undefined;
-    if (next) {
-      groups.push({ cards: pending, collection: next });
-      pending = [];
-    }
+    pushGrid(section);
+    if (i === sections.length - 1) return;
+    const take = i === 0 ? 3 : 1;
+    for (const carousel of carousels.slice(nextCarousel, nextCarousel + take)) blocks.push(carousel);
+    nextCarousel += take;
   });
-  groups.push({ cards: pending });
+  if (sections.length === 0) blocks.push({ kind: "grid", cards: [] });
+  // What didn't fit between the grid's sections comes after it – at least "Where next".
+  blocks.push(...(carousels.length > 0 ? carousels.slice(nextCarousel) : [{ kind: "interests" as const }]));
+  const lastGrid = blocks.findLastIndex((block) => block.kind === "grid");
 
   const clearFilters = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
   const rowVibes = [...fixedVibes, ...(lastVibe ? [lastVibe] : [])];
   const rowOptions = rowVibes.map((key) => vibeOptions.find((o) => o.value === key)!).filter(Boolean);
   const moreOptions = vibeOptions.filter((o) => !rowVibes.includes(o.value));
   const eur = (amount: number) => formatter.number(amount, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+  // Explore (not the city / vibe pages): from md the chip row lives in the site header's second row (HeaderSlot);
+  // on phones it is a sticky row of its own at the top.
+  const headerSlot = useHeaderSlot().el;
+  const md = useMediaQuery(MD_QUERY);
+  const inHeader = !headless && md;
 
   // No public House at all (yet): one intentional screen instead of an empty feed.
   if (!scoped && listed.length === 0) return <ExploreEmpty />;
@@ -263,44 +293,57 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     update({ ...(countries.length > 0 && { countries }), ...(months.length > 0 && { months }) });
   }
 
+  const sortInline = base.length >= SORT_INLINE_THRESHOLD;
+  /** The category chips – the filter row's (36px) or the compact bar's (32px); one choice in the row (several only
+   *  in the panel), a pick from More takes the last slot. */
+  const vibeRow = {
+    label: t("filterByVibe"),
+    allLabel: t("all"),
+    moreLabel: t("more"),
+    chips: rowOptions,
+    more: moreOptions,
+    value: filters.vibes,
+    onSelect: (vibe: string | null) => {
+      if (vibe && !fixedVibes.includes(vibe)) setSlotVibe(vibe);
+      update({ vibes: vibe ? [vibe as Vibe] : [] });
+    },
+  };
+  const chipRow = showVibes && <CategoryRow {...vibeRow} size={inHeader ? "explore" : "row"} />;
+  // Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway.
+  const controls = (
+    <>
+      {base.length >= SEARCH_INLINE_THRESHOLD && <PlaceDateSearch onSearch={searchPlaceDate} />}
+      {sortInline && (
+        <SortCapsule label={t(`sortOptions.${filters.sort}`)} size={inHeader ? "mid" : "md"}>
+          <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
+        </SortCapsule>
+      )}
+      <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} small={inHeader ? "mid" : true} />
+    </>
+  );
   const Wrap = headless ? Fragment : Container;
   const RowWrap = headless ? "div" : Container;
   return (
     <div>
-      {/* The header's second row (56px): eight category chips + "More", and Filters. Same glass as the header bar, a line
-          between the two; it sticks right under the header bar (desktop: also while that shrinks; phones: at the top).
-          In the page flow, so the hero and everything else start below it. */}
-      <div className="glass sticky top-(--header-h) z-30 rounded-none border-0 bg-surface/72 shadow-none after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-line md:top-(--header-bar-h) md:transition-[top] md:duration-200 md:ease-out motion-reduce:transition-none">
-        <RowWrap className="flex h-(--filter-row-h) items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {showVibes && (
-              <CategoryRow
-                label={t("filterByVibe")}
-                allLabel={t("all")}
-                moreLabel={t("more")}
-                chips={rowOptions}
-                more={moreOptions}
-                value={filters.vibes}
-                // Single choice in the row (several only in the panel); a pick from More takes the last slot.
-                onSelect={(vibe) => {
-                  if (vibe && !fixedVibes.includes(vibe)) setSlotVibe(vibe);
-                  update({ vibes: vibe ? [vibe as Vibe] : [] });
-                }}
-              />
-            )}
-          </div>
-          {/* Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway. */}
-          <div className="flex shrink-0 items-center gap-2">
-            {base.length >= SEARCH_INLINE_THRESHOLD && <PlaceDateSearch onSearch={searchPlaceDate} />}
-            {base.length >= SORT_INLINE_THRESHOLD && (
-              <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
-                <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
-              </SortCapsule>
-            )}
-            <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} small />
-          </div>
-        </RowWrap>
-      </div>
+      {inHeader ? (
+        // Into the site header's second row (its .sh-chips / .sh-controls move with the compact state, globals.css).
+        headerSlot &&
+        createPortal(
+          <>
+            <div className="sh-chips min-w-0 flex-1">{chipRow}</div>
+            <div className="sh-controls flex w-(--controls-w) shrink-0 items-center justify-end gap-2">{controls}</div>
+          </>,
+          headerSlot,
+        )
+      ) : (
+        // City / vibe pages, and phones: the chips, Sort and Filters as a plain sticky row at the top of the page.
+        <div className="filter-row header-surface sticky top-(--header-h) z-30">
+          <RowWrap className="flex h-(--filter-row-h) items-center gap-3">
+            <div className="min-w-0 flex-1">{chipRow}</div>
+            <div className="flex shrink-0 items-center gap-2">{controls}</div>
+          </RowWrap>
+        </div>
+      )}
       {/* Carousel below lg, bento block from lg up – each hides itself at the other size. */}
       {/* Filtered, results come first – the Spotlight (unrelated to the filters) steps aside. */}
       {!scoped && !filtered && (
@@ -310,76 +353,84 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         </>
       )}
 
+      {/* The sections: each one a full-window block with its own background – bg, surface, bg … in turn, from Open
+          Houses (bg) on – 56px inside top and bottom, no margins between them, no lines; the last one 96px at the
+          bottom. */}
       <Wrap>
-        {!headless && (
-          <div className={scoped || filtered ? "pt-10" : "mt-12"}>
-            {/* The page's one H1 (Explore is the home page; a /collections page is titled by its collection). */}
-            <h1 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">{collection ? tCollections(`${collection.id}.title`) : t("title")}</h1>
-            {collection && <p className="mt-1 text-lg text-muted">{tCollections(`${collection.id}.subline`)}</p>}
-            <p className="mt-1 text-muted">{t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) })}</p>
-            {/* Logged out on mobile there's no tab bar – this is the way to "How it works" (plus the footer). */}
-            {!store.currentUserId && (
-              <Link href="/how-it-works" className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-ink underline underline-offset-2 md:hidden">
-                {t("howItWorksLink")}
-              </Link>
-            )}
-          </div>
-        )}
-
-        {/* Where a filter change scrolls to. */}
-        <div ref={resultsRef}>
-        {results.length === 0 ? (
-          // Nothing for these filters: say so, and the way back.
-          <div className="mt-10 flex flex-col items-center rounded-[28px] bg-surface px-6 py-12 text-center">
-            <p className="text-xl font-semibold tracking-tight text-ink">{t("noResults.title")}</p>
-            <p className="mt-1 max-w-md text-muted">{t("noResults.text")}</p>
-            {filtered && (
-              <button type="button" onClick={clearFilters} className={buttonClass("dark", "md", "mt-6")}>
-                {t("noResults.clear")}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="mt-6">
-            {groups.map((group, i) => (
-              <div key={i}>
-                <div className={GRID}>
-                  {group.cards.map((card) =>
-                    card.kind === "interest" ? (
-                      <DemandCard key={card.spot.placeName} spot={card.spot} tile />
-                    ) : (
-                      <StayCard
-                        key={card.stay.id}
-                        stay={card.stay}
-                        host={findUser(store, card.stay.hostId)}
-                        crew={getCrew(store, card.stay)}
-                        variant={getCardVariant(card.stay, spotlightIds)}
-                      />
-                    ),
+        <div data-explore-blocks>
+          {blocks.map((block, i) => {
+            const tone = i % 2 === 0 ? "bg" : "surface";
+            const last = i === blocks.length - 1;
+            if (block.kind !== "grid") {
+              return (
+                <SurfaceBand key={i} tone={tone} padding={cn("pt-14", last ? "pb-24" : "pb-14")}>
+                  <CarouselBlock carousel={block} fillers={fillers} />
+                </SurfaceBand>
+              );
+            }
+            return (
+              <SurfaceBand key={i} tone={tone} padding={cn("pt-14", last ? "pb-24" : "pb-14")}>
+                {i === 0 && !headless && (
+                  <>
+                    {/* The page's one H1 (Explore is the home page; a /collections page is titled by its collection). No
+                        "See all": this is the main list – "Show 24 more" below it pages on. */}
+                    <SectionHeader
+                      as="h1"
+                      eyebrow={collection ? tCollections(`${collection.id}.eyebrow`) : t("eyebrow")}
+                      title={collection ? tCollections(`${collection.id}.title`) : t("title")}
+                      subline={collection && tCollections(`${collection.id}.subline`)}
+                      meta={t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) })}
+                    />
+                    {/* Logged out on mobile there's no tab bar – this is the way to "How it works" (plus the footer). */}
+                    {!store.currentUserId && (
+                      <Link href="/how-it-works" className={buttonStyles("tertiary", "md", "mt-1 min-h-11 md:hidden")}>
+                        {t("howItWorksLink")}
+                      </Link>
+                    )}
+                  </>
+                )}
+                {/* Where a filter change scrolls to. */}
+                <div ref={i === 0 ? resultsRef : undefined} className={i === 0 && !headless ? "mt-5" : undefined}>
+                  {results.length === 0 ? (
+                    // Nothing for these filters: say so, and the way back.
+                    <div className={cn(cardClass, "flex flex-col items-center py-12 text-center")}>
+                      <p className="text-xl font-semibold tracking-tight text-ink">{t("noResults.title")}</p>
+                      <p className="mt-1 max-w-md text-muted">{t("noResults.text")}</p>
+                      {filtered && (
+                        <Button variant="secondary" size="md" onClick={clearFilters} className="mt-6">
+                          {t("noResults.clear")}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className={GRID}>
+                      {block.cards.map((card) =>
+                        card.kind === "interest" ? (
+                          <DemandCard key={card.spot.placeName} spot={card.spot} tile />
+                        ) : (
+                          <StayCard
+                            key={card.stay.id}
+                            stay={card.stay}
+                            host={findUser(store, card.stay.hostId)}
+                            crew={getCrew(store, card.stay)}
+                            variant={getCardVariant(card.stay, spotlightIds)}
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
+                  {/* Open Houses' own pager – under the last grid. */}
+                  {i === lastGrid && hasMore && (
+                    <div className="mt-10 flex justify-center">
+                      <Button variant="secondary" size="lg" onClick={() => setPaging((p) => ({ ...p, visible: p.visible + PAGE_SIZE }))}>
+                        {t("showMore", { count: Math.min(PAGE_SIZE, allCards.length - paging.visible) })}
+                      </Button>
+                    </div>
                   )}
                 </div>
-                {/* Between two complete sections, with the same space above and below. */}
-                {group.collection && (
-                  <div className="my-12">
-                    <CollectionRow collection={group.collection.collection} stays={group.collection.stays} />
-                  </div>
-                )}
-              </div>
-            ))}
-            {hasMore && (
-              <div className="mt-10 flex justify-center">
-                <button type="button" onClick={() => setPaging((p) => ({ ...p, visible: p.visible + PAGE_SIZE }))} className={buttonClass("secondary", "lg")}>
-                  {t("showMore", { count: Math.min(PAGE_SIZE, allCards.length - paging.visible) })}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        </div>
-
-        {/* Where people want to go – always at the end of the feed (with no results too). */}
-        <div className="mt-16">
-          <InterestRow exclude={fillers} />
+              </SurfaceBand>
+            );
+          })}
         </div>
       </Wrap>
 
@@ -390,17 +441,13 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         title={t("filters")}
         footer={
           <>
-            <button
-              type="button"
-              onClick={clearPanel}
-              disabled={panelCount === 0}
-              className="text-sm font-semibold text-ink underline-offset-4 hover:underline disabled:text-muted/60 disabled:no-underline"
-            >
+            <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0}>
               {tf("clearAll")}
-            </button>
-            <button type="button" onClick={() => setPanelOpen(false)} className={buttonClass("dark", "md")}>
+            </Button>
+            {/* The panel's one primary: it only closes – the filters apply live. */}
+            <Button variant="primary" size="md" onClick={() => setPanelOpen(false)}>
               {tf("show", { count: results.length })}
-            </button>
+            </Button>
           </>
         }
       >
@@ -444,16 +491,28 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 }
 
 /**
- * Smoothly scrolls `el` to just under the header and its filter row (desktop: the compact header bar it shrinks to on
- * the way; phones: no top header, only the safe area). Instant with reduced motion.
+ * Smoothly scrolls `el` to just under the header and its filter row (phones: no top header, only the safe area).
+ * Instant with reduced motion.
  */
 function scrollUnderHeader(el: HTMLElement | null) {
   if (!el) return;
   const root = getComputedStyle(document.documentElement);
   const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
-  const header = window.matchMedia("(min-width: 768px)").matches ? px("--header-bar-h-compact") : px("--header-h");
+  // Desktop Explore: the target is far enough down for the compact header – only its one 72px bar is left. Elsewhere
+  // (and on phones) the header plus the page's own chip row.
+  const header = document.querySelector<HTMLElement>("[data-site-header]");
+  const compactable = window.matchMedia("(min-width: 768px)").matches && header?.dataset.rows === "2";
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - header - px("--filter-row-h"), behavior: reduce ? "auto" : "smooth" });
+  const offset = compactable ? COMPACT_HEADER_PX : px("--header-h") + px("--filter-row-h");
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
+}
+
+type Carousel = { kind: "interests" } | ({ kind: "collection" } & ReturnType<typeof collectionsFor>[number]);
+type FeedBlock = { kind: "grid"; cards: FeedCard[] } | Carousel;
+
+/** A carousel section of the feed: a collection row, or "Where do you want to go next?" (without the grid's fillers). */
+function CarouselBlock({ carousel, fillers }: { carousel: Carousel; fillers: readonly DemandSpot[] }) {
+  return carousel.kind === "interests" ? <InterestRow exclude={fillers} /> : <CollectionRow collection={carousel.collection} stays={carousel.stays} />;
 }
 
 /** The chosen order: soonest start, lowest price per person (≈ EUR, Houses without a price last) or just opened. */
@@ -473,16 +532,15 @@ function FilterSection({ title, children }: { title: string; children: ReactNode
   );
 }
 
-/** Sort as a short radio list (in its popover and in the mobile sheet). */
+/** Sort as a short radio list of ListRows (in its popover and in the mobile sheet). */
 function SortList({ options, value, onChange }: { options: ReadonlyArray<{ value: SortKey; label: string }>; value: SortKey; onChange: (sort: SortKey) => void }) {
   // Its own radio group name: the list can be on the page more than once (pills row, sheet, sticky bar).
   const name = useId();
   return (
-    <div role="radiogroup" className="space-y-1">
+    <div role="radiogroup" className="divide-y divide-line">
       {options.map((o) => (
-        <label key={o.value} className="flex cursor-pointer items-center justify-between rounded-xl px-2 py-2 text-[15px] hover:bg-bg">
-          {o.label}
-          <input type="radio" name={name} checked={value === o.value} onChange={() => onChange(o.value)} className="size-5 accent-ink" />
+        <label key={o.value} className="block cursor-pointer px-2">
+          <ListRow title={o.label} action={<Checkbox radio name={name} checked={value === o.value} onChange={() => onChange(o.value)} />} />
         </label>
       ))}
     </div>
@@ -505,14 +563,15 @@ function ExploreEmpty() {
         <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink md:text-4xl">{t("title")}</h1>
         <p className="mt-2 max-w-md text-lg text-muted">{t("text")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/create" className={buttonClass("dark", "lg")}>
-            <Plus className="size-4" aria-hidden />
+          {/* Secondary both: the header's "Open a House" is the page's one primary. */}
+          <Button href="/create" variant="secondary" size="lg">
+            <Plus aria-hidden />
             {t("open")}
-          </Link>
-          <button type="button" onClick={() => requireAuth(() => setAdding(true), t("notifyLogin"))} className={buttonClass("secondary", "lg")}>
-            <BellRing className="size-4" aria-hidden />
+          </Button>
+          <Button variant="secondary" size="lg" onClick={() => requireAuth(() => setAdding(true), t("notifyLogin"))}>
+            <BellRing aria-hidden />
             {t("notify")}
-          </button>
+          </Button>
         </div>
       </section>
       <div className="mt-12">

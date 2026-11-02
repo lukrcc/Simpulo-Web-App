@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { Chip } from "./Chip";
 
 interface FilterChipsProps<T extends string> {
   /** Accessible name of the chip group */
@@ -29,19 +29,10 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
       {chips.map((chip) => {
         const active = chip.value === value;
         return (
-          <button
-            key={chip.value ?? "all"}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(chip.value)}
-            className={cn(
-              "shrink-0 rounded-full font-medium transition-colors",
-              small ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-sm",
-              active ? "bg-ink text-surface" : small ? "bg-transparent text-muted ring-1 ring-line hover:bg-surface" : "bg-surface text-ink hover:bg-bg",
-            )}
-          >
+          // "All" never shows the check – it is the absence of a filter.
+          <Chip key={chip.value ?? "all"} active={active} check={chip.value !== null} size={small ? "sm" : "md"} quiet={small} onClick={() => onChange(chip.value)}>
             {chip.label}
-          </button>
+          </Chip>
         );
       })}
     </div>

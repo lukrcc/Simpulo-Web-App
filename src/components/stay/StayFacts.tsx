@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AvatarStack } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { useFormat } from "@/i18n/format";
 import type { Stay, User } from "@/lib/types";
 import { openSpots, stayNights } from "@/lib/utils";
@@ -10,6 +11,15 @@ export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /*
   const t = useTranslations("house.facts");
   const format = useFormat();
   const spotsLeft = openSpots(stay);
+  // "1 spot left · 2 invited · 1 reserved" – spots held by invites from a past crew, or reserved by invite links: not
+  // open, not taken yet. "crew complete" only when nothing is held.
+  const spotsNote = [
+    spotsLeft > 0 ? t("spotsLeft", { count: spotsLeft }) : stay.spotsInvited || stay.spotsReserved ? null : t("crewComplete"),
+    stay.spotsInvited ? t("invited", { count: stay.spotsInvited }) : null,
+    stay.spotsReserved ? t("reserved", { count: stay.spotsReserved }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div>
@@ -31,14 +41,8 @@ export function StayFacts({ stay, crew, action }: { stay: Stay; crew: User[]; /*
       <div className="mt-4 flex items-center gap-3">
         {/* Host first, then accepted guests – each links to their profile. */}
         <AvatarStack users={crew} size="sm" max={6} linked />
-        <p className="text-sm text-muted">
-          <span className="font-medium text-ink">
-            {t("spotsIn", { filled: stay.spotsFilled, total: stay.spotsTotal })}
-          </span>{" "}
-          · {spotsLeft > 0 ? t("spotsLeft", { count: spotsLeft }) : stay.spotsInvited ? "" : t("crewComplete")}
-          {/* Spots held by invites from a past crew: not open, not taken yet. */}
-          {stay.spotsInvited ? `${spotsLeft > 0 ? " · " : ""}${t("invited", { count: stay.spotsInvited })}` : null}
-        </p>
+        <Badge>{t("spotsIn", { filled: stay.spotsFilled, total: stay.spotsTotal })}</Badge>
+        {spotsNote && <p className="min-w-0 text-sm text-muted">{spotsNote}</p>}
       </div>
     </div>
   );

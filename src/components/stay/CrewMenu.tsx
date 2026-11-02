@@ -20,7 +20,7 @@ interface CrewMenuProps {
 /** ⋯ menu for a crew: members can leave; the host can't – they edit or close the House instead. */
 export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProps) {
   const t = useTranslations("houses");
-  const { currentUserId, leaveStay, closeStay } = useStore();
+  const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = useStore();
   const router = useRouter();
   const showToast = useToast();
   const [confirm, setConfirm] = useState<"leave" | "close" | null>(null);
@@ -44,6 +44,15 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
     ? [
         ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/my-stays?id=${stay.id}` }]),
         { label: t("crewMenu.edit"), href: `/my-stays/${stay.id}/edit` },
+        // Taking requests is a setting, not a status to show – it lives here.
+        ...(stay.status === "published" || stay.status === "booked"
+          ? [
+              {
+                label: stay.acceptingRequests ? t("crewMenu.stopRequests") : t("crewMenu.takeRequests"),
+                onSelect: () => setAcceptingRequests(stay.id, !stay.acceptingRequests),
+              },
+            ]
+          : []),
         ...(stay.status === "closed" ? [] : [{ label: t("crewMenu.close"), onSelect: () => setConfirm("close"), danger: true }]),
       ]
     : [

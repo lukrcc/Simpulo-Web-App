@@ -3,7 +3,8 @@
 import { BadgeCheck, Camera, IdCard, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { MOCK_DELAY_MS, useStore } from "@/lib/store";
 
@@ -35,37 +36,31 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
           <BadgeCheck size={48} strokeWidth={1.75} fill="none" className="text-accent" aria-hidden />
           <p className="mt-4 text-lg font-semibold">{t("successTitle")}</p>
           <p className="mt-1 text-sm text-muted">{t("successText")}</p>
-          <button type="button" onClick={close} className={buttonClass("dark", "lg", "mt-6 w-full")}>
+          <Button variant="primary" size="lg" onClick={close} className="mt-6 w-full">
             {t("done")}
-          </button>
+          </Button>
         </div>
       ) : (
         <>
           <p className="text-sm leading-relaxed text-muted">{t("intro")}</p>
-          <ul className="mt-5 space-y-3 text-sm">
-            <li className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-bg">
-                <IdCard className="size-4" aria-hidden />
-              </span>
-              {t("stepId")}
+          <ul className="mt-3 divide-y divide-line">
+            <li>
+              <ListRow lead={<IdCard aria-hidden />} title={t("stepId")} />
             </li>
-            <li className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-bg">
-                <Camera className="size-4" aria-hidden />
-              </span>
-              {t("stepSelfie")}
+            <li>
+              <ListRow lead={<Camera aria-hidden />} title={t("stepSelfie")} />
             </li>
           </ul>
-          <button type="button" onClick={start} disabled={step === "checking"} className={buttonClass("dark", "lg", "mt-6 w-full")}>
+          <Button variant="primary" size="lg" onClick={start} disabled={step === "checking"} className="mt-6 w-full">
             {step === "checking" ? (
               <>
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2 className="animate-spin" aria-hidden />
                 {t("checking")}
               </>
             ) : (
               t("start")
             )}
-          </button>
+          </Button>
           <p className="mt-3 text-center text-xs text-muted">{t("mockNote")}</p>
         </>
       )}

@@ -6,8 +6,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { SiApple } from "react-icons/si";
+import { formInput } from "@/components/form/FormLayout";
 import { CompleteProfileForm } from "@/components/onboarding/CompleteProfileForm";
+import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
+import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { isProfileComplete, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -16,11 +19,6 @@ type Provider = "Apple" | "Google";
 
 /** Mock magic link: how long the "Check your inbox" state shows before the mock user is logged in. */
 const MOCK_LINK_DELAY_MS = 1500;
-
-import { sheetButtonClass } from "@/components/ui/sheetButton";
-
-// Re-exported for existing imports; the class itself lives in ui/sheetButton (no import cycle with onboarding).
-export { sheetButtonClass } from "@/components/ui/sheetButton";
 
 interface AuthSheetProps {
   open: boolean;
@@ -103,18 +101,14 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   if (provider) {
     return (
       <div>
-        <button
-          type="button"
-          onClick={() => setProvider(null)}
-          className="-ml-1 mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-        >
-          <ArrowLeft className="size-4" />
+        <Button variant="tertiary" onClick={() => setProvider(null)} className="mb-3">
+          <ArrowLeft />
           {tc("back")}
-        </button>
+        </Button>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
           {t("mockProviderLogin", { provider })}
         </p>
-        <ul className="scroll-pane max-h-[50vh] divide-y divide-line rounded-2xl border border-line">
+        <ul className="scroll-pane max-h-[50vh] divide-y divide-line rounded-xl border border-line">
           {users.map((user) => (
             <li key={user.id}>
               <button
@@ -123,11 +117,9 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
                   login(user.id);
                   loggedIn(user.id);
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-bg"
+                className="block w-full px-4 text-left hover:bg-bg"
               >
-                <Avatar user={user} size="sm" />
-                <span className="flex-1 text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-muted">{user.country}</span>
+                <ListRow lead={<Avatar user={user} size="md" />} title={user.name} aside={<span className="shrink-0 text-[13px] text-muted">{user.country}</span>} />
               </button>
             </li>
           ))}
@@ -139,28 +131,9 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   return (
     <div>
       <div className="space-y-3">
-        <AuthButton
-          icon={<SiApple className="size-5" />}
-          label={t("continueWithApple")}
-          onClick={() => setProvider("Apple")}
-          className="bg-ink text-surface hover:bg-ink/85"
-        />
-        <AuthButton
-          icon={<FcGoogle className="size-5" />}
-          label={t("continueWithGoogle")}
-          onClick={() => setProvider("Google")}
-          className="border border-line bg-surface text-ink hover:bg-bg"
-        />
-        {emailOpen ? (
-          <EmailForm onSuccess={loggedIn} />
-        ) : (
-          <AuthButton
-            icon={<Mail className="size-5" />}
-            label={t("continueWithEmail")}
-            onClick={() => setEmailOpen(true)}
-            className="bg-bg text-ink hover:bg-line/60"
-          />
-        )}
+        <AuthButton icon={<SiApple />} label={t("continueWithApple")} onClick={() => setProvider("Apple")} />
+        <AuthButton icon={<FcGoogle />} label={t("continueWithGoogle")} onClick={() => setProvider("Google")} />
+        {emailOpen ? <EmailForm onSuccess={loggedIn} /> : <AuthButton icon={<Mail />} label={t("continueWithEmail")} onClick={() => setEmailOpen(true)} />}
       </div>
       <p className="mt-4 text-[13px] text-muted">{t("dataUse")}</p>
       <p className="mt-1 text-[13px] text-muted">
@@ -181,14 +154,20 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   );
 }
 
-function AuthButton({ icon, label, onClick, className }: { icon: ReactNode; label: string; onClick: () => void; className: string }) {
+/**
+ * One provider button: secondary, full width, the brand icon in a fixed 24px slot (size-5) so the labels share one
+ * axis. All three look alike – the sheet's only primary is "Send link".
+ */
+function AuthButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={cn(sheetButtonClass, className)}>
-      <span className="flex w-6 shrink-0 justify-center" aria-hidden>
+    <Button variant="secondary" size="lg" onClick={onClick} className="w-full">
+      <span className="flex w-6 shrink-0 justify-center [&_svg]:size-5!" aria-hidden>
         {icon}
       </span>
       <span className="flex-1 text-center">{label}</span>
-    </button>
+      {/* Balances the icon slot, so the label is centred on the button. */}
+      <span className="w-6 shrink-0" aria-hidden />
+    </Button>
   );
 }
 
@@ -218,7 +197,7 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
 
   if (sentTo) {
     return (
-      <p role="status" className="flex min-h-14 items-center gap-3 rounded-3xl bg-bg px-5 py-3 text-[15px] text-ink">
+      <p role="status" className="flex min-h-11 items-center gap-3 rounded-xl bg-bg px-4 py-3 text-[15px] text-ink">
         <MailCheck className="size-5 shrink-0 text-ink" />
         <span>
           {t.rich("checkInbox", { email: sentTo, strong: (chunks) => <span className="font-medium">{chunks}</span> })}
@@ -239,17 +218,13 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t("emailPlaceholder")}
           aria-label={t("emailLabel")}
-          className="h-14 min-w-0 flex-1 rounded-full border border-line bg-surface px-5 text-[16px] outline-none focus:border-accent"
+          className={cn(formInput, "min-w-0 flex-1")}
         />
-        <button
-          type="submit"
-          disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}
-          className="h-14 shrink-0 rounded-full bg-ink px-6 text-[16px] font-medium text-surface transition-colors hover:bg-ink/90 disabled:bg-line disabled:text-muted"
-        >
+        <Button type="submit" variant="primary" size="lg" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}>
           {t("sendLink")}
-        </button>
+        </Button>
       </div>
-      <label className="flex items-center gap-1.5 pl-5 text-xs text-muted">
+      <label className="flex items-center gap-1.5 pl-4 text-xs text-muted">
         {t("mockLoginAs")}
         <select
           value={mockUserId}

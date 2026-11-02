@@ -5,42 +5,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { Avatar } from "@/components/ui/Avatar";
-import { OpenHouseButton } from "@/components/ui/OpenHouseButton";
-import { getCurrentUser, useStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { NotificationBell } from "./NotificationBell";
 import { GET_THE_APP_HREF } from "./secondaryLinks";
 
-/** Header right side: "Log in" (logged out) or the bell + avatar menu (logged in), plus "Open a House". */
-export function HeaderActions() {
-  const store = useStore();
-  const requireAuth = useRequireAuth();
-  const me = getCurrentUser(store);
-  const t = useTranslations("nav");
-
-  return (
-    // Logged in: bell, avatar and "Open a House" 16px apart, centred on one line.
-    <div className={cn("flex items-center justify-end", me ? "gap-4" : "gap-5")}>
-      {me ? (
-        <>
-          <NotificationBell variant="header" />
-          <AccountMenu me={me} />
-        </>
-      ) : (
-        <button type="button" onClick={() => requireAuth()} className="text-sm font-medium text-muted hover:text-ink">
-          {t("logIn")}
-        </button>
-      )}
-      <OpenHouseButton />
-    </div>
-  );
-}
-
 /** Avatar → Profile · Settings · Get the app · Log out. */
-function AccountMenu({ me }: { me: User }) {
+export function AccountMenu({ me }: { me: User }) {
   const t = useTranslations("nav");
   const { logout } = useStore();
   const router = useRouter();

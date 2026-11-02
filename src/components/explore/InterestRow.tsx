@@ -7,11 +7,14 @@ import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { createHref } from "@/components/create/model";
 import { formInput } from "@/components/form/FormLayout";
-import { buttonClass } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { ListRow } from "@/components/ui/ListRow";
 import { RowHeader, ScrollRow } from "@/components/explore/CollectionRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
-import { chipActiveClass, chipClass, chipInactiveClass } from "@/components/form/chips";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { MonthChips, shortMonth } from "@/components/form/MonthChips";
 import { aggregateDemand, FLEXIBLE, interestIn, interestsIn, monthRange, type DemandSpot } from "@/lib/interests";
 import { placeByName, PLACES, searchPlaces, type Place } from "@/lib/places";
@@ -51,7 +54,7 @@ export function useOrderedSpots(exclude: readonly DemandSpot[] = []): DemandSpot
 
 /**
  * "Where do you want to go next?" – the most wanted places (city, country, months, how many people), each with
- * "I'm interested" and "Host this house", "+ Add a place" last and "See all →" to /next. A horizontal scroll row of
+ * "I'm interested" and "Host it", "+ Add a place" last and "See all →" to /next. A horizontal scroll row of
  * the top 12; `grid` (pre-launch, no Houses yet): up to 8 cards as a grid.
  */
 export function InterestRow({ exclude = [], layout = "scroll" }: { /** Spots already shown as tiles in the grid above */ exclude?: readonly DemandSpot[]; layout?: "scroll" | "grid" }) {
@@ -59,7 +62,7 @@ export function InterestRow({ exclude = [], layout = "scroll" }: { /** Spots alr
   const spots = useOrderedSpots(exclude);
   const [adding, setAdding] = useState(false);
   const header = (
-    <RowHeader id="interests-title" title={t("title")} subline={t("subline")} seeAll={{ href: "/next", label: t("seeAll"), ariaLabel: t("seeAllLabel") }} />
+    <RowHeader id="interests-title" eyebrow={t("eyebrow")} title={t("title")} subline={t("subline")} seeAll={{ href: "/next", label: t("seeAll"), ariaLabel: t("seeAllLabel") }} />
   );
 
   return (
@@ -79,11 +82,11 @@ export function InterestRow({ exclude = [], layout = "scroll" }: { /** Spots alr
       ) : (
         <ScrollRow>
           {spots.slice(0, ROW_SPOTS).map((spot) => (
-            <div key={spot.placeName} className="flex w-72 shrink-0 snap-start">
+            <div key={spot.placeName} className="flex w-90 shrink-0 snap-start">
               <DemandCard spot={spot} />
             </div>
           ))}
-          <div className="flex w-72 shrink-0 snap-start">
+          <div className="flex w-90 shrink-0 snap-start">
             <AddPlaceCard onAdd={() => setAdding(true)} />
           </div>
         </ScrollRow>
@@ -93,7 +96,7 @@ export function InterestRow({ exclude = [], layout = "scroll" }: { /** Spots alr
   );
 }
 
-/** Dashed "+ Add a place" card – asks to log in first. */
+/** Dashed "+ Add a place" card (the card's shape, dashed: a slot, not content) – asks to log in first. */
 export function AddPlaceCard({ onAdd }: { onAdd: () => void }) {
   const t = useTranslations("explore.interests");
   const requireAuth = useRequireAuth();
@@ -101,9 +104,9 @@ export function AddPlaceCard({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={() => requireAuth(onAdd, t("loginToAdd"))}
-      className="flex min-h-56 w-full flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-line p-6 text-muted transition-colors hover:bg-surface hover:text-ink"
+      className="lift-card flex min-h-56 w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-line p-6 text-muted transition-colors hover:bg-surface hover:text-ink"
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink">
+      <span className="flex size-12 items-center justify-center rounded-full bg-bg text-ink">
         <Plus className="size-5" aria-hidden />
       </span>
       <span className="font-semibold">{t("addPlace")}</span>
@@ -136,7 +139,7 @@ function monthSpan(format: ReturnType<typeof useFormatter>, spot: DemandSpot, th
   return last.slice(0, 4) === thisYear ? span : `${span} ${last.slice(0, 4)}`;
 }
 
-/** Card of a demand spot: city, country, "8 people · Feb–Mar · 3 anytime" and the two actions. `tile`: House-card size (4:5), centred. */
+/** Card of a demand spot: city, country, "8 people", "Feb–Mar", "3 anytime" as Badges and the two actions. `tile`: House-card size (4:5), centred. */
 /** Tiles in the card's people mosaic (2×2) – past that, the last one says "+N". */
 const MOSAIC_TILES = 4;
 
@@ -153,11 +156,20 @@ export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: bo
   const people = loggedIn ? optedIn : [];
   const [listing, setListing] = useState(false);
   const range = spot.months.length > 0 ? { from: monthRange(spot.months[0].month).from, to: monthRange(spot.months.at(-1)!.month).to } : {};
-  const summary = [t("people", { count: spot.count }), span, spot.anytime > 0 ? t("anytime", { count: spot.anytime }) : null].filter(Boolean).join(" · ");
   const openPeople = () => (loggedIn ? setListing(true) : requireAuth(() => setListing(true), t("loginToSeeFor", { place: spot.placeName })));
   return (
-    // Tiles fill a grid cell beside the House cards (as tall as they are); in rows the mosaic sets the height.
-    <div className={cn("flex w-full flex-col overflow-hidden bg-surface", tile ? "h-full rounded-[28px]" : "rounded-[24px]")}>
+    // Tiles fill a grid cell beside the House cards (as tall as they are); in rows the mosaic sets the height. One
+    // rounded element (24px, overflow hidden, no border) – the mosaic inside runs square to its edges. The hover shadow:
+    // here in the grid; in a row the row casts it (.lift-row).
+    <div
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-3xl bg-surface",
+        // In the grid it lifts itself (scale + shadow); in a row, .lift-row lifts it (the same element).
+        tile
+          ? "h-full transition-[scale,box-shadow] duration-350 ease-[cubic-bezier(0.2,0.8,0.2,1)] md:hover:scale-[1.02] md:hover:shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:shadow-[0_16px_40px_rgba(0,0,0,0.18)]"
+          : "lift-card",
+      )}
+    >
       <PeopleMosaic
         people={optedIn.map((p) => p.user)}
         blurred={!loggedIn}
@@ -165,44 +177,34 @@ export function DemandCard({ spot, tile = false }: { spot: DemandSpot; tile?: bo
         onOpen={optedIn.length > 0 ? openPeople : undefined}
       />
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-6">
         <p className="text-lg font-bold tracking-tight text-ink">
           {spot.country ? `${spot.placeName}, ${spot.country}` : spot.placeName}
         </p>
-        <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-ink">
-          <Users className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-          <span>{summary}</span>
+        <p className="mt-2 flex flex-wrap gap-1.5">
+          <Badge icon={<Users aria-hidden />}>{t("people", { count: spot.count })}</Badge>
+          {span && <Badge>{span}</Badge>}
+          {spot.anytime > 0 && <Badge>{t("anytime", { count: spot.anytime })}</Badge>}
         </p>
         {/* Logged out, the faces are blurred – this is the way to see them. */}
         {!loggedIn && optedIn.length > 0 && (
-          <button
-            type="button"
-            onClick={openPeople}
-            className="mt-2 w-fit whitespace-nowrap text-xs font-medium text-muted underline underline-offset-2 hover:text-ink"
-          >
+          <Button variant="tertiary" size="md" onClick={openPeople} className="mt-2 w-fit whitespace-nowrap">
             {t("loginToSee")}
-          </button>
+          </Button>
         )}
-        {/* One row, never wrapping: each button as wide as its label, both growing into the rest. The row is a size
-            container – below 232px, where the two full labels no longer fit, "Host this house" becomes "Host it". */}
-        <div className="@container mt-auto w-full pt-5">
+        {/* One row, never wrapping: "Host it" keeps its full width (never cut); "I'm interested" takes the rest. */}
+        <div className="mt-auto w-full pt-5">
           <div className="flex gap-2">
-            <button
-              type="button"
-              aria-pressed={interested}
-              onClick={toggle}
-              className={buttonClass(interested ? "secondary" : "dark", "xs", "min-w-0 flex-auto whitespace-nowrap")}
-            >
-              {interested && <Check className="size-4 shrink-0" aria-hidden />}
+            {/* Both secondary – on Explore the header's "Open a House" is the one primary; on is shown by the check. */}
+            <Button variant="secondary" size="md" aria-pressed={interested} onClick={toggle} className="min-w-0 flex-1 whitespace-nowrap">
+              {interested && <Check className="shrink-0" aria-hidden />}
               <span className="truncate">{interested ? t("interestedOn") : t("interested")}</span>
-            </button>
+            </Button>
             <Link
               href={createHref({ region: spot.country, city: spot.placeName, ...range })}
-              aria-label={t("host")}
-              className={buttonClass("secondary", "xs", "min-w-0 flex-auto whitespace-nowrap")}
+              className={buttonStyles("secondary", "md", "whitespace-nowrap")}
             >
-              <span className="truncate @max-[14.5rem]:hidden">{t("host")}</span>
-              <span className="hidden truncate @max-[14.5rem]:inline">{t("hostShort")}</span>
+              {t("host")}
             </Link>
           </div>
         </div>
@@ -226,7 +228,7 @@ function PeopleMosaic({ people, blurred, label, onOpen }: { people: Pick<User, "
       {Array.from({ length: MOSAIC_TILES }, (_, i) => {
         const person = shown[i];
         return (
-          <span key={person?.id ?? `empty-${i}`} className="relative overflow-hidden bg-line">
+          <span key={person?.id ?? `empty-${i}`} className="relative overflow-hidden">
             {person?.photos[0] && (
               <Img
                 src={person.photos[0]}
@@ -248,7 +250,7 @@ function PeopleMosaic({ people, blurred, label, onOpen }: { people: Pick<User, "
   const frame = "relative block aspect-16/10 w-full shrink-0 overflow-hidden";
   // Names are in the list behind it; the tiles themselves are decorative.
   return onOpen ? (
-    <button type="button" onClick={onOpen} aria-label={label} className={cn(frame, "transition-opacity hover:opacity-95")}>
+    <button type="button" onClick={onOpen} aria-label={label} className={cn(frame, "outline-none transition-opacity hover:opacity-95")}>
       {tiles}
     </button>
   ) : (
@@ -293,16 +295,19 @@ function PeopleSheet({ open, onClose, spot, people, thisYear }: { open: boolean;
       <ul className="divide-y divide-line">
         {people.map(({ user, months }) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} onClick={onClose} className="flex items-center gap-3 py-3 hover:bg-bg">
-              <PersonPhoto src={user.photos[0]} alt={user.name} size={44} className="size-11" />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 font-medium text-ink">
-                  {firstName(user)}
-                  {user.verified && <VerifiedBadge size={14} />}
-                </span>
-                <span className="block text-sm text-muted">{personMonths(format, months, thisYear, t("anytimeShort"))}</span>
-              </span>
-              <span className="shrink-0 text-sm font-medium text-ink underline underline-offset-2">{t("viewProfile")}</span>
+            <Link href={`/u/${user.id}`} onClick={onClose} className="block hover:bg-bg">
+              <ListRow
+                lead={<PersonPhoto src={user.photos[0]} alt={user.name} size={40} className="size-10" />}
+                title={
+                  <span className="flex items-center gap-1">
+                    {firstName(user)}
+                    {user.verified && <VerifiedBadge size={14} />}
+                  </span>
+                }
+                subtitle={personMonths(format, months, thisYear, t("anytimeShort"))}
+                // The whole row is the link – this only looks like one.
+                action={<span className={buttonStyles("tertiary", "md")}>{t("viewProfile")}</span>}
+              />
             </Link>
           </li>
         ))}
@@ -325,7 +330,7 @@ export function AddPlaceSheet({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
-function AddPlaceForm({ onDone }: { onDone: () => void }) {
+export function AddPlaceForm({ onDone }: { onDone: () => void }) {
   const t = useTranslations("explore.interests.add");
   const store = useStore();
   const showToast = useToast();
@@ -361,14 +366,15 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
           {popular.map((p) => {
             const active = place?.name === p.name;
             return (
-              <button key={p.placeId} type="button" aria-pressed={active} onClick={() => setPlace(active ? null : p)} className={cn(chipClass, active ? chipActiveClass : chipInactiveClass)}>
+              <Chip key={p.placeId} active={active} onClick={() => setPlace(active ? null : p)}>
                 {p.name}
-              </button>
+              </Chip>
             );
           })}
         </div>
         {place && !popular.some((p) => p.name === place.name) ? (
-          <span className={cn(chipClass, chipActiveClass, "mt-3 inline-flex items-center gap-1.5 pr-2")}>
+          <span className={cn(chipStyles(true), "mt-3 pr-2")}>
+            <ChipCheck />
             {place.name}, {place.country}
             <button type="button" onClick={() => setPlace(null)} aria-label={t("removePlace", { place: place.name })} className="rounded-full p-0.5 hover:bg-white/20">
               <X className="size-3.5" aria-hidden />
@@ -423,20 +429,24 @@ function AddPlaceForm({ onDone }: { onDone: () => void }) {
         {tried && months.length === 0 && <p className="mt-1.5 text-[13px] text-red-600">{t("monthError")}</p>}
       </fieldset>
 
-      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-bg px-4 py-3">
-        <span className="text-sm font-medium">{t("notify")}</span>
-        <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-5 accent-ink" />
-      </label>
-      <label className="-mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-bg px-4 py-3">
-        <span>
-          <span className="block text-sm font-medium">{t("visible")}</span>
-          <span className="mt-0.5 block text-[13px] text-muted">{t("visibleHelper")}</span>
-        </span>
-        <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} className="size-5 shrink-0 accent-ink" />
-      </label>
-      <button type="submit" className={buttonClass("dark", "lg", "w-full")}>
+      {/* Two plain rows split by a 1px line (the helper wraps, so not a one-line ListRow). */}
+      <div className="divide-y divide-line border-y border-line">
+        <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 py-2">
+          <span className="text-[15px] text-ink">{t("notify")}</span>
+          <Checkbox checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+        </label>
+        <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 py-2">
+          <span>
+            <span className="block text-[15px] text-ink">{t("visible")}</span>
+            <span className="mt-0.5 block text-[13px] text-muted">{t("visibleHelper")}</span>
+          </span>
+          <Checkbox checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+        </label>
+      </div>
+      {/* The sheet's one primary. */}
+      <Button type="submit" variant="primary" size="lg" className="w-full">
         {t("submit")}
-      </button>
+      </Button>
     </form>
   );
 }

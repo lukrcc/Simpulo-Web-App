@@ -177,7 +177,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
   const firstRender = rotation.steps === 0;
 
   return (
-    <Container className="hidden pt-6 lg:block">
+    <Container className="hidden pt-8 lg:block">
       <section
         aria-label={t("featuredHouses")}
         aria-roledescription="carousel"
@@ -200,12 +200,12 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
           // Crossfade also with reduced motion – it's only the turning and zooming that stop.
           const fade: CSSProperties = { transition: `opacity ${rotation.fadeMs}ms ease-in-out` };
           return (
-            // One clipped silhouette per cell, notched around its host tab (NotchedCard). Cell A is the hover group
-            // for the shuffle control.
+            // One clipped silhouette per cell (NotchedCard: overflow hidden, radius, notched around its host tab). Every
+            // cell is a hover group for its photo zoom; cell A also for the shuffle control.
             <NotchedCard
               key={i}
-              className={cn(layout[i], large && "group/a")}
-              clipClassName="rounded-[28px] bg-ink"
+              className={cn(layout[i], "group", large && "group/a")}
+              clipClassName="rounded-3xl bg-ink"
               tabKey={shown.stay.id}
               tab={
                 // One tab per cell: only the avatar and name fade in with the cell.
@@ -242,7 +242,7 @@ export function BentoTop({ stays }: { stays: Stay[] }) {
                 aria-label={t("houseWithHost", { title: shown.stay.title, host: firstName(shown.host) })}
                 aria-keyshortcuts={large && canRotate ? "ArrowRight Space" : undefined}
                 onKeyDown={large && canRotate ? onHeroKey : undefined}
-                className="absolute inset-0 cursor-pointer"
+                className="absolute inset-0 z-10 cursor-pointer"
               />
               {large && canRotate && <NextButton label={t("next")} onClick={shuffle} />}
             </NotchedCard>
@@ -262,9 +262,9 @@ interface NextButtonProps {
 const PRESS_KEYS = new Set(["Enter", " ", "ArrowRight"]);
 
 /**
- * "Next" capsule, bottom-right of cell A: solid surface, ink text and icon, 44px, a soft shadow; hover a shade darker.
- * Held down – mouse (:active) or Enter / Space / → (data-pressed) – it sinks: scale 0.90, darker, the shadow turned
- * inward, for as long as it's held (in 120ms; back out in 160ms). Next happens on release, not on press: then the icon
+ * "Next", in the bottom-right corner of cell A (16px in): solid surface, ink text and icon, 44px, a soft shadow; hover
+ * #F0EFEC and scale 0.97. Held down – mouse (:active) or Enter / Space / → (data-pressed) – it sinks: scale 0.88,
+ * darker, the shadow turned inward, for as long as it's held (in 120ms; back out in 150ms). Next happens on release, not on press: then the icon
  * turns half way (180°, 300ms – class "spin", off again on animationend) and the Houses crossfade. Reduced motion: the press is colour
  * only, no turn.
  */
@@ -310,14 +310,14 @@ function NextButton({ label, onClick }: NextButtonProps) {
       }}
       onBlur={() => setKeyPressed(false)}
       className={cn(
-        "absolute bottom-10 right-10 z-20 inline-flex h-11 touch-manipulation items-center gap-2 rounded-full bg-surface px-[18px] text-sm font-semibold text-ink outline-none",
-        // Rest – and the way back to it after a press: 160ms.
-        "scale-100 shadow-[0_2px_8px_color-mix(in_srgb,var(--ink)_25%,transparent)] transition-[scale,background-color,box-shadow] duration-160 ease-out",
-        // #F0EFEC: 60 % line on surface.
-        "hover:bg-[color-mix(in_srgb,var(--line)_60%,var(--surface))] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent",
-        // Pressed (into it in 120ms): #E8E6E1 (line with a little surface), the shadow inward, smaller – not with reduced motion.
-        "active:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] active:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)] active:duration-120 motion-safe:active:scale-90",
-        "data-pressed:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] data-pressed:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)] data-pressed:duration-120 motion-safe:data-pressed:scale-90",
+        // 16px from the card's bottom and right edge, 44px tall, the card's 24px radius.
+        "hero-next absolute bottom-4 right-4 z-20 inline-flex h-11 touch-manipulation items-center gap-2 rounded-3xl bg-surface px-[18px] text-sm font-semibold text-ink outline-none",
+        // Scale and timing: .hero-next in globals.css (hover 0.97, pressed 0.88, 150ms ease-out).
+        "shadow-[0_2px_8px_color-mix(in_srgb,var(--ink)_25%,transparent)]",
+        "hover:bg-[#F0EFEC] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent",
+        // Pressed: #E8E6E1 (line with a little surface) and the shadow inward.
+        "active:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] active:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)]",
+        "data-pressed:bg-[color-mix(in_srgb,var(--line)_93%,var(--surface))] data-pressed:shadow-[inset_0_2px_4px_color-mix(in_srgb,var(--ink)_18%,transparent)]",
       )}
     >
       <RefreshCw ref={iconRef} onAnimationEnd={(e) => e.currentTarget.classList.remove("spin")} className="size-4" aria-hidden />
@@ -382,23 +382,23 @@ function CellLayer({ stay, host, guests, large, zoom, zoomPaused, eager, preload
 
   return (
     <>
-      <div className="absolute inset-0">
-        <div style={zoomStyle} className={cn("absolute inset-0 will-change-transform", zoom && "animate-kenburns")}>
-          <Img
-            src={host.photos[0]}
-            alt={t("cards.hostAlt", { name: host.name, title: stay.title })}
-            fill
-            preload={preload}
-            loading={eager && !preload ? "eager" : undefined}
-            sizes={large ? "(min-width: 1600px) 900px, 58vw" : "(min-width: 1600px) 640px, 42vw"}
-            className="object-cover"
-          />
-        </div>
-        {/* Bottom 55%: transparent → 70% black, eased through a midpoint so it stays soft. */}
-        <div className="absolute inset-0 bg-linear-to-t from-ink/70 via-ink/30 via-25% to-transparent to-55%" />
+      {/* The photo in its own wrapper (Ken Burns on the wrapper). Hover zooms only the image, inside the clipped cell;
+          gradient, text, avatars and Next are siblings above it (z-10) and stay put. Reduced motion: no zoom. */}
+      <div style={zoomStyle} className={cn("absolute inset-0 will-change-transform", zoom && "animate-kenburns")}>
+        <Img
+          src={host.photos[0]}
+          alt={t("cards.hostAlt", { name: host.name, title: stay.title })}
+          fill
+          preload={preload}
+          loading={eager && !preload ? "eager" : undefined}
+          sizes={large ? "(min-width: 1600px) 900px, 58vw" : "(min-width: 1600px) 640px, 42vw"}
+          className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-transform group-hover:scale-[1.04] motion-reduce:transform-none motion-reduce:group-hover:scale-100"
+        />
       </div>
+      {/* Bottom 55%: transparent → 70% black, eased through a midpoint so it stays soft. */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-ink/70 via-ink/30 via-25% to-transparent to-55%" />
 
-      <div className={cn("pointer-events-none absolute text-white", large ? "inset-x-10 bottom-10 pr-16" : "inset-x-8 bottom-8")}>
+      <div className={cn("pointer-events-none absolute z-10 text-white", large ? "inset-x-10 bottom-10 pr-16" : "inset-x-8 bottom-8")}>
         {large ? (
           <HeroTitle title={stay.title} />
         ) : (

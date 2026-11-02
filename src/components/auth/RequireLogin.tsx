@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useStore } from "@/lib/store";
 import { useRequireAuth } from "./AuthProvider";
@@ -34,9 +34,9 @@ export function RequireLogin({ title, description, after, children }: RequireLog
         title={title}
         description={description}
         action={
-          <button type="button" onClick={() => requireAuth(() => router.refresh())} className={buttonClass("dark", "sm")}>
+          <Button variant="primary" onClick={() => requireAuth(() => router.refresh())}>
             {t("logIn")}
-          </button>
+          </Button>
         }
       />
       {after}

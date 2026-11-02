@@ -1,7 +1,6 @@
 "use client";
 
 import { SearchX } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, use, useEffect, useState } from "react";
@@ -11,12 +10,14 @@ import { Composer, type ReplyDraft } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
+import { cardShadow } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Stay, Thread } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
+import { cn } from "@/lib/utils";
 
 /** /inbox/[threadId] – the mobile detail page. On desktop the same chat opens inside /inbox. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
@@ -63,9 +64,9 @@ function ThreadGate({ threadId, embedded, inline = false }: { threadId: string; 
         title={thread ? t("crewOnly") : t("notFound")}
         description={thread ? t("crewOnlyDescription") : undefined}
         action={
-          <Link href={stay ? `/house/${stay.slug}` : "/inbox"} className={buttonClass("dark", "sm")}>
+          <Button href={stay ? `/house/${stay.slug}` : "/inbox"}>
             {stay ? t("viewHouse") : t("backToMessages")}
-          </Link>
+          </Button>
         }
       />
     );
@@ -93,9 +94,9 @@ function ThreadNotFound({ embedded }: { embedded: boolean }) {
         icon={SearchX}
         title={t("notFound")}
         action={
-          <Link href="/inbox" className={buttonClass("dark", "sm")}>
+          <Button href="/inbox">
             {t("backToMessages")}
-          </Link>
+          </Button>
         }
       />
     </NotFoundFrame>
@@ -143,7 +144,7 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
 
   if (embedded) {
     // Fills the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
-    return <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-line bg-bg">{content}</div>;
+    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-bg", cardShadow)}>{content}</div>;
   }
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /

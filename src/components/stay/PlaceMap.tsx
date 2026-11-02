@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { useFormat } from "@/i18n/format";
 import type { Stay } from "@/lib/types";
 import { googleMapsUrl, isCityOpen, mapQuery } from "@/lib/utils";
@@ -22,10 +23,10 @@ export function PlaceMap({ stay }: { stay: Stay }) {
           href={googleMapsUrl(stay)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 hover:text-muted"
+          className={buttonStyles("tertiary", "md")}
         >
           {t("openInMaps")}
-          <ArrowUpRight className="size-4" />
+          <ArrowUpRight aria-hidden />
         </a>
       }
     >

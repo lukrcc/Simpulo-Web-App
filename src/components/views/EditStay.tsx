@@ -1,13 +1,12 @@
 "use client";
 
 import { SearchX } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
-import { buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { EditStayForm } from "@/components/views/CreateStayForm";
@@ -42,9 +41,7 @@ function EditStayGate({ id }: { id: string }) {
           icon={SearchX}
           title={t("notFound")}
           action={
-            <Link href="/my-stays" className={buttonClass("dark", "sm")}>
-              {t("backToHouses")}
-            </Link>
+            <Button href="/my-stays">{t("backToHouses")}</Button>
           }
         />
       </Container>
