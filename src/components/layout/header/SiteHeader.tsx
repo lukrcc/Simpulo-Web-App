@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { useExploreControls, type ExploreControls } from "@/components/explore/ExploreControls";
 import { Container } from "@/components/layout/Container";
@@ -11,7 +11,6 @@ import { useExploreFilters } from "@/lib/exploreFilterState";
 import { getCurrentUser, pendingRequestCount, unreadThreadCount, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { HeaderCompact } from "./HeaderCompact";
-import type { ChipOffset, ChipOffsetStore } from "./HeaderChips";
 import { HeaderExpanded } from "./HeaderExpanded";
 
 /*
@@ -23,12 +22,12 @@ import { HeaderExpanded } from "./HeaderExpanded";
  *     16px, 28px apart, the current page ink + 2px underline | right: bell 36px (accent dot when new) + avatar 36px,
  *     8px apart, 16px to "Open a House": 40px, ink, 15px/600, padding 0 20px (logged out: "Log in" 14px/500 +
  *     "Open a House").
- *   Row 2, 56px (44px, then 12px of air): chips 36px, 14px/500, padding 0 16px, 8px apart, "All" active ink |
- *     right: Sort capsule + Filters 36px, 8px apart.
+ *   Row 2, 56px (44px, then 12px of air): chips 36px, 14px/500, padding 0 16px, 8px apart, "All" active ink –
+ *     at most 8 chips, as many as fit whole, then "More ▾" | right: Sort capsule + Filters 36px, 8px apart.
  * COMPACT – 64px: grid "auto 1fr auto auto", gap 20px, items centred.
- *   1 wordmark 24px, no tagline · 2 (min-w-0, relative) the scroller with only the chips – 32px, 13px/500, padding
- *   0 14px, gap 6px, 40px fades; 32px arrow buttons absolute over its ends, outside the scroller, while that
- *   direction scrolls; wheel deltaY → scrollLeft · 3 Sort capsule + Filters 32px, 8px apart · 4 one flex row, gap
+ *   1 wordmark 24px, no tagline · 2 (min-w-0, relative) only the chips – 32px, 13px/500, padding 0 14px, gap 6px:
+ *   as many as fit whole, then "More ▾" (no scrolling, no arrows; a picked chip that doesn't fit takes the last
+ *   place) · 3 Sort capsule + Filters 32px, 8px apart · 4 one flex row, gap
  *   8px: Explore · Your houses · Messages · bell as 32px circles (surface, line border, 16px icon; the current page
  *   ink) – marks only as an 8px accent dot at the top right with 2px of bg around it · avatar 32px · "Open a House"
  *   as a 32px ink capsule, 13px/600, padding 0 14px. Logged out: Explore · Host · How it works · login circle ·
@@ -37,7 +36,7 @@ import { HeaderExpanded } from "./HeaderExpanded";
  *   (128 → 64px, 400ms cubic-bezier(0.32, 0.72, 0, 1)); in it the two layouts, both absolute at the top, shown or
  *   hidden by opacity alone (250ms; the hidden one aria-hidden, inert, pointer-events none). The page's padding-top
  *   is 128px on Explore, 72px elsewhere (--header-slot). Compact past 120px of scroll, expanded again below 40px.
- *   prefers-reduced-motion: no transitions. The chip row's scroll offset lives in one ref, taken over on a switch.
+ *   prefers-reduced-motion: no transitions.
  */
 
 /** Scrolled past this, Explore's header goes compact … */
@@ -64,7 +63,6 @@ export interface HeaderData {
   controls: ExploreControls | null;
   /** The URL's filter state (the picked categories, the sort) */
   filters: ExploreFilters;
-  chipOffset: ChipOffsetStore;
   requireAuth: () => void;
 }
 
@@ -91,7 +89,6 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const compact = useCompactHeader(exploreRow);
   const controls = useExploreControls();
   const filters = useExploreFilters();
-  const chipOffsetRef = useRef<ChipOffset>({ left: 0, width: 0 });
   const data: HeaderData = {
     pathname,
     loggedIn,
@@ -101,12 +98,6 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
     pendingRequests: me ? store.stays.filter((s) => s.hostId === me.id).reduce((n, s) => n + pendingRequestCount(store, s.id), 0) : 0,
     controls: exploreRow ? controls : null,
     filters,
-    chipOffset: {
-      read: () => chipOffsetRef.current,
-      write: (offset) => {
-        chipOffsetRef.current = offset;
-      },
-    },
     requireAuth: () => requireAuth(),
   };
 
@@ -118,11 +109,11 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
       className="hdr fixed inset-x-0 top-0 z-40 hidden h-(--header-h) overflow-hidden bg-bg/80 backdrop-blur-xl after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-line md:block"
     >
       <Layer active={!compact}>
-        <HeaderExpanded data={data} exploreRow={exploreRow} active={!compact} />
+        <HeaderExpanded data={data} exploreRow={exploreRow} />
       </Layer>
       {exploreRow && (
         <Layer active={compact}>
-          <HeaderCompact data={data} active={compact} />
+          <HeaderCompact data={data} />
         </Layer>
       )}
     </header>

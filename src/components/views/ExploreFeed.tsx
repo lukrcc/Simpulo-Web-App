@@ -3,19 +3,19 @@
 import { BellRing, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BentoTop } from "@/components/BentoTop";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { BudgetSlider, CategoryRow, CheckboxList, FilterPanel, FiltersButton, PlaceDateSearch, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
+import { CategoryRow, ChoiceChips, FilterPanel, FiltersButton, LanguageFilter, MonthGrid, monthSpan, PanelSection, PlaceDateSearch, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
 import { SEARCH_INLINE_THRESHOLD, SORT_INLINE_THRESHOLD, VISIBLE_CHIPS } from "@/config/explore";
 import { AddPlaceSheet, DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
-import { MonthChips } from "@/components/form/MonthChips";
 import { Container } from "@/components/layout/Container";
 import { useRegisterExploreControls } from "@/components/explore/ExploreControls";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { StayCard } from "@/components/StayCard";
 import { Img } from "@/components/ui/Img";
+import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SurfaceBand } from "@/components/ui/SurfaceBand";
@@ -32,16 +32,20 @@ import {
   countryRegionOf,
   EMPTY_FILTERS,
   eurRange,
+  LENGTH_KEYS,
   matchesFilters,
+  panelFilterCount,
   SORT_KEYS,
+  SPOTS_MINS,
   withFilters,
   type ExploreFilters,
   type SortKey,
 } from "@/lib/exploreFilters";
 import { setExploreFilters, useExploreFilters } from "@/lib/exploreFilterState";
 import { useHeroStays } from "@/lib/heroRotation";
+import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { getCardVariant, MAX_COLLECTIONS, sectionsOf, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
-import { FLEXIBLE, WORLD_REGIONS, type DemandSpot } from "@/lib/interests";
+import { WORLD_REGIONS, type DemandSpot } from "@/lib/interests";
 import { MD_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { VIBES } from "@/lib/mock";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
@@ -191,11 +195,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const single = filters.vibes.length === 1 ? filters.vibes[0] : null;
   if (single && !fixedVibes.includes(single) && slotVibe !== single) setSlotVibe(single);
   const lastVibe = slotVibe && !fixedVibes.includes(slotVibe) ? slotVibe : vibesByCount[VISIBLE_CHIPS - 1];
-  // Counts for the panel's checkboxes, next to the other filters.
-  const categoryOptions = useMemo<CheckOption[]>(
-    () => vibesByCount.map((key) => ({ value: key, label: format.vibe(key as Vibe), count: base.filter((s) => s.vibe === key && matchesFilters(s, filters, "vibes")).length })),
-    [vibesByCount, base, filters, format],
-  );
+  // The price histogram: each House's price per person (the middle of a budget range), in EUR.
+  const prices = useMemo(() => base.map(eurRange).flatMap((r) => (r ? [(r.min + r.max) / 2] : [])), [base]);
+  const currency = usePreferredCurrency() ?? "EUR";
   const sortOptions = SORT_KEYS.map((key) => ({ value: key, label: t(`sortOptions.${key}`) }));
 
   const results = base
@@ -264,7 +266,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const rowVibes = [...fixedVibes, ...(lastVibe ? [lastVibe] : [])];
   const rowOptions = rowVibes.map((key) => vibeOptions.find((o) => o.value === key)!).filter(Boolean);
   const moreOptions = vibeOptions.filter((o) => !rowVibes.includes(o.value));
-  const eur = (amount: number) => formatter.number(amount, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
   // Explore (not the city / vibe pages): from md the chips, Sort and Filters are the site header's (ExploreControls);
   // on phones they are a sticky row of their own at the top.
@@ -273,9 +274,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
-  const panelCount =
-    filters.countries.length + filters.languages.length + filters.months.length + (filters.budget ? 1 : 0) + (filters.sort === EMPTY_FILTERS.sort ? 0 : 1);
-  const clearPanel = () => setFilters({ ...EMPTY_FILTERS, vibes: filters.vibes });
+  const panelCount = panelFilterCount(filters);
+  const clearPanel = () => setFilters({ ...EMPTY_FILTERS, vibes: filters.vibes, sort: filters.sort });
 
   /** The row's search field: a country and / or month named in the text become those filters ("Portugal March"). */
   function searchPlaceDate(query: string) {
@@ -435,7 +435,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         </div>
       </Wrap>
 
-      {/* Filters: sorting and the four filters, from the right. Live – the footer only clears or closes. */}
+      {/* Filters, from the right. Live – the footer only clears or closes. */}
       <FilterPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
@@ -447,44 +447,49 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
             </Button>
             {/* The panel's one primary: it only closes – the filters apply live. */}
             <Button variant="primary" size="md" onClick={() => setPanelOpen(false)}>
-              {tf("show", { count: results.length })}
+              {/* The number rolls to each new count. */}
+              {tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}
             </Button>
           </>
         }
       >
-        <FilterSection title={t("sort")}>
-          <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
-        </FilterSection>
-        {/* Several categories at once – only here; the row picks one. */}
-        {showVibes && (
-          <FilterSection title={tf("categories", { count: filters.vibes.length })}>
-            <CheckboxList options={categoryOptions} value={filters.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />
-          </FilterSection>
-        )}
-        <FilterSection title={t("country")}>
-          {countryOptions.length > 0 ? (
-            <CheckboxList options={countryOptions} value={filters.countries} onChange={(countries) => update({ countries })} searchPlaceholder={t("searchCountries")} />
-          ) : (
-            <p className="text-sm text-muted">{tf("noOptions")}</p>
-          )}
-        </FilterSection>
-        <FilterSection title={tf("month")}>
-          <MonthChips value={filters.months} onChange={(months) => update({ months: months.filter((m) => m !== FLEXIBLE) })} label={tf("month")} columns="three" />
-        </FilterSection>
-        <FilterSection title={tf("budget")}>
+        {/* When · Length · Price per person · Spots left · Language – no Sort (the header capsule) and no categories
+            (the chips are the category filter). */}
+        <PanelSection title={tf("when")} note={monthSpan(formatter, new Date())}>
+          <MonthGrid value={filters.months} onChange={(months) => update({ months })} label={tf("when")} />
+        </PanelSection>
+        <PanelSection title={tf("length")}>
+          <ChoiceChips
+            label={tf("length")}
+            columns={2}
+            value={filters.length}
+            onChange={(length) => update({ length })}
+            options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
+          />
+        </PanelSection>
+        <PanelSection title={tf("price")}>
           {budgetBounds ? (
-            <BudgetSlider bounds={budgetBounds} value={filters.budget} onChange={(budget) => update({ budget })} format={eur} />
+            <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
           ) : (
             <p className="text-sm text-muted">{tf("noBudget")}</p>
           )}
-        </FilterSection>
-        <FilterSection title={t("language")}>
+        </PanelSection>
+        <PanelSection title={tf("spots")}>
+          <ChoiceChips
+            label={tf("spots")}
+            columns={3}
+            value={filters.spots}
+            onChange={(spots) => update({ spots })}
+            options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
+          />
+        </PanelSection>
+        <PanelSection title={t("language")}>
           {languageOptions.length > 0 ? (
-            <CheckboxList options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} />
+            <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
           ) : (
             <p className="text-sm text-muted">{tf("noOptions")}</p>
           )}
-        </FilterSection>
+        </PanelSection>
       </FilterPanel>
 
     </div>
@@ -524,16 +529,6 @@ function compareBy(sort: SortKey, a: Stay, b: Stay): number {
   return price(a) - price(b) || a.startDate.localeCompare(b.startDate);
 }
 
-function FilterSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-/** Sort as a short radio list of ListRows (in its popover and in the mobile sheet). */
 
 /**
  * Pre-launch (no public House yet): the smiley, "The first houses are opening soon", Open a House / Get notified –

@@ -4,10 +4,18 @@
 import { FLEXIBLE, worldRegionOf, type WorldRegion } from "./interests";
 import { convertApprox } from "./mock-extras";
 import type { Stay, Vibe } from "./types";
+import { openSpots } from "./utils";
 
 /** soonest: start date · price: lowest per person first (≈ EUR; no price yet: last) · newest: just opened */
 export type SortKey = "soonest" | "price" | "newest";
 export const SORT_KEYS: readonly SortKey[] = ["soonest", "price", "newest"];
+
+/** A House's length: weekend ≤ 5 nights · weeks 6–17 nights ("1–2 weeks") · long 18+ nights ("3+ weeks"). */
+export type LengthKey = "weekend" | "weeks" | "long";
+export const LENGTH_KEYS: readonly LengthKey[] = ["weekend", "weeks", "long"];
+/** Open spots at least this many. */
+export type SpotsMin = 1 | 3;
+export const SPOTS_MINS: readonly SpotsMin[] = [1, 3];
 
 export interface ExploreFilters {
   vibes: Vibe[];
@@ -19,10 +27,14 @@ export interface ExploreFilters {
   months: string[];
   /** Per person in EUR (≈ for Houses priced in other currencies) */
   budget: { min: number; max: number } | null;
+  /** How long the House runs (null: any length) */
+  length: LengthKey | null;
+  /** At least this many open spots (null: any) */
+  spots: SpotsMin | null;
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], countries: [], languages: [], months: [], budget: null, sort: "soonest" };
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], countries: [], languages: [], months: [], budget: null, length: null, spots: null, sort: "soonest" };
 
 /** Country names as stored on Houses ("Bali, Indonesia" → "Indonesia") ↔ the codes in the URL. */
 const COUNTRY_CODES: Record<string, string> = {
@@ -53,6 +65,8 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     // "Flexible" means any month – the same as no month filter.
     months: list(params.get("month")).filter((m) => MONTH.test(m) && m !== FLEXIBLE),
     budget: Number.isFinite(min) && Number.isFinite(max) && max >= min && max > 0 ? { min, max } : null,
+    length: LENGTH_KEYS.find((key) => key === params.get("len")) ?? null,
+    spots: SPOTS_MINS.find((n) => String(n) === params.get("spots")) ?? null,
     sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
   };
 }
@@ -66,6 +80,8 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
   set("month", filters.months);
   set("vibe", filters.vibes);
   set("budget", filters.budget ? [`${filters.budget.min}-${filters.budget.max}`] : []);
+  set("len", filters.length ? [filters.length] : []);
+  set("spots", filters.spots ? [String(filters.spots)] : []);
   set("sort", filters.sort === "soonest" ? [] : [filters.sort]);
   const query = next.toString();
   return query ? `?${query.replace(/%2C/g, ",")}` : "";
@@ -73,7 +89,35 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
 
 /** Selected values across all filters (sort isn't a filter). */
 export function activeCount(filters: ExploreFilters): number {
-  return filters.vibes.length + filters.countries.length + filters.languages.length + filters.months.length + (filters.budget ? 1 : 0);
+  return (
+    filters.vibes.length +
+    filters.countries.length +
+    filters.languages.length +
+    filters.months.length +
+    (filters.budget ? 1 : 0) +
+    (filters.length ? 1 : 0) +
+    (filters.spots ? 1 : 0)
+  );
+}
+
+/** The filter panel's filters that are on – one each, however many values (not the category chips, not sort). */
+export function panelFilterCount(filters: ExploreFilters): number {
+  return [filters.months.length > 0, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.countries.length > 0].filter(Boolean).length;
+}
+
+const DAY_MS = 86_400_000;
+/** Nights between a House's dates (null without both). */
+export function nightsOf(stay: Pick<Stay, "startDate" | "endDate">): number | null {
+  if (!stay.startDate || !stay.endDate) return null;
+  return Math.round((Date.parse(stay.endDate) - Date.parse(stay.startDate)) / DAY_MS);
+}
+
+export function hasLength(stay: Pick<Stay, "startDate" | "endDate">, length: LengthKey): boolean {
+  const nights = nightsOf(stay);
+  if (nights === null) return false;
+  if (length === "weekend") return nights <= 5;
+  if (length === "weeks") return nights >= 6 && nights <= 17;
+  return nights >= 18;
 }
 
 /** A House runs in a month when its stay overlaps it. Houses without dates match no month. */
@@ -103,5 +147,7 @@ export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: Fil
     const range = eurRange(stay);
     if (!range || range.max < filters.budget.min || range.min > filters.budget.max) return false;
   }
+  if (except !== "length" && filters.length && !hasLength(stay, filters.length)) return false;
+  if (except !== "spots" && filters.spots && openSpots(stay) < filters.spots) return false;
   return true;
 }

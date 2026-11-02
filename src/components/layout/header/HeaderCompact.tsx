@@ -18,20 +18,20 @@ const circle = "relative flex size-8 shrink-0 items-center justify-center rounde
 
 /**
  * The compact header (Explore, scrolled; sizes: SiteHeader.tsx) – one 64px row, a grid "auto 1fr auto auto" with
- * 20px gaps: wordmark | only the chip scroller | Sort + Filters | the nav as circles, bell, avatar, "Open a House"
- * (logged out: nav circles, login circle, "Open a House").
+ * 20px gaps: wordmark | only the chips (as many as fit, then More) | Sort + Filters | the nav as circles, bell,
+ * avatar, "Open a House" (logged out: nav circles, login circle, "Open a House").
  */
-export function HeaderCompact({ data, active }: { data: HeaderData; active: boolean }) {
+export function HeaderCompact({ data }: { data: HeaderData }) {
   const t = useTranslations("nav");
   const tOpen = useTranslations("common.ui.openHouse");
-  const { pathname, loggedIn, me, items, unread, pendingRequests, controls, filters, chipOffset, requireAuth } = data;
+  const { pathname, loggedIn, me, items, unread, pendingRequests, controls, filters, requireAuth } = data;
   const sortLabel = controls?.sort?.options.find((o) => o.value === filters.sort)?.label ?? "";
 
   return (
     <div className="grid h-16 grid-cols-[auto_1fr_auto_auto] items-center gap-5">
       <Logo size="header" tagline={false} />
 
-      <div className="relative min-w-0">{controls && <HeaderChips controls={controls} value={filters.vibes} size="compact" active={active} offset={chipOffset} />}</div>
+      <div className="relative min-w-0">{controls && <HeaderChips controls={controls} value={filters.vibes} size="compact" />}</div>
 
       <div className="flex items-center gap-2">
         {controls?.sort && (

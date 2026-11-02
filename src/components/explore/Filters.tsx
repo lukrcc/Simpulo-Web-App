@@ -1,22 +1,25 @@
 "use client";
 
 import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { formInput } from "@/components/form/FormLayout";
 import { buttonStyles, type ButtonSize } from "@/components/ui/ActionButton";
-import { Badge } from "@/components/ui/Badge";
 import { ListRow } from "@/components/ui/ListRow";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
+import { Combobox } from "@/components/ui/Combobox";
+import { RangeSlider } from "@/components/ui/RangeSlider";
+import { upcomingMonths } from "@/components/form/MonthChips";
+import { convertApprox } from "@/lib/mock-extras";
+import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
 
 /**
- * "Filters" – a secondary button (never the primary "Open a House"). Active: "Filters" with the number of active
- * filters as a Badge.
+ * "Filters" – a secondary button (never the primary "Open a House"). Active: the number of active filters in the
+ * text ("Filters · 2") – no dot, no badge.
  */
 export function FiltersButton({
   count,
@@ -48,8 +51,7 @@ export function FiltersButton({
       className={buttonStyles("secondary", size, className)}
     >
       <SlidersHorizontal aria-hidden />
-      {t("filters")}
-      {count > 0 && <Badge>{count}</Badge>}
+      {count > 0 ? `${t("filters")} · ${count}` : t("filters")}
     </button>
   );
 }
@@ -62,127 +64,184 @@ export interface CheckOption {
   group?: string;
 }
 
-/**
- * Checkbox list (ListRows: checkbox, label, number of Houses as a Badge) with optional search and group headings;
- * options with no Houses for the other filters dim.
- */
-export function CheckboxList({
+/** One section of the filter panel: 20px inside, a 13px/600 muted title (and an optional note at its right). */
+export function PanelSection({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h3 className="text-[13px] font-semibold text-muted">{title}</h3>
+        {note && <span className="text-xs tabular-nums text-muted">{note}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Chips in an even grid (32px) – single choice; the first option ("Any") clears and carries no check. */
+export function ChoiceChips<T extends string | number>({
   options,
   value,
   onChange,
-  searchPlaceholder,
+  columns,
+  label,
 }: {
-  options: CheckOption[];
-  value: string[];
-  onChange: (value: string[]) => void;
-  searchPlaceholder?: string;
+  options: ReadonlyArray<{ value: T | null; label: string }>;
+  value: T | null;
+  onChange: (value: T | null) => void;
+  columns: 2 | 3;
+  label: string;
 }) {
-  const t = useTranslations("explore.filtersUi");
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLocaleLowerCase();
-  const visible = needle ? options.filter((o) => o.label.toLocaleLowerCase().includes(needle)) : options;
-  const groups = [...new Set(visible.map((o) => o.group ?? ""))];
-
   return (
-    <div>
-      {searchPlaceholder && (
-        <label className="relative mb-2 block">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-            className={cn(formInput, "pl-10")}
-          />
-        </label>
-      )}
-      {visible.length === 0 && <p className="py-3 text-sm text-muted">{t("noMatches")}</p>}
-      {groups.map((group) => (
-        <div key={group || "all"} className="mt-1 first:mt-0">
-          {group && <p className="pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">{group}</p>}
-          <ul className="divide-y divide-line">
-            {visible
-              .filter((o) => (o.group ?? "") === group)
-              .map((option) => {
-                const checked = value.includes(option.value);
-                return (
-                  <li key={option.value}>
-                    <label className="block cursor-pointer">
-                      <ListRow
-                        lead={<Checkbox checked={checked} onChange={() => onChange(checked ? value.filter((v) => v !== option.value) : [...value, option.value])} />}
-                        title={<span className={option.count === 0 && !checked ? "text-muted" : undefined}>{option.label}</span>}
-                        aside={<Badge>{option.count}</Badge>}
-                      />
-                    </label>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
+    <div role="radiogroup" aria-label={label} className={cn("grid gap-1.5", columns === 2 ? "grid-cols-2" : "grid-cols-3")}>
+      {options.map((o) => (
+        <Chip
+          key={String(o.value)}
+          role="radio"
+          aria-checked={value === o.value}
+          active={value === o.value}
+          check={o.value !== null}
+          size="compact"
+          onClick={() => onChange(o.value)}
+          className="w-full justify-center"
+        >
+          {o.label}
+        </Chip>
       ))}
     </div>
   );
 }
 
-/** Budget per person: two handles on one track (min–max). */
-export function BudgetSlider({
+/**
+ * The next 12 months as chips in two rows of six (multi-select, no scrolling) – short month names; the note above
+ * names the span. Mount on the client only (the panel is): it reads today's date.
+ */
+export function MonthGrid({ value, onChange, label }: { value: readonly string[]; onChange: (months: string[]) => void; label: string }) {
+  const format = useFormatter();
+  const [months] = useState(() => upcomingMonths(new Date()));
+  const date = (month: string) => new Date(`${month}-01T00:00:00Z`);
+  const long = (month: string) => format.dateTime(date(month), { month: "long", year: "numeric", timeZone: "UTC" });
+  const toggle = (month: string) => onChange(value.includes(month) ? value.filter((m) => m !== month) : [...value, month].toSorted());
+  return (
+    <div role="group" aria-label={label} className="grid grid-cols-6 gap-1.5">
+      {months.map((month) => (
+        <Chip
+          key={month}
+          active={value.includes(month)}
+          size="compact"
+          aria-label={long(month)}
+          title={long(month)}
+          onClick={() => toggle(month)}
+          // px-1! – the chip size's own 14px sides would win otherwise (no tailwind-merge) and cut "May" short.
+          className="w-full justify-center gap-0.5 px-1!"
+        >
+          {format.dateTime(date(month), { month: "short", timeZone: "UTC" })}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+/** The months' span for MonthGrid's note: "Nov 2026 – Oct 2027". */
+export function monthSpan(format: ReturnType<typeof useFormatter>, now: Date): string {
+  const months = upcomingMonths(now);
+  const label = (month: string) => format.dateTime(new Date(`${month}-01T00:00:00Z`), { month: "short", year: "numeric", timeZone: "UTC" });
+  return `${label(months[0])} – ${label(months.at(-1)!)}`;
+}
+
+const HISTOGRAM_BARS = 24;
+
+/**
+ * Price per person: a mini histogram of the Houses' prices over the range (bars in the chosen range ink, the rest
+ * line), the two-handle slider (the chosen range soft accent) and Min / Max fields – shown in the viewer's currency, kept in EUR (the URL's unit; ≈ for other currencies).
+ */
+export function PriceFilter({
   bounds,
+  prices,
   value,
   onChange,
-  format,
+  currency,
 }: {
+  /** EUR */
   bounds: { min: number; max: number };
+  /** Each House's price per person in EUR (the middle of a budget range) */
+  prices: readonly number[];
   value: { min: number; max: number } | null;
   onChange: (value: { min: number; max: number } | null) => void;
-  format: (amount: number) => string;
+  currency: Currency;
 }) {
   const t = useTranslations("explore.filtersUi");
+  const format = useFormatter();
   const current = value ?? bounds;
-  const step = bounds.max - bounds.min > 2000 ? 50 : 10;
-  const pct = (n: number) => ((n - bounds.min) / Math.max(1, bounds.max - bounds.min)) * 100;
-  // The whole range again = no budget filter.
-  const set = (next: { min: number; max: number }) => onChange(next.min <= bounds.min && next.max >= bounds.max ? null : next);
-  const thumb =
-    "pointer-events-none absolute inset-0 h-6 w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-ink [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-ink [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow";
+  const span = Math.max(1, bounds.max - bounds.min);
+  const step = span > 2000 ? 50 : 10;
+  const toUser = (eur: number) => Math.round(convertApprox(eur, "EUR", currency));
+  const toEur = (amount: number) => Math.round(convertApprox(amount, currency, "EUR"));
+  const money = (eur: number) => format.number(toUser(eur), { style: "currency", currency, maximumFractionDigits: 0 });
+  // The whole range again = no price filter.
+  const set = (min: number, max: number) => {
+    const lo = Math.max(bounds.min, Math.min(min, max - step));
+    const hi = Math.min(bounds.max, Math.max(max, lo + step));
+    onChange(lo <= bounds.min && hi >= bounds.max ? null : { min: lo, max: hi });
+  };
+  const bars = Array.from({ length: HISTOGRAM_BARS }, () => 0);
+  for (const price of prices) bars[Math.min(HISTOGRAM_BARS - 1, Math.max(0, Math.floor(((price - bounds.min) / span) * HISTOGRAM_BARS)))]++;
+  const tallest = Math.max(1, ...bars);
 
   return (
-    <div className="px-2 pb-1 pt-2">
-      <p className="text-center text-lg font-semibold tabular-nums text-ink">
-        {format(current.min)} – {format(current.max)}
-        {current.max >= bounds.max && "+"}
-      </p>
-      <p className="text-center text-xs text-muted">{t("perPerson")}</p>
-      <div className="relative mt-4 h-6">
-        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-ink/10" />
-        <div className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-ink" style={{ left: `${pct(current.min)}%`, right: `${100 - pct(current.max)}%` }} />
-        <input
-          type="range"
-          min={bounds.min}
-          max={bounds.max}
-          step={step}
-          value={current.min}
-          aria-label={t("budgetMin")}
-          onChange={(e) => set({ min: Math.min(Number(e.target.value), current.max - step), max: current.max })}
-          className={thumb}
-        />
-        <input
-          type="range"
-          min={bounds.min}
-          max={bounds.max}
-          step={step}
-          value={current.max}
-          aria-label={t("budgetMax")}
-          onChange={(e) => set({ min: current.min, max: Math.max(Number(e.target.value), current.min + step) })}
-          className={thumb}
-        />
+    <div>
+      {/* Over the slider's track (12px in from either side, like the track). */}
+      <div aria-hidden className="mx-3 flex h-8 items-end gap-px">
+        {bars.map((count, i) => {
+          const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
+          const inRange = at >= current.min && at <= current.max;
+          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink" : "bg-line")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+        })}
       </div>
-      <div className="mt-2 flex justify-between text-xs tabular-nums text-muted">
-        <span>{format(bounds.min)}</span>
-        <span>{format(bounds.max)}+</span>
+      <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <PriceField key={`min-${current.min}`} label={t("min")} amount={toUser(current.min)} currency={currency} onCommit={(amount) => set(toEur(amount), current.max)} />
+        <PriceField key={`max-${current.max}`} label={t("max")} amount={toUser(current.max)} currency={currency} onCommit={(amount) => set(current.min, toEur(amount))} />
       </div>
     </div>
+  );
+}
+
+/** A 40px amount field with its label inside; committed on Enter and on leaving it (re-keyed when the value moves). */
+function PriceField({ label, amount, currency, onCommit }: { label: string; amount: number; currency: Currency; onCommit: (amount: number) => void }) {
+  const [draft, setDraft] = useState(String(amount));
+  const commit = () => {
+    const n = Number(draft.replace(/[^\d]/g, ""));
+    if (draft.trim() !== "" && Number.isFinite(n) && n !== amount) onCommit(n);
+    else setDraft(String(amount));
+  };
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-ink">
+      <span className="text-xs text-muted">{label}</span>
+      <input
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+        className="min-w-0 flex-1 bg-transparent text-right text-sm tabular-nums text-ink outline-none"
+      />
+      <span className="text-xs text-muted">{currency}</span>
+    </label>
+  );
+}
+
+/** Languages: one searchable field, several picks (each pick toggles; the field lists what's picked). */
+export function LanguageFilter({ options, value, onChange, label, placeholder }: { options: ReadonlyArray<{ value: string; label: string; count: number }>; value: readonly string[]; onChange: (value: string[]) => void; label: string; placeholder: string }) {
+  const picked = options.filter((o) => value.includes(o.value)).map((o) => o.label);
+  return (
+    <Combobox
+      aria-label={label}
+      value={picked.join(", ")}
+      placeholder={placeholder}
+      options={options.map((o) => ({ value: o.value, label: o.label, hint: String(o.count) }))}
+      isSelected={(o) => value.includes(o.value)}
+      onPick={(o) => onChange(value.includes(o.value) ? value.filter((v) => v !== o.value) : [...value, o.value])}
+    />
   );
 }
 
@@ -466,8 +525,9 @@ export function PlaceDateSearch({ onSearch }: { onSearch: (query: string) => voi
 }
 
 /**
- * The filter panel: from the right edge (400px; phones: the full width), surface with a shadow over a 20 % ink overlay.
- * Body scrolls, footer pinned. Closes on the overlay, Escape and whatever the footer does; the page behind doesn't
+ * The filter panel: slides in from the right (400px, floating 8px from the edges, 24px left corners; phones: the full
+ * width), surface with a soft shadow over a 12 % ink overlay that blurs the page 4px.
+ * Sections split by lines (they fit a 900px window without scrolling; smaller ones scroll the body), footer pinned. Closes on the overlay, Escape and whatever the footer does; the page behind doesn't
  * scroll by hand meanwhile, and focus goes back to what opened it.
  */
 export function FilterPanel({ open, onClose, title, footer, children }: { open: boolean; onClose: () => void; title: string; footer: ReactNode; children: ReactNode }) {
@@ -497,13 +557,15 @@ export function FilterPanel({ open, onClose, title, footer, children }: { open: 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <button type="button" aria-label={tCommon("close")} tabIndex={-1} onClick={onClose} className="animate-fade-in absolute inset-0 cursor-default bg-ink/20" />
+      {/* 12 % ink with a 4px blur over the page, fading in with the panel. */}
+      <button type="button" aria-label={tCommon("close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-default bg-ink/12 backdrop-blur-[4px] motion-safe:animate-overlay-in" />
+      {/* From md it floats: 8px from the window's top, bottom and right edge, 24px corners on its left side. */}
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col border-l border-line bg-surface shadow-[-12px_0_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] outline-none motion-safe:animate-panel-in"
+        className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col overflow-hidden bg-surface shadow-[0_24px_64px_rgba(0,0,0,0.12)] outline-none motion-safe:animate-panel-in md:inset-y-2 md:right-2 md:rounded-l-3xl"
       >
-        <div className="flex items-center justify-between gap-4 border-b border-line px-6 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="flex items-center justify-between gap-4 border-b border-line px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-ink">
             {title}
           </h2>
@@ -512,8 +574,8 @@ export function FilterPanel({ open, onClose, title, footer, children }: { open: 
           </button>
         </div>
         {/* The sections one under the other, each split from the next by a line. */}
-        <div className="scroll-pane min-h-0 flex-1 divide-y divide-line px-6 [&>*]:py-6">{children}</div>
-        <div className="flex items-center justify-between gap-4 border-t border-line px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">{footer}</div>
+        <div className="scroll-pane min-h-0 flex-1 divide-y divide-line">{children}</div>
+        <div className="flex items-center justify-between gap-4 border-t border-line px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">{footer}</div>
       </div>
     </div>
   );

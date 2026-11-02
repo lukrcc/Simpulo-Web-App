@@ -29,9 +29,9 @@ export function chipStyles(active: boolean, { size = "md", quiet = false }: { si
   );
 }
 
-/** The accent check of an active chip. */
+/** The accent check of an active chip – it scales in (0.6 → 1, 140ms) when the chip is picked. */
 export function ChipCheck() {
-  return <Check className="size-3.5 shrink-0 text-accent" strokeWidth={3} aria-hidden />;
+  return <Check className="size-3.5 shrink-0 text-accent motion-safe:animate-check-in" strokeWidth={3} aria-hidden />;
 }
 
 type ChipProps = {

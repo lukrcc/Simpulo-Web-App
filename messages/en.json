@@ -671,11 +671,28 @@
       "budgetMax": "Maximum budget",
       "otherRegion": "Other",
       "filtersCount": "Filters, {count} active",
-      "show": "Show {count, plural, one {# house} other {# houses}}",
+      "show": "Show <num>{count}</num> {count, plural, one {house} other {houses}}",
       "searchPlaceDate": "Place or month",
       "noBudget": "No prices yet",
       "noOptions": "Nothing to choose yet",
-      "categories": "Categories{count, plural, =0 {} other { (#)}}"
+      "when": "When",
+      "length": "Length",
+      "lengthOptions": {
+        "any": "Any",
+        "weekend": "Weekend (≤5 nights)",
+        "weeks": "1–2 weeks",
+        "long": "3+ weeks"
+      },
+      "price": "Price per person",
+      "priceMin": "Lowest price per person",
+      "priceMax": "Highest price per person",
+      "min": "Min",
+      "max": "Max",
+      "spots": "Spots left",
+      "spotsOptions": {
+        "any": "Any",
+        "atLeast": "{count}+"
+      }
     },
     "more": "More",
     "all": "All",

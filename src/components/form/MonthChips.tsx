@@ -10,7 +10,7 @@ import { Chip } from "@/components/ui/Chip";
 const MONTH_COUNT = 12;
 
 /** The next MONTH_COUNT months as YYYY-MM, this one first. */
-function upcomingMonths(now: Date): string[] {
+export function upcomingMonths(now: Date): string[] {
   return Array.from({ length: MONTH_COUNT }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1)).toISOString().slice(0, 7));
 }
 

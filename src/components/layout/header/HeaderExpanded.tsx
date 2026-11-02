@@ -16,10 +16,10 @@ import type { HeaderData } from "./SiteHeader";
  * and "Open a House" (logged out: "Log in" + "Open a House"). Row 2 (Explore only), 44px + 12px: the chips and
  * Sort + Filters.
  */
-export function HeaderExpanded({ data, exploreRow, active }: { data: HeaderData; exploreRow: boolean; active: boolean }) {
+export function HeaderExpanded({ data, exploreRow }: { data: HeaderData; exploreRow: boolean }) {
   const t = useTranslations("nav");
   const tOpen = useTranslations("common.ui.openHouse");
-  const { pathname, loggedIn, me, items, unread, controls, filters, chipOffset, requireAuth } = data;
+  const { pathname, loggedIn, me, items, unread, controls, filters, requireAuth } = data;
   const sortLabel = controls?.sort?.options.find((o) => o.value === filters.sort)?.label ?? "";
 
   return (
@@ -75,7 +75,7 @@ export function HeaderExpanded({ data, exploreRow, active }: { data: HeaderData;
           {controls ? (
             <>
               <div className="min-w-0 flex-1">
-                <HeaderChips controls={controls} value={filters.vibes} size="md" active={active} offset={chipOffset} />
+                <HeaderChips controls={controls} value={filters.vibes} size="md" />
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {controls.sort && (
