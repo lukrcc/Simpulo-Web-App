@@ -1,13 +1,8 @@
 // App-side mock helpers that aren't part of the data contract in ./mock.ts.
-import type { Currency, Stay } from "./types";
+import { linkDomain, type LinkPreview } from "./links";
+import type { Stay } from "./types";
 
-export const crewThreadId = (stayId: string) => `t-${stayId}`;
-
-export interface LinkPreview {
-  title: string;
-  imageUrl: string;
-  domain: string;
-}
+export { crewThreadId } from "./links";
 
 const mockLinkPreviewTitles: Record<string, string> = {
   "https://www.airbnb.com/rooms/example-canggu-villa": "Villa Sawah · 5BR pool villa near Batu Bolong",
@@ -31,15 +26,6 @@ function hashOf(text: string): number {
   return hash;
 }
 
-/** "airbnb.com" – or the input itself when it isn't a valid URL. */
-export function linkDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
 /** Mock link unfurl for any URL – a real implementation would fetch Open Graph data server-side. */
 export function mockPreviewForUrl(url: string, fallbackTitle?: string): LinkPreview {
   const domain = linkDomain(url);
@@ -54,24 +40,6 @@ export function mockPreviewForUrl(url: string, fallbackTitle?: string): LinkPrev
 /** Preview of a stay's accommodation link (the booked place once it's locked). */
 export function mockLinkPreview(stay: Stay): LinkPreview | null {
   return stay.accommodationLink ? mockPreviewForUrl(stay.accommodationLink, stay.title) : null;
-}
-
-/**
- * Static mock rates, units per 1 EUR. Only for the "≈" hint next to a price – never for what's charged.
- * A real app would fetch daily rates server-side.
- */
-export const MOCK_RATES_PER_EUR: Record<Currency, number> = {
-  EUR: 1,
-  USD: 1.08,
-  GBP: 0.85,
-  AUD: 1.65,
-  THB: 38.5,
-  IDR: 17500,
-};
-
-/** Converts between currencies with the mock rates. */
-export function convertApprox(amount: number, from: Currency, to: Currency): number {
-  return (amount / MOCK_RATES_PER_EUR[from]) * MOCK_RATES_PER_EUR[to];
 }
 
 /** Initial mock payment state: who already paid their share, per stay. The store keeps it from here. */

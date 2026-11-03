@@ -13,20 +13,19 @@ import { Anchored } from "@/components/ui/Anchored";
 import { Combobox } from "@/components/ui/Combobox";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { upcomingMonths } from "@/components/form/MonthChips";
-import { convertApprox } from "@/lib/mock-extras";
+import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
 
 /**
- * "Filters" – a secondary button (never the primary "Open a House"). Active: the number of active filters in the
- * text ("Filters · 2") – no dot, no badge.
+ * "Filters", everywhere: ink, text and icon surface, 36px, 14px/600. Active: the number of active filters in an 18px accent
+ * circle at the right. The Sort capsule beside it stays surface.
  */
 export function FiltersButton({
   count,
   onClick,
   expanded,
   controls,
-  size = "lg",
   className,
 }: {
   count: number;
@@ -34,8 +33,6 @@ export function FiltersButton({
   expanded?: boolean;
   /** id of the popover it opens */
   controls?: string;
-  /** lg 44px (the page) · md 36px (the sticky bar, Explore's header) · sm 32px (Explore's compact header) */
-  size?: ButtonSize;
   className?: string;
 }) {
   const t = useTranslations("explore");
@@ -48,10 +45,15 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={buttonStyles("secondary", size, className)}
+      className={buttonStyles("primary", "bar", cn("font-semibold", className))}
     >
       <SlidersHorizontal aria-hidden />
-      {count > 0 ? `${t("filters")} · ${count}` : t("filters")}
+      {t("filters")}
+      {count > 0 && (
+        <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -69,8 +71,8 @@ export function PanelSection({ title, note, children }: { title: string; note?: 
   return (
     <section className="p-5">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="text-[13px] font-semibold text-muted">{title}</h3>
-        {note && <span className="text-xs tabular-nums text-muted">{note}</span>}
+        <h3 className="text-small font-semibold text-muted">{title}</h3>
+        {note && <span className="text-small tabular-nums text-muted">{note}</span>}
       </div>
       {children}
     </section>
@@ -112,40 +114,37 @@ export function ChoiceChips<T extends string | number>({
 }
 
 /**
- * The next 12 months as chips in two rows of six (multi-select, no scrolling) – short month names; the note above
- * names the span. Mount on the client only (the panel is): it reads today's date.
+ * "When": the next 12 months as chips in two rows of six (multi-select, no scrolling) – short month names, the span
+ * named at the title's right. It reads today's date, so it may only mount on the client – the panel renders its
+ * children only while it's open.
  */
-export function MonthGrid({ value, onChange, label }: { value: readonly string[]; onChange: (months: string[]) => void; label: string }) {
+export function MonthSection({ value, onChange, title }: { value: readonly string[]; onChange: (months: string[]) => void; title: string }) {
   const format = useFormatter();
   const [months] = useState(() => upcomingMonths(new Date()));
   const date = (month: string) => new Date(`${month}-01T00:00:00Z`);
   const long = (month: string) => format.dateTime(date(month), { month: "long", year: "numeric", timeZone: "UTC" });
+  const spanEnd = (month: string) => format.dateTime(date(month), { month: "short", year: "numeric", timeZone: "UTC" });
   const toggle = (month: string) => onChange(value.includes(month) ? value.filter((m) => m !== month) : [...value, month].toSorted());
   return (
-    <div role="group" aria-label={label} className="grid grid-cols-6 gap-1.5">
-      {months.map((month) => (
-        <Chip
-          key={month}
-          active={value.includes(month)}
-          size="compact"
-          aria-label={long(month)}
-          title={long(month)}
-          onClick={() => toggle(month)}
-          // px-1! – the chip size's own 14px sides would win otherwise (no tailwind-merge) and cut "May" short.
-          className="w-full justify-center gap-0.5 px-1!"
-        >
-          {format.dateTime(date(month), { month: "short", timeZone: "UTC" })}
-        </Chip>
-      ))}
-    </div>
+    <PanelSection title={title} note={`${spanEnd(months[0])} – ${spanEnd(months.at(-1)!)}`}>
+      <div role="group" aria-label={title} className="grid grid-cols-6 gap-1.5">
+        {months.map((month) => (
+          <Chip
+            key={month}
+            active={value.includes(month)}
+            size="compact"
+            aria-label={long(month)}
+            title={long(month)}
+            onClick={() => toggle(month)}
+            // px-1! – the chip size's own 14px sides would win otherwise (no tailwind-merge) and cut "May" short.
+            className="w-full justify-center gap-0.5 px-1!"
+          >
+            {format.dateTime(date(month), { month: "short", timeZone: "UTC" })}
+          </Chip>
+        ))}
+      </div>
+    </PanelSection>
   );
-}
-
-/** The months' span for MonthGrid's note: "Nov 2026 – Oct 2027". */
-export function monthSpan(format: ReturnType<typeof useFormatter>, now: Date): string {
-  const months = upcomingMonths(now);
-  const label = (month: string) => format.dateTime(new Date(`${month}-01T00:00:00Z`), { month: "short", year: "numeric", timeZone: "UTC" });
-  return `${label(months[0])} – ${label(months.at(-1)!)}`;
 }
 
 const HISTOGRAM_BARS = 24;
@@ -216,16 +215,16 @@ function PriceField({ label, amount, currency, onCommit }: { label: string; amou
   };
   return (
     <label className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-ink">
-      <span className="text-xs text-muted">{label}</span>
+      <span className="text-small text-muted">{label}</span>
       <input
         inputMode="numeric"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && commit()}
-        className="min-w-0 flex-1 bg-transparent text-right text-sm tabular-nums text-ink outline-none"
+        className="min-w-0 flex-1 bg-transparent text-right text-body tabular-nums text-ink outline-none"
       />
-      <span className="text-xs text-muted">{currency}</span>
+      <span className="text-small text-muted">{currency}</span>
     </label>
   );
 }
@@ -518,7 +517,7 @@ export function PlaceDateSearch({ onSearch }: { onSearch: (query: string) => voi
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("searchPlaceDate")}
         aria-label={t("searchPlaceDate")}
-        className="h-9 w-56 rounded-full border border-line bg-surface pl-9 pr-4 text-sm outline-none placeholder:text-muted focus:border-accent"
+        className="h-9 w-56 rounded-full border border-line bg-surface pl-9 pr-4 text-small outline-none placeholder:text-muted focus:border-accent"
       />
     </form>
   );
@@ -566,7 +565,7 @@ export function FilterPanel({ open, onClose, title, footer, children }: { open: 
         className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col overflow-hidden bg-surface shadow-[0_24px_64px_rgba(0,0,0,0.12)] outline-none motion-safe:animate-panel-in md:inset-y-2 md:right-2 md:rounded-l-3xl"
       >
         <div className="flex items-center justify-between gap-4 border-b border-line px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-ink">
+          <h2 id={titleId} className="text-h3 tracking-tight text-ink">
             {title}
           </h2>
           <button type="button" onClick={onClose} aria-label={tCommon("close")} className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:bg-bg">

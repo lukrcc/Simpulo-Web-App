@@ -55,14 +55,14 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
   return (
     <Sheet open={open} onClose={close} title={title}>
       <form onSubmit={handleSubmit}>
-        <p className="mb-3 text-sm text-muted">{t("intro")}</p>
+        <p className="mb-3 text-small text-muted">{t("intro")}</p>
         <fieldset className="space-y-2">
           <legend className="sr-only">{title}</legend>
           {REASONS.map((r) => (
             <label
               key={r}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors",
+                "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-body transition-colors",
                 reason === r ? "border-line bg-bg font-medium" : "border-line hover:bg-bg",
               )}
             >

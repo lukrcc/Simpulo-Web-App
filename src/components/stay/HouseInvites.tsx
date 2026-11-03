@@ -68,7 +68,7 @@ export function HostInvitesSection({ stay }: { stay: Stay }) {
       }
     >
       <InterestLine stay={stay} />
-      <p className="py-2 text-[13px] text-muted">{canInvite ? t("description") : t("full")}</p>
+      <p className="py-2 text-small text-muted">{canInvite ? t("description") : t("full")}</p>
       {invites.length > 0 && (
         <ul className="divide-y divide-line">
           {invites.map((invite) => {
@@ -159,7 +159,7 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-bg text-ink">
             {created.email ? <MailOpen className="size-5" aria-hidden /> : <Link2 className="size-5" aria-hidden />}
           </span>
-          <div className="min-w-0 text-sm">
+          <div className="min-w-0 text-body">
             <p className="font-semibold text-ink">{created.email ? t("sentTitle") : t("linkTitle")}</p>
             <p className="mt-0.5 text-muted">
               {created.email ? t("sentText", { email: created.email, date }) : t("linkText", { name: created.invitedName ?? "", date })}
@@ -168,7 +168,7 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
         </div>
         {/* The link is always there to copy – also when it was emailed. */}
         <div className="flex items-center gap-2 rounded-xl border border-line bg-bg py-1.5 pl-4 pr-1.5">
-          <span className="min-w-0 flex-1 truncate text-sm text-muted">{linkOf(stay, created)}</span>
+          <span className="min-w-0 flex-1 truncate text-small text-muted">{linkOf(stay, created)}</span>
           <Button variant={created.email ? "secondary" : "primary"} onClick={() => copy(created)}>
             {copied ? <Check aria-hidden /> : <Link2 aria-hidden />}
             {copied ? t("copied") : t("copy")}
@@ -213,7 +213,7 @@ export function InviteBanner({ stay, invite }: { stay: Stay; invite: HouseInvite
   const until = useUntil();
   const host = findUser(store, stay.hostId);
   return (
-    <div role="status" className={cn(cardClass, "flex items-center gap-3 text-sm")}>
+    <div role="status" className={cn(cardClass, "flex items-center gap-3 text-body")}>
       <MailOpen className="size-5 shrink-0 text-muted" aria-hidden />
       <p className="min-w-0 flex-1 font-medium text-ink">{t("banner", { host: host?.name.split(" ")[0] ?? "", date: until(invite.expiresAt) })}</p>
     </div>
@@ -251,7 +251,7 @@ function InviteJoin({ stay, invite, onDone }: { stay: Stay; invite: HouseInvite;
     const amounts = paymentSplit(stay.pricePerPerson!, stay.hostFeePerPerson ?? 0);
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted">{t("payText")}</p>
+        <p className="text-small text-muted">{t("payText")}</p>
         <CardPayForm
           stay={stay}
           amounts={{ ...amounts, hostFee: amounts.hostFee || undefined }}
@@ -267,7 +267,7 @@ function InviteJoin({ stay, invite, onDone }: { stay: Stay; invite: HouseInvite;
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted">{t("joinText", { host: host?.name.split(" ")[0] ?? "" })}</p>
+      <p className="text-small text-muted">{t("joinText", { host: host?.name.split(" ")[0] ?? "" })}</p>
       <Button
         size="lg"
         disabled={busy}

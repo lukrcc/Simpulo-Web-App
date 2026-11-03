@@ -28,10 +28,10 @@ export function SectionHeader({ id, eyebrow, title, as: Heading = "h2", subline,
   return (
     <div className={className}>
       <div>
-        {eyebrow && <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-accent">{eyebrow}</p>}
+        {eyebrow && <p className="mb-2 text-eyebrow uppercase text-accent">{eyebrow}</p>}
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <Heading id={id} className="min-w-0 text-[28px] font-semibold leading-tight tracking-tight text-ink">
+            <Heading id={id} className="min-w-0 text-h2 leading-tight tracking-tight text-ink">
               {title}
             </Heading>
             {meta && (
@@ -47,7 +47,7 @@ export function SectionHeader({ id, eyebrow, title, as: Heading = "h2", subline,
             </Button>
           )}
         </div>
-        {subline && <p className="mt-1 text-[15px] text-muted">{subline}</p>}
+        {subline && <p className="mt-1 text-body text-muted">{subline}</p>}
       </div>
     </div>
   );

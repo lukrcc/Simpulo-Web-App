@@ -142,7 +142,7 @@ function MyStaysContent() {
             ))}
           </ul>
         ) : (
-          <p className="px-2.5 pb-2 text-sm text-muted">{t("pastEmpty.description")}</p>
+          <p className="px-2.5 pb-2 text-small text-muted">{t("pastEmpty.description")}</p>
         )}
       </ListSection>
     </div>
@@ -178,7 +178,7 @@ function ListSection({ label, count, open, onToggle, children }: { label: string
         aria-expanded={open}
         aria-controls={id}
         aria-label={t("toggle", { label, count })}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-ink hover:bg-surface/60"
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-body font-semibold text-ink hover:bg-surface/60"
       >
         <ChevronRight className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
         <span className="flex-1">{label}</span>
@@ -232,14 +232,14 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-semibold">{stay.title}</p>
+          <p className="truncate text-body font-semibold">{stay.title}</p>
           {pending > 0 && <Badge>{t("new", { count: pending })}</Badge>}
           {waiting && <Badge>{t("pending")}</Badge>}
           {invited && <Badge>{t("invited")}</Badge>}
           {stay.status === "closed" && <Badge>{t("closed")}</Badge>}
           {stay.status === "draft" && <Badge>{tDraft("badge")}</Badge>}
         </div>
-        <p className="truncate text-xs text-muted">
+        <p className="truncate text-small text-muted">
           {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
         </p>
         <div className="mt-1 flex items-center gap-2">
@@ -273,7 +273,7 @@ function OpenFirstHouseCard() {
       <p className="mt-4 font-semibold">
         {t.rich("title", { accent: (chunks) => <span className="text-ink">{chunks}</span> })}
       </p>
-      <p className="mt-1 text-sm text-muted">{t("description")}</p>
+      <p className="mt-1 text-small text-muted">{t("description")}</p>
       <Button href="/create" variant="secondary" className="mt-5">
         {tNav("openHouse")}
       </Button>

@@ -56,10 +56,10 @@ export function LivedWithSection({ entries }: { entries: LivedWithEntry[] }) {
   const t = useTranslations("profile.crews");
   return (
     <section aria-labelledby="profile-lived-with" className="mt-5 border-t border-line pt-5">
-      <h2 id="profile-lived-with" className="flex items-center gap-2 text-sm font-semibold">
+      <h2 id="profile-lived-with" className="flex items-center gap-2 text-body font-semibold">
         {t("livedWith")} <Badge>{entries.length}</Badge>
       </h2>
-      <p className="mt-0.5 text-xs text-muted">{t("onlyYou")}</p>
+      <p className="mt-0.5 text-small text-muted">{t("onlyYou")}</p>
       <ul className="mt-2 divide-y divide-line">
         {entries.map(({ user, house }) => (
           <li key={user.id}>
@@ -80,20 +80,20 @@ export function Crews({ crews }: { crews: ProfileCrews }) {
   return (
     <section aria-labelledby="profile-crews" className="mt-5 border-t border-line pt-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="profile-crews" className="text-sm font-semibold">
+        <h2 id="profile-crews" className="text-body font-semibold">
           {t("title")}
         </h2>
         <Badge>{t("counts", { houses: crews.houses, people: crews.people })}</Badge>
       </div>
       {crews.groups.length > 0 && (
         <>
-          {crews.inCommon && <p className="mt-3 text-xs font-medium text-muted">{t("inCommon")}</p>}
+          {crews.inCommon && <p className="mt-3 text-small font-medium text-muted">{t("inCommon")}</p>}
           <ul className="mt-3 space-y-4">
             {crews.groups.map(({ crew, stay, people }) => (
               <li key={crew.houseId}>
-                <p className="flex items-baseline justify-between gap-3 text-sm">
+                <p className="flex items-baseline justify-between gap-3 text-body">
                   <span className="min-w-0 truncate font-medium text-ink">{stay.title}</span>
-                  <span className="shrink-0 text-xs text-muted">{f.shortRange(stay.startDate, stay.endDate)}</span>
+                  <span className="shrink-0 text-small text-muted">{f.shortRange(stay.startDate, stay.endDate)}</span>
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t("peopleIn", { title: stay.title })}>
                   {people.map((person) => (

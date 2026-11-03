@@ -39,7 +39,7 @@ export function PlaceMap({ stay }: { stay: Stay }) {
           className="absolute inset-0 size-full border-0"
         />
       </div>
-      {cityOpen && <p className="mt-2 text-sm text-muted">{t("areaOpen")}</p>}
+      {cityOpen && <p className="mt-2 text-small text-muted">{t("areaOpen")}</p>}
     </Section>
   );
 }

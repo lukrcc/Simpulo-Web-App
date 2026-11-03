@@ -105,7 +105,7 @@ function InboxContent() {
   const group = (label: string, items: ThreadRow[]) =>
     items.length > 0 && (
       <section className="mt-5">
-        <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">{label}</h2>
+        <h2 className="mb-1 px-3 text-eyebrow uppercase text-muted">{label}</h2>
         <ul className="divide-y divide-line">
           {items.map((row) => (
             <li key={row.thread.id}>
@@ -130,12 +130,12 @@ function InboxContent() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("searchPlaceholder")}
               aria-label={t("searchLabel")}
-              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
             />
           </label>
           {group(t("crews"), crews)}
           {group(t("direct"), direct)}
-          {ordered.length === 0 && <p className="mt-8 text-center text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>}
+          {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
@@ -194,7 +194,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
               {/* Direct chats: the House they're about, on the same line. */}
               {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
             </span>
-            {time && <span className="shrink-0 text-xs text-muted">{time}</span>}
+            {time && <span className="shrink-0 text-small text-muted">{time}</span>}
           </span>
         }
         subtitle={<span className={unread ? "font-medium text-ink" : undefined}>{preview}</span>}

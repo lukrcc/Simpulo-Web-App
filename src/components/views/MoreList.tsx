@@ -27,7 +27,7 @@ export function MoreList() {
 
   return (
     <section className="mt-10 md:hidden">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">{tCommon("more")}</h2>
+      <h2 className="mb-2 px-1 text-eyebrow uppercase text-muted">{tCommon("more")}</h2>
       <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {MORE_LINKS.map(({ href, labelKey, icon: Icon }) => (
           <li key={href}>

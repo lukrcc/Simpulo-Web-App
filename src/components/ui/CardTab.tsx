@@ -17,6 +17,8 @@ interface CardTabProps {
   contentClassName?: string;
   /** Makes avatar + name a link to the host's profile (cards are links themselves, so off by default). */
   linked?: boolean;
+  /** On the House page: its name in the transition from the card */
+  style?: CSSProperties;
 }
 
 // Inverted corners: page colour everywhere except a 20px quarter circle at the bottom-right, which lets the
@@ -33,13 +35,13 @@ const cornerBelow =
  * before hydration) it still paints the page colour plus two inverted corners – right of it along the top edge, below
  * it along the left edge – over a rounded-tl-none card; globals.css drops them once the card is `data-notch="ready"`.
  */
-export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClassName, linked = false }: CardTabProps) {
+export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClassName, linked = false, style }: CardTabProps) {
   const t = useTranslations("common.ui.cardTab");
   // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
     <span className={cn("flex min-w-0 items-center gap-2", contentClassName)}>
       <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7 shrink-0" />
-      <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-ink">
+      <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-body font-medium text-ink">
         <span className="min-w-0 truncate">{firstName(host)}</span>
         {host.verified && <VerifiedBadge size={14} className="shrink-0" />}
         {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
@@ -51,7 +53,7 @@ export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClas
     <div
       aria-hidden={!linked}
       data-card-tab
-      style={{ "--tab-bg": bg } as CSSProperties}
+      style={{ "--tab-bg": bg, ...style } as CSSProperties}
       className={cn(
         "card-tab pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] bg-(--tab-bg) py-1.5 pl-1.5 pr-3.5",
         // Clear of the share + save buttons top-right (and the concave corner beside the tab).

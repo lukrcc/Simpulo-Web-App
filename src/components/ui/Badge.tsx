@@ -9,7 +9,7 @@ export function Badge({ children, icon, onPage = false, className }: { children:
   return (
     <span
       className={cn(
-        "inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-muted [&_svg]:size-3",
+        "inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-small font-medium text-muted [&_svg]:size-3",
         onPage ? "border border-line bg-surface" : "bg-bg",
         className,
       )}

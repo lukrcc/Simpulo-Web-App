@@ -10,7 +10,7 @@ export function ProHostLabel({ user, className }: { user: Pick<User, "isPro" | "
   const hostPremium = useFeatureFlag("hostPremium");
   if (!hostPremium || !user.isPro) return null;
   return (
-    <p className={cn("flex min-w-0 items-center gap-1.5 text-[13px] text-muted", className)}>
+    <p className={cn("flex min-w-0 items-center gap-1.5 text-small text-muted", className)}>
       <Badge>{t("proHost")}</Badge>
       {user.proTitle && <span className="truncate">{user.proTitle}</span>}
     </p>

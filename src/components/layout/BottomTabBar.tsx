@@ -70,7 +70,7 @@ export function BottomTabBar() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-full flex-col items-center justify-center text-[10px] font-medium transition-colors",
+                    "flex h-full flex-col items-center justify-center text-small font-medium transition-colors",
                     active ? "text-ink" : "text-muted",
                   )}
                 >
@@ -90,7 +90,7 @@ export function BottomTabBar() {
               <button
                 type="button"
                 onClick={() => requireAuth()}
-                className="flex h-full w-full flex-col items-center justify-center text-[10px] font-medium text-muted"
+                className="flex h-full w-full flex-col items-center justify-center text-small font-medium text-muted"
               >
                 <LogIn className="size-[22px]" strokeWidth={1.75} />
                 <span className="my-1 size-1.5" aria-hidden />

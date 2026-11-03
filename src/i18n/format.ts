@@ -2,7 +2,8 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
-import type { Stay } from "@/lib/types";
+import { convertApprox } from "@/lib/rates";
+import type { Currency, Stay } from "@/lib/types";
 import { isCityOpen, regionShort, stayPrice } from "@/lib/utils";
 
 type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
@@ -99,21 +100,31 @@ export function useFormat() {
       links: (count: number) => t("links", { count }),
       vibe: (key: Stay["vibe"]) => t(`vibes.${key}`),
       ageAndCountry: (user: { age: number; country: string }) => t("ageAndCountry", { age: user.age, country: user.country }),
-      /** "Canggu" – or "Bali · city open" */
-      placeName: (stay: Pick<Stay, "city" | "region">) =>
-        isCityOpen(stay) ? t("cityOpen", { region: regionShort(stay) }) : stay.city,
+      /** "Bangkok, Thailand" – or "Bali · city open". The area stays on the House page (placeLabel). */
+      placeName: (stay: Pick<Stay, "city" | "region" | "location">) =>
+        isCityOpen(stay) ? t("cityOpen", { region: regionShort(stay) }) : [stay.location.city, stay.location.country].filter(Boolean).join(", "),
       /** "Canggu, Bali, Indonesia" – or "Bali, Indonesia · city open" */
       placeLabel: (stay: Pick<Stay, "city" | "region">) =>
         isCityOpen(stay) ? t("cityOpen", { region: stay.region }) : [stay.city, stay.region].filter(Boolean).join(", "),
-      /** "Canggu, Bali" – or "Bali · city open" */
-      shortPlaceLabel: (stay: Pick<Stay, "city" | "region">) =>
-        isCityOpen(stay) ? t("cityOpen", { region: regionShort(stay) }) : [stay.city, regionShort(stay)].filter(Boolean).join(", "),
-      /** "€480 pp", "~€400–600 pp" or "Budget TBD" */
+      /** The House's own currency (its host's views): "€480 pp", "€400–600 pp" or "Price set with crew" */
       priceLabel: (stay: PricedStay) => {
         const price = stayPrice(stay);
         if (price.kind === "price") return t("pricePerPersonShort", { price: f.price(price.amount, stay.currency) });
         if (price.kind === "budget") return t("budgetPerPersonShort", { range: f.priceRange(price.min, price.max, stay.currency) });
         return t("budgetTbd");
+      },
+      /**
+       * On cards: one currency, the viewer's, in their browser's number format – "£380 pp", "£340–470 pp". Converted
+       * amounts are rounded (fixed mock rates), the House's own currency stays exact.
+       */
+      viewerPriceLabel: (stay: PricedStay, code: string, numberLocale: string) => {
+        const price = stayPrice(stay);
+        if (price.kind === "tbd") return t("budgetTbd");
+        const same = code === stay.currency;
+        const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, ...(same ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 2 }) });
+        const to = (amount: number) => convertApprox(amount, stay.currency, code as Currency);
+        if (price.kind === "price") return t("pricePerPersonShort", { price: clean(money.format(to(price.amount))) });
+        return t("budgetPerPersonShort", { range: moneyRange(money, to(price.min), to(price.max)) });
       },
     };
   }, [locale, t]);

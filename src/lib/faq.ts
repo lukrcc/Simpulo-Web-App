@@ -40,7 +40,7 @@ export const FAQ: readonly FaqSection[] = [
       },
       {
         question: "When do I pay?",
-        answer: "Only when the host has locked the place and you are part of the crew. Until then, nothing is charged.",
+        answer: "Only when the host has locked the place and you are part of the House. Until then, nothing is charged.",
       },
     ],
   },
@@ -64,7 +64,7 @@ export const FAQ: readonly FaqSection[] = [
     items: [
       {
         question: "How do I know who I'm living with?",
-        answer: "Every profile shows a face, languages and links; verified people carry a badge. You see the crew before you join.",
+        answer: "Every profile shows a face, languages and links; verified people carry a badge. You see everyone in the House before you join.",
       },
       {
         question: "What if something goes wrong?",

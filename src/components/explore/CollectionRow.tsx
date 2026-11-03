@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { EXPLORE_SPACING } from "@/config/explore";
 import { StayCard } from "@/components/StayCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { Collection } from "@/lib/collections";
@@ -142,7 +143,7 @@ export function ScrollRow({ children, className }: { children: ReactNode; classN
   return (
     // 32px from the row's heading to the cards; the scroller's room for lifted cards and their shadow is cancelled by
     // its negative margins, so it costs no layout.
-    <div className={cn("group relative mt-8", className)}>
+    <div className={cn("group relative", EXPLORE_SPACING.rowCards, className)}>
       <div
         ref={scrollerRef}
         onScroll={updateEdges}

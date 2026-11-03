@@ -3,12 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { PublicProfile } from "@/components/views/ProfileView";
-import { users } from "@/lib/mock";
+import { getUsers } from "@/lib/data";
 
 /** Shared profile links: name + bio; the image comes from ./opengraph-image.tsx. Reads the mock data directly. */
 export async function generateMetadata({ params }: PageProps<"/u/[userId]">): Promise<Metadata> {
   const { userId } = await params;
-  const user = users.find((u) => u.id === userId && !u.deletedAt);
+  const user = getUsers().find((u) => u.id === userId && !u.deletedAt);
   if (!user) {
     const t = await getTranslations("meta.pages");
     return { title: t("profile") };

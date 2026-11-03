@@ -11,18 +11,19 @@ import { CardShareButton } from "@/components/share/HouseShare";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
-import { imageGradient } from "@/components/ui/glass";
+import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { PlaceText } from "@/components/ui/PlaceText";
-import { useApproxAmount } from "@/components/ui/PriceLine";
+import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import { isInvitedTo, useStore } from "@/lib/store";
 import type { CardVariant } from "@/lib/exploreLayout";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName, openSpots, stayPhotos } from "@/lib/utils";
+import { useHouseNavigate } from "@/lib/houseTransition";
+import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 
 interface StayCardProps {
   stay: Stay;
@@ -39,14 +40,20 @@ interface StayCardProps {
   crewRow?: "small" | "large";
   /** default only: the collection rows' card – smaller type, only the cover photo */
   compact?: boolean;
+  /**
+   * default only: a card in the Spotlight (SpotlightCoverflow) – 3:4, only the cover at its focal point, no lift of its
+   * own, the same content on every card and nothing changing inside it; no share / heart. It's scaled and dimmed as a
+   * whole (data-cf-dim, set per frame).
+   */
+  spotlight?: boolean;
   className?: string;
 }
 
-const CARD_SIZES = "(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw";
+const CARD_SIZES = "(min-width: 1600px) 400px, (min-width: 1100px) 33vw, (min-width: 700px) 50vw, 100vw";
 /** Faces: crop towards the upper third, where the face usually is. */
 const FACE_POSITION = "object-cover object-[center_30%]";
 /** A soft shadow under text on photos – keeps it readable on bright ones, on top of the gradient. */
-const TEXT_SHADOW = "[text-shadow:0_1px_3px_rgb(0_0_0/0.35)]";
+const TEXT_SHADOW = cardTextShadow;
 const MAX_PHOTOS = 5;
 /**
  * Hover (desktop): the card grows a little and, inside its clip, the photo grows a little more – same duration and
@@ -68,7 +75,7 @@ export function StayCard({ variant = "default", ...props }: StayCardProps) {
 }
 
 /**
- * The photo card. `tall` (the featured variant): the same card, but only the host's face, filling a card 1.4× as tall
+ * The photo card. `tall` (the featured variant): the same card, but only the cover, filling a card 1.4× as tall
  * (its height comes from the grid), and the host note on up to two lines.
  */
 function DefaultStayCard({
@@ -79,17 +86,17 @@ function DefaultStayCard({
   photoPlaceholder,
   crewRow = "small",
   compact = false,
+  spotlight = false,
   tall = false,
   className,
 }: Omit<StayCardProps, "variant"> & { tall?: boolean }) {
   const t = useTranslations("explore");
-  const tCommon = useTranslations("common");
   const invited = isInvitedTo(useStore(), stay.id);
   const format = useFormat();
-  const approx = useApproxAmount(stay);
-  // The host's face first, then the world of the House – never the accommodation.
-  // Tall and compact cards show one photo: no swiping, no arrows, no dots.
-  const photos = host ? (tall || compact ? stayPhotos(stay, host).slice(0, 1) : stayPhotos(stay, host).slice(0, MAX_PHOTOS)) : [];
+  const priceLabel = useViewerPriceLabel(stay);
+  // The cover first, then the rest of the House's world. The host's portrait belongs in the tab's avatar.
+  // Tall, compact and Spotlight cards show one photo: no swiping, no arrows, no dots.
+  const photos = host ? housePhotos(stay, host).slice(0, tall || compact || spotlight ? 1 : MAX_PHOTOS) : spotlight ? housePhotos(stay).slice(0, 1) : [];
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const [revealRef, revealed] = useRevealOnce<HTMLElement>();
   // One clipped layer: photos, gradients and overlays inside the notched silhouette; the host tab sits beside it.
@@ -97,6 +104,7 @@ function DefaultStayCard({
   useNotchClip(revealRef, clipRef);
 
   const href = `/house/${stay.slug}`;
+  const openHouse = useHouseNavigate(stay.id, href, revealRef);
   const guests = crew.filter((u) => u.id !== stay.hostId);
 
   return (
@@ -104,13 +112,18 @@ function DefaultStayCard({
     <article
       ref={revealRef}
       data-notch="pending"
+      data-house-card={stay.id}
       className={cn(
-        "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
+        spotlight ? "group relative isolate" : "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
         // In a row (compact) the row lifts the card and casts the shadow instead (.lift-row in globals.css) – and its
         // photo doesn't zoom. In the grid: scale and the hover shadow, following the notched silhouette.
-        compact ? "lift-card" : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
-        HOVER_MOTION,
-        !tall && "aspect-4/5",
+        spotlight
+          ? "h-full"
+          : compact
+            ? "lift-card"
+            : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
+        !spotlight && HOVER_MOTION,
+        !tall && !spotlight && "aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
         !revealed && "max-md:motion-safe:translate-y-3 max-md:motion-safe:opacity-0",
         className,
@@ -120,16 +133,23 @@ function DefaultStayCard({
       {/* The one rounded layer: 24px radius, overflow hidden (notched by clip-path), surface behind the photo so no edge
           shows while it lifts; no border, ring or outline. Transform and shadow sit on the frame around it – the
           notch's clip-path would cut off a shadow on this layer. */}
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", host && "rounded-tl-none")}>
+      <div
+        ref={clipRef}
+        className={cn(
+          "relative h-full w-full overflow-hidden rounded-3xl bg-surface",
+          host && "rounded-tl-none",
+        )}
+      >
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
-        <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
+        {/* In the Spotlight (one photo) no scroller: it would keep the carousel's touch-action from applying, and the browser would take the swipe. */}
+        <div ref={ref} onScroll={onScroll} data-vt="image" className={cn("flex h-full", spotlight ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
           {photos.length === 0 &&
             (photoPlaceholder ? (
               <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">
                 <span className="flex size-20 items-center justify-center rounded-full bg-surface/70">
                   <UserRound className="size-10 text-muted" strokeWidth={1.5} aria-hidden />
                 </span>
-                <span className="text-sm font-medium">{photoPlaceholder}</span>
+                <span className="text-body font-medium">{photoPlaceholder}</span>
               </div>
             ) : (
               <div className="h-full w-full shrink-0 bg-linear-to-br from-bg to-line" />
@@ -139,10 +159,13 @@ function DefaultStayCard({
             const image = (
               <Img
                 src={src}
-                alt={i === 0 && host ? t("cards.hostAlt", { name: host.name, title: stay.title }) : t("cards.photoAlt", { title: stay.title, number: i + 1 })}
+                alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={CARD_SIZES}
-                className={cn(tall ? FACE_POSITION : "object-cover", !compact && PHOTO_ZOOM)}
+                sizes={spotlight ? "400px" : CARD_SIZES}
+                // Which card is in the centre (the page's largest image) changes per session: none of them waits for lazy loading.
+                loading={spotlight ? "eager" : undefined}
+                className={cn("object-cover", !compact && !spotlight && PHOTO_ZOOM)}
+                style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
             );
             // Each slide clips its own photo, so the zoom never spills into the next one.
@@ -156,6 +179,7 @@ function DefaultStayCard({
               <Link
                 key={src}
                 href={href}
+                onNavigate={openHouse}
                 className={slideClass}
                 aria-label={i === 0 ? (host ? t("houseWithHost", { title: stay.title, host: firstName(host) }) : stay.title) : undefined}
                 aria-hidden={i > 0 || undefined}
@@ -168,10 +192,13 @@ function DefaultStayCard({
         </div>
 
         {/* Readability gradient; it gets stronger on hover. */}
-        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 h-3/4", imageGradient)} />
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
+        {!spotlight && <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />}
 
-        {!preview && (
+        {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
+        {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-black opacity-0" />}
+
+        {!preview && !spotlight && (
           <div className="absolute right-3 top-3 z-10 flex gap-2">
             <CardShareButton stay={stay} />
             <SaveButton stay={stay} />
@@ -179,40 +206,43 @@ function DefaultStayCard({
         )}
 
         {/* Bottom content – pointer-events pass through to the photo links. */}
-        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 text-white", TEXT_SHADOW, compact ? "px-4 pb-7" : "px-5 pb-8")}>
+        <div
+          className={cn(
+            "pointer-events-none absolute bottom-0 text-white",
+            TEXT_SHADOW,
+            compact ? "px-4 pb-7" : "px-5 pb-8",
+            "inset-x-0",
+          )}
+        >
           {invited && (
             <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>
           )}
-          <h3 className={cn("line-clamp-2 font-bold tracking-tight", compact ? "text-xl" : "text-2xl")}>{stay.title || t("untitledHouse")}</h3>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
+          <h3 data-vt="title" className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
             <span className="shrink-0">
               {format.shortRange(stay.startDate, stay.endDate)}
               {stay.region && " ·"}
             </span>
             {stay.region && <PlaceText>{format.placeName(stay)}</PlaceText>}
-            {/* The House's language – only when it isn't English. */}
-            {stay.language && stay.language !== "en" && <span className="shrink-0 text-white/60">· {format.language(stay.language)}</span>}
           </p>
-          {/* The House's own currency; the viewer's ≈ amount muted after it (only a hint, never charged). */}
-          {/* Every card the same fields: without a price or budget yet, "Budget TBD" holds the line. */}
-          <p className="mt-1 truncate text-sm font-semibold text-white/90">
-            {format.priceLabel(stay)}
-            {approx && <span className="font-normal text-white/60"> · {tCommon("ui.priceLine.approxShort", { amount: approx })}</span>}
-          </p>
-          {stay.hostNote && !compact && (
-            <p className={cn("mt-1 flex gap-1.5 text-sm text-white/85", tall ? "items-start" : "items-center")}>
-              <MessageCircle className={cn("size-3.5 shrink-0", tall && "mt-[3px]")} aria-hidden />
-              <span className={tall ? "line-clamp-2" : "truncate"}>{stay.hostNote}</span>
-            </p>
-          )}
+          {/* After the title the most important line. Every card has it: without a price, "Price set with crew". */}
+          <>
+            <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
+            {stay.hostNote && (
+              <p className="mt-1 flex items-center gap-1.5 text-small text-white/75">
+                <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{stay.hostNote}</span>
+              </p>
+            )}
 
-          {host && (
-            // Crew bottom-left; the host's public socials bottom-right on the same line (not on compact cards).
-            <div className={cn("flex items-center justify-between gap-3", compact ? "mt-3" : "mt-4")}>
-              {crewRow === "large" ? <CrewFaces crew={[host, ...guests]} /> : <CrewAvatars host={host} members={guests} />}
-              {!compact && <HostSocialIcons host={host} />}
-            </div>
-          )}
+            {host && (
+              // Crew bottom-left; the host's public socials bottom-right on the same line (not on compact cards).
+              <div className={cn("flex items-center justify-between gap-3", compact ? "mt-3" : "mt-4")}>
+                {crewRow === "large" ? <CrewFaces crew={[host, ...guests]} /> : <CrewAvatars host={host} members={guests} stay={stay} />}
+                {!compact && <HostSocialIcons host={host} />}
+              </div>
+            )}
+          </>
         </div>
 
         {photos.length > 1 && (
@@ -247,7 +277,12 @@ function DefaultStayCard({
         )}
       </div>
       {/* The two 40px circles top right (12px in, 8px apart) take 100px; the tab stops 12px short of them. */}
-      {host && <CardTab host={host} className="max-w-[calc(100%-112px)]" />}
+      {host && (
+        <CardTab
+          host={host}
+          className="max-w-[calc(100%-112px)]"
+        />
+      )}
     </article>
   );
 }
@@ -263,11 +298,11 @@ function CrewFaces({ crew }: { crew: User[] }) {
       {shown.map((member) => (
         <li key={member.id} className="flex w-11 flex-col items-center">
           <PersonPhoto src={member.photos[0]} alt={member.name} size={44} className="size-11 border-2 border-surface" />
-          <span className="mt-1 w-full truncate text-center text-xs text-white/85">{firstName(member)}</span>
+          <span className="mt-1 w-full truncate text-center text-small text-white/85">{firstName(member)}</span>
         </li>
       ))}
       {rest > 0 && (
-        <li className="glass-dark flex size-11 items-center justify-center rounded-full border-2 border-surface text-xs font-semibold">+{rest}</li>
+        <li className="glass-dark flex size-11 items-center justify-center rounded-full border-2 border-surface text-small font-semibold">+{rest}</li>
       )}
     </ul>
   );
@@ -287,6 +322,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
   const t = useTranslations("explore");
   const tFacts = useTranslations("house.facts");
   const format = useFormat();
+  const priceLabel = useViewerPriceLabel(stay);
   const members = crew.length > 0 ? crew : [host];
   const spotsLeft = openSpots(stay);
   const openTiles = Math.min(spotsLeft, 1);
@@ -313,17 +349,17 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
           <li key={member.id} className={cn(tile, "bg-line")}>
             <Img src={member.photos[0]} alt={member.name} fill sizes="(min-width: 1440px) 140px, (min-width: 1024px) 18vw, 25vw" className={cn(FACE_POSITION, PHOTO_ZOOM)} />
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-ink/65 to-transparent" />
-            <span className={cn("absolute inset-x-0 bottom-0 truncate px-3 pb-3 text-sm font-semibold text-white", TEXT_SHADOW)}>{firstName(member)}</span>
+            <span className={cn("absolute inset-x-0 bottom-0 truncate px-3 pb-3 text-body font-semibold text-white", TEXT_SHADOW)}>{firstName(member)}</span>
           </li>
         ))}
-        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink text-lg font-semibold text-surface")}>+{rest}</li>}
+        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink text-body-lg font-semibold text-surface")}>+{rest}</li>}
         {openTiles > 0 && (
           // No padding on the tile itself: with flex-basis 0 it would make this tile wider than the others.
           <li className={cn(tile, "flex flex-col items-center justify-center gap-2 bg-bg text-center text-muted")}>
             <span className="flex size-10 items-center justify-center rounded-full border-2 border-dashed border-line">
               <Plus className="size-5" aria-hidden />
             </span>
-            <span className="px-2 text-sm font-medium">{tFacts("spotsLeft", { count: spotsLeft })}</span>
+            <span className="px-2 text-body font-medium">{tFacts("spotsLeft", { count: spotsLeft })}</span>
           </li>
         )}
       </ul>
@@ -331,15 +367,16 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
       {/* Readability gradient for the text on top. */}
       <div style={overPhotos} className="pointer-events-none absolute left-0 top-0 h-1/2 bg-linear-to-b from-ink/65 via-ink/25 to-transparent" />
       <div style={overPhotos} className={cn("pointer-events-none absolute left-0 top-0 px-5 pt-5 text-white", TEXT_SHADOW)}>
-        <h3 className="line-clamp-2 text-2xl font-bold tracking-tight">{stay.title || t("untitledHouse")}</h3>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
+        <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+        <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
           <span className="shrink-0">
             {format.shortRange(stay.startDate, stay.endDate)}
             {stay.region && " ·"}
           </span>
           {stay.region && <PlaceText>{format.placeName(stay)}</PlaceText>}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-sm text-white/85">
+        <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
+        <p className="mt-1 flex items-center gap-1 text-small text-white/85">
           <span className="truncate">{t("cards.hostedBy", { name: firstName(host) })}</span>
           {host.verified && <VerifiedBadge size={14} onDark />}
         </p>

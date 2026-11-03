@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { citySlugOf, getCities, getPublicStays, getVibes, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
 import { COLLECTIONS, MIN_COLLECTION_SIZE } from "@/lib/collections";
 import { absoluteUrl } from "@/lib/seo";
+import { isListedStay } from "@/lib/launch";
 
 /** When the static pages last changed meaningfully – bump with real content updates. */
 const STATIC_UPDATED = new Date("2026-10-28");
@@ -24,15 +25,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((city) => city.count >= MIN_INDEXABLE_HOUSES)
       .map((city) => ({
         url: absoluteUrl(`/co-living/${city.slug}`),
-        lastModified: newest(stays.filter((s) => citySlugOf(s) === city.slug && s.status === "published").map((s) => s.createdAt)),
+        lastModified: newest(stays.filter((s) => citySlugOf(s) === city.slug && isListedStay(s)).map((s) => s.createdAt)),
       })),
     ...vibes
       .filter((v) => v.count >= MIN_INDEXABLE_HOUSES)
       .map((v) => ({
         url: absoluteUrl(`/houses/${v.vibe}`),
-        lastModified: newest(stays.filter((s) => s.vibe === v.vibe && s.status === "published").map((s) => s.createdAt)),
+        lastModified: newest(stays.filter((s) => s.vibe === v.vibe && isListedStay(s)).map((s) => s.createdAt)),
       })),
-    ...COLLECTIONS.map((c) => ({ collection: c, houses: stays.filter((s) => s.status === "published" && c.filter(s)) }))
+    ...COLLECTIONS.map((c) => ({ collection: c, houses: stays.filter((s) => isListedStay(s) && c.filter(s)) }))
       .filter(({ houses }) => houses.length >= MIN_COLLECTION_SIZE)
       .map(({ collection, houses }) => ({ url: absoluteUrl(`/collections/${collection.slug}`), lastModified: newest(houses.map((s) => s.createdAt)) })),
   ];

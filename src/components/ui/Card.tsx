@@ -42,14 +42,14 @@ export function CardSection({
       {(title || action) && (
         <div className="flex min-h-9 items-center justify-between gap-3">
           {title && (
-            <h3 id={headingId} className="text-base font-medium text-ink">
+            <h3 id={headingId} className="text-body font-medium text-ink">
               {title}
             </h3>
           )}
           {action}
         </div>
       )}
-      {description && <p className="text-[13px] text-muted">{description}</p>}
+      {description && <p className="text-small text-muted">{description}</p>}
       {children && <div className={title || action || description ? "mt-2" : undefined}>{children}</div>}
     </section>
   );

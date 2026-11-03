@@ -25,7 +25,7 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
         <div className="flex size-14 items-center justify-center rounded-full bg-bg text-ink">
           <TriangleAlert className="size-7" aria-hidden />
         </div>
-        <h1 className="mt-6 text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+        <h1 className="mt-6 text-h2 tracking-tight">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
         <Button variant="primary" size="lg" onClick={() => retry()} className="mt-8">
           <RotateCcw aria-hidden />

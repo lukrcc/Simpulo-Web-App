@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
 import { useFeatureFlag } from "./featureFlags";
 import { guestFee, paymentSplit } from "./fees";
 import {
@@ -14,14 +15,13 @@ import {
   type HostApplication,
   type ShareChannel,
 } from "./growth";
-import { CURRENT_USER_ID } from "./mock";
-import { getMockDataset, readPreset, type MockDataset } from "./mock-datasets";
+import { locationOf } from "./catalog";
+import { defaultUserId, getClaimableHouses, getData, getInterests, growthEventsFor, paidUsersOf, previewForUrl, readDataState, withAttribution, withChatHistory, type AppData } from "./data";
+import { withLaunchVisibility } from "./launch";
+import { crewThreadId } from "./links";
 import type { AppNotification, NotifyEventKey } from "./data/notifications";
-import { FLEXIBLE, interestIn, interestsFor, MOCK_INTERESTS, wantsMonth, type DemandSpot, type Interest } from "./interests";
-import { withMockHistory } from "./mock-chat";
-import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "./mock-growth";
+import { FLEXIBLE, interestIn, interestsFor, wantsMonth, type DemandSpot, type Interest } from "./interests";
 import { doItAgainDue, type Reminder } from "./reminders";
-import { crewThreadId, mockPaidUsers, mockPreviewForUrl } from "./mock-extras";
 import type {
   Attachment,
   Attribution,
@@ -127,7 +127,7 @@ type StoreAction =
   | { type: "track"; event: GrowthEvent }
   | { type: "attributeUser"; userId: string; attribution: Attribution }
   | { type: "addAlert"; alert: DemandAlert }
-  | { type: "toggleInterest"; userId: string; spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">; interest: Pick<Interest, "id" | "createdAt"> }
+  | { type: "toggleInterest"; userId: string; spot: Pick<DemandSpot, "destinationId" | "placeName" | "country" | "region" | "months">; interest: Pick<Interest, "id" | "createdAt"> }
   | { type: "addInterest"; interest: Interest }
   | { type: "markNotificationRead"; id: string; at: string }
   | { type: "markAllNotificationsRead"; at: string }
@@ -229,9 +229,9 @@ interface StoreActions {
   /** "Notify me" on an empty Explore. */
   addAlert: (alert: Pick<DemandAlert, "email" | "region" | "from" | "to">) => void;
   /** "I'm interested" on a demand spot: on, or off again. `userId` – right after an inline login the store doesn't know the user yet. */
-  toggleInterest: (spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">, userId: string) => void;
+  toggleInterest: (spot: Pick<DemandSpot, "destinationId" | "placeName" | "country" | "region" | "months">, userId: string) => void;
   /** "+ Add a place": a new interest of `userId` (shows up in the demand row right away) */
-  addInterest: (input: Pick<Interest, "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) => void;
+  addInterest: (input: Pick<Interest, "destinationId" | "consent" | "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) => void;
   /** Bell / notifications page: one of the current user's notifications is read */
   markNotificationRead: (id: string) => void;
   /** …or all of them */
@@ -358,7 +358,7 @@ function lockFromStay(stay: Stay): LockDetails | undefined {
   const link = stay.accommodationLink ?? "";
   return {
     link,
-    title: link ? mockPreviewForUrl(link, stay.title).title : stay.title,
+    title: link ? previewForUrl(link, stay.title).title : stay.title,
     total,
     perPerson: stay.pricePerPerson,
     spots: Math.max(1, Math.round(total / stay.pricePerPerson)),
@@ -388,7 +388,7 @@ function seedPayments(stays: Stay[], requests: JoinRequest[], users: User[]): Pa
     const crew = [stay.hostId, ...requests.filter((r) => r.stayId === stay.id && r.status === "accepted").map((r) => r.userId)];
     const paidAt = new Date(new Date(stay.lockedAt ?? stay.createdAt).getTime() + DAY_MS).toISOString();
     return crew.map<Payment>((userId) => {
-      const paid = Boolean(stay.bookingConfirmedAt) || (mockPaidUsers[stay.id]?.includes(userId) ?? false);
+      const paid = Boolean(stay.bookingConfirmedAt) || paidUsersOf(stay.id).includes(userId);
       return {
         id: `pay-${stay.id}-${userId}`,
         ...paymentFor(stay, userId, share, memberAttribution(users, requests, stay, userId)),
@@ -408,7 +408,7 @@ const MOCK_NOW = Date.parse("2026-10-29T08:00:00Z");
 const MOCK_DAYS = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 9, 10, 11, 12, 14, 15, 17, 18, 20, 21, 24, 26, 28, 31, 34, 37, 40, 43, 47, 51, 55, 60];
 
 function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], threads: Thread[]): AppNotification[] {
-  const me = CURRENT_USER_ID;
+  const me = defaultUserId ?? "";
   const published = stays.filter((s) => s.status === "published" || s.status === "booked");
   const hosted = published.filter((s) => s.hostId === me);
   const joined = published.filter((s) => s.hostId !== me && requests.some((r) => r.stayId === s.id && r.userId === me && r.status === "accepted"));
@@ -484,17 +484,17 @@ function crewRecord(stay: Stay, requests: JoinRequest[], endedAt: string): Crew 
 
 const MOCK_PREVIEWS = ["Who's bringing the speaker?", "Landing at 14:20, anyone around?", "Booked my flight 🎉", "Can we push dinner to 8?", "Found a great coworking spot nearby"];
 
-/** The store's starting state for a mock dataset (see mock-datasets.ts – the DevSwitcher's "Data" preset). */
-function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: MockDataset): StoreState {
-  const joinRequests = withMockAttribution(rawRequests, rawStays);
+/** The store's starting state for the data source's data (in dev: the Dev menu's data state). */
+function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData): StoreState {
+  const joinRequests = withAttribution(rawRequests, rawStays);
   const stays = seedLockedStays(rawStays);
   const payments = seedPayments(stays, joinRequests, users);
-  const chat = withMockHistory(withCrewThreads(stays, threads, joinRequests), { stays, users, joinRequests });
+  const chat = withChatHistory(withCrewThreads(stays, threads, joinRequests), { stays, users, joinRequests });
   const crews = stays.filter((s) => s.status === "completed").map((s) => crewRecord(s, joinRequests, s.endDate));
   return {
     users,
     // Houses waiting to be claimed have no host and no crew thread until someone claims them.
-    stays: [...stays, ...mockClaimableStays],
+    stays: withLaunchVisibility([...stays, ...getClaimableHouses()]),
     joinRequests,
     threads: chat.threads,
     currentUserId: null,
@@ -502,10 +502,10 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     payments,
     typing: {},
     reports: [],
-    events: mockGrowthEvents({ stays, joinRequests, payments }),
+    events: growthEventsFor({ stays, joinRequests, payments }),
     alerts: [],
     applications: [],
-    interests: [...MOCK_INTERESTS],
+    interests: [...getInterests()],
     interestInvites: {},
     crews,
     livedWith: crews.flatMap(livedWithOf),
@@ -515,7 +515,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
 }
 
 /** Server render and hydration always start from the full data; another preset is swapped in right after. */
-const initialState: StoreState = buildInitialState(getMockDataset("full"));
+const initialState: StoreState = buildInitialState(getData("full"));
 
 /** The growth bits kept in this browser across reloads (mock – no backend). Seeded events are left out. */
 interface PersistedGrowth {
@@ -537,7 +537,7 @@ function persistedGrowth(state: StoreState): PersistedGrowth {
     events: state.events.filter((e) => !e.seed),
     alerts: state.alerts,
     applications: state.applications,
-    claimStays: state.stays.filter((s) => s.claim && (s.claim.claimedAt || !mockClaimableStays.some((m) => m.id === s.id))),
+    claimStays: state.stays.filter((s) => s.claim && (s.claim.claimedAt || !getClaimableHouses().some((m) => m.id === s.id))),
     userAttribution: Object.fromEntries(
       state.users.filter((u) => attributionOf(u).utmSource || u.refUserId).map((u) => [u.id, attributionOf(u)]),
     ),
@@ -676,11 +676,7 @@ function threadsAfterJoin(state: StoreState, stay: Stay, userId: string, base: P
 /** Dev-only mock replies after you send a message. */
 const CANNED_REPLIES = ["Haha nice 😄", "Agreed!", "Sounds good to me 👍", "Love it", "On it", "Wait, really?", "Perfect, thanks!", "🙌"];
 
-/** Mock auth: the chosen user survives a refresh. */
-const MOCK_USER_KEY = "simpulo:mock-user";
-/** Dev "Open as…": a ?as=userId tab keeps its own user in sessionStorage, so two tabs can be host and guest. */
-const TAB_USER_KEY = "simpulo:tab-user";
-export const OPEN_AS_PARAM = "as";
+export { OPEN_AS_PARAM };
 
 /** Where the mock user lives for this tab: sessionStorage once the tab was opened "as" someone, else localStorage. */
 function userStorage(): Storage {
@@ -717,7 +713,15 @@ function withoutMember(state: StoreState, stay: Stay, userId: string, systemMess
   };
 }
 
+/** Whatever changed the Houses: their visibility follows how many are published (src/lib/launch.ts). */
 function reducer(state: StoreState, action: StoreAction): StoreState {
+  const next = applyAction(state, action);
+  if (next.stays === state.stays) return next;
+  const stays = withLaunchVisibility(next.stays);
+  return stays === next.stays ? next : { ...next, stays };
+}
+
+function applyAction(state: StoreState, action: StoreAction): StoreState {
   const me = state.currentUserId;
   switch (action.type) {
     case "login":
@@ -962,8 +966,8 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       if (existing) return { ...state, interests: state.interests.filter((i) => i.id !== existing.id) };
       // Joining a place: the months its people want (just "anytime" if none of them picked one).
       const months = action.spot.months.length > 0 ? action.spot.months.map((m) => m.month) : [FLEXIBLE];
-      const { placeName, country, region } = action.spot;
-      const interest: Interest = { placeName, country, region, months, ...action.interest, userId: action.userId, language: "en", notify: true, visible: true };
+      const { destinationId, placeName, country, region } = action.spot;
+      const interest: Interest = { destinationId, consent: true, placeName, country, region, months, ...action.interest, userId: action.userId, language: "en", notify: true, visible: true };
       return { ...state, interests: [...state.interests, interest] };
     }
 
@@ -1028,7 +1032,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
       if (!stay || !me || stay.hostId !== me) return state;
       // Never below the people already in.
       const spotsTotal = Math.max(action.patch.spotsTotal, stay.spotsFilled);
-      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, ...action.patch, spotsTotal } : s)) };
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, ...action.patch, location: locationOf(action.patch.city, action.patch.region), spotsTotal } : s)) };
     }
 
     case "leaveStay": {
@@ -1457,8 +1461,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Mock data volume (DevSwitcher "Data"): another preset than "full" is swapped in right after hydration. Runs before
   // the growth restore below, so restored claims and events land on top of it.
   useEffect(() => {
-    const preset = readPreset();
-    if (preset !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getMockDataset(preset)) });
+    const state = readDataState();
+    if (state !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(state)) });
   }, []);
 
   // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
@@ -1552,6 +1556,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       invite: crew.invite,
       stay: {
         ...input,
+        location: locationOf(input.city, input.region),
         id,
         slug,
         ...(crew.againFrom && { duplicatedFrom: crew.againFrom }),
@@ -1601,6 +1606,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         language: "en",
         city: input.city.trim(),
         region: input.region.trim(),
+        location: locationOf(input.city.trim(), input.region.trim()),
         lat: 0,
         lng: 0,
         mapPreviewUrl: "",
@@ -1695,12 +1701,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [currentUserId],
   );
   const toggleInterest = useCallback(
-    (spot: Pick<DemandSpot, "placeName" | "country" | "region" | "months">, userId: string) =>
+    (spot: Pick<DemandSpot, "destinationId" | "placeName" | "country" | "region" | "months">, userId: string) =>
       dispatch({ type: "toggleInterest", userId, spot, interest: { id: makeId("interest"), createdAt: new Date().toISOString() } }),
     [],
   );
   const addInterest = useCallback(
-    (input: Pick<Interest, "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) =>
+    (input: Pick<Interest, "destinationId" | "consent" | "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) =>
       dispatch({
         type: "addInterest",
         interest: { ...input, id: makeId("interest"), userId, language: "en", createdAt: new Date().toISOString() },
@@ -1843,7 +1849,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         patch: { currency: input.currency, totalPrice: total, payByDate: input.payBy, lockedAt: now },
         lock: {
           link: input.link,
-          title: mockPreviewForUrl(input.link, stay.title).title,
+          title: previewForUrl(input.link, stay.title).title,
           total,
           spots: input.spots,
           perPerson: Math.ceil(total / input.spots),

@@ -11,6 +11,10 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { SITE_URL } from "@/lib/seo";
 import { StoreProvider } from "@/lib/store";
 import "./globals.css";
+import Script from "next/script";
+import { HOUSE_BACK_GATE } from "@/lib/houseBackGate";
+import { APP_MODE } from "@/lib/appMode";
+import { siteIsGated } from "@/lib/seo";
 
 // Self-hosted at build time by next/font – the browser never requests a Google domain. Tailwind's font-sans reads the
 // variable (globals.css).
@@ -41,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
     other: { "apple-mobile-web-app-capable": "yes" },
     // Gated test deployment: never indexed. (SITE_PASSWORD is runtime-only on App Hosting, so prerendered pages may
     // miss this tag – src/proxy.ts adds an X-Robots-Tag header to every response for exactly that case.)
-    ...(process.env.SITE_PASSWORD && { robots: { index: false, follow: false } }),
+    ...(siteIsGated() && { robots: { index: false, follow: false } }),
   };
 }
 
@@ -55,8 +59,13 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+    <html lang={locale} data-app-mode={APP_MODE} className={`${inter.variable} h-full antialiased`}>
+      {/* relative + isolate: the frame for PageGlow's z-index −1, no overflow and no fixed height. */}
+      <body className="relative isolate flex min-h-full flex-col">
+        {/* Before the router: the way back from a House page has to run ahead of it (src/lib/houseTransition.ts). */}
+        <Script id="house-back-gate" strategy="beforeInteractive">
+          {HOUSE_BACK_GATE}
+        </Script>
         {/* Messages and formats come from src/i18n/request.ts. */}
         <NextIntlClientProvider>
         <StoreProvider>

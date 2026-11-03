@@ -6,6 +6,20 @@ export const userFacePath = (userId: string) => `/mock/users/${userId}/face.webp
 /** Further photos of a person (n ≥ 2; 1 is the face): the lifestyle shots of the extra hosts. */
 export const userPhotoPath = (userId: string, n: number) => `/mock/users/${userId}/${n}.webp`;
 export const houseThemePath = (stayId: string, n: number) => `/mock/houses/${stayId}/${n}.webp`;
+export const placeCoverPath = (placeName: string) => `/mock/places/${placeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.webp`;
+
+/** One landscape photo per destination in the demand mock ("Where do you want to go next?"), by place name. Canggu has too few photos of its own: Bali's rice fields. */
+export const PLACE_COVER_QUERIES: Record<string, string> = {
+  Lisbon: "lisbon tram",
+  Canggu: "bali rice field",
+  "Mexico City": "mexico city",
+  "Chiang Mai": "chiang mai",
+  Tarifa: "tarifa",
+  "Cape Town": "cape town",
+  Tbilisi: "tbilisi",
+  Madeira: "madeira",
+};
+
 
 /**
  * One portrait per person, matching their name (gender), age and what they do. Each names "man" or "woman" – the

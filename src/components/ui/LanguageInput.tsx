@@ -52,7 +52,7 @@ export function LanguageInput({ languages, onChange }: LanguageInputProps) {
         className="flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border border-line bg-surface px-2 py-1.5 transition-shadow focus-within:ring-2 focus-within:ring-accent"
       >
         {languages.map((language) => (
-          <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-sm ring-1 ring-line">
+          <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-body ring-1 ring-line">
             {language}
             <button
               type="button"
@@ -86,7 +86,7 @@ export function LanguageInput({ languages, onChange }: LanguageInputProps) {
           }}
           onKeyDown={onKeyDown}
           placeholder={languages.length === 0 ? t("languagesPlaceholder") : t("languagesPlaceholderMore")}
-          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-[15px] text-ink outline-none placeholder:text-muted"
+          className="h-8 min-w-28 flex-1 bg-transparent px-2 text-body text-ink outline-none placeholder:text-muted"
         />
       </div>
       {open && (

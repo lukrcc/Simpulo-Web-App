@@ -55,14 +55,14 @@ export function PaymentsSection({ stay }: { stay: Stay }) {
   return (
     // No header action – the status line says where it stands.
     <DetailSection title={t("title")}>
-      <p className="text-[15px] tabular-nums text-ink">
+      <p className="text-body tabular-nums text-ink">
         {t("progress", {
           paid: progress.paidCount,
           count: progress.count,
           paidAmount: money(progress.paidAmount),
           totalAmount: money(progress.totalAmount),
         })}
-        {lock && <span className="text-[13px] text-muted"> · {tSection("payBy", { date: f.day(lock.payBy) })}</span>}
+        {lock && <span className="text-small text-muted"> · {tSection("payBy", { date: f.day(lock.payBy) })}</span>}
       </p>
       <div
         role="progressbar"
@@ -83,7 +83,7 @@ export function PaymentsSection({ stay }: { stay: Stay }) {
 
       {(progress.allPaid || stay.status === "booked") && <BookingBlock stay={stay} payments={payments} />}
       {/* What reaches the host: every paid share and programme fee, minus the commission – paid out once booked. */}
-      <p className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-sm">
+      <p className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-body">
         <span className="font-medium text-ink">{tSection("payout")}</span>
         <span className="text-right text-muted">
           {tSection(stay.status === "booked" ? "payoutDone" : "payoutPending", { amount: money(payout) })}
@@ -178,7 +178,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
         <CircleCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-ink">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
-          <p className="mt-0.5 text-sm text-muted">{t("confirmedText")}</p>
+          <p className="mt-0.5 text-small text-muted">{t("confirmedText")}</p>
           {stay.bookingProofUrl && (
             <a
               href={stay.bookingProofUrl}
@@ -213,7 +213,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
         <Wallet className="size-5 shrink-0 text-emerald-600" aria-hidden />
         {t("fundsTitle", { amount: f.price(released, stay.currency) })}
       </p>
-      <p className="mt-1 text-sm text-muted">{t("fundsText")}</p>
+      <p className="mt-1 text-small text-muted">{t("fundsText")}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <input ref={input} type="file" accept="image/*,application/pdf" onChange={upload} className="hidden" />
         <Button variant="secondary" disabled={busy || stay.status === "closed"} onClick={() => input.current?.click()}>
@@ -238,7 +238,7 @@ function UploadCountdown({ from }: { from: string }) {
   const minutes = Math.max(0, Math.floor(left / 60_000));
 
   return (
-    <p className={cn("flex items-center gap-1.5 text-xs", left > 0 ? "text-muted" : "font-medium text-red-600")} suppressHydrationWarning>
+    <p className={cn("flex items-center gap-1.5 text-small", left > 0 ? "text-muted" : "font-medium text-red-600")} suppressHydrationWarning>
       <Clock className="size-3.5 shrink-0" aria-hidden />
       {left > 0
         ? `${t("uploadWithin")} · ${t("timeLeft", { hours: Math.floor(minutes / 60), minutes: minutes % 60 })}`

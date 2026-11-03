@@ -52,7 +52,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
               // Keep the textarea's focus and selection, so the emoji lands at the cursor.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(emoji)}
-              className="flex size-8 items-center justify-center rounded-lg text-xl hover:bg-bg"
+              className="flex size-8 items-center justify-center rounded-lg text-h3 hover:bg-bg"
             >
               {emoji}
             </button>

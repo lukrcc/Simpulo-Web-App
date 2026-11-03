@@ -34,7 +34,7 @@ export function usePreviewGuard() {
 export function PreviewBanner({ message, onExit }: { message: string; onExit: () => void }) {
   const t = useTranslations("common.ui.preview");
   return (
-    <div role="status" className="sticky top-(--header-h) z-30 flex h-10 items-center justify-center gap-3 bg-ink px-4 text-sm text-surface">
+    <div role="status" className="sticky top-(--header-total) z-30 flex h-10 items-center justify-center gap-3 bg-ink px-4 text-body text-surface">
       <Eye className="size-4 shrink-0 text-surface/70" aria-hidden />
       <span className="truncate">{message}</span>
       <span aria-hidden className="text-surface/40">

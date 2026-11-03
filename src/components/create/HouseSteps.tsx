@@ -17,7 +17,7 @@ import { RangeSlider } from "@/components/ui/RangeSlider";
 import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
 import { hostProgrammeEarning } from "@/lib/fees";
-import { linkDomain } from "@/lib/mock-extras";
+import { linkDomain } from "@/lib/links";
 import type { Currency, Stay, User, Vibe } from "@/lib/types";
 import { CURRENCIES, VIBES, addDays, addMonths, cn, nightsBetween } from "@/lib/utils";
 import {
@@ -63,7 +63,7 @@ function SuggestionChip({ label, active = false, onClick }: { label: string; act
 /** A field's error line under a group of chips (FormField shows it for single fields). */
 function ErrorLine({ text }: { text: string | null }) {
   return text ? (
-    <p role="alert" className="text-[13px] text-red-600">
+    <p role="alert" className="text-small text-red-600">
       {text}
     </p>
   ) : null;
@@ -93,7 +93,7 @@ export function VibeStep({ form, patch, errorOf }: StepProps) {
               onChange={(e) => patch({ customVibe: e.target.value })}
               placeholder={t("customPlaceholder")}
               aria-label={t("customLabel")}
-              className="h-8 w-32 bg-transparent text-sm outline-none placeholder:text-muted"
+              className="h-8 w-32 bg-transparent text-small outline-none placeholder:text-muted"
             />
             <Button variant="tertiary" onClick={() => patch({ customVibe: null })} aria-label={t("customRemove")} className="size-8">
               <X />
@@ -225,13 +225,13 @@ export function CrewStep({ form, patch, errorOf, minSpots }: StepProps & { /** T
         <Button variant="secondary" size="lg" icon onClick={() => set(n - 1)} disabled={n <= minSpots} aria-label={t("crewMinus")}>
           <Minus />
         </Button>
-        <output aria-live="polite" className="w-14 text-center text-3xl font-semibold tabular-nums">
+        <output aria-live="polite" className="w-14 text-center text-h2 tabular-nums">
           {n}
         </output>
         <Button variant="secondary" size="lg" icon onClick={() => set(n + 1)} disabled={n >= SPOTS_MAX} aria-label={t("crewPlus")}>
           <Plus />
         </Button>
-        <span className="text-[15px] text-muted">{t("crewUnit")}</span>
+        <span className="text-body text-muted">{t("crewUnit")}</span>
       </div>
       <div role="group" aria-label={t("crewQuick")} className="flex flex-wrap gap-2">
         {SPOTS_QUICK.map((size) => (
@@ -252,7 +252,7 @@ function AmountInput({ id, value, onChange, currency, label, invalid, onBlur }: 
   const format = useFormat();
   return (
     <span className="relative block">
-      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-muted">{format.currencySymbol(currency)}</span>
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-body text-muted">{format.currencySymbol(currency)}</span>
       <input
         id={id}
         inputMode="numeric"
@@ -280,7 +280,7 @@ export function BudgetStep({ form, patch, errorOf, touch, currency, locked }: St
     if (!locked && !form.budgetTbd && empty) fillStart();
   }, [locked, form.budgetTbd, empty]);
 
-  if (locked) return <p className="text-[15px] text-muted">{t("lockedNote")}</p>;
+  if (locked) return <p className="text-body text-muted">{t("lockedNote")}</p>;
 
   const clamp = (n: number) => Math.min(Math.max(n, scale.min), scale.max);
   const low = Number(form.budgetMin) || scale.start[0];
@@ -306,7 +306,7 @@ export function BudgetStep({ form, patch, errorOf, touch, currency, locked }: St
       </FormField>
 
       <div className="flex items-center justify-between gap-3 border-y border-line py-1">
-        <span className="text-[15px] font-medium text-ink">{t("decideTogether")}</span>
+        <span className="text-body font-medium text-ink">{t("decideTogether")}</span>
         <Switch on={form.budgetTbd} label={t("decideTogether")} onChange={(on) => patch({ budgetTbd: on })} />
       </div>
 
@@ -348,7 +348,7 @@ export function TitleStep({ form, patch, errorOf, touch, titleMax }: StepProps &
         label={t("title")}
         prominent
         error={errorOf("title")}
-        aside={<span className="text-xs tabular-nums text-muted">{t("titleCount", { count: form.title.length, max: titleMax })}</span>}
+        aside={<span className="text-small tabular-nums text-muted">{t("titleCount", { count: form.title.length, max: titleMax })}</span>}
       >
         <input
           className={formInput}
@@ -438,7 +438,7 @@ export function PitchStep({ form, patch, errorOf, touch }: StepProps) {
         label={t("lookingFor")}
         prominent
         error={errorOf("lookingForText")}
-        aside={<span className="text-xs tabular-nums text-muted">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
+        aside={<span className="text-small tabular-nums text-muted">{t("lookingForCount", { count: form.lookingForText.length, max: LOOKING_FOR_MAX })}</span>}
       >
         <AutoTextarea
           ref={ref}
@@ -522,8 +522,8 @@ export function HostStep({ form, patch, errorOf, touch, currency, allowed }: Hos
             >
               <Icon className="size-6 text-ink" aria-hidden />
               <span>
-                <span className="block text-[15px] font-medium text-ink">{t(`${key}.title`)}</span>
-                <span className="mt-0.5 block text-[13px] text-muted">{disabled ? t("proOnly") : t(`${key}.text`)}</span>
+                <span className="block text-body font-medium text-ink">{t(`${key}.title`)}</span>
+                <span className="mt-0.5 block text-small text-muted">{disabled ? t("proOnly") : t(`${key}.text`)}</span>
               </span>
             </button>
           );
@@ -544,11 +544,11 @@ export function HostStep({ form, patch, errorOf, touch, currency, allowed }: Hos
             />
           </FormField>
           {fee > 0 && (
-            <p className="text-[15px] font-medium text-accent" aria-live="polite">
+            <p className="text-body font-medium text-accent" aria-live="polite">
               {t("earn", { amount: format.price(earning, currency), total: format.price(earning * Math.max(0, form.spotsTotal - 1), currency) })}
             </p>
           )}
-          <p className="text-[13px] text-muted">{t("note")}</p>
+          <p className="text-small text-muted">{t("note")}</p>
         </div>
       )}
     </div>
@@ -579,7 +579,7 @@ export function ExtrasStep({ form, patch, errorOf, touch, showIdeas }: StepProps
     day: <AutoTextarea aria-label={t("rows.day")} value={form.dayText} onChange={(e) => patch({ dayText: e.target.value })} placeholder={tPitch("dayPlaceholder")} />,
     hostNote: (
       <div className="space-y-3">
-        <FormField label={t("rows.hostNote")} aside={<span className="text-xs tabular-nums text-muted">{tPitch("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}>
+        <FormField label={t("rows.hostNote")} aside={<span className="text-small tabular-nums text-muted">{tPitch("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}>
           <input className={formInput} value={form.hostNote} maxLength={HOST_NOTE_MAX} onChange={(e) => patch({ hostNote: e.target.value })} placeholder={tPitch("hostNotePlaceholder")} />
         </FormField>
         <div className="flex flex-wrap gap-2">
@@ -626,7 +626,7 @@ function ExtraRow({ title, added, open, onToggle, children }: { title: string; a
   return (
     <li>
       <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={id} className="flex min-h-14 w-full items-center gap-3 text-left">
-        <span className="flex-1 text-[15px] text-ink">{title}</span>
+        <span className="flex-1 text-body text-ink">{title}</span>
         {added && <Badge icon={<Check aria-hidden />}>{t("added")}</Badge>}
         <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-180")} aria-hidden />
       </button>
@@ -742,7 +742,7 @@ export function PublishStep({ stay, form, me, editing, steps, missing, onEdit, i
             <ListRow
               title={
                 <span className="flex items-baseline gap-3">
-                  <span className="w-32 shrink-0 text-[13px] text-muted">{label}</span>
+                  <span className="w-32 shrink-0 text-small text-muted">{label}</span>
                   {isMissing ? (
                     <span className="font-medium text-red-600">{t("missing")}</span>
                   ) : (
@@ -778,22 +778,22 @@ function ProfileSection({ me }: { me?: User }) {
   if (!me) {
     return (
       <section className="border-t border-line pt-5">
-        <h3 className="text-base font-medium text-ink">{t("title")}</h3>
-        <p className="mt-1 text-[13px] text-muted">{t("loggedOut")}</p>
+        <h3 className="text-body font-medium text-ink">{t("title")}</h3>
+        <p className="mt-1 text-small text-muted">{t("loggedOut")}</p>
       </section>
     );
   }
   const missing = [!me.photos[0] && t("photo"), !me.name.trim() && t("name")].filter((item): item is string => Boolean(item));
   return (
     <section className="border-t border-line pt-5">
-      <h3 className="text-base font-medium text-ink">{t("title")}</h3>
+      <h3 className="text-body font-medium text-ink">{t("title")}</h3>
       <ListRow
         lead={<Avatar user={me} size="md" />}
         title={me.name.trim() || <span className="font-medium text-red-600">{t("noName")}</span>}
         subtitle={me.languages.length > 0 ? me.languages.join(", ") : t("noLanguages")}
       />
       {missing.length > 0 && (
-        <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-red-600">
+        <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-red-600">
           {t("hint", { items: missing.join(" & ") })}
           <Button variant="tertiary" href="/profile/edit">
             {t("edit")}
@@ -807,7 +807,7 @@ function ProfileSection({ me }: { me?: User }) {
 /** A checkbox row: 44px, the box on the left. */
 function CheckRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (on: boolean) => void }) {
   return (
-    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-ink">
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-body text-ink">
       <Checkbox checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
@@ -822,7 +822,7 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
   const format = useFormat();
   return (
     <section className={cn("max-w-160", className)}>
-      <h2 className="mb-3 text-base font-medium text-ink">{t("title")}</h2>
+      <h2 className="mb-3 text-body font-medium text-ink">{t("title")}</h2>
       <ul className="grid gap-3 sm:grid-cols-2">
         {templates.map((template) => {
           const { form } = template;
@@ -831,8 +831,8 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
           return (
             <li key={template.id} className="flex items-start gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-ink">
               <button type="button" onClick={() => onPick(template)} className="min-w-0 flex-1 text-left">
-                <span className="block truncate text-[15px] font-medium text-ink">{title}</span>
-                <span className="mt-0.5 block truncate text-[13px] text-muted">
+                <span className="block truncate text-body font-medium text-ink">{title}</span>
+                <span className="mt-0.5 block truncate text-small text-muted">
                   {[vibe, regionShortName(form.region), format.people(form.spotsTotal)].filter(Boolean).join(" · ")}
                 </span>
               </button>

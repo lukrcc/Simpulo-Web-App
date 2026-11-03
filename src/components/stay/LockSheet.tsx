@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/Select";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { mockPreviewForUrl } from "@/lib/mock-extras";
+import { previewForUrl } from "@/lib/data";
 import { paymentSplit } from "@/lib/fees";
 import { defaultPayBy, getCrew, getCrewLinks, useStore } from "@/lib/store";
 import type { Currency, Stay } from "@/lib/types";
@@ -86,7 +86,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
             className={formInput}
           />
         </FormField>
-        {urlValid && <LinkPreviewCard href={cleanUrl} preview={mockPreviewForUrl(cleanUrl)} layout="row" />}
+        {urlValid && <LinkPreviewCard href={cleanUrl} preview={previewForUrl(cleanUrl)} layout="row" />}
 
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <FormField label={t("totalLabel")}>
@@ -113,7 +113,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
               ))}
             </Select>
           </FormField>
-          <span className="col-span-2 -mt-1.5 block text-[13px] text-muted">{t("currencyHint")}</span>
+          <span className="col-span-2 -mt-1.5 block text-small text-muted">{t("currencyHint")}</span>
         </div>
 
         <FormField label={t("splitBetween")} group helper={t("occupancy", { people: f.people(crewSize), spots: f.spots(stay.spotsTotal) })}>
@@ -139,7 +139,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
 
         {/* The split, as plain text under a line – no box inside the sheet. */}
         <div className="border-t border-line pt-4">
-          <p className="text-sm font-medium tabular-nums text-ink">
+          <p className="text-body font-medium tabular-nums text-ink">
             {perPerson === 0
               ? t("previewEmpty")
               : split.hostFee > 0
@@ -159,10 +159,10 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
                   })}
           </p>
           {split.hostFee > 0 && (
-            <p className="mt-1 text-[13px] text-muted">{tPremium("youReceive", { amount: f.price(split.hostReceives, currency) })}</p>
+            <p className="mt-1 text-small text-muted">{tPremium("youReceive", { amount: f.price(split.hostReceives, currency) })}</p>
           )}
-          {programmeCapped && <p className="mt-1 text-[13px] text-muted">{tPremium("capped", { amount: f.price(split.hostFee, currency) })}</p>}
-          <p className="mt-1 text-[13px] text-muted">{t("hint")}</p>
+          {programmeCapped && <p className="mt-1 text-small text-muted">{tPremium("capped", { amount: f.price(split.hostFee, currency) })}</p>}
+          <p className="mt-1 text-small text-muted">{t("hint")}</p>
         </div>
 
         <Button type="submit" size="lg" disabled={!canSubmit} className="w-full">

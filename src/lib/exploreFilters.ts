@@ -2,7 +2,7 @@
 // (Fitness OR Surf). The whole state lives in the URL (?country=TH,ID&lang=en&month=2027-02&vibe=fitness,surf
 // &budget=200-900&sort=newest), so a filtered Explore can be shared and survives a reload.
 import { FLEXIBLE, worldRegionOf, type WorldRegion } from "./interests";
-import { convertApprox } from "./mock-extras";
+import { convertApprox } from "./rates";
 import type { Stay, Vibe } from "./types";
 import { openSpots } from "./utils";
 

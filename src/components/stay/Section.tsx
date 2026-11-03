@@ -12,7 +12,7 @@ export function Section({ title, action, children }: SectionProps) {
   return (
     <section className="mt-8 border-t border-line pt-6">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="text-body-lg font-semibold">{title}</h2>
         {action}
       </div>
       {children}

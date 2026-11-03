@@ -65,7 +65,7 @@ function NotificationsList() {
   return (
     <Container page width="narrow">
       <div className="flex items-end justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{t("title")}</h1>
+        <h1 className="text-h2 tracking-tight text-ink">{t("title")}</h1>
         {unread > 0 && (
           <Button variant="tertiary" size="md" onClick={repo.markAllRead}>
             <CheckCheck aria-hidden />
@@ -88,7 +88,7 @@ function NotificationsList() {
           <p className="mt-5 max-w-sm text-muted">{t("empty")}</p>
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-10 text-center text-sm text-muted">{t("emptyTab")}</p>
+        <p className="mt-10 text-center text-small text-muted">{t("emptyTab")}</p>
       ) : (
         <div className="mt-6 space-y-6">
           {(["today", "yesterday", "week", "earlier"] as const).map((group) => {
@@ -96,7 +96,7 @@ function NotificationsList() {
             if (list.length === 0) return null;
             return (
               <section key={group} aria-labelledby={`n-${group}`}>
-                <h2 id={`n-${group}`} className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                <h2 id={`n-${group}`} className="mb-1 px-3 text-eyebrow uppercase text-muted">
                   {t(`groups.${group}`)}
                 </h2>
                 <ul className="divide-y divide-line rounded-xl border border-line bg-surface px-4">

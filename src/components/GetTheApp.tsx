@@ -68,11 +68,11 @@ export function GetTheApp({ className }: { className?: string }) {
       // The anchor lands below the header via the global scroll-padding-top (--header-h).
       className={cn(cardClass, className)}
     >
-      <h2 className="text-xl font-semibold tracking-tight text-ink">{t("title")}</h2>
-      <p className="mt-1 text-sm text-muted">{t("intro")}</p>
+      <h2 className="text-h3 tracking-tight text-ink">{t("title")}</h2>
+      <p className="mt-1 text-small text-muted">{t("intro")}</p>
 
       {standalone ? (
-        <p className="mt-5 flex items-center gap-2 rounded-xl bg-bg p-4 text-sm text-ink">
+        <p className="mt-5 flex items-center gap-2 rounded-xl bg-bg p-4 text-body text-ink">
           <CircleCheck className="size-5 shrink-0 text-ink" />
           {t("installed")}
         </p>
@@ -89,7 +89,7 @@ export function GetTheApp({ className }: { className?: string }) {
                   aria-selected={active}
                   onClick={() => setPicked(value)}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors",
+                    "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-body font-medium transition-colors",
                     active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
                   )}
                 >
@@ -102,7 +102,7 @@ export function GetTheApp({ className }: { className?: string }) {
 
           <ol className="mt-6 space-y-4">
             {STEPS[selected].map(({ icon: Icon, key }, i) => (
-              <li key={key} className="flex items-center gap-3 text-base text-ink">
+              <li key={key} className="flex items-center gap-3 text-body text-ink">
                 <StepNumber n={i + 1} />
                 <Icon className="size-4.5 shrink-0 text-muted" aria-hidden />
                 <span>{t(`steps.${key}`)}</span>
@@ -114,7 +114,7 @@ export function GetTheApp({ className }: { className?: string }) {
             <CtaIcon />
             {selected === "iphone" ? t("ctaIphone") : t("ctaAndroid")}
           </Button>
-          <p className="mt-3 text-center text-xs text-muted">{t("desktopHint")}</p>
+          <p className="mt-3 text-center text-small text-muted">{t("desktopHint")}</p>
         </>
       )}
     </section>
@@ -124,7 +124,7 @@ export function GetTheApp({ className }: { className?: string }) {
 /** 32px dark number circle with a dot ("1.") – shared with the steps card on /how-it-works. */
 export function StepNumber({ n }: { n: number }) {
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-surface">
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-body font-semibold text-surface">
       {n}
       <span className="text-ink">.</span>
     </span>

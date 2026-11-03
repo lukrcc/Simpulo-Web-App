@@ -36,7 +36,9 @@ import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewLinks, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
-import { cn, openSpots, stayNights, stayPhotos } from "@/lib/utils";
+import { useHouseStage } from "@/lib/houseTransition";
+import { cn, housePhotos, openSpots, stayNights } from "@/lib/utils";
+import { isListedStay } from "@/lib/launch";
 
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -64,7 +66,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
   const store = useStore();
   const today = new Date().toISOString().slice(0, 10);
   const others = store.stays
-    .filter((s) => s.id !== exceptId && s.status === "published" && s.endDate >= today && !isBlocked(store, s.hostId))
+    .filter((s) => s.id !== exceptId && isListedStay(s) && s.endDate >= today && !isBlocked(store, s.hostId))
     .slice(0, MAX_OTHER_HOUSES);
 
   return (
@@ -81,7 +83,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
       </div>
       {others.length > 0 && (
         <section className="mt-12">
-          <h2 className="mb-4 text-lg font-semibold">{t("others")}</h2>
+          <h2 className="mb-4 text-body-lg font-semibold">{t("others")}</h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {others.map((s) => (
               <StayCard key={s.id} stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
@@ -99,6 +101,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const store = useStore();
   const router = useRouter();
   const pathname = usePathname();
+  useHouseStage();
   // ?preview=guest (host only) – read in its own boundary, so the page itself renders on the server for everyone.
   const [previewParam, setPreviewParam] = useState(false);
   const tPreview = useTranslations("common.ui.preview");
@@ -229,10 +232,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         {host && (
           <>
             <div className="-mx-4 md:mx-0 lg:hidden">
-              <HostGallery host={host} photos={stayPhotos(stay, host)} onBack={goBack} onShare={houseShare.share} shareCopied={houseShare.copied} />
+              <HostGallery host={host} stayId={stay.id} photos={housePhotos(stay, host)} onBack={goBack} onShare={houseShare.share} shareCopied={houseShare.copied} />
             </div>
             <div className="hidden lg:block">
-              <HostPhotoGrid host={host} photos={stayPhotos(stay, host)} onShare={houseShare.share} shareCopied={houseShare.copied} />
+              <HostPhotoGrid host={host} stayId={stay.id} photos={housePhotos(stay, host)} onShare={houseShare.share} shareCopied={houseShare.copied} />
             </div>
           </>
         )}
@@ -260,7 +263,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {myRequest?.status === "invited" && (
             <div className={cn(cardClass, "mt-6 flex items-start gap-4")}>
               <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
-              <div className="min-w-0 text-sm">
+              <div className="min-w-0 text-body">
                 <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
                 <p className="mt-0.5 text-muted">{t("invite.text")}</p>
               </div>
@@ -268,6 +271,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           )}
 
           {/* The host, right after opening it: people who want this city and month – invite them. */}
+          {isHost && stay.visibility === "unlisted" && <p className="mt-6 text-body text-muted">{t("unlistedHint")}</p>}
           {isHost && <InterestInvite stay={stay} className="mt-6" />}
 
           {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
@@ -284,7 +288,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {askForPhoto && (
             <div className={cn(cardClass, "mt-6 flex items-center gap-4")}>
               <Camera className="size-5 shrink-0 text-muted" aria-hidden />
-              <p className="min-w-0 flex-1 text-sm text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
+              <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
               <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}>
                 {t("addPhoto")}
               </Button>
@@ -295,7 +299,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             <div className={cn(cardClass, "mt-6 lg:hidden")}>
               <HostCard host={host} />
               {me && !isHost && (
-                <Button variant="secondary" onClick={messageHost} className="mt-4 w-full">
+                <Button variant="secondary" onClick={messageHost} data-preview-action className="mt-4 w-full">
                   <MessageCircle aria-hidden />
                   {t("messageHost", { name: hostFirstName })}
                 </Button>
@@ -340,18 +344,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         <div className="space-y-4">
           <div className={cn(cardClass, "hidden lg:block")}>
             <PriceLine stay={stay} size="lg" />
-            <p className="mt-3 text-sm text-muted">
+            <p className="mt-3 text-small text-muted">
               {t("datesAndNights", { dates: format.longRange(stay.startDate, stay.endDate), nights: format.nights(stayNights(stay)) })}
             </p>
             <div className="mt-5">{cta}</div>
             {/* A 1:1 thread with the host about this House – logged-in guests only. */}
             {me && !isHost && (
-              <Button variant="secondary" size="lg" onClick={messageHost} className="mt-2 w-full">
+              <Button variant="secondary" size="lg" onClick={messageHost} data-preview-action className="mt-2 w-full">
                 <MessageCircle aria-hidden />
                 {t("messageHost", { name: hostFirstName })}
               </Button>
             )}
-            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-xs text-muted">{t("loginBeforeSending")}</p>}
+            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-small text-muted">{t("loginBeforeSending")}</p>}
           </div>
           {host && (
             <div className={cn(cardClass, "hidden lg:block")}>
@@ -359,7 +363,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             </div>
           )}
           <div className={cardClass}>
-            <h2 className="mb-3 text-base font-semibold">{t("accommodation")}</h2>
+            <h2 className="mb-3 text-body font-semibold">{t("accommodation")}</h2>
             <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} inCard />
           </div>
         </div>
@@ -407,7 +411,7 @@ function HostOffer({ stay, offer }: { stay: Stay; offer: string[] }) {
     <Section
       title={t("offerTitle")}
       action={
-        <span className="shrink-0 text-sm text-muted">
+        <span className="shrink-0 text-small text-muted">
           <span className="font-medium tabular-nums text-ink">{format.price(stay.hostFeePerPerson ?? 0, stay.currency)}</span> {t("perPerson")}
         </span>
       }
@@ -450,7 +454,7 @@ function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
   return (
     <div className={cn(cardClass, "mt-6")}>
       <p className="font-semibold">{declined ? t("titleDeclined") : t("titleFull")}</p>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-small text-muted">
         {stay.startDate && stay.endDate ? t("text", { dates, place }) : t("textNoDates", { place })}
       </p>
       <Button variant="secondary" href={createHref({ region: stay.region, from: stay.startDate, to: stay.endDate })} className="mt-4">
@@ -526,7 +530,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // Invite link: the reserved spot is theirs to take – no request, no waiting for the host.
   if (invited) {
     return (
-      <Button size="lg" onClick={onJoinInvite} className={full}>
+      <Button size="lg" onClick={onJoinInvite} data-preview-action className={full}>
         {t("join")}
       </Button>
     );
@@ -576,7 +580,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   }
   // The page's one primary: "Join this House".
   return (
-    <Button size="lg" onClick={onRequest} className={full}>
+    <Button size="lg" onClick={onRequest} data-preview-action className={full}>
       {t("join")}
     </Button>
   );
@@ -649,7 +653,7 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
         >
           <Pane active={step === "message"}>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <p className="text-sm text-muted">
+              <p className="text-small text-muted">
                 {t.rich("intro", {
                   name: hostName,
                   title: stay.title,
@@ -657,7 +661,7 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
                 })}
               </p>
               {!loggedIn && (
-                <p className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-[13px] text-muted">
+                <p className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-small text-muted">
                   <Lock className="size-3.5 shrink-0" aria-hidden />
                   {t("loginNote")}
                 </p>
@@ -670,12 +674,12 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
                 placeholder={t("placeholder")}
                 className={formTextarea}
               />
-              <div className="-mt-2 flex items-center justify-between gap-3 text-[13px] text-muted">
+              <div className="-mt-2 flex items-center justify-between gap-3 text-small text-muted">
                 <span>{valid ? t("looksGood") : t("minLength", { count: MIN_MESSAGE_LENGTH })}</span>
                 <Badge>{message.trim().length}</Badge>
               </div>
               {blocked && blockedNote && (
-                <p role="alert" className="rounded-xl bg-bg px-4 py-3 text-sm text-ink">
+                <p role="alert" className="rounded-xl bg-bg px-4 py-3 text-body text-ink">
                   {blockedNote}
                 </p>
               )}
@@ -695,9 +699,9 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
               <span className="flex size-14 items-center justify-center rounded-full bg-bg text-ink">
                 <Check className="size-7" strokeWidth={2.5} />
               </span>
-              <p className="mt-5 text-lg font-semibold">{t("sentTitle")}</p>
+              <p className="mt-5 text-body-lg font-semibold">{t("sentTitle")}</p>
               <p className="mt-1 text-muted">{t("waitingFor", { name: hostName })}</p>
-              <p className="mt-1 text-sm text-muted">{t("answerInMessages")}</p>
+              <p className="mt-1 text-small text-muted">{t("answerInMessages")}</p>
               <Button size="lg" onClick={close} className="mt-8 w-full">
                 {t("done")}
               </Button>

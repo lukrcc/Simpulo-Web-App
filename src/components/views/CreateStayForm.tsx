@@ -63,6 +63,7 @@ import { useFeatureFlag } from "@/lib/featureFlags";
 import { canChargeHostFee } from "@/lib/fees";
 import { useFormat } from "@/i18n/format";
 import { getCrew, getCurrentUser, isBlocked, isCrewMember, livedWithFor, useStore, type PersonEntry } from "@/lib/store";
+import { locationOf } from "@/lib/catalog";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -314,6 +315,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   const previewStay: Stay = {
     ...toInput(form, me, editing),
+    location: locationOf(form.city.trim(), form.region.trim()),
     id: "preview",
     slug: "preview",
     hostId: me?.id ?? "preview",
@@ -402,7 +404,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   const question = (
     <section className={cn(cardClass, "max-w-160")} onKeyDown={onKeyDown}>
-      <h2 className="text-xl font-semibold tracking-tight text-ink">{t(`questions.${step}`)}</h2>
+      <h2 className="text-h3 tracking-tight text-ink">{t(`questions.${step}`)}</h2>
       <div ref={bodyRef} className="mt-5">
         {body}
       </div>
@@ -429,8 +431,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       )}
       {offer ? (
         <section className={cn(cardClass, "max-w-160")}>
-          <h2 className="text-xl font-semibold tracking-tight text-ink">{t("resume.title")}</h2>
-          <p className="mt-1 text-[15px] text-muted">{draftName || t("resume.untitled")}</p>
+          <h2 className="text-h3 tracking-tight text-ink">{t("resume.title")}</h2>
+          <p className="mt-1 text-body text-muted">{draftName || t("resume.untitled")}</p>
           <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
             <Button
               variant="tertiary"

@@ -3,8 +3,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "tertiary";
-/** lg 44px · mid 40px · md 36px · sm 32px, 13px text (tertiary is a text link – the size only sets its type) */
-export type ButtonSize = "lg" | "mid" | "md" | "sm";
+/** lg 44px · mid 40px · md 36px · sm 32px, 13px text · bar 36px, 14px text (Explore's filter bar) (tertiary is a text link – the size only sets its type) */
+export type ButtonSize = "lg" | "mid" | "md" | "sm" | "bar";
 
 const variants: Record<ButtonVariant, string> = {
   primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted",
@@ -13,13 +13,13 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonVariant, Record<ButtonSize, string>> = {
-  primary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm", sm: "h-8 px-3.5 text-[13px]" },
-  secondary: { lg: "h-11 px-5 text-[15px]", mid: "h-10 px-4 text-sm", md: "h-9 px-4 text-sm", sm: "h-8 px-3.5 text-[13px]" },
-  tertiary: { lg: "text-[15px]", mid: "text-sm", md: "text-sm", sm: "text-[13px]" },
+  primary: { lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
+  secondary: { lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
+  tertiary: { lg: "text-body", mid: "text-body", md: "text-body", sm: "text-small", bar: "text-nav" },
 };
 
 /** Icon-only buttons: a circle of the size's height (44 / 40 / 36 / 32px). */
-const iconSizes: Record<ButtonSize, string> = { lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8" };
+const iconSizes: Record<ButtonSize, string> = { lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8", bar: "size-9" };
 
 /** The one button system: primary (ink), secondary (surface + line border), tertiary (text link in ink). */
 export function buttonStyles(variant: ButtonVariant = "primary", size: ButtonSize = "md", className?: string, icon = false): string {

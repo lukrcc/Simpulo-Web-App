@@ -153,7 +153,7 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   return (
     <div
       data-app-pane="always"
-      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-h))]"
+      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]"
     >
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{content}</div>
     </div>

@@ -47,10 +47,10 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
 
         {/* The title truncates first; the dates stay. */}
         <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-          <Link href={`/house/${stay.slug}`} className="min-w-0 truncate text-base font-semibold hover:underline">
+          <Link href={`/house/${stay.slug}`} className="min-w-0 truncate text-body font-semibold hover:underline">
             {stay.title}
           </Link>
-          <span className="shrink-0 text-[13px] text-muted">
+          <span className="shrink-0 text-small text-muted">
             <span aria-hidden>· </span>
             {f.shortRange(stay.startDate, stay.endDate)}
           </span>
@@ -72,7 +72,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
       </header>
 
       {stay.status === "closed" && (
-        <p className="shrink-0 border-b border-line bg-bg px-4 py-1.5 text-xs text-muted">{t("closed")}</p>
+        <p className="shrink-0 border-b border-line bg-bg px-4 py-1.5 text-small text-muted">{t("closed")}</p>
       )}
     </>
   );
@@ -89,13 +89,13 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
       {other && <Avatar user={other} size="md" linked />}
       <div className="min-w-0 flex-1">
         {other ? (
-          <Link href={`/u/${other.id}`} className="block truncate text-base font-semibold leading-5 hover:underline">
+          <Link href={`/u/${other.id}`} className="block truncate text-body font-semibold leading-5 hover:underline">
             {other.name}
           </Link>
         ) : (
-          <p className="truncate text-base font-semibold leading-5">{t("unknown")}</p>
+          <p className="truncate text-body font-semibold leading-5">{t("unknown")}</p>
         )}
-        <Link href={`/house/${stay.slug}`} className="block truncate text-[13px] text-muted hover:underline">
+        <Link href={`/house/${stay.slug}`} className="block truncate text-small text-muted hover:underline">
           {t("about", { title: stay.title, dates: f.shortRange(stay.startDate, stay.endDate) })}
         </Link>
       </div>

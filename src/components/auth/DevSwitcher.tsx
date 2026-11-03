@@ -6,7 +6,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useFormat } from "@/i18n/format";
 import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
-import { DATASET_PRESETS, readPreset, savePreset } from "@/lib/mock-datasets";
+import { APP_MODE } from "@/lib/appMode";
+import { DATA_STATES, readDataState, saveDataState } from "@/lib/data";
 import { computeReminders, type Reminder } from "@/lib/reminders";
 import { findUser, getCrew, OPEN_AS_PARAM, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -16,7 +17,7 @@ type Role = "host" | "crew" | "pending" | "none";
 
 /** Development only: switch the mock user, see your role on this page, open host/guest tabs, fire reminders. */
 export function DevSwitcher() {
-  if (process.env.NODE_ENV !== "development") return null;
+  if (APP_MODE !== "dev") return null;
   // usePathname/useSearchParams suspend during prerender – keep that inside this small boundary.
   return (
     <Suspense fallback={null}>
@@ -66,7 +67,7 @@ function DevSwitcherInner() {
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
           <div
             id="dev-switcher-panel"
-            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-xs shadow-xl ring-1 ring-line"
+            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-small shadow-xl ring-1 ring-line"
           >
             <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
               <select
@@ -91,6 +92,9 @@ function DevSwitcherInner() {
             </div>
             <FlagSwitch flag="hostPremium" />
             <DataPreset />
+            <a href="/dev/destinations" className="block px-4 pb-2.5 font-medium text-muted hover:text-ink">
+              {t("destinations")}
+            </a>
             {(currentUserId || stay) && (
               <div className="flex items-center gap-1 border-t border-line px-2 py-1.5">
                 {currentUserId && (
@@ -132,7 +136,7 @@ function DevSwitcherInner() {
         aria-expanded={open}
         aria-controls="dev-switcher-panel"
         aria-label={open ? t("closePanel") : t("openPanel")}
-        className="glass relative flex size-8 items-center justify-center rounded-full text-[11px] font-semibold text-muted hover:text-ink md:size-9"
+        className="glass relative flex size-8 items-center justify-center rounded-full text-small font-semibold text-muted hover:text-ink md:size-9"
       >
         <span className="md:hidden">{t("labelShort")}</span>
         <span className="max-md:hidden">{t("label")}</span>
@@ -157,15 +161,15 @@ function FlagSwitch({ flag }: { flag: FeatureFlag }) {
   );
 }
 
-/** Mock data volume: Empty · Launch · Growing · Full – saved in this browser, applied with a reload. */
+/** The mock's data state: Pre-launch · Launch · Full – saved in this browser, applied with a reload. */
 function DataPreset() {
   const t = useTranslations("auth.dev");
-  const [current] = useState(readPreset);
+  const [current] = useState(readDataState);
   return (
     <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
       <span className="font-medium text-ink">{t("data")}</span>
       <div role="radiogroup" aria-label={t("data")} className="flex rounded-full bg-ink/5 p-0.5">
-        {DATASET_PRESETS.map((preset) => (
+        {DATA_STATES.map((preset) => (
           <button
             key={preset}
             type="button"
@@ -173,7 +177,7 @@ function DataPreset() {
             aria-checked={preset === current}
             onClick={() => {
               if (preset === current) return;
-              savePreset(preset);
+              saveDataState(preset);
               window.location.reload();
             }}
             className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"

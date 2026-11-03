@@ -1,6 +1,6 @@
 // Mock notification schedule: which reminders a user would get, computed from the current data. Nothing is
 // scheduled for real yet – later this becomes Cloud Functions (timers) + FCM push / email.
-import { mockInstalledUsers } from "./mock-extras";
+import { installedUsers } from "./data";
 import type { NotifyEventKey } from "./store";
 import type { Crew, JoinRequest, Payment, Stay, User } from "./types";
 
@@ -52,7 +52,7 @@ function isCrew(data: ReminderData, stay: Stay, userId: string): boolean {
 export function computeReminders(data: ReminderData, userId: string, now = Date.now()): Reminder[] {
   const user = data.users.find((u) => u.id === userId);
   if (!user) return [];
-  const channel = mockInstalledUsers.has(userId) ? "email+push" : "email";
+  const channel = installedUsers.has(userId) ? "email+push" : "email";
   const name = user.name.split(" ")[0];
   const reminders: Reminder[] = [];
   const add = (r: Omit<Reminder, "id" | "userId" | "channel">) => reminders.push({ ...r, id: `${r.type}-${r.stayId}-${userId}`, userId, channel });

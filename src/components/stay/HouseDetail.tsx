@@ -46,7 +46,7 @@ function HeaderCard({ stay, badges, actions, menu }: { stay: Stay; badges?: Reac
     <section className={detailCard}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 basis-64">
-          <h2 className="text-2xl font-bold tracking-tight">{stay.title}</h2>
+          <h2 className="text-h2 tracking-tight">{stay.title}</h2>
           <p className="mt-1 text-muted">
             {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
           </p>
@@ -187,7 +187,7 @@ function HostPaymentsSection({ stay }: { stay: Stay }) {
   if (stay.accommodationStatus === "locked") return <PaymentsSection stay={stay} />;
   return (
     <DetailSection title={t("payments")}>
-      <p className="text-[15px] text-muted">{t("notLocked")}</p>
+      <p className="text-body text-muted">{t("notLocked")}</p>
     </DetailSection>
   );
 }
@@ -334,7 +334,7 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
       />
       <div className="pl-[52px]">
         <SocialRow user={applicant} size="sm" />
-        <p className="mt-2 text-[15px] leading-relaxed text-ink">{request.message}</p>
+        <p className="mt-2 text-body leading-relaxed text-ink">{request.message}</p>
         <div className="mt-3 flex flex-wrap items-center gap-5">
           {!isFull && (
             <Button
@@ -425,7 +425,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
             {stay.status === "closed" && <Badge>{t("detail.badges.closed")}</Badge>}
             <AccommodationBadges stay={stay} />
             {request?.status === "pending" && (
-              <span className="text-[13px] text-muted">{host ? t("joined.waiting", { name: hostName }) : t("joined.waitingForHost")}</span>
+              <span className="text-small text-muted">{host ? t("joined.waiting", { name: hostName }) : t("joined.waitingForHost")}</span>
             )}
           </>
         }
@@ -444,8 +444,8 @@ function JoinedHouse({ stay }: { stay: Stay }) {
         <CrewSection stay={stay} />
         {accepted && (
           <DetailSection title={tSection("yourPayment")}>
-            {stay.accommodationStatus === "locked" ? <MyShare stay={stay} variant="panel" /> : <p className="text-[15px] text-muted">{tSection("notLockedGuest")}</p>}
-            <p className="mt-2 text-[13px] text-muted">{tSection("refundNote")}</p>
+            {stay.accommodationStatus === "locked" ? <MyShare stay={stay} variant="panel" /> : <p className="text-body text-muted">{tSection("notLockedGuest")}</p>}
+            <p className="mt-2 text-small text-muted">{tSection("refundNote")}</p>
           </DetailSection>
         )}
         {/* The crew's own WhatsApp / Telegram group: confirmed members, once the crew is complete. */}
@@ -459,7 +459,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               </Button>
             }
           >
-            <p className="text-[15px] text-muted">{tSection("crewGroupText")}</p>
+            <p className="text-body text-muted">{tSection("crewGroupText")}</p>
           </DetailSection>
         )}
         {host && (
@@ -515,15 +515,15 @@ function PastHouse({ stay }: { stay: Stay }) {
             </Button>
           }
         >
-          <p className="text-[15px] text-muted">{tSection("openAgainText")}</p>
+          <p className="text-body text-muted">{tSection("openAgainText")}</p>
         </DetailSection>
         <DetailSection title={tSection("summary")}>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-[15px]">
-            <dt className="text-[13px] leading-[22px] text-muted">{tSection("summaryDates")}</dt>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-body">
+            <dt className="text-small leading-[22px] text-muted">{tSection("summaryDates")}</dt>
             <dd className="text-ink">{f.longRange(stay.startDate, stay.endDate)}</dd>
-            <dt className="text-[13px] leading-[22px] text-muted">{tSection("summaryPlace")}</dt>
+            <dt className="text-small leading-[22px] text-muted">{tSection("summaryPlace")}</dt>
             <dd className="text-ink">{f.placeName(stay)}</dd>
-            <dt className="text-[13px] leading-[22px] text-muted">{tSection("summaryPaid")}</dt>
+            <dt className="text-small leading-[22px] text-muted">{tSection("summaryPaid")}</dt>
             <dd className="tabular-nums text-ink">{paid}</dd>
           </dl>
         </DetailSection>

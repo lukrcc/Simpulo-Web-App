@@ -29,10 +29,9 @@ function useIsPhone(): boolean {
  * The bell (logged in, desktop and mobile header): unread count ("9+" past nine), opening the 10 newest
  * notifications – a 380px popover on desktop, a bottom sheet on phones – with "Mark all as read" and
  * "See all notifications". Apart from Messages.
- * `variant="header"`: the desktop header's 36px circle (surface, line border), `"compact"`: its compact 32px circle with a
- * 16px icon – both mark unread with the header dot only; default: the bare icon with the count (mobile header).
+ * `variant="header"`: the desktop header's 36px circle (surface, line border), marking unread with the header dot only; default: the bare icon with the count (mobile header).
  */
-export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "header" | "compact" }) {
+export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "header" }) {
   const t = useTranslations("notifications");
   const repo = useNotifications();
   const isPhone = useIsPhone();
@@ -69,7 +68,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
   );
   const list =
     items.length === 0 ? (
-      <p className="px-4 py-10 text-center text-sm text-muted">{t("empty")}</p>
+      <p className="px-4 py-10 text-center text-small text-muted">{t("empty")}</p>
     ) : (
       <ul className="divide-y divide-line">
         {items.map((n) => (
@@ -96,12 +95,10 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         aria-expanded={open}
         className={cn(
           "relative flex items-center justify-center rounded-full transition-colors",
-          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "border border-line bg-surface text-ink hover:bg-bg",
-          variant === "header" && "size-9",
-          variant === "compact" && "size-8",
+          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "size-9 border border-line bg-surface text-ink hover:bg-bg",
         )}
       >
-        <Bell className={variant === "plain" ? "size-5" : variant === "header" ? "size-[18px]" : "size-4"} aria-hidden />
+        <Bell className={variant === "plain" ? "size-5" : "size-[18px]"} aria-hidden />
         {/* Header: the dot only (the count is in the label); elsewhere the count itself. */}
         {unread > 0 &&
           (variant !== "plain" ? (
@@ -109,7 +106,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
           ) : (
             <span
               aria-hidden
-              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-ink px-1 text-[10px] font-semibold leading-none text-surface"
+              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-ink px-1 text-small font-semibold leading-none text-surface"
             >
               {unread > 9 ? "9+" : unread}
             </span>

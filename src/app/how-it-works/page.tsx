@@ -19,23 +19,23 @@ export default async function HowItWorksPage() {
   const t = await getTranslations("howItWorks");
   return (
     <Container page>
-      <h1 className="text-4xl font-bold tracking-tight">{t("title")}</h1>
-      <p className="mt-2 text-lg text-muted">
+      <h1 className="text-h1 tracking-tight">{t("title")}</h1>
+      <p className="mt-2 text-body-lg text-muted">
         {t.rich("intro", { b: (chunks) => <span className="font-semibold text-ink">{chunks}</span> })}
       </p>
 
       {/* Grid items stretch, so both cards share the taller one's height. */}
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12">
         <section className={cn(cardClass, "lg:col-span-7")}>
-          <h2 className="text-xl font-semibold tracking-tight text-ink">{t("stepsTitle")}</h2>
+          <h2 className="text-h3 tracking-tight text-ink">{t("stepsTitle")}</h2>
           <ol className="mt-6 space-y-5">
             {STEPS.map((step, i) => (
               <li key={step} className="flex gap-4">
                 <StepNumber n={i + 1} />
                 <div className="min-w-0">
                   {/* leading-8 centres the title on the 32px number circle */}
-                  <h3 className="text-lg font-semibold leading-8 text-ink">{t(`steps.${step}.title`)}</h3>
-                  <p className="text-base leading-normal text-muted">{t(`steps.${step}.text`)}</p>
+                  <h3 className="text-body-lg font-semibold leading-8 text-ink">{t(`steps.${step}.title`)}</h3>
+                  <p className="text-body leading-normal text-muted">{t(`steps.${step}.text`)}</p>
                 </div>
               </li>
             ))}

@@ -65,7 +65,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
             onClick={() => onChange(tab.value)}
             className={cn(
               // Tighter below sm; never narrower than the label – the row scrolls instead.
-              "flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors sm:gap-1.5 sm:px-4 md:min-h-0",
+              "flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-body font-medium transition-colors sm:gap-1.5 sm:px-4 md:min-h-0",
               active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
             )}
           >

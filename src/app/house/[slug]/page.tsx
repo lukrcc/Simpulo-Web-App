@@ -8,10 +8,11 @@ import { HouseGrid } from "@/components/seo/HouseGrid";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HouseSkeleton } from "@/components/skeletons/HouseSkeleton";
 import { StayDetail } from "@/components/views/StayDetail";
-import { citySlugOf, countryOf, getPublicStays, getStayRecord, getStaysByVibe, getUser, isPublicStay } from "@/lib/data/stays";
+import { citySlugOf, countryOf, getPublicStays, getStayRecord, getStaysByVibe, getUser, isPublicStay, PLACEHOLDER_PARAM } from "@/lib/data/stays";
 import { absoluteUrl, breadcrumbList, pageMetadata } from "@/lib/seo";
 import type { Stay } from "@/lib/types";
 import { firstName, firstSentence } from "@/lib/utils";
+import { isListedStay } from "@/lib/launch";
 
 const isDraft = (stay: Stay) => stay.status === "draft" || stay.status === "draft_unclaimed";
 /** Completed by the host – its page stays up (links keep working) and points to similar Houses. */
@@ -19,7 +20,8 @@ const isEnded = (stay: Stay) => stay.status === "completed";
 
 /** Every public House is prerendered; Houses opened in the browser (mock) render on request. */
 export async function generateStaticParams() {
-  return (await getPublicStays()).map((stay) => ({ slug: stay.slug }));
+  const params: { slug: string }[] = (await getPublicStays()).map((stay) => ({ slug: stay.slug }));
+  return params.length > 0 ? params : [{ slug: PLACEHOLDER_PARAM }];
 }
 
 /**
@@ -75,13 +77,13 @@ const MAX_SIMILAR = 4;
 async function SimilarHouses({ stay }: { stay: Stay }) {
   const t = await getTranslations("seo.house");
   const sameVibe = (await getStaysByVibe(stay.vibe)).filter((s) => s.id !== stay.id);
-  const sameCountry = (await getPublicStays()).filter((s) => s.status === "published" && s.id !== stay.id && countryOf(s) === countryOf(stay));
+  const sameCountry = (await getPublicStays()).filter((s) => isListedStay(s) && s.id !== stay.id && countryOf(s) === countryOf(stay));
   const similar = (sameVibe.length > 0 ? sameVibe : sameCountry).slice(0, MAX_SIMILAR);
   if (similar.length === 0) return null;
   return (
     <Container className="mt-16">
       <section aria-labelledby="similar-houses">
-        <h2 id="similar-houses" className="text-2xl font-bold tracking-tight">
+        <h2 id="similar-houses" className="text-h2 tracking-tight">
           {t("similar")}
         </h2>
         <p className="mt-1 text-muted">{t("similarText")}</p>

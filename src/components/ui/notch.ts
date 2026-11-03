@@ -42,7 +42,7 @@ export function notchPath(w: number, h: number, tabW: number, tabH: number, r: n
  * Clips `clipRef` (the card's image, gradient and overlays – one element) to the notched silhouette around the host
  * tab ([data-card-tab]) inside `frameRef`. The tab is a sibling of the clipped element, on the page background; the
  * frame is what scales on hover, so card and notch always move as one. Measured (and re-measured on resize) in the
- * frame's own, unscaled coordinates; until then (server render, before hydration) `data-notch` is "pending" and the
+ * frame's own, untransformed coordinates (offset sizes, so a scale or 3D rotation on the way doesn't count); Until then (server render, before hydration) `data-notch` is "pending" and the
  * tab keeps its old page-coloured corner pieces (globals.css).
  */
 export function useNotchClip(
@@ -65,10 +65,8 @@ export function useNotchClip(
       let tabH = 0;
       // A hidden tab (md:hidden) has no box: then the card is a plain rounded rectangle.
       if (tab && tab.getClientRects().length > 0) {
-        const scale = frame.getBoundingClientRect().width / frame.offsetWidth || 1;
-        const box = tab.getBoundingClientRect();
-        tabW = box.width / scale;
-        tabH = box.height / scale;
+        tabW = tab.offsetWidth;
+        tabH = tab.offsetHeight;
       }
       clip.style.clipPath = `path("${notchPath(w, h, tabW, tabH, Math.min(radius, w / 2, h / 2))}")`;
       frame.dataset.notch = "ready";

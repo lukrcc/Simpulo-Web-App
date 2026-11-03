@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
 import { Img } from "@/components/ui/Img";
 import { useMessageText } from "@/i18n/events";
-import { mockPreviewForUrl } from "@/lib/mock-extras";
+import { previewForUrl } from "@/lib/data";
 import type { Attachment, Message, Stay } from "@/lib/types";
 import { cn, splitLinks } from "@/lib/utils";
 import { dayOf, formatSize } from "./chatUtils";
@@ -29,7 +29,7 @@ export function DayDivider({ day }: { day: string }) {
         : new Intl.DateTimeFormat(locale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
   return (
     <div className="my-5 flex justify-center">
-      <span className="rounded-full bg-surface/80 px-3 py-1 text-xs font-medium text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">{label}</span>
+      <span className="rounded-full bg-surface/80 px-3 py-1 text-small font-medium text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">{label}</span>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export function DayDivider({ day }: { day: string }) {
 export function SystemLine({ message }: { message: Message }) {
   const messageText = useMessageText();
   return (
-    <div className="my-3 flex items-center gap-3 text-xs text-muted">
+    <div className="my-3 flex items-center gap-3 text-small text-muted">
       <span className="h-px flex-1 bg-ink/10" aria-hidden />
       <p className="flex max-w-[80%] items-center gap-1.5 text-center">
         {messageText(message)}
@@ -91,7 +91,7 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
         >
           <Img src={image.url} alt={image.name ?? ""} fill sizes="320px" className="object-cover transition-transform hover:scale-[1.02]" />
           {i === 3 && images.length > 4 && (
-            <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-lg font-semibold text-white">
+            <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-body-lg font-semibold text-white">
               +{images.length - 4}
             </span>
           )}
@@ -120,8 +120,8 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{file.name ?? t("file")}</span>
-        {file.size !== undefined && <span className="block text-xs text-muted">{formatSize(file.size, locale)}</span>}
+        <span className="block truncate text-body font-medium">{file.name ?? t("file")}</span>
+        {file.size !== undefined && <span className="block text-small text-muted">{formatSize(file.size, locale)}</span>}
       </span>
     </a>
   );
@@ -131,7 +131,7 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
 export function ChatLinkCard({ url }: { url: string }) {
   return (
     <div className={cn(CARD_WIDTH, cardClass, "text-left text-ink")}>
-      <LinkPreviewCard href={url} preview={mockPreviewForUrl(url)} layout="row" />
+      <LinkPreviewCard href={url} preview={previewForUrl(url)} layout="row" />
     </div>
   );
 }
@@ -145,11 +145,11 @@ export function DoItAgainCard({ stay, isHost }: { stay: Stay; isHost: boolean })
   return (
     <div className="mt-6 flex justify-center">
       <div className={cn(CARD_WIDTH, cardClass, "text-center text-ink")}>
-        <p className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink">
+        <p className="flex items-center justify-center gap-1.5 text-eyebrow uppercase text-ink">
           <RotateCcw className="size-3.5" aria-hidden />
           {t("title")}
         </p>
-        <p className="mt-2 text-sm text-ink">{isHost ? t("hostText", { title: stay.title }) : t("guestText")}</p>
+        <p className="mt-2 text-body text-ink">{isHost ? t("hostText", { title: stay.title }) : t("guestText")}</p>
         {/* Secondary: the chat page's one primary is Send. */}
         <Button href={againHref(stay.id)} variant="secondary" size="lg" className="mt-4 w-full">
           {t("action")}

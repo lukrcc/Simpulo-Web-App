@@ -155,7 +155,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                 </Chip>
               );
             })}
-            <span className="ml-auto text-[13px] text-muted">{pickingEnd ? t("pickEnd") : t("pickStart")}</span>
+            <span className="ml-auto text-small text-muted">{pickingEnd ? t("pickEnd") : t("pickStart")}</span>
           </div>
 
           <div className="relative grid gap-6 sm:grid-cols-2">
@@ -179,8 +179,8 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
             {months.map((m, i) => (
               // Phones show one month; the arrows step through.
               <div key={m} className={cn(i === 1 && "max-sm:hidden")}>
-                <p className="mb-2 flex h-8 items-center justify-center text-sm font-semibold">{monthName(m)}</p>
-                <div className="grid grid-cols-7 text-center text-[11px] font-medium text-muted">
+                <p className="mb-2 flex h-8 items-center justify-center text-body font-semibold">{monthName(m)}</p>
+                <div className="grid grid-cols-7 text-center text-small font-medium text-muted">
                   {weekdays.map((d, j) => (
                     <span key={j} className="py-1">
                       {d}
@@ -212,7 +212,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                           aria-label={format.day(day)}
                           data-tap="none"
                           className={cn(
-                            "mx-auto flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
+                            "mx-auto flex size-9 items-center justify-center rounded-full text-small tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
                             isStart || isEnd ? "bg-ink font-semibold text-surface" : "enabled:hover:bg-ink/10",
                           )}
                         >
@@ -225,7 +225,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[13px] text-muted">{t("maxNights", { max: maxNights })}</p>
+          <p className="mt-3 text-small text-muted">{t("maxNights", { max: maxNights })}</p>
         </div>
       )}
     </div>

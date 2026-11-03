@@ -60,7 +60,7 @@ const REACTIONS = ["👍", "❤️", "😂", "🔥", "🙌", "👀"];
 // Lines by beat. {name} = someone else in the crew, {city}, {activity}.
 const GREETINGS = [
   "Hey everyone! So excited for this 🙌",
-  "Hi crew 👋 can't wait",
+  "Hi house 👋 can't wait",
   "Hello hello! Just booked my flight",
   "Hey! Happy to be in. Who's been to {city} before?",
 ];
@@ -116,7 +116,7 @@ const DIRECT_LINES = [
   "Let me know if you have any other questions",
   "Will do. Really looking forward to it",
   "👍",
-  "Sent you the details in the crew chat",
+  "Sent you the details in the House chat",
 ];
 
 function fill(template: string, values: { name: string; city: string; activity: string }): string {

@@ -60,7 +60,7 @@ export function AvatarStack({ users, max = 4, size = "sm", linked = false }: Ava
       {rest > 0 && (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-bg text-xs font-medium text-muted ring-2 ring-surface",
+            "flex items-center justify-center rounded-full bg-bg text-small font-medium text-muted ring-2 ring-surface",
             sizeClasses[size],
           )}
         >

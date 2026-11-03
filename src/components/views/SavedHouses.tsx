@@ -15,9 +15,10 @@ import { Switch } from "@/components/ui/Switch";
 import { findUser, getCrew, getCurrentUser, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { HOUSE_GRID } from "@/config/explore";
 
 /** Explore's card grid. */
-const GRID = "grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 min-[90rem]:grid-cols-4";
+const GRID = HOUSE_GRID;
 
 /** /saved (avatar menu → "Saved houses"): the Houses you hearted, in Explore's card grid, plus your host alerts. */
 export function SavedHouses() {
@@ -37,7 +38,7 @@ function SavedContent() {
 
   return (
     <Container page>
-      <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{t("title")}</h1>
+      <h1 className="text-h2 tracking-tight md:text-h1">{t("title")}</h1>
       <p className="mt-2 text-muted">{t("description")}</p>
       {saved.length > 0 ? (
         <ul className={cn("mt-8", GRID)}>
@@ -81,8 +82,8 @@ function HostAlerts() {
 
   return (
     <section className="mt-12 max-w-xl border-t border-line pt-6">
-      <h2 className="text-lg font-semibold">{t("title")}</h2>
-      <p className="mt-0.5 text-sm text-muted">{t("description")}</p>
+      <h2 className="text-body-lg font-semibold">{t("title")}</h2>
+      <p className="mt-0.5 text-small text-muted">{t("description")}</p>
       <ul className="mt-3 divide-y divide-line">
         {hosts.map((host) => {
           const on = alertIds.includes(host.id);
@@ -96,7 +97,7 @@ function HostAlerts() {
                   </Link>
                 }
                 action={
-                  <span className="flex items-center gap-1 text-[13px] text-muted">
+                  <span className="flex items-center gap-1 text-small text-muted">
                     <span aria-hidden>{t("notifyMe")}</span>
                     <Switch on={on} label={t("notifyLabel", { name: host.name.split(" ")[0] })} onChange={() => store.toggleHostAlert(host.id)} />
                   </span>

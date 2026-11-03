@@ -27,7 +27,7 @@ const column = "lg:scroll-pane lg:h-full lg:min-h-0";
  */
 export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false }: MasterDetailProps) {
   return (
-    <Container className="pt-6 md:pt-8 lg:h-[calc(100dvh-var(--header-h))] lg:overflow-hidden lg:pb-6 lg:pt-8">
+    <Container className="pt-6 md:pt-8 lg:h-[calc(100dvh-var(--header-total))] lg:overflow-hidden lg:pb-6 lg:pt-8">
       <div data-app-pane="desktop" className={cn("lg:grid lg:h-full lg:gap-6", fixedList ? "lg:grid-cols-[380px_minmax(0,1fr)]" : "lg:grid-cols-12")}>
         {/* No page title – the list starts 32px under the header; the name stays as the region's label. */}
         <div aria-label={title} className={cn("min-w-0", !fixedList && "lg:col-span-4", "lg:pr-2", column)}>

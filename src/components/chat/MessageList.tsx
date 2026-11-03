@@ -124,15 +124,15 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   return (
     // Slightly darker than the page, so the white / tinted bubbles stand out.
     <div className="relative min-h-0 flex-1 bg-bg">
-      <div ref={paneRef} onScroll={onScroll} className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
-        {count === 0 && !footer && <p className="py-16 text-center text-sm text-muted">{emptyText}</p>}
+      <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
+        {count === 0 && !footer && <p className="py-16 text-center text-small text-muted">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
               <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3">
                 <span className="h-px flex-1 bg-muted/30" aria-hidden />
-                <span className="rounded-full bg-surface/80 px-2.5 py-0.5 text-[11px] font-semibold text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
+                <span className="rounded-full bg-surface/80 px-2.5 py-0.5 text-small font-semibold text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
                   {t("newMessages")}
                 </span>
                 <span className="h-px flex-1 bg-muted/30" aria-hidden />
@@ -196,7 +196,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
                   <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />
                 ))}
               </span>
-              <span className="text-xs text-muted">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
+              <span className="text-small text-muted">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
             </div>
           </div>
         )}
@@ -207,7 +207,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-surface shadow-lg shadow-ink/20 hover:bg-ink/90"
+          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-small font-semibold text-surface shadow-lg shadow-ink/20 hover:bg-ink/90"
         >
           <ArrowDown className="size-3.5" />
           {t("newMessages")}

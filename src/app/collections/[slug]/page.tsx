@@ -9,6 +9,7 @@ import { ExploreFeed } from "@/components/views/ExploreFeed";
 import { collectionBySlug, COLLECTIONS, MIN_COLLECTION_SIZE, type Collection } from "@/lib/collections";
 import { getPublicStays } from "@/lib/data/stays";
 import { breadcrumbList, pageMetadata } from "@/lib/seo";
+import { isListedStay } from "@/lib/launch";
 
 export function generateStaticParams() {
   return COLLECTIONS.map((c) => ({ slug: c.slug }));
@@ -16,7 +17,7 @@ export function generateStaticParams() {
 
 /** Listed Houses in a collection (the server's view – the feed itself reads the browser's store). */
 async function countOf(collection: Collection): Promise<number> {
-  return (await getPublicStays()).filter((s) => s.status === "published" && collection.filter(s)).length;
+  return (await getPublicStays()).filter((s) => isListedStay(s) && collection.filter(s)).length;
 }
 
 export async function generateMetadata({ params }: PageProps<"/collections/[slug]">): Promise<Metadata> {

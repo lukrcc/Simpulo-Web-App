@@ -20,7 +20,7 @@ function PeopleContent() {
   const people = usePeople();
   return (
     <Container page width="narrow">
-      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+      <h1 className="text-h2 tracking-tight">{t("title")}</h1>
       {people.length > 0 && <p className="mt-1 text-muted">{t("subtitle", { count: people.length })}</p>}
       <div className="mt-6">
         <PeopleList variant="page" />

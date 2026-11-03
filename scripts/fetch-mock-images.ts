@@ -3,6 +3,7 @@
  *
  *   npx tsx scripts/fetch-mock-images.ts
  *   npx tsx scripts/fetch-mock-images.ts --redo /mock/users/u3/face.webp /mock/houses/s2/1.webp …
+ *   npx tsx scripts/fetch-mock-images.ts --only=/mock/places/ (only files under that path, plus any --redo ones)
  *
  * --redo replaces the given files with a different photo: their current Pixabay ids go on a reject list
  * (scripts/mock-image-rejects.json) so they're never picked again.
@@ -18,7 +19,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { stays, users } from "../src/lib/mock";
-import { houseThemePath, userFacePath, userPhotoPath } from "../src/lib/mock-images";
+import { houseThemePath, PLACE_COVER_QUERIES, placeCoverPath, userFacePath, userPhotoPath } from "../src/lib/mock-images";
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC = path.join(ROOT, "public");
@@ -218,7 +219,9 @@ async function main() {
 
   // --redo: reject the current photo of each given file and drop it, so the loop below fetches another one.
   const redoAt = process.argv.indexOf("--redo");
-  for (const file of redoAt >= 0 ? process.argv.slice(redoAt + 1) : []) {
+  const redo = redoAt >= 0 ? process.argv.slice(redoAt + 1).filter((a) => !a.startsWith("--")) : [];
+  const only = process.argv.find((a) => a.startsWith("--only="))?.slice("--only=".length);
+  for (const file of redo) {
     const credit = byFile.get(file);
     if (credit?.source === "pixabay" && !rejects.includes(credit.pixabayId)) rejects.push(credit.pixabayId);
     byFile.delete(file);
@@ -226,11 +229,12 @@ async function main() {
   await writeFile(REJECTS, JSON.stringify(rejects) + "\n");
   const used = new Set([...rejects, ...[...byFile.values()].flatMap((c) => (c.source === "pixabay" ? [c.pixabayId] : []))]);
 
-  const jobs = [
+  const jobs: { file: string; query: string; people: boolean; seed: string; orientation?: string }[] = [
     ...users.map((u) => ({ file: userFacePath(u.id), query: u.facePhotoQuery ?? "portrait", people: true, seed: `face-${u.id}` })),
     ...users.flatMap((u) => (u.imageQueries ?? []).slice(1).map((query, i) => ({ file: userPhotoPath(u.id, i + 2), query, people: false, seed: `${u.id}-${i + 2}` }))),
     ...stays.flatMap((s) => (s.themeQueries ?? []).map((query, i) => ({ file: houseThemePath(s.id, i + 1), query, people: false, seed: `${s.id}-${i + 1}` }))),
-  ];
+    ...Object.entries(PLACE_COVER_QUERIES).map(([name, query]) => ({ file: placeCoverPath(name), query, people: false, seed: `place-${name}`, orientation: "horizontal" })),
+  ].filter((job) => !only || job.file.startsWith(only) || redo.includes(job.file));
 
   let downloaded = 0;
   let skipped = 0;
@@ -241,7 +245,7 @@ async function main() {
       continue;
     }
     // Some themes (padel, Railay) only exist as landscape shots – fine, the cards crop to 4:5 anyway. Faces stay portrait.
-    const found = (await pick(job.query, job.people, used)) ?? (job.people ? null : await pick(job.query, false, used, "all"));
+    const found = (await pick(job.query, job.people, used, job.orientation)) ?? (job.people ? null : await pick(job.query, false, used, "all"));
     if (found) {
       used.add(found.hit.id);
       await save(found.hit.largeImageURL, job.file);

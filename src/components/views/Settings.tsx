@@ -125,9 +125,9 @@ function SettingsContent({ me }: { me: User }) {
   return (
     <Container page className="pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("title")}</h1>
+        <h1 className="text-h2 tracking-tight">{t("title")}</h1>
         <div className="flex items-center gap-3">
-          {dirty && <span className="text-sm text-muted">{t("unsaved")}</span>}
+          {dirty && <span className="text-small text-muted">{t("unsaved")}</span>}
           <Button variant="primary" size="md" disabled={!dirty} onClick={save}>
             {t("save")}
           </Button>
@@ -142,7 +142,7 @@ function SettingsContent({ me }: { me: User }) {
                   href={`#${key}`}
                   aria-current={section === key ? "page" : undefined}
                   className={cn(
-                    "flex h-10 items-center rounded-full px-3 text-[15px] font-medium transition-colors md:rounded-lg",
+                    "flex h-10 items-center rounded-full px-3 text-body font-medium transition-colors md:rounded-lg",
                     section === key ? "text-ink" : "text-muted hover:text-ink",
                     section === key && "max-md:bg-surface",
                   )}
@@ -219,7 +219,7 @@ function AccountSection({ me }: { me: User }) {
         </li>
         <li className="pt-4">
           {/* The one destructive text link of the app – red on purpose. */}
-          <button type="button" onClick={() => setDeleting(true)} className="text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
+          <button type="button" onClick={() => setDeleting(true)} className="text-body font-semibold text-red-600 underline-offset-4 hover:underline">
             {tDanger("delete")}
           </button>
         </li>
@@ -309,7 +309,7 @@ function PaymentsSection({ me }: { me: User }) {
 
       <Card title={t("history")}>
         {history.length === 0 ? (
-          <li className="py-2 text-sm text-muted">{t("noHistory")}</li>
+          <li className="py-2 text-small text-muted">{t("noHistory")}</li>
         ) : (
           history.map((payment) => {
             const stay = stayOf(payment.stayId);
@@ -318,7 +318,7 @@ function PaymentsSection({ me }: { me: User }) {
                 <ListRow
                   title={stay?.title ?? t("unknownHouse")}
                   subtitle={payment.paidAt ? f.day(payment.paidAt) : undefined}
-                  aside={<span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>}
+                  aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>}
                   action={<Badge>{t(`status.${payment.status}`)}</Badge>}
                 />
               </li>
@@ -345,14 +345,14 @@ function PaymentsSection({ me }: { me: User }) {
           </Card>
           <Card title={t("payouts")}>
             {payouts.length === 0 ? (
-              <li className="py-2 text-sm text-muted">{t("noPayouts")}</li>
+              <li className="py-2 text-small text-muted">{t("noPayouts")}</li>
             ) : (
               payouts.map(({ stay, amount, done }) => (
                 <li key={stay.id}>
                   <ListRow
                     title={stay.title}
                     subtitle={done ? f.shortRange(stay.startDate, stay.endDate) : `${f.shortRange(stay.startDate, stay.endDate)} · ${t("onHold")}`}
-                    aside={<span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>}
+                    aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>}
                     // "On hold until the booking is confirmed" is a sentence – it reads as the subtitle, the Badge says the state.
                     action={<Badge>{done ? t("paidOut") : t("status.pending")}</Badge>}
                   />
@@ -421,7 +421,7 @@ function PrivacySection({ me }: { me: User }) {
     <>
       <Card title={t("blockedTitle")} description={t("description")}>
         {blocked.length === 0 ? (
-          <li className="py-2 text-sm text-muted">{t("noneBlocked")}</li>
+          <li className="py-2 text-small text-muted">{t("noneBlocked")}</li>
         ) : (
           blocked.map((user) => (
             <li key={user.id}>
@@ -471,7 +471,7 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
       }}
       title={t("sheetTitle")}
     >
-      <p className="text-sm leading-relaxed text-muted">{t("sheetDescription")}</p>
+      <p className="text-small leading-relaxed text-muted">{t("sheetDescription")}</p>
       <div className="mt-5">
         <FormField label={t("typeToConfirm", { word: DELETE_WORD })}>
           <input
@@ -495,8 +495,8 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
 function Card({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <section className={cardClass}>
-      <h2 className="text-lg font-semibold text-ink">{title}</h2>
-      {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+      <h2 className="text-body-lg font-semibold text-ink">{title}</h2>
+      {description && <p className="mt-1 text-small text-muted">{description}</p>}
       <ul className="mt-3 divide-y divide-line">{children}</ul>
     </section>
   );

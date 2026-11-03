@@ -3,18 +3,19 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * md 36px, 14px text, 16px sides (Explore's header row) · sm 32px, 12px sides · compact 32px, 13px text, 14px sides
- * (Explore's compact header) · fit 36px with tight padding (grid cells) · row: the page's own category row (padding
+ * md 36px, 15px text, 16px sides · sm 32px, 12px sides · compact 32px, 13px text, 14px sides
+ * (filter panel, More) · bar: Explore's filter bar, 36px, 14px/500 like the site header's nav · fit 36px with tight padding (grid cells) · row: the page's own category row (padding
  * grows with the width)
  */
-export type ChipSize = "md" | "sm" | "compact" | "fit" | "row";
+export type ChipSize = "md" | "sm" | "compact" | "fit" | "row" | "bar";
 
 const sizes: Record<ChipSize, string> = {
-  md: "h-9 px-4 text-sm",
-  sm: "h-8 px-3 text-[13px]",
-  compact: "h-8 px-3.5 text-[13px]",
-  fit: "h-9 justify-center px-2 text-sm",
-  row: "h-9 px-2.5 text-sm lg:px-3 xl:px-[14px]",
+  md: "h-9 px-4 text-body",
+  sm: "h-8 px-3 text-small",
+  compact: "h-8 px-3.5 text-small",
+  bar: "h-9 px-4 text-nav",
+  fit: "h-9 justify-center px-2 text-body",
+  row: "h-9 px-2.5 text-body lg:px-3 xl:px-[14px]",
 };
 
 /**

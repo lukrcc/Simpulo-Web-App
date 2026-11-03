@@ -41,7 +41,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
           aside={<StatusBadge status={paid ? "paid" : "pending"} />}
           action={
             !paid && (
-              <Button variant="tertiary" onClick={() => setPaying(true)}>
+              <Button variant="tertiary" onClick={() => setPaying(true)} data-preview-action>
                 {t("payNow")}
               </Button>
             )
@@ -54,7 +54,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
 
   if (payment.status === "paid") {
     return (
-      <p className={cn("flex items-center gap-1.5 text-sm text-muted", className)}>
+      <p className={cn("flex items-center gap-1.5 text-small text-muted", className)}>
         <Check className="size-4 text-emerald-600" aria-hidden />
         {t("paid")}
       </p>
@@ -64,14 +64,14 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
   return (
     <div className={cn(cardClass, "flex flex-wrap items-center gap-3", className)}>
       <CreditCard className="size-5 shrink-0 text-muted" aria-hidden />
-      <p className="min-w-0 flex-1 text-sm text-ink">
+      <p className="min-w-0 flex-1 text-body text-ink">
         {t.rich("yourShare", {
           amount: f.price(payment.total, stay.currency),
           date: due ? f.day(due) : "–",
           b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
         })}
       </p>
-      <Button variant="secondary" onClick={() => setPaying(true)}>
+      <Button variant="secondary" onClick={() => setPaying(true)} data-preview-action>
         {t("payNow")}
       </Button>
       <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />

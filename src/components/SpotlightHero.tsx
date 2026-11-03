@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
@@ -14,6 +15,8 @@ import {
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { CardTab } from "@/components/ui/CardTab";
+import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
+import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { useNotchClip } from "@/components/ui/notch";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CarouselControls } from "@/components/ui/CarouselControls";
@@ -25,7 +28,8 @@ import { markHeroSeen } from "@/lib/heroRotation";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
-import { cn, firstName, firstSentence } from "@/lib/utils";
+import { useHouseNavigate } from "@/lib/houseTransition";
+import { cn, firstName, housePhotos } from "@/lib/utils";
 
 /** A slide counts as current once this much of it is visible. */
 const ACTIVE_THRESHOLD = 0.6;
@@ -295,12 +299,16 @@ function stopLink(e: MouseEvent) {
 
 function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, count, phoneHidden, onSelect, photo, onPhoto }: SlideProps) {
   const t = useTranslations("explore");
+  // The cover first, the House's world after it; the host's portrait belongs in their avatar.
+  const photos = housePhotos(stay, host);
   const tc = useTranslations("common.ui.carousel");
   const format = useFormat();
+  const priceLabel = useViewerPriceLabel(stay);
   const href = `/house/${stay.slug}`;
   const frameRef = useRef<HTMLDivElement | null>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   useNotchClip(frameRef, clipRef);
+  const openHouse = useHouseNavigate(stay.id, href, frameRef);
 
   // The whole slide is clickable through a full-size link layer. Inner links/buttons sit above it as siblings –
   // nesting them inside the <a> would be invalid HTML (<a> in <a>). Overlay content is inset 24px (6) on mobile and
@@ -326,34 +334,35 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           cardRef(el);
         }}
         data-notch="pending"
+        data-house-card={stay.id}
         className="notch-frame relative isolate h-full w-full max-md:origin-center"
       >
         <div ref={clipRef} className="relative h-full w-full overflow-hidden rounded-3xl bg-ink max-md:rounded-tl-none">
           {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
-          <div className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
+          <div data-vt="image" className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
             <Img
-              src={host.photos[photo] ?? host.photos[0]}
-              alt={t("cards.hostAlt", { name: host.name, title: stay.title })}
+              src={photos[photo] ?? photos[0]}
+              alt={t("cards.photoAlt", { title: stay.title, number: 1 })}
               fill
               preload={index === 0}
               sizes="(min-width: 1600px) 1536px, 100vw"
               className="object-cover"
             />
             {/* Phones always show the first photo – the thumbnails that switch photos only exist from md up. */}
-            {photo !== 0 && host.photos[0] && (
-              <Img src={host.photos[0]} alt={t("cards.hostAlt", { name: host.name, title: stay.title })} fill sizes="100vw" className="object-cover md:hidden" />
+            {photo !== 0 && photos[0] && (
+              <Img src={photos[0]} alt={t("cards.photoAlt", { title: stay.title, number: 1 })} fill sizes="100vw" className="object-cover md:hidden" />
             )}
           </div>
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/75 to-transparent to-50%" />
+          <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
           <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/45 to-transparent to-30% md:from-ink/35" />
 
-          <Link href={href} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
+          <Link href={href} onNavigate={openHouse} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
 
           {/* Top-right (md+): host photo thumbnails */}
-          {host.photos.length > 1 && (
+          {photos.length > 1 && (
             <div className="absolute right-6 top-4 hidden gap-2 md:right-8 md:top-8 md:flex">
-              {host.photos.slice(0, 3).map((src, i) => (
+              {photos.slice(0, 3).map((src, i) => (
                 <button
                   key={src}
                   type="button"
@@ -377,47 +386,43 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           {/* Bottom: identity, place and crew, then the CTA. Phones: centred and tight (8px), stacked above the dots;
               from md left-aligned at the bottom. Only the title and the CTA take taps (mouse/touch duplicates of the
               slide link – hidden from assistive tech, which uses the full-size link). */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left">
+          <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
             <div className="flex flex-col items-center md:block">
-              <Link href={href} tabIndex={-1} aria-hidden className="pointer-events-auto">
-                <h2 className="line-clamp-2 text-3xl font-bold tracking-tight md:text-5xl">{stay.title}</h2>
+              <Link href={href} onNavigate={openHouse} tabIndex={-1} aria-hidden className="pointer-events-auto">
+                <h2 data-vt="title" className={cn("line-clamp-2 text-h2 md:text-h1", cardTitle)}>{stay.title}</h2>
               </Link>
-              <p className="mt-1 flex items-center gap-1 text-[15px] font-medium text-white/90 md:mt-2 md:text-base">
+              {/* Only where the card has no host tab (phones have one). */}
+              <p className="mt-2 hidden items-center gap-1 text-small text-white/85 md:flex">
                 {t("withHost", { name: firstName(host) })}
                 {host.verified && <VerifiedBadge onDark />}
               </p>
-              <p className="mt-2 line-clamp-2 max-w-2xl text-base text-white/85 md:mt-3 md:text-lg md:text-white/90">
-                {firstSentence(stay.lookingForText)}
-              </p>
-              <p className="mt-2 text-[13px] text-white/80 md:mt-3 md:text-sm">
+              <p className="mt-2 text-small text-white/85">
                 <span className="inline-flex max-w-full items-center gap-1.5">
-                  {format.shortRange(stay.startDate, stay.endDate)} ·{" "}
-                  {/* cn() doesn't merge classes, so the display toggles sit on wrappers, not on PlaceText. */}
-                  <span className="flex min-w-0 md:hidden">
-                    <PlaceText>{format.placeName(stay)}</PlaceText>
-                  </span>
-                  <span className="hidden min-w-0 md:flex">
-                    <PlaceText>{format.placeLabel(stay)}</PlaceText>
-                  </span>
-                  {stay.language && stay.language !== "en" && (
-                    <span className="hidden shrink-0 text-white/65 md:inline">· {format.language(stay.language)}</span>
-                  )}
+                  {format.shortRange(stay.startDate, stay.endDate)} · <PlaceText>{format.placeName(stay)}</PlaceText>
                 </span>
               </p>
+              <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
+              {stay.hostNote && (
+                <p className="mt-1 flex max-w-full items-center gap-1.5 text-small text-white/75">
+                  <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{stay.hostNote}</span>
+                </p>
+              )}
             </div>
             <div className="flex flex-col items-center gap-2 md:items-start md:gap-4">
               <div className="md:hidden">
                 <AvatarStack users={[host, ...guests]} />
               </div>
               <div className="hidden md:block">
-                <CrewAvatars host={host} members={guests} />
+                <CrewAvatars host={host} members={guests} stay={stay} />
               </div>
               {/* Phones: glass pill over the photo; md+: a secondary button (visual only there – the whole slide is the link). */}
               <Link
                 href={href}
+                onNavigate={openHouse}
                 tabIndex={-1}
                 aria-hidden
-                className="glass-dark pointer-events-auto inline-flex h-11 items-center rounded-full px-7 text-sm font-semibold md:hidden"
+                className="glass-dark pointer-events-auto inline-flex h-11 items-center rounded-full px-7 text-body font-semibold md:hidden"
               >
                 {t("viewHouse")}
               </Link>

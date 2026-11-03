@@ -25,9 +25,9 @@ export function HostCard({ host }: { host: User }) {
           {host.verified && <VerifiedBadge />}
         </div>
         <ProHostLabel user={host} className="mt-1" />
-        {host.languages.length > 0 && <p className="mt-0.5 text-sm text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
+        {host.languages.length > 0 && <p className="mt-0.5 text-small text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialRow user={host} size="sm" className="mt-3" />
-        {host.bio && <p className="mt-3 line-clamp-2 text-sm text-ink">{host.bio}</p>}
+        {host.bio && <p className="mt-3 line-clamp-2 text-body text-ink">{host.bio}</p>}
         <Link href={profile} className={buttonStyles("tertiary", "md", "mt-2")}>
           {t("viewProfile")}
         </Link>

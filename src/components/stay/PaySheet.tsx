@@ -37,8 +37,8 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
   const showToast = useToast();
   const payment = getMyPayment(store, stay.id);
 
-  if (!payment) return <p className="text-sm text-muted">{t("nothingToPay")}</p>;
-  if (payment.status === "paid") return <p className="text-sm text-muted">{t("alreadyPaid")}</p>;
+  if (!payment) return <p className="text-small text-muted">{t("nothingToPay")}</p>;
+  if (payment.status === "paid") return <p className="text-small text-muted">{t("alreadyPaid")}</p>;
 
   return (
     <CardPayForm
@@ -133,7 +133,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
       </FormField>
 
       {declined && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-body text-red-700">
           {t("declined")}
         </p>
       )}
@@ -147,9 +147,9 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
 
 function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-3 text-sm">
+    <div className="flex items-center justify-between py-3 text-body">
       <dt className={strong ? "font-semibold text-ink" : "text-muted"}>{label}</dt>
-      <dd className={cn("tabular-nums", strong ? "text-base font-semibold" : "text-ink")}>{value}</dd>
+      <dd className={cn("tabular-nums", strong ? "text-body font-semibold" : "text-ink")}>{value}</dd>
     </div>
   );
 }

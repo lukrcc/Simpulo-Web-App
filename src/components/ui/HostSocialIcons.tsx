@@ -19,7 +19,7 @@ export function HostSocialIcons({ host, className }: { host: Pick<User, "socials
         const Icon = SOCIAL_ICONS[link.platform].icon;
         return <Icon key={`${link.platform}-${link.value}`} className="size-3.5" color="currentColor" />;
       })}
-      {rest > 0 && <span className="text-xs font-medium leading-none">+{rest}</span>}
+      {rest > 0 && <span className="text-small font-medium leading-none">+{rest}</span>}
     </span>
   );
 }

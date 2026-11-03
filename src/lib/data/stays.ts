@@ -1,7 +1,9 @@
-// Server-safe read access to public House data – what crawlers and server-rendered pages may see. Today it reads the
-// mock data; a Firebase implementation of StayRepository replaces `mockRepository` later without touching callers.
+// Server-safe read access to public House data – what crawlers and server-rendered pages may see. It reads the data
+// source (./index.ts: the mock, or the real adapter in production).
 // No client context, no store: these work in server components, generateMetadata, sitemap and OG images alike.
-import { joinRequests as mockRequests, stays as mockStays, users as mockUsers, VIBES } from "../mock";
+import { VIBES } from "../catalog";
+import { isListedStay, withLaunchVisibility } from "../launch";
+import { getHouses, getJoinRequests, getUsers } from "./index";
 import type { JoinRequest } from "../types";
 import type { Stay, User, Vibe } from "../types";
 import { slugify } from "../utils";
@@ -45,7 +47,7 @@ export interface StayRepository {
 const PUBLIC_STATUSES: ReadonlySet<Stay["status"]> = new Set(["published", "booked", "completed"]);
 
 export const isPublicStay = (stay: Stay) => PUBLIC_STATUSES.has(stay.status) && stay.hostId !== "";
-export const isListedStay = (stay: Stay) => stay.status === "published" && stay.hostId !== "";
+export { isListedStay };
 
 export const citySlugOf = (stay: Pick<Stay, "city">) => slugify(stay.city);
 /** "Bali, Indonesia" → "Indonesia" */
@@ -54,7 +56,7 @@ export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").
 /** The order everywhere public: soonest start first. */
 const bySoonest = (a: Stay, b: Stay) => a.startDate.localeCompare(b.startDate);
 
-function createMockRepository(all: readonly Stay[], users: readonly User[], requests: readonly JoinRequest[]): StayRepository {
+function createRepository(all: readonly Stay[], users: readonly User[], requests: readonly JoinRequest[]): StayRepository {
   const listed = () => all.filter(isListedStay).toSorted(bySoonest);
   return {
     getPublicStays: async () => all.filter(isPublicStay).toSorted(bySoonest),
@@ -85,7 +87,10 @@ function createMockRepository(all: readonly Stay[], users: readonly User[], requ
   };
 }
 
-export const stayRepository: StayRepository = createMockRepository(mockStays, mockUsers, mockRequests);
+export const stayRepository: StayRepository = createRepository(withLaunchVisibility(getHouses()), getUsers(), getJoinRequests());
+
+/** Cache Components needs at least one param at build time: with no data yet, one that leads nowhere. */
+export const PLACEHOLDER_PARAM = "__none__";
 
 export const { getPublicStays, getStayBySlug, getStayRecord, getStaysByCity, getStaysByVibe, getUser, getCrew, getCities, getVibes } = stayRepository;
 

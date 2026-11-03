@@ -4,6 +4,7 @@
 import { useSyncExternalStore } from "react";
 import type { Stay, User } from "./types";
 import { openSpots, stayPrice } from "./utils";
+import { isListedStay } from "./launch";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** Weights multiply: a complete card ×2, starting within 30 days ×1.5, opened within the last 7 days ×1.5. */
@@ -17,7 +18,7 @@ const SESSION_KEY = "simpulo:hero";
 
 /** Open, a free spot, not started. `today` "" (server: no clock) skips the start-date check. */
 export function isHeroCandidate(stay: Stay, today: string): boolean {
-  return stay.status === "published" && stay.acceptingRequests && openSpots(stay) > 0 && (today === "" || stay.startDate > today);
+  return isListedStay(stay) && stay.acceptingRequests && openSpots(stay) > 0 && (today === "" || stay.startDate > today);
 }
 
 /** Everything the card shows is there: the host's photo, title, quote and a price or budget. */

@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 import { shortMonth } from "@/components/form/MonthChips";
 import { Container } from "@/components/layout/Container";
 import { FilterChips } from "@/components/ui/FilterChips";
+import { HOUSE_GRID } from "@/config/explore";
 import { WORLD_REGIONS, type WorldRegion } from "@/lib/interests";
+import { cn } from "@/lib/utils";
 import { AddPlaceCard, AddPlaceSheet, DemandCard, useOrderedSpots } from "./InterestRow";
 
 /**
@@ -16,7 +18,7 @@ export function NextView() {
   const t = useTranslations("explore.interests");
   const tRegion = useTranslations("explore.interests.regions");
   const format = useFormatter();
-  const spots = useOrderedSpots();
+  const spots = useOrderedSpots().filter((s) => s.count > 0);
   const [region, setRegion] = useState<WorldRegion | null>(null);
   const [month, setMonth] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -31,8 +33,8 @@ export function NextView() {
 
   return (
     <Container page>
-      <h1 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">{t("title")}</h1>
-      <p className="mt-2 max-w-2xl text-lg text-muted">{t("pageIntro")}</p>
+      <h1 className="text-h2 tracking-tight text-ink md:text-h1">{t("title")}</h1>
+      <p className="mt-2 max-w-2xl text-body-lg text-muted">{t("pageIntro")}</p>
       {regionOptions.length > 1 && (
         <div className="mt-6">
           <FilterChips label={t("regionsLabel")} options={regionOptions} value={region} onChange={setRegion} allLabel={t("allRegions")} />
@@ -43,12 +45,12 @@ export function NextView() {
           <FilterChips label={t("monthsLabel")} options={monthOptions} value={month} onChange={setMonth} allLabel={t("anyMonth")} />
         </div>
       )}
-      <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 min-[90rem]:grid-cols-4">
+      <ul className={cn("mt-6", HOUSE_GRID)}>
         <li className="flex">
           <AddPlaceCard onAdd={() => setAdding(true)} />
         </li>
         {shown.map((spot) => (
-          <li key={spot.placeName} className="flex">
+          <li key={spot.destinationId} className="flex">
             <DemandCard spot={spot} />
           </li>
         ))}

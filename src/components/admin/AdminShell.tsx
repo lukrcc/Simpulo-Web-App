@@ -29,7 +29,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={cn("rounded-full px-3 py-1 text-sm font-medium transition-colors", active ? "bg-surface text-ink" : "text-muted hover:text-ink")}
+                className={cn("rounded-full px-3 py-1 text-body font-medium transition-colors", active ? "bg-surface text-ink" : "text-muted hover:text-ink")}
               >
                 {t(`nav.${key}`)}
               </Link>
@@ -39,7 +39,7 @@ export function AdminShell({ title, intro, aside, children }: { title: string; i
       </div>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-h2 tracking-tight">{title}</h1>
           {intro && <p className="mt-2 text-muted">{intro}</p>}
         </div>
         {aside}

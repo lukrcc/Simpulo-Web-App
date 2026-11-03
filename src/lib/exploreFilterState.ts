@@ -6,7 +6,7 @@
 // right after), so the feed is still prerendered.
 import { useSyncExternalStore } from "react";
 import { EMPTY_FILTERS, parseFilters, withFilters, type ExploreFilters } from "./exploreFilters";
-import { VIBES } from "./mock";
+import { VIBES } from "./catalog";
 
 const KNOWN_VIBES = VIBES.map((v) => v.key);
 const listeners = new Set<() => void>();

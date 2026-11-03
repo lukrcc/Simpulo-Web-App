@@ -1,5 +1,5 @@
 import { guestFee } from "./fees";
-import { VIBES } from "./mock";
+import { VIBES } from "./catalog";
 import type { Currency, Stay, User } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -114,15 +114,14 @@ export function makeId(prefix: string): string {
 export { VIBES };
 
 /**
- * A House's photos: the host's face first, then the House's theme photos. Houses opened in the app have no theme
- * photos, so the rest of the host's own photos fill in.
+ * A House's own photos, cover first: the place and the activity. Houses opened in the app have no theme photos (there's
+ * no step for them yet), so the host's other photos fill in, and as a last resort their face.
  */
-export function stayPhotos(stay: Pick<Stay, "photos" | "coverImageOverride">, host?: Pick<User, "photos">): string[] {
-  const face = host?.photos[0];
+export function housePhotos(stay: Pick<Stay, "photos" | "coverImageOverride">, host?: Pick<User, "photos">): string[] {
   const themes = stay.photos?.length ? stay.photos : (host?.photos.slice(1) ?? []);
   // A pinned cover replaces the first theme photo (and isn't shown twice).
-  const rest = stay.coverImageOverride ? [stay.coverImageOverride, ...themes.slice(1).filter((p) => p !== stay.coverImageOverride)] : themes;
-  return face ? [face, ...rest] : rest;
+  const own = stay.coverImageOverride ? [stay.coverImageOverride, ...themes.slice(1).filter((p) => p !== stay.coverImageOverride)] : themes;
+  return own.length > 0 ? own : (host?.photos.slice(0, 1) ?? []);
 }
 
 export const CURRENCIES: readonly Currency[] = ["EUR", "USD", "GBP", "AUD", "THB", "IDR"];

@@ -4,7 +4,7 @@ import { ArrowUp, FileText, Paperclip, Reply, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
-import { mockPreviewForUrl } from "@/lib/mock-extras";
+import { previewForUrl } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import type { Attachment } from "@/lib/types";
 import { cn, findUrls } from "@/lib/utils";
@@ -119,7 +119,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
       {replyTo && (
         <div className="mb-2 flex items-center gap-2 rounded-xl border border-line bg-surface py-1.5 pl-3 pr-1.5">
           <Reply className="size-4 shrink-0 text-muted" aria-hidden />
-          <div className="min-w-0 flex-1 border-l-[3px] border-ink pl-2 text-xs">
+          <div className="min-w-0 flex-1 border-l-[3px] border-ink pl-2 text-small">
             <p className="font-semibold text-ink">{t("replyingTo", { name: replyTo.name })}</p>
             <p className="truncate text-muted">{replyTo.text}</p>
           </div>
@@ -131,7 +131,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
 
       {preview && (
         <div className="relative mb-2 max-w-[420px]">
-          <LinkPreviewCard href={preview} preview={mockPreviewForUrl(preview)} layout="compact" />
+          <LinkPreviewCard href={preview} preview={previewForUrl(preview)} layout="compact" />
           <button
             type="button"
             onClick={() => setPastedUrl(null)}
@@ -155,8 +155,8 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
                 <div className="flex h-16 w-48 items-center gap-2 rounded-xl border border-line bg-surface px-3">
                   <FileText className="size-5 shrink-0 text-muted" aria-hidden />
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium">{file.name}</p>
-                    <p className="text-[11px] text-muted">{formatSize(file.size, locale)}</p>
+                    <p className="truncate text-small font-medium">{file.name}</p>
+                    <p className="text-small text-muted">{formatSize(file.size, locale)}</p>
                   </div>
                 </div>
               )}
@@ -199,7 +199,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           onPaste={onPaste}
           placeholder={placeholder}
           aria-label={t("messageLabel")}
-          className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] bg-surface px-4 py-2.5 text-sm leading-5 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] outline-none ring-1 ring-transparent transition-shadow placeholder:text-muted focus:ring-line"
+          className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] bg-surface px-4 py-2.5 text-small leading-5 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] outline-none ring-1 ring-transparent transition-shadow placeholder:text-muted focus:ring-line"
         />
         {/* The chat's one primary control: ink, surface icon. */}
         <button

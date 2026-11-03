@@ -74,7 +74,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
               <ArrowLeft className={iconSize} />
             </button>
           )}
-          <h2 id={titleId} className="truncate text-lg font-semibold">
+          <h2 id={titleId} className="truncate text-body-lg font-semibold">
             {title}
           </h2>
         </div>
@@ -87,7 +87,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
           <X className={iconSize} />
         </button>
       </div>
-      {subtitle && <p className="mb-6 mt-1 text-[15px] text-muted">{subtitle}</p>}
+      {subtitle && <p className="mb-6 mt-1 text-body text-muted">{subtitle}</p>}
       <div data-sheet-body>{children}</div>
     </>
   );

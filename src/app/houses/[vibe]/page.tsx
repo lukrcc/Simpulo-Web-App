@@ -4,14 +4,15 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { LandingPage } from "@/components/seo/LandingPage";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { citySlugOf, getStaysByVibe, getVibes, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
+import { citySlugOf, getStaysByVibe, getVibes, MIN_INDEXABLE_HOUSES, PLACEHOLDER_PARAM } from "@/lib/data/stays";
 import { pageMetadata } from "@/lib/seo";
 
 /** Cities linked at the end of a vibe page. */
 const TOP_CITIES = 8;
 
 export async function generateStaticParams() {
-  return (await getVibes()).map((v) => ({ vibe: v.vibe }));
+  const params: { vibe: string }[] = (await getVibes()).map((v) => ({ vibe: v.vibe }));
+  return params.length > 0 ? params : [{ vibe: PLACEHOLDER_PARAM }];
 }
 
 async function vibeOf(key: string) {

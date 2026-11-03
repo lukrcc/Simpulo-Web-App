@@ -4,14 +4,15 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { LandingPage } from "@/components/seo/LandingPage";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { getCities, getStaysByCity, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
+import { getCities, getStaysByCity, MIN_INDEXABLE_HOUSES, PLACEHOLDER_PARAM } from "@/lib/data/stays";
 import { pageMetadata } from "@/lib/seo";
 
 /** "Also popular": other cities shown at the end of the page – same country first, then by Houses. */
 const MAX_RELATED = 4;
 
 export async function generateStaticParams() {
-  return (await getCities()).map((city) => ({ city: city.slug }));
+  const params: { city: string }[] = (await getCities()).map((city) => ({ city: city.slug }));
+  return params.length > 0 ? params : [{ city: PLACEHOLDER_PARAM }];
 }
 
 async function cityOf(slug: string) {

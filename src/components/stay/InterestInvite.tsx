@@ -94,19 +94,19 @@ export function InterestInvite({ stay, className }: { stay: Stay; className?: st
 
   return (
     <section className={cn(cardClass, className)} aria-labelledby={`invite-${stay.id}`}>
-      <h2 id={`invite-${stay.id}`} className="text-lg font-semibold tracking-tight text-ink">
+      <h2 id={`invite-${stay.id}`} className="text-body-lg font-semibold tracking-tight text-ink">
         {t("title", { count: matches.length })}
       </h2>
-      <p className="mt-1 text-sm text-muted">{t("text", { place: stay.city })}</p>
+      <p className="mt-1 text-small text-muted">{t("text", { place: stay.city })}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {shown.length > 0 && <AvatarStack users={shown} size="sm" max={5} />}
-        <p className="text-sm text-muted">
+        <p className="text-small text-muted">
           {names.length > 0 ? (more > 0 ? t("namesAndMore", { names: names.join(", "), count: more }) : names.join(", ")) : t("anonymous", { count: hidden })}
         </p>
       </div>
       <div className="mt-5">
         {invitedAt ? (
-          <p className="flex items-center gap-2 text-sm font-medium text-ink">
+          <p className="flex items-center gap-2 text-body font-medium text-ink">
             <Check className="size-4" aria-hidden />
             {t("sent", { count: matches.length })}
           </p>

@@ -40,7 +40,7 @@ export function Anchored({ anchor, align = "end", ref, className, children }: An
   }, [anchor, align]);
   if (!style) return null;
   return createPortal(
-    <div ref={ref} style={style} className={cn("z-60", className)}>
+    <div ref={ref} data-anchored style={style} className={cn("z-60", className)}>
       {children}
     </div>,
     document.body,

@@ -121,7 +121,7 @@ export function PhotoLightbox({ photos, index, onIndexChange, onClose, alt }: Ph
 
       <p
         aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-sm font-medium text-white/70"
+        className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-small font-medium text-white/70"
       >
         {t("counter", { index: index + 1, total: photos.length })}
       </p>

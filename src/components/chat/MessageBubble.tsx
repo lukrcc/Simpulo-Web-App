@@ -104,19 +104,19 @@ export function MessageBubble(props: MessageBubbleProps) {
       )}
     >
       {replyTo.blocked ? (
-        <span className="line-clamp-1 text-[13px] italic leading-[18px] text-muted">{tSafety("blockedMessage")}</span>
+        <span className="line-clamp-1 text-small italic leading-[18px] text-muted">{tSafety("blockedMessage")}</span>
       ) : (
         <>
-          <span className={cn("block truncate text-xs font-semibold", mine ? "text-ink" : "text-ink")}>
+          <span className={cn("block truncate text-small font-semibold", mine ? "text-ink" : "text-ink")}>
             {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
           </span>
-          <span className="line-clamp-1 text-[13px] leading-[18px] text-muted">{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+          <span className="line-clamp-1 text-small leading-[18px] text-muted">{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
         </>
       )}
     </button>
   );
 
-  const timeStamp = <span className="text-[11px] leading-none text-ink/45 tabular-nums">{time}</span>;
+  const timeStamp = <span className="text-small leading-none text-ink/45 tabular-nums">{time}</span>;
   const hasBubble = !bigEmoji && Boolean(text || quote);
   const reactions = message.reactions ?? [];
 
@@ -136,7 +136,7 @@ export function MessageBubble(props: MessageBubbleProps) {
         onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
         className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? CARD_WIDTH : "max-w-[70%]")}
       >
-        {first && showName && author && <p className="mb-1 px-1 text-[13px] font-semibold text-ink">{author.name.split(" ")[0]}</p>}
+        {first && showName && author && <p className="mb-1 px-1 text-small font-semibold text-ink">{author.name.split(" ")[0]}</p>}
 
         <div
           className={cn(
@@ -148,14 +148,14 @@ export function MessageBubble(props: MessageBubbleProps) {
           {bigEmoji && (
             // Emoji-only: no bubble, big – the time small beside it.
             <div className={cn("flex items-end gap-1.5 px-1", mine && "flex-row-reverse")}>
-              <span className="text-[40px] leading-[1.15]">{text}</span>
+              <span className="text-h1 leading-[1.15]">{text}</span>
               <span className="mb-1.5">{timeStamp}</span>
             </div>
           )}
           {hasBubble && (
             <div
               className={cn(
-                "relative max-w-full rounded-[18px] px-3 pb-1.5 pt-1.5 text-left text-sm leading-5 text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] wrap-break-word",
+                "relative max-w-full rounded-[18px] px-3 pb-1.5 pt-1.5 text-left text-body leading-5 text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] wrap-break-word",
                 mine ? "bg-line" : "bg-surface",
                 last && (mine ? "rounded-br-[6px]" : "rounded-bl-[6px]"),
               )}
@@ -168,7 +168,7 @@ export function MessageBubble(props: MessageBubbleProps) {
               )}
               {/* WhatsApp-style time: an invisible copy reserves room at the end of the last line (or wraps to its own),
                   the visible one sits in the bottom-right corner. */}
-              <span className="invisible ml-2 inline-block text-[11px] leading-none" aria-hidden>
+              <span className="invisible ml-2 inline-block text-small leading-none" aria-hidden>
                 {time}
               </span>
               <span className="absolute bottom-1.5 right-3">{timeStamp}</span>
@@ -209,7 +209,7 @@ export function MessageBubble(props: MessageBubbleProps) {
                   aria-pressed={reacted}
                   aria-label={t("reactionLabel", { emoji: reaction.emoji, count: reaction.userIds.length })}
                   className={cn(
-                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-xs tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] ring-1 transition-colors",
+                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-small tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] ring-1 transition-colors",
                     reacted ? "bg-bg font-medium text-ink ring-ink/30" : "bg-surface text-muted ring-line hover:bg-bg",
                   )}
                 >
@@ -281,7 +281,7 @@ export function MessageBubble(props: MessageBubbleProps) {
                 role="menuitem"
                 onClick={() => props.onReact(emoji)}
                 aria-label={t("reactWith", { emoji })}
-                className="flex size-9 items-center justify-center rounded-full text-xl transition-transform hover:scale-110 hover:bg-bg"
+                className="flex size-9 items-center justify-center rounded-full text-h3 transition-transform hover:scale-110 hover:bg-bg"
               >
                 {emoji}
               </button>
@@ -302,7 +302,7 @@ export function BlockedMessageRow({ first, onShow }: { first: boolean; onShow: (
       <button
         type="button"
         onClick={onShow}
-        className="rounded-[18px] border border-dashed border-line px-3 py-1.5 text-left text-[13px] italic text-muted hover:bg-surface/60"
+        className="rounded-[18px] border border-dashed border-line px-3 py-1.5 text-left text-small italic text-muted hover:bg-surface/60"
       >
         {t("blockedMessage")}
       </button>

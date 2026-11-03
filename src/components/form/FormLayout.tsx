@@ -38,12 +38,12 @@ export function FormGrid({ form, preview, wide = false }: { form: ReactNode; pre
   );
 }
 
-/** Page header inside the FormContainer: optional back arrow + title (text-3xl) on one row, extra content on the right. */
+/** Page header inside the FormContainer: optional back arrow + title (text-h2) on one row, extra content on the right. */
 export function FormHeader({ title, back, aside }: { title: string; back?: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-5 flex items-center gap-3">
       {back}
-      <h1 className="min-w-0 flex-1 truncate text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-h2 tracking-tight">{title}</h1>
       {aside}
     </div>
   );
@@ -55,8 +55,8 @@ export function FormCard({ title, description, id, children, className }: { titl
     <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)] space-y-4", cardClass, className)}>
       {(title || description) && (
         <div>
-          {title && <h2 className="text-base font-medium text-ink">{title}</h2>}
-          {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
+          {title && <h2 className="text-body font-medium text-ink">{title}</h2>}
+          {description && <p className="mt-0.5 text-small text-muted">{description}</p>}
         </div>
       )}
       {children}
@@ -91,16 +91,16 @@ export function FormField({ label, optional = false, helper, error, group = fals
   return (
     <Wrapper id={id} className="block scroll-mt-[calc(var(--header-h)+32px)]" {...(group ? { role: "group", "aria-label": label } : {})}>
       <span className="mb-1.5 flex items-baseline justify-between gap-3">
-        <span className={prominent ? "text-[15px] font-medium text-ink" : "text-sm text-muted"}>{label}</span>
-        {aside ?? (optional && <span className="text-xs text-muted">{t("optional")}</span>)}
+        <span className={prominent ? "text-body font-medium text-ink" : "text-small text-muted"}>{label}</span>
+        {aside ?? (optional && <span className="text-small text-muted">{t("optional")}</span>)}
       </span>
       {children}
       {error ? (
-        <span role="alert" className="mt-1.5 block text-[13px] text-red-600">
+        <span role="alert" className="mt-1.5 block text-small text-red-600">
           {error}
         </span>
       ) : (
-        helper && <span className="mt-1.5 block text-[13px] text-muted">{helper}</span>
+        helper && <span className="mt-1.5 block text-small text-muted">{helper}</span>
       )}
     </Wrapper>
   );
@@ -112,7 +112,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
  * Numbers are typed (inputMode="numeric") – never steppers; the global CSS hides number spinners.
  */
 export const formInput =
-  "h-11 w-full rounded-xl border border-line bg-surface px-4 text-[15px] text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
+  "h-11 w-full rounded-xl border border-line bg-surface px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
 /** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
@@ -120,7 +120,7 @@ export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-rel
 export function FlowProgress({ value, label, className }: { /** 0–1 */ value: number; label: string; className?: string }) {
   return (
     <div className={className}>
-      <p className="mb-2 text-[13px] text-muted" aria-live="polite">
+      <p className="mb-2 text-small text-muted" aria-live="polite">
         {label}
       </p>
       <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label} className="h-1 overflow-hidden rounded-full bg-line">
@@ -152,7 +152,7 @@ export function PreviewColumn({ label, children }: { label?: string; children: R
   const t = useTranslations("common.ui.form");
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-accent">{label ?? t("preview")}</p>
+      <p className="mb-2 text-eyebrow uppercase text-accent">{label ?? t("preview")}</p>
       {children}
     </div>
   );

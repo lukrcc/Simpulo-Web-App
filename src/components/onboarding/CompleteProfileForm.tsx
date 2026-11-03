@@ -85,11 +85,11 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
     <form onSubmit={submit} noValidate className="space-y-4">
       {heading ? (
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">{t("title")}</h2>
-          <p className="mt-1 text-[15px] text-muted">{t("subtitle")}</p>
+          <h2 className="text-h3 tracking-tight">{t("title")}</h2>
+          <p className="mt-1 text-body text-muted">{t("subtitle")}</p>
         </div>
       ) : (
-        <p className="-mt-2 text-[15px] text-muted">{t("subtitle")}</p>
+        <p className="-mt-2 text-body text-muted">{t("subtitle")}</p>
       )}
 
       <FormField label={t("photo")} error={errors.photo && t("errors.photo")} group>
@@ -98,7 +98,7 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
           <div className="w-28 shrink-0">
             <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos, "photo")} slots={1} labels="profile" />
           </div>
-          <p className="text-[13px] text-muted">{t("photoHint")}</p>
+          <p className="text-small text-muted">{t("photoHint")}</p>
         </div>
       </FormField>
 

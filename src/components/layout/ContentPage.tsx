@@ -20,14 +20,14 @@ export function ContentPage({ title, intro, updated, children }: ContentPageProp
   return (
     <Container page width={legal ? "full" : "text"}>
       <article className={cn(legal && "max-w-180")}>
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{title}</h1>
+        <h1 className="text-h2 tracking-tight md:text-h1">{title}</h1>
         {updated && (
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-small text-muted">
             {t("lastUpdated", { date: format.dateTime(new Date(updated), { dateStyle: "long" }) })}
           </p>
         )}
-        {intro && <p className="mt-3 text-lg leading-relaxed text-muted">{intro}</p>}
-        <div className={cn("mt-8 leading-relaxed text-ink", legal ? "space-y-10 text-base" : "space-y-4")}>
+        {intro && <p className="mt-3 text-body-lg leading-relaxed text-muted">{intro}</p>}
+        <div className={cn("mt-8 leading-relaxed text-ink", legal ? "space-y-10 text-body" : "space-y-4")}>
           {children}
         </div>
       </article>
@@ -51,7 +51,7 @@ interface LegalSectionProps {
 export function LegalSection({ id, title, children }: LegalSectionProps) {
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24">
-      <h2 id={`${id}-title`} className="text-xl font-bold tracking-tight text-ink md:text-2xl">
+      <h2 id={`${id}-title`} className="text-h3 tracking-tight text-ink md:text-h2">
         {title}
       </h2>
       <div className="mt-3">
@@ -77,7 +77,7 @@ export function LegalList({ items }: { items: string[] }) {
 export function TodoNote({ children }: { children: ReactNode }) {
   const t = useTranslations("footer.pages");
   return (
-    <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+    <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-body font-medium text-amber-800">
       {t("todo")} {children}
     </p>
   );

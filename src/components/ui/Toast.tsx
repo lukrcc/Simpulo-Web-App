@@ -9,10 +9,12 @@ interface ToastState {
   id: number;
   message: string;
   tone: ToastTone;
+  /** The message is a link to here */
+  href?: string;
 }
 
-/** `durationMs`: how long it stays (default TOAST_MS) */
-type ShowToast = (message: string, tone?: ToastTone, durationMs?: number) => void;
+/** `durationMs`: how long it stays (default TOAST_MS). `href`: the message links there. */
+type ShowToast = (message: string, tone?: ToastTone, durationMs?: number, href?: string) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
 
@@ -25,10 +27,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(0);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
-  const showToast = useCallback<ShowToast>((message, tone = "done", durationMs = TOAST_MS) => {
+  const showToast = useCallback<ShowToast>((message, tone = "done", durationMs = TOAST_MS, href) => {
     nextId.current += 1;
     const id = nextId.current;
-    setToasts((list) => [...list, { id, message, tone }].slice(-MAX_TOASTS));
+    setToasts((list) => [...list, { id, message, tone, href }].slice(-MAX_TOASTS));
     const timer = setTimeout(() => {
       timers.current.delete(timer);
       setToasts((list) => list.filter((t) => t.id !== id));
@@ -51,14 +53,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="animate-toast-in flex max-w-full items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-lg"
+            className="animate-toast-in flex max-w-full items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-body font-medium text-surface shadow-lg"
           >
             {toast.tone === "notify" ? (
               <Bell className="size-4 shrink-0 text-surface/70" />
             ) : (
               <CircleCheck className="size-4 shrink-0 text-surface" />
             )}
-            <span className="truncate">{toast.message}</span>
+            {toast.href ? (
+              <a href={toast.href} className="pointer-events-auto truncate underline underline-offset-4">
+                {toast.message}
+              </a>
+            ) : (
+              <span className="truncate">{toast.message}</span>
+            )}
           </div>
         ))}
       </div>

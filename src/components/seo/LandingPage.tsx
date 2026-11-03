@@ -26,7 +26,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
   return (
     <Container page>
       <JsonLd data={breadcrumbList(breadcrumbs)} />
-      <nav aria-label={t("breadcrumbs.label")} className="text-sm text-muted">
+      <nav aria-label={t("breadcrumbs.label")} className="text-small text-muted">
         <ol className="flex flex-wrap items-center gap-1.5">
           {breadcrumbs.map((crumb, i) => (
             <li key={crumb.path} className="flex items-center gap-1.5">
@@ -44,7 +44,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
           ))}
         </ol>
       </nav>
-      <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">{h1}</h1>
+      <h1 className="mt-4 text-h2 tracking-tight md:text-h1">{h1}</h1>
       <div className="mt-4 max-w-2xl">
         <TodoNote>{intro}</TodoNote>
       </div>
@@ -60,7 +60,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
         .filter((group) => group.links.length > 0)
         .map((group, i) => (
           <section key={group.title} aria-labelledby={`related-${i}`} className={i === 0 ? "mt-16" : "mt-10"}>
-            <h2 id={`related-${i}`} className="text-xl font-semibold tracking-tight">
+            <h2 id={`related-${i}`} className="text-h3 tracking-tight">
               {group.title}
             </h2>
             <ul className="mt-4 flex flex-wrap gap-2">

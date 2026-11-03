@@ -6,13 +6,14 @@ import type { IconType } from "react-icons";
 import { IfHostPremium } from "@/components/host/ProHostSection";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
+import { FooterPopular } from "./FooterPopular";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
 
 /**
- * Site footer below every page: wordmark, claim and socials (top, on the headings' baseline), three plain link columns – Explore,
- * Hosting, Simpulo – and a bottom row with the copyright and the legal links. The city and
- * vibe index lives in its own block above it (ExploreIndex). On mobile a spacer at its end keeps it clear of the
- * bottom bar for the current mode (pill, docked or none) and of the sticky CTAs on routes without the tab bar.
+ * Site footer below every page: wordmark, claim and socials (top, on the headings' baseline), four plain link columns –
+ * Explore, Hosting, Simpulo, Popular – and a bottom row with the copyright and the legal links. On mobile a spacer at its
+ * end keeps it clear of the bottom bar for the current mode (pill, docked or none) and of the sticky CTAs on routes
+ * without the tab bar.
  */
 const SOCIAL_ICONS: Record<SocialNetwork, IconType> = { instagram: SiInstagram, tiktok: SiTiktok, youtube: SiYoutube };
 
@@ -59,15 +60,14 @@ export async function Footer() {
 
   return (
     <footer className="border-t border-line">
-      <Container className="py-10 text-sm text-muted">
+      <Container className="py-10 text-small text-muted">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-baseline md:gap-6">
           {/* Wordmark, claim and socials at the top: the grid aligns first baselines, so the wordmark sits on the
               column headings' baseline. Phones: first, above the links. */}
-          <div className="md:col-span-6">
-            <p className="text-base font-bold tracking-tight text-ink">
+          <div className="md:col-span-4">
+            <p className="text-body font-bold tracking-tight text-ink">
               simpulo<span className="text-accent">.</span>
             </p>
-            <p className="mt-1 text-xs">{t("tagline")}</p>
             {socials.length > 0 && (
               <ul aria-label={t("social.label")} className="mt-4 flex items-center gap-4">
                 {socials.map(([network, url]) => {
@@ -85,7 +85,7 @@ export async function Footer() {
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title} className="md:col-span-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-ink">{column.title}</h2>
+              <h2 className="text-eyebrow uppercase text-ink">{column.title}</h2>
               <ul className="mt-3">
                 {column.links.map(({ href, label, premium }) => {
                   const item = (
@@ -101,10 +101,11 @@ export async function Footer() {
               </ul>
             </nav>
           ))}
+          <FooterPopular />
         </div>
 
         {/* Bottom row across the full width. */}
-        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 text-xs md:flex-row md:items-center md:justify-between">
+        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 text-small md:flex-row md:items-center md:justify-between">
           <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
           <nav aria-label={t("legalLabel")}>
             <ul className="flex flex-wrap items-center gap-x-1.5">

@@ -78,7 +78,7 @@ export function HostApplicationForm() {
           <Check className="size-5" strokeWidth={2.5} aria-hidden />
         </span>
         <div>
-          <p className="text-lg font-semibold">{t("sentTitle")}</p>
+          <p className="text-body-lg font-semibold">{t("sentTitle")}</p>
           <p className="mt-1 text-muted">{t("sentText", { email: sentTo })}</p>
           <Button
             variant="tertiary"

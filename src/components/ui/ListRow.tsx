@@ -27,8 +27,8 @@ export function ListRow({ lead, title, subtitle, aside, action, onClick, disable
     <>
       {lead !== undefined && <span className="flex w-10 shrink-0 items-center justify-center text-muted [&>svg]:size-5">{lead}</span>}
       <span className="block min-w-0 flex-1">
-        <span className="block truncate text-[15px] text-ink">{title}</span>
-        {subtitle && <span className="block truncate text-[13px] text-muted">{subtitle}</span>}
+        <span className="block truncate text-body text-ink">{title}</span>
+        {subtitle && <span className="block truncate text-small text-muted">{subtitle}</span>}
       </span>
       {aside}
       {action && <span className="flex shrink-0 items-center gap-4">{action}</span>}

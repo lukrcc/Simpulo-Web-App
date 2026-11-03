@@ -1,0 +1,19 @@
+import { useTranslations } from "next-intl";
+import type { Stay } from "@/lib/types";
+import { cn, openSpots } from "@/lib/utils";
+
+type CrewStay = Pick<Stay, "spotsTotal" | "spotsFilled" | "spotsInvited" | "spotsReserved">;
+
+/**
+ * How many are in, everywhere a House shows: "Just opened · 4 spots" · "3 of 6 in" · "1 spot left" (accent) · "Crew complete"
+ * (muted). `onDark`: over a card's photo.
+ */
+export function CrewLine({ stay, onDark = false, className }: { stay: CrewStay; onDark?: boolean; className?: string }) {
+  const t = useTranslations("common.ui.crewLine");
+  const open = openSpots(stay);
+  const base = onDark ? "text-white/85" : "text-muted";
+  if (stay.spotsFilled >= stay.spotsTotal) return <span className={cn("text-small", onDark ? "text-white/60" : "text-muted", className)}>{t("complete")}</span>;
+  if (open === 1) return <span className={cn("text-small font-semibold text-accent", className)}>{t("oneLeft")}</span>;
+  if (stay.spotsFilled <= 1) return <span className={cn("text-small", base, className)}>{t("justOpened", { count: open })}</span>;
+  return <span className={cn("text-small", base, className)}>{t("partial", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>;
+}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useSyncExternalStore } from "react";
 import { useFormat } from "@/i18n/format";
-import { convertApprox } from "@/lib/mock-extras";
+import { convertApprox } from "@/lib/rates";
 import type { Stay } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { cn, stayPrice } from "@/lib/utils";
@@ -31,6 +32,19 @@ export function useApproxAmount(stay: PricedStay): string | null {
     : format.approxRange(convertApprox(price.min, stay.currency, preferred), convertApprox(price.max, stay.currency, preferred), preferred);
 }
 
+const noSubscribe = () => () => {};
+
+/**
+ * A card's price line, in the viewer's currency and number format only: "€450 pp", "€400–550 pp" or "Price set with
+ * crew". EUR and "en" on the server and during hydration, so the static HTML is one currency too.
+ */
+export function useViewerPriceLabel(stay: PricedStay): string {
+  const format = useFormat();
+  const currency = usePreferredCurrency() ?? "EUR";
+  const locale = useSyncExternalStore(noSubscribe, () => navigator.language, () => "en");
+  return format.viewerPriceLabel(stay, currency, locale);
+}
+
 /**
  * Fixed price (once locked), rough budget, or "Budget TBD" – one all-in number per person.
  * The fee breakdown only appears later, in the payment step.
@@ -50,7 +64,7 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
     return (
       <div className={className}>
         <p className={cn("font-semibold", price.kind === "tbd" ? "text-muted" : "text-ink")}>{format.priceLabel(stay)}</p>
-        {hostFee && <p className="text-xs text-muted">{tPremium("compactProgramme", { amount: hostFee })}</p>}
+        {hostFee && <p className="text-small text-muted">{tPremium("compactProgramme", { amount: hostFee })}</p>}
       </div>
     );
   }
@@ -64,17 +78,17 @@ export function PriceLine({ stay, size = "sm", compact = false, className }: Pri
 
   return (
     <div className={className}>
-      <p className={cn("font-semibold", size === "lg" ? "text-2xl" : "text-base", price.kind === "tbd" ? "text-muted" : "text-ink")}>
+      <p className={cn("font-semibold", size === "lg" ? "text-h3" : "text-body", price.kind === "tbd" ? "text-muted" : "text-ink")}>
         {amount}
       </p>
       {hostFee && (
-        <p className={cn("mt-1 text-ink", size === "lg" ? "text-base" : "text-sm")}>
+        <p className={cn("mt-1 text-ink", size === "lg" ? "text-body" : "text-body")}>
           {tPremium("programme")} <span className="text-muted/60">·</span> <span className="font-medium tabular-nums">{hostFee}</span>
           <span className="text-muted"> {tPremium("perPerson")}</span>
         </p>
       )}
-      {approx && <p className="mt-0.5 text-[13px] text-muted">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
-      <p className="mt-0.5 text-[13px] text-muted">{t("ui.priceLine.note")}</p>
+      {approx && <p className="mt-0.5 text-small text-muted">{t("ui.priceLine.approx", { amount: approx, currency: stay.currency })}</p>}
+      <p className="mt-0.5 text-small text-muted">{t("ui.priceLine.note")}</p>
     </div>
   );
 }

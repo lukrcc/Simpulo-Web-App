@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  */
 export function ValueCheck({ text, inset = "left-4", maxRight = "right-10" }: { text: string; inset?: string; /** Where the text area ends (before the chevron) */ maxRight?: string }) {
   return (
-    <span aria-hidden className={cn("pointer-events-none absolute inset-y-0 flex min-w-0 items-center overflow-hidden text-[15px]", inset, maxRight)}>
+    <span aria-hidden className={cn("pointer-events-none absolute inset-y-0 flex min-w-0 items-center overflow-hidden text-body", inset, maxRight)}>
       <span className="invisible truncate whitespace-pre">{text}</span>
       <Check className="ml-1.5 size-3.5 shrink-0 text-accent" strokeWidth={3} />
     </span>

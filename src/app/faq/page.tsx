@@ -26,7 +26,7 @@ export default async function FaqPage() {
       <TodoNote>{t("todo")}</TodoNote>
       {FAQ.map((section) => (
         <section key={section.id} id={section.id} aria-labelledby={`faq-${section.id}`} className="pt-4">
-          <h2 id={`faq-${section.id}`} className="text-xl font-semibold tracking-tight text-ink">
+          <h2 id={`faq-${section.id}`} className="text-h3 tracking-tight text-ink">
             {section.title}
           </h2>
           <dl className="mt-4 space-y-5">

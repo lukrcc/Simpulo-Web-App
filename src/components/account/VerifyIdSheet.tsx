@@ -34,15 +34,15 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
       {step === "done" ? (
         <div className="flex flex-col items-center py-4 text-center">
           <BadgeCheck size={48} strokeWidth={1.75} fill="none" className="text-accent" aria-hidden />
-          <p className="mt-4 text-lg font-semibold">{t("successTitle")}</p>
-          <p className="mt-1 text-sm text-muted">{t("successText")}</p>
+          <p className="mt-4 text-body-lg font-semibold">{t("successTitle")}</p>
+          <p className="mt-1 text-small text-muted">{t("successText")}</p>
           <Button variant="primary" size="lg" onClick={close} className="mt-6 w-full">
             {t("done")}
           </Button>
         </div>
       ) : (
         <>
-          <p className="text-sm leading-relaxed text-muted">{t("intro")}</p>
+          <p className="text-small leading-relaxed text-muted">{t("intro")}</p>
           <ul className="mt-3 divide-y divide-line">
             <li>
               <ListRow lead={<IdCard aria-hidden />} title={t("stepId")} />
@@ -61,7 +61,7 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
               t("start")
             )}
           </Button>
-          <p className="mt-3 text-center text-xs text-muted">{t("mockNote")}</p>
+          <p className="mt-3 text-center text-small text-muted">{t("mockNote")}</p>
         </>
       )}
     </Sheet>

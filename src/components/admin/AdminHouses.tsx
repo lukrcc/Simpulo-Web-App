@@ -55,7 +55,7 @@ export function AdminHouses() {
     >
       <section className={cardClass}>
         {prepared.length === 0 ? (
-          <p className="text-sm text-muted">{t("none")}</p>
+          <p className="text-small text-muted">{t("none")}</p>
         ) : (
           <ul className="divide-y divide-line">
             {prepared.map((stay) => (
@@ -88,11 +88,11 @@ function PreparedRow({ stay }: { stay: Stay }) {
           <p className="truncate font-semibold">{stay.title}</p>
           <Badge>{claim.claimedAt ? t("claimed") : t("unclaimed")}</Badge>
         </div>
-        <p className="truncate text-sm text-muted">
+        <p className="truncate text-small text-muted">
           {claim.name} · {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
         </p>
         {claim.claimedAt && (
-          <p className="text-xs text-muted">{t("claimedBy", { name: claimedBy?.name ?? claim.claimedBy ?? "", date: f.day(claim.claimedAt) })}</p>
+          <p className="text-small text-muted">{t("claimedBy", { name: claimedBy?.name ?? claim.claimedBy ?? "", date: f.day(claim.claimedAt) })}</p>
         )}
       </div>
       <div className="flex gap-2">
@@ -175,7 +175,7 @@ export function AdminNewHouse() {
     return (
       <AdminShell title={t("createdTitle")} intro={t("createdText", { name: created.name })}>
         <section className={cn("max-w-2xl", cardClass)}>
-          <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-sm">{link}</p>
+          <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-body">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => void copy(created.token)} className={buttonStyles("secondary", "md")}>
               <Copy className="size-3.5" aria-hidden />

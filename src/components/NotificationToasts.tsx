@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useNotificationText } from "@/i18n/events";
-import { mockInstalledUsers } from "@/lib/mock-extras";
+import { installedUsers } from "@/lib/data";
 import { findUser, NOTIFY_GROUP, settingsOf, useStore } from "@/lib/store";
 
 /**
@@ -33,7 +33,7 @@ export function NotificationToasts() {
       const delivered = records
         .map(({ userId: id }) => {
           const prefs = settingsOf(findUser(store, id)).notifications[group];
-          return { id, email: prefs.email, push: prefs.push && mockInstalledUsers.has(id) };
+          return { id, email: prefs.email, push: prefs.push && installedUsers.has(id) };
         })
         .filter((r) => r.email || r.push);
       if (delivered.length === 0) continue;

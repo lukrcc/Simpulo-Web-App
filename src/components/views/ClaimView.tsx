@@ -12,7 +12,7 @@ import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { linkDomain } from "@/lib/mock-extras";
+import { linkDomain } from "@/lib/links";
 import { useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 
@@ -95,9 +95,9 @@ function ClaimOffer({ stay }: { stay: Stay }) {
         </div>
       </div>
       <div className="mt-8 lg:col-span-7 lg:mt-0 lg:pt-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-ink">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">{t("title")}</h1>
-        <p className="mt-3 max-w-xl text-lg leading-relaxed text-muted">{t("intro")}</p>
+        <p className="text-eyebrow uppercase text-ink">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
+        <h1 className="mt-2 text-h2 tracking-tight md:text-h1">{t("title")}</h1>
+        <p className="mt-3 max-w-xl text-body-lg leading-relaxed text-muted">{t("intro")}</p>
 
         {stay.whyText && <p className={`${cardClass} mt-6 max-w-xl leading-relaxed text-ink`}>{stay.whyText}</p>}
         {claim.sourceLink && (
@@ -122,7 +122,7 @@ function ClaimOffer({ stay }: { stay: Stay }) {
               <StepNumber n={i + 1} />
               <div>
                 <p className="font-semibold">{step.title}</p>
-                <p className="text-sm text-muted">{step.text}</p>
+                <p className="text-small text-muted">{step.text}</p>
               </div>
             </li>
           ))}

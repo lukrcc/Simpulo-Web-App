@@ -22,7 +22,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
   const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
-  const itemClass = "block w-full px-4 py-2.5 text-left text-sm hover:bg-bg";
+  const itemClass = "block w-full px-4 py-2.5 text-left text-body hover:bg-bg";
 
   return (
     <div className={cn("relative", className)}>

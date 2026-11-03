@@ -205,7 +205,7 @@ function EditProfileForm({ me }: { me: User }) {
         <FormCard id={ERROR_TARGET.photo} title={t("photos")} description={t("photosHint", { max: MAX_PHOTOS })}>
           <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos)} slots={MAX_PHOTOS} labels="profile" />
           {error === "photo" && (
-            <p role="alert" className="text-[13px] text-red-600">
+            <p role="alert" className="text-small text-red-600">
               {t("errors.photo")}
             </p>
           )}
@@ -271,7 +271,7 @@ function EditProfileForm({ me }: { me: User }) {
           Cancel puts the form back to the saved profile. */}
       {dirty && (
         <StickyFormBar slideIn>
-          <p className="min-w-0 flex-1 truncate text-sm text-muted" aria-live="polite">
+          <p className="min-w-0 flex-1 truncate text-small text-muted" aria-live="polite">
             {t("unsaved")}
           </p>
           <Button
@@ -389,7 +389,7 @@ function LivePreview({ user }: { user: User }) {
         >
           {user.photos[0] && <Img src={user.photos[0]} alt="" fill sizes="96px" className="object-cover" />}
         </NotchedCard>
-        <p className="text-sm text-muted">{t("photoOnHouses")}</p>
+        <p className="text-small text-muted">{t("photoOnHouses")}</p>
       </div>
     </div>
   );
@@ -477,7 +477,7 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
           <FormField key={link.platform} label={name} error={problem ? t(`errors.${problem}`) : null}>
             <span className={cn(formInput, "flex items-center gap-2 focus-within:ring-2 focus-within:ring-accent")}>
               <Icon className="size-4 shrink-0 text-ink" aria-hidden />
-              {link.platform !== "website" && <span className="shrink-0 text-[15px] text-muted">{HANDLE_PREFIX[link.platform]}</span>}
+              {link.platform !== "website" && <span className="shrink-0 text-body text-muted">{HANDLE_PREFIX[link.platform]}</span>}
               <input
                 value={link.value}
                 onChange={(e) => set(index, e.target.value)}
@@ -487,7 +487,7 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
                 autoCorrect="off"
                 spellCheck={false}
                 aria-invalid={Boolean(problem) || undefined}
-                className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
+                className="h-full min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
               />
               <Button variant="tertiary" onClick={() => onChange(links.filter((_, i) => i !== index))} aria-label={t("removeLink", { platform: name })} className="-mr-2 size-8">
                 <X />
@@ -528,7 +528,7 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
           )}
         </div>
       ) : (
-        <p className="text-[13px] text-muted">{t("linksFull", { max: MAX_SOCIAL_LINKS })}</p>
+        <p className="text-small text-muted">{t("linksFull", { max: MAX_SOCIAL_LINKS })}</p>
       )}
     </div>
   );

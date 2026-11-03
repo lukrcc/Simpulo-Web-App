@@ -28,7 +28,7 @@ function PhotoSheetBody({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-4">
       <PhotoUploader photos={photos} onChange={setPhotos} />
-      <p className="text-xs text-muted">{t("hint")}</p>
+      <p className="text-small text-muted">{t("hint")}</p>
       <Button
         size="lg"
         disabled={!photos[0]}

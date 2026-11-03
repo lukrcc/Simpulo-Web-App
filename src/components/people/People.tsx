@@ -72,7 +72,7 @@ function TogetherIn({ houses, className }: { houses: Stay[]; className?: string 
   const t = useTranslations("people");
   const f = useFormat();
   return (
-    <p className={cn("text-[13px] text-muted", className)}>
+    <p className={cn("text-small text-muted", className)}>
       {t("togetherIn")}{" "}
       {houses.map((h, i) => (
         <span key={h.id}>
@@ -132,7 +132,7 @@ export function PeopleList({ variant, hrefOf = (p) => `/u/${p.user.id}`, activeI
         />
       </label>
       {shown.length === 0 ? (
-        <p className="px-2 py-6 text-sm text-muted">{t("noMatch", { query: query.trim() })}</p>
+        <p className="px-2 py-6 text-small text-muted">{t("noMatch", { query: query.trim() })}</p>
       ) : (
         <ul className={cn("mt-4", panel ? "space-y-1" : "divide-y divide-line rounded-xl border border-line bg-surface px-4")}>
           {shown.map((person) => (
@@ -301,7 +301,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
         <div className="flex items-center gap-4">
           <Avatar user={user} size="xl" />
           <div className="min-w-0">
-            <h2 className="flex items-center gap-1 text-2xl font-bold tracking-tight">
+            <h2 className="flex items-center gap-1 text-h3 tracking-tight">
               <span className="truncate">{user.name}</span>
               {user.verified && <VerifiedBadge />}
             </h2>
@@ -326,7 +326,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
       </section>
 
       <section className={cardClass}>
-        <h2 className="mb-3 text-lg font-semibold">{t("housesTitle", { count: houses.length })}</h2>
+        <h2 className="mb-3 text-body-lg font-semibold">{t("housesTitle", { count: houses.length })}</h2>
         <ul className="divide-y divide-line">
           {houses.map((stay) => (
             <li key={stay.id}>

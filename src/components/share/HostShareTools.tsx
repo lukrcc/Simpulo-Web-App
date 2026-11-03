@@ -9,7 +9,7 @@ import { useFormat } from "@/i18n/format";
 import { shareUrl, type ShareChannel } from "@/lib/growth";
 import { findUser, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
-import { openSpots, stayPhotos } from "@/lib/utils";
+import { housePhotos, openSpots } from "@/lib/utils";
 import { downloadBlob, renderStoryImage } from "./storyImage";
 
 type Tool = "copy" | "story";
@@ -62,7 +62,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
       async () => {
         const blob = await renderStoryImage({
           // The House's own photo first; without one, the host's face.
-          photoUrl: stayPhotos(stay)[0] ?? host?.photos[0],
+          photoUrl: housePhotos(stay)[0] ?? host?.photos[0],
           avatarUrl: host?.photos[0],
           title: stay.title,
           meta,

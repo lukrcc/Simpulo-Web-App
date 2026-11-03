@@ -18,7 +18,7 @@ export default async function SafetyPage() {
       <TodoNote>{t("todo")}</TodoNote>
       {SECTIONS.map((key) => (
         <section key={key} aria-labelledby={`safety-${key}`} className="pt-4">
-          <h2 id={`safety-${key}`} className="text-xl font-semibold tracking-tight text-ink">
+          <h2 id={`safety-${key}`} className="text-h3 tracking-tight text-ink">
             {t(`sections.${key}`)}
           </h2>
           <p className="mt-2">{t("placeholder")}</p>

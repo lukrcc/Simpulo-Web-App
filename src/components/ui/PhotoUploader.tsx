@@ -120,17 +120,17 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                     className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-muted"
                   >
                     <ImagePlus className={cn("size-6", slot === 0 && "text-ink")} aria-hidden />
-                    <span className="text-xs font-medium">{profile ? t("addPhoto") : t(slotLabel(slot))}</span>
-                    {slot === 0 && !profile && <span className="text-[10px] uppercase tracking-wide text-ink">{t("required")}</span>}
+                    <span className="text-small font-medium">{profile ? t("addPhoto") : t(slotLabel(slot))}</span>
+                    {slot === 0 && !profile && <span className="text-eyebrow uppercase text-ink">{t("required")}</span>}
                   </button>
                 )}
               </div>
-              {profile && slot === 0 && <p className="mt-1.5 text-center text-xs font-medium text-muted">{t("face")}</p>}
+              {profile && slot === 0 && <p className="mt-1.5 text-center text-small font-medium text-muted">{t("face")}</p>}
             </div>
           );
         })}
       </div>
-      {!profile && photos.length > 1 && <p className="mt-2 hidden text-xs text-muted md:block">{t("reorderHint")}</p>}
+      {!profile && photos.length > 1 && <p className="mt-2 hidden text-small text-muted md:block">{t("reorderHint")}</p>}
       <input ref={inputRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
     </div>
   );

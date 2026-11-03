@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
-import type { LinkPreview } from "@/lib/mock-extras";
+import type { LinkPreview } from "@/lib/links";
 
 interface LinkPreviewCardProps {
   href: string;
@@ -19,10 +19,10 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   if (layout === "row") {
     return (
       <div className="flex items-center gap-4">
-        <Img src={preview.imageUrl} alt={preview.title} width={96} height={96} className="size-24 shrink-0 rounded-2xl object-cover" />
+        {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} width={96} height={96} className="size-24 shrink-0 rounded-2xl object-cover" />}
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 font-medium leading-snug">{preview.title}</p>
-          <p className="mt-0.5 truncate text-sm text-muted">{preview.domain}</p>
+          <p className="mt-0.5 truncate text-small text-muted">{preview.domain}</p>
           <a
             href={href}
             target="_blank"
@@ -40,10 +40,10 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   if (layout === "compact") {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2">
-        <Img src={preview.imageUrl} alt={preview.title} width={48} height={48} className="size-12 shrink-0 rounded-lg object-cover" />
+        {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} width={48} height={48} className="size-12 shrink-0 rounded-lg object-cover" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{preview.title}</p>
-          <p className="truncate text-xs text-muted">{preview.domain}</p>
+          <p className="truncate text-body font-medium">{preview.title}</p>
+          <p className="truncate text-small text-muted">{preview.domain}</p>
         </div>
         <a href={href} target="_blank" rel="noopener noreferrer" className={buttonStyles("secondary", "md")}>
           {t("open")}
@@ -55,12 +55,12 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-surface">
       <div className="relative aspect-video bg-bg">
-        <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />
+        {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />}
       </div>
       <div className="flex items-center gap-3 p-4">
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 font-medium">{preview.title}</p>
-          <p className="mt-0.5 truncate text-sm text-muted">{preview.domain}</p>
+          <p className="mt-0.5 truncate text-small text-muted">{preview.domain}</p>
         </div>
         <a href={href} target="_blank" rel="noopener noreferrer" className={buttonStyles("secondary", "md")}>
           {t("open")}

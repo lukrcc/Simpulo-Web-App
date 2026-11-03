@@ -20,9 +20,9 @@ export function LanguageChips({ languages, variant = "light", compact = false, c
           key={language}
           className={cn(
             "shrink-0 rounded-full",
-            compact ? "px-2.5 py-0.5 text-[13px]" : "px-3 py-1 text-sm",
+            compact ? "px-2.5 py-0.5 text-small" : "px-3 py-1 text-body",
             variant === "glass"
-              ? "border border-white/20 bg-white/15 text-xs font-medium text-white backdrop-blur-md"
+              ? "border border-white/20 bg-white/15 text-small font-medium text-white backdrop-blur-md"
               : "bg-bg text-ink",
           )}
         >

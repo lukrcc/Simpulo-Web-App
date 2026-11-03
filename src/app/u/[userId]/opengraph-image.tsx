@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/lib/ogFonts";
-import { stays, users } from "@/lib/mock";
+import { getHouses, getUsers } from "@/lib/data";
 import { COLORS } from "@/lib/colors";
 
 export const alt = "Simpulo";
@@ -39,8 +39,8 @@ async function loadPhoto(url: string | undefined): Promise<string | null> {
 export default async function Image({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
   const t = await getTranslations({ locale: "en", namespace: "states.og" });
-  const user = users.find((u) => u.id === userId && !u.deletedAt);
-  const hosted = user ? stays.filter((s) => s.hostId === user.id && s.status !== "draft").length : 0;
+  const user = getUsers().find((u) => u.id === userId && !u.deletedAt);
+  const hosted = user ? getHouses().filter((s) => s.hostId === user.id && s.status !== "draft").length : 0;
   const [photo, fonts] = await Promise.all([loadPhoto(user?.photos[0]), loadOgFonts()]);
 
   return new ImageResponse(

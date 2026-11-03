@@ -105,7 +105,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
           <ArrowLeft />
           {tc("back")}
         </Button>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+        <p className="mb-2 text-eyebrow uppercase text-muted">
           {t("mockProviderLogin", { provider })}
         </p>
         <ul className="scroll-pane max-h-[50vh] divide-y divide-line rounded-xl border border-line">
@@ -119,7 +119,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
                 }}
                 className="block w-full px-4 text-left hover:bg-bg"
               >
-                <ListRow lead={<Avatar user={user} size="md" />} title={user.name} aside={<span className="shrink-0 text-[13px] text-muted">{user.country}</span>} />
+                <ListRow lead={<Avatar user={user} size="md" />} title={user.name} aside={<span className="shrink-0 text-small text-muted">{user.country}</span>} />
               </button>
             </li>
           ))}
@@ -135,8 +135,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
         <AuthButton icon={<FcGoogle />} label={t("continueWithGoogle")} onClick={() => setProvider("Google")} />
         {emailOpen ? <EmailForm onSuccess={loggedIn} /> : <AuthButton icon={<Mail />} label={t("continueWithEmail")} onClick={() => setEmailOpen(true)} />}
       </div>
-      <p className="mt-4 text-[13px] text-muted">{t("dataUse")}</p>
-      <p className="mt-1 text-[13px] text-muted">
+      <p className="mt-1 text-small text-muted">
         {t.rich("legal", {
           terms: (chunks) => (
             <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
@@ -197,7 +196,7 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
 
   if (sentTo) {
     return (
-      <p role="status" className="flex min-h-11 items-center gap-3 rounded-xl bg-bg px-4 py-3 text-[15px] text-ink">
+      <p role="status" className="flex min-h-11 items-center gap-3 rounded-xl bg-bg px-4 py-3 text-body text-ink">
         <MailCheck className="size-5 shrink-0 text-ink" />
         <span>
           {t.rich("checkInbox", { email: sentTo, strong: (chunks) => <span className="font-medium">{chunks}</span> })}
@@ -224,7 +223,7 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
           {t("sendLink")}
         </Button>
       </div>
-      <label className="flex items-center gap-1.5 pl-4 text-xs text-muted">
+      <label className="flex items-center gap-1.5 pl-4 text-small text-muted">
         {t("mockLoginAs")}
         <select
           value={mockUserId}

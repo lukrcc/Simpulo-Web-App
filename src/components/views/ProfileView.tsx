@@ -244,11 +244,11 @@ function ProfileHead({ user, isMe, previewing, onPreview, hosted, joined, onOpen
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="flex items-center gap-1.5 text-3xl font-semibold tracking-tight text-ink">
+        <h1 className="flex items-center gap-1.5 text-h2 tracking-tight text-ink">
           <span className="truncate">{user.name}</span>
           {user.verified && <VerifiedBadge />}
         </h1>
-        <p className="mt-1 text-[15px] text-muted">
+        <p className="mt-1 text-body text-muted">
           {f.ageAndCountry(user)}
           {user.city && ` · ${t("basedIn", { city: user.city })}`}
         </p>
@@ -314,7 +314,7 @@ function Bio({ text }: { text: string }) {
   }, []);
   return (
     <div className="mt-4 max-w-3xl">
-      <p ref={ref} className={cn("text-[15px] leading-[1.6] text-ink", !open && "line-clamp-2")}>
+      <p ref={ref} className={cn("text-body leading-[1.6] text-ink", !open && "line-clamp-2")}>
         {text}
       </p>
       {(overflows || open) && (
@@ -380,7 +380,7 @@ function TabSection({ title, count, action, children }: { title: string; count?:
   return (
     <section>
       <div className="mb-4 flex min-h-9 items-center justify-between gap-4">
-        <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-ink">
+        <h2 className="flex items-center gap-2 text-h3 tracking-tight text-ink">
           {title}
           {count !== undefined && <Badge>{count}</Badge>}
         </h2>
@@ -409,7 +409,7 @@ function HousesTab({ user, isMe, hosted, joined, today }: { user: User; isMe: bo
       ))}
     </div>
   );
-  const empty = (text: string) => <p className="text-[15px] text-muted">{text}</p>;
+  const empty = (text: string) => <p className="text-body text-muted">{text}</p>;
 
   return (
     <div className="space-y-12">
@@ -442,7 +442,7 @@ function PastSection({ stays }: { stays: Stay[] }) {
   const [open, setOpen] = useState(false);
   return (
     <section>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="profile-past" className="flex min-h-9 items-center gap-2 text-xl font-semibold tracking-tight text-ink">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="profile-past" className="flex min-h-9 items-center gap-2 text-h3 tracking-tight text-ink">
         <ChevronRight className={cn("size-5 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
         {t("past")}
         <Badge>{stays.length}</Badge>
@@ -489,18 +489,18 @@ function PhotosTab({ user, isMe, onOpen }: { user: User; isMe: boolean; onOpen: 
     setDragOver(null);
   }
 
-  if (user.photos.length === 0 && !isMe) return <p className="text-[15px] text-muted">{t("noPhotos", { name: firstName(user) })}</p>;
+  if (user.photos.length === 0 && !isMe) return <p className="text-body text-muted">{t("noPhotos", { name: firstName(user) })}</p>;
 
   return (
     <TabSection title={t("photos")} count={user.photos.length}>
-      {isMe && user.photos.length > 1 && <p className="-mt-2 mb-4 text-[13px] text-muted">{t("dragHint")}</p>}
+      {isMe && user.photos.length > 1 && <p className="-mt-2 mb-4 text-small text-muted">{t("dragHint")}</p>}
       <ul className={CARD_GRID}>
         {isMe && user.photos.length < MAX_PHOTOS && (
           <li>
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-line text-base font-semibold text-muted transition-colors hover:bg-surface hover:text-ink"
+              className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-line text-body font-semibold text-muted transition-colors hover:bg-surface hover:text-ink"
             >
               <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink">
                 <ImagePlus className="size-5" aria-hidden />
@@ -559,7 +559,7 @@ function LivedWithTab({ userId }: { userId: string }) {
   const entries: LivedWithEntry[] = livedWithFor(store, userId).filter((e) => !isBlocked(store, e.user.id));
   return (
     <TabSection title={tCrews("livedWith")} count={entries.length}>
-      <p className="-mt-2 mb-4 text-[13px] text-muted">{tCrews("onlyYou")}</p>
+      <p className="-mt-2 mb-4 text-small text-muted">{tCrews("onlyYou")}</p>
       {entries.length > 0 ? (
         <ul className="max-w-3xl divide-y divide-line border-y border-line">
           {entries.map(({ user, house }) => (
@@ -582,7 +582,7 @@ function LivedWithTab({ userId }: { userId: string }) {
           ))}
         </ul>
       ) : (
-        <p className="text-[15px] text-muted">{t("livedWithEmpty")}</p>
+        <p className="text-body text-muted">{t("livedWithEmpty")}</p>
       )}
     </TabSection>
   );
@@ -617,7 +617,7 @@ function NextStopTab({ userId }: { userId: string }) {
         )
       }
     >
-      <p className="-mt-2 mb-4 text-[13px] text-muted">{t("hint")}</p>
+      <p className="-mt-2 mb-4 text-small text-muted">{t("hint")}</p>
       <div className="max-w-3xl space-y-6">
         {adding && (
           <div className="rounded-xl border border-line bg-surface p-6">
@@ -640,7 +640,7 @@ function NextStopTab({ userId }: { userId: string }) {
                       variant="tertiary"
                       aria-label={t("removeLabel", { place: interest.placeName })}
                       // Toggling a place you're in takes you out of it.
-                      onClick={() => store.toggleInterest({ placeName: interest.placeName, country: interest.country, region: interest.region, months: [] }, userId)}
+                      onClick={() => store.toggleInterest({ destinationId: interest.destinationId, placeName: interest.placeName, country: interest.country, region: interest.region, months: [] }, userId)}
                     >
                       {t("remove")}
                     </Button>
@@ -650,7 +650,7 @@ function NextStopTab({ userId }: { userId: string }) {
             ))}
           </ul>
         ) : (
-          !adding && <p className="text-[15px] text-muted">{t("empty")}</p>
+          !adding && <p className="text-body text-muted">{t("empty")}</p>
         )}
       </div>
     </TabSection>
