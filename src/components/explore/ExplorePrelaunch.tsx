@@ -2,26 +2,22 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { DestinationInterestForm } from "@/components/explore/DestinationInterestForm";
-import { AddPlaceCard, AddPlaceSheet, DemandCard, ROW_CARD } from "@/components/explore/InterestRow";
-import { RowHeader, ScrollRow } from "@/components/explore/CollectionRow";
+import { WhereNextContent } from "@/components/explore/WhereNextView";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Container } from "@/components/layout/Container";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
 import { StageBand } from "@/components/ui/StageBand";
-import { hasCardImage, useDemandSpots } from "@/lib/destinations";
 
 /**
  * Explore before the launch: no Spotlight, no grid, no filters, no example Houses. The stage with the opening date and the
- * form for where people want to go; below it what others picked (real counts, only places with 3 or more people), and the
+ * form for where people want to go; below it Where next (the map and the places: real counts, only places with 3 or more people), and the
  * way to open the first House. Houses that exist already work through their own link.
  */
 export function ExplorePrelaunch() {
   const t = useTranslations("explore.prelaunch");
   const tRow = useTranslations("explore.interests");
-  const spots = useDemandSpots().filter(hasCardImage);
-  const [adding, setAdding] = useState(false);
 
   return (
     <div data-explore-blocks className="pb-(--space-section)">
@@ -38,24 +34,10 @@ export function ExplorePrelaunch() {
         </Container>
       </StageBand>
 
-      {spots.length > 0 && (
-        <Container className="pt-(--space-section)">
-          <section aria-labelledby="interests-title">
-            <RowHeader id="interests-title" eyebrow={tRow("eyebrow")} title={tRow("title")} subline={tRow("subline")} />
-            <ScrollRow>
-              {spots.map((spot) => (
-                <div key={spot.destinationId} className={ROW_CARD}>
-                  <DemandCard spot={spot} />
-                </div>
-              ))}
-              <div className={ROW_CARD}>
-                <AddPlaceCard onAdd={() => setAdding(true)} />
-              </div>
-            </ScrollRow>
-            <AddPlaceSheet open={adding} focusOnSave onClose={() => setAdding(false)} />
-          </section>
-        </Container>
-      )}
+      <Container className="pt-(--space-section)">
+        <SectionHeader eyebrow={tRow("eyebrow")} title={tRow("title")} subline={tRow("subline")} />
+        <WhereNextContent />
+      </Container>
 
       <Container className="pt-(--space-section)">
         <h2 className="text-h2 text-ink">{t("hostTitle")}</h2>

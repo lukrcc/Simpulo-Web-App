@@ -3,7 +3,7 @@
 import { Sparkles, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
-import { ScrollRow, RowHeader } from "@/components/explore/CollectionRow";
+import { Shelf } from "@/components/ui/Shelf";
 import { StayCard } from "@/components/StayCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
@@ -111,19 +111,19 @@ export function HostHousesRow({ className }: { className?: string }) {
   return (
     <FullBleedSection className={className}>
       <section aria-labelledby="host-houses">
-        <RowHeader
+        <SectionHeader
           id="host-houses"
           title={t("housesTitle")}
           subline={t("housesSubline")}
           seeAll={{ href: "/explore", label: t("housesSeeAll"), ariaLabel: t("housesSeeAllLabel") }}
         />
-        <ScrollRow>
+        <Shelf>
           {stays.map((stay) => (
-            <div key={stay.id} className="w-90 shrink-0 snap-start">
+            <div key={stay.id} className="w-90 shrink-0">
               <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
             </div>
           ))}
-        </ScrollRow>
+        </Shelf>
       </section>
     </FullBleedSection>
   );

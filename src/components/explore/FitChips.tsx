@@ -4,7 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
+import { Chip, chipStyles, TextChipLabel } from "@/components/ui/Chip";
+import { ChipIndicator } from "@/components/ui/ChipIndicator";
 import { cn } from "@/lib/utils";
 
 export interface ChipOption {
@@ -12,8 +13,8 @@ export interface ChipOption {
   label: string;
 }
 
-/** The chips' gap (gap-2). */
-const GAP = 8;
+/** The chips' gap (gap-1): their padding gives the air. */
+const GAP = 4;
 
 interface FitChipsProps {
   /** The categories, in order: those that fit are shown, all of them are under More */
@@ -26,9 +27,9 @@ interface FitChipsProps {
 }
 
 /**
- * Open Houses' category chips (36px, 14px/500): All, as many categories as fit whole, and always "More ▾" last – no scrolling, no arrows. The row measures its width (ResizeObserver) against the chips' widths,
+ * Open Houses' categories as text chips (36px, 15px/500) with one sliding peach capsule: All, as many categories as fit whole, and always "More ▾" last – no scrolling, no arrows. The row measures its width (ResizeObserver) against the chips' widths,
  * taken from an invisible copy of every chip. A picked category that doesn't fit takes the last visible chip's place.
- * More opens all categories as a 3-column grid (single choice; picking closes it).
+ * More opens all categories as capsule chips in a 3-column grid (single choice; picking closes it).
  */
 export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
   const rowRef = useRef<HTMLDivElement>(null);
@@ -96,39 +97,38 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
 
   return (
     <div ref={rowRef} data-chip-row className="relative w-full min-w-0">
-      {/* Every chip once, invisible – what the row measures. Active ones with their check, More with one (its widest). */}
+      {/* Every chip once, invisible – what the row measures. */}
       {/* Clipped: in the page's flow its full width would otherwise widen the document. */}
       <div className="absolute inset-x-0 top-0 h-0 overflow-hidden">
         <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute left-0 top-0 flex w-max">
-          <span className={chipStyles(value.length === 0, { size: "md" })}>{labels.all}</span>
+          <span className={chipStyles(false, { variant: "text" })}>
+            <TextChipLabel>{labels.all}</TextChipLabel>
+          </span>
           {options.map((o) => (
-            <span key={o.value} className={cn(chipStyles(value.includes(o.value), { size: "md" }), "[&>svg]:size-3.5")}>
-              {value.includes(o.value) && <ChipCheck />}
-              <span>{o.label}</span>
+            <span key={o.value} className={chipStyles(false, { variant: "text" })}>
+              <TextChipLabel>{o.label}</TextChipLabel>
             </span>
           ))}
-          <span className={chipStyles(true, { size: "md" })}>
-            <ChipCheck />
-            {labels.more}
-            <ChevronDown className="size-3.5" aria-hidden />
+          <span className={chipStyles(false, { variant: "text" })}>
+            <TextChipLabel>{labels.more}</TextChipLabel>
+            <ChevronDown aria-hidden />
           </span>
         </div>
       </div>
 
-      <div role="radiogroup" aria-label={labels.row} className={cn("flex items-center gap-2", shown === null && "invisible")}>
-        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={chipStyles(value.length === 0, { size: "md" })}>
+      <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center gap-1", shown === null && "invisible")}>
+        <ChipIndicator />
+        <Chip variant="text" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {labels.all}
-        </button>
+        </Chip>
         {visible.map((o) => (
-          <Chip key={o.value} role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} size="md" title={o.label} onClick={() => pick(o.value)}>
+          <Chip key={o.value} variant="text" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)}>
             {o.label}
           </Chip>
         ))}
-        <button ref={moreRef} type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" className={chipStyles(moreActive, { size: "md" })}>
-          {moreActive && <ChipCheck />}
+        <Chip ref={moreRef} variant="text" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
           {labels.more}
-          <ChevronDown className={cn("size-3.5 transition-transform", moreOpen && "rotate-180")} aria-hidden />
-        </button>
+        </Chip>
       </div>
 
       {moreOpen && (

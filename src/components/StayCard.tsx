@@ -115,7 +115,7 @@ function DefaultStayCard({
       data-house-card={stay.id}
       className={cn(
         spotlight ? "group relative isolate" : "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
-        // In a row (compact) the row lifts the card and casts the shadow instead (.lift-row in globals.css) – and its
+        // In a row (compact) the row lifts the card and casts the shadow instead (.shelf in globals.css) – and its
         // photo doesn't zoom. In the grid: scale and the hover shadow, following the notched silhouette.
         spotlight
           ? "h-full"
@@ -141,8 +141,8 @@ function DefaultStayCard({
         )}
       >
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
-        {/* In the Spotlight (one photo) no scroller: it would keep the carousel's touch-action from applying, and the browser would take the swipe. */}
-        <div ref={ref} onScroll={onScroll} data-vt="image" className={cn("flex h-full", spotlight ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
+        {/* In the Spotlight and on a shelf (one photo) no scroller: it would keep the carousel's touch-action from applying, and the browser would take the swipe. */}
+        <div ref={ref} onScroll={onScroll} data-vt="image" className={cn("flex h-full", spotlight || compact ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
           {photos.length === 0 &&
             (photoPlaceholder ? (
               <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">

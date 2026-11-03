@@ -27,6 +27,9 @@
   --chip-bg: rgba(255, 255, 255, 0.55);
   --chip-bg-hover: rgba(255, 255, 255, 0.8);
   --rail-bg: rgba(255, 255, 255, 0.45);
+  --chip-text-hover: rgba(255, 255, 255, 0.45);
+  --filters-capsule: rgba(255, 255, 255, 0.6);
+  --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
   /* Header (bar + tab): .milk-glass. Solid: without backdrop-filter, and around the header's dots. */
   --header-bg: linear-gradient(90deg, rgba(246, 231, 221, 0.94) 0%, rgba(246, 241, 235, 0.94) 40%, rgba(245, 239, 232, 0.94) 100%);
   --header-solid: #F6F1EB;
@@ -60,6 +63,9 @@
   --text-stage--font-weight: 700;
   --text-stage--letter-spacing: -0.02em;
   --text-stage-sm: 44px;
+  --text-tile: 16px;
+  --text-tile--line-height: 1.3;
+  --text-tile--font-weight: 600;
   --text-nav-main: 16px;
   --text-nav-main--line-height: 1.4;
   --text-nav-main--font-weight: 500;
@@ -293,6 +299,59 @@
 }
 .icon-button:active {
   scale: 0.94;
+}
+/* The chosen text chip's capsule: one element, it slides. Only once placed: its first place takes no time. */
+.chip-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--select-bg);
+  pointer-events: none;
+}
+.chip-indicator[data-placed] {
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1), width 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* Filters: the one capsule in a row of text chips. */
+.filters-capsule {
+  background-color: var(--filters-capsule);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  transition: background-color 150ms;
+}
+.filters-capsule:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+/* A place's tile and circle on /where-next. */
+.tile {
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.tile:has(:focus-visible) {
+  z-index: 2;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+}
+@media (hover: hover) {
+  .tile:hover {
+    z-index: 2;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tile:hover {
+    transform: scale(1.03);
+  }
+}
+.map-spot {
+  transition: opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-indicator[data-placed],
+  .tile,
+  .map-spot {
+    transition: none;
+  }
 }
 /* SegmentedControl */
 .segmented {
@@ -544,40 +603,70 @@ main:has([data-explore-blocks]) {
   .heart-pop { animation: none; }
 }
 
-/* The rows run edge to edge; this pads them to the page gutter (the container's margin, centred at 1680px). */
-.lift-row {
+/* Shelf: one transparent row. The frame runs from window edge to window edge and is exactly as high as the cards, so
+   the arrows centre on them. The viewport's overflow clips vertically too, so its padding is the room for a hovered card
+   and its shadow (scale 1.03 + 16px down + 40px blur: more below than above), taken back by the same negative margins:
+   the layout stays. It leaves that room to the sections around it: only the track takes the pointer. Padded to the page
+   gutter on the left, and the last card's margin brings the row's end back to the same gutter on the right. */
+.shelf-frame {
   --row-gutter: max(var(--page-margin), calc((100vw - var(--scrollbar-w, 0px) - 1680px) / 2));
+  position: relative;
+  display: flow-root;
+  margin-inline: calc(50% - (100vw - var(--scrollbar-w, 0px)) / 2);
 }
-/* Carousel rows (ScrollRow): only the card under the pointer moves – scale 1.03 (no lift; the grid's cards keep their
-   translateY −12px + 1.04), above its neighbours, with a shadow. The card itself (.lift-card: the element that also carries the radius – or, for notched cards, the
-   frame around the clipped layer) takes the transform and the shadow; no wrapper, ring or outline around it. Transform
-   only (no layout shift); the row has room around it. Keyboard focus inside shows the same lift. Reduced motion: just
-   the shadow. drop-shadow instead of box-shadow: it follows the rounded, notched shape. */
-.lift-row .lift-card {
+.shelf {
+  margin-block: -48px -64px;
+  padding: 48px 0 64px var(--row-gutter);
+  overflow: hidden;
+  pointer-events: none;
+}
+.shelf-track {
+  display: flex;
+  gap: 24px;
+  pointer-events: auto;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.shelf-track > * {
+  flex: none;
+}
+.shelf-track > :last-child {
+  margin-right: var(--row-gutter);
+}
+.shelf-track a,
+.shelf-track img {
+  -webkit-user-drag: none;
+}
+/* A card in a shelf: only the one under the pointer moves, scale 1.03 and no lift (the grid's cards keep theirs), above its
+   neighbours, with a shadow. The card itself (.lift-card: the element that also carries the radius, or for notched cards
+   the frame around the clipped layer) takes both; no wrapper, ring or outline around it. Reduced motion: just the shadow.
+   drop-shadow instead of box-shadow, because it follows the notched shape; only while it shows, no filter at rest. Its
+   blur is the standard deviation, a box-shadow's is twice that: 20px here looks like box-shadow 0 16px 40px. */
+.shelf .lift-card {
   position: relative;
   transform-origin: center;
-  filter: drop-shadow(0 16px 40px transparent);
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1), filter 300ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-.lift-row > *:has(.lift-card:hover),
-.lift-row > *:has(:focus-visible) {
+.shelf-track > *:has(.lift-card:hover),
+.shelf-track > *:has(:focus-visible) {
   z-index: 2;
 }
 @media (hover: hover) {
-  .lift-row .lift-card:hover {
-    filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.18));
+  .shelf .lift-card:hover {
+    filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.14));
   }
 }
-.lift-row .lift-card:has(:focus-visible) {
-  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.18));
+.shelf .lift-card:has(:focus-visible) {
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.14));
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .lift-row .lift-card:hover {
+  .shelf .lift-card:hover {
     transform: scale(1.03);
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .lift-row .lift-card:has(:focus-visible) {
+  .shelf .lift-card:has(:focus-visible) {
     transform: scale(1.03);
   }
 }

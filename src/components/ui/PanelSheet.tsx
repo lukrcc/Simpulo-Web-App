@@ -30,6 +30,8 @@ export interface PanelSheetProps {
   titleNote?: ReactNode;
   /** Two columns' room (Filters) */
   wide?: boolean;
+  /** The top of a panel about one thing (a photo with its name): scrolls with the content, with only the X over it. It names the panel itself, `title` is for screen readers */
+  hero?: ReactNode;
   children: ReactNode;
 }
 
@@ -39,7 +41,7 @@ export interface PanelSheetProps {
  * dragging the handle. Above everything but its own popovers. p (0 gone, 1 there) is the only source: position and overlay are
  * worked out from it every frame, dragged or animated.
  */
-export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, wide = false, children }: PanelSheetProps) {
+export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, wide = false, hero, children }: PanelSheetProps) {
   const t = useTranslations("common");
   const titleId = useId();
   const [mounted, setMounted] = useState(open);
@@ -160,7 +162,8 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-labelledby={hero ? undefined : titleId}
+        aria-label={hero ? title : undefined}
         tabIndex={-1}
         data-sheet-panel
         style={{ transform: bottom ? "translateY(100%)" : "translateX(calc(100% + 24px))" }}
@@ -182,18 +185,27 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
             <NotchGrip open={!bottom} hover={false} />
           </span>
         </button>
-        <div data-sheet-head className={cn("flex shrink-0 items-center justify-between gap-4 px-6 pb-3", bottom ? "pt-8" : "pt-5")}>
-          <div className="flex min-w-0 items-baseline gap-3">
-            <h2 id={titleId} className="min-w-0 truncate text-h3 text-ink">
-              {title}
-            </h2>
-            {titleNote && <span className="shrink-0 text-small text-muted">{titleNote}</span>}
+        {hero ? (
+          <div data-sheet-head className="absolute right-3 top-3 z-20">
+            <IconButton onClick={onClose} aria-label={t("close")}>
+              <X className="size-5" aria-hidden />
+            </IconButton>
           </div>
-          <IconButton onClick={onClose} aria-label={t("close")}>
-            <X className="size-5" aria-hidden />
-          </IconButton>
-        </div>
+        ) : (
+          <div data-sheet-head className={cn("flex shrink-0 items-center justify-between gap-4 px-6 pb-3", bottom ? "pt-8" : "pt-5")}>
+            <div className="flex min-w-0 items-baseline gap-3">
+              <h2 id={titleId} className="min-w-0 truncate text-h3 text-ink">
+                {title}
+              </h2>
+              {titleNote && <span className="shrink-0 text-small text-muted">{titleNote}</span>}
+            </div>
+            <IconButton onClick={onClose} aria-label={t("close")}>
+              <X className="size-5" aria-hidden />
+            </IconButton>
+          </div>
+        )}
         <div data-sheet-body className="scroll-pane min-h-0 flex-1">
+          {hero}
           {children}
         </div>
         {footer && <div className="flex shrink-0 items-center justify-between gap-4 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">{footer}</div>}

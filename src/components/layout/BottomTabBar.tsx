@@ -61,7 +61,7 @@ export function BottomTabBar() {
           scrolledAway && "translate-y-full",
         )}
       >
-        <ul className={cn("grid h-full", loggedIn ? "grid-cols-4" : "grid-cols-3")}>
+        <ul className={cn("grid h-full", loggedIn ? "grid-cols-5" : "grid-cols-4")}>
           {items.map(({ href, labelKey, icon: Icon }) => {
             const active = isNavActive(href, pathname);
             return (

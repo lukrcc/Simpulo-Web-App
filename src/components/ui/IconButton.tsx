@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "@/lib/utils";
 
-const SIZES = { sm: "size-9", md: "size-10", lg: "size-11" } as const;
+const SIZES = { xs: "size-8", sm: "size-9", md: "size-10", lg: "size-11" } as const;
 
 /** The classes, for what has to be another element (a link, a menu's trigger). */
 export const iconButtonStyles = (size: keyof typeof SIZES = "md", className?: string) => cn("icon-button flex shrink-0 items-center justify-center rounded-full", SIZES[size], className);

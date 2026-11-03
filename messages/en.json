@@ -209,7 +209,8 @@
       "messages": "Messages",
       "profile": "Profile",
       "host": "Host",
-      "yourHouses": "Your houses"
+      "yourHouses": "Your houses",
+      "whereNext": "Where next"
     },
     "logIn": "Log in",
     "openHouse": "Open a House",
@@ -627,7 +628,6 @@
       "viewProfile": "Profile",
       "seeAll": "See all",
       "seeAllLabel": "See all places people want to go",
-      "pageIntro": "Places people want to go, and when. Say you're in – or host the House and bring them together.",
       "monthsLabel": "Filter by month",
       "anyMonth": "Any month",
       "noneHere": "Nobody has picked this yet – add a place.",
@@ -725,14 +725,36 @@
       "open": "{count, plural, one {# house open} other {# houses open}} →",
       "seeHouses": "See houses →"
     },
-    "destinationsPage": {
-      "title": "Where do you want to go?",
+    "whereNext": {
+      "title": "Where next?",
+      "tagline": "Tell us where and when – hosts see it.",
       "metaDescription": "Places people want to go, and when. Say you're in – or host the House and bring them together.",
       "searchPlaceholder": "Search a city or country",
       "searchLabel": "Search for a place",
       "yourPicks": "Your picks",
       "places": "{count, plural, one {# place} other {# places}}",
-      "noHits": "No places match these filters."
+      "noHits": "No places match these filters.",
+      "monthsMore": "{first} +{count}",
+      "sort": {
+        "most": "Most wanted",
+        "soonest": "Soonest",
+        "az": "A–Z"
+      },
+      "mapLabel": "World map of {count} places people want to go. The same places are listed below.",
+      "tooltipWant": "{count} want to go",
+      "openDetails": "Details for {place}",
+      "addInterest": "I'm interested in {place}",
+      "removeInterest": "Remove {place} from your picks",
+      "panel": {
+        "want": "{count, plural, =0 {Nobody yet – be the first} one {<num></num> wants to go} other {<num></num> want to go}}",
+        "when": "When people want to go",
+        "anytime": "+{count} anytime",
+        "barLabel": "{month}: {count}",
+        "nearby": "Houses open nearby",
+        "noHouse": "No House yet – be the first.",
+        "youreIn": "You're in · Change months",
+        "host": "Host a House here"
+      }
     }
   },
   "house": {

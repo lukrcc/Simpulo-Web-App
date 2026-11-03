@@ -13,7 +13,7 @@ interface PlaceComboboxProps {
   id: string;
   onPick: (place: DestinationCandidate) => void;
   invalid?: boolean;
-  /** The large field at the top of /destinations: 56px, surface, no frame */
+  /** A large field: 56px, surface, no frame */
   large?: boolean;
   placeholder?: string;
   label?: string;

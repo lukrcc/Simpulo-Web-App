@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, type CSSProperties, type RefObject } from "react";
+import { placeShelves, shelfPositions } from "@/lib/shelves";
 
 /*
  * Card → House page and back, with the View Transitions API. Image, title and host tab share a name per House. On the
@@ -75,10 +76,8 @@ function untilSettled(): Promise<void> {
   });
 }
 
-const carouselRows = () => [...document.querySelectorAll<HTMLElement>(".lift-row")];
-
 function rememberOrigin(stayId: string) {
-  origin = { path: window.location.pathname, stayId, scrollY: window.scrollY, rows: carouselRows().map((row) => row.scrollLeft) };
+  origin = { path: window.location.pathname, stayId, scrollY: window.scrollY, rows: shelfPositions() };
 }
 
 /** A House card's Link: `onNavigate` for it. Remembers where the page was and, where possible, runs the navigation in a transition. */
@@ -171,9 +170,7 @@ export function restoreOrigin(pathname: string) {
   origin = null;
   const place = () => {
     window.scrollTo({ top: scrollY, behavior: "instant" });
-    carouselRows().forEach((row, i) => {
-      row.scrollLeft = rows[i] ?? 0;
-    });
+    placeShelves(rows);
   };
   place();
   setTimeout(() => {

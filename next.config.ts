@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       // SEO URLs: House pages moved from /stays/… to /house/…, the imprint to /impressum – old links keep working.
       { source: "/stays/:slug", destination: "/house/:slug", permanent: true },
       { source: "/imprint", destination: "/impressum", permanent: true },
+      // The old addresses of /where-next. A query (?focus=) comes along.
+      { source: "/destinations", destination: "/where-next", permanent: true },
+      { source: "/next", destination: "/where-next", permanent: true },
     ];
   },
   images: {

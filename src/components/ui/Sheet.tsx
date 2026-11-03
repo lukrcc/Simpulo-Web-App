@@ -111,7 +111,7 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, size = "default",
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div className="fixed inset-0 z-[75] flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button
         type="button"
         aria-label={t("close")}

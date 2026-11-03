@@ -383,7 +383,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                   controls={
                     <>
                       {sortInline && (
-                        <SortCapsule label={t(`sortOptions.${filters.sort}`)} size="bar">
+                        <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
                           <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
                         </SortCapsule>
                       )}

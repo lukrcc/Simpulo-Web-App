@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { APP_MODE } from "./appMode";
 import { DESTINATION_MIN_INTEREST, DESTINATIONS_ALL_FROM_HOUSES } from "@/config/explore";
 import { getDestinations } from "./data";
 import { findImageOnce } from "./data/destinationImages";
@@ -157,6 +158,8 @@ export function useNextStopSpots(userId: string, own: boolean): DestinationSpot[
 const isCardImage = (d: Pick<Destination, "coverImage" | "imageSource">) => d.coverImage !== undefined && (d.imageSource === "curated" || d.imageSource === "pexels" || d.imageSource === "fallback-dev");
 /** On a public card only with a real picture: no stage colours for a place in Where next, the grid or the pre-launch row. */
 export const hasCardImage = (spot: DestinationSpot) => isCardImage(spot.destination);
+/** A tile on /where-next: with a picture, and in dev also the fallback's colours, so a place without a fitting photo can be judged. */
+export const hasTile = (spot: DestinationSpot) => hasCardImage(spot) || APP_MODE === "dev";
 /** Curated places have a card without enough people too, once there are enough Houses around to carry an empty one. */
 const isOnCard = (d: Destination, people: number, showAll: boolean) => d.status === "approved" && (people >= DESTINATION_MIN_INTEREST || (showAll && d.imageSource !== "pexels" && getDestinations().some((c) => c.id === d.id)));
 

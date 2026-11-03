@@ -135,7 +135,7 @@ export function ModalOverlay({ open, onClose, labelledBy, panelClassName, initia
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center md:items-center md:p-6">
+    <div className="fixed inset-0 z-[75] flex items-end justify-center md:items-center md:p-6">
       <div aria-hidden onClick={onClose} className="modal-backdrop absolute inset-0" />
       <div
         ref={panelRef}

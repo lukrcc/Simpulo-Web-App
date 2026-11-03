@@ -2,9 +2,9 @@ import type { LucideIcon } from "lucide-react";
 import { NAV_ICONS } from "@/config/nav";
 
 export interface NavItem {
-  href: "/" | "/host" | "/how-it-works" | "/my-stays" | "/inbox" | "/profile";
+  href: "/" | "/where-next" | "/host" | "/how-it-works" | "/my-stays" | "/inbox" | "/profile";
   /** Message key under nav.items */
-  labelKey: "explore" | "host" | "howItWorks" | "houses" | "messages" | "profile";
+  labelKey: "explore" | "whereNext" | "host" | "howItWorks" | "houses" | "messages" | "profile";
   icon: LucideIcon;
   /** Who sees the tab: guests only, logged-in members only, or everyone */
   audience: "guest" | "member" | "all";
@@ -16,6 +16,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", labelKey: "explore", icon: NAV_ICONS.explore, audience: "all" },
+  { href: "/where-next", labelKey: "whereNext", icon: NAV_ICONS.whereNext, audience: "all" },
   // The page for potential hosts.
   { href: "/host", labelKey: "host", icon: NAV_ICONS.host, audience: "guest" },
   { href: "/how-it-works", labelKey: "howItWorks", icon: NAV_ICONS.howItWorks, audience: "guest" },
@@ -25,8 +26,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /**
- * Logged out: Explore · Host · How it works. Logged in – desktop header: Explore · Your houses · Messages (Profile is in
- * the avatar menu); phones' tab bar: Explore · Houses · Messages · Profile.
+ * Logged out: Explore · Where next · Host · How it works. Logged in – desktop header: Explore · Where next · Your houses · Messages
+ * (Profile is in the avatar menu); phones' tab bar: Explore · Where next · Houses · Messages · Profile.
  */
 export function navItemsFor(loggedIn: boolean, place: "header" | "tabBar" = "tabBar"): readonly NavItem[] {
   return NAV_ITEMS.filter(

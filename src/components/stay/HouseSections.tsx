@@ -4,7 +4,7 @@ import { ArrowUpRight, CalendarDays, Check, Home, Languages, LockOpen, Users, ty
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
-import { ScrollRow } from "@/components/explore/CollectionRow";
+import { Shelf } from "@/components/ui/Shelf";
 import { StayCard } from "@/components/StayCard";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
@@ -90,31 +90,35 @@ export function HouseWhy({ stay, host, message }: { stay: Stay; host?: User; mes
 export function HouseCrew({ stay, crew, canJoin, onJoin }: { stay: Stay; crew: User[]; canJoin: boolean; onJoin: () => void }) {
   const t = useTranslations("house.page");
   const open = openSpots(stay);
-  const card = "flex w-44 shrink-0 snap-start flex-col items-center rounded-[20px] p-5 text-center";
+  const card = "flex w-full flex-col items-center rounded-[20px] p-5 text-center";
   return (
     <section aria-labelledby="house-crew" className={SECTION}>
       <SectionHeader id="house-crew" eyebrow={t("crew")} />
-      <ScrollRow>
+      <Shelf>
         {crew.map((member) => (
-          <Link key={member.id} href={`/u/${member.id}`} className={cn(card, "bg-surface transition-colors hover:bg-surface/70")}>
-            <PersonPhoto src={member.photos[0]} alt={member.name} size={64} className="size-16" />
-            <p className="mt-3 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</p>
-            <p className="max-w-full truncate text-small text-muted">{member.country}</p>
-            {member.id === stay.hostId && <Badge className="mt-2">{t("hostBadge")}</Badge>}
-          </Link>
-        ))}
-        {Array.from({ length: open }, (_, i) => (
-          <div key={i} className={cn(card, "justify-center border-2 border-dashed border-line")}>
-            <span aria-hidden className="size-16 rounded-full bg-ink/5" />
-            <p className="mt-3 text-body font-semibold text-ink">{canJoin ? t("yourSpot") : t("openSpot")}</p>
-            {canJoin && (
-              <Button variant="tertiary" onClick={onJoin} data-preview-action className="mt-1">
-                {t("joinSpot")}
-              </Button>
-            )}
+          <div key={member.id} className="flex w-44 shrink-0">
+            <Link href={`/u/${member.id}`} className={cn(card, "lift-card bg-surface")}>
+              <PersonPhoto src={member.photos[0]} alt={member.name} size={64} className="size-16" />
+              <p className="mt-3 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</p>
+              <p className="max-w-full truncate text-small text-muted">{member.country}</p>
+              {member.id === stay.hostId && <Badge className="mt-2">{t("hostBadge")}</Badge>}
+            </Link>
           </div>
         ))}
-      </ScrollRow>
+        {Array.from({ length: open }, (_, i) => (
+          <div key={i} className="flex w-44 shrink-0">
+            <div className={cn(card, "justify-center border-2 border-dashed border-line")}>
+              <span aria-hidden className="size-16 rounded-full bg-ink/5" />
+              <p className="mt-3 text-body font-semibold text-ink">{canJoin ? t("yourSpot") : t("openSpot")}</p>
+              {canJoin && (
+                <Button variant="tertiary" onClick={onJoin} data-preview-action className="mt-1">
+                  {t("joinSpot")}
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </Shelf>
     </section>
   );
 }
@@ -127,14 +131,16 @@ export function HouseDay({ stay }: { stay: Stay }) {
   return (
     <section aria-labelledby="house-day" className={SECTION}>
       <SectionHeader id="house-day" eyebrow={t("day")} />
-      <ScrollRow>
+      <Shelf>
         {stops.map((stop) => (
-          <div key={`${stop.time}-${stop.label}`} className="w-55 shrink-0 snap-start rounded-[20px] bg-surface p-5">
-            <p className="text-small text-accent">{stop.time}</p>
-            <p className="mt-1 text-body font-semibold text-ink">{stop.label}</p>
+          <div key={`${stop.time}-${stop.label}`} className="flex w-55 shrink-0">
+            <div className="w-full rounded-[20px] bg-surface p-5">
+              <p className="text-small text-accent">{stop.time}</p>
+              <p className="mt-1 text-body font-semibold text-ink">{stop.label}</p>
+            </div>
           </div>
         ))}
-      </ScrollRow>
+      </Shelf>
     </section>
   );
 }
@@ -261,13 +267,13 @@ export function HouseMore({ stay }: { stay: Stay }) {
   return (
     <section aria-labelledby="house-more" className={SECTION}>
       <SectionHeader id="house-more" eyebrow={t("more")} />
-      <ScrollRow>
+      <Shelf>
         {more.map((s) => (
-          <div key={s.id} className="w-90 shrink-0 snap-start">
+          <div key={s.id} className="w-90 shrink-0">
             <StayCard stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} compact />
           </div>
         ))}
-      </ScrollRow>
+      </Shelf>
     </section>
   );
 }

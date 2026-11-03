@@ -3,7 +3,6 @@
 import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { buttonStyles, type ButtonSize } from "@/components/ui/ActionButton";
 import { ListRow } from "@/components/ui/ListRow";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -46,7 +45,7 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={buttonStyles("secondary", "bar", cn("font-semibold", className))}
+      className={cn("filters-capsule inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-body font-semibold text-ink [&>svg]:size-4", className)}
     >
       <SlidersHorizontal aria-hidden />
       {t("filters")}
@@ -414,7 +413,7 @@ function useChipScroller() {
 }
 
 /** Closes something on a pointer down outside `root` (and outside `also`, e.g. a portalled panel) and on Escape (focus back to `returnTo`). */
-function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>, returnTo?: React.RefObject<HTMLElement | null>, also?: React.RefObject<HTMLElement | null>) {
+export function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>, returnTo?: React.RefObject<HTMLElement | null>, also?: React.RefObject<HTMLElement | null>) {
   const closeRef = useRef(close);
   useEffect(() => {
     closeRef.current = close;
@@ -440,7 +439,7 @@ function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTML
 }
 
 /** The sort choices as radio rows – the capsule's popover and the panel's Sort section. */
-export function SortList({ options, value, onChange }: { options: ReadonlyArray<{ value: SortKey; label: string }>; value: SortKey; onChange: (sort: SortKey) => void }) {
+export function SortList<T extends string = SortKey>({ options, value, onChange }: { options: ReadonlyArray<{ value: T; label: string }>; value: T; onChange: (sort: T) => void }) {
   // Its own radio group name: the list can be on the page more than once (header, compact header, panel).
   const name = useId();
   return (
@@ -455,10 +454,10 @@ export function SortList({ options, value, onChange }: { options: ReadonlyArray<
 }
 
 /**
- * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px capsule with the current order
+ * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px text chip with the current order
  * that opens the same choices as the panel's Sort section, right under it.
  */
-export function SortCapsule({ label, children, size = "md" }: { label: string; children: ReactNode; /** "lg": 44px (Explore's header) */ size?: ButtonSize }) {
+export function SortCapsule({ label, children }: { label: string; children: ReactNode }) {
   const t = useTranslations("explore");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -475,10 +474,11 @@ export function SortCapsule({ label, children, size = "md" }: { label: string; c
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${t("sort")}: ${label}`}
-        className={buttonStyles("secondary", size)}
+        className={chipStyles(false, { variant: "text" })}
       >
-        <ArrowUpDown aria-hidden />
+        <ArrowUpDown className="sm:hidden" aria-hidden />
         <span className="max-sm:sr-only">{label}</span>
+        <ChevronDown className={cn("transition-transform max-sm:hidden", open && "rotate-180")} aria-hidden />
       </button>
       {open && (
         // In a portal: the site header clips its overflow.
