@@ -13,13 +13,13 @@ interface ContainerProps {
   className?: string;
 }
 
-const MEASURE = { full: undefined, narrow: "max-w-3xl", text: "max-w-2xl" } as const;
+const MEASURE = { full: undefined, narrow: "max-w-[720px]", text: "max-w-[680px]" } as const;
 
-/** The one layout token: 1600px max, 16px / 32px side padding. Pages never set their own widths or paddings. */
+/** The one layout token: at most 1680px, with the window's fluid margin (.page-container). Pages never set their own widths or paddings. */
 export function Container({ children, page = false, width = "full", className }: ContainerProps) {
   const measure = MEASURE[width];
   return (
-    <div className={cn("mx-auto w-full max-w-[1600px] px-4 md:px-8", page && "pt-6 md:pt-10", className)}>
+    <div className={cn("page-container", page && "pt-6 md:pt-10", className)}>
       {measure ? <div className={measure}>{children}</div> : children}
     </div>
   );

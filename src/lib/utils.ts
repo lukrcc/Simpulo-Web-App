@@ -1,6 +1,6 @@
 import { guestFee } from "./fees";
 import { VIBES } from "./catalog";
-import type { Currency, Stay, User } from "./types";
+import type { Currency, Stay, TypicalDayStop, User } from "./types";
 
 const DAY_MS = 86_400_000;
 
@@ -213,4 +213,26 @@ export function splitList(input: string, separator: RegExp = /[,\n]/): string[] 
         .filter(Boolean),
     ),
   );
+}
+
+const DAY_PARTS = ["Morning", "Midday", "Afternoon", "Evening", "Night"];
+const CLOCK = /^(\d{1,2}:\d{2}(?:[–-]\d{1,2}:\d{2})?)\s+(.+)$/;
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * A House's typical day as stations: its own, or read from dayText. "07:00 gym · market breakfast · free day": a clock time at
+ * the start stays the station's time, the others get a part of the day by their place in the line. Text without that
+ * separator is one station per sentence.
+ */
+export function typicalDayOf(stay: Pick<Stay, "typicalDay" | "dayText">): TypicalDayStop[] {
+  if (stay.typicalDay) return stay.typicalDay;
+  const text = stay.dayText.trim().replace(/\.$/, "");
+  if (!text) return [];
+  const parts = text.split(/\s+·\s+/);
+  if (parts.length === 1) return text.split(/\.\s+/).map((label) => ({ time: "Day to day", label: capitalised(label) }));
+  return parts.map((part, i) => {
+    const clock = part.match(CLOCK);
+    if (clock) return { time: clock[1], label: capitalised(clock[2]) };
+    return { time: DAY_PARTS[Math.round((i / (parts.length - 1)) * (DAY_PARTS.length - 1))], label: capitalised(part) };
+  });
 }

@@ -135,7 +135,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
                 <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.revenue")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line border-t border-line">
+            <tbody className="">
               {shown.map((row) => (
                 <tr key={row.key}>
                   <td className="max-w-64 truncate py-2.5 font-medium">{label(row.key)}</td>
@@ -147,7 +147,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
                 </tr>
               ))}
             </tbody>
-            <tfoot className="border-t border-line font-semibold">
+            <tfoot className="font-semibold">
               <tr>
                 <td className="py-2.5" />
                 <td className={num}>{total.visits}</td>
@@ -180,7 +180,7 @@ function AlertsCard() {
       {alerts.length === 0 ? (
         <p className="text-small text-muted">{t("none")}</p>
       ) : (
-        <ul className="divide-y divide-line text-body">
+        <ul className="text-body">
           {alerts.toReversed().map((a) => (
             <li key={a.id} className="py-2.5">
               {t("alertRow", {
@@ -208,7 +208,7 @@ function ApplicationsCard() {
       {applications.length === 0 ? (
         <p className="text-small text-muted">{t("none")}</p>
       ) : (
-        <ul className="divide-y divide-line text-body">
+        <ul className="text-body">
           {applications.toReversed().map((a) => (
             <li key={a.id} className="py-3">
               <p className="font-medium">

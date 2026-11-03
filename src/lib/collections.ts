@@ -18,9 +18,9 @@ export interface Collection {
 export const COLLECTIONS: readonly Collection[] = [
   { id: "shortTrips", slug: "short-trips", filter: (s) => s.startDate !== "" && stayNights(s) <= 5 },
   { id: "party", slug: "party-houses", filter: (s) => s.vibe === "party" },
-  { id: "trainTogether", slug: "train-together", filter: (s) => s.vibe === "fitness" || s.vibe === "surf" || s.vibe === "adventure" },
-  { id: "buildTogether", slug: "build-with-others", filter: (s) => s.vibe === "founder" || s.vibe === "business" || s.vibe === "remote-work" },
-  { id: "meetSomeone", slug: "meet-someone", filter: (s) => s.vibe === "singles" || s.vibe === "social" },
+  { id: "trainTogether", slug: "train-together", filter: (s) => s.vibe === "fitness" || s.vibe === "surf-water" || s.vibe === "adventure" },
+  { id: "buildTogether", slug: "build-with-others", filter: (s) => s.vibe === "founder" || s.vibe === "remote-work" },
+  { id: "meetSomeone", slug: "meet-someone", filter: (s) => s.vibe === "social" },
 ];
 
 export interface Shelf {

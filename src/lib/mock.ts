@@ -8,10 +8,9 @@ import { VIBES, locationOf } from './catalog';
 export { VIBES, locationOf };
 
 export type Vibe =
-  | 'fitness' | 'surf' | 'creator' | 'streaming' | 'founder' | 'remote-work' | 'trading' | 'wellness' | 'yoga'
-  | 'diving' | 'climbing' | 'language' | 'students' | 'holiday'
-  | 'mixed' // mixed: fits no single vibe – also the filter key of Houses with a custom vibe (Stay.customVibe)
-  | 'party' | 'singles' | 'weekend' | 'business' | 'social' | 'adventure' | 'culture' | 'food' | 'study';
+  | 'fitness' | 'surf-water' | 'remote-work' | 'founder' | 'creator' | 'wellness' | 'adventure' | 'culture' | 'party' | 'holiday'
+  | 'social' // also the filter key of Houses with a host's own label (Stay.customVibe)
+  | 'students';
 export type AccommodationStatus = 'open' | 'locked';
 /** Currencies a host can price a House in. */
 export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
@@ -100,6 +99,12 @@ export interface StayLocation {
   area?: string;
 }
 
+/** One station of a House's typical day: "07:00" · "Gym". */
+export interface TypicalDayStop {
+  time: string;
+  label: string;
+}
+
 export interface Stay {
   id: string;
   /** "unlisted": works through its link but isn't on Explore (before the launch, src/lib/launch.ts). */
@@ -132,6 +137,8 @@ export interface Stay {
   description: string;
   whyText: string;
   dayText: string;
+  /** The day as stations; without it, derived from dayText (typicalDayOf) */
+  typicalDay?: TypicalDayStop[];
   lookingForText: string;
   houseRules: string[];
   interests: string[];
@@ -141,7 +148,7 @@ export interface Stay {
   /** Reserved: a manual Spotlight pick. No effect yet – the hero rotation picks by its own rules (src/lib/heroRotation.ts). */
   spotlight?: boolean;
   hostNote?: string;        // short personal line from the host, max 60 chars (shown on cards)
-  customVibe?: string;      // host's own vibe label (max 20 chars); `vibe` is then 'mixed'
+  customVibe?: string;      // host's own vibe label (max 20 chars); `vibe` is then 'social'
   themeQueries?: string[];  // Pixabay searches for the House's theme photos (mock only)
   imageQueries?: string[];  // the same searches, as listed in the data: [0] cover, then the gallery
   photos?: string[];        // theme photos – the gallery is the host's face, then these (none for Houses opened in the app)
@@ -188,7 +195,8 @@ export interface Crew {
 
 /**
  * Two people who lived in the same House – written when it completes, one entry per person and housemate (so each user
- * finds theirs by userId). The base for "Lived with" and inviting them to the next House; never shown to anyone else.
+ * finds theirs by userId). The base for "Lived with" and inviting them to the next House. On a public profile only once
+ * both sides have confirmed it (src/lib/profilePrivacy.ts).
  */
 export interface LivedWith {
   userId: string;
@@ -196,6 +204,8 @@ export interface LivedWith {
   houseId: string;
   /** When the House ended (ISO) */
   endedAt: string;
+  /** `userId` confirmed having lived with `otherUserId` */
+  confirmedAt?: string;
 }
 
 /** A House Simpulo prepared for a creator from their own post – they claim it via /claim/{token}. */
@@ -290,6 +300,8 @@ export interface Message {
   attachments?: Attachment[];
   replyToId?: string;
   reactions?: Reaction[];
+  /** Contact details were taken out when it was sent (src/lib/contactFilter.ts) */
+  contactsHidden?: boolean;
   event?: MessageEvent;     // app-generated lines (joined, crew complete …) – rendered from translations; text stays ''
 }
 
@@ -739,7 +751,7 @@ const coreStays: Stay[] = [
     hostNote: 'First-timers very welcome', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-19T18:00:00Z',
   },
   {
-    id: 's9', slug: 'surf-house-ericeira', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf', language: 'en',
+    id: 's9', slug: 'surf-house-ericeira', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf-water', language: 'en',
     city: 'Ericeira', region: 'Portugal', location: { city: 'Ericeira', country: 'Portugal' }, lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira'),
     startDate: '2026-11-06', endDate: '2026-11-09', spotsTotal: 3, spotsFilled: 3,
     pricePerPerson: 140, currency: 'EUR', accommodationStatus: 'locked',
@@ -903,7 +915,7 @@ const coreStays: Stay[] = [
     interests: ['chess', 'cozy games', 'surfing'],
     hostNote: 'Quiet by day, live by night – EU hours', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-21T06:30:00Z' },
   // Past Houses (completed) – they give profiles "Past" rows and "Past crews".
-  { id: 's24', slug: 'surf-house-ericeira-september', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf', language: 'en',
+  { id: 's24', slug: 'surf-house-ericeira-september', title: 'Surf House Ericeira', hostId: 'u3', vibe: 'surf-water', language: 'en',
     city: 'Ericeira', region: 'Portugal', location: { city: 'Ericeira', country: 'Portugal' }, lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira-september'),
     startDate: '2026-09-07', endDate: '2026-09-21', spotsTotal: 4, spotsFilled: 4,
     pricePerPerson: 520, currency: 'EUR', accommodationStatus: 'locked',
@@ -944,7 +956,7 @@ const coreStays: Stay[] = [
     acceptingRequests: false, status: 'completed', featured: false, createdAt: '2026-08-20T09:00:00Z',
     lockedAt: '2026-08-28T10:00:00Z', totalPrice: 2400, payByDate: '2026-09-10', bookingConfirmedAt: '2026-09-11T08:00:00Z' },
   // Ericeira again: Tom invited his September crew – Hannah said yes, Lukas hasn't answered yet (holds a spot).
-  { id: 's55', slug: 'surf-house-ericeira-spring', title: 'Surf House Ericeira – Spring', hostId: 'u3', vibe: 'surf', language: 'en',
+  { id: 's55', slug: 'surf-house-ericeira-spring', title: 'Surf House Ericeira – Spring', hostId: 'u3', vibe: 'surf-water', language: 'en',
     city: 'Ericeira', region: 'Portugal', location: { city: 'Ericeira', country: 'Portugal' }, lat: 38.96, lng: -9.42, mapPreviewUrl: map('ericeira-spring'),
     startDate: '2027-04-10', endDate: '2027-04-24', spotsTotal: 4, spotsFilled: 2, spotsInvited: 1,
     budgetPerPerson: { min: 500, max: 600 }, currency: 'EUR', accommodationStatus: 'open',
@@ -991,7 +1003,7 @@ const coreStays: Stay[] = [
     houseRules: ['Gym before screens', 'No alcohol in the apartment', 'Quiet after 22:30'],
     interests: ['forex', 'strength training', 'meal prep'],
     hostNote: 'Lift at 6, London open at 11', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-05T09:00:00Z' },
-  { id: 's29', slug: 'language-exchange-house-sevilla', title: 'Language Exchange House Sevilla', hostId: 'u24', vibe: 'mixed', language: 'es',
+  { id: 's29', slug: 'language-exchange-house-sevilla', title: 'Language Exchange House Sevilla', hostId: 'u24', vibe: 'social', language: 'es',
     city: 'Triana', region: 'Andalusia, Spain', location: { city: 'Seville', country: 'Spain', area: 'Triana' }, lat: 37.385, lng: -6.003, mapPreviewUrl: map('triana'),
     startDate: '2027-02-01', endDate: '2027-03-01', spotsTotal: 6, spotsFilled: 3,
     budgetPerPerson: { min: 600, max: 800 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1013,7 +1025,7 @@ const coreStays: Stay[] = [
     houseRules: ['Shala is phone-free', 'Quiet hours from 21:30', 'Shoes off inside'],
     interests: ['yoga', 'anatomy', 'meditation', 'plant-based food'],
     hostNote: 'For 200h trainees – study buddies welcome', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-16T07:00:00Z' },
-  { id: 's31', slug: 'surf-coach-house-ericeira', title: 'Surf Coach House Ericeira', hostId: 'u26', vibe: 'surf', language: 'en',
+  { id: 's31', slug: 'surf-coach-house-ericeira', title: 'Surf Coach House Ericeira', hostId: 'u26', vibe: 'surf-water', language: 'en',
     city: 'Ericeira', region: 'Portugal', location: { city: 'Ericeira', country: 'Portugal' }, lat: 38.963, lng: -9.417, mapPreviewUrl: map('ericeira-coach'),
     startDate: '2026-11-08', endDate: '2026-11-29', spotsTotal: 4, spotsFilled: 1,
     budgetPerPerson: { min: 850, max: 1100 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1103,7 +1115,7 @@ const coreStays: Stay[] = [
     houseRules: ['Aurora alerts wake everyone up', 'Shared car, shared fuel', 'Leave no trace at the spots'],
     interests: ['photography', 'aurora', 'landscapes', 'winter'],
     hostNote: 'Peak aurora weeks, rorbu booked', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-01T10:00:00Z' },
-  { id: 's39', slug: 'med-students-elective-house-cape-town', title: 'Med Students Elective House Cape Town', hostId: 'u34', vibe: 'mixed', language: 'en',
+  { id: 's39', slug: 'med-students-elective-house-cape-town', title: 'Med Students Elective House Cape Town', hostId: 'u34', vibe: 'social', language: 'en',
     city: 'Observatory', region: 'Western Cape, South Africa', location: { city: 'Cape Town', country: 'South Africa', area: 'Observatory' }, lat: -33.938, lng: 18.47, mapPreviewUrl: map('observatory'),
     startDate: '2027-01-11', endDate: '2027-03-05', spotsTotal: 6, spotsFilled: 2,
     budgetPerPerson: { min: 500, max: 650 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1114,7 +1126,7 @@ const coreStays: Stay[] = [
     houseRules: ['Sleeping night-shifters are sacred', 'Patient details never leave the hospital', 'Weekend trips are open to all'],
     interests: ['medicine', 'hiking', 'surfing'],
     hostNote: 'Hospital by day, Table Mountain on weekends', acceptingRequests: false, status: 'published', featured: false, createdAt: '2026-10-08T18:00:00Z' },
-  { id: 's40', slug: 'exchange-semester-house-seoul', title: 'Exchange Semester House Seoul', hostId: 'u35', vibe: 'mixed', language: 'en',
+  { id: 's40', slug: 'exchange-semester-house-seoul', title: 'Exchange Semester House Seoul', hostId: 'u35', vibe: 'social', language: 'en',
     city: 'Sinchon', region: 'South Korea', location: { city: 'Seoul', country: 'South Korea', area: 'Sinchon' }, lat: 37.559, lng: 126.942, mapPreviewUrl: map('sinchon'),
     startDate: '2027-02-25', endDate: '2027-04-30', spotsTotal: 5, spotsFilled: 1,
     budgetPerPerson: { min: 450, max: 600 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1192,7 +1204,7 @@ const coreStays: Stay[] = [
     houseRules: ['Mornings are for focus – calls in your room', 'Shared fridge, shared shopping list', 'Beach towels stay outside'],
     interests: ['remote work', 'swimming', 'hiking', 'tapas'],
     hostNote: 'Coworking pass for the whole house', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-20T10:00:00Z' },
-  { id: 's47', slug: 'surf-and-work-house-el-medano', title: 'Surf & Work House El Médano', hostId: 'u42', vibe: 'surf', language: 'en',
+  { id: 's47', slug: 'surf-and-work-house-el-medano', title: 'Surf & Work House El Médano', hostId: 'u42', vibe: 'surf-water', language: 'en',
     city: 'El Médano', region: 'Tenerife, Spain', location: { city: 'Tenerife', country: 'Spain', area: 'El Médano' }, lat: 28.046, lng: -16.537, mapPreviewUrl: map('el-medano'),
     startDate: '2027-02-07', endDate: '2027-02-21', spotsTotal: 4, spotsFilled: 2,
     budgetPerPerson: { min: 600, max: 800 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1226,7 +1238,7 @@ const coreStays: Stay[] = [
     houseRules: ['Skischuhe bleiben im Skikeller', 'Wer kocht, spült nicht', 'Erste Gondel ist Pflicht am Samstag'],
     interests: ['skiing', 'snowboarding', 'sauna', 'après-ski'],
     hostNote: 'Hütte gebucht, Skipass-Rabatt für alle', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-14T18:00:00Z' },
-  { id: 's50', slug: 'first-month-in-berlin', title: 'First Month in Berlin', hostId: 'u45', vibe: 'mixed', language: 'de',
+  { id: 's50', slug: 'first-month-in-berlin', title: 'First Month in Berlin', hostId: 'u45', vibe: 'social', language: 'de',
     city: 'Friedrichshain', region: 'Berlin, Germany', location: { city: 'Berlin', country: 'Germany', area: 'Friedrichshain' }, lat: 52.515, lng: 13.454, mapPreviewUrl: map('friedrichshain'),
     startDate: '2027-03-01', endDate: '2027-03-29', spotsTotal: 5, spotsFilled: 1,
     budgetPerPerson: { min: 850, max: 1100 }, currency: 'EUR', accommodationStatus: 'open',
@@ -1237,7 +1249,7 @@ const coreStays: Stay[] = [
     houseRules: ['Putzplan hängt am Kühlschrank', 'Ruhe ab 22 Uhr unter der Woche', 'Gäste nur nach Absprache'],
     interests: ['city life', 'new jobs', 'cooking', 'flea markets'],
     hostNote: 'Hilfe bei Anmeldung und Wohnungssuche', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-22T09:00:00Z' },
-  { id: 's51', slug: 'gaming-bootcamp-house-seoul', title: 'Gaming Bootcamp House Seoul', hostId: 'u46', vibe: 'streaming', language: 'en',
+  { id: 's51', slug: 'gaming-bootcamp-house-seoul', title: 'Gaming Bootcamp House Seoul', hostId: 'u46', vibe: 'creator', language: 'en',
     city: 'Hongdae', region: 'Seoul, South Korea', location: { city: 'Seoul', country: 'South Korea', area: 'Hongdae' }, lat: 37.556, lng: 126.923, mapPreviewUrl: map('hongdae'),
     startDate: '2027-04-05', endDate: '2027-04-26', spotsTotal: 5, spotsFilled: 3,
     budgetPerPerson: { min: 800, max: 1100 }, currency: 'USD', accommodationStatus: 'open',
@@ -1248,7 +1260,7 @@ const coreStays: Stay[] = [
     houseRules: ['Headsets on after midnight', 'No toxicity – in game or at home', 'Shared setup room stays clean'],
     interests: ['esports', 'streaming', 'korean food', 'night life'],
     hostNote: 'Gigabit fibre, setup room for 5', acceptingRequests: true, status: 'published', featured: false, createdAt: '2026-10-21T15:00:00Z' },
-  { id: 's52', hostFeePerPerson: 120, slug: 'kitesurf-house-tarifa', title: 'Kitesurf House Tarifa', hostId: 'u47', vibe: 'surf', language: 'en',
+  { id: 's52', hostFeePerPerson: 120, slug: 'kitesurf-house-tarifa', title: 'Kitesurf House Tarifa', hostId: 'u47', vibe: 'surf-water', language: 'en',
     city: 'Tarifa', region: 'Andalusia, Spain', location: { city: 'Tarifa', country: 'Spain' }, lat: 36.013, lng: -5.606, mapPreviewUrl: map('tarifa'),
     startDate: '2027-05-08', endDate: '2027-05-22', spotsTotal: 4, spotsFilled: 2,
     pricePerPerson: 690, currency: 'EUR', accommodationStatus: 'locked',

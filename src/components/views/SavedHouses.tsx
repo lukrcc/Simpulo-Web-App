@@ -38,7 +38,7 @@ function SavedContent() {
 
   return (
     <Container page>
-      <h1 className="text-h2 tracking-tight md:text-h1">{t("title")}</h1>
+      <h1 className="text-h2 md:text-h1">{t("title")}</h1>
       <p className="mt-2 text-muted">{t("description")}</p>
       {saved.length > 0 ? (
         <ul className={cn("mt-8", GRID)}>
@@ -81,10 +81,10 @@ function HostAlerts() {
   if (hosts.length === 0) return null;
 
   return (
-    <section className="mt-12 max-w-xl border-t border-line pt-6">
+    <section className="mt-12 max-w-xl pt-6">
       <h2 className="text-body-lg font-semibold">{t("title")}</h2>
       <p className="mt-0.5 text-small text-muted">{t("description")}</p>
-      <ul className="mt-3 divide-y divide-line">
+      <ul className="mt-3">
         {hosts.map((host) => {
           const on = alertIds.includes(host.id);
           return (

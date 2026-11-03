@@ -13,6 +13,7 @@ export type {
   Attachment,
   Crew,
   LivedWith,
+  TypicalDayStop,
   HouseInvite,
   HouseInviteStatus,
   Reaction,

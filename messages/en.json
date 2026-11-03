@@ -48,29 +48,17 @@
     "shares": "{count, plural, one {# share} other {# shares}}",
     "vibes": {
       "fitness": "Fitness",
-      "surf": "Surf",
       "creator": "Creator",
-      "streaming": "Streaming",
       "founder": "Founder",
       "remote-work": "Remote work",
-      "trading": "Trading",
       "wellness": "Wellness",
-      "yoga": "Yoga",
-      "diving": "Diving",
-      "climbing": "Climbing",
-      "language": "Language",
       "students": "Students",
       "holiday": "Holiday",
-      "mixed": "Mixed",
       "party": "Party",
-      "singles": "Singles",
-      "weekend": "Short trip",
-      "business": "Business",
       "social": "Social",
       "adventure": "Adventure",
       "culture": "Culture",
-      "food": "Food",
-      "study": "Study"
+      "surf-water": "Surf & Water"
     },
     "paymentStatus": {
       "paid": "Paid",
@@ -165,7 +153,7 @@
       "preview": {
         "exit": "Exit preview",
         "noChanges": "Preview only – nothing is changed",
-        "profile": "This is how others see your profile",
+        "profile": "You're seeing your profile as others do",
         "house": "This is how guests see your House",
         "button": "Preview",
         "hostRequestsDisabled": "You're the host – requests are disabled in preview."
@@ -239,9 +227,8 @@
     "compactLabel": "Main",
     "notifications": "Notifications",
     "itemNew": "{label} – {count, plural, one {# new request} other {# new requests}}",
-    "filtersHandle": "Filters",
-    "openFilters": "Show filters",
-    "closeFilters": "Hide filters"
+    "openFilters": "Show categories",
+    "closeFilters": "Hide categories"
   },
   "footer": {
     "label": "Footer",
@@ -593,7 +580,7 @@
       "people": "{count, plural, one {# person} other {# people}}",
       "interested": "I'm interested",
       "host": "Host it",
-      "interestedOn": "Interested",
+      "interestedOn": "You're in",
       "regionsLabel": "Filter by region",
       "allRegions": "All",
       "addPlace": "Add a place",
@@ -608,7 +595,8 @@
         "latinAmerica": "Latin America",
         "africa": "Africa",
         "oceania": "Oceania",
-        "southAsia": "South Asia"
+        "southAsia": "South Asia",
+        "americas": "Americas"
       },
       "add": {
         "title": "Add a place",
@@ -628,7 +616,8 @@
         "months": "When? (one or more)",
         "flexible": "Flexible",
         "visible": "Show me to others interested in this place",
-        "visibleHelper": "Your first name, photo and months – never dates. Off: you only count."
+        "visibleHelper": "Your first name, photo and months – never dates. Off: you only count.",
+        "savedNoCard": "Saved. Lisbon-style cards appear once {min} people want to go."
       },
       "anytime": "{count} anytime",
       "seePeople": "See {count, plural, one {the person} other {the # people}} who want to go to {place}",
@@ -645,10 +634,14 @@
       "loginToSee": "Log in to see who's going",
       "loginToSeeFor": "Log in to see who wants to go to {place}.",
       "eyebrow": "Demand",
-      "wantToGo": "{count, plural, =0 {Be the first to go} one {# person wants to go} other {# people want to go}}",
+      "wantToGo": "{count, plural, =0 {Be the first} one {<num></num> wants to go} other {<num></num> want to go}}",
       "somewhereElse": "Somewhere else?",
       "photoCredit": "Photo: {name} · Pexels",
-      "interestTitle": "Interested in {place}?"
+      "interestTitle": "Interested in {place}?",
+      "changeMonths": "Change months",
+      "removeInterest": "Remove",
+      "changeMonthsTitle": "When do you want to go to {place}?",
+      "saveMonths": "Save"
     },
     "noResults": {
       "title": "No Houses match these filters",
@@ -675,7 +668,7 @@
       "length": "Length",
       "lengthOptions": {
         "any": "Any",
-        "weekend": "Weekend (≤5 nights)",
+        "weekend": "≤5 nights",
         "weeks": "1–2 weeks",
         "long": "3+ weeks"
       },
@@ -688,7 +681,8 @@
       "spotsOptions": {
         "any": "Any",
         "atLeast": "{count}+"
-      }
+      },
+      "category": "Category"
     },
     "more": "More",
     "all": "All",
@@ -719,6 +713,26 @@
       "hostAction": "Open a House",
       "close": "Done",
       "changeDestination": "Choose another place"
+    },
+    "spotlightIntro": {
+      "first": "Share a place.",
+      "second": "Find your people.",
+      "subline": "Open a House or join one – and live with people who get you."
+    },
+    "spotlightGreeting": {
+      "hi": "Hi {name}.",
+      "whereNext": "Where to next?",
+      "open": "{count, plural, one {# house open} other {# houses open}} →",
+      "seeHouses": "See houses →"
+    },
+    "destinationsPage": {
+      "title": "Where do you want to go?",
+      "metaDescription": "Places people want to go, and when. Say you're in – or host the House and bring them together.",
+      "searchPlaceholder": "Search a city or country",
+      "searchLabel": "Search for a place",
+      "yourPicks": "Your picks",
+      "places": "{count, plural, one {# place} other {# places}}",
+      "noHits": "No places match these filters."
     }
   },
   "house": {
@@ -834,7 +848,40 @@
       "joinedToast": "You're in – welcome to {title}",
       "invalid": "This invite link isn't valid any more."
     },
-    "unlistedHint": "Your House is live via your link. It appears on Explore once Simpulo opens in your city."
+    "unlistedHint": "Your House is live via your link. It appears on Explore once Simpulo opens in your city.",
+    "page": {
+      "back": "Back",
+      "share": "Share this House",
+      "openGallery": "Open all photos",
+      "photoAlt": "{title}, photo {number}",
+      "galleryTitle": "Photos of {title}",
+      "closeGallery": "Close photos",
+      "previousPhoto": "Previous photo",
+      "nextPhoto": "Next photo",
+      "photoCount": "{current} / {total}",
+      "line": "{dates} · {nights} · {place}",
+      "payNote": "You pay only when the crew is complete",
+      "factDates": "Dates",
+      "factCrew": "Crew",
+      "factCrewValue": "{total, plural, one {# person} other {# people}}, {open, plural, =0 {no spots left} one {# spot left} other {# spots left}}",
+      "factIncluded": "Included",
+      "includedStay": "Stay",
+      "includedWithHost": "Stay + host experience",
+      "factLanguages": "Languages",
+      "why": "Why I'm hosting",
+      "crew": "The crew",
+      "hostBadge": "Host",
+      "yourSpot": "Your spot",
+      "openSpot": "Open spot",
+      "joinSpot": "Join",
+      "day": "A typical day",
+      "lookingFor": "Who I'm looking for",
+      "rules": "House rules",
+      "where": "Where you'll be",
+      "accommodation": "Accommodation",
+      "accommodationOpen": "House decides together – link follows in the chat",
+      "more": "More houses like this"
+    }
   },
   "request": {
     "cta": {
@@ -967,55 +1014,31 @@
       },
       "titleVibes": {
         "fitness": "Fitness",
-        "surf": "Surf",
         "creator": "Creator",
-        "streaming": "Streamer",
         "founder": "Founder",
         "remote-work": "Remote Work",
-        "trading": "Trader",
         "wellness": "Wellness",
-        "yoga": "Yoga",
-        "diving": "Dive",
-        "climbing": "Climbing",
-        "language": "Language",
         "students": "Student",
         "holiday": "Holiday",
-        "mixed": "Shared",
         "party": "Party",
-        "singles": "Singles",
-        "weekend": "Weekend",
-        "business": "Business",
         "social": "Social",
         "adventure": "Adventure",
         "culture": "Culture",
-        "food": "Food",
-        "study": "Study"
+        "surf-water": "Surf"
       },
       "activities": {
         "fitness": "Training",
-        "surf": "Surfing",
         "creator": "Creating",
-        "streaming": "Streaming",
         "founder": "Building",
         "remote-work": "Remote Work",
-        "trading": "Trading",
         "wellness": "Slow Living",
-        "yoga": "Yoga",
-        "diving": "Diving",
-        "climbing": "Climbing",
-        "language": "Language Exchange",
         "students": "Studying",
         "holiday": "Sun",
-        "mixed": "Good Company",
         "party": "Partying",
-        "singles": "Meeting People",
-        "weekend": "City Life",
-        "business": "Business",
         "social": "Good Company",
         "adventure": "Adventure",
         "culture": "Culture",
-        "food": "Eating Well",
-        "study": "Studying"
+        "surf-water": "Surfing"
       },
       "currencyLabel": "Currency",
       "lockedNote": "The place is locked – its price and link are managed on the House's Manage page.",
@@ -1083,21 +1106,6 @@
           "Morning session, long lunch, "
         ]
       },
-      "surf": {
-        "lookingFor": [
-          "Surfers of any level who ",
-          "People who'd rather be in the water by 6 and ",
-          "Anyone learning to surf who "
-        ],
-        "why": [
-          "Surfing alone gets old – ",
-          "I want one season of surfing every day, and "
-        ],
-        "day": [
-          "Dawn patrol, breakfast, then ",
-          "Surf at sunrise, work midday, "
-        ]
-      },
       "creator": {
         "lookingFor": [
           "Creators who post consistently and ",
@@ -1111,21 +1119,6 @@
         "day": [
           "Shoot in the morning light, edit after lunch, ",
           "Golden hour content, then "
-        ]
-      },
-      "streaming": {
-        "lookingFor": [
-          "Streamers who go live regularly and ",
-          "People who don't mind a bit of noise at night – ",
-          "Anyone building a channel who "
-        ],
-        "why": [
-          "Streaming from a shared house means ",
-          "I want fast internet and people who get it – "
-        ],
-        "day": [
-          "Late start, prep in the afternoon, ",
-          "Collabs in the afternoon, live in the evening, "
         ]
       },
       "founder": {
@@ -1158,21 +1151,6 @@
           "Cowork in the morning, explore in the afternoon, "
         ]
       },
-      "trading": {
-        "lookingFor": [
-          "Traders who keep market hours and ",
-          "People who take risk management seriously and ",
-          "Anyone who likes sharing setups and "
-        ],
-        "why": [
-          "Trading alone gets in your head, so ",
-          "I want a house that keeps the same hours – "
-        ],
-        "day": [
-          "Pre-market prep, session, then ",
-          "Charts in the morning, gym after close, "
-        ]
-      },
       "wellness": {
         "lookingFor": [
           "People who want a slower month and ",
@@ -1186,66 +1164,6 @@
         "day": [
           "Slow mornings, a long walk, ",
           "Breathwork, breakfast, then "
-        ]
-      },
-      "yoga": {
-        "lookingFor": [
-          "Yogis of any level who ",
-          "People who want a daily practice and ",
-          "Anyone curious about yoga who "
-        ],
-        "why": [
-          "I want to deepen my practice with others – ",
-          "There's a teacher training here and "
-        ],
-        "day": [
-          "Practice at 7, breakfast together, ",
-          "Class in the morning, free afternoon, "
-        ]
-      },
-      "diving": {
-        "lookingFor": [
-          "Divers who ",
-          "People doing their open water and ",
-          "Anyone who loves the ocean and "
-        ],
-        "why": [
-          "The diving here is incredible and ",
-          "I'm working towards my divemaster, so "
-        ],
-        "day": [
-          "Two dives in the morning, ",
-          "Boat at 8, back by lunch, "
-        ]
-      },
-      "climbing": {
-        "lookingFor": [
-          "Climbers of any grade who ",
-          "People who'd rather be on the wall and ",
-          "Anyone who wants to learn to climb and "
-        ],
-        "why": [
-          "The crags here are world class and ",
-          "Climbing is better with partners – "
-        ],
-        "day": [
-          "Climb early before the heat, ",
-          "Bouldering in the morning, rest in the afternoon, "
-        ]
-      },
-      "language": {
-        "lookingFor": [
-          "People learning the language who ",
-          "Native speakers happy to ",
-          "Anyone who wants to practise every day and "
-        ],
-        "why": [
-          "I want to finally speak the language, so ",
-          "Immersion works best together – "
-        ],
-        "day": [
-          "Class in the morning, ",
-          "Language exchange over lunch, "
         ]
       },
       "students": {
@@ -1278,21 +1196,6 @@
           "Slow breakfast, a day trip, "
         ]
       },
-      "mixed": {
-        "lookingFor": [
-          "Easygoing people who ",
-          "Anyone who likes a full house and ",
-          "People who are up for "
-        ],
-        "why": [
-          "I'm going anyway and ",
-          "A shared house beats a hotel – "
-        ],
-        "day": [
-          "Everyone does their thing during the day, ",
-          "Mornings free, dinners together, "
-        ]
-      },
       "party": {
         "lookingFor": [
           "People who love music more than bottles and ",
@@ -1306,51 +1209,6 @@
         "day": [
           "Late breakfast, pool, ",
           "Sleep in, sunset, then "
-        ]
-      },
-      "singles": {
-        "lookingFor": [
-          "Singles who are tired of apps and ",
-          "Open, kind people who ",
-          "Anyone who'd rather meet in person and "
-        ],
-        "why": [
-          "Apps made dating feel like work, so ",
-          "I meet more people in one shared week than in a year of swiping – "
-        ],
-        "day": [
-          "Hosted dinner at 8, ",
-          "Day trip, sunset drinks, "
-        ]
-      },
-      "weekend": {
-        "lookingFor": [
-          "People who can make the most of three days and ",
-          "Anyone up for a quick escape who ",
-          "Easygoing people who "
-        ],
-        "why": [
-          "A long weekend is enough if the House is right – ",
-          "I only have a few days off, so "
-        ],
-        "day": [
-          "Coffee, a walk through town, ",
-          "Out all day, dinner together, "
-        ]
-      },
-      "business": {
-        "lookingFor": [
-          "People who run their own business and ",
-          "Professionals who ",
-          "Anyone who wants to work hard and "
-        ],
-        "why": [
-          "I get more done with sharp people around me, so ",
-          "Conferences are better with a house to come back to – "
-        ],
-        "day": [
-          "Work in the morning, ",
-          "Sessions all day, dinner together, "
         ]
       },
       "social": {
@@ -1398,34 +1256,19 @@
           "A walk through the old town, "
         ]
       },
-      "food": {
+      "surf-water": {
         "lookingFor": [
-          "People who plan their trips around meals and ",
-          "Home cooks who ",
-          "Anyone who eats everything and "
+          "Surfers of any level who ",
+          "People who'd rather be in the water by 6 and ",
+          "Anyone learning to surf who "
         ],
         "why": [
-          "Food is better shared, so ",
-          "I've wanted to cook my way through this place since "
+          "Surfing alone gets old – ",
+          "I want one season of surfing every day, and "
         ],
         "day": [
-          "Market in the morning, ",
-          "Cooking class, long lunch, "
-        ]
-      },
-      "study": {
-        "lookingFor": [
-          "Students who ",
-          "People with an exam coming up who ",
-          "Anyone who wants a quiet, focused house and "
-        ],
-        "why": [
-          "I study better with people around me, so ",
-          "Exam season alone is grim – "
-        ],
-        "day": [
-          "Library until lunch, ",
-          "Study blocks, a run, "
+          "Dawn patrol, breakfast, then ",
+          "Surf at sunrise, work midday, "
         ]
       }
     },
@@ -1817,7 +1660,7 @@
       "photos": "📷 {count, plural, one {Photo} other {# photos}}",
       "file": "📎 {name}",
       "attachment": "File",
-      "titleWithDates": "{title} · {dates}"
+      "past": "Past"
     },
     "thread": {
       "loginTitle": "Log in to see this chat",
@@ -1858,7 +1701,10 @@
       "whosInLabel": "Who's in – {count, plural, one {# person} other {# people}}",
       "memberCount": "{count, plural, one {# person} other {# people}} in this House",
       "host": "Host",
-      "you": "You"
+      "you": "You",
+      "crewMeta": "{dates} · {filled} of {total} in",
+      "openGroupChat": "Open group chat",
+      "contactsHidden": "Contact details are shared once the crew is complete."
     }
   },
   "profile": {
@@ -1977,7 +1823,40 @@
       "removeLabel": "Remove {place}",
       "empty": "No places yet – add where you want to go next."
     },
-    "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>"
+    "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>",
+    "view": {
+      "previewAsOthers": "Preview as others see it",
+      "shareProfile": "Share profile",
+      "options": "Profile options",
+      "speaks": "Speaks {languages}",
+      "moreLinks": "+{count}",
+      "trustVerifiedLabel": "Identity",
+      "trustVerified": "Verified",
+      "trustHosted": "{count, plural, one {House hosted} other {Houses hosted}}",
+      "trustLivedIn": "{count, plural, one {House lived in} other {Houses lived in}}",
+      "trustPeople": "{count, plural, one {Person lived with} other {People lived with}}",
+      "hostingNow": "Hosting now",
+      "openAnother": "Open another House",
+      "noOpenHouse": "No open House right now",
+      "openHouse": "Open a House →",
+      "livedWith": "Lived with",
+      "livedInSummary": "Lived in {count, plural, one {# House} other {# Houses}} · {places}",
+      "seePast": "See your past Houses",
+      "toConfirm": "Did you live with them? They appear on your profile once you've both confirmed.",
+      "confirm": "Confirm",
+      "waitingForThem": "{count, plural, one {# person hasn't} other {# people haven't}} confirmed yet",
+      "photos": "Photos",
+      "nextStop": "Next stop",
+      "nextStopHint": "Want to go too? Tap I'm interested.",
+      "addPlace": "Add a place",
+      "nextStopEmpty": "No places yet – add where you want to go next.",
+      "upcoming": "Upcoming",
+      "upcomingOwnHint": "Only you and your crews can see this",
+      "upcomingCrewHint": "Only people in the same crew can see this",
+      "upcomingEmpty": "No upcoming Houses as a guest.",
+      "more": "+{count}"
+    },
+    "loginToMessage": "Log in to message {name}"
   },
   "howItWorks": {
     "title": "How it works",

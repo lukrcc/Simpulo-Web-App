@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { isListedStay } from "@/lib/launch";
 
 /** The row's vibes, in this order – one House each, the rest filled with any other open Houses. */
-const ROW_VIBES = ["party", "founder", "surf", "singles", "study", "fitness", "creator", "remote-work", "yoga", "adventure"];
+const ROW_VIBES = ["party", "founder", "surf-water", "social", "culture", "fitness", "creator", "remote-work"];
 const ROW_SIZE = 8;
 /** Fewer than this and the row isn't worth showing (sparse datasets). */
 const MIN_ROW = 3;
@@ -66,12 +66,12 @@ export function HostWays({ className }: { className?: string }) {
     { label: t("calc.fee"), value: eur(EXAMPLE.fee) },
     { label: t("calc.youReceive"), value: eur(EXAMPLE.youReceive), strong: true },
   ];
-  const card = "flex flex-col rounded-3xl border border-line bg-surface p-10";
+  const card = "flex flex-col rounded-3xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-10";
 
   return (
     <section data-glow-section aria-labelledby="host-ways" className={className}>
       <SectionHeader id="host-ways" title={t("waysTitle")} subline={t("waysSubline")} />
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="card-grid mt-6 [--card-cols:2] [--card-min:360px]">
         <article className={card}>
           <Users className="size-6 text-ink" aria-hidden />
           <h3 className="mt-5 text-h3 tracking-tight text-ink">{t("shareTitle")}</h3>
@@ -83,7 +83,7 @@ export function HostWays({ className }: { className?: string }) {
           <h3 className="mt-5 text-h3 tracking-tight text-ink">{t("proTitle")}</h3>
           <p className="mt-2 text-body leading-relaxed text-muted">{t("addText")}</p>
           {/* The sum: three 44px rows split by lines, the last one weighted. */}
-          <dl className="mt-auto divide-y divide-line pt-8">
+          <dl className="mt-auto pt-8">
             {rows.map(({ label, value, strong }) => (
               <div key={label} className={cn("flex min-h-11 items-center justify-between gap-4 text-body", strong ? "font-semibold text-ink" : "text-ink")}>
                 <dt className={strong ? undefined : "text-muted"}>{label}</dt>

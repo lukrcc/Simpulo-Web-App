@@ -125,7 +125,7 @@ function SettingsContent({ me }: { me: User }) {
   return (
     <Container page className="pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-h2 tracking-tight">{t("title")}</h1>
+        <h1 className="text-h2">{t("title")}</h1>
         <div className="flex items-center gap-3">
           {dirty && <span className="text-small text-muted">{t("unsaved")}</span>}
           <Button variant="primary" size="md" disabled={!dirty} onClick={save}>
@@ -133,7 +133,7 @@ function SettingsContent({ me }: { me: User }) {
           </Button>
         </div>
       </div>
-      <div className="mt-6 md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
+      <div className="mt-6 md:grid md:grid-cols-[220px_minmax(0,720px)] md:gap-10">
         <nav aria-label={t("title")} className="self-start md:sticky md:top-[calc(var(--header-h)+40px)]">
           <ul className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0">
             {SECTIONS.map((key) => (
@@ -497,7 +497,7 @@ function Card({ title, description, children }: { title: string; description?: s
     <section className={cardClass}>
       <h2 className="text-body-lg font-semibold text-ink">{title}</h2>
       {description && <p className="mt-1 text-small text-muted">{description}</p>}
-      <ul className="mt-3 divide-y divide-line">{children}</ul>
+      <ul className="mt-3">{children}</ul>
     </section>
   );
 }

@@ -38,18 +38,12 @@ export function DayDivider({ day }: { day: string }) {
 export function SystemLine({ message }: { message: Message }) {
   const messageText = useMessageText();
   return (
-    <div className="my-3 flex items-center gap-3 text-small text-muted">
-      <span className="h-px flex-1 bg-ink/10" aria-hidden />
-      <p className="flex max-w-[80%] items-center gap-1.5 text-center">
-        {messageText(message)}
-      </p>
-      <span className="h-px flex-1 bg-ink/10" aria-hidden />
-    </div>
+    <p className="mx-auto my-3 max-w-[80%] text-center text-small text-muted">{messageText(message)}</p>
   );
 }
 
-/** Message text with its links clickable – ink on both bubble tints; own bubbles underline in the accent. */
-export function MessageText({ text, mine }: { text: string; mine: boolean }) {
+/** Message text with its links clickable, in the bubble's own colour. */
+export function MessageText({ text }: { text: string }) {
   return (
     <>
       {splitLinks(text).map((part, i) =>
@@ -59,7 +53,7 @@ export function MessageText({ text, mine }: { text: string; mine: boolean }) {
             href={part.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn("break-all text-ink underline underline-offset-2", mine ? "decoration-ink" : "decoration-muted")}
+            className={cn("break-all underline underline-offset-2", "text-ink decoration-muted")}
           >
             {part.text}
           </a>
@@ -112,11 +106,11 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
       rel="noopener noreferrer"
       download={file.name}
       className={cn(
-        "flex w-64 max-w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]",
-        mine ? "bg-line hover:bg-line" : "bg-surface hover:bg-bg",
+        "flex w-64 max-w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]",
+        mine ? "bg-(--select-bg) text-ink" : "bg-surface text-ink hover:bg-bg",
       )}
     >
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-ink/5" : "bg-bg")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-white/40" : "bg-bg")}>
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">

@@ -134,7 +134,7 @@ export function PeopleList({ variant, hrefOf = (p) => `/u/${p.user.id}`, activeI
       {shown.length === 0 ? (
         <p className="px-2 py-6 text-small text-muted">{t("noMatch", { query: query.trim() })}</p>
       ) : (
-        <ul className={cn("mt-4", panel ? "space-y-1" : "divide-y divide-line rounded-xl border border-line bg-surface px-4")}>
+        <ul className={cn("mt-4", panel ? "space-y-1" : "rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-4")}>
           {shown.map((person) => (
             <li key={person.user.id}>
               <PersonRow
@@ -224,7 +224,7 @@ function InviteToHouseSheet({ person, houses, onClose }: { person: User | null; 
 
   return (
     <Sheet open={person !== null} onClose={onClose} title={t("title", { name })} subtitle={t("subtitle")}>
-      <ul className="divide-y divide-line">
+      <ul className="">
         {houses.map((stay) => {
           const reason = blockedReason(stay);
           return (
@@ -327,7 +327,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
 
       <section className={cardClass}>
         <h2 className="mb-3 text-body-lg font-semibold">{t("housesTitle", { count: houses.length })}</h2>
-        <ul className="divide-y divide-line">
+        <ul className="">
           {houses.map((stay) => (
             <li key={stay.id}>
               <Link href={`/my-stays?id=${stay.id}`} className="block hover:opacity-80">
@@ -351,7 +351,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
 
       {user.photos.length > 1 && (
         <section className={cardClass}>
-          <div className="grid grid-cols-3 gap-3 xl:grid-cols-4">
+          <div className="card-grid [--card-cols:4] [--card-gap:12px] [--card-min:120px]">
             {user.photos.slice(0, 4).map((src) => (
               <span key={src} className="relative block aspect-4/5 overflow-hidden rounded-2xl bg-line">
                 <Img src={src} alt="" fill sizes="200px" className="object-cover" />

@@ -19,14 +19,14 @@ export default async function HowItWorksPage() {
   const t = await getTranslations("howItWorks");
   return (
     <Container page>
-      <h1 className="text-h1 tracking-tight">{t("title")}</h1>
+      <h1 className="text-h1">{t("title")}</h1>
       <p className="mt-2 text-body-lg text-muted">
         {t.rich("intro", { b: (chunks) => <span className="font-semibold text-ink">{chunks}</span> })}
       </p>
 
       {/* Grid items stretch, so both cards share the taller one's height. */}
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <section className={cn(cardClass, "lg:col-span-7")}>
+      <div className="mt-8 grid grid-cols-1 gap-8 split:grid-cols-12">
+        <section className={cn(cardClass, "split:col-span-7")}>
           <h2 className="text-h3 tracking-tight text-ink">{t("stepsTitle")}</h2>
           <ol className="mt-6 space-y-5">
             {STEPS.map((step, i) => (
@@ -42,7 +42,7 @@ export default async function HowItWorksPage() {
           </ol>
         </section>
 
-        <GetTheApp className="lg:col-span-5" />
+        <GetTheApp className="split:col-span-5" />
       </div>
     </Container>
   );

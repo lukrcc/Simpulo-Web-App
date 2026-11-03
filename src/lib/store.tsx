@@ -16,11 +16,12 @@ import {
   type ShareChannel,
 } from "./growth";
 import { locationOf } from "./catalog";
-import { defaultUserId, getClaimableHouses, getData, getInterests, growthEventsFor, paidUsersOf, previewForUrl, readDataState, withAttribution, withChatHistory, type AppData } from "./data";
+import { defaultUserId, type DataState, getClaimableHouses, getData, getInterests, growthEventsFor, paidUsersOf, previewForUrl, readDataState, withAttribution, withChatHistory, type AppData } from "./data";
+import { contactsAllowed, maskContacts } from "./contactFilter";
 import { withLaunchVisibility } from "./launch";
 import { crewThreadId } from "./links";
 import type { AppNotification, NotifyEventKey } from "./data/notifications";
-import { FLEXIBLE, interestIn, interestsFor, wantsMonth, type DemandSpot, type Interest } from "./interests";
+import { FLEXIBLE, interestIn, interestsFor, wantsMonth, type DemandSpot, type Interest, mergeMonths } from "./interests";
 import { doItAgainDue, type Reminder } from "./reminders";
 import type {
   Attachment,
@@ -129,6 +130,7 @@ type StoreAction =
   | { type: "addAlert"; alert: DemandAlert }
   | { type: "toggleInterest"; userId: string; spot: Pick<DemandSpot, "destinationId" | "placeName" | "country" | "region" | "months">; interest: Pick<Interest, "id" | "createdAt"> }
   | { type: "addInterest"; interest: Interest }
+  | { type: "setInterestMonths"; destinationId: string; months: string[] }
   | { type: "markNotificationRead"; id: string; at: string }
   | { type: "markAllNotificationsRead"; at: string }
   | { type: "inviteInterested"; stayId: string; at: string }
@@ -160,6 +162,7 @@ type StoreAction =
   | { type: "setTyping"; threadId: string; userId: string | null }
   | { type: "receiveMessage"; threadId: string; message: Message }
   | { type: "toggleSaved"; stayId: string }
+  | { type: "confirmLivedWith"; otherUserId: string; at: string }
   | { type: "toggleHostAlert"; hostId: string }
   | { type: "setNotification"; group: NotificationGroup; channel: NotificationChannel; on: boolean }
   | { type: "unblockUser"; userId: string }
@@ -232,6 +235,8 @@ interface StoreActions {
   toggleInterest: (spot: Pick<DemandSpot, "destinationId" | "placeName" | "country" | "region" | "months">, userId: string) => void;
   /** "+ Add a place": a new interest of `userId` (shows up in the demand row right away) */
   addInterest: (input: Pick<Interest, "destinationId" | "consent" | "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) => void;
+  /** "Change months" on a card: replaces yours for that place. */
+  setInterestMonths: (destinationId: string, months: string[]) => void;
   /** Bell / notifications page: one of the current user's notifications is read */
   markNotificationRead: (id: string) => void;
   /** …or all of them */
@@ -279,6 +284,8 @@ interface StoreActions {
   setAcceptingRequests: (stayId: string, accepting: boolean) => void;
   /** Heart: adds the House to the current user's saved list, or removes it. */
   toggleSaved: (stayId: string) => void;
+  /** "Yes, I lived with them": shown on both profiles once they have said the same. */
+  confirmLivedWith: (otherUserId: string) => void;
   /** "Notify me": get an alert when this host opens a House, or stop it. */
   toggleHostAlert: (hostId: string) => void;
   /** Settings → Notifications: one channel of one group on/off. */
@@ -467,6 +474,16 @@ function mockCrewInbox(stays: Stay[], requests: JoinRequest[], users: User[], cr
 }
 
 /** A completed House's housemate pairs, both ways: for each member, one entry per other member. */
+/** The mock's housemates: most pairs have both confirmed; in every fourth one only one side has, and the other still can. */
+function withMockConfirmations(entries: LivedWith[]): LivedWith[] {
+  const hash = (text: string) => [...text].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) % 9973, 7);
+  return entries.map((entry) => {
+    const [first, second] = [entry.userId, entry.otherUserId].toSorted();
+    const onlyOne = hash(`${first}|${second}`) % 4 === 0;
+    return !onlyOne || entry.userId === second ? { ...entry, confirmedAt: entry.endedAt } : entry;
+  });
+}
+
 function livedWithOf(crew: Crew): LivedWith[] {
   return crew.memberIds.flatMap((userId) =>
     crew.memberIds.filter((other) => other !== userId).map((otherUserId) => ({ userId, otherUserId, houseId: crew.houseId, endedAt: crew.endedAt })),
@@ -485,7 +502,7 @@ function crewRecord(stay: Stay, requests: JoinRequest[], endedAt: string): Crew 
 const MOCK_PREVIEWS = ["Who's bringing the speaker?", "Landing at 14:20, anyone around?", "Booked my flight 🎉", "Can we push dinner to 8?", "Found a great coworking spot nearby"];
 
 /** The store's starting state for the data source's data (in dev: the Dev menu's data state). */
-function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData): StoreState {
+function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData, dataState: DataState = "full"): StoreState {
   const joinRequests = withAttribution(rawRequests, rawStays);
   const stays = seedLockedStays(rawStays);
   const payments = seedPayments(stays, joinRequests, users);
@@ -505,10 +522,10 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     events: growthEventsFor({ stays, joinRequests, payments }),
     alerts: [],
     applications: [],
-    interests: [...getInterests()],
+    interests: [...getInterests(dataState)],
     interestInvites: {},
     crews,
-    livedWith: crews.flatMap(livedWithOf),
+    livedWith: withMockConfirmations(crews.flatMap(livedWithOf)),
     houseInvites: [],
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
@@ -972,11 +989,14 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     }
 
     case "addInterest": {
-      // One interest per person and place: adding a place again replaces its months and "notify me".
+      // One interest per person, place and month: adding a place again only adds the months that are new.
       const existing = interestIn(state.interests, action.interest.userId, action.interest);
       const others = existing ? state.interests.filter((i) => i.id !== existing.id) : state.interests;
-      return { ...state, interests: [...others, action.interest] };
+      return { ...state, interests: [...others, existing ? { ...action.interest, months: mergeMonths(existing.months, action.interest.months) } : action.interest] };
     }
+
+    case "setInterestMonths":
+      return { ...state, interests: state.interests.map((i) => (i.userId === me && i.destinationId === action.destinationId ? { ...i, months: action.months } : i)) };
 
     case "inviteInterested": {
       const stay = state.stays.find((s) => s.id === action.stayId);
@@ -1323,6 +1343,12 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "setTyping":
       return { ...state, typing: { ...state.typing, [action.threadId]: action.userId } };
 
+    case "confirmLivedWith":
+      return {
+        ...state,
+        livedWith: state.livedWith.map((l) => (l.userId === state.currentUserId && l.otherUserId === action.otherUserId && !l.confirmedAt ? { ...l, confirmedAt: action.at } : l)),
+      };
+
     case "toggleSaved": {
       if (!me) return state;
       return {
@@ -1462,7 +1488,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // the growth restore below, so restored claims and events land on top of it.
   useEffect(() => {
     const state = readDataState();
-    if (state !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(state)) });
+    if (state !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(state), state) });
   }, []);
 
   // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
@@ -1602,7 +1628,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         slug: `${slugify(input.title) || "house"}-${id.slice(-4)}`,
         title: input.title.trim(),
         hostId: "",
-        vibe: "mixed",
+        vibe: "social",
         language: "en",
         city: input.city.trim(),
         region: input.region.trim(),
@@ -1705,6 +1731,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "toggleInterest", userId, spot, interest: { id: makeId("interest"), createdAt: new Date().toISOString() } }),
     [],
   );
+  const setInterestMonths = useCallback((destinationId: string, months: string[]) => dispatch({ type: "setInterestMonths", destinationId, months }), []);
   const addInterest = useCallback(
     (input: Pick<Interest, "destinationId" | "consent" | "placeName" | "placeId" | "country" | "region" | "months" | "notify" | "visible">, userId: string) =>
       dispatch({
@@ -1754,9 +1781,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(
     (threadId: string, text: string, extra: { attachments?: Attachment[]; replyToId?: string } = {}) => {
-      const trimmed = text.trim();
-      if (!trimmed && !extra.attachments?.length) return;
-      const message: Omit<Message, "senderId" | "threadId"> = { id: makeId("m"), text: trimmed, createdAt: new Date().toISOString(), ...extra };
+      const written = text.trim();
+      if (!written && !extra.attachments?.length) return;
+      const sentIn = threads.find((t) => t.id === threadId);
+      const filter = sentIn && !contactsAllowed(sentIn, stays.find((st) => st.id === sentIn.houseId)) ? maskContacts(written) : { text: written, masked: false };
+      const trimmed = filter.text;
+      const message: Omit<Message, "senderId" | "threadId"> = { id: makeId("m"), text: trimmed, ...(filter.masked && { contactsHidden: true }), createdAt: new Date().toISOString(), ...extra };
       dispatch({ type: "sendMessage", threadId, message: { ...message, type: messageType({ ...message, threadId, senderId: "" }) } });
 
       // Dev only: someone else in the crew "types" and answers, so the chat feels alive while testing.
@@ -1783,7 +1813,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       }, typingAfter + 1800);
     },
-    [threads, currentUserId],
+    [threads, stays, currentUserId],
   );
   const toggleReaction = useCallback(
     (threadId: string, messageId: string, emoji: string) => dispatch({ type: "toggleReaction", threadId, messageId, emoji }),
@@ -1874,6 +1904,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
   const resetPayments = useCallback((stayId: string) => dispatch({ type: "resetPayments", stayId }), []);
   const toggleSaved = useCallback((stayId: string) => dispatch({ type: "toggleSaved", stayId }), []);
+  const confirmLivedWith = useCallback((otherUserId: string) => dispatch({ type: "confirmLivedWith", otherUserId, at: new Date().toISOString() }), []);
   const toggleHostAlert = useCallback((hostId: string) => dispatch({ type: "toggleHostAlert", hostId }), []);
   const setNotification = useCallback(
     (group: NotificationGroup, channel: NotificationChannel, on: boolean) => dispatch({ type: "setNotification", group, channel, on }),
@@ -1928,6 +1959,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addAlert,
       toggleInterest,
       addInterest,
+      setInterestMonths,
       markNotificationRead,
       markAllNotificationsRead,
       inviteInterested,
@@ -1949,6 +1981,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetPayments,
       setAcceptingRequests,
       toggleSaved,
+      confirmLivedWith,
       toggleHostAlert,
       setNotification,
       unblockUser,
@@ -1957,7 +1990,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       fireReminder,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, toggleInterest, addInterest, markNotificationRead, markAllNotificationsRead, inviteInterested, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, toggleInterest, addInterest, setInterestMonths, markNotificationRead, markAllNotificationsRead, inviteInterested, addApplication, leaveStay, closeStay, removeMember, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

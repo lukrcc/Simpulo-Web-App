@@ -1,3 +1,4 @@
+import { CURATED_DESTINATIONS } from "./destinations";
 import { linkDomain } from "../links";
 import type { DataAdapter } from "./adapter";
 
@@ -11,6 +12,7 @@ export const emptyAdapter: DataAdapter = {
   getUsers: () => [],
   getJoinRequests: () => [],
   getInterests: () => [],
+  getCuratedDestinations: () => CURATED_DESTINATIONS,
   getClaimableHouses: () => [],
   getKnownDestinations: () => [],
   defaultUserId: null,

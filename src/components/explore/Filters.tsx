@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { buttonStyles, type ButtonSize } from "@/components/ui/ActionButton";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
+import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Combobox } from "@/components/ui/Combobox";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { upcomingMonths } from "@/components/form/MonthChips";
@@ -45,7 +46,7 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={buttonStyles("primary", "bar", cn("font-semibold", className))}
+      className={buttonStyles("secondary", "bar", cn("font-semibold", className))}
     >
       <SlidersHorizontal aria-hidden />
       {t("filters")}
@@ -69,8 +70,8 @@ export interface CheckOption {
 /** One section of the filter panel: 20px inside, a 13px/600 muted title (and an optional note at its right). */
 export function PanelSection({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
   return (
-    <section className="p-5">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
+    <section className="pb-5">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
         <h3 className="text-small font-semibold text-muted">{title}</h3>
         {note && <span className="text-small tabular-nums text-muted">{note}</span>}
       </div>
@@ -84,17 +85,18 @@ export function ChoiceChips<T extends string | number>({
   options,
   value,
   onChange,
-  columns,
   label,
+  clearable = false,
 }: {
   options: ReadonlyArray<{ value: T | null; label: string }>;
   value: T | null;
   onChange: (value: T | null) => void;
-  columns: 2 | 3;
   label: string;
+  /** Picking the chosen one again clears it (a list without its own "All") */
+  clearable?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("grid gap-1.5", columns === 2 ? "grid-cols-2" : "grid-cols-3")}>
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-x-1 gap-y-1.5">
       {options.map((o) => (
         <Chip
           key={String(o.value)}
@@ -102,9 +104,9 @@ export function ChoiceChips<T extends string | number>({
           aria-checked={value === o.value}
           active={value === o.value}
           check={o.value !== null}
-          size="compact"
-          onClick={() => onChange(o.value)}
-          className="w-full justify-center"
+          size="sm"
+          onClick={() => onChange(clearable && value === o.value ? null : o.value)}
+          className="px-2.5!"
         >
           {o.label}
         </Chip>
@@ -132,7 +134,7 @@ export function MonthSection({ value, onChange, title }: { value: readonly strin
           <Chip
             key={month}
             active={value.includes(month)}
-            size="compact"
+            size="sm"
             aria-label={long(month)}
             title={long(month)}
             onClick={() => toggle(month)}
@@ -193,7 +195,7 @@ export function PriceFilter({
         {bars.map((count, i) => {
           const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
           const inRange = at >= current.min && at <= current.max;
-          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink" : "bg-line")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-accent/70" : "bg-ink/15")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
         })}
       </div>
       <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
@@ -214,7 +216,7 @@ function PriceField({ label, amount, currency, onCommit }: { label: string; amou
     else setDraft(String(amount));
   };
   return (
-    <label className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-ink">
+    <label className="flex h-10 items-center gap-2 rounded-xl bg-(--chip-bg) px-3 focus-within:ring-2 focus-within:ring-accent">
       <span className="text-small text-muted">{label}</span>
       <input
         inputMode="numeric"
@@ -234,6 +236,8 @@ export function LanguageFilter({ options, value, onChange, label, placeholder }:
   const picked = options.filter((o) => value.includes(o.value)).map((o) => o.label);
   return (
     <Combobox
+      above
+      soft
       aria-label={label}
       value={picked.join(", ")}
       placeholder={placeholder}
@@ -301,7 +305,7 @@ export function CategoryRow({
     };
   }, [open]);
 
-  const chip = (active: boolean) => chipStyles(active, { size: "row" });
+  const chip = (active: boolean) => chipStyles(active, { size: "md" });
   const { ref: scrollerRef, edges } = useChipScroller();
   // A click on the only active chip goes back to All; any other click makes that chip the one.
   const pick = (option: string) => onSelect(value.length === 1 && value[0] === option ? null : option);
@@ -321,7 +325,7 @@ export function CategoryRow({
             role="radio"
             aria-checked={value.includes(o.value)}
             active={value.includes(o.value)}
-            size="row"
+            size="md"
             title={o.label}
             onClick={() => pick(o.value)}
           >
@@ -349,13 +353,13 @@ export function CategoryRow({
           role="group"
           aria-label={moreLabel}
           style={{ width: `min(${MORE_POPOVER_MAX_WIDTH}px, calc(100vw - 32px))` }}
-          className="chip-more-popover animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
+          className="chip-more-popover animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
         >
           {more.map((o) => (
             <Chip
               key={o.value}
               active={value.includes(o.value)}
-              size="row"
+              size="md"
               title={o.label}
               onClick={() => {
                 onSelect(o.value);
@@ -440,7 +444,7 @@ export function SortList({ options, value, onChange }: { options: ReadonlyArray<
   // Its own radio group name: the list can be on the page more than once (header, compact header, panel).
   const name = useId();
   return (
-    <div role="radiogroup" className="divide-y divide-line">
+    <div role="radiogroup" className="">
       {options.map((o) => (
         <label key={o.value} className="block cursor-pointer px-2">
           <ListRow title={o.label} action={<Checkbox radio name={name} checked={value === o.value} onChange={() => onChange(o.value)} />} />
@@ -479,15 +483,15 @@ export function SortCapsule({ label, children, size = "md" }: { label: string; c
       {open && (
         // In a portal: the site header clips its overflow.
         <Anchored anchor={buttonRef} ref={panelRef} align="end">
-          <div
+          <GlassPanel
             id={id}
             role="dialog"
             aria-label={t("sort")}
             onChange={() => setOpen(false)}
-            className="animate-fade-in w-60 rounded-xl border border-line bg-surface p-2 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
+            className="animate-fade-in w-60 rounded-[20px] p-2"
           >
             {children}
-          </div>
+          </GlassPanel>
         </Anchored>
       )}
     </div>
@@ -517,66 +521,10 @@ export function PlaceDateSearch({ onSearch }: { onSearch: (query: string) => voi
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("searchPlaceDate")}
         aria-label={t("searchPlaceDate")}
-        className="h-9 w-56 rounded-full border border-line bg-surface pl-9 pr-4 text-small outline-none placeholder:text-muted focus:border-accent"
+        className="h-9 w-56 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] pl-9 pr-4 text-small outline-none placeholder:text-muted focus:border-accent"
       />
     </form>
   );
 }
 
-/**
- * The filter panel: slides in from the right (400px, floating 8px from the edges, 24px left corners; phones: the full
- * width), surface with a soft shadow over a 12 % ink overlay that blurs the page 4px.
- * Sections split by lines (they fit a 900px window without scrolling; smaller ones scroll the body), footer pinned. Closes on the overlay, Escape and whatever the footer does; the page behind doesn't
- * scroll by hand meanwhile, and focus goes back to what opened it.
- */
-export function FilterPanel({ open, onClose, title, footer, children }: { open: boolean; onClose: () => void; title: string; footer: ReactNode; children: ReactNode }) {
-  const tCommon = useTranslations("common");
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    const opener = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    panelRef.current?.focus();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKey);
-      opener?.focus();
-    };
-  }, [open]);
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      {/* 12 % ink with a 4px blur over the page, fading in with the panel. */}
-      <button type="button" aria-label={tCommon("close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-default bg-ink/12 backdrop-blur-[4px] motion-safe:animate-overlay-in" />
-      {/* From md it floats: 8px from the window's top, bottom and right edge, 24px corners on its left side. */}
-      <div
-        ref={panelRef}
-        tabIndex={-1}
-        className="absolute inset-y-0 right-0 flex w-[min(400px,100vw)] flex-col overflow-hidden bg-surface shadow-[0_24px_64px_rgba(0,0,0,0.12)] outline-none motion-safe:animate-panel-in md:inset-y-2 md:right-2 md:rounded-l-3xl"
-      >
-        <div className="flex items-center justify-between gap-4 border-b border-line px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <h2 id={titleId} className="text-h3 tracking-tight text-ink">
-            {title}
-          </h2>
-          <button type="button" onClick={onClose} aria-label={tCommon("close")} className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:bg-bg">
-            <X className="size-5" aria-hidden />
-          </button>
-        </div>
-        {/* The sections one under the other, each split from the next by a line. */}
-        <div className="scroll-pane min-h-0 flex-1 divide-y divide-line">{children}</div>
-        <div className="flex items-center justify-between gap-4 border-t border-line px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">{footer}</div>
-      </div>
-    </div>
-  );
-}
 

@@ -15,7 +15,7 @@ import {
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { CardTab } from "@/components/ui/CardTab";
-import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
+import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { useNotchClip } from "@/components/ui/notch";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
@@ -206,7 +206,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
     // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1600px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-8 lg:hidden"
+      className="mx-auto max-w-[1680px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-8 lg:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
@@ -389,7 +389,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
             <div className="flex flex-col items-center md:block">
               <Link href={href} onNavigate={openHouse} tabIndex={-1} aria-hidden className="pointer-events-auto">
-                <h2 data-vt="title" className={cn("line-clamp-2 text-h2 md:text-h1", cardTitle)}>{stay.title}</h2>
+                <h2 data-vt="title" className="line-clamp-2 text-h2 text-white md:text-h1">{stay.title}</h2>
               </Link>
               {/* Only where the card has no host tab (phones have one). */}
               <p className="mt-2 hidden items-center gap-1 text-small text-white/85 md:flex">

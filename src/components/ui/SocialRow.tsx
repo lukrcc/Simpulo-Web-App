@@ -47,8 +47,7 @@ export function SocialRow({ user, size = "md", className }: SocialRowProps) {
             style={{ "--brand": hex ?? "var(--ink)", "--circle": onInk ? "var(--ink)" : "var(--surface)" } as CSSProperties}
             className={cn(
               // Hover: the circle takes a 10 % tint of the brand colour; the icon stays as it is.
-              "flex shrink-0 items-center justify-center rounded-full border bg-(--circle) text-(--brand) transition-colors hover:bg-[color-mix(in_srgb,var(--brand)_10%,var(--circle))]",
-              onInk ? "border-ink" : "border-line",
+              "flex shrink-0 items-center justify-center rounded-full bg-(--circle) shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-(--brand) transition-colors hover:bg-[color-mix(in_srgb,var(--brand)_10%,var(--circle))]",
               sizes[size].button,
             )}
           >

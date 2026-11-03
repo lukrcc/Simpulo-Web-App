@@ -5,7 +5,7 @@ import { DESTINATION_MIN_INTEREST, DESTINATIONS_ALL_FROM_HOUSES } from "@/config
 import { getDestinations } from "./data";
 import { findImageOnce } from "./data/destinationImages";
 import type { Destination, DestinationCandidate, DestinationInterest, DestinationStatus } from "./data/destinationTypes";
-import { aggregateDemand, FLEXIBLE, type DemandSpot, type Interest } from "./interests";
+import { aggregateDemand, FLEXIBLE, mergeMonths, type DemandSpot, type Interest } from "./interests";
 import { isListedStay } from "./launch";
 import { useStore } from "./store";
 
@@ -79,7 +79,10 @@ async function askForImage(destination: Destination) {
 export function addAnonymousInterest(interest: DestinationInterest) {
   const state = read();
   const email = interest.email?.trim().toLowerCase();
-  write({ ...state, anonymous: [...state.anonymous.filter((i) => !(i.destinationId === interest.destinationId && i.email === email)), { ...interest, email }] });
+  const same = (i: DestinationInterest) => i.destinationId === interest.destinationId && i.email === email;
+  // One interest per person, place and month, here too: only the new months are added.
+  const months = mergeMonths(state.anonymous.find(same)?.months ?? [], interest.months);
+  write({ ...state, anonymous: [...state.anonymous.filter((i) => !same(i)), { ...interest, email, months }] });
 }
 
 export function setDestinationStatus(id: string, status: DestinationStatus) {
@@ -132,6 +135,38 @@ export type DestinationSpot = DemandSpot & { destination: Destination };
  * What Explore may show, most wanted first: approved, with at least DESTINATION_MIN_INTEREST people. Curated places also
  * without them once there are enough Houses around to carry an empty card.
  */
+/**
+ * One person's Next stop as cards: every place of theirs, however few others want it. `own`: also what isn't approved yet,
+ * and what they keep to themselves; anyone else only sees approved places they chose to show.
+ */
+export function useNextStopSpots(userId: string, own: boolean): DestinationSpot[] {
+  const { destinations, interests } = useDestinations();
+  const { interests: storeInterests } = useStore();
+  return useMemo(() => {
+    const spots = new Map(aggregateDemand(interests).map((spot) => [spot.destinationId, spot]));
+    const theirs = storeInterests.filter((i) => i.userId === userId && (own || i.visible)).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return theirs.flatMap((interest): DestinationSpot[] => {
+      const destination = destinations.find((d) => d.id === interest.destinationId);
+      const spot = spots.get(interest.destinationId);
+      return destination && spot && (own || destination.status === "approved") ? [{ destination, ...spot }] : [];
+    });
+  }, [destinations, interests, storeInterests, userId, own]);
+}
+
+/** A picture fit for a public card (the dev stand-ins exist only with APP_MODE "dev"). */
+const isCardImage = (d: Pick<Destination, "coverImage" | "imageSource">) => d.coverImage !== undefined && (d.imageSource === "curated" || d.imageSource === "pexels" || d.imageSource === "fallback-dev");
+/** On a public card only with a real picture: no stage colours for a place in Where next, the grid or the pre-launch row. */
+export const hasCardImage = (spot: DestinationSpot) => isCardImage(spot.destination);
+/** Curated places have a card without enough people too, once there are enough Houses around to carry an empty one. */
+const isOnCard = (d: Destination, people: number, showAll: boolean) => d.status === "approved" && (people >= DESTINATION_MIN_INTEREST || (showAll && d.imageSource !== "pexels" && getDestinations().some((c) => c.id === d.id)));
+
+/** Whether a place has a visible card once this many people want to go: then "Somewhere else?" leads to it, else it only says so. */
+export function useHasCard(): (destination: Destination, people: number) => boolean {
+  const { stays } = useStore();
+  const showAll = stays.filter(isListedStay).length >= DESTINATIONS_ALL_FROM_HOUSES;
+  return (destination, people) => isOnCard(destination, people, showAll) && isCardImage(destination);
+}
+
 export function useDemandSpots(): DestinationSpot[] {
   const { destinations, interests } = useDestinations();
   const { stays } = useStore();
@@ -139,7 +174,7 @@ export function useDemandSpots(): DestinationSpot[] {
   return useMemo(() => {
     const spots = new Map(aggregateDemand(interests).map((spot) => [spot.destinationId, spot]));
     return destinations
-      .filter((d) => d.status === "approved" && (d.interestedCount >= DESTINATION_MIN_INTEREST || (showAll && d.imageSource !== "pexels" && getDestinations().some((c) => c.id === d.id))))
+      .filter((d) => isOnCard(d, d.interestedCount, showAll))
       .map((destination): DestinationSpot => ({
         destination,
         ...(spots.get(destination.id) ?? { destinationId: destination.id, placeName: destination.name, country: destination.country, region: destination.region, count: 0, months: [], anytime: 0 }),

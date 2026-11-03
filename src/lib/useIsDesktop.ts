@@ -2,8 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
-/** Tailwind's lg breakpoint – where Houses and Messages switch to master–detail. */
-const query = "(min-width: 1024px)";
+/** The split breakpoint (globals.css) – where Houses and Messages switch to master–detail. */
+const query = "(min-width: 1100px)";
 
 function subscribe(onChange: () => void) {
   const media = window.matchMedia(query);

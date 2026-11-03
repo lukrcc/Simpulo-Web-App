@@ -70,7 +70,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
     items.length === 0 ? (
       <p className="px-4 py-10 text-center text-small text-muted">{t("empty")}</p>
     ) : (
-      <ul className="divide-y divide-line">
+      <ul className="">
         {items.map((n) => (
           <li key={n.id}>
             <NotificationItem notification={n} onRead={repo.markRead} onOpen={close} />
@@ -95,7 +95,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         aria-expanded={open}
         className={cn(
           "relative flex items-center justify-center rounded-full transition-colors",
-          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "size-9 border border-line bg-surface text-ink hover:bg-bg",
+          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "icon-button size-9",
         )}
       >
         <Bell className={variant === "plain" ? "size-5" : "size-[18px]"} aria-hidden />
@@ -106,7 +106,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
           ) : (
             <span
               aria-hidden
-              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-ink px-1 text-small font-semibold leading-none text-surface"
+              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-accent px-1 text-small font-semibold leading-none text-surface"
             >
               {unread > 9 ? "9+" : unread}
             </span>
@@ -119,14 +119,14 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
           <div
             role="dialog"
             aria-label={t("title")}
-            className="animate-fade-in flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_12px_40px_color-mix(in_srgb,var(--ink)_14%,transparent)] ring-1 ring-line"
+            className="animate-fade-in flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_12px_40px_color-mix(in_srgb,var(--ink)_14%,transparent)]"
           >
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
               <p className="font-semibold text-ink">{t("title")}</p>
               {markAll}
             </div>
             <div className="scroll-pane min-h-0 flex-1 px-2">{list}</div>
-            <div className="border-t border-line">{seeAll}</div>
+            <div className="">{seeAll}</div>
           </div>
         </Anchored>
       )}
@@ -136,7 +136,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         <Sheet open={open} onClose={close} title={t("title")}>
           <div className="-mt-2 mb-2 flex justify-end">{markAll}</div>
           <div className="-mx-2">{list}</div>
-          <div className="mt-2 border-t border-line">{seeAll}</div>
+          <div className="mt-2 ">{seeAll}</div>
         </Sheet>
       )}
     </div>

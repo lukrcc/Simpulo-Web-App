@@ -53,7 +53,7 @@ export function NotificationItem({ notification, onOpen, onRead }: { notificatio
       title={<span className={unread ? "font-semibold" : undefined}>{t(`types.${type}`)}</span>}
       subtitle={text(notification)}
       aside={<span className="shrink-0 text-small text-muted">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>}
-      action={unread ? <span className="size-2 rounded-full bg-ink" role="img" aria-label={t("unread")} /> : undefined}
+      action={unread ? <span className="size-2 rounded-full bg-accent" role="img" aria-label={t("unread")} /> : undefined}
     />
   );
   const className = "block px-2 text-left hover:bg-bg";

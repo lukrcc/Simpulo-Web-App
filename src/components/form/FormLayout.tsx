@@ -13,11 +13,11 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * Narrower than the 1600px feed container – forms read better at this width. The header stays full width.
+ * Narrower than the 1680px feed container – forms read better at this width. The header stays full width.
  * "wide" (Open a House): 1280px, for the 400px preview column.
  */
 export function FormContainer({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cn("mx-auto w-full px-4 pt-6 md:px-8 md:pt-8", wide ? "max-w-[1280px]" : "max-w-[1120px]", className)}>{children}</div>;
+  return <div className={cn("mx-auto pt-6 md:pt-8", wide ? "w-[min(100%-2*var(--page-margin),1280px)]" : "w-[min(100%-2*var(--page-margin),1120px)]", className)}>{children}</div>;
 }
 
 /**
@@ -26,11 +26,11 @@ export function FormContainer({ children, className, wide = false }: { children:
  */
 export function FormGrid({ form, preview, wide = false }: { form: ReactNode; preview?: ReactNode; wide?: boolean }) {
   return (
-    <div className={cn("lg:grid lg:items-start lg:gap-10", wide ? "lg:grid-cols-[minmax(0,1fr)_400px]" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
-      <div className="min-w-0">{form}</div>
+    <div className={cn("split:grid split:items-start split:gap-10", wide ? "split:grid-cols-[minmax(0,1fr)_400px]" : "split:grid-cols-[minmax(0,1fr)_360px]")}>
+      <div className="min-w-0 max-w-[720px]">{form}</div>
       {preview && (
         // Starts level with the form's first card; sticky 32px under the header.
-        <aside className={cn("hidden self-start lg:sticky lg:top-[calc(var(--header-h)+32px)] lg:block", wide && "lg:max-h-[calc(100dvh-var(--header-h)-64px)]")}>
+        <aside className={cn("hidden self-start split:sticky split:top-[calc(var(--header-h)+32px)] split:block", wide && "split:max-h-[calc(100dvh-var(--header-h)-64px)]")}>
           {preview}
         </aside>
       )}
@@ -43,7 +43,7 @@ export function FormHeader({ title, back, aside }: { title: string; back?: React
   return (
     <div className="mb-5 flex items-center gap-3">
       {back}
-      <h1 className="min-w-0 flex-1 truncate text-h2 tracking-tight">{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-h2">{title}</h1>
       {aside}
     </div>
   );
@@ -107,12 +107,12 @@ export function FormField({ label, optional = false, helper, error, group = fals
 }
 
 /**
- * The one field style of the app: 44px, rounded-xl, surface background, 1px line border, accent focus ring, ink 15px
- * text (red border when aria-invalid). For inputs, native selects and field-like triggers (Combobox, date range).
+ * The one field style of the app: 44px, rounded-xl, a soft warm tint without a frame, accent focus ring, ink 15px
+ * text (red ring when aria-invalid). For inputs, native selects and field-like triggers (Combobox, date range).
  * Numbers are typed (inputMode="numeric") – never steppers; the global CSS hides number spinners.
  */
 export const formInput =
-  "h-11 w-full rounded-xl border border-line bg-surface px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-300";
+  "h-11 w-full rounded-xl bg-ink/5 px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:ring-2 aria-invalid:ring-red-300";
 /** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
@@ -138,7 +138,7 @@ export function StickyFormBar({ children, slideIn = false }: { children: ReactNo
   return (
     <div
       className={cn(
-        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-xl border border-line bg-surface/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
+        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
         slideIn && "animate-slide-up",
       )}
     >

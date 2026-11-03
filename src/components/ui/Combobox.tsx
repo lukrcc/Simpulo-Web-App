@@ -46,6 +46,8 @@ export function useListNavigation(count: number) {
 }
 
 interface OptionListProps {
+  /** Opens upwards: for a field at the bottom of a panel */
+  above?: boolean;
   id: string;
   options: ComboOption[];
   active: number;
@@ -57,7 +59,7 @@ interface OptionListProps {
 }
 
 /** The dropdown list (role=listbox) below a combobox input; options stay clickable without blurring the input. */
-export function OptionList({ id, options, active, selected, onPick, onHover, empty }: OptionListProps) {
+export function OptionList({ id, options, active, selected, onPick, onHover, empty, above = false }: OptionListProps) {
   const groups: Array<{ name: string | undefined; items: Array<{ option: ComboOption; index: number }> }> = [];
   options.forEach((option, index) => {
     const group = groups.find((g) => g.name === option.group) ?? groups[groups.push({ name: option.group, items: [] }) - 1];
@@ -69,7 +71,7 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
       id={id}
       role="listbox"
       onMouseDown={(e) => e.preventDefault()}
-      className="scroll-pane absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 rounded-xl border border-line bg-surface p-1.5 shadow-xl"
+      className={cn("glass-panel scroll-pane absolute inset-x-0 z-30 max-h-72 rounded-[20px]! p-1.5", above ? "bottom-full mb-1.5" : "top-full mt-1.5")}
     >
       {options.length === 0 && empty && <p className="px-3 py-2.5 text-small text-muted">{empty}</p>}
       {groups.map((group, g) => (
@@ -112,6 +114,10 @@ export function inDisplayOrder(options: ComboOption[]): ComboOption[] {
 }
 
 interface ComboboxProps {
+  /** On glass: the chip surface, no frame */
+  soft?: boolean;
+  /** The list opens upwards: for a field at the bottom of a panel */
+  above?: boolean;
   id?: string;
   /** Text shown in the closed field */
   value: string;
@@ -134,7 +140,7 @@ interface ComboboxProps {
  * Searchable single-select: focus shows every option, typing filters (case and accents ignored), ↑/↓ + Enter
  * pick. With `onFreeText`, anything else typed is kept as is – suggestions, never a cage.
  */
-export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSelected, placeholder, empty, invalid, onBlur, className, ...aria }: ComboboxProps) {
+export function Combobox({ above, soft = false, id, value, options, onPick, onFreeText, pinned, isSelected, placeholder, empty, invalid, onBlur, className, ...aria }: ComboboxProps) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -170,7 +176,11 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     const action = nav.onKey(e, () => setOpen(true));
-    if (action === "close") close();
+    if (action === "close") {
+      // Escape closes the open list only; the panel around it stays.
+      if (open) e.stopPropagation();
+      close();
+    }
     if (action === "pick") {
       if (open && filtered[nav.active]) pick(filtered[nav.active]);
       else commit();
@@ -207,7 +217,7 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
         }}
         onKeyDown={onKeyDown}
         // The form field look (44px, surface, 1px line, accent ring) with room for the chevron; typing filters.
-        className={cn(formInput, "pr-10")}
+        className={cn(formInput, "pr-10", soft && "bg-(--chip-bg)!")}
         {...aria}
       />
       {/* A picked value (not while typing): the accent check right after it. */}
@@ -217,7 +227,7 @@ export function Combobox({ id, value, options, onPick, onFreeText, pinned, isSel
         aria-hidden
       />
       {open && (
-        <OptionList
+        <OptionList above={above}
           id={listId}
           options={filtered}
           active={nav.active}

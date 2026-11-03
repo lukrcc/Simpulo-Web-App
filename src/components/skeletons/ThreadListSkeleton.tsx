@@ -8,7 +8,7 @@ export function ThreadListSkeleton() {
     <div>
       <Bone className="h-11 rounded-xl" />
       <Bone className="mx-3 mt-5 mb-2 h-3 w-20" />
-      <ul className="divide-y divide-line">
+      <ul className="">
         {Array.from({ length: ROWS }, (_, i) => (
           <li key={i} className="flex min-h-14 items-center gap-3 px-3 py-2">
             <Bone className="size-10 shrink-0" />

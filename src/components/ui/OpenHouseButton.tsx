@@ -23,7 +23,7 @@ export function OpenHousePlus() {
 function isExploreRoute(pathname: string): boolean {
   return (
     pathname === "/" ||
-    pathname === "/next" ||
+    pathname === "/destinations" ||
     pathname === "/saved" ||
     pathname.startsWith("/collections/") ||
     pathname.startsWith("/houses/")

@@ -43,7 +43,7 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
       ) : (
         <>
           <p className="text-small leading-relaxed text-muted">{t("intro")}</p>
-          <ul className="mt-3 divide-y divide-line">
+          <ul className="mt-3">
             <li>
               <ListRow lead={<IdCard aria-hidden />} title={t("stepId")} />
             </li>

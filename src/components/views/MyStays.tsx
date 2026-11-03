@@ -222,7 +222,7 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
       // Straight on the page background: a light surface on hover, and when active also a 3px ink bar at the left edge.
       className={cn(
         "relative flex items-center gap-3 rounded-2xl p-2.5 transition-colors",
-        active ? "bg-surface before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full before:bg-ink" : "hover:bg-surface/60",
+        active ? "bg-surface before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full before:bg-accent" : "hover:bg-surface/60",
       )}
     >
       {photo ? (
@@ -267,7 +267,7 @@ function OpenFirstHouseCard() {
   const tNav = useTranslations("nav");
   return (
     <div className={cn(cardClass, "mt-2 flex flex-col items-center text-center")}>
-      <span className="flex size-12 items-center justify-center rounded-full bg-ink text-surface">
+      <span className="flex size-12 items-center justify-center rounded-full bg-(--select-bg) text-ink">
         <Plus className="size-5" aria-hidden />
       </span>
       <p className="mt-4 font-semibold">

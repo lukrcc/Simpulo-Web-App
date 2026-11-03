@@ -408,7 +408,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       <div ref={bodyRef} className="mt-5">
         {body}
       </div>
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+      <div className="mt-6 flex flex-wrap items-center gap-3 pt-5">
         {index > 0 && (
           <Button variant="tertiary" onClick={() => goTo(steps[index - 1])}>
             {t("back")}
@@ -433,7 +433,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         <section className={cn(cardClass, "max-w-160")}>
           <h2 className="text-h3 tracking-tight text-ink">{t("resume.title")}</h2>
           <p className="mt-1 text-body text-muted">{draftName || t("resume.untitled")}</p>
-          <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
+          <div className="mt-6 flex items-center gap-3 pt-5">
             <Button
               variant="tertiary"
               onClick={() => {

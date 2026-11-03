@@ -2,21 +2,16 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Container } from "@/components/layout/Container";
 import { MockDelay } from "@/components/MockDelay";
-import { HouseGrid } from "@/components/seo/HouseGrid";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HouseSkeleton } from "@/components/skeletons/HouseSkeleton";
 import { StayDetail } from "@/components/views/StayDetail";
-import { citySlugOf, countryOf, getPublicStays, getStayRecord, getStaysByVibe, getUser, isPublicStay, PLACEHOLDER_PARAM } from "@/lib/data/stays";
+import { citySlugOf, countryOf, getPublicStays, getStayRecord, getUser, isPublicStay, PLACEHOLDER_PARAM } from "@/lib/data/stays";
 import { absoluteUrl, breadcrumbList, pageMetadata } from "@/lib/seo";
 import type { Stay } from "@/lib/types";
 import { firstName, firstSentence } from "@/lib/utils";
-import { isListedStay } from "@/lib/launch";
 
 const isDraft = (stay: Stay) => stay.status === "draft" || stay.status === "draft_unclaimed";
-/** Completed by the host – its page stays up (links keep working) and points to similar Houses. */
-const isEnded = (stay: Stay) => stay.status === "completed";
 
 /** Every public House is prerendered; Houses opened in the browser (mock) render on request. */
 export async function generateStaticParams() {
@@ -66,32 +61,7 @@ async function House({ params }: { params: PageProps<"/house/[slug]">["params"] 
       <MockDelay ms={400} fallback={<HouseSkeleton />}>
         <StayDetail params={params} />
       </MockDelay>
-      {stay && isPublicStay(stay) && isEnded(stay) && <SimilarHouses stay={stay} />}
     </>
-  );
-}
-
-const MAX_SIMILAR = 4;
-
-/** Ended Houses keep their page – with a few open Houses of the same vibe (else the same country) to go on with. */
-async function SimilarHouses({ stay }: { stay: Stay }) {
-  const t = await getTranslations("seo.house");
-  const sameVibe = (await getStaysByVibe(stay.vibe)).filter((s) => s.id !== stay.id);
-  const sameCountry = (await getPublicStays()).filter((s) => isListedStay(s) && s.id !== stay.id && countryOf(s) === countryOf(stay));
-  const similar = (sameVibe.length > 0 ? sameVibe : sameCountry).slice(0, MAX_SIMILAR);
-  if (similar.length === 0) return null;
-  return (
-    <Container className="mt-16">
-      <section aria-labelledby="similar-houses">
-        <h2 id="similar-houses" className="text-h2 tracking-tight">
-          {t("similar")}
-        </h2>
-        <p className="mt-1 text-muted">{t("similarText")}</p>
-        <div className="mt-6">
-          <HouseGrid stays={similar} />
-        </div>
-      </section>
-    </Container>
   );
 }
 

@@ -5,8 +5,8 @@
 export const COLORS = {
   bg: "#F2F0EB",
   surface: "#FBFAF7",
-  ink: "#1E1E22",
-  muted: "#6B6B70",
+  ink: "#221E1B",
+  muted: "#77706A",
   line: "#E3E0D9",
   accent: "#F0633A",
 } as const;

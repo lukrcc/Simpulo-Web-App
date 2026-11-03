@@ -44,7 +44,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
           ))}
         </ol>
       </nav>
-      <h1 className="mt-4 text-h2 tracking-tight md:text-h1">{h1}</h1>
+      <h1 className="mt-4 text-h2 md:text-h1">{h1}</h1>
       <div className="mt-4 max-w-2xl">
         <TodoNote>{intro}</TodoNote>
       </div>

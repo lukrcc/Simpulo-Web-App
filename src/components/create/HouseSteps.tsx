@@ -4,7 +4,6 @@ import { Check, ChevronDown, Link2, Minus, Plus, Sparkles, Users, X, type Lucide
 import { useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { suggestionChipClass } from "@/components/form/chips";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
@@ -51,12 +50,12 @@ export interface StepProps {
   touch: (key: FieldKey) => void;
 }
 
-/** A tap-to-use suggestion chip; the one in use gets an ink border. */
+/** A tap-to-use suggestion: a chip like any other. */
 function SuggestionChip({ label, active = false, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={active} className={cn(suggestionChipClass, active ? "border-ink" : "border-line")}>
+    <Chip active={active} onClick={onClick}>
       {label}
-    </button>
+    </Chip>
   );
 }
 
@@ -305,7 +304,7 @@ export function BudgetStep({ form, patch, errorOf, touch, currency, locked }: St
         />
       </FormField>
 
-      <div className="flex items-center justify-between gap-3 border-y border-line py-1">
+      <div className="flex items-center justify-between gap-3 py-1">
         <span className="text-body font-medium text-ink">{t("decideTogether")}</span>
         <Switch on={form.budgetTbd} label={t("decideTogether")} onChange={(on) => patch({ budgetTbd: on })} />
       </div>
@@ -383,7 +382,7 @@ export function TitleStep({ form, patch, errorOf, touch, titleMax }: StepProps &
 function useTitleSuggestions(form: FormState, titleMax: number): string[] {
   const t = useTranslations("create.house");
   const customLabel = form.customVibe?.trim();
-  const vibe: Vibe | "" = form.customVibe !== null ? (customLabel ? "mixed" : "") : form.vibe;
+  const vibe: Vibe | "" = form.customVibe !== null ? (customLabel ? "social" : "") : form.vibe;
   const region = regionShortName(form.region);
   if (!vibe || !region) return [];
   const place = form.city.trim() || region;
@@ -516,8 +515,8 @@ export function HostStep({ form, patch, errorOf, touch, currency, allowed }: Hos
               disabled={disabled}
               onClick={() => patch({ hostExperience: key })}
               className={cn(
-                "flex flex-col items-start gap-3 rounded-xl border bg-surface p-5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                active ? "border-ink ring-1 ring-ink" : "border-line hover:bg-bg",
+                "flex flex-col items-start gap-3 rounded-xl p-5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                active ? "bg-(--select-bg)" : "bg-ink/5 hover:bg-ink/10",
               )}
             >
               <Icon className="size-6 text-ink" aria-hidden />
@@ -609,7 +608,7 @@ export function ExtrasStep({ form, patch, errorOf, touch, showIdeas }: StepProps
   };
 
   return (
-    <ul className="-my-2 divide-y divide-line">
+    <ul className="-my-2">
       {keys.map((key) => (
         <ExtraRow key={key} title={t(`rows.${key}`)} added={filled[key]} open={open === key} onToggle={() => setOpen(open === key ? null : key)}>
           {fields[key]}
@@ -736,7 +735,7 @@ export function PublishStep({ stay, form, me, editing, steps, missing, onEdit, i
 
   return (
     <div className="space-y-6">
-      <ul className="-mt-2 divide-y divide-line">
+      <ul className="-mt-2">
         {rows.map(({ key, step, label, value, missing: isMissing }) => (
           <li key={key}>
             <ListRow
@@ -763,7 +762,7 @@ export function PublishStep({ stay, form, me, editing, steps, missing, onEdit, i
       <ProfileSection me={me} />
 
       {(invites.count > 0 || !editing) && (
-        <div className="space-y-1 border-t border-line pt-4">
+        <div className="space-y-1 pt-4">
           {invites.count > 0 && <CheckRow label={t("inviteCrew", { count: invites.count })} checked={invites.on} onChange={invites.set} />}
           {!editing && <CheckRow label={t("saveTemplate")} checked={template.on} onChange={template.set} />}
         </div>
@@ -777,7 +776,7 @@ function ProfileSection({ me }: { me?: User }) {
   const t = useTranslations("create.publish.profile");
   if (!me) {
     return (
-      <section className="border-t border-line pt-5">
+      <section className="pt-5">
         <h3 className="text-body font-medium text-ink">{t("title")}</h3>
         <p className="mt-1 text-small text-muted">{t("loggedOut")}</p>
       </section>
@@ -785,7 +784,7 @@ function ProfileSection({ me }: { me?: User }) {
   }
   const missing = [!me.photos[0] && t("photo"), !me.name.trim() && t("name")].filter((item): item is string => Boolean(item));
   return (
-    <section className="border-t border-line pt-5">
+    <section className="pt-5">
       <h3 className="text-body font-medium text-ink">{t("title")}</h3>
       <ListRow
         lead={<Avatar user={me} size="md" />}
@@ -829,7 +828,7 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
           const vibe = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
           const title = form.title.trim() || t("untitled");
           return (
-            <li key={template.id} className="flex items-start gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-ink">
+            <li key={template.id} className="flex items-start gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 transition-colors hover:border-ink">
               <button type="button" onClick={() => onPick(template)} className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-body font-medium text-ink">{title}</span>
                 <span className="mt-0.5 block truncate text-small text-muted">

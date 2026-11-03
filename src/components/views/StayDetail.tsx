@@ -3,7 +3,7 @@
 import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, use, useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { formTextarea } from "@/components/form/FormLayout";
@@ -15,20 +15,15 @@ import { useHouseShare } from "@/components/share/HouseShare";
 import { StayCard } from "@/components/StayCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
-import { AccommodationSection } from "@/components/stay/AccommodationSection";
-import { HostCard } from "@/components/stay/HostCard";
-import { HostGallery, HostPhotoGrid } from "@/components/stay/HostGallery";
-import { HostPitch } from "@/components/stay/HostPitch";
+import { HouseCrew, HouseDay, HouseFacts, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy } from "@/components/stay/HouseSections";
+import { HouseStage } from "@/components/stay/HouseStage";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { InterestInvite } from "@/components/stay/InterestInvite";
-import { PlaceMap } from "@/components/stay/PlaceMap";
-import { Section } from "@/components/stay/Section";
-import { StayFacts } from "@/components/stay/StayFacts";
 import { Button } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { cardClass } from "@/components/ui/Card";
+import { glassCircle } from "@/components/ui/glass";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PriceLine } from "@/components/ui/PriceLine";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
@@ -37,7 +32,7 @@ import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewLinks, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
-import { cn, housePhotos, openSpots, stayNights } from "@/lib/utils";
+import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { isListedStay } from "@/lib/launch";
 
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -84,7 +79,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
       {others.length > 0 && (
         <section className="mt-12">
           <h2 className="mb-4 text-body-lg font-semibold">{t("others")}</h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="card-grid [--card-cols:3] [--card-min:280px]">
             {others.map((s) => (
               <StayCard key={s.id} stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
             ))}
@@ -97,7 +92,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
 
 function StayDetailContent({ stay }: { stay: Stay }) {
   const t = useTranslations("house");
-  const format = useFormat();
+  const tProfile = useTranslations("profile");
   const store = useStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +138,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       ? validHouseInvite(store, stay.id, inviteToken)
       : undefined;
   const chatLinkCount = getCrewLinks(store, stay.id).length;
+  const photos = housePhotos(stay, host);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
@@ -197,8 +194,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
   }
 
-  const cta = (
+  const cta = (look: "stage" | "bar") => (
     <StayCta
+      look={look}
       stay={stay}
       isHost={isHost}
       request={myRequest}
@@ -211,9 +209,17 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     />
   );
 
+  // The crew-only and host-only panels: between the facts and the House's own story.
+  const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
+  const canJoin = !isHost && !isMember && !myRequest && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0;
+  const message = !isHost && (
+    <Button variant="glass" size="xl" onClick={messageHost} data-preview-action>
+      <MessageCircle aria-hidden />
+      {t("messageHost", { name: hostFirstName })}
+    </Button>
+  );
+
   return (
-    // Mobile: the host gallery is full-bleed and starts at the very top, so no page top spacing below md.
-    // Desktop (lg): content 7/12, sticky side cards 5/12. Below lg the sticky bottom bar carries the CTA.
     <PreviewProvider active={previewing}>
     <Suspense fallback={null}>
       <PreviewParam onChange={setPreviewParam} />
@@ -227,155 +233,88 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         <InviteBanner stay={stay} invite={invite} />
       </Container>
     )}
-    <Container className={cn("lg:grid lg:grid-cols-12 lg:gap-8", invite ? "pt-4 md:pt-6" : "md:pt-10")}>
-      <div className="min-w-0 lg:col-span-7">
-        {host && (
-          <>
-            <div className="-mx-4 md:mx-0 lg:hidden">
-              <HostGallery host={host} stayId={stay.id} photos={housePhotos(stay, host)} onBack={goBack} onShare={houseShare.share} shareCopied={houseShare.copied} />
+    <Container className={invite ? "pt-4 md:pt-6" : "pt-4 md:pt-8"}>
+      {host && (
+        <div ref={stageRef}>
+          <HouseStage
+            stay={stay}
+            host={host}
+            crew={crew}
+            photos={photos}
+            save={<SaveButton stay={stay} />}
+            menu={!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={glassCircle} />}
+            onShare={houseShare.share}
+            shareCopied={houseShare.copied}
+            onBack={goBack}
+            cta={cta("stage")}
+            message={message}
+          />
+        </div>
+      )}
+
+      <HouseFacts stay={stay} host={host} />
+
+      <div className="empty:hidden">
+        {/* Declined, or the crew is full: the same trip, as their own House. */}
+        {showOpenYourOwn && <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />}
+
+        {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
+        {myRequest?.status === "invited" && (
+          <div className={cn(cardClass, "mt-6 flex items-start gap-4")}>
+            <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+            <div className="min-w-0 text-body">
+              <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
+              <p className="mt-0.5 text-muted">{t("invite.text")}</p>
             </div>
-            <div className="hidden lg:block">
-              <HostPhotoGrid host={host} stayId={stay.id} photos={housePhotos(stay, host)} onShare={houseShare.share} shareCopied={houseShare.copied} />
-            </div>
-          </>
+          </div>
         )}
 
-        {/* Mobile order: title + crew, host card, pitch, map, rules. Desktop: pitch, rules, map (host card on the right). */}
-        <div className="flex flex-col pt-6">
-          <StayFacts
-            stay={stay}
-            crew={crew}
-            action={
-              <div className="flex shrink-0 items-center gap-1">
-                <SaveButton stay={stay} variant="outline" />
-                {/* Not on your own House (nor in its guest preview). */}
-                {!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} />}
-              </div>
-            }
-          />
+        {/* The host, right after opening it: people who want this city and month – invite them. */}
+        {isHost && stay.visibility === "unlisted" && <p className="mt-6 text-body text-muted">{t("unlistedHint")}</p>}
+        {isHost && <InterestInvite stay={stay} className="mt-6" />}
 
-          {/* Declined, or the crew is full: the same trip, as their own House. */}
-          {!isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0))) && (
-            <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />
-          )}
+        {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
+        {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
+          <Button variant="secondary" href={stay.crewGroupUrl} external className="mt-6">
+            <ExternalLink aria-hidden />
+            {t("openCrewGroup")}
+          </Button>
+        )}
 
-          {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
-          {myRequest?.status === "invited" && (
-            <div className={cn(cardClass, "mt-6 flex items-start gap-4")}>
-              <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
-              <div className="min-w-0 text-body">
-                <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
-                <p className="mt-0.5 text-muted">{t("invite.text")}</p>
-              </div>
-            </div>
-          )}
+        {/* Crew with an open share: pay right from the House page. */}
+        {isMember && <MyShare stay={stay} className="mt-6" />}
 
-          {/* The host, right after opening it: people who want this city and month – invite them. */}
-          {isHost && stay.visibility === "unlisted" && <p className="mt-6 text-body text-muted">{t("unlistedHint")}</p>}
-          {isHost && <InterestInvite stay={stay} className="mt-6" />}
-
-          {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
-          {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
-            <Button variant="secondary" href={stay.crewGroupUrl} external className="mt-6 self-start">
-              <ExternalLink aria-hidden />
-              {t("openCrewGroup")}
+        {askForPhoto && (
+          <div className={cn(cardClass, "mt-6 flex items-center gap-4")}>
+            <Camera className="size-5 shrink-0 text-muted" aria-hidden />
+            <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
+            <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}>
+              {t("addPhoto")}
             </Button>
-          )}
-
-          {/* Crew with an open share: pay right from the House page (also on mobile – this column is always shown). */}
-          {isMember && <MyShare stay={stay} className="mt-6" />}
-
-          {askForPhoto && (
-            <div className={cn(cardClass, "mt-6 flex items-center gap-4")}>
-              <Camera className="size-5 shrink-0 text-muted" aria-hidden />
-              <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
-              <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}>
-                {t("addPhoto")}
-              </Button>
-            </div>
-          )}
-
-          {host && (
-            <div className={cn(cardClass, "mt-6 lg:hidden")}>
-              <HostCard host={host} />
-              {me && !isHost && (
-                <Button variant="secondary" onClick={messageHost} data-preview-action className="mt-4 w-full">
-                  <MessageCircle aria-hidden />
-                  {t("messageHost", { name: hostFirstName })}
-                </Button>
-              )}
-            </div>
-          )}
-
-          <div>
-            <HostPitch stay={stay} />
           </div>
-
-          {/* Only with a host fee (gone entirely when the hostPremium flag is off – the store drops both). */}
-          {stay.hostFeePerPerson && stay.hostOffer && stay.hostOffer.length > 0 && <HostOffer stay={stay} offer={stay.hostOffer} />}
-
-          {stay.houseRules.length > 0 && (
-            <div className="order-1 lg:order-none">
-            <Section title={t("houseRules")}>
-              <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
-                {stay.houseRules.map((rule) => (
-                  <li key={rule} className="flex gap-2 text-ink">
-                    <Check className="mt-1 size-4 shrink-0 text-ink" />
-                    {rule}
-                  </li>
-                ))}
-              </ul>
-            </Section>
-            </div>
-          )}
-
-          {/* Map and rules swap: mobile shows the map first (rules carry order-1), desktop the rules first. */}
-          <div className="lg:order-1">
-            <PlaceMap stay={stay} />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Side cards: Join first, then host, then accommodation. On desktop the column is only as tall as its
-          cards (self-start) and sticks at exactly its starting offset (the page's 40px top padding), so it
-          doesn't move when scrolling starts. Below lg only the accommodation card shows: the gallery covers the
-          host and the bottom bar the CTA. */}
-      <aside className="mt-8 self-start lg:sticky lg:top-[calc(var(--header-h)+40px)] lg:col-span-5 lg:mt-0">
-        <div className="space-y-4">
-          <div className={cn(cardClass, "hidden lg:block")}>
-            <PriceLine stay={stay} size="lg" />
-            <p className="mt-3 text-small text-muted">
-              {t("datesAndNights", { dates: format.longRange(stay.startDate, stay.endDate), nights: format.nights(stayNights(stay)) })}
-            </p>
-            <div className="mt-5">{cta}</div>
-            {/* A 1:1 thread with the host about this House – logged-in guests only. */}
-            {me && !isHost && (
-              <Button variant="secondary" size="lg" onClick={messageHost} data-preview-action className="mt-2 w-full">
-                <MessageCircle aria-hidden />
-                {t("messageHost", { name: hostFirstName })}
-              </Button>
-            )}
-            {!me && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0 && <p className="mt-2 text-center text-small text-muted">{t("loginBeforeSending")}</p>}
-          </div>
-          {host && (
-            <div className={cn(cardClass, "hidden lg:block")}>
-              <HostCard host={host} />
-            </div>
-          )}
-          <div className={cardClass}>
-            <h2 className="mb-3 text-body font-semibold">{t("accommodation")}</h2>
-            <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} inCard />
-          </div>
-        </div>
-      </aside>
+      <HouseWhy
+        stay={stay}
+        host={host}
+        message={
+          !isHost && (
+            <Button variant="secondary" onClick={messageHost} data-preview-action>
+              <MessageCircle aria-hidden />
+              {tProfile("message")}
+            </Button>
+          )
+        }
+      />
+      <HouseCrew stay={stay} crew={crew} canJoin={canJoin} onJoin={startRequest} />
+      <HouseDay stay={stay} />
+      <HouseFit stay={stay} />
+      <HouseOffer stay={stay} />
+      <HouseWhere stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
+      <HouseMore stay={stay} />
 
-      {/* Mobile/tablet: sticky bottom CTA (replaces the tab bar on this route) */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
-        <div className="flex items-center gap-4">
-          <PriceLine stay={stay} compact className="shrink-0" />
-          <div className="flex-1">{cta}</div>
-        </div>
-      </div>
+      <HouseJoinBar stay={stay} photo={photos[0]} stageRef={stageRef} cta={cta("bar")} />
 
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       {invite && <InviteJoinSheet stay={stay} invite={invite} open={inviteSheetOpen} onClose={() => setInviteSheetOpen(false)} />}
@@ -400,31 +339,6 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       />
     </Container>
     </PreviewProvider>
-  );
-}
-
-/** What the host fee pays for: a neutral checklist under the pitch. */
-function HostOffer({ stay, offer }: { stay: Stay; offer: string[] }) {
-  const t = useTranslations("growth.premium");
-  const format = useFormat();
-  return (
-    <Section
-      title={t("offerTitle")}
-      action={
-        <span className="shrink-0 text-small text-muted">
-          <span className="font-medium tabular-nums text-ink">{format.price(stay.hostFeePerPerson ?? 0, stay.currency)}</span> {t("perPerson")}
-        </span>
-      }
-    >
-      <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
-        {offer.map((item) => (
-          <li key={item} className="flex gap-2 text-ink">
-            <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
-            {item}
-          </li>
-        ))}
-      </ul>
-    </Section>
   );
 }
 
@@ -466,6 +380,8 @@ function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
 }
 
 interface StayCtaProps {
+  /** On the stage's photo (a light capsule) or in the floating bar */
+  look: "stage" | "bar";
   stay: Stay;
   isHost: boolean;
   request?: JoinRequest;
@@ -482,16 +398,17 @@ interface StayCtaProps {
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond }: StayCtaProps) {
+function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond }: StayCtaProps) {
   const t = useTranslations("request.cta");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
   // Exactly one primary on the page: whichever state the CTA is in replaces "Join this House" (the default below).
-  const full = "w-full";
+  const variant = look === "stage" ? "light" : "primary";
+  const size = look === "stage" ? "xl" : "lg";
   // Over, and you were in it (host or crew): the same House again, with the same people.
   if (stay.status === "completed" && (isHost || request?.status === "accepted")) {
     return (
-      <Button size="lg" href={againHref(stay.id)} className={full}>
+      <Button variant={variant} size={size} href={againHref(stay.id)}>
         <RotateCcw aria-hidden />
         {t("again")}
       </Button>
@@ -499,14 +416,14 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   }
   if (isHost) {
     return (
-      <Button size="lg" href={`/my-stays/${stay.id}`} className={full}>
+      <Button variant={variant} size={size} href={`/my-stays/${stay.id}`}>
         {t("manage")}
       </Button>
     );
   }
   if (request?.status === "accepted") {
     return (
-      <Button size="lg" href={`/inbox/${crewThreadId(stay.id)}`} className={full}>
+      <Button variant={variant} size={size} href={`/inbox/${crewThreadId(stay.id)}`}>
         {t("accepted")}
       </Button>
     );
@@ -514,7 +431,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // Closed beats a pending request – there's nothing left to wait for.
   if (stay.status === "closed") {
     return (
-      <Button size="lg" disabled className={full}>
+      <Button variant={variant} size={size} disabled>
         {t("closed")}
       </Button>
     );
@@ -522,7 +439,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // Done (or past its end date): nothing to join any more.
   if (stay.status === "completed" || (today !== "" && stay.endDate < today)) {
     return (
-      <Button size="lg" disabled className={full}>
+      <Button variant={variant} size={size} disabled>
         {t("ended")}
       </Button>
     );
@@ -530,18 +447,18 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // Invite link: the reserved spot is theirs to take – no request, no waiting for the host.
   if (invited) {
     return (
-      <Button size="lg" onClick={onJoinInvite} data-preview-action className={full}>
+      <Button variant={variant} size={size} onClick={onJoinInvite} data-preview-action>
         {t("join")}
       </Button>
     );
   }
   if (request?.status === "invited") {
     return (
-      <div className="flex gap-2">
-        <Button size="lg" onClick={() => onRespond(true)} className="flex-1">
+      <div className="flex flex-wrap gap-2">
+        <Button variant={variant} size={size} onClick={() => onRespond(true)}>
           {t("acceptInvite")}
         </Button>
-        <Button variant="secondary" size="lg" onClick={() => onRespond(false)}>
+        <Button variant={look === "stage" ? "glass" : "secondary"} size={size} onClick={() => onRespond(false)}>
           {t("declineInvite")}
         </Button>
       </div>
@@ -549,7 +466,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   }
   if (request?.status === "pending") {
     return (
-      <Button size="lg" disabled className={full}>
+      <Button variant={variant} size={size} disabled>
         <Check aria-hidden />
         {t("pending")}
       </Button>
@@ -557,7 +474,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   }
   if (request?.status === "declined") {
     return (
-      <Button size="lg" disabled className={full}>
+      <Button variant={variant} size={size} disabled>
         {t("declined")}
       </Button>
     );
@@ -565,7 +482,7 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // Every spot is taken: nothing to request.
   if (spotsLeft === 0) {
     return (
-      <Button size="lg" disabled className={full}>
+      <Button variant={variant} size={size} disabled>
         {t("full")}
       </Button>
     );
@@ -573,14 +490,14 @@ function StayCta({ stay, isHost, request, spotsLeft, invited, onJoinInvite, onRe
   // The host closed requests: no new request, but you can still reach the host.
   if (!stay.acceptingRequests) {
     return (
-      <Button size="lg" onClick={onMessageHost} className={full}>
+      <Button variant={variant} size={size} onClick={onMessageHost}>
         {t("crewSet")}
       </Button>
     );
   }
   // The page's one primary: "Join this House".
   return (
-    <Button size="lg" onClick={onRequest} data-preview-action className={full}>
+    <Button variant={variant} size={size} onClick={onRequest} data-preview-action>
       {t("join")}
     </Button>
   );

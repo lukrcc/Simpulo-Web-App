@@ -43,12 +43,12 @@ export function MonthChips({ value, onChange, label, columns = "responsive" }: {
         const active = value.includes(month);
         const withYear = i > 0 && month.slice(0, 4) !== months[i - 1].slice(0, 4);
         return (
-          <Chip key={month} active={active} size="fit" onClick={() => toggle(month)}>
+          <Chip key={month} active={active} className="justify-center px-2!" onClick={() => toggle(month)}>
             {shortMonth(format, month, withYear)}
           </Chip>
         );
       })}
-      <Chip active={flexible} size="fit" onClick={() => toggle(FLEXIBLE)}>
+      <Chip active={flexible} className="justify-center px-2!" onClick={() => toggle(FLEXIBLE)}>
         {t("flexible")}
       </Chip>
     </div>

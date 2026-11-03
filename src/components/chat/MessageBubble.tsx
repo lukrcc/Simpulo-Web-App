@@ -99,31 +99,31 @@ export function MessageBubble(props: MessageBubbleProps) {
       type="button"
       onClick={() => props.onJumpTo(replyTo.message.id)}
       className={cn(
-        "mb-1 block w-full min-w-0 rounded-md border-l-[3px] bg-ink/5 py-1 pl-2 pr-2.5 text-left",
-        mine ? "border-ink" : "border-line",
+        "mb-1 block w-full min-w-0 rounded-md border-l-[3px] py-1 pl-2 pr-2.5 text-left",
+        mine ? "border-accent/50 bg-white/40" : "border-ink/15 bg-ink/5",
       )}
     >
       {replyTo.blocked ? (
-        <span className="line-clamp-1 text-small italic leading-[18px] text-muted">{tSafety("blockedMessage")}</span>
+        <span className={cn("line-clamp-1 text-small italic leading-[18px]", "text-muted")}>{tSafety("blockedMessage")}</span>
       ) : (
         <>
-          <span className={cn("block truncate text-small font-semibold", mine ? "text-ink" : "text-ink")}>
+          <span className={cn("block truncate text-small font-semibold", "text-ink")}>
             {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
           </span>
-          <span className="line-clamp-1 text-small leading-[18px] text-muted">{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+          <span className={cn("line-clamp-1 text-small leading-[18px]", "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
         </>
       )}
     </button>
   );
 
-  const timeStamp = <span className="text-small leading-none text-ink/45 tabular-nums">{time}</span>;
+  const timeStamp = () => <span className={cn("text-small leading-none tabular-nums", "text-ink/45")}>{time}</span>;
   const hasBubble = !bigEmoji && Boolean(text || quote);
   const reactions = message.reactions ?? [];
 
   return (
     <div
       id={`msg-${message.id}`}
-      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5", reactions.length > 0 && "mb-2")}
+      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-1", reactions.length > 0 && "mb-2")}
     >
       {!mine && <div className="w-8 shrink-0 self-start">{first && author && <Avatar user={author} size="sm" linked />}</div>}
 
@@ -148,22 +148,22 @@ export function MessageBubble(props: MessageBubbleProps) {
           {bigEmoji && (
             // Emoji-only: no bubble, big – the time small beside it.
             <div className={cn("flex items-end gap-1.5 px-1", mine && "flex-row-reverse")}>
-              <span className="text-h1 leading-[1.15]">{text}</span>
-              <span className="mb-1.5">{timeStamp}</span>
+              <span className="text-h1 leading-[1.15] tracking-normal">{text}</span>
+              <span className="mb-1.5">{timeStamp()}</span>
             </div>
           )}
           {hasBubble && (
             <div
               className={cn(
-                "relative max-w-full rounded-[18px] px-3 pb-1.5 pt-1.5 text-left text-body leading-5 text-ink shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] wrap-break-word",
-                mine ? "bg-line" : "bg-surface",
+                "relative max-w-full rounded-[18px] px-3 pb-1.5 pt-1.5 text-left text-body leading-5 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] wrap-break-word",
+                mine ? "bg-(--select-bg) text-ink" : "bg-surface text-ink",
                 last && (mine ? "rounded-br-[6px]" : "rounded-bl-[6px]"),
               )}
             >
               {quote}
               {text && (
                 <span className="whitespace-pre-line">
-                  <MessageText text={text} mine={mine} />
+                  <MessageText text={text} />
                 </span>
               )}
               {/* WhatsApp-style time: an invisible copy reserves room at the end of the last line (or wraps to its own),
@@ -171,9 +171,10 @@ export function MessageBubble(props: MessageBubbleProps) {
               <span className="invisible ml-2 inline-block text-small leading-none" aria-hidden>
                 {time}
               </span>
-              <span className="absolute bottom-1.5 right-3">{timeStamp}</span>
+              <span className="absolute bottom-1.5 right-3">{timeStamp()}</span>
             </div>
           )}
+          {message.contactsHidden && <p className="px-1 text-right text-small text-muted">{t("contactsHidden")}</p>}
           {images.length > 0 && (
             <ImageGrid
               images={images}
@@ -192,7 +193,7 @@ export function MessageBubble(props: MessageBubbleProps) {
             <ChatLinkCard key={url} url={url} />
           ))}
           {/* No text bubble to carry it: the time under the photos / files / cards. */}
-          {!hasBubble && !bigEmoji && <span className="px-1">{timeStamp}</span>}
+          {!hasBubble && !bigEmoji && <span className="px-1">{timeStamp()}</span>}
         </div>
 
         {reactions.length > 0 && (
@@ -209,8 +210,8 @@ export function MessageBubble(props: MessageBubbleProps) {
                   aria-pressed={reacted}
                   aria-label={t("reactionLabel", { emoji: reaction.emoji, count: reaction.userIds.length })}
                   className={cn(
-                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-small tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] ring-1 transition-colors",
-                    reacted ? "bg-bg font-medium text-ink ring-ink/30" : "bg-surface text-muted ring-line hover:bg-bg",
+                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-small tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] transition-colors",
+                    reacted ? "bg-(--select-bg) font-medium text-ink" : "bg-surface text-muted hover:bg-bg",
                   )}
                 >
                   <span>{reaction.emoji}</span>
@@ -230,7 +231,7 @@ export function MessageBubble(props: MessageBubbleProps) {
             active || picking ? "flex" : "hidden group-hover:flex",
           )}
         >
-          <div className="flex items-center rounded-full bg-surface p-0.5 shadow-sm ring-1 ring-line">
+          <div className="flex items-center rounded-full bg-surface p-0.5 shadow-sm">
             <button
               type="button"
               onClick={props.onReply}
@@ -270,7 +271,7 @@ export function MessageBubble(props: MessageBubbleProps) {
             role="menu"
             aria-label={t("react")}
             className={cn(
-              "absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full border border-line bg-surface p-1 shadow-lg",
+              "absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-1 shadow-lg",
               mine ? "right-0" : "left-0",
             )}
           >
@@ -302,7 +303,7 @@ export function BlockedMessageRow({ first, onShow }: { first: boolean; onShow: (
       <button
         type="button"
         onClick={onShow}
-        className="rounded-[18px] border border-dashed border-line px-3 py-1.5 text-left text-small italic text-muted hover:bg-surface/60"
+        className="rounded-[18px] bg-ink/5 px-3 py-1.5 text-left text-small italic text-muted hover:bg-surface/60"
       >
         {t("blockedMessage")}
       </button>

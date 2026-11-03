@@ -5,22 +5,9 @@
 // existing Pixabay helper (PIXABAY_API_KEY from .env.local, server-side only).
 
 export type ExtraVibe =
-  | 'party' | 'singles' | 'weekend' | 'business' | 'social'
-  | 'adventure' | 'culture' | 'food' | 'study'
-  // existing vibes, reused
-  | 'fitness' | 'creator' | 'founder' | 'remote-work' | 'holiday' | 'surf' | 'wellness';
+  | 'fitness' | 'surf-water' | 'remote-work' | 'founder' | 'creator' | 'wellness'
+  | 'adventure' | 'culture' | 'party' | 'holiday' | 'social' | 'students';
 
-export const EXTRA_VIBES: { key: ExtraVibe; label: string }[] = [
-  { key: 'party', label: 'Party' },
-  { key: 'singles', label: 'Singles' },
-  { key: 'weekend', label: 'Short trip' },
-  { key: 'business', label: 'Business' },
-  { key: 'social', label: 'Social' },
-  { key: 'adventure', label: 'Adventure' },
-  { key: 'culture', label: 'Culture' },
-  { key: 'food', label: 'Food' },
-  { key: 'study', label: 'Study' },
-];
 
 export interface ExtraHost {
   id: string;
@@ -307,7 +294,7 @@ export const extraHouses: ExtraHouse[] = [
     hostFeePerPerson: 50, hostOffer: ['Rooftop table on New Year night', 'Local guide for the temple morning'],
     imageQueries: ['songkran water festival', 'bangkok rooftop bar', 'bangkok skyline night', 'thai temple'],
     createdAt: '2026-10-22T09:00:00Z' },
-  { id: 'x3', slug: 'techno-weekend-berlin', title: 'Techno Weekend Berlin', hostId: 'p3', vibe: 'weekend',
+  { id: 'x3', slug: 'techno-weekend-berlin', title: 'Techno Weekend Berlin', hostId: 'p3', vibe: 'party',
     city: 'Berlin', region: 'Germany', location: { city: 'Berlin', country: 'Germany' }, lat: 52.50, lng: 13.44,
     startDate: '2027-02-19', endDate: '2027-02-22', spotsTotal: 5, spotsFilled: 3,
     budgetPerPerson: { min: 90, max: 140 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -351,7 +338,7 @@ export const extraHouses: ExtraHouse[] = [
     createdAt: '2026-10-26T15:00:00Z' },
 
   // ── Singles / Dating ──
-  { id: 'x6', slug: 'singles-house-lisbon', title: 'Singles House Lisbon', hostId: 'p4', vibe: 'singles',
+  { id: 'x6', slug: 'singles-house-lisbon', title: 'Singles House Lisbon', hostId: 'p4', vibe: 'social',
     city: 'Lisbon', region: 'Portugal', location: { city: 'Lisbon', country: 'Portugal' }, lat: 38.71, lng: -9.14,
     startDate: '2027-05-08', endDate: '2027-05-15', spotsTotal: 10, spotsFilled: 6,
     pricePerPerson: 520, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -367,7 +354,7 @@ export const extraHouses: ExtraHouse[] = [
     ageRange: { min: 27, max: 38 },
     imageQueries: ['dinner party candles friends', 'lisbon alfama street', 'rooftop sunset drinks', 'sintra palace'],
     createdAt: '2026-10-21T09:00:00Z' },
-  { id: 'x7', slug: 'singles-weekend-mallorca', title: 'Singles Weekend Mallorca', hostId: 'p4', vibe: 'singles',
+  { id: 'x7', slug: 'singles-weekend-mallorca', title: 'Singles Weekend Mallorca', hostId: 'p4', vibe: 'social',
     city: 'Sóller', region: 'Mallorca, Spain', location: { city: 'Mallorca', country: 'Spain', area: 'Sóller' }, lat: 39.77, lng: 2.71,
     startDate: '2027-04-23', endDate: '2027-04-26', spotsTotal: 8, spotsFilled: 3,
     pricePerPerson: 260, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -399,7 +386,7 @@ export const extraHouses: ExtraHouse[] = [
     createdAt: '2026-10-23T14:00:00Z' },
 
   // ── Business / Founder ──
-  { id: 'x9', slug: 'founder-retreat-mallorca', title: 'Founder Retreat Mallorca', hostId: 'p5', vibe: 'business',
+  { id: 'x9', slug: 'founder-retreat-mallorca', title: 'Founder Retreat Mallorca', hostId: 'p5', vibe: 'founder',
     city: 'Deià', region: 'Mallorca, Spain', location: { city: 'Mallorca', country: 'Spain', area: 'Deià' }, lat: 39.75, lng: 2.65,
     startDate: '2027-03-15', endDate: '2027-03-20', spotsTotal: 6, spotsFilled: 4,
     pricePerPerson: 600, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -429,7 +416,7 @@ export const extraHouses: ExtraHouse[] = [
     hostFeePerPerson: 90, hostOffer: ['Matching method + exercises', 'Demo day with 3 angels'],
     imageQueries: ['startup team whiteboard', 'berlin loft office', 'people coding laptops', 'pitch presentation'],
     createdAt: '2026-10-16T10:00:00Z' },
-  { id: 'x11', slug: '40-plus-founders-mexico-city', title: '40+ Founders House', hostId: 'p19', vibe: 'business',
+  { id: 'x11', slug: '40-plus-founders-mexico-city', title: '40+ Founders House', hostId: 'p19', vibe: 'founder',
     city: 'Mexico City', region: 'Mexico', location: { city: 'Mexico City', country: 'Mexico' }, lat: 19.41, lng: -99.17,
     startDate: '2027-03-01', endDate: '2027-03-29', spotsTotal: 5, spotsFilled: 2,
     budgetPerPerson: { min: 900, max: 1300 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -474,7 +461,7 @@ export const extraHouses: ExtraHouse[] = [
     createdAt: '2026-10-12T13:00:00Z' },
 
   // ── Short trips ──
-  { id: 'x14', slug: 'powder-weekend-arlberg', title: 'Powder Weekend Arlberg', hostId: 'p7', vibe: 'weekend',
+  { id: 'x14', slug: 'powder-weekend-arlberg', title: 'Powder Weekend Arlberg', hostId: 'p7', vibe: 'adventure',
     city: 'St. Anton', region: 'Tyrol, Austria', location: { city: 'St. Anton', country: 'Austria' }, lat: 47.13, lng: 10.27,
     startDate: '2027-01-29', endDate: '2027-02-01', spotsTotal: 4, spotsFilled: 2,
     pricePerPerson: 240, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -488,7 +475,7 @@ export const extraHouses: ExtraHouse[] = [
     interests: ['skiing', 'snowboarding', 'sauna', 'mountains'],
     imageQueries: ['powder skiing deep snow', 'st anton ski resort', 'alpine apartment', 'sauna snow'],
     createdAt: '2026-10-21T17:00:00Z' },
-  { id: 'x15', slug: 'grand-prix-weekend-barcelona', title: 'Grand Prix Weekend Barcelona', hostId: 'p20', vibe: 'weekend',
+  { id: 'x15', slug: 'grand-prix-weekend-barcelona', title: 'Grand Prix Weekend Barcelona', hostId: 'p20', vibe: 'holiday',
     city: 'Barcelona', region: 'Spain', location: { city: 'Barcelona', country: 'Spain' }, lat: 41.39, lng: 2.17,
     startDate: '2027-06-11', endDate: '2027-06-14', spotsTotal: 6, spotsFilled: 2,
     budgetPerPerson: { min: 200, max: 300 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -502,7 +489,7 @@ export const extraHouses: ExtraHouse[] = [
     interests: ['formula 1', 'tapas', 'beach'],
     imageQueries: ['formula one race car', 'barcelona street eixample', 'tapas table', 'barceloneta beach'],
     createdAt: '2026-10-26T10:00:00Z' },
-  { id: 'x16', slug: 'paris-fashion-week-house', title: 'Paris Fashion Week House', hostId: 'p18', vibe: 'weekend',
+  { id: 'x16', slug: 'paris-fashion-week-house', title: 'Paris Fashion Week House', hostId: 'p18', vibe: 'creator',
     city: 'Paris', region: 'France', location: { city: 'Paris', country: 'France' }, lat: 48.86, lng: 2.36,
     startDate: '2027-03-02', endDate: '2027-03-07', spotsTotal: 4, spotsFilled: 2,
     budgetPerPerson: { min: 350, max: 500 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -516,7 +503,7 @@ export const extraHouses: ExtraHouse[] = [
     interests: ['fashion', 'content', 'street style', 'paris'],
     imageQueries: ['paris street style fashion', 'le marais street', 'paris apartment window', 'fashion photographer'],
     createdAt: '2026-10-22T18:00:00Z' },
-  { id: 'x17', slug: 'madeira-hike-weekend', title: 'Hike Weekend Madeira', hostId: 'p35', vibe: 'weekend',
+  { id: 'x17', slug: 'madeira-hike-weekend', title: 'Hike Weekend Madeira', hostId: 'p35', vibe: 'adventure',
     city: 'Funchal', region: 'Madeira, Portugal', location: { city: 'Funchal', country: 'Portugal' }, lat: 32.65, lng: -16.91,
     startDate: '2027-03-25', endDate: '2027-03-29', spotsTotal: 5, spotsFilled: 2,
     budgetPerPerson: { min: 220, max: 320 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -603,7 +590,7 @@ export const extraHouses: ExtraHouse[] = [
     interests: ['running', 'night markets', 'muay thai', 'hiking'],
     imageQueries: ['chiang mai night market', 'morning run group', 'thai waterfall', 'smoothie bowl breakfast'],
     createdAt: '2026-10-15T07:00:00Z' },
-  { id: 'x23', slug: 'dry-january-edinburgh', title: 'Dry January House Edinburgh', hostId: 'p9', vibe: 'weekend',
+  { id: 'x23', slug: 'dry-january-edinburgh', title: 'Dry January House Edinburgh', hostId: 'p9', vibe: 'wellness',
     city: 'Edinburgh', region: 'Scotland, United Kingdom', location: { city: 'Edinburgh', country: 'United Kingdom' }, lat: 55.95, lng: -3.19,
     startDate: '2027-01-08', endDate: '2027-01-12', spotsTotal: 4, spotsFilled: 1,
     budgetPerPerson: { min: 160, max: 240 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',
@@ -677,7 +664,7 @@ export const extraHouses: ExtraHouse[] = [
     interests: ['skiing', 'sauna', 'fondue', 'mountains'],
     imageQueries: ['ski chalet snow', 'skiers mountain sunny', 'chalet sauna', 'fondue dinner friends'],
     createdAt: '2026-10-10T18:00:00Z' },
-  { id: 'x28', slug: 'surf-camp-ericeira', title: 'Surf Camp Ericeira', hostId: 'p8', vibe: 'surf',
+  { id: 'x28', slug: 'surf-camp-ericeira', title: 'Surf Camp Ericeira', hostId: 'p8', vibe: 'surf-water',
     city: 'Ericeira', region: 'Portugal', location: { city: 'Ericeira', country: 'Portugal' }, lat: 38.96, lng: -9.42,
     startDate: '2027-05-22', endDate: '2027-05-29', spotsTotal: 6, spotsFilled: 3,
     pricePerPerson: 420, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -929,7 +916,7 @@ export const extraHouses: ExtraHouse[] = [
     hostFeePerPerson: 150, hostOffer: ['Studio space + materials', 'Weekly critiques', 'Group exhibition'],
     imageQueries: ['artist studio painting canvas', 'ortigia sicily', 'italian palazzo interior', 'art exhibition gallery'],
     createdAt: '2026-10-13T17:00:00Z' },
-  { id: 'x45', slug: 'photo-walk-istanbul', title: 'Photo Walk Istanbul', hostId: 'p30', vibe: 'weekend',
+  { id: 'x45', slug: 'photo-walk-istanbul', title: 'Photo Walk Istanbul', hostId: 'p30', vibe: 'culture',
     city: 'Istanbul', region: 'Türkiye', location: { city: 'Istanbul', country: 'Türkiye' }, lat: 41.03, lng: 28.98,
     startDate: '2027-04-14', endDate: '2027-04-19', spotsTotal: 5, spotsFilled: 2,
     pricePerPerson: 340, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -946,7 +933,7 @@ export const extraHouses: ExtraHouse[] = [
     createdAt: '2026-10-25T14:00:00Z' },
 
   // ── Food / Study / Events ──
-  { id: 'x46', slug: 'cooking-house-valencia', title: 'Cooking House Valencia', hostId: 'p14', vibe: 'food',
+  { id: 'x46', slug: 'cooking-house-valencia', title: 'Cooking House Valencia', hostId: 'p14', vibe: 'culture',
     city: 'Valencia', region: 'Spain', location: { city: 'Valencia', country: 'Spain' }, lat: 39.47, lng: -0.37,
     startDate: '2027-04-19', endDate: '2027-04-26', spotsTotal: 6, spotsFilled: 3,
     pricePerPerson: 450, currency: 'EUR', accommodationStatus: 'locked', status: 'published',
@@ -961,7 +948,7 @@ export const extraHouses: ExtraHouse[] = [
     hostFeePerPerson: 100, hostOffer: ['5 cooking classes', 'Albufera paella day', 'Wine tasting'],
     imageQueries: ['paella cooking outdoor', 'valencia mercado central', 'cooking class kitchen', 'spanish wine tasting'],
     createdAt: '2026-10-19T12:00:00Z' },
-  { id: 'x47', slug: 'thesis-month-lisbon', title: 'Thesis Month Lisbon', hostId: 'p28', vibe: 'study',
+  { id: 'x47', slug: 'thesis-month-lisbon', title: 'Thesis Month Lisbon', hostId: 'p28', vibe: 'culture',
     city: 'Lisbon', region: 'Portugal', location: { city: 'Lisbon', country: 'Portugal' }, lat: 38.74, lng: -9.15,
     startDate: '2027-02-01', endDate: '2027-02-28', spotsTotal: 5, spotsFilled: 2,
     budgetPerPerson: { min: 400, max: 550 }, currency: 'EUR', accommodationStatus: 'open', status: 'published',

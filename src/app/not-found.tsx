@@ -7,10 +7,10 @@ export default function NotFound() {
   return (
     <Container page>
       <div className="flex flex-col items-center py-16 text-center md:py-24">
-        <p className="text-h1 tracking-tight text-ink" aria-hidden>
+        <p className="text-h1 text-ink" aria-hidden>
           simpulo<span className="text-ink">.</span>
         </p>
-        <h1 className="mt-8 text-h2 tracking-tight">{t("title")}</h1>
+        <h1 className="mt-8 text-h2">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button variant="primary" size="lg" href="/">

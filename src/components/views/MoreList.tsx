@@ -28,7 +28,7 @@ export function MoreList() {
   return (
     <section className="mt-10 md:hidden">
       <h2 className="mb-2 px-1 text-eyebrow uppercase text-muted">{tCommon("more")}</h2>
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+      <ul className="overflow-hidden rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
         {MORE_LINKS.map(({ href, labelKey, icon: Icon }) => (
           <li key={href}>
             <Link href={href} className={rowClass}>
@@ -51,7 +51,7 @@ export function MoreList() {
             />
           </button>
           {legalOpen && (
-            <ul id="more-legal" className="divide-y divide-line border-t border-line bg-bg/60">
+            <ul id="more-legal" className="bg-bg/60">
               {LEGAL_LINKS.map(({ href, labelKey }) => (
                 <li key={href}>
                   {/* An empty lead keeps the titles on the parent row's text axis. */}

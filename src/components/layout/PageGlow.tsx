@@ -5,14 +5,13 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 const SPOT_W = 1100;
 const SPOT_H = 700;
-const FOOTER_SPOT_H = 500;
 /** A long section (the grid) gets more spots in it: at least one per screen height while scrolling. */
 const MAX_SPOT_DISTANCE = 1200;
 /** The top spots of pages without a stage stay as they were: quiet. */
 const TOP_W = 900;
 const TOP_H = 600;
 
-/** The pages with sections and a warm end: gaps and the footer's spot. Everywhere else only the top one. */
+/** The pages with sections: a spot in every gap. Everywhere else only the top one. */
 function hasSections(pathname: string): boolean {
   return pathname === "/" || pathname === "/explore" || pathname === "/host" || pathname.startsWith("/collections/");
 }
@@ -22,8 +21,6 @@ interface Layout {
   top: boolean;
   /** Each spot's centre, from the page's top: the gaps, and in between where they're far apart */
   gaps: number[];
-  /** Where the footer starts, from the page's top; null without its spot */
-  footer: number | null;
 }
 
 const spot = (style: CSSProperties, background: string): CSSProperties => ({ position: "absolute", background, ...style });
@@ -44,13 +41,13 @@ function spreadSpots(gaps: number[], footer: number | null): number[] {
 /**
  * The warm patches behind the page: scrolls with it, over its whole height, always from the stage tokens – never from an
  * image. A spot centred on every gap between two sections ([data-glow-section]) and at most 1200px apart, left and right edge in
- * turn, and a wide one behind the footer's top edge. Pages without those only have the top spot; on Explore and Host the top is the stage's
+ * turn; the footer has its own surface and no spot. Pages without those only have the top spot; on Explore and Host the top is the stage's
  * (StageBand). Plain radial gradients, no blur filter. Measured again whenever the page changes height.
  */
 export function PageGlow() {
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<Layout>({ top: false, gaps: [], footer: null });
+  const [layout, setLayout] = useState<Layout>({ top: false, gaps: [] });
 
   useEffect(() => {
     const layer = ref.current;
@@ -67,7 +64,7 @@ export function PageGlow() {
       const gaps = sections.slice(1).map((box, i) => Math.round((sections[i].bottom + box.top) / 2 - origin));
       const footerBox = hasSections(pathname) ? document.querySelector("footer")?.getBoundingClientRect() : undefined;
       const footer = footerBox && footerBox.height > 0 ? Math.round(footerBox.top - origin) : null;
-      const next: Layout = { top: !stageShows, gaps: spreadSpots(gaps, footer), footer };
+      const next: Layout = { top: !stageShows, gaps: spreadSpots(gaps, footer) };
       setLayout((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
     };
     const schedule = () => {
@@ -100,16 +97,6 @@ export function PageGlow() {
           style={spot({ top: y - SPOT_H / 2, width: SPOT_W, height: SPOT_H, ...(i % 2 === 0 ? { right: -SPOT_W / 2 } : { left: -SPOT_W / 2 }) }, peachSpot)}
         />
       ))}
-      {layout.footer !== null && (
-        // Centred on the footer's top edge, half of it behind the footer: no edge where it starts.
-        <div
-          data-glow-spot="footer"
-          style={spot(
-            { left: 0, right: 0, top: layout.footer - FOOTER_SPOT_H / 2, height: FOOTER_SPOT_H },
-            "radial-gradient(50% 50% at 25% 50%, color-mix(in srgb, var(--stage-peach) 75%, transparent), transparent), radial-gradient(50% 50% at 75% 50%, color-mix(in srgb, var(--stage-mist) 50%, transparent), transparent)",
-          )}
-        />
-      )}
     </div>
   );
 }

@@ -7,6 +7,14 @@ export const WORLD_REGIONS = ["europe", "southeastAsia", "eastAsia", "southAsia"
 export type WorldRegion = (typeof WORLD_REGIONS)[number];
 export const REGION_CHIPS_FROM = 12;
 
+/** The chips and shelves of /destinations. South Asia has no chip of its own and goes with Southeast Asia. */
+export const CONTINENTS = ["southeastAsia", "eastAsia", "europe", "americas", "africa", "oceania", "middleEast"] as const;
+export type Continent = (typeof CONTINENTS)[number];
+export function continentOf(region: WorldRegion): Continent {
+  if (region === "northAmerica" || region === "latinAmerica") return "americas";
+  return region === "southAsia" ? "southeastAsia" : region;
+}
+
 export interface Interest {
   id: string;
   userId: string;
@@ -87,6 +95,12 @@ export function aggregateDemand(interests: readonly Interest[]): DemandSpot[] {
 /** This user's interest in that place, if any. */
 export function interestIn(interests: readonly Interest[], userId: string | null, spot: Pick<DemandSpot, "destinationId">): Interest | undefined {
   return userId ? interests.find((i) => i.userId === userId && i.destinationId === spot.destinationId) : undefined;
+}
+
+/** One interest per person, place and month: what someone wanted plus what's new. A date beats "flexible". */
+export function mergeMonths(existing: readonly string[], added: readonly string[]): string[] {
+  const dated = [...new Set([...existing, ...added])].filter((m) => m !== FLEXIBLE).toSorted();
+  return dated.length > 0 ? dated : [FLEXIBLE];
 }
 
 /** Whether an interest wants a House starting in that month (or any month). */

@@ -119,7 +119,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
         <FormField label={t("splitBetween")} group helper={t("occupancy", { people: f.people(crewSize), spots: f.spots(stay.spotsTotal) })}>
           <div className="flex flex-wrap gap-2">
             {spotChoices.map((n) => (
-              <Chip key={n} active={spots === n} size="fit" onClick={() => setSpots(n)} className="min-w-12 flex-1">
+              <Chip key={n} active={spots === n} onClick={() => setSpots(n)} className="justify-center min-w-12 flex-1">
                 {n}
               </Chip>
             ))}
@@ -138,7 +138,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
         </FormField>
 
         {/* The split, as plain text under a line – no box inside the sheet. */}
-        <div className="border-t border-line pt-4">
+        <div className="pt-4">
           <p className="text-body font-medium tabular-nums text-ink">
             {perPerson === 0
               ? t("previewEmpty")

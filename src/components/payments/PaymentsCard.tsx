@@ -75,7 +75,7 @@ export function PaymentsSection({ stay }: { stay: Stay }) {
         <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${percent}%` }} />
       </div>
 
-      <ul className="mt-3 divide-y divide-line">
+      <ul className="mt-3">
         {payments.map((payment) => (
           <PaymentRow key={payment.id} payment={payment} stay={stay} onPay={() => setPaying(true)} />
         ))}
@@ -83,7 +83,7 @@ export function PaymentsSection({ stay }: { stay: Stay }) {
 
       {(progress.allPaid || stay.status === "booked") && <BookingBlock stay={stay} payments={payments} />}
       {/* What reaches the host: every paid share and programme fee, minus the commission – paid out once booked. */}
-      <p className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-body">
+      <p className="mt-4 flex items-center justify-between gap-3 pt-4 text-body">
         <span className="font-medium text-ink">{tSection("payout")}</span>
         <span className="text-right text-muted">
           {tSection(stay.status === "booked" ? "payoutDone" : "payoutPending", { amount: money(payout) })}
@@ -174,7 +174,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
 
   if (stay.status === "booked" && stay.bookingConfirmedAt) {
     return (
-      <div className="mt-4 flex items-start gap-3 border-t border-line pt-4">
+      <div className="mt-4 flex items-start gap-3 pt-4">
         <CircleCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-ink">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
@@ -208,7 +208,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
 
   return (
     // Part of the Payments section: plain content under a line, never a box inside the card.
-    <div className="mt-4 border-t border-line pt-4">
+    <div className="mt-4 pt-4">
       <p className="flex items-center gap-2 font-semibold">
         <Wallet className="size-5 shrink-0 text-emerald-600" aria-hidden />
         {t("fundsTitle", { amount: f.price(released, stay.currency) })}

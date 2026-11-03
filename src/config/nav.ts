@@ -1,4 +1,4 @@
-// The navigation's icons (Lucide) – kept for the phones' tab bar; the desktop header is text only.
+// The navigation's icons (Lucide): the phones' tab bar and the desktop header (its filled forms: header/FilledNavIcons.tsx).
 import { Compass, House, Lightbulb, Megaphone, MessageCircle, User, type LucideIcon } from "lucide-react";
 
 /** Keyed by the nav item's label key (src/components/layout/nav.ts). */

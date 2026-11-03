@@ -55,12 +55,12 @@ export function profileCrews(store: StoreData & { crews: Crew[]; livedWith: Live
 export function LivedWithSection({ entries }: { entries: LivedWithEntry[] }) {
   const t = useTranslations("profile.crews");
   return (
-    <section aria-labelledby="profile-lived-with" className="mt-5 border-t border-line pt-5">
+    <section aria-labelledby="profile-lived-with" className="mt-5 pt-5">
       <h2 id="profile-lived-with" className="flex items-center gap-2 text-body font-semibold">
         {t("livedWith")} <Badge>{entries.length}</Badge>
       </h2>
       <p className="mt-0.5 text-small text-muted">{t("onlyYou")}</p>
-      <ul className="mt-2 divide-y divide-line">
+      <ul className="mt-2">
         {entries.map(({ user, house }) => (
           <li key={user.id}>
             <Link href={`/u/${user.id}`} className="block">
@@ -78,7 +78,7 @@ export function Crews({ crews }: { crews: ProfileCrews }) {
   const t = useTranslations("profile.crews");
   const f = useFormat();
   return (
-    <section aria-labelledby="profile-crews" className="mt-5 border-t border-line pt-5">
+    <section aria-labelledby="profile-crews" className="mt-5 pt-5">
       <div className="flex items-center justify-between gap-3">
         <h2 id="profile-crews" className="text-body font-semibold">
           {t("title")}

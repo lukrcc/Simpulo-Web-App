@@ -88,15 +88,15 @@ function ClaimOffer({ stay }: { stay: Stay }) {
   }
 
   return (
-    <Container page className="lg:grid lg:grid-cols-12 lg:gap-12">
-      <div className="lg:col-span-5">
+    <Container page className="split:grid split:grid-cols-12 split:gap-12">
+      <div className="split:col-span-5">
         <div className="mx-auto max-w-[400px]">
           <StayCard stay={stay} host={preparedFor} preview />
         </div>
       </div>
-      <div className="mt-8 lg:col-span-7 lg:mt-0 lg:pt-6">
+      <div className="mt-8 split:col-span-7 split:mt-0 split:pt-6">
         <p className="text-eyebrow uppercase text-ink">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
-        <h1 className="mt-2 text-h2 tracking-tight md:text-h1">{t("title")}</h1>
+        <h1 className="mt-2 text-h2 md:text-h1">{t("title")}</h1>
         <p className="mt-3 max-w-xl text-body-lg leading-relaxed text-muted">{t("intro")}</p>
 
         {stay.whyText && <p className={`${cardClass} mt-6 max-w-xl leading-relaxed text-ink`}>{stay.whyText}</p>}

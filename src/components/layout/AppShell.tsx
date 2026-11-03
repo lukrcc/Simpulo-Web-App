@@ -3,7 +3,8 @@ import { DemoBand } from "@/components/demo/DemoBand";
 import { DemoGuard } from "@/components/demo/DemoGuard";
 import { APP_MODE } from "@/lib/appMode";
 import { BottomTabBar } from "./BottomTabBar";
-import { Footer } from "./Footer";
+import { Footer, SlimFooter } from "./Footer";
+import { FooterByRoute } from "./FooterByRoute";
 import { HouseTransitions } from "./HouseTransitions";
 import { SiteHeader } from "./header/SiteHeader";
 import { MobileHeader } from "./MobileHeader";
@@ -27,10 +28,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <SiteHeader />
       <MobileHeader />
       {/* From md the header is fixed: the content starts 16px below its bar (80px), and its tab hangs into that space.
-          Every scrolling page ends with the same space before the footer: 96px mobile, 64px desktop. Full-height
+          Every scrolling page ends with the same space before the footer: 96px mobile, --space-section desktop. Full-height
           app pages drop that padding and the footer via data-app-pane (globals.css). */}
-      <main className="flex-1 pb-24 md:pt-20 md:pb-16">{children}</main>
-      <Footer />
+      <main className="flex-1 pb-24 md:pt-20 md:pb-(--space-section)">{children}</main>
+      {/* usePathname suspends on dynamic routes during prerender. */}
+      <Suspense fallback={<SlimFooter />}>
+        <FooterByRoute full={<Footer />} slim={<SlimFooter />} />
+      </Suspense>
       <Suspense fallback={null}>
         <BottomTabBar />
       </Suspense>

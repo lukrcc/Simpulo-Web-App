@@ -5,18 +5,21 @@ import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { CollectionRow } from "@/components/explore/CollectionRow";
-import { CategoryRow, ChoiceChips, FilterPanel, FiltersButton, LanguageFilter, MonthSection, PanelSection, PlaceDateSearch, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
-import { EXPLORE_SPACING, GRID_COLUMNS, HOUSE_GRID, SEARCH_INLINE_THRESHOLD, SHELF_EVERY_ROWS, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
+import { CategoryRow, ChoiceChips, FiltersButton, LanguageFilter, MonthSection, PanelSection, PlaceDateSearch, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
+import { EXPLORE_SPACING, HOUSE_GRID, SEARCH_INLINE_THRESHOLD, SHELF_EVERY_ROWS, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
 import { DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
 import { Container } from "@/components/layout/Container";
 import { ExploreFilterBar } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
+import { SpotlightIntro } from "@/components/explore/SpotlightIntro";
 import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { StayCard } from "@/components/StayCard";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
 import { cardClass } from "@/components/ui/Card";
 import { useFormat } from "@/i18n/format";
@@ -46,7 +49,7 @@ import { useHeroStays } from "@/lib/heroRotation";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { getCardVariant, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
 import { WORLD_REGIONS } from "@/lib/interests";
-import type { DestinationSpot } from "@/lib/destinations";
+import { hasCardImage, type DestinationSpot } from "@/lib/destinations";
 import { MD_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { VIBES } from "@/lib/catalog";
 import { isListedStay, isPreLaunch } from "@/lib/launch";
@@ -54,24 +57,33 @@ import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/s
 import type { Stay, Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function subscribeColumns(onChange: () => void) {
-  const lists = GRID_COLUMNS.map((q) => window.matchMedia(q.query));
-  lists.forEach((list) => list.addEventListener("change", onChange));
-  return () => lists.forEach((list) => list.removeEventListener("change", onChange));
-}
-
-/** 0 on the server and during hydration – the grid then renders without collection rows. */
-function useGridColumns(): number {
+/**
+ * The grid's real column count, from the browser's own layout of an empty grid with the same rules (`probe`). 0 on the
+ * server, during hydration and while hidden – the grid then renders without collection rows.
+ */
+function useGridColumns(probe: HTMLElement | null): number {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!probe) return () => {};
+      const observer = new ResizeObserver(onChange);
+      observer.observe(probe);
+      return () => observer.disconnect();
+    },
+    [probe],
+  );
   return useSyncExternalStore(
-    subscribeColumns,
-    () => GRID_COLUMNS.find((q) => window.matchMedia(q.query).matches)?.cols ?? 1,
+    subscribe,
+    () => {
+      const tracks = probe ? getComputedStyle(probe).gridTemplateColumns : "none";
+      return tracks === "none" ? 0 : tracks.split(" ").length;
+    },
     () => 0,
   );
 }
 
 /** The Spotlight loops over at most this many Houses. */
 const MAX_SPOTLIGHT = 16;
-/** Cards per page of the grid ("Show more" adds as many) – divisible by 1–4 columns, so every page ends on full rows. */
+/** Cards per page of the grid ("Show more" adds about as many): rounded up to full rows, so every page ends on a straight edge. */
 const PAGE_SIZE = 24;
 /** Budget slider ends are rounded to this (EUR). */
 const BUDGET_ROUND = 50;
@@ -110,8 +122,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const store = useStore();
   // The one filter state – in the URL (src/lib/exploreFilterState.ts); every control below reads and writes only it.
   const filters = useExploreFilters();
-  const [panelOpen, setPanelOpen] = useState(false);
-  const spots = useDemandSpots().filter((s) => s.count > 0);
+  const [panelOpen, setPanelOpenState] = useState(false);
+  const panelOpenRef = useRef(false);
+  const scrollAfterPanel = useRef(false);
+  const setPanelOpen = (next: boolean) => {
+    panelOpenRef.current = next;
+    setPanelOpenState(next);
+  };
+  const spots = useDemandSpots().filter((s) => s.count > 0 && hasCardImage(s));
   const collection = scope && "collection" in scope ? COLLECTIONS.find((c) => c.id === scope.collection) : undefined;
 
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -121,7 +139,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const setFilters = useCallback((next: ExploreFilters, key?: string) => {
     setExploreFilters(next, key);
     adoptNotchToAuto();
-    requestAnimationFrame(() => scrollUnderHeader(resultsRef.current));
+    // Behind the panel the page is locked: it goes to the grid when the panel has gone.
+    if (panelOpenRef.current) scrollAfterPanel.current = true;
+    else requestAnimationFrame(() => scrollUnderHeader(resultsRef.current));
   }, []);
   const update = (patch: Partial<ExploreFilters>) => setFilters({ ...filters, ...patch }, Object.keys(patch).join(","));
 
@@ -202,7 +222,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   // Layout: a plain grid of equal cards, cut into sections of complete rows (see lib/exploreLayout). Everything below
   // follows from the real counts – the mock's data presets only change what's there.
-  const cols = useGridColumns();
+  const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
+  const cols = useGridColumns(columnProbe);
   const filtered = activeCount(filters) > 0;
   // A scoped page (collection, city, vibe) shows a plain grid: no Spotlight, no collection rows.
   const scoped = scope !== undefined;
@@ -216,7 +237,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const pageKey = withFilters(new URLSearchParams(), filters);
   const [paging, setPaging] = useState({ key: pageKey, visible: PAGE_SIZE });
   if (paging.key !== pageKey) setPaging({ key: pageKey, visible: PAGE_SIZE });
-  const cards = allCards.slice(0, paging.visible);
+  const visible = cols > 0 ? Math.ceil(paging.visible / cols) * cols : paging.visible;
+  const cards = allCards.slice(0, visible);
   const hasMore = allCards.length > cards.length;
   // On the last page, demand tiles fill the open cells of the last row, so the grid ends on a straight edge.
   // Filtered results end where they end – fillers only round off the full feed.
@@ -261,7 +283,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
   const panelCount = panelFilterCount(filters);
-  const clearPanel = () => setFilters({ ...EMPTY_FILTERS, vibes: filters.vibes, sort: filters.sort });
+  const clearPanel = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
 
   /** The row's search field: a country and / or month named in the text become those filters ("Portugal March"). */
   function searchPlaceDate(query: string) {
@@ -288,6 +310,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       update({ vibes: vibe ? [vibe as Vibe] : [] });
     },
   };
+  const openOfVibe = (vibe: Vibe) => listed.filter((s) => s.vibe === vibe && s.acceptingRequests).length;
   const chipRow = showVibes && <CategoryRow {...vibeRow} />;
   // Before the launch: no Spotlight, no grid, no filters. Where people want to go, and who could open the first House.
   if (!scoped && isPreLaunch(store.stays)) return <ExplorePrelaunch />;
@@ -320,12 +343,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       {/* Carousel below lg, bento block from lg up – each hides itself at the other size. */}
       {showSpotlight && (
         <>
-          <SpotlightHero stays={featured} />
-          <SpotlightCoverflow stays={spotlightStays} />
+          {/* Below lg the carousel is another component; the title for visitors goes above it here. */}
+          {!store.currentUserId && <SpotlightIntro className={cn("pt-6 md:pt-[38px] lg:hidden", EXPLORE_SPACING.spotlightIntroBottom)} />}
+          <SpotlightHero stays={spotlightStays} />
+          <SpotlightCoverflow stays={spotlightStays} countOf={openOfVibe} onPickVibe={vibeRow.onSelect} />
         </>
       )}
 
-      {/* The sections: transparent over PageGlow's patches, told apart by 96px of space and their SectionHeader alone.
+      {/* The sections: transparent over PageGlow's patches, told apart by --space-section and their SectionHeader alone.
           All the values: EXPLORE_SPACING. */}
       <Wrap>
         <div data-explore-blocks>
@@ -375,7 +400,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               </>
             )}
             {/* Where a filter change scrolls to: the grid's start right under the tab. */}
-            <div ref={resultsRef} className={!headless ? "mt-5 md:mt-2" : undefined}>
+            <div ref={resultsRef} data-explore-results className={!headless ? "mt-5 md:mt-2" : undefined}>
+              <div ref={setColumnProbe} aria-hidden className={cn(HOUSE_GRID, "h-0")} />
               {results.length === 0 ? (
                 // Nothing for these filters: say so, and the way back.
                 <div className={cn(cardClass, "flex flex-col items-center py-12 text-center")}>
@@ -390,7 +416,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               ) : (
                 <>
                   {segments.map(({ cards: part, shelf }, i) => {
-                    // Below a shelf: 96px when the list goes on with Houses or the button; another shelf brings its own.
+                    // Below a shelf: --space-section when the list goes on with Houses or the button; another shelf brings its own.
                     const next = segments[i + 1];
                     const goesOn = next ? next.cards.length > 0 : rest.length > 0 || hasMore;
                     return (
@@ -409,8 +435,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               <div ref={gridEndRef} aria-hidden className="h-0" />
               {hasMore && (
                 <div className={cn(rest.length > 0 && EXPLORE_SPACING.showMore, "flex justify-center")}>
-                  <Button variant="secondary" size="lg" onClick={() => setPaging((p) => ({ ...p, visible: p.visible + PAGE_SIZE }))}>
-                    {t("showMore", { count: Math.min(PAGE_SIZE, allCards.length - paging.visible) })}
+                  <Button variant="secondary" size="lg" onClick={() => setPaging({ key: pageKey, visible: visible + PAGE_SIZE })}>
+                    {t("showMore", { count: Math.min(cols > 0 ? Math.ceil((visible + PAGE_SIZE) / cols) * cols - visible : PAGE_SIZE, allCards.length - visible) })}
                   </Button>
                 </div>
               )}
@@ -425,13 +451,20 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       </Wrap>
 
       {/* Filters, from the right. Live – the footer only clears or closes. */}
-      <FilterPanel
+      <Sheet
+        variant="panel"
+        wide
+        titleNote={resultLabel}
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        onClosed={() => {
+          if (scrollAfterPanel.current) scrollUnderHeader(resultsRef.current);
+          scrollAfterPanel.current = false;
+        }}
         title={t("filters")}
         footer={
           <>
-            <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0}>
+            <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0 && filters.vibes.length === 0}>
               {tf("clearAll")}
             </Button>
             {/* The panel's one primary: it only closes – the filters apply live. */}
@@ -442,42 +475,50 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           </>
         }
       >
-        {/* When · Length · Price per person · Spots left · Language – no Sort (the header capsule) and no categories
-            (the chips are the category filter). */}
-        <MonthSection value={filters.months} onChange={(months) => update({ months })} title={tf("when")} />
-        <PanelSection title={tf("length")}>
-          <ChoiceChips
-            label={tf("length")}
-            columns={2}
-            value={filters.length}
-            onChange={(length) => update({ length })}
-            options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
-          />
-        </PanelSection>
-        <PanelSection title={tf("price")}>
-          {budgetBounds ? (
-            <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
-          ) : (
-            <p className="text-small text-muted">{tf("noBudget")}</p>
-          )}
-        </PanelSection>
-        <PanelSection title={tf("spots")}>
-          <ChoiceChips
-            label={tf("spots")}
-            columns={3}
-            value={filters.spots}
-            onChange={(spots) => update({ spots })}
-            options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
-          />
-        </PanelSection>
-        <PanelSection title={t("language")}>
-          {languageOptions.length > 0 ? (
-            <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
-          ) : (
-            <p className="text-small text-muted">{tf("noOptions")}</p>
-          )}
-        </PanelSection>
-      </FilterPanel>
+        {/* Left what you're after, right the practical side. One column under 900px, with scrolling. No Sort: that's the capsule. */}
+        <div className="grid gap-x-10 px-6 min-[56.25rem]:grid-cols-[1.4fr_1fr]">
+          <div>
+            {showVibes && (
+              <PanelSection title={tf("category")}>
+                <ChoiceChips clearable label={tf("category")} value={single as string | null} onChange={vibeRow.onSelect} options={vibeOptions} />
+              </PanelSection>
+            )}
+            <MonthSection value={filters.months} onChange={(months) => update({ months })} title={tf("when")} />
+          </div>
+          <div>
+            <PanelSection title={tf("length")}>
+              <SegmentedControl
+                label={tf("length")}
+                value={filters.length}
+                onChange={(length) => update({ length })}
+                options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
+              />
+            </PanelSection>
+            <PanelSection title={tf("price")}>
+              {budgetBounds ? (
+                <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
+              ) : (
+                <p className="text-small text-muted">{tf("noBudget")}</p>
+              )}
+            </PanelSection>
+            <PanelSection title={tf("spots")}>
+              <SegmentedControl
+                label={tf("spots")}
+                value={filters.spots}
+                onChange={(spots) => update({ spots })}
+                options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
+              />
+            </PanelSection>
+            <PanelSection title={t("language")}>
+              {languageOptions.length > 0 ? (
+                <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
+              ) : (
+                <p className="text-small text-muted">{tf("noOptions")}</p>
+              )}
+            </PanelSection>
+          </div>
+        </div>
+      </Sheet>
 
     </div>
   );
@@ -491,10 +532,10 @@ function scrollUnderHeader(el: HTMLElement | null) {
   if (!el) return;
   const root = getComputedStyle(document.documentElement);
   const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
-  // Open Houses' row showing (from md): the header's open tab takes its place. Else the page's own chip row.
+  // Open Houses' row showing (from md): the header's open tab takes its place, 24px under it. Else the page's own chip row.
   const row = document.querySelector<HTMLElement>("[data-explore-filter-row]");
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const offset = row && row.offsetHeight > 0 ? NOTCH_OPEN_TOTAL : px("--header-total") + px("--filter-row-h");
+  const offset = row && row.offsetHeight > 0 ? NOTCH_OPEN_TOTAL + 24 : px("--header-total") + px("--filter-row-h");
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
 }
 

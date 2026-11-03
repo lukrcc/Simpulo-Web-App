@@ -2,24 +2,30 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary";
-/** lg 44px · mid 40px · md 36px · sm 32px, 13px text · bar 36px, 14px text (Explore's filter bar) (tertiary is a text link – the size only sets its type) */
-export type ButtonSize = "lg" | "mid" | "md" | "sm" | "bar";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "light" | "glass";
+/** xl 48px · lg 44px · mid 40px · md 36px · sm 32px, 13px text · bar 36px, 14px text (Explore's filter bar) (tertiary is a text link – the size only sets its type) */
+export type ButtonSize = "xl" | "lg" | "mid" | "md" | "sm" | "bar";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-line disabled:text-muted",
-  secondary: "rounded-full border border-line bg-surface text-ink hover:bg-bg disabled:text-muted",
+  primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-ink/10 disabled:text-muted",
+  secondary: "rounded-full bg-(--chip-bg) text-ink hover:bg-(--chip-bg-hover) disabled:text-muted",
   tertiary: "text-ink underline-offset-4 hover:underline disabled:text-muted disabled:no-underline",
+  // On a photo: the main action as a light capsule, the others in glass.
+  light: "rounded-full bg-surface text-ink hover:bg-bg disabled:bg-white/25 disabled:text-white/80",
+  glass: "glass-dark rounded-full hover:bg-ink/45",
 };
 
+const filled: Record<ButtonSize, string> = { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" };
 const sizes: Record<ButtonVariant, Record<ButtonSize, string>> = {
-  primary: { lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
-  secondary: { lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
-  tertiary: { lg: "text-body", mid: "text-body", md: "text-body", sm: "text-small", bar: "text-nav" },
+  light: filled,
+  glass: filled,
+  primary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
+  secondary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
+  tertiary: { xl: "text-body", lg: "text-body", mid: "text-body", md: "text-body", sm: "text-small", bar: "text-nav" },
 };
 
 /** Icon-only buttons: a circle of the size's height (44 / 40 / 36 / 32px). */
-const iconSizes: Record<ButtonSize, string> = { lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8", bar: "size-9" };
+const iconSizes: Record<ButtonSize, string> = { xl: "size-12", lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8", bar: "size-9" };
 
 /** The one button system: primary (ink), secondary (surface + line border), tertiary (text link in ink). */
 export function buttonStyles(variant: ButtonVariant = "primary", size: ButtonSize = "md", className?: string, icon = false): string {

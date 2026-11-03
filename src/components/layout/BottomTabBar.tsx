@@ -56,7 +56,7 @@ export function BottomTabBar() {
         className={cn(
           "fixed z-40 md:hidden",
           docked
-            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
+            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
             : "glass inset-x-4 bottom-[calc(12px+env(safe-area-inset-bottom))] h-16 rounded-full",
           scrolledAway && "translate-y-full",
         )}
@@ -77,7 +77,7 @@ export function BottomTabBar() {
                   <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
                   {/* Active marker: a 6px ink dot under the icon (space kept for inactive tabs). */}
                   <span
-                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-ink" : "bg-transparent")}
+                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-accent" : "bg-transparent")}
                     aria-hidden
                   />
                   {t(`items.${labelKey}`)}

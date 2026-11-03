@@ -23,7 +23,10 @@ export interface DataAdapter {
   getUsers(): User[];
   getJoinRequests(): JoinRequest[];
   /** Where people want to go, with who's interested */
-  getInterests(): readonly Interest[];
+  /** The demand a data state starts with */
+  getInterests(state: DataState): readonly Interest[];
+  /** The curated destinations as this source shows them */
+  getCuratedDestinations(): readonly Destination[];
   /** Houses from outside waiting for their host */
   getClaimableHouses(): Stay[];
   /** Destinations beyond the curated list: places people picked earlier */

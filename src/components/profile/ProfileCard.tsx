@@ -33,7 +33,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
       <div className="flex items-center gap-4">
         <PersonPhoto src={user.photos[0]} alt={user.name} size={80} className="size-20" />
         <div className="min-w-0">
-          <h1 className="flex items-center gap-1 text-h2 tracking-tight">
+          <h1 className="flex items-center gap-1 text-h2">
             <span className="truncate">{user.name}</span>
             {user.verified && <VerifiedBadge />}
           </h1>
@@ -50,7 +50,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
       <SocialRow user={user} className="mt-5" />
       <LanguageChips languages={user.languages} compact className="mt-3" />
 
-      {user.bio && <p className="mt-5 border-t border-line pt-5 text-body leading-[1.6] text-ink">{user.bio}</p>}
+      {user.bio && <p className="mt-5 pt-5 text-body leading-[1.6] text-ink">{user.bio}</p>}
       {crews?.kind === "own" && <LivedWithSection entries={crews.entries} />}
       {crews?.kind === "theirs" && <Crews crews={crews} />}
 

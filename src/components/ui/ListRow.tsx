@@ -19,7 +19,7 @@ interface ListRowProps {
 
 /**
  * The one list row of the app: 56px, lead in a 40px column, text ink 15px / muted 13px, action right. Lists of rows
- * are separated by 1px line (`divide-y divide-line` on the list). Make the whole row a link by wrapping it.
+ * are separated by 1px line (`` on the list). Make the whole row a link by wrapping it.
  */
 export function ListRow({ lead, title, subtitle, aside, action, onClick, disabled, className }: ListRowProps) {
   // Spans only, so the row is valid inside a <button> too.

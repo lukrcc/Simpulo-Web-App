@@ -67,9 +67,9 @@ function DevSwitcherInner() {
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
           <div
             id="dev-switcher-panel"
-            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-small shadow-xl ring-1 ring-line"
+            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-small shadow-xl"
           >
-            <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
+            <div className="flex items-center gap-2 px-4 py-2.5">
               <select
                 value={currentUserId ?? ""}
                 onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
@@ -96,7 +96,7 @@ function DevSwitcherInner() {
               {t("destinations")}
             </a>
             {(currentUserId || stay) && (
-              <div className="flex items-center gap-1 border-t border-line px-2 py-1.5">
+              <div className="flex items-center gap-1 px-2 py-1.5">
                 {currentUserId && (
                   <button
                     type="button"
@@ -123,7 +123,7 @@ function DevSwitcherInner() {
               </div>
             )}
             {panel && (
-              <div className="border-t border-line">
+              <div className="">
                 {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : <ScheduledPanel reminders={reminders} />}
               </div>
             )}
@@ -260,7 +260,7 @@ function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
       {reminders.length === 0 ? (
         <p className="px-4 py-4 text-muted">{t("noReminders")}</p>
       ) : (
-        <ul className="scroll-pane max-h-80 divide-y divide-line">
+        <ul className="scroll-pane max-h-80">
           {reminders.map((reminder) => {
             const stay = store.stays.find((s) => s.id === reminder.stayId);
             const overdue = reminder.due < now;

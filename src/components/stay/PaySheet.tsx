@@ -91,7 +91,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
 
   return (
     <form onSubmit={pay} className="space-y-5">
-      <dl className="divide-y divide-line border-b border-line">
+      <dl className="">
         <Row label={payment.hostFee ? tPremium("share") : t("share")} value={money(payment.share)} />
         {payment.hostFee ? <Row label={tPremium("fieldLabel")} value={money(payment.hostFee)} /> : null}
         <Row label={t("fee")} value={money(payment.fee)} />

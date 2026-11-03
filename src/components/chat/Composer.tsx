@@ -117,7 +117,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
   return (
     <div className="shrink-0 bg-bg px-3 pt-1.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded-xl border border-line bg-surface py-1.5 pl-3 pr-1.5">
+        <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] py-1.5 pl-3 pr-1.5">
           <Reply className="size-4 shrink-0 text-muted" aria-hidden />
           <div className="min-w-0 flex-1 border-l-[3px] border-ink pl-2 text-small">
             <p className="font-semibold text-ink">{t("replyingTo", { name: replyTo.name })}</p>
@@ -136,7 +136,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
             type="button"
             onClick={() => setPastedUrl(null)}
             aria-label={t("removePreview")}
-            className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-bg"
+            className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg"
           >
             <X className="size-3.5" />
           </button>
@@ -152,7 +152,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={file.name} className="size-16 rounded-xl object-cover" />
               ) : (
-                <div className="flex h-16 w-48 items-center gap-2 rounded-xl border border-line bg-surface px-3">
+                <div className="flex h-16 w-48 items-center gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3">
                   <FileText className="size-5 shrink-0 text-muted" aria-hidden />
                   <div className="min-w-0">
                     <p className="truncate text-small font-medium">{file.name}</p>
@@ -164,7 +164,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
                 type="button"
                 onClick={() => removeFile(url)}
                 aria-label={t("removeAttachment", { name: file.name })}
-                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-bg"
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg"
               >
                 <X className="size-3" />
               </button>
@@ -201,14 +201,14 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           aria-label={t("messageLabel")}
           className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] bg-surface px-4 py-2.5 text-small leading-5 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] outline-none ring-1 ring-transparent transition-shadow placeholder:text-muted focus:ring-line"
         />
-        {/* The chat's one primary control: ink, surface icon. */}
+        {/* The chat's one primary control: surface and muted until there's something to send, then ink with a white arrow. */}
         <button
           type="submit"
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
             "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-surface transition-[background-color,color,transform] hover:bg-ink/90 active:scale-95",
-            "disabled:pointer-events-none disabled:bg-line disabled:text-muted",
+            "disabled:pointer-events-none disabled:bg-(--chip-bg) disabled:text-muted",
           )}
         >
           <ArrowUp className="size-5" strokeWidth={2.25} />

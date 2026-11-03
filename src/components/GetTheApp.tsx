@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, CircleCheck, EllipsisVertical, Share, SquarePlus, type LucideIcon } from "lucide-react";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useTranslations } from "next-intl";
 import { useState, type ComponentType } from "react";
 import { SiAndroid, SiApple } from "react-icons/si";
@@ -78,27 +79,7 @@ export function GetTheApp({ className }: { className?: string }) {
         </p>
       ) : (
         <>
-          <div role="tablist" aria-label={t("platform")} className="mt-6 flex gap-1 rounded-full bg-ink/5 p-1">
-            {PLATFORMS.map(({ value, icon: Icon }) => {
-              const active = value === selected;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setPicked(value)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-body font-medium transition-colors",
-                    active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {t(`platforms.${value}`)}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl label={t("platform")} className="mt-6" value={selected} onChange={setPicked} options={PLATFORMS.map(({ value }) => ({ value, label: t(`platforms.${value}`) }))} />
 
           <ol className="mt-6 space-y-4">
             {STEPS[selected].map(({ icon: Icon, key }, i) => (
@@ -124,7 +105,7 @@ export function GetTheApp({ className }: { className?: string }) {
 /** 32px dark number circle with a dot ("1.") – shared with the steps card on /how-it-works. */
 export function StepNumber({ n }: { n: number }) {
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-body font-semibold text-surface">
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-(--select-bg) text-body font-semibold text-ink">
       {n}
       <span className="text-ink">.</span>
     </span>

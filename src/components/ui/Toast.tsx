@@ -53,12 +53,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="animate-toast-in flex max-w-full items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-body font-medium text-surface shadow-lg"
+            className="animate-toast-in flex max-w-full items-center gap-2 glass-panel rounded-full! px-4 py-2.5 text-body font-medium text-ink"
           >
             {toast.tone === "notify" ? (
-              <Bell className="size-4 shrink-0 text-surface/70" />
+              <Bell className="size-4 shrink-0 text-muted" />
             ) : (
-              <CircleCheck className="size-4 shrink-0 text-surface" />
+              <CircleCheck className="size-4 shrink-0 text-ink" />
             )}
             {toast.href ? (
               <a href={toast.href} className="pointer-events-auto truncate underline underline-offset-4">

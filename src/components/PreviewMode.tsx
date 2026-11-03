@@ -30,17 +30,17 @@ export function usePreviewGuard() {
   );
 }
 
-/** Slim dark bar, sticky right under the header: what you're looking at, and the way out. */
+/** Slim peach bar, sticky right under the header: what you're looking at, and the way out. */
 export function PreviewBanner({ message, onExit }: { message: string; onExit: () => void }) {
   const t = useTranslations("common.ui.preview");
   return (
-    <div role="status" className="sticky top-(--header-total) z-30 flex h-10 items-center justify-center gap-3 bg-ink px-4 text-body text-surface">
-      <Eye className="size-4 shrink-0 text-surface/70" aria-hidden />
+    <div role="status" className="sticky top-(--header-total) z-30 flex h-10 items-center justify-center gap-3 bg-(--select-bg) px-4 text-body text-ink">
+      <Eye className="size-4 shrink-0 text-muted" aria-hidden />
       <span className="truncate">{message}</span>
-      <span aria-hidden className="text-surface/40">
+      <span aria-hidden className="text-muted">
         ·
       </span>
-      <button type="button" onClick={onExit} className="shrink-0 font-semibold underline underline-offset-2 hover:text-surface/80">
+      <button type="button" onClick={onExit} className="shrink-0 font-semibold underline underline-offset-2 hover:text-muted">
         {t("exit")}
       </button>
     </div>

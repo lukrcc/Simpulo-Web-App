@@ -1,23 +1,25 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { CrewMenu } from "@/components/stay/CrewMenu";
+import { Button } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { Img } from "@/components/ui/Img";
 import { useFormat } from "@/i18n/format";
-import { getCrew, useStore } from "@/lib/store";
+import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, housePhotos } from "@/lib/utils";
 import { WhosInSheet } from "./WhosInSheet";
 
 /** One 64px row – the desktop panel (rounded top) and the mobile page alike. */
 function headerClass(embedded: boolean) {
   return cn(
-    "relative flex h-16 shrink-0 items-center gap-2 border-b border-line bg-surface",
+    "relative flex h-16 shrink-0 items-center gap-2 bg-surface",
     embedded ? "rounded-t-3xl px-4" : "px-2 sm:px-4",
   );
 }
@@ -32,29 +34,42 @@ function BackToInbox({ embedded }: { embedded: boolean }) {
   );
 }
 
-/** Pinned on every House thread: House + dates and who's in – one row. Payment and booking status stay on the House page. */
+/**
+ * Pinned on every House thread: the cover, the House, its dates and who's in; once the crew is complete the host's group chat.
+ * Payment and booking status stay on the House page.
+ */
 export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }) {
   const t = useTranslations("messages.thread");
   const f = useFormat();
   const store = useStore();
   const [whosIn, setWhosIn] = useState(false);
   const crew = getCrew(store, stay);
+  const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
+  const groupChat = stay.spotsFilled >= stay.spotsTotal ? stay.crewGroupUrl : undefined;
 
   return (
     <>
       <header className={headerClass(embedded)}>
         <BackToInbox embedded={embedded} />
 
-        {/* The title truncates first; the dates stay. */}
-        <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-          <Link href={`/house/${stay.slug}`} className="min-w-0 truncate text-body font-semibold hover:underline">
+        {cover && (
+          <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-line">
+            <Img src={cover} alt="" fill sizes="40px" className="object-cover" />
+          </span>
+        )}
+        <div className="ml-1 min-w-0 flex-1">
+          <Link href={`/house/${stay.slug}`} className="block truncate text-body font-semibold leading-5 hover:underline">
             {stay.title}
           </Link>
-          <span className="shrink-0 text-small text-muted">
-            <span aria-hidden>· </span>
-            {f.shortRange(stay.startDate, stay.endDate)}
-          </span>
+          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.shortRange(stay.startDate, stay.endDate), filled: stay.spotsFilled, total: stay.spotsTotal })}</p>
         </div>
+
+        {groupChat && (
+          <Button variant="secondary" href={groupChat} external className="max-md:hidden">
+            {t("openGroupChat")}
+            <ArrowUpRight aria-hidden />
+          </Button>
+        )}
 
         <button
           type="button"
@@ -72,7 +87,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
       </header>
 
       {stay.status === "closed" && (
-        <p className="shrink-0 border-b border-line bg-bg px-4 py-1.5 text-small text-muted">{t("closed")}</p>
+        <p className="shrink-0 bg-bg px-4 py-1.5 text-small text-muted">{t("closed")}</p>
       )}
     </>
   );

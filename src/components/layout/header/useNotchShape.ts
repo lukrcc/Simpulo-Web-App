@@ -1,67 +1,80 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { setNotchOpen, type NotchMode } from "@/lib/notchState";
+import { easeSheet, snapDuration, snapTarget, useSheetDrag } from "@/lib/useSheetDrag";
 
 const BAR_H = 64;
-/** The tab below the bar: closed, and how much further it goes when open (140px in all). */
-const NOTCH_DEPTH = 16;
-const NOTCH_EXTRA = 60;
+/** The tab below the bar: closed (the handle's 6px over the edge), and how much further it goes when open (140px in all). */
+const NOTCH_DEPTH = 6;
+const NOTCH_EXTRA = 70;
 const NOTCH_PADDING = 32;
-const CONCAVE_R = 16;
-const BOTTOM_R = 20;
+/** The SVG layers' height: the open tab, at its real pixel size. */
+const SVG_H = 140;
+const CONCAVE_R = 12;
+const BOTTOM_R = 16;
 /** The filters' inset from the open tab's edges. */
 const SLOT_INSET = 20;
-/** The handle's centre, up from the tab's bottom edge. */
-const HANDLE_FROM_BOTTOM = 8;
+/** The handle's centre, up from the tab's bottom edge: 6px, and half its 3px line. */
+const HANDLE_FROM_BOTTOM = 7.5;
 
 const DURATION_MS = 420;
-/** Opening: the form first, the content after this long. Closing: the content goes first, for this long. */
-const CONTENT_DELAY_MS = 140;
-const DRAG_THRESHOLD_PX = 6;
-const SNAP_SPEED = 0.4;
-/** The drag's speed comes from this much of its end. */
-const SPEED_WINDOW_MS = 100;
-
-/** cubic-bezier(0.32, 0.72, 0, 1) */
-function ease(x: number): number {
-  const bezier = (a: number, b: number, t: number) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
-  let low = 0;
-  let high = 1;
-  for (let i = 0; i < 16; i++) {
-    const t = (low + high) / 2;
-    if (bezier(0.32, 0, t) < x) low = t;
-    else high = t;
-  }
-  return bezier(0.72, 1, (low + high) / 2);
-}
+/** The filters start to show from here on, and only then take the pointer. */
+const CONTENT_FROM = 0.6;
+const CONTENT_SHIFT_PX = 8;
+/** The filter row's bottom edge (top-20 + h-10) and how far above its centre the handle needs it to stay. */
+const SLOT_BOTTOM = 120;
+const HANDLE_CLEARANCE = 6;
 
 const lerp = (from: number, to: number, p: number) => from + (to - from) * p;
 const n = (v: number) => Math.round(v * 100) / 100;
 
 /**
- * Bar and tab as one path, clockwise from the top left. Below 36px of depth the two curves can't both be round: they keep
- * their width and split the depth in proportion, so they still meet with the same tangent (elliptical arcs).
+ * Bar and tab's outline, from the right, as true circular arcs: concave into the bar, convex at the bottom, same radii at any
+ * depth. With room for both they are quarter circles joined by a straight side. Shallower (the closed tab: 6px, the
+ * radii need 28px), the arcs are shorter but keep their radii, and meet with the same tangent.
+ * `offset`: the same outline that far outside it, parallel, for the 1px line to lie on its own pixel row.
  */
-function headerPath(width: number, notchWidth: number, notchCentre: number, notchDepth: number): string {
-  const left = notchCentre - notchWidth / 2;
-  const right = notchCentre + notchWidth / 2;
-  const fit = Math.min(1, notchDepth / (CONCAVE_R + BOTTOM_R));
-  const concave = CONCAVE_R * fit;
-  const bottomArc = BOTTOM_R * fit;
-  const bottom = BAR_H + notchDepth;
-  return [
-    `M0,0 H${n(width)} V${BAR_H}`,
-    `H${n(right + CONCAVE_R)}`,
-    `A${CONCAVE_R},${n(concave)} 0 0 0 ${n(right)},${n(BAR_H + concave)}`,
-    `V${n(bottom - bottomArc)}`,
-    `A${BOTTOM_R},${n(bottomArc)} 0 0 1 ${n(right - BOTTOM_R)},${n(bottom)}`,
-    `H${n(left + BOTTOM_R)}`,
-    `A${BOTTOM_R},${n(bottomArc)} 0 0 1 ${n(left)},${n(bottom - bottomArc)}`,
-    `V${n(BAR_H + concave)}`,
-    `A${CONCAVE_R},${n(concave)} 0 0 0 ${n(left - CONCAVE_R)},${BAR_H}`,
-    "H0 Z",
-  ].join(" ");
+function outline(left: number, right: number, depth: number, offset: number): { bar: number; d: string } {
+  const concave = CONCAVE_R - offset;
+  const convex = BOTTOM_R + offset;
+  const reach = CONCAVE_R + BOTTOM_R;
+  const cos = Math.max(0, (reach - depth) / reach);
+  const sin = Math.sqrt(1 - cos * cos);
+  const concaveY = BAR_H + CONCAVE_R;
+  const convexY = BAR_H + depth - BOTTOM_R;
+  const bar = BAR_H + offset;
+  const bottom = BAR_H + depth + offset;
+  const rightConvex = right - BOTTOM_R;
+  const leftConvex = left + BOTTOM_R;
+  const rightConcave = rightConvex + reach * sin;
+  const leftConcave = leftConvex - reach * sin;
+  const joinY = concaveY - concave * cos;
+  const straight = depth >= reach;
+  const d = [
+    `H${n(rightConcave)}`,
+    `A${n(concave)},${n(concave)} 0 0 0 ${n(rightConcave - concave * sin)},${n(joinY)}`,
+    straight ? `V${n(convexY)}` : "",
+    `A${n(convex)},${n(convex)} 0 0 1 ${n(rightConvex)},${n(bottom)}`,
+    `H${n(leftConvex)}`,
+    `A${n(convex)},${n(convex)} 0 0 1 ${n(leftConcave + concave * sin)},${n(straight ? convexY : joinY)}`,
+    straight ? `V${n(concaveY)}` : "",
+    `A${n(concave)},${n(concave)} 0 0 0 ${n(leftConcave)},${n(bar)}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return { bar, d };
+}
+
+/** The filled shape: bar and tab. */
+function headerPath(width: number, left: number, right: number, depth: number): string {
+  return `M0,0 H${width} V${BAR_H} ${outline(left, right, depth, 0).d} H0 Z`;
+}
+
+/** The edge alone, half a pixel outside the shape: a 1px stroke on exact pixels. */
+function edgePath(width: number, left: number, right: number, depth: number): string {
+  const edge = outline(left, right, depth, 0.5);
+  return `M${width},${edge.bar} ${edge.d} H0`;
 }
 
 export interface NotchRefs {
@@ -69,7 +82,11 @@ export interface NotchRefs {
   nav: RefObject<HTMLElement | null>;
   shadow: RefObject<SVGSVGElement | null>;
   path: RefObject<SVGPathElement | null>;
+  line: RefObject<SVGSVGElement | null>;
+  edge: RefObject<SVGPathElement | null>;
   glass: RefObject<HTMLDivElement | null>;
+  scrim: RefObject<HTMLDivElement | null>;
+  clip: RefObject<HTMLDivElement | null>;
   hit: RefObject<HTMLDivElement | null>;
   slot: RefObject<HTMLDivElement | null>;
   handle: RefObject<HTMLButtonElement | null>;
@@ -77,30 +94,41 @@ export interface NotchRefs {
 
 /**
  * Draws the header's one shape and moves it between its two states, straight on the DOM (never React state per frame).
- * `open` runs from 0 to 1; notchWidth and notchDepth both follow it, over 420ms or with the handle.
+ * `open` (p, 0 to 1) is the only source: width, depth, the filters and the handle are all worked out from it in every frame,
+ * whether it's dragged live or animated (420ms on a click or scroll; the rest of the way, at least 180ms, after a drag).
+ * The filters lie under a clip of the same path as the shape, so nothing of them shows outside it.
  */
-export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boolean) {
+export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" | "manual", hasHandle: boolean) {
   const [run] = useState(() => {
     const state = {
       open: 0,
       geometry: { width: 0, navLeft: 0, navRight: 0, contentLeft: 0, contentRight: 0 },
       frame: 0,
-      timer: undefined as ReturnType<typeof setTimeout> | undefined,
+      /** Where the running animation goes */
+      target: null as number | null,
+      contentOn: null as boolean | null,
+      scrimOn: false,
       dragging: false,
       paint() {
         const { width, navLeft, navRight, contentLeft, contentRight } = state.geometry;
         if (width === 0) return;
-        const left = lerp(navLeft - NOTCH_PADDING, contentLeft, state.open);
-        const right = lerp(navRight + NOTCH_PADDING, contentRight, state.open);
-        const depth = NOTCH_DEPTH + NOTCH_EXTRA * state.open;
+        // Whole pixels: width and depth animate, the radii don't.
+        const left = Math.round(lerp(navLeft - NOTCH_PADDING, contentLeft, state.open));
+        const right = Math.round(lerp(navRight + NOTCH_PADDING, contentRight, state.open));
+        const depth = Math.round(NOTCH_DEPTH + NOTCH_EXTRA * state.open);
         const centre = (left + right) / 2;
-        const d = headerPath(width, right - left, centre, depth);
+        const d = headerPath(width, left, right, depth);
         refs.path.current?.setAttribute("d", d);
+        refs.edge.current?.setAttribute("d", edgePath(width, left, right, depth));
         if (refs.glass.current) refs.glass.current.style.clipPath = `path("${d}")`;
-        if (refs.shadow.current) {
-          refs.shadow.current.style.clipPath = `path(evenodd, "M-200,-200 H${n(width + 200)} V500 H-200 Z ${d}")`;
-          refs.shadow.current.style.visibility = "visible";
+        if (refs.clip.current) refs.clip.current.style.clipPath = `path("${d}")`;
+        for (const svg of [refs.shadow.current, refs.line.current]) {
+          if (!svg) continue;
+          svg.setAttribute("width", String(width));
+          svg.setAttribute("viewBox", `0 0 ${width} ${SVG_H}`);
+          svg.style.visibility = "visible";
         }
+        if (refs.shadow.current) refs.shadow.current.style.clipPath = `path(evenodd, "M-200,-200 H${width + 200} V500 H-200 Z ${d}")`;
         if (refs.hit.current) {
           refs.hit.current.style.left = `${n(left)}px`;
           refs.hit.current.style.width = `${n(right - left)}px`;
@@ -110,9 +138,39 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boole
           refs.handle.current.style.left = `${n(centre)}px`;
           refs.handle.current.style.top = `${n(BAR_H + depth - HANDLE_FROM_BOTTOM)}px`;
         }
+        state.paintContent(depth);
+        state.paintScrim();
       },
-      animate(to: number) {
+      /** The scrim under a tab opened by hand comes with p. A tab that opened by itself has none. */
+      paintScrim() {
+        const scrim = refs.scrim.current;
+        if (!scrim) return;
+        const on = state.scrimOn || state.dragging;
+        scrim.style.opacity = on ? state.open.toFixed(3) : "0";
+        scrim.style.pointerEvents = on && state.open > 0.01 ? "auto" : "none";
+      },
+      /** The filters, from p alone. Whatever would reach the handle is cut off: it never lies over a chip. */
+      paintContent(depth: number) {
+        const slot = refs.slot.current;
+        if (!slot) return;
+        const opacity = Math.min(1, Math.max(0, (state.open - CONTENT_FROM) / (1 - CONTENT_FROM)));
+        const shift = (1 - opacity) * -CONTENT_SHIFT_PX;
+        const overHandle = SLOT_BOTTOM + shift - (BAR_H + depth - HANDLE_FROM_BOTTOM - HANDLE_CLEARANCE);
+        slot.style.opacity = opacity.toFixed(3);
+        slot.style.transform = `translateY(${shift.toFixed(2)}px)`;
+        slot.style.clipPath = overHandle > 0 ? `inset(0 0 ${n(overHandle)}px 0)` : "none";
+        const on = state.open > CONTENT_FROM;
+        if (on === state.contentOn) return;
+        state.contentOn = on;
+        slot.style.pointerEvents = on ? "auto" : "none";
+        slot.inert = !on;
+      },
+      animate(to: number, duration = DURATION_MS) {
+        // Already on its way there (the state catching up with a released drag): it isn't started over.
+        if (state.frame !== 0 && state.target === to) return;
         cancelAnimationFrame(state.frame);
+        state.frame = 0;
+        state.target = to;
         const from = state.open;
         if (from === to) return;
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -122,34 +180,12 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boole
         }
         const start = performance.now();
         const step = (now: number) => {
-          const t = Math.min(1, (now - start) / DURATION_MS);
-          state.open = lerp(from, to, ease(t));
+          const t = Math.min(1, (now - start) / duration);
+          state.open = lerp(from, to, easeSheet(t));
           state.paint();
-          if (t < 1) state.frame = requestAnimationFrame(step);
+          state.frame = t < 1 ? requestAnimationFrame(step) : 0;
         };
         state.frame = requestAnimationFrame(step);
-      },
-      showContent(show: boolean) {
-        const slot = refs.slot.current;
-        if (!slot) return;
-        slot.toggleAttribute("data-open", show);
-        slot.inert = !show;
-      },
-      /** To a state: opening, the form leads; closing, the content does. */
-      settle(open: boolean) {
-        clearTimeout(state.timer);
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          state.showContent(open);
-          state.animate(open ? 1 : 0);
-          return;
-        }
-        if (open) {
-          state.animate(1);
-          state.timer = setTimeout(() => state.showContent(true), CONTENT_DELAY_MS);
-        } else {
-          state.showContent(false);
-          state.timer = setTimeout(() => state.animate(0), CONTENT_DELAY_MS);
-        }
       },
     };
     return state;
@@ -169,7 +205,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boole
       const style = getComputedStyle(container);
       const contentLeft = outer.left - box.left + parseFloat(style.paddingLeft);
       const contentRight = outer.right - box.left - parseFloat(style.paddingRight);
-      run.geometry = { width: box.width, navLeft: inner.left - box.left, navRight: inner.right - box.left, contentLeft, contentRight };
+      run.geometry = { width: Math.round(box.width), navLeft: inner.left - box.left, navRight: inner.right - box.left, contentLeft, contentRight };
       const slot = refs.slot.current;
       if (slot) {
         slot.style.left = `${n(contentLeft + SLOT_INSET)}px`;
@@ -178,7 +214,6 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boole
       run.paint();
     };
     measure();
-    run.showContent(false);
     const observer = new ResizeObserver(measure);
     observer.observe(header);
     observer.observe(nav);
@@ -189,61 +224,52 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, hasHandle: boole
   useLayoutEffect(() => run.paint(), [hasHandle, run]);
 
   useEffect(() => {
-    if (!run.dragging) run.settle(mode === "filters");
+    if (!run.dragging) run.animate(mode === "filters" ? 1 : 0);
   }, [mode, run]);
+
+  // A chip picked in the open tab hands it over to the page: the tab stays, its scrim goes on its own.
+  useEffect(() => {
+    run.scrimOn = source === "manual";
+    if (refs.scrim.current) refs.scrim.current.style.transition = run.scrimOn ? "none" : "opacity 200ms";
+    run.paintScrim();
+  }, [source, refs, run]);
 
   useEffect(
     () => () => {
       cancelAnimationFrame(run.frame);
-      clearTimeout(run.timer);
+      run.frame = 0;
     },
     [run],
   );
 
   // The handle: a click toggles, a drag follows the pointer and snaps on release.
-  const drag = useRef<{ startY: number; startOpen: number; samples: { y: number; t: number }[]; moved: boolean } | null>(null);
-  const swallowClick = useRef(false);
-
-  function onPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
-    if (e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { startY: e.clientY, startOpen: run.open, samples: [{ y: e.clientY, t: e.timeStamp }], moved: false };
-  }
-  function onPointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
-    const d = drag.current;
-    if (!d) return;
-    const dy = e.clientY - d.startY;
-    if (!d.moved) {
-      if (Math.abs(dy) < DRAG_THRESHOLD_PX) return;
-      d.moved = true;
+  const startOpen = useRef(0);
+  const { handlers, wasDrag } = useSheetDrag({
+    axis: "y",
+    onPress: () => {
+      startOpen.current = run.open;
+    },
+    onStart: () => {
       run.dragging = true;
+      if (refs.scrim.current) refs.scrim.current.style.transition = "none";
       cancelAnimationFrame(run.frame);
-      clearTimeout(run.timer);
-    }
-    d.samples.push({ y: e.clientY, t: e.timeStamp });
-    run.open = Math.min(1, Math.max(0, d.startOpen + dy / NOTCH_EXTRA));
-    run.paint();
-    run.showContent(run.open > 0.5);
-  }
-  function onPointerUp(e: ReactPointerEvent<HTMLButtonElement>) {
-    const d = drag.current;
-    drag.current = null;
-    if (!d?.moved) return;
-    swallowClick.current = true;
-    window.setTimeout(() => (swallowClick.current = false), 0);
-    const recent = d.samples.filter((s) => e.timeStamp - s.t <= SPEED_WINDOW_MS);
-    const first = recent[0] ?? d.samples[0];
-    const elapsed = e.timeStamp - first.t;
-    const speed = elapsed > 0 ? (e.clientY - first.y) / elapsed : 0;
-    const open = speed > SNAP_SPEED ? true : speed < -SNAP_SPEED ? false : run.open > 0.5;
-    run.dragging = false;
-    setNotchOpen(open);
-    // The state may not have changed: the form still has to get there.
-    run.settle(open);
-  }
+      run.frame = 0;
+    },
+    onDrag: (delta) => {
+      run.open = Math.min(1, Math.max(0, startOpen.current + delta / NOTCH_EXTRA));
+      run.paint();
+    },
+    onEnd: (speed) => {
+      const to = snapTarget(run.open, speed, 0.5);
+      run.dragging = false;
+      // First: the state changing right after this doesn't start it over at the full length.
+      run.animate(to, snapDuration(run.open, to, DURATION_MS));
+      setNotchOpen(to === 1);
+    },
+  });
   function onClick() {
-    if (swallowClick.current) return;
+    if (wasDrag()) return;
     setNotchOpen(mode !== "filters");
   }
-  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onClick };
+  return { ...handlers, onClick };
 }

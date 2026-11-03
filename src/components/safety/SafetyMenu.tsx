@@ -19,10 +19,11 @@ interface SafetyMenuProps {
   /** After blocking `user` */
   onBlocked?: () => void;
   className?: string;
+  buttonClassName?: string;
 }
 
 /** ⋯ with "Report" (and "Block …" for people). Logged out, both ask for a login first. */
-export function SafetyMenu({ target, user, onBlocked, className }: SafetyMenuProps) {
+export function SafetyMenu({ target, user, onBlocked, className, buttonClassName }: SafetyMenuProps) {
   const t = useTranslations("safety");
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -53,7 +54,7 @@ export function SafetyMenu({ target, user, onBlocked, className }: SafetyMenuPro
 
   return (
     <>
-      <MoreMenu items={items} label={t("moreOptions")} className={className} />
+      <MoreMenu items={items} label={t("moreOptions")} className={className} buttonClassName={buttonClassName} />
       <ReportSheet open={sheet === "report"} onClose={() => setSheet(null)} target={target} name={name} />
       {user && <BlockSheet open={sheet === "block"} onClose={() => setSheet(null)} user={user} onBlocked={onBlocked} />}
     </>

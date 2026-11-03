@@ -15,14 +15,16 @@ interface MoreMenuProps {
   /** Accessible name of the ⋯ button */
   label?: string;
   className?: string;
+  /** The ⋯ button's own look (a glass circle on a photo); default: a quiet round button */
+  buttonClassName?: string;
 }
 
 /** ⋯ button with a small dropdown. A transparent backdrop closes it on any outside click. */
-export function MoreMenu({ items, label, className }: MoreMenuProps) {
+export function MoreMenu({ items, label, className, buttonClassName }: MoreMenuProps) {
   const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
-  const itemClass = "block w-full px-4 py-2.5 text-left text-body hover:bg-bg";
+  const itemClass = "block w-full px-4 py-2.5 text-left text-body hover:bg-white/50";
 
   return (
     <div className={cn("relative", className)}>
@@ -32,7 +34,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
         aria-label={label ?? t("more")}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="rounded-full p-2 text-muted hover:bg-ink/5 hover:text-ink"
+        className={buttonClassName ?? "rounded-full p-2 text-muted hover:bg-ink/5 hover:text-ink"}
       >
         <MoreHorizontal className="size-5" />
       </button>
@@ -41,7 +43,7 @@ export function MoreMenu({ items, label, className }: MoreMenuProps) {
           <button type="button" aria-label={t("ui.moreMenu.closeMenu")} tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" />
           <div
             role="menu"
-            className="animate-fade-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl bg-surface py-1 shadow-xl ring-1 ring-line"
+            className="glass-panel animate-fade-in absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-[20px]! py-1"
           >
             {items.map((item) =>
               "href" in item ? (

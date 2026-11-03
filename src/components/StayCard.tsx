@@ -49,7 +49,7 @@ interface StayCardProps {
   className?: string;
 }
 
-const CARD_SIZES = "(min-width: 1600px) 400px, (min-width: 1100px) 33vw, (min-width: 700px) 50vw, 100vw";
+const CARD_SIZES = "(min-width: 1000px) 400px, (min-width: 700px) 50vw, 100vw";
 /** Faces: crop towards the upper third, where the face usually is. */
 const FACE_POSITION = "object-cover object-[center_30%]";
 /** A soft shadow under text on photos – keeps it readable on bright ones, on top of the gradient. */
@@ -65,7 +65,7 @@ const PHOTO_ZOOM = cn("scale-100 transition-[scale] md:motion-safe:group-hover:s
 
 /** The photo arrows: desktop only, shown on hover or keyboard focus. */
 const PHOTO_ARROW =
-  "glass-dark absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-ink/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
+  "icon-button absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-ink/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
 /** One card API for every House tile: `variant` picks the layout. */
 export function StayCard({ variant = "default", ...props }: StayCardProps) {
@@ -352,7 +352,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
             <span className={cn("absolute inset-x-0 bottom-0 truncate px-3 pb-3 text-body font-semibold text-white", TEXT_SHADOW)}>{firstName(member)}</span>
           </li>
         ))}
-        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink text-body-lg font-semibold text-surface")}>+{rest}</li>}
+        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-(--select-bg) text-body-lg font-semibold text-ink")}>+{rest}</li>}
         {openTiles > 0 && (
           // No padding on the tile itself: with flex-basis 0 it would make this tile wider than the others.
           <li className={cn(tile, "flex flex-col items-center justify-center gap-2 bg-bg text-center text-muted")}>

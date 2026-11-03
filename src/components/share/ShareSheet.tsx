@@ -83,7 +83,7 @@ export function ShareSheet({ target, open, onClose }: { target: ShareTarget; ope
   const rowClass = "block w-full text-left outline-none hover:bg-bg focus-visible:bg-bg";
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={store.currentUserId ? t("subtitle") : undefined}>
-      <ul className="divide-y divide-line">
+      <ul className="">
         {channels.map((channel) => (
           <li key={channel}>
             <button type="button" onClick={() => void share(channel)} className={rowClass}>

@@ -57,7 +57,7 @@ export function AdminHouses() {
         {prepared.length === 0 ? (
           <p className="text-small text-muted">{t("none")}</p>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="">
             {prepared.map((stay) => (
               <PreparedRow key={stay.id} stay={stay} />
             ))}

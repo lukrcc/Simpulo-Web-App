@@ -2,31 +2,24 @@ import { Check } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * md 36px, 15px text, 16px sides · sm 32px, 12px sides · compact 32px, 13px text, 14px sides
- * (filter panel, More) · bar: Explore's filter bar, 36px, 14px/500 like the site header's nav · fit 36px with tight padding (grid cells) · row: the page's own category row (padding
- * grows with the width)
- */
-export type ChipSize = "md" | "sm" | "compact" | "fit" | "row" | "bar";
+export type ChipSize = "sm" | "md" | "lg";
 
+/** sm 32px · md 36px · lg 40px, all 14px text. */
 const sizes: Record<ChipSize, string> = {
-  md: "h-9 px-4 text-body",
-  sm: "h-8 px-3 text-small",
-  compact: "h-8 px-3.5 text-small",
-  bar: "h-9 px-4 text-nav",
-  fit: "h-9 justify-center px-2 text-body",
-  row: "h-9 px-2.5 text-body lg:px-3 xl:px-[14px]",
+  sm: "h-8 px-3",
+  md: "h-9 px-3.5",
+  lg: "h-10 px-4",
 };
 
 /**
- * The one selection chip: inactive surface with a line border (`quiet`: transparent and muted, for a secondary row),
- * active ink with surface text. `check`: the active chip leads with a 14px check in accent (off for "All").
+ * The one selection chip, anywhere: --chip-bg without a frame. Chosen: peach, 600, with the accent check on the left (it scales in).
+ * Never black: that's for the one main action. Variants only by size.
  */
-export function chipStyles(active: boolean, { size = "md", quiet = false }: { size?: ChipSize; quiet?: boolean } = {}): string {
+export function chipStyles(active: boolean, { size = "md" }: { size?: ChipSize } = {}): string {
   return cn(
-    "inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+    "inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full text-nav text-ink transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45",
     sizes[size],
-    active ? "border-ink bg-ink text-surface" : quiet ? "border-line bg-transparent text-muted hover:bg-surface" : "border-line bg-surface text-ink hover:bg-bg",
+    active ? "bg-(--select-bg) font-semibold" : "bg-(--chip-bg) hover:bg-(--chip-bg-hover)",
   );
 }
 
@@ -40,7 +33,6 @@ type ChipProps = {
   /** The accent check while active – off for "All" and chips that clear a filter */
   check?: boolean;
   size?: ChipSize;
-  quiet?: boolean;
   /** A leading icon (e.g. the + of "+ Custom"); the check takes its place while active */
   icon?: ReactNode;
   className?: string;
@@ -48,9 +40,9 @@ type ChipProps = {
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">;
 
 /** A selection chip as a button (aria-pressed unless a role says otherwise). The label truncates when it must. */
-export function Chip({ active, check = true, size, quiet, icon, className, children, type = "button", ...props }: ChipProps) {
+export function Chip({ active, check = true, size, icon, className, children, type = "button", ...props }: ChipProps) {
   return (
-    <button type={type} aria-pressed={props.role ? undefined : active} className={cn(chipStyles(active, { size, quiet }), "[&>svg]:size-3.5", className)} {...props}>
+    <button type={type} aria-pressed={props.role ? undefined : active} className={cn(chipStyles(active, { size }), "[&>svg]:size-3.5", className)} {...props}>
       {active && check ? <ChipCheck /> : icon}
       <span className="min-w-0 truncate">{children}</span>
     </button>

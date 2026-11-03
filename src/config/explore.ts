@@ -1,3 +1,5 @@
+import type { Vibe } from "@/lib/types";
+
 // Explore filter UI – the knobs that decide what the header's filter row shows. The side panel ("Filters") always has
 // everything; these only add shortcuts to the row once there are enough Houses for them to pay off.
 
@@ -16,13 +18,8 @@ export const SEARCH_INLINE_THRESHOLD = 300;
 /** The "More" categories popover (a 3-column grid): at most this wide (px). */
 export const MORE_POPOVER_MAX_WIDTH = 420;
 
-/** The House grid, everywhere: 4 columns from 1600px, 3 from 1100px, 2 from 700px, else 1. GRID_COLUMNS says the same for code. */
-export const HOUSE_GRID = "grid grid-cols-1 gap-4 min-[700px]:grid-cols-2 md:gap-6 min-[1100px]:grid-cols-3 min-[100rem]:grid-cols-4";
-export const GRID_COLUMNS = [
-  { query: "(min-width: 1600px)", cols: 4 },
-  { query: "(min-width: 1100px)", cols: 3 },
-  { query: "(min-width: 700px)", cols: 2 },
-] as const;
+/** The House grid, everywhere: as many columns of at least 300px as fit, at most 5 (the 1680px container then keeps a card under 380px). */
+export const HOUSE_GRID = "card-grid house-grid [--card-min:300px] [--card-cols:5]";
 
 /** A shelf goes into Open Houses after this many full rows of the grid. */
 export const SHELF_EVERY_ROWS = 3;
@@ -58,25 +55,50 @@ export const MAX_THEME_SHELVES = 4;
 export const SHELF_MAX_ITEMS = 24;
 
 /**
- * Explore's vertical spacing, the one place for it (Tailwind classes, so they end up in the CSS). 96px between all
- * sections, from the bottom of the cards or the button to the next eyebrow.
+ * The Spotlight's line beside the centre card (logged in), by the card's category: a short sentence, then that category's
+ * open Houses. Later in en.json.
+ */
+export const SPOTLIGHT_THEME_LINES: Record<Vibe, string> = {
+  fitness: "Train with people who show up.",
+  "surf-water": "Waves before breakfast.",
+  "remote-work": "Deep work, good people.",
+  founder: "Build it with people who get it.",
+  creator: "Make things together.",
+  wellness: "Slow mornings, real rest.",
+  adventure: "Out there, together.",
+  culture: "See it with people who care.",
+  party: "Big nights, one villa.",
+  holiday: "Time off, in good company.",
+  social: "Come for the place, stay for the people.",
+  students: "Study less alone.",
+};
+/** A House without a category: the number is the sentence. */
+export const spotlightThemeFallback = (count: number) => `${count} ${count === 1 ? "house" : "houses"} open right now.`;
+
+/**
+ * Explore's vertical spacing, the one place for it (Tailwind classes, so they end up in the CSS). --space-section between
+ * all sections, from the bottom of the cards or the button to the next eyebrow; --space-inner inside one (globals.css).
  */
 export const EXPLORE_SPACING = {
-  /** The Spotlight's content under the header's bar, clear of the nav tab. */
-  spotlightTop: "lg:pt-12",
+  /** The Spotlight's top edge in the window, from the bar (--spot-top, globals.css). */
+  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-64px)]",
+  /** With the text over the carousel instead (it doesn't fit beside it): from the bar to the text. */
+  spotlightTextTop: "lg:pt-[calc(var(--space-inner)+6px)]",
+  /** From that title's subline to the centre card. */
+  spotlightIntroBottom: "mb-(--space-inner)",
   /** Every section after the first. */
-  section: "pt-24",
-  /** Open Houses under the hero. From lg 96px from the centre card: the Spotlight's own 640px keep 53.5px below it. */
-  underHero: "pt-24 lg:pt-[42.5px]",
+  section: "pt-(--space-section)",
+  /** Open Houses under the hero, from its lowest card, where the Spotlight ends. */
+  underHero: "pt-(--space-section)",
   /** A scoped feed's first section (collection pages): no hero above it. */
-  scopedTop: "pt-8",
+  scopedTop: "pt-(--space-inner)",
   /** The last section to the footer. */
-  feedEnd: "pb-24",
+  feedEnd: "pb-(--space-section)",
   /** "Show 24 more" under the grid. */
-  showMore: "mt-10",
+  showMore: "mt-(--space-inner)",
   /** A shelf inside the list: above it, and below it when the list goes on. */
-  shelfTop: "pt-24",
-  shelfBottom: "pb-24",
+  shelfTop: "pt-(--space-section)",
+  shelfBottom: "pb-(--space-section)",
   /** A row's heading to its cards. */
-  rowCards: "mt-8",
+  rowCards: "mt-(--space-inner)",
 } as const;

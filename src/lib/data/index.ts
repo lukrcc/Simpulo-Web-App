@@ -1,7 +1,6 @@
 // All data goes through here: the mock in dev and demo, the real source in production. No component imports a mock file.
 import { APP_MODE } from "../appMode";
 import { foldPlace, type Destination, type DestinationCandidate } from "./destinationTypes";
-import { CURATED_DESTINATIONS } from "./destinations";
 import { MORE_CITIES } from "./moreCities";
 import type { Stay } from "../types";
 import { DATA_STATES, type DataAdapter, type DataState } from "./adapter";
@@ -24,7 +23,8 @@ export const getJoinRequests = adapter.getJoinRequests;
 export const getInterests = adapter.getInterests;
 export const getClaimableHouses = adapter.getClaimableHouses;
 /** The curated destinations and those the source knows about. */
-export const getDestinations = (): readonly Destination[] => [...CURATED_DESTINATIONS, ...adapter.getKnownDestinations()];
+const allDestinations: readonly Destination[] = [...adapter.getCuratedDestinations(), ...adapter.getKnownDestinations()];
+export const getDestinations = (): readonly Destination[] => allDestinations;
 const SEARCH_LIMIT = 6;
 /** The place search behind "Somewhere else?": the destinations and more cities, later the Places API. Names starting with it first. */
 export function searchDestinations(query: string): DestinationCandidate[] {

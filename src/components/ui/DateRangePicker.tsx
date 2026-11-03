@@ -135,7 +135,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
           ref={popoverRef}
           role="dialog"
           aria-label={t("dialog")}
-          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-xl border border-line bg-surface p-4 shadow-xl sm:w-[min(100%,36rem)] sm:p-5"
+          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 shadow-xl sm:w-[min(100%,36rem)] sm:p-5"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {QUICK.map(({ key, apply }) => {
@@ -198,7 +198,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                         key={day}
                         className={cn(
                           "py-0.5",
-                          inRange && "bg-ink/5",
+                          inRange && "bg-(--select-bg)/40",
                           isStart && rangeEnd && "rounded-l-full bg-linear-to-r from-transparent from-50% to-ink/5 to-50%",
                           isEnd && "rounded-r-full bg-linear-to-l from-transparent from-50% to-ink/5 to-50%",
                         )}
@@ -213,7 +213,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                           data-tap="none"
                           className={cn(
                             "mx-auto flex size-9 items-center justify-center rounded-full text-small tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
-                            isStart || isEnd ? "bg-ink font-semibold text-surface" : "enabled:hover:bg-ink/10",
+                            isStart || isEnd ? "bg-(--select-bg) font-semibold text-ink" : "enabled:hover:bg-ink/10",
                           )}
                         >
                           {Number(day.slice(8))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -51,26 +51,12 @@ function lockScroll(): () => void {
   };
 }
 
-interface ModalOverlayProps {
-  open: boolean;
-  onClose: () => void;
-  /** id of the dialog's title */
-  labelledBy: string;
-  /** Classes of the dialog panel (white card / bottom sheet) – the overlay only positions and animates it */
-  panelClassName?: string;
-  /** Inside the panel: where the first focusable element gets focus on open (default: the whole panel) */
-  initialFocus?: string;
-  children: ReactNode;
-}
-
 /**
- * Full-screen focus overlay for a dialog: the page behind is blurred and slightly dimmed (globals.css .modal-backdrop),
- * above everything incl. header and DevSwitcher. Bottom sheet on phones, centred card from md. Scroll is locked
- * while open, Escape / backdrop click close it, focus stays inside and returns to where it was on close.
+ * What a dialog does while it's there: top of the stack, scrolling locked, Escape closes the topmost one, focus stays inside
+ * and returns to where it was.
  */
-export function ModalOverlay({ open, onClose, labelledBy, panelClassName, initialFocus, children }: ModalOverlayProps) {
+export function useDialogBehaviour(open: boolean, panelRef: RefObject<HTMLElement | null>, onClose: () => void, initialFocus?: string) {
   const id = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
   // Latest onClose without re-running the effect (which would move this modal to the top of the stack).
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -122,7 +108,29 @@ export function ModalOverlay({ open, onClose, labelledBy, panelClassName, initia
       // Back to the button that opened it (e.g. "Log in"), if it's still there.
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [open, id, initialFocus]);
+  }, [open, id, initialFocus, panelRef]);
+}
+
+interface ModalOverlayProps {
+  open: boolean;
+  onClose: () => void;
+  /** id of the dialog's title */
+  labelledBy: string;
+  /** Classes of the dialog panel (white card / bottom sheet) – the overlay only positions and animates it */
+  panelClassName?: string;
+  /** Inside the panel: where the first focusable element gets focus on open (default: the whole panel) */
+  initialFocus?: string;
+  children: ReactNode;
+}
+
+/**
+ * Full-screen focus overlay for a dialog: the page behind is blurred and slightly dimmed (globals.css .modal-backdrop),
+ * above everything incl. header and DevSwitcher. Bottom sheet on phones, centred card from md. Scroll is locked
+ * while open, Escape / backdrop click close it, focus stays inside and returns to where it was on close.
+ */
+export function ModalOverlay({ open, onClose, labelledBy, panelClassName, initialFocus, children }: ModalOverlayProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogBehaviour(open, panelRef, onClose, initialFocus);
 
   if (!open) return null;
 

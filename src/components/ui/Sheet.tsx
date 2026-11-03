@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ModalOverlay, modalStack as openSheets } from "./ModalOverlay";
+import { PanelSheet, type PanelSheetProps } from "./PanelSheet";
 
 interface SheetProps {
   open: boolean;
@@ -26,8 +27,16 @@ const PANEL_SIZES = {
   wide: "p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[640px]",
 } as const;
 
-/** Bottom sheet on mobile, centered modal on desktop. */
-export function Sheet({ open, onClose, title, subtitle, onBack, size = "default", focusOverlay = false, children }: SheetProps) {
+/**
+ * The one sheet. `variant="panel"`: the floating panel at the right, from the bottom on touch (PanelSheet: Filters and what's to
+ * come). Without it: a bottom sheet on mobile, a centered modal on desktop.
+ */
+export function Sheet(props: SheetProps | (PanelSheetProps & { variant: "panel" })) {
+  if ("variant" in props) return <PanelSheet {...props} />;
+  return <DialogSheet {...props} />;
+}
+
+function DialogSheet({ open, onClose, title, subtitle, onBack, size = "default", focusOverlay = false, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
   const titleId = `${id}-title`;
@@ -57,7 +66,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
 
   if (!open) return null;
   const iconSize = size === "wide" ? "size-6" : "size-5";
-  const panelClass = cn("scroll-pane relative max-h-[90dvh] w-full rounded-t-3xl bg-surface shadow-xl md:rounded-3xl", PANEL_SIZES[size]);
+  const panelClass = cn("glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none md:rounded-b-[28px]", PANEL_SIZES[size]);
 
   const content = (
     <>
@@ -107,7 +116,7 @@ export function Sheet({ open, onClose, title, subtitle, onBack, size = "default"
         type="button"
         aria-label={t("close")}
         onClick={onClose}
-        className="animate-fade-in absolute inset-0 bg-ink/40"
+        className="modal-backdrop absolute inset-0"
       />
       <div className={cn("animate-sheet-in", panelClass)}>{content}</div>
     </div>

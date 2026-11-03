@@ -130,12 +130,10 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
-              <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3">
-                <span className="h-px flex-1 bg-muted/30" aria-hidden />
+              <div key={row.key} ref={unreadRef} className="my-4 flex items-center justify-center">
                 <span className="rounded-full bg-surface/80 px-2.5 py-0.5 text-small font-semibold text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
                   {t("newMessages")}
                 </span>
-                <span className="h-px flex-1 bg-muted/30" aria-hidden />
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
@@ -207,7 +205,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-small font-semibold text-surface shadow-lg shadow-ink/20 hover:bg-ink/90"
+          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 glass-panel rounded-full! px-4 py-2 text-small font-semibold text-ink"
         >
           <ArrowDown className="size-3.5" />
           {t("newMessages")}

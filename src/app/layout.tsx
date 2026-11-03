@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Inter_Tight } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -19,6 +19,8 @@ import { siteIsGated } from "@/lib/seo";
 // Self-hosted at build time by next/font – the browser never requests a Google domain. Tailwind's font-sans reads the
 // variable (globals.css).
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
+/** Only the large headings: display, h1, h2 (globals.css). */
+const interTight = Inter_Tight({ subsets: ["latin"], display: "swap", weight: ["600", "700"], variable: "--font-display" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
@@ -59,7 +61,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} data-app-mode={APP_MODE} className={`${inter.variable} h-full antialiased`}>
+    <html lang={locale} data-app-mode={APP_MODE} className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
       {/* relative + isolate: the frame for PageGlow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
         {/* Before the router: the way back from a House page has to run ahead of it (src/lib/houseTransition.ts). */}

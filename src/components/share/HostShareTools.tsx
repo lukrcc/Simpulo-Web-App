@@ -86,7 +86,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
   // Two list rows, each a button as a whole (icon, label, hint) – no right-hand label, no boxes, no header action.
   return (
     <DetailSection title={title} className={className}>
-      <ul className="divide-y divide-line">
+      <ul className="">
         {tools.map(({ key, icon: Icon, label, hint, busyLabel, onClick }) => (
           <li key={key}>
             <ListRow

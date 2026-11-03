@@ -83,7 +83,7 @@ export function CardShareButton({ stay, variant = "glass", className }: { stay: 
       title={t("button")}
       className={cn(
         "press-feedback",
-        variant === "glass" ? glassCircle : "flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-bg",
+        variant === "glass" ? glassCircle : "flex size-10 shrink-0 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg",
         className,
       )}
     >

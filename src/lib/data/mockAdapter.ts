@@ -4,7 +4,8 @@ import { mockInstalledUsers, mockPaidUsers, mockPreviewForUrl } from "../mock-ex
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
 import { MORE_CITIES } from "./moreCities";
-import { MOCK_INTERESTS } from "../mock-interests";
+import { MOCK_CURATED_DESTINATIONS } from "../mock-destination-images";
+import { MOCK_INTERESTS, MOCK_INTERESTS_FULL } from "../mock-interests";
 import type { DataAdapter } from "./adapter";
 
 /** Dev and demo: the mock data. */
@@ -13,7 +14,8 @@ export const mockAdapter: DataAdapter = {
   getHouses: () => stays,
   getUsers: () => users,
   getJoinRequests: () => joinRequests,
-  getInterests: () => MOCK_INTERESTS,
+  getInterests: (state) => (state === "full" ? MOCK_INTERESTS_FULL : MOCK_INTERESTS),
+  getCuratedDestinations: () => MOCK_CURATED_DESTINATIONS,
   getClaimableHouses: () => mockClaimableStays,
   // A place that reached the threshold and waits for approval, with what an automatic picture would look like (mock credit).
   getKnownDestinations: () => [

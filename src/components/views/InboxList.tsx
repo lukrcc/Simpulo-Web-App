@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Search } from "lucide-react";
+import { ChevronRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,7 +9,7 @@ import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ListRow } from "@/components/ui/ListRow";
+import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useMessageText } from "@/i18n/events";
@@ -17,14 +17,20 @@ import { useFormat } from "@/i18n/format";
 import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { cn } from "@/lib/utils";
+import { cn, housePhotos } from "@/lib/utils";
 
 interface ThreadRow {
   thread: Thread;
   title: string;
   /** House title for direct chats – searchable too */
   subtitle?: string;
+  /** Direct chats: the other person, in a circle */
   avatar?: User;
+  /** House chats: the cover, in a rounded square, with the dates under the title */
+  cover?: string;
+  dates?: string;
+  /** A House chat whose House is over */
+  past: boolean;
 }
 
 export function InboxList() {
@@ -48,35 +54,29 @@ function InboxContent() {
   const f = useFormat();
   const [query, setQuery] = useState("");
 
-  const mine = store.threads.filter((t) => me !== null && t.participantIds.includes(me));
-  // Two crews of Houses with the same title: the dates tell them apart.
-  const crewTitleCount = new Map<string, number>();
-  for (const thread of mine) {
-    const title = thread.type === "house" ? store.stays.find((s) => s.id === thread.houseId)?.title : undefined;
-    if (title) crewTitleCount.set(title, (crewTitleCount.get(title) ?? 0) + 1);
-  }
+  const [pastOpen, setPastOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
 
-  const rows: ThreadRow[] = mine.flatMap((thread) => {
+  const mine = store.threads.filter((t) => me !== null && t.participantIds.includes(me));
+
+  const rows: ThreadRow[] = mine.flatMap((thread): ThreadRow[] => {
     const stay = store.stays.find((s) => s.id === thread.houseId);
     if (!stay) return [];
     if (thread.type === "house") {
-      const title =
-        (crewTitleCount.get(stay.title) ?? 0) > 1
-          ? t("titleWithDates", { title: stay.title, dates: f.shortRange(stay.startDate, stay.endDate) })
-          : stay.title;
-      return [{ thread, title, avatar: findUser(store, stay.hostId) }];
+      return [{ thread, title: stay.title, cover: housePhotos(stay, findUser(store, stay.hostId))[0], dates: f.shortRange(stay.startDate, stay.endDate), past: stay.endDate !== "" && stay.endDate < today }];
     }
     const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
     // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
     if (other && isBlocked(store, other.id)) return [];
-    return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other }];
+    return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other, past: false }];
   });
 
   const q = query.trim().toLowerCase();
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
-  const crews = rows.filter((r) => r.thread.type === "house" && matches(r)).toSorted(newestFirst);
+  const crews = rows.filter((r) => r.thread.type === "house" && !r.past && matches(r)).toSorted(newestFirst);
   const direct = rows.filter((r) => r.thread.type === "direct" && matches(r)).toSorted(newestFirst);
-  const ordered = [...crews, ...direct];
+  const past = rows.filter((r) => r.past && matches(r)).toSorted(newestFirst);
+  const ordered = [...crews, ...direct, ...past];
 
   // ?id= wins (deep links, refresh); otherwise the first row.
   const activeId = rows.some((r) => r.thread.id === selectedId) ? selectedId : (ordered[0]?.thread.id ?? null);
@@ -102,19 +102,24 @@ function InboxContent() {
     );
   }
 
+  const list = (items: ThreadRow[]) => (
+    <ul className="">
+      {items.map((row) => (
+        <li key={row.thread.id}>
+          <ThreadRowLink row={row} active={isDesktop && row.thread.id === activeId} isDesktop={isDesktop} />
+        </li>
+      ))}
+    </ul>
+  );
   const group = (label: string, items: ThreadRow[]) =>
     items.length > 0 && (
       <section className="mt-5">
         <h2 className="mb-1 px-3 text-eyebrow uppercase text-muted">{label}</h2>
-        <ul className="divide-y divide-line">
-          {items.map((row) => (
-            <li key={row.thread.id}>
-              <ThreadRowLink row={row} active={isDesktop && row.thread.id === activeId} isDesktop={isDesktop} />
-            </li>
-          ))}
-        </ul>
+        {list(items)}
       </section>
     );
+  // Folded, unless searching or one of its chats is the open one.
+  const showPast = pastOpen || q !== "" || past.some((r) => r.thread.id === activeId);
 
   return (
     <MasterDetail
@@ -122,7 +127,7 @@ function InboxContent() {
       detailFill
       list={
         <>
-          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 transition-shadow focus-within:ring-2 focus-within:ring-accent">
+          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-xl bg-surface px-4 transition-shadow focus-within:ring-2 focus-within:ring-accent">
             <Search className="size-4 shrink-0 text-muted" aria-hidden />
             <input
               type="search"
@@ -135,6 +140,15 @@ function InboxContent() {
           </label>
           {group(t("crews"), crews)}
           {group(t("direct"), direct)}
+          {past.length > 0 && (
+            <section className="mt-5">
+              <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 px-3 text-small uppercase text-muted hover:text-ink">
+                <ChevronRight className={cn("size-4 transition-transform duration-200 motion-reduce:transition-none", showPast && "rotate-90")} aria-hidden />
+                {t("past")}
+              </button>
+              {showPast && list(past)}
+            </section>
+          )}
           {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
         </>
       }
@@ -149,7 +163,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
   const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
-  const { thread, title, subtitle, avatar } = row;
+  const { thread, title, subtitle, avatar, cover, dates } = row;
 
   /** Photos and files get a hint instead of an empty preview; event lines are translated. */
   function previewText(message: Message): string {
@@ -179,16 +193,18 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       aria-current={active ? "page" : undefined}
       className={cn("block rounded-xl px-3 transition-colors", active ? "bg-surface shadow-xs" : "hover:bg-ink/[0.03]")}
     >
-      <ListRow
-        lead={
-          avatar ? (
-            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={40} className="size-10 bg-line" />
-          ) : (
-            <span className="size-10 shrink-0 rounded-full bg-bg" />
-          )
-        }
-        title={
-          <span className="flex items-baseline justify-between gap-2">
+      <span className="flex items-center gap-3 py-3">
+        {cover ? (
+          <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-line">
+            <Img src={cover} alt="" fill sizes="48px" className="object-cover" />
+          </span>
+        ) : avatar ? (
+          <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={48} className="size-12 shrink-0 bg-line" />
+        ) : (
+          <span className="size-12 shrink-0 rounded-full bg-bg" />
+        )}
+        <span className="block min-w-0 flex-1">
+          <span className="flex items-baseline justify-between gap-2 text-body text-ink">
             <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>
               {title}
               {/* Direct chats: the House they're about, on the same line. */}
@@ -196,10 +212,11 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
             </span>
             {time && <span className="shrink-0 text-small text-muted">{time}</span>}
           </span>
-        }
-        subtitle={<span className={unread ? "font-medium text-ink" : undefined}>{preview}</span>}
-        aside={unread && <span className="size-2.5 shrink-0 rounded-full bg-ink" role="img" aria-label={t("unread")} />}
-      />
+          {dates && <span className="block truncate text-small text-muted">{dates}</span>}
+          <span className={cn("block truncate text-small", unread ? "text-ink" : "text-muted")}>{preview}</span>
+        </span>
+        {unread && <span className="size-2 shrink-0 rounded-full bg-accent" role="img" aria-label={t("unread")} />}
+      </span>
     </Link>
   );
 }

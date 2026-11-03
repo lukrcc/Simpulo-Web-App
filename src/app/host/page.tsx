@@ -38,8 +38,8 @@ export default async function HostPage() {
       {/* Hero, on the stage gradient: text left, the House card (448 × 560) right, centred on each other. */}
       <StageBand from="md" className="pb-16">
         <Container className="pt-16">
-          <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-8">
-            <div className="lg:col-span-7">
+          <section className="grid grid-cols-1 items-center gap-10 split:grid-cols-12 split:gap-8">
+            <div className="split:col-span-7">
               <p className="text-eyebrow uppercase text-muted">{t("eyebrow")}</p>
               <h1 className="mt-3 text-display text-ink">{t("title")}</h1>
               <p className="mt-6 max-w-140 text-body-lg text-muted">{t("intro")}</p>
@@ -61,7 +61,7 @@ export default async function HostPage() {
                 ))}
               </ul>
             </div>
-            <HostHeroCard className="w-full max-w-112 lg:col-span-5 lg:justify-self-end" />
+            <HostHeroCard className="w-full max-w-112 split:col-span-5 split:justify-self-end" />
           </section>
         </Container>
       </StageBand>
@@ -70,11 +70,11 @@ export default async function HostPage() {
       {/* 96px from the hero card: the band's 64px below it plus this. */}
       <HostWays className="mt-8" />
 
-      <HostHousesRow className="mt-24" />
+      <HostHousesRow className="mt-(--space-section)" />
 
-      <section data-glow-section aria-labelledby="host-how" className="mt-24">
+      <section data-glow-section aria-labelledby="host-how" className="mt-(--space-section)">
         <SectionHeader id="host-how" title={t("howTitle")} />
-        <ul className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <ul className="card-grid mt-6 [--card-cols:3] [--card-min:260px]">
           {why.map((item, i) => {
             const Icon = HOW_ICONS[i] ?? MessagesSquare;
             return (
@@ -90,9 +90,9 @@ export default async function HostPage() {
         </ul>
       </section>
 
-      <section data-glow-section aria-labelledby="host-faq" className="mt-24">
+      <section data-glow-section aria-labelledby="host-faq" className="mt-(--space-section)">
         <SectionHeader id="host-faq" title={t("faqTitle")} />
-        <div className="mt-6 divide-y divide-line rounded-xl border border-line bg-surface px-6">
+        <div className="mt-6 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-6">
           {faq.map((item) => (
             <details key={item.question} className="group py-1">
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
@@ -105,13 +105,13 @@ export default async function HostPage() {
         </div>
       </section>
 
-      {/* The page's one dark block. */}
-      <section data-glow-section className="mt-24 flex flex-col items-start gap-6 rounded-3xl bg-ink p-16 text-surface md:flex-row md:items-center md:justify-between">
+      {/* The page's last word: the one main action, on peach. */}
+      <section data-glow-section className="mt-(--space-section) flex flex-col items-start gap-6 rounded-3xl bg-(--select-bg) p-16 text-ink md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-h2 leading-tight tracking-tight">{t("ctaTitle")}</h2>
-          <p className="mt-2 text-body-lg text-surface/70">{t("ctaText")}</p>
+          <h2 className="text-h2">{t("ctaTitle")}</h2>
+          <p className="mt-2 text-body-lg text-muted">{t("ctaText")}</p>
         </div>
-        <Button href="/create" variant="secondary" size="lg" className="border-transparent">
+        <Button href="/create" size="lg">
           {t("openHouse")}
         </Button>
       </section>

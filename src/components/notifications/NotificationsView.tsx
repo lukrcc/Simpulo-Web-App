@@ -65,7 +65,7 @@ function NotificationsList() {
   return (
     <Container page width="narrow">
       <div className="flex items-end justify-between gap-4">
-        <h1 className="text-h2 tracking-tight text-ink">{t("title")}</h1>
+        <h1 className="text-h2 text-ink">{t("title")}</h1>
         {unread > 0 && (
           <Button variant="tertiary" size="md" onClick={repo.markAllRead}>
             <CheckCheck aria-hidden />
@@ -99,7 +99,7 @@ function NotificationsList() {
                 <h2 id={`n-${group}`} className="mb-1 px-3 text-eyebrow uppercase text-muted">
                   {t(`groups.${group}`)}
                 </h2>
-                <ul className="divide-y divide-line rounded-xl border border-line bg-surface px-4">
+                <ul className="rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-4">
                   {list.map((n) => (
                     <li key={n.id}>
                       <NotificationItem notification={n} onRead={repo.markRead} />

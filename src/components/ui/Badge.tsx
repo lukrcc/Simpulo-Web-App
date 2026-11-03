@@ -10,7 +10,7 @@ export function Badge({ children, icon, onPage = false, className }: { children:
     <span
       className={cn(
         "inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-small font-medium text-muted [&_svg]:size-3",
-        onPage ? "border border-line bg-surface" : "bg-bg",
+        onPage ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "bg-bg",
         className,
       )}
     >

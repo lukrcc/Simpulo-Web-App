@@ -108,7 +108,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                       type="button"
                       onClick={() => remove(slot)}
                       aria-label={t("remove", { index: slot + 1 })}
-                      className="glass-dark absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
+                      className="icon-button absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
                     >
                       <X className="size-3.5" />
                     </button>

@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 
 /** The header's height at the tab, closed: the filters take over when the row has passed it. */
 const NOTCH_CLOSED_TOTAL = 80 + BAND_HEIGHT;
+/** Where a chip change puts the grid: 24px under the open tab. The row above the grid is just over this line then, so the tab stays. */
+const UNDER_TAB_TOTAL = NOTCH_OPEN_TOTAL + 24;
 /** Everything below the fold counts as "not passed yet": a jump past the line still crosses it. */
 const BELOW = 100_000;
 
@@ -43,8 +45,8 @@ export function ExploreFilterBar({ chips, controls, gridEndRef, handle }: { chip
         push();
       },
     });
-    // On at the closed tab, off at the open one: where a filter change scrolls to (the grid under the open tab) the row is
-    // between the two, and the tab stays as it is.
+    // On at the closed tab, off 24px under the open one: where a filter change scrolls to the row is between the two, and
+    // the tab stays as it is.
     const observers = [
       watchLine(start, NOTCH_CLOSED_TOTAL, (passed) => {
         if (passed) {
@@ -52,7 +54,7 @@ export function ExploreFilterBar({ chips, controls, gridEndRef, handle }: { chip
           push();
         }
       }),
-      watchLine(start, NOTCH_OPEN_TOTAL, (passed) => {
+      watchLine(start, UNDER_TAB_TOTAL, (passed) => {
         if (!passed) {
           inSection = false;
           push();

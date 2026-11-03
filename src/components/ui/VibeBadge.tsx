@@ -1,4 +1,4 @@
-import { BookOpen, Briefcase, CalendarDays, Camera, CandlestickChart, Compass, Dumbbell, Fish, Flower2, GraduationCap, Heart, Landmark, Languages, Laptop, Mountain, PartyPopper, Radio, Rocket, Shapes, Sparkles, TreePalm, Users, UtensilsCrossed, WavesHorizontal, type LucideIcon } from "lucide-react";
+import { Camera, Compass, Dumbbell, Flower2, GraduationCap, Landmark, Laptop, PartyPopper, Rocket, TreePalm, Users, WavesHorizontal, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Vibe } from "@/lib/types";
 import { Badge } from "./Badge";
@@ -6,29 +6,17 @@ import { Badge } from "./Badge";
 /** Each vibe's icon. */
 const vibeIcons: Record<Vibe, LucideIcon> = {
   fitness: Dumbbell,
-  creator: Camera,
-  founder: Rocket,
+  "surf-water": WavesHorizontal,
   "remote-work": Laptop,
-  holiday: TreePalm,
-  mixed: Shapes,
-  surf: WavesHorizontal,
+  founder: Rocket,
+  creator: Camera,
   wellness: Flower2,
-  streaming: Radio,
-  trading: CandlestickChart,
-  yoga: Sparkles,
-  diving: Fish,
-  climbing: Mountain,
-  language: Languages,
-  students: GraduationCap,
-  party: PartyPopper,
-  singles: Heart,
-  weekend: CalendarDays,
-  business: Briefcase,
-  social: Users,
   adventure: Compass,
   culture: Landmark,
-  food: UtensilsCrossed,
-  study: BookOpen,
+  party: PartyPopper,
+  holiday: TreePalm,
+  social: Users,
+  students: GraduationCap,
 };
 
 /** A vibe as a neutral Badge with its icon. `label`: a host's custom vibe, shown instead of the vibe name. */

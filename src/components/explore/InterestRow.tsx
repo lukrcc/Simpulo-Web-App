@@ -2,21 +2,27 @@
 
 import { Check, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { usePreviewGuard } from "@/components/PreviewMode";
 import { createHref } from "@/components/create/model";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { ListRow } from "@/components/ui/ListRow";
 import { RowHeader, ScrollRow } from "@/components/explore/CollectionRow";
 import { Sheet } from "@/components/ui/Sheet";
-import { shortMonth } from "@/components/form/MonthChips";
+import { MonthChips, shortMonth } from "@/components/form/MonthChips";
+import { Anchored } from "@/components/ui/Anchored";
+import { Button } from "@/components/ui/ActionButton";
+import { RollingNumber } from "@/components/ui/RollingNumber";
+import type { DestinationCandidate } from "@/lib/data/destinationTypes";
 import { DestinationInterestForm } from "@/components/explore/DestinationInterestForm";
-import { useDemandSpots, type DestinationSpot } from "@/lib/destinations";
+import { hasCardImage, useDemandSpots, type DestinationSpot } from "@/lib/destinations";
 export { useDemandSpots };
 import { FLEXIBLE, interestIn, interestsIn, monthRange, type DemandSpot } from "@/lib/interests";
-import { findUser, useStore } from "@/lib/store";
+import { findUser, getCurrentUser, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
@@ -24,14 +30,14 @@ import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
-/** Spots in the Explore row; the rest are on /next. */
+/** Spots in the Explore row; the rest are on /destinations. */
 export const ROW_SPOTS = 12;
 /** A card in the row: 560px, the phone's width keeps a peek of the next one. */
 /** Destinations without a picture: stage colours instead. */
 const FALLBACK_SURFACE = "bg-[linear-gradient(135deg,var(--stage-peach),var(--stage-mist))]";
 export const ROW_CARD = "flex w-[min(560px,85vw)] shrink-0 snap-start";
 
-/** Your own places first (newest first) – so one you just added shows up right away – then everyone's by count. */
+/** Your own places first (newest first) – so one you just added shows up right away – then everyone's by count. Only those with a picture. */
 export function useOrderedSpots(exclude: readonly DemandSpot[] = []): DestinationSpot[] {
   const all = useDemandSpots();
   const store = useStore();
@@ -43,13 +49,13 @@ export function useOrderedSpots(exclude: readonly DemandSpot[] = []): Destinatio
       .filter((s): s is DestinationSpot => s !== undefined);
     // Spots are compared by place: the grid's tiles come from another aggregation.
     const shownAbove = new Set(exclude.map((s) => s.destinationId));
-    return [...new Set([...mine, ...all])].filter((s) => !shownAbove.has(s.destinationId));
+    return [...new Set([...mine, ...all])].filter((s) => hasCardImage(s) && !shownAbove.has(s.destinationId));
   }, [all, store.interests, store.currentUserId, exclude]);
 }
 
 /**
  * "Where do you want to go next?" – the most wanted places (city, how many people, when), each with "I'm interested" and
- * "Host it", "+ Add a place" last and "See all →" to /next. A horizontal scroll row of the top 12.
+ * "Host it", "+ Add a place" last and "See all →" to /destinations. A horizontal scroll row of the top 12.
  */
 export function InterestRow({ exclude = [] }: { /** Spots already shown as tiles in the grid above */ exclude?: readonly DemandSpot[] }) {
   const t = useTranslations("explore.interests");
@@ -57,7 +63,7 @@ export function InterestRow({ exclude = [] }: { /** Spots already shown as tiles
   const [adding, setAdding] = useState(false);
   return (
     <section aria-labelledby="interests-title">
-      <RowHeader id="interests-title" eyebrow={t("eyebrow")} title={t("title")} subline={t("subline")} seeAll={{ href: "/next", label: t("seeAll"), ariaLabel: t("seeAllLabel") }} />
+      <RowHeader id="interests-title" eyebrow={t("eyebrow")} title={t("title")} subline={t("subline")} seeAll={{ href: "/destinations", label: t("seeAll"), ariaLabel: t("seeAllLabel") }} />
       <ScrollRow>
         {spots.slice(0, ROW_SPOTS).map((spot) => (
           <div key={spot.destinationId} className={ROW_CARD}>
@@ -68,7 +74,7 @@ export function InterestRow({ exclude = [] }: { /** Spots already shown as tiles
           <AddPlaceCard onAdd={() => setAdding(true)} />
         </div>
       </ScrollRow>
-      <AddPlaceSheet open={adding} onClose={() => setAdding(false)} />
+      <AddPlaceSheet open={adding} focusOnSave onClose={() => setAdding(false)} />
     </section>
   );
 }
@@ -81,7 +87,7 @@ export function AddPlaceCard({ onAdd }: { onAdd: () => void }) {
       <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink">
         <Plus className="size-5" aria-hidden />
       </span>
-      <span className="text-h2 tracking-tight text-ink">{t("somewhereElse")}</span>
+      <span className="text-h2 text-ink">{t("somewhereElse")}</span>
     </button>
   );
 }
@@ -97,18 +103,47 @@ function useInterestToggle(spot: DemandSpot) {
 }
 
 const noSubscribe = () => () => {};
-/** The current year, in the browser only – the server (and the prerender) must not read the clock: "" there. */
-function useThisYear(): string {
-  return useSyncExternalStore(noSubscribe, () => String(new Date().getUTCFullYear()), () => "");
+/** This month, YYYY-MM, in the browser only – the server (and the prerender) must not read the clock: "" there. */
+function useThisMonth(): string {
+  return useSyncExternalStore(noSubscribe, () => new Date().toISOString().slice(0, 7), () => "");
 }
 
-/** The months people want, as one span: "Feb–Mar" (this year) or "Feb–Mar 2027"; null without dated interest. */
-function monthSpan(format: ReturnType<typeof useFormatter>, spot: DemandSpot, thisYear: string): string | null {
+/** The month the next 12 months end with. */
+function lastOfYearAhead(thisMonth: string): string {
+  const [year, month] = thisMonth.split("-").map(Number);
+  return new Date(Date.UTC(year, month + 10, 1)).toISOString().slice(0, 7);
+}
+
+/** The months people want, as one span: "Feb–Mar", with the year only past the next 12 months; null without dated interest. */
+function monthSpan(format: ReturnType<typeof useFormatter>, spot: DemandSpot, thisMonth: string): string | null {
   if (spot.months.length === 0) return null;
   const first = spot.months[0].month;
   const last = spot.months.at(-1)!.month;
   const span = first === last ? shortMonth(format, first, false) : `${shortMonth(format, first, false)}–${shortMonth(format, last, false)}`;
-  return last.slice(0, 4) === thisYear ? span : `${span} ${last.slice(0, 4)}`;
+  return thisMonth && last > lastOfYearAhead(thisMonth) ? `${span} ${last.slice(0, 4)}` : span;
+}
+
+/** How long the own avatar takes from the button into the stack. */
+const FLY_MS = 450;
+/** How long a card keeps its ring when the search led to it. */
+const CARD_RING_MS = 1200;
+
+/**
+ * Scrolls a place's card into view and rings it for a moment, once any sheet over the page is gone (it locks the scrolling).
+ * `onMissing`: no card of it is on this page.
+ */
+export function focusDestinationCard(destinationId: string, onMissing?: () => void) {
+  const started = performance.now();
+  const attempt = () => {
+    const waiting = document.querySelector('[role="dialog"]') !== null && performance.now() - started < 800;
+    const card = [...document.querySelectorAll<HTMLElement>(`[data-destination-card="${CSS.escape(destinationId)}"]`)].find((el) => el.offsetHeight > 0);
+    if (waiting || (!card && performance.now() - started < 400)) return void requestAnimationFrame(attempt);
+    if (!card) return onMissing?.();
+    card.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center", inline: "center" });
+    card.setAttribute("data-card-ring", "");
+    setTimeout(() => card.removeAttribute("data-card-ring"), CARD_RING_MS);
+  };
+  requestAnimationFrame(attempt);
 }
 
 /** A demand card's avatars at most. */
@@ -117,7 +152,7 @@ const MAX_AVATARS = 4;
 /**
  * A demand spot as a photo card, 16:10, 24px radius: the place's photo with the House cards' gradient. Bottom left in
  * white the city and a line with up to four overlapping avatars, how many people want to go and when; bottom right
- * "I'm interested" and "Host it". Too narrow for both side by side (the /next grid, phones): under each other. `tile`:
+ * "I'm interested" and "Host it". Too narrow for both side by side (the /destinations grid, phones): under each other. `tile`:
  * fills a grid cell beside the House cards, as tall as they are. The avatars open the list of people; logged out, they're
  * blurred and ask to log in first.
  */
@@ -127,21 +162,76 @@ export function DemandCard({ spot, tile = false }: { spot: DestinationSpot; tile
   const store = useStore();
   const requireAuth = useRequireAuth();
   const { interested, toggle } = useInterestToggle(spot);
-  const thisYear = useThisYear();
-  const when = monthSpan(format, spot, thisYear) ?? (spot.anytime > 0 ? t("anytimeShort") : null);
+  const thisMonth = useThisMonth();
+  const when = monthSpan(format, spot, thisMonth) ?? (spot.anytime > 0 ? t("anytimeShort") : null);
   const optedIn = useOptedInPeople(spot);
   const loggedIn = store.currentUserId !== null;
-  const avatars = optedIn.filter((p) => p.user.photos[0]).slice(0, MAX_AVATARS);
+  const me = getCurrentUser(store);
+  // You first: that's where your avatar lands.
+  const avatars = optedIn.filter((p) => p.user.photos[0]).toSorted((a, b) => Number(b.user.id === store.currentUserId) - Number(a.user.id === store.currentUserId)).slice(0, MAX_AVATARS);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const stackRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [changing, setChanging] = useState(false);
+  // Where the card was before you joined or left: YOUR PICKS appearing above it mustn't move it from under the pointer.
+  const topBefore = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const before = topBefore.current;
+    topBefore.current = null;
+    if (before === null) return;
+    const moved = (cardRef.current?.getBoundingClientRect().top ?? before) - before;
+    if (Math.abs(moved) > 1) window.scrollBy({ top: moved, behavior: "instant" });
+    if (!interested || !me?.photos[0]) return;
+    // From the button into the stack.
+    const from = buttonRef.current?.getBoundingClientRect();
+    if (!from) return;
+    const avatar = stackRef.current?.querySelector<HTMLElement>("[data-my-avatar]");
+    if (avatar && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const to = avatar.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      avatar.style.zIndex = "2";
+      avatar.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.15)` }, { transform: "none" }], { duration: FLY_MS, easing: "cubic-bezier(0.32, 0.72, 0, 1)" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when you join or leave
+  }, [interested]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!menuRef.current?.contains(target) && !buttonRef.current?.contains(target)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
   const [listing, setListing] = useState(false);
   const range = spot.months.length > 0 ? { from: monthRange(spot.months[0].month).from, to: monthRange(spot.months.at(-1)!.month).to } : {};
   const { destination } = spot;
   const cover = destination.coverImage;
   // Without an account "I'm interested" asks for an email, here on the card.
   const [asking, setAsking] = useState(false);
-  const onInterested = () => (loggedIn ? toggle() : setAsking(true));
+  const guard = usePreviewGuard();
+  const onInterested = () =>
+    guard(() => {
+      if (!loggedIn) return setAsking(true);
+      if (interested) return setMenuOpen((open) => !open);
+      topBefore.current = cardRef.current?.getBoundingClientRect().top ?? null;
+      toggle();
+    });
   const openPeople = () => (loggedIn ? setListing(true) : requireAuth(() => setListing(true), t("loginToSeeFor", { place: spot.placeName })));
   return (
     <div
+      ref={cardRef}
+      data-destination-card={spot.destinationId}
       className={cn(
         "@container relative isolate w-full overflow-hidden rounded-3xl", cover ? "bg-ink" : FALLBACK_SURFACE,
         // In the grid it lifts itself like the House cards beside it; in a row, .lift-row lifts it (the same element).
@@ -163,37 +253,67 @@ export function DemandCard({ spot, tile = false }: { spot: DestinationSpot; tile
             <h3 className={cn("truncate text-h3", cardTitle)}>{spot.placeName}</h3>
           ) : (
             <>
-              <h3 className="truncate text-h2 tracking-tight text-ink">{spot.placeName}</h3>
+              <h3 className="truncate text-h2 text-ink">{spot.placeName}</h3>
               <p className="text-small text-muted">{spot.country}</p>
             </>
           )}
           <div className="mt-2 flex items-center gap-2">
             {avatars.length > 0 && (
               <button
+                ref={stackRef}
                 type="button"
                 onClick={openPeople}
                 aria-label={loggedIn ? t("seePeople", { count: optedIn.length, place: spot.placeName }) : t("loginToSeeFor", { place: spot.placeName })}
                 className="flex shrink-0 -space-x-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
                 {avatars.map(({ user }) => (
-                  <span key={user.id} className="relative block size-7 overflow-hidden rounded-full border-2 border-white">
+                  <span key={user.id} data-my-avatar={user.id === store.currentUserId ? "" : undefined} className="relative block size-7 overflow-hidden rounded-full border-2 border-white">
                     <Img src={user.photos[0]} alt="" fill sizes="28px" className={cn("object-cover object-[center_30%]", !loggedIn && "scale-110 blur-[3px]")} />
                   </span>
                 ))}
               </button>
             )}
-            <p className={cn("min-w-0 text-small", cover ? "text-white/85" : "text-muted")}>
-              {t("wantToGo", { count: spot.count })}
+            <p className={cn("min-w-0 truncate text-small", cover ? "text-white/85" : "text-muted")}>
+              {t.rich("wantToGo", { count: spot.count, num: () => <RollingNumber value={spot.count} /> })}
               {when && ` · ${when}`}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {/* A surface capsule; on is shown by the check. Smaller text than a button: the line beside it stays on one line. */}
-          <button type="button" aria-pressed={interested} onClick={onInterested} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-surface px-3.5 text-small font-semibold text-ink transition-colors hover:bg-bg">
-            {interested && <Check className="size-4 shrink-0" aria-hidden />}
+          <button ref={buttonRef} type="button" aria-pressed={interested} aria-haspopup={interested ? "menu" : undefined} aria-expanded={interested ? menuOpen : undefined} onClick={onInterested} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-surface px-3.5 text-small font-semibold text-ink transition-colors hover:bg-bg">
             {interested ? t("interestedOn") : t("interested")}
+            {interested && <Check className="size-4 shrink-0 text-accent" aria-hidden />}
           </button>
+          {menuOpen && (
+            <Anchored anchor={buttonRef} ref={menuRef} align="end">
+              <div role="menu" className="glass-panel animate-fade-in w-44 overflow-hidden rounded-[20px]! py-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setChanging(true);
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-body text-ink hover:bg-white/50"
+                >
+                  {t("changeMonths")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    topBefore.current = cardRef.current?.getBoundingClientRect().top ?? null;
+                    toggle();
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-body text-ink hover:bg-white/50"
+                >
+                  {t("removeInterest")}
+                </button>
+              </div>
+            </Anchored>
+          )}
           <Link href={createHref({ region: spot.country, city: spot.placeName, ...range })} className={cn("inline-flex h-9 items-center whitespace-nowrap text-small font-semibold underline-offset-4 hover:underline", cover ? "text-white" : "text-ink")}>
             {t("host")}
           </Link>
@@ -207,8 +327,33 @@ export function DemandCard({ spot, tile = false }: { spot: DestinationSpot; tile
           </Sheet>,
           document.body,
         )}
-      {listing && createPortal(<PeopleSheet open onClose={() => setListing(false)} spot={spot} people={loggedIn ? optedIn : []} thisYear={thisYear} />, document.body)}
+      {listing && createPortal(<PeopleSheet open onClose={() => setListing(false)} spot={spot} people={loggedIn ? optedIn : []} thisYear={thisMonth.slice(0, 4)} />, document.body)}
+      {changing && createPortal(<ChangeMonthsSheet spot={spot} onClose={() => setChanging(false)} />, document.body)}
     </div>
+  );
+}
+
+/** "Change months": yours for this place, replaced. */
+function ChangeMonthsSheet({ spot, onClose }: { spot: DemandSpot; onClose: () => void }) {
+  const t = useTranslations("explore.interests");
+  const store = useStore();
+  const [months, setMonths] = useState(() => interestIn(store.interests, store.currentUserId, spot)?.months ?? []);
+  return (
+    <Sheet open onClose={onClose} title={t("changeMonthsTitle", { place: spot.placeName })}>
+      <MonthChips value={months} onChange={setMonths} label={t("add.months")} />
+      <Button
+        variant="primary"
+        size="lg"
+        disabled={months.length === 0}
+        className="mt-6 w-full"
+        onClick={() => {
+          store.setInterestMonths(spot.destinationId, months);
+          onClose();
+        }}
+      >
+        {t("saveMonths")}
+      </Button>
+    </Sheet>
   );
 }
 
@@ -244,7 +389,7 @@ function PeopleSheet({ open, onClose, spot, people, thisYear }: { open: boolean;
   const format = useFormatter();
   return (
     <Sheet open={open} onClose={onClose} title={t("peopleTitle", { place: spot.placeName })} subtitle={t("peopleSubtitle", { count: spot.count })}>
-      <ul className="divide-y divide-line">
+      <ul className="">
         {people.map(({ user, months }) => (
           <li key={user.id}>
             <Link href={`/u/${user.id}`} onClick={onClose} className="block hover:bg-bg">
@@ -268,13 +413,30 @@ function PeopleSheet({ open, onClose, spot, people, thisYear }: { open: boolean;
   );
 }
 
-/** "Somewhere else?": the place search, months, "Count me in". Nothing typed is saved. */
-export function AddPlaceSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * "Somewhere else?": the place search, months, "Count me in". Nothing typed is saved. `focusOnSave`: a place that has a card closes
+ * the sheet and goes to it (on another page if it's not on this one); without a card it only says so.
+ */
+export function AddPlaceSheet({ open, onClose, initial, focusOnSave = false }: { open: boolean; onClose: () => void; initial?: DestinationCandidate; focusOnSave?: boolean }) {
   const t = useTranslations("explore.interests");
+  const router = useRouter();
   return (
     <Sheet open={open} onClose={onClose} title={t("somewhereElse")} subtitle={t("add.subtitle")}>
       {/* Remounted per open, so it always starts empty. */}
-      {open && <DestinationInterestForm onDone={onClose} />}
+      {open && (
+        <DestinationInterestForm
+          initial={initial}
+          onDone={onClose}
+          onCardFound={
+            focusOnSave
+              ? (id) => {
+                  onClose();
+                  focusDestinationCard(id, () => router.push(`/destinations?focus=${encodeURIComponent(id)}`));
+                }
+              : undefined
+          }
+        />
+      )}
     </Sheet>
   );
 }

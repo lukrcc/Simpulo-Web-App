@@ -43,7 +43,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         <div
           role="dialog"
           aria-label={t("emoji")}
-          className="absolute bottom-full left-0 z-40 mb-2 grid w-[288px] grid-cols-8 gap-0.5 rounded-2xl border border-line bg-surface p-2 shadow-xl"
+          className="absolute bottom-full left-0 z-40 mb-2 grid w-[288px] grid-cols-8 gap-0.5 glass-panel rounded-[20px]! p-2"
         >
           {PICKER_EMOJIS.map((emoji) => (
             <button

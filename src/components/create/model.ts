@@ -46,7 +46,7 @@ export type HostExperience = "rent" | "program";
 export interface FormState {
   /** "" = not picked yet */
   vibe: Vibe | "";
-  /** The host's own vibe label – non-null means "+ Custom" is the pick (saved as vibe "mixed") */
+  /** The host's own vibe label – non-null means "+ Custom" is the pick (saved as vibe "social") */
   customVibe: string | null;
   /** "Bali, Indonesia" */
   region: string;
@@ -153,9 +153,9 @@ export function invitesOf(form: FormState, people: PersonEntry[]): string[] {
   return form.inviteIds.filter((id) => offered.has(id)).slice(0, Math.max(0, form.spotsTotal - 1));
 }
 
-/** The vibe whose suggestions (titles, starters) apply: a custom vibe uses the "mixed" ones. */
+/** The vibe whose suggestions (titles, starters) apply: a custom vibe uses the "social" ones. */
 export function suggestionVibe(form: FormState): Vibe {
-  return form.customVibe !== null || !form.vibe ? "mixed" : form.vibe;
+  return form.customVibe !== null || !form.vibe ? "social" : form.vibe;
 }
 
 /** The House language as saved: the host's pick, else their first language, else English. */
@@ -227,7 +227,7 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
     startDate: form.startDate,
     endDate: form.endDate,
     spotsTotal: form.spotsTotal,
-    vibe: form.customVibe !== null || !form.vibe ? "mixed" : form.vibe,
+    vibe: form.customVibe !== null || !form.vibe ? "social" : form.vibe,
     customVibe: form.customVibe?.trim() || undefined,
     language: languageOf(form, me),
     currency: locked && editing ? editing.currency : currencyOf(form, me),

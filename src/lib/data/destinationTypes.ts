@@ -1,7 +1,8 @@
 // A place people can want to go. Everything that talks about a place refers to Destination.id, never to typed text.
 import type { WorldRegion } from "../interests";
 
-export type DestinationImageSource = "curated" | "pexels" | "fallback";
+/** "fallback-dev": a mock photo standing in, only with APP_MODE "dev" (mock-destination-images.ts). */
+export type DestinationImageSource = "curated" | "pexels" | "fallback" | "fallback-dev";
 export type DestinationStatus = "approved" | "pending" | "hidden";
 
 export interface Destination {

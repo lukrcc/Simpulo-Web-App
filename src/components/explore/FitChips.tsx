@@ -3,6 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Anchored } from "@/components/ui/Anchored";
+import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 
@@ -99,14 +100,14 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       {/* Clipped: in the page's flow its full width would otherwise widen the document. */}
       <div className="absolute inset-x-0 top-0 h-0 overflow-hidden">
         <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute left-0 top-0 flex w-max">
-          <span className={chipStyles(value.length === 0, { size: "bar" })}>{labels.all}</span>
+          <span className={chipStyles(value.length === 0, { size: "md" })}>{labels.all}</span>
           {options.map((o) => (
-            <span key={o.value} className={cn(chipStyles(value.includes(o.value), { size: "bar" }), "[&>svg]:size-3.5")}>
+            <span key={o.value} className={cn(chipStyles(value.includes(o.value), { size: "md" }), "[&>svg]:size-3.5")}>
               {value.includes(o.value) && <ChipCheck />}
               <span>{o.label}</span>
             </span>
           ))}
-          <span className={chipStyles(true, { size: "bar" })}>
+          <span className={chipStyles(true, { size: "md" })}>
             <ChipCheck />
             {labels.more}
             <ChevronDown className="size-3.5" aria-hidden />
@@ -115,15 +116,15 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       </div>
 
       <div role="radiogroup" aria-label={labels.row} className={cn("flex items-center gap-2", shown === null && "invisible")}>
-        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={chipStyles(value.length === 0, { size: "bar" })}>
+        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={chipStyles(value.length === 0, { size: "md" })}>
           {labels.all}
         </button>
         {visible.map((o) => (
-          <Chip key={o.value} role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} size="bar" title={o.label} onClick={() => pick(o.value)}>
+          <Chip key={o.value} role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} size="md" title={o.label} onClick={() => pick(o.value)}>
             {o.label}
           </Chip>
         ))}
-        <button ref={moreRef} type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" className={chipStyles(moreActive, { size: "bar" })}>
+        <button ref={moreRef} type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" className={chipStyles(moreActive, { size: "md" })}>
           {moreActive && <ChipCheck />}
           {labels.more}
           <ChevronDown className={cn("size-3.5 transition-transform", moreOpen && "rotate-180")} aria-hidden />
@@ -132,11 +133,11 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
 
       {moreOpen && (
         <Anchored anchor={moreRef} ref={popoverRef} align="end">
-          {/* surface, 16px radius, 12px inside; every category, three per row. */}
-          <div
+          {/* Every category, three per row. */}
+          <GlassPanel
             role="radiogroup"
             aria-label={labels.more}
-            className="animate-fade-in grid w-[min(420px,calc(100vw-32px))] grid-cols-3 gap-2 rounded-2xl bg-surface p-3 shadow-[0_8px_24px_rgba(0,0,0,0.10)]"
+            className="animate-fade-in grid w-[min(420px,calc(100vw-32px))] grid-cols-3 gap-2 p-3"
           >
             {options.map((o) => (
               <Chip
@@ -144,7 +145,7 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
                 role="radio"
                 aria-checked={value.includes(o.value)}
                 active={value.includes(o.value)}
-                size="compact"
+                size="sm"
                 title={o.label}
                 onClick={() => {
                   pick(o.value);
@@ -155,7 +156,7 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
                 {o.label}
               </Chip>
             ))}
-          </div>
+          </GlassPanel>
         </Anchored>
       )}
     </div>

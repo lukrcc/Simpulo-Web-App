@@ -70,7 +70,7 @@ export function HostInvitesSection({ stay }: { stay: Stay }) {
       <InterestLine stay={stay} />
       <p className="py-2 text-small text-muted">{canInvite ? t("description") : t("full")}</p>
       {invites.length > 0 && (
-        <ul className="divide-y divide-line">
+        <ul className="">
           {invites.map((invite) => {
             const name = invite.invitedName ?? invite.email ?? t("someone");
             return (
@@ -167,7 +167,7 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
           </div>
         </div>
         {/* The link is always there to copy – also when it was emailed. */}
-        <div className="flex items-center gap-2 rounded-xl border border-line bg-bg py-1.5 pl-4 pr-1.5">
+        <div className="flex items-center gap-2 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] bg-bg py-1.5 pl-4 pr-1.5">
           <span className="min-w-0 flex-1 truncate text-small text-muted">{linkOf(stay, created)}</span>
           <Button variant={created.email ? "secondary" : "primary"} onClick={() => copy(created)}>
             {copied ? <Check aria-hidden /> : <Link2 aria-hidden />}

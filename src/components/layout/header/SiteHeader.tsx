@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronDown } from "lucide-react";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { AccountMenu } from "@/components/layout/HeaderActions";
 import { Logo } from "@/components/layout/Logo";
 import { isNavActive, navItemsFor } from "@/components/layout/nav";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { activeCount } from "@/lib/exploreFilters";
+import { useExploreFilters } from "@/lib/exploreFilterState";
 import { setNotchOpen, setNotchSlot, useNotchState } from "@/lib/notchState";
 import { getCurrentUser, unreadThreadCount, useStore } from "@/lib/store";
+import { NavIcon } from "./FilledNavIcons";
+import { NotchGrip } from "./NotchGrip";
 import { useNotchShape } from "./useNotchShape";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/layout/Container";
@@ -23,16 +26,18 @@ import { Container } from "@/components/layout/Container";
  * dialogs go over it). The content starts 16px below it (80px in all, --header-total) and never moves with the tab.
  *   Left: wordmark 22px/700, no tagline. Right: logged out "Log in" 14px/500 + "Open a House" 36px, ink, 14px/600, padding
  *     0 20px; logged in bell 36px (accent dot when new) + avatar 36px, 8px apart, 16px to "Open a House". Centred in the 64px.
- *   Centre: the nav, text with a 16px icon, 14px/500, 28px apart, centred in the 64px in every state, the current page
- *     ink + 2px underline, the others muted. Logged in: Explore · Your houses · Messages (6px accent dot while unread).
- *     Logged out: Explore · Host · How it works.
- *   The tab hangs from the bar, same background. "nav": 16px deep (80px in all), as wide as the nav + 32px either side.
- *     "filters": 76px deep (140px in all), as wide as the page's content, with the page's filters in its lower part. Bottom
- *     corners 20px, concave corners into the bar 16px. Handle: bottom centre, Explore only. State: useNotchState.
- *   Bar and tab are ONE path (useNotchShape). No border: drop-shadow(0 1px 0 rgba(0,0,0,0.06)) drop-shadow(0 6px 16px
- *     rgba(0,0,0,0.05)) on the shape, so line and shadow follow its curves. Two layers from that path: the glass (a
- *     clip-path: backdrop-filter doesn't work on SVG), and the SVG for the shadow, cut out inside the shape so the opaque
- *     path doesn't show through the glass. A filter on a parent of the glass would keep it from seeing the page behind.
+ *   Centre: the nav, centred in the 64px in every state: text 16px/500, icon 20px, 8px from icon to text, 36px apart (below
+ *     1200px: 14px, 16px, 24px; below 1000px the icons alone, the word as a tooltip). The current page: filled icon, ink, 2px underline. The others: outline
+ *     icon, muted. 150ms crossfade. Logged in: Explore · Your houses · Messages (6px accent dot while unread). Logged out:
+ *     Explore · Host · How it works.
+ *   The tab hangs from the bar, same surface. "nav": 6px deep (70px in all), as wide as the nav + 32px either side, its handle
+ *     10px under the underline and 6px over the edge. "filters": 76px deep (140px in all), as wide as the page's content, with
+ *     the page's filters in its lower part, the handle 6px over the edge. Handle: Explore only, one polyline (NotchGrip).
+ *     State: useNotchState. Surface: --header-bg, a horizontal gradient across the whole width, on every page.
+ *   Bar and tab are ONE path (useNotchShape), on whole pixels, as true circular arcs: concave 12px, convex 16px, in every
+ *     state; only width and depth animate. Three layers from it, no other surface: the glass (a clip-path: backdrop-filter
+ *     doesn't work on SVG), under it a soft shadow (black 4 %, blur 8px, 4px down, cut out inside the shape), over it the
+ *     edge, a 1px line rgba(0,0,0,0.08) half a pixel outside the shape, so it lies on one pixel row.
  * The concave tab shape exists only here and on the cards' host tab, nowhere else.
  */
 
@@ -50,6 +55,9 @@ function SiteHeaderByRoute() {
   return <SiteHeaderView pathname={usePathname()} />;
 }
 
+/** The shape's layers: the open tab, in real pixels. */
+const SHAPE_H = 140;
+
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const t = useTranslations("nav");
   const tOpen = useTranslations("common.ui.openHouse");
@@ -61,17 +69,23 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const navRef = useRef<HTMLElement>(null);
   const shadowRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
+  const lineRef = useRef<SVGSVGElement>(null);
+  const edgeRef = useRef<SVGPathElement>(null);
   const glassRef = useRef<HTMLDivElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
   const hitRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   const refs = useMemo(
-    () => ({ header: headerRef, nav: navRef, shadow: shadowRef, path: pathRef, glass: glassRef, hit: hitRef, slot: slotRef, handle: handleRef }),
+    () => ({ header: headerRef, nav: navRef, shadow: shadowRef, path: pathRef, line: lineRef, edge: edgeRef, glass: glassRef, scrim: scrimRef, clip: clipRef, hit: hitRef, slot: slotRef, handle: handleRef }),
     [],
   );
   const { mode, source, handle } = useNotchState();
-  const handleProps = useNotchShape(refs, mode, handle);
+  const handleProps = useNotchShape(refs, mode, source, handle);
   const open = mode === "filters";
+  const filtersActive = activeCount(useExploreFilters()) > 0;
+  const [gripHover, setGripHover] = useState(false);
 
   useLayoutEffect(() => {
     setNotchSlot(slotRef.current);
@@ -97,24 +111,30 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   }, [open, source]);
 
   return (
+    <>
+    {/* Under a tab opened by hand, over the page. Its strength comes with the tab (useNotchShape). */}
+    <div ref={scrimRef} aria-hidden data-notch-scrim onClick={() => setNotchOpen(false)} style={{ opacity: 0, pointerEvents: "none" }} className="fixed inset-0 z-39 hidden bg-[rgba(34,30,27,0.12)] backdrop-blur-[6px] md:block" />
     <header ref={headerRef} data-site-header className="fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
-      <svg
-        ref={shadowRef}
-        aria-hidden
-        style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.06)) drop-shadow(0 6px 16px rgba(0,0,0,0.05))", visibility: "hidden" }}
-        className="pointer-events-none absolute inset-x-0 top-0 h-35 w-full overflow-visible"
-      >
-        <path ref={pathRef} />
+      {/* The soft shadow: the same shape, blurred and lower, cut away inside the shape so nothing gathers in the curves. */}
+      <svg ref={shadowRef} aria-hidden height={SHAPE_H} style={{ filter: "blur(8px)", opacity: 0.04, visibility: "hidden" }} className="pointer-events-none absolute left-0 top-0 overflow-visible">
+        <g transform="translate(0 4)">
+          <path ref={pathRef} fill="#000" />
+        </g>
       </svg>
-      {/* Until it's measured: just the bar. */}
+      {/* The one surface. Until it's measured: just the bar. */}
       <div ref={glassRef} aria-hidden data-header-shape style={{ clipPath: "inset(0 0 76px 0)" }} className="milk-glass pointer-events-none absolute inset-x-0 top-0 h-35" />
+      {/* The edge: a 1px line on exact pixels, the same on straights and curves. */}
+      <svg ref={lineRef} aria-hidden height={SHAPE_H} style={{ visibility: "hidden" }} shapeRendering="geometricPrecision" className="pointer-events-none absolute left-0 top-0 overflow-visible">
+        <path ref={edgeRef} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      </svg>
       {/* The tab below the bar takes the pointer: nothing behind it can be clicked. */}
       <div ref={hitRef} aria-hidden data-notch-hit className="absolute top-16" />
       <Container className="relative grid h-full grid-cols-[1fr_auto_1fr] grid-rows-1 items-center">
         <Logo />
 
-        <nav ref={navRef} aria-label={t("compactLabel")} className="flex h-full items-center gap-7">
-          {navItemsFor(me !== undefined, "header").map(({ href, labelKey, headerLabelKey, icon: Icon }) => {
+        <nav ref={navRef} aria-label={t("compactLabel")} className="flex h-full items-center gap-6 nav:gap-9">
+          {navItemsFor(me !== undefined, "header").map((item) => {
+            const { href, labelKey, headerLabelKey } = item;
             const label = t(`items.${headerLabelKey ?? labelKey}`);
             const current = isNavActive(href, pathname);
             const showUnread = labelKey === "messages" && unread > 0;
@@ -125,12 +145,15 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                 aria-current={current ? "page" : undefined}
                 aria-label={showUnread ? t("itemUnread", { label, count: unread }) : undefined}
                 className={cn(
-                  "relative flex items-center gap-2 py-2 text-nav transition-colors",
+                  "group/nav relative flex items-center gap-2 py-2 text-nav transition-colors nav:text-nav-main",
                   current ? "text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-ink" : "text-muted hover:text-ink",
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                {label}
+                <NavIcon item={item} active={current} />
+                <span className="max-nav-text:sr-only">{label}</span>
+                <span aria-hidden className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap glass-panel rounded-lg! px-2.5 py-1 text-small text-ink opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100 group-focus-visible/nav:opacity-100 nav-text:hidden">
+                  {label}
+                </span>
                 {showUnread && <span aria-hidden className="absolute -right-2.5 top-2 size-1.5 rounded-full bg-accent" />}
               </Link>
             );
@@ -153,12 +176,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           </Link>
         </div>
       </Container>
-      {/* The page's filters come here (ExploreFilterBar): the tab's lower part. */}
-      <div
-        ref={slotRef}
-        data-notch-slot
-        className="pointer-events-none absolute top-20 h-10 -translate-y-2 opacity-0 transition-[opacity,translate] duration-140 data-open:pointer-events-auto data-open:translate-y-0 data-open:opacity-100 data-open:duration-220 motion-reduce:transition-none"
-      />
+      {/* The page's filters come here (ExploreFilterBar): the tab's lower part, cut to the shape's own path. */}
+      <div ref={clipRef} data-notch-clip style={{ clipPath: "inset(0 0 76px 0)" }} className="pointer-events-none absolute inset-x-0 top-0 h-35">
+        <div ref={slotRef} data-notch-slot className="pointer-events-none absolute top-20 h-10 opacity-0" />
+      </div>
       {handle && (
         <button
           ref={handleRef}
@@ -167,19 +188,24 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           aria-expanded={open}
           aria-label={t(open ? "closeFilters" : "openFilters")}
           {...handleProps}
+          onPointerEnter={(e) => e.pointerType === "mouse" && setGripHover(true)}
+          onPointerLeave={() => setGripHover(false)}
+          onFocus={(e) => e.currentTarget.matches(":focus-visible") && setGripHover(true)}
+          onBlur={() => setGripHover(false)}
           className="absolute flex h-5 w-11 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center pointer-coarse:h-7 pointer-coarse:w-16 pointer-fine:cursor-pointer"
         >
-          <span data-notch-bar className="block h-1 w-8 rounded-[2px] bg-muted/40 transition-opacity duration-150 pointer-coarse:h-[5px] pointer-coarse:w-10" />
-          {/* With a mouse: over the tab the handle says what it does. */}
+          <NotchGrip open={open} hover={gripHover} />
+          {filtersActive && <span data-notch-dot className="absolute -right-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-accent pointer-coarse:right-1" />}
           <span
-            data-notch-capsule
-            className="pointer-events-none absolute left-1/2 top-1/2 inline-flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-surface px-3 text-small font-semibold text-ink opacity-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)] transition-opacity duration-150 pointer-coarse:hidden"
+            data-notch-tip
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap glass-panel rounded-lg! px-2.5 py-1 text-small text-ink opacity-0 transition-opacity duration-150 pointer-coarse:hidden"
           >
-            {t("filtersHandle")}
-            <ChevronDown className={cn("size-3.5", open && "rotate-180")} aria-hidden />
+            {t(open ? "closeFilters" : "openFilters")}
           </span>
         </button>
       )}
     </header>
+    </>
   );
 }

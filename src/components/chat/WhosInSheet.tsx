@@ -17,7 +17,7 @@ export function WhosInSheet({ stay, open, onClose }: { stay: Stay; open: boolean
 
   return (
     <Sheet open={open} onClose={onClose} title={t("whosIn")} subtitle={t("memberCount", { count: crew.length })}>
-      <ul className="divide-y divide-line">
+      <ul className="">
         {crew.map((user) => (
           <li key={user.id}>
             <Link href={`/u/${user.id}`} onClick={onClose} className="-mx-2 block rounded-xl px-2 transition-colors hover:bg-bg">

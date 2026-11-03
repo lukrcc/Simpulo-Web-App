@@ -15,7 +15,7 @@ export function DevDestinations() {
   const waiting = pending.length - ready.length;
   return (
     <Container page width="narrow">
-      <h1 className="text-h2 tracking-tight text-ink">Destinations to review</h1>
+      <h1 className="text-h2 text-ink">Destinations to review</h1>
       <p className="mt-2 text-body text-muted">
         Pending places with at least {DESTINATION_MIN_INTEREST} people. {waiting > 0 && `${waiting} more below the threshold.`}
       </p>
@@ -61,7 +61,7 @@ function Row({ destination }: { destination: Destination }) {
         <Button variant="secondary" size="md" onClick={() => setDestinationStatus(destination.id, "approved")}>
           Approve
         </Button>
-        <label className="inline-flex h-9 cursor-pointer items-center rounded-full border border-line bg-surface px-4 text-body hover:bg-bg">
+        <label className="inline-flex h-9 cursor-pointer items-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-4 text-body hover:bg-bg">
           Replace image
           <input type="file" accept="image/*" onChange={upload} className="sr-only" />
         </label>

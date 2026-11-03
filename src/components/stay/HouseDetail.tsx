@@ -46,7 +46,7 @@ function HeaderCard({ stay, badges, actions, menu }: { stay: Stay; badges?: Reac
     <section className={detailCard}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 basis-64">
-          <h2 className="text-h2 tracking-tight">{stay.title}</h2>
+          <h2 className="text-h2">{stay.title}</h2>
           <p className="mt-1 text-muted">
             {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
           </p>
@@ -215,7 +215,7 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
       title={tDetail("sections.crew")}
       action={<Badge>{tDetail("badges.occupancy", { filled: stay.spotsFilled, total: stay.spotsTotal })}</Badge>}
     >
-      <ul className="divide-y divide-line">
+      <ul className="">
         {crew.map((member) => {
           const isHost = member.id === stay.hostId;
           const joined = joinedAt(store, stay, member.id);
@@ -272,7 +272,7 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
           <div className="mb-2">
             <Badge>{tDetail("badges.new", { count: requests.length })}</Badge>
           </div>
-          <ul className="divide-y divide-line">
+          <ul className="">
             {requests.map((request) => {
               const applicant = findUser(store, request.userId);
               return applicant ? <RequestRow key={request.id} request={request} applicant={applicant} stay={stay} /> : null;

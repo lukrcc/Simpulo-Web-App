@@ -20,7 +20,7 @@ export function ContentPage({ title, intro, updated, children }: ContentPageProp
   return (
     <Container page width={legal ? "full" : "text"}>
       <article className={cn(legal && "max-w-180")}>
-        <h1 className="text-h2 tracking-tight md:text-h1">{title}</h1>
+        <h1 className="text-h2 md:text-h1">{title}</h1>
         {updated && (
           <p className="mt-2 text-small text-muted">
             {t("lastUpdated", { date: format.dateTime(new Date(updated), { dateStyle: "long" }) })}
@@ -51,7 +51,7 @@ interface LegalSectionProps {
 export function LegalSection({ id, title, children }: LegalSectionProps) {
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24">
-      <h2 id={`${id}-title`} className="text-h3 tracking-tight text-ink md:text-h2">
+      <h2 id={`${id}-title`} className="text-h3 tracking-tight text-ink md:text-h2 md:tracking-[-0.02em]">
         {title}
       </h2>
       <div className="mt-3">

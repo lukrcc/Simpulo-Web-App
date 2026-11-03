@@ -17,7 +17,7 @@ export function Card({ children, className, id }: { children: ReactNode; classNa
 
 /** A card made of sections: 1px line between them, 20px above and below each line. */
 export function SectionedCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("divide-y divide-line rounded-3xl bg-surface px-10 py-1", cardShadow, className)}>{children}</div>;
+  return <div className={cn("rounded-3xl bg-surface px-10 py-1", cardShadow, className)}>{children}</div>;
 }
 
 /** One section of a card: 16px/500 heading left; right at most one secondary button or a Badge; the content below. */

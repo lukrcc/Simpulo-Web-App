@@ -39,7 +39,7 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
 
   if (layout === "compact") {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2">
+      <div className="flex items-center gap-3 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-2">
         {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} width={48} height={48} className="size-12 shrink-0 rounded-lg object-cover" />}
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">{preview.title}</p>
@@ -53,7 +53,7 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface">
+    <div className="overflow-hidden rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
       <div className="relative aspect-video bg-bg">
         {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />}
       </div>

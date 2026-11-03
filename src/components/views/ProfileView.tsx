@@ -1,38 +1,37 @@
 "use client";
 
-import { ChevronRight, Eye, ImagePlus, MapPin, MessageCircle, Pencil, Plus, SearchX, Settings, Share2, UserX } from "lucide-react";
+import { BadgeCheck, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
-import { Suspense, type DragEvent, type ReactNode, use, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { use, useState } from "react";
+import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { RequireLogin } from "@/components/auth/RequireLogin";
-import { inviteHref } from "@/components/create/model";
-import { AddPlaceForm } from "@/components/explore/InterestRow";
+import { AddPlaceSheet, DemandCard } from "@/components/explore/InterestRow";
 import { Container } from "@/components/layout/Container";
-import { PhotoSheet } from "@/components/PhotoSheet";
-import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
-import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
-import { ShareSheet } from "@/components/share/ShareSheet";
+import { PreviewBanner, PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
+import { ShareSheet } from "@/components/share/ShareSheet";
+import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { StayCard } from "@/components/StayCard";
-import { Button } from "@/components/ui/ActionButton";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { iconButtonStyles } from "@/components/ui/IconButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
-import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
-import { LanguageChips } from "@/components/ui/LanguageChips";
-import { ListRow } from "@/components/ui/ListRow";
+import { MoreMenu } from "@/components/ui/MoreMenu";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
-import { SocialRow } from "@/components/ui/SocialRow";
-import { StayThumb } from "@/components/ui/StayThumb";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { useToast } from "@/components/ui/Toast";
-import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { MoreList } from "@/components/views/MoreList";
+import { HOUSE_GRID } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
-import { FLEXIBLE, type Interest } from "@/lib/interests";
-import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, livedWithFor, useStore, type LivedWithEntry } from "@/lib/store";
+import { useNextStopSpots } from "@/lib/destinations";
+import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
+import { socialUrl } from "@/lib/socialLinks";
+import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
 
@@ -106,21 +105,10 @@ function BlockedProfile({ user }: { user: User }) {
   );
 }
 
-/** Ended Houses: closed or completed by the host, or past their end date. */
-function isPast(stay: Stay, today: string): boolean {
-  return stay.status === "closed" || stay.status === "completed" || stay.endDate < today;
-}
-
-const MAX_PHOTOS = 5;
-
-/** The tabs, in order; someone else's profile (and the preview of your own) has only the first two. */
-const TABS = ["houses", "photos", "livedWith", "nextStop"] as const;
-type Tab = (typeof TABS)[number];
-const PUBLIC_TABS: readonly Tab[] = ["houses", "photos"];
-
 /**
- * Own profile can switch to "Preview": the same page as a logged-out stranger sees it (no owner tiles or buttons,
- * no private tabs), under a dark banner. Nothing in a preview changes data.
+ * A person's page, one column: who they are, then what they host, who they lived with, their photos, where they want to go
+ * and, for the crew, where they're going. Empty sections don't exist. What's in them: src/lib/profilePrivacy.ts.
+ * Own profile: "Preview" renders the stranger's page, under a band, and nothing in it changes data.
  */
 function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
   const tPreview = useTranslations("common.ui.preview");
@@ -143,20 +131,14 @@ interface ProfileBodyProps {
   onPreview?: () => void;
 }
 
-/**
- * One column over the container's full width: the profile head (no card) ending in a 1px line, then the tab row
- * (?tab=) and the tab's content.
- */
 function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const t = useTranslations("profile");
   const store = useStore();
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const today = new Date().toISOString().slice(0, 10);
-
-  const hosted = store.stays.filter((s) => s.hostId === user.id);
-  const joined = store.joinRequests
-    .filter((r) => r.userId === user.id && r.status === "accepted")
-    .flatMap((r) => store.stays.filter((s) => s.id === r.stayId));
+  const viewerId = previewing ? null : store.currentUserId;
+  const view = profileViewFor(store, user, viewerId, today);
+  const photos = user.photos.slice(0, MAX_PHOTOS);
 
   return (
     <Container page>
@@ -168,23 +150,24 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
           </Link>
         </div>
       )}
-      <ProfileHead
-        user={user}
-        isMe={isMe}
-        previewing={previewing}
-        onPreview={onPreview}
-        hosted={hosted.length}
-        joined={joined.length}
-        onOpenPhotos={() => user.photos.length > 0 && setPhotoIndex(0)}
-      />
-      {/* useSearchParams (?tab=) needs its own boundary on these prerendered pages. */}
-      <Suspense fallback={null}>
-        <ProfileTabs user={user} isMe={isMe} hosted={hosted} joined={joined} today={today} onOpenPhoto={setPhotoIndex} />
-      </Suspense>
-      <PhotoLightbox photos={user.photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
+      <ProfileHead user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} onOpenPhotos={() => photos.length > 0 && setPhotoIndex(0)} />
+      <HostingNow houses={view.hostingNow} isMe={isMe} />
+      <LivedWithSection view={view} isMe={isMe} />
+      <PhotosSection photos={photos} onOpen={setPhotoIndex} />
+      <NextStopSection user={user} isMe={isMe} />
+      <UpcomingSection houses={view.upcoming} isMe={isMe} />
+      <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
     </Container>
   );
 }
+
+/** Profile photos in the masonry, at most. */
+const MAX_PHOTOS = 9;
+const MAX_LINKS = 4;
+const MAX_FACES = 12;
+const SECTION = "mt-(--space-section)";
+const CONTENT = "mt-(--space-inner)";
+const ROUND_BUTTON = iconButtonStyles();
 
 /* ───────────────────────── Head ───────────────────────── */
 
@@ -193,46 +176,45 @@ interface ProfileHeadProps {
   isMe: boolean;
   previewing: boolean;
   onPreview?: () => void;
-  hosted: number;
-  joined: number;
+  view: ProfileVisibility;
   onOpenPhotos: () => void;
 }
 
 /**
- * Avatar (120px, opens the photos), name + verified, "27 · Netherlands · based in Canggu", the counts as badges,
- * socials, languages and a two-line bio ("more" when it runs over). The actions top right: own profile Edit profile
- * (secondary), Preview (tertiary) and Share; someone else's Message (primary – only with a shared House or an open
- * request) and Share, plus Report / Block. A 1px line closes it.
+ * No frame: the avatar, then name, where they're from, the trust band, links, languages and bio. Top right never a filled
+ * button: the page's main action is the House below. Someone else: Message, share, "…". You: Edit profile and "…".
  */
-function ProfileHead({ user, isMe, previewing, onPreview, hosted, joined, onOpenPhotos }: ProfileHeadProps) {
+function ProfileHead({ user, isMe, previewing, onPreview, view, onOpenPhotos }: ProfileHeadProps) {
   const t = useTranslations("profile");
-  const tPreview = useTranslations("common.ui.preview");
+  const tView = useTranslations("profile.view");
   const f = useFormat();
   const store = useStore();
   const router = useRouter();
+  const requireAuth = useRequireAuth();
+  const guard = usePreviewGuard();
   const [sharing, setSharing] = useState(false);
-  // A preview looks through a stranger's eyes: no viewer, so no reason to message.
   const meId = previewing ? null : store.currentUserId;
 
-  // "Message" only with a reason to talk: a shared crew (any House, any status) or an open request between the two.
+  // A thread needs a House: one you share, an open request between you, or else one they're hosting right now.
   const hostOf = (stayId: string) => store.stays.find((s) => s.id === stayId)?.hostId;
-  const messageStayId =
-    isMe || !meId
-      ? undefined
-      : (store.stays.find((s) => isCrewMember(store, s, meId) && isCrewMember(store, s, user.id))?.id ??
-        store.joinRequests.find(
-          (r) =>
-            r.status === "pending" &&
-            ((r.userId === meId && hostOf(r.stayId) === user.id) || (r.userId === user.id && hostOf(r.stayId) === meId)),
-        )?.stayId);
+  const messageStayId = isMe
+    ? undefined
+    : ((meId
+        ? (store.stays.find((s) => isCrewMember(store, s, meId) && isCrewMember(store, s, user.id))?.id ??
+          store.joinRequests.find((r) => r.status === "pending" && ((r.userId === meId && hostOf(r.stayId) === user.id) || (r.userId === user.id && hostOf(r.stayId) === meId)))?.stayId)
+        : undefined) ?? view.hostingNow[0]?.id);
 
   function message(stayId: string) {
-    const threadId = store.openDirectThread(stayId, user.id);
-    if (threadId) router.push(`/inbox/${threadId}`);
+    guard(() =>
+      requireAuth((userId) => {
+        const threadId = store.openDirectThread(stayId, user.id, userId);
+        if (threadId) router.push(`/inbox/${threadId}`);
+      }, t("loginToMessage", { name: firstName(user) })),
+    );
   }
 
   return (
-    <header className="flex flex-col gap-6 border-b border-line pb-8 md:flex-row md:items-start">
+    <header className="relative flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
       <button
         type="button"
         onClick={onOpenPhotos}
@@ -240,419 +222,309 @@ function ProfileHead({ user, isMe, previewing, onPreview, hosted, joined, onOpen
         aria-label={t("openPhotos")}
         className="shrink-0 self-start rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-default"
       >
-        <PersonPhoto src={user.photos[0]} alt={user.name} size={120} className="size-30" />
+        <PersonPhoto src={user.photos[0]} alt={user.name} size={144} className="size-36" />
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="flex items-center gap-1.5 text-h2 tracking-tight text-ink">
-          <span className="truncate">{user.name}</span>
-          {user.verified && <VerifiedBadge />}
-        </h1>
-        <p className="mt-1 text-body text-muted">
+        <h1 className="text-h1 text-ink">{user.name}</h1>
+        <p className="mt-1 text-body-lg text-muted">
           {f.ageAndCountry(user)}
           {user.city && ` · ${t("basedIn", { city: user.city })}`}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Badge>{t("hostedCount", { count: hosted })}</Badge>
-          <Badge>{t("joinedCount", { count: joined })}</Badge>
-          <ProHostLabel user={user} />
-        </div>
-        <SocialRow user={user} className="mt-4" />
-        <LanguageChips languages={user.languages} compact className="mt-3" />
-        {user.bio && <Bio text={user.bio} />}
+        <ProHostLabel user={user} className="mt-2" />
+        <TrustBand user={user} view={view} />
+        <SocialCapsules user={user} />
+        {user.languages.length > 0 && <p className="mt-3 text-small text-muted">{tView("speaks", { languages: user.languages.join(", ") })}</p>}
+        {user.bio && <p className="mt-4 max-w-[640px] text-body-lg text-ink">{user.bio}</p>}
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         {isMe ? (
           <>
-            <Button variant="secondary" href="/profile/edit">
-              <Pencil />
+            <Button variant="secondary" size="mid" href="/profile/edit">
+              <Pencil aria-hidden />
               {t("editProfile")}
             </Button>
-            {onPreview && (
-              <Button variant="tertiary" onClick={onPreview}>
-                <Eye />
-                {tPreview("button")}
-              </Button>
-            )}
+            <MoreMenu
+              label={tView("options")}
+              buttonClassName={ROUND_BUTTON}
+              items={[
+                ...(onPreview ? [{ label: tView("previewAsOthers"), onSelect: onPreview }] : []),
+                { label: tView("shareProfile"), onSelect: () => setSharing(true) },
+              ]}
+            />
           </>
         ) : (
-          messageStayId && (
-            <Button onClick={() => message(messageStayId)}>
-              <MessageCircle />
-              {t("message")}
-            </Button>
-          )
+          <>
+            {messageStayId && (
+              <Button variant="secondary" size="mid" onClick={() => message(messageStayId)} data-preview-action>
+                <MessageCircle aria-hidden />
+                {t("message")}
+              </Button>
+            )}
+            <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")} className={ROUND_BUTTON}>
+              <Share2 className="size-4" aria-hidden />
+            </button>
+            {previewing ? (
+              <button type="button" onClick={() => guard(() => undefined)} aria-label={tView("options")} className={ROUND_BUTTON}>
+                <MoreHorizontal className="size-5" aria-hidden />
+              </button>
+            ) : (
+              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} buttonClassName={ROUND_BUTTON} />
+            )}
+          </>
         )}
-        <Button variant="secondary" icon onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")}>
-          <Share2 />
-        </Button>
-        {/* Someone else's profile (never in a preview): Report / Block. */}
-        {!isMe && !previewing && <SafetyMenu target={{ kind: "user", id: user.id }} user={user} />}
       </div>
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
     </header>
   );
 }
 
-/** The bio: two lines, "more" only when it runs over (measured), "less" to fold it again. */
-function Bio({ text }: { text: string }) {
-  const t = useTranslations("profile");
-  const ref = useRef<HTMLParagraphElement>(null);
-  const [open, setOpen] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      // Only measurable while clamped; once open it keeps "less".
-      if (!el.classList.contains("line-clamp-2")) return;
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+/** What speaks for them, in one row: the label small over the value. What's at zero isn't there. */
+function TrustBand({ user, view }: { user: User; view: ProfileVisibility }) {
+  const t = useTranslations("profile.view");
+  const items = [
+    view.hostedCount > 0 && { label: t("trustHosted", { count: view.hostedCount }), value: view.hostedCount },
+    view.livedInCount > 0 && { label: t("trustLivedIn", { count: view.livedInCount }), value: view.livedInCount },
+    view.livedWith.length > 0 && { label: t("trustPeople", { count: view.livedWith.length }), value: view.livedWith.length },
+  ].filter((item) => item !== false);
+  if (!user.verified && items.length === 0) return null;
   return (
-    <div className="mt-4 max-w-3xl">
-      <p ref={ref} className={cn("text-body leading-[1.6] text-ink", !open && "line-clamp-2")}>
-        {text}
-      </p>
-      {(overflows || open) && (
-        <Button variant="tertiary" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="mt-1">
-          {open ? t("less") : t("more")}
-        </Button>
+    <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-3">
+      {user.verified && (
+        <div>
+          <dt className="text-small text-muted">{t("trustVerifiedLabel")}</dt>
+          <dd className="mt-0.5 flex items-center gap-1.5 text-body font-semibold text-ink">
+            <BadgeCheck className="size-4 text-accent" aria-hidden />
+            {t("trustVerified")}
+          </dd>
+        </div>
+      )}
+      {items.map(({ label, value }) => (
+        <div key={label}>
+          <dt className="text-small text-muted">{label}</dt>
+          <dd className="mt-0.5 text-body font-semibold tabular-nums text-ink">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Public links as capsules: the mark in its brand colour + the handle. At most four, then "+N" shows the rest. */
+function SocialCapsules({ user }: { user: User }) {
+  const t = useTranslations("profile.view");
+  const [all, setAll] = useState(false);
+  const links = user.socials ?? [];
+  if (links.length === 0) return null;
+  const shown = all ? links : links.slice(0, MAX_LINKS);
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      {shown.map((link) => {
+        const { icon: Icon, brand, hex, onInk } = SOCIAL_ICONS[link.platform];
+        const handle = link.platform === "website" ? link.value.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : `@${link.value.replace(/^@/, "")}`;
+        return (
+          <a key={`${link.platform}-${link.value}`} href={socialUrl(link)} target="_blank" rel="noopener" title={brand ?? undefined} className="inline-flex h-9 max-w-full items-center gap-2 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3 text-small text-ink transition-colors hover:bg-bg">
+            <span className={cn("flex shrink-0 items-center justify-center", onInk && "size-5 rounded-full bg-ink")} style={{ color: hex ?? "var(--ink)" }}>
+              <Icon className={onInk ? "size-3" : "size-4"} color="currentColor" />
+            </span>
+            <span className="truncate">{handle}</span>
+          </a>
+        );
+      })}
+      {!all && links.length > MAX_LINKS && (
+        <button type="button" onClick={() => setAll(true)} className="inline-flex h-9 items-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3 text-small text-ink transition-colors hover:bg-bg">
+          {t("moreLinks", { count: links.length - MAX_LINKS })}
+        </button>
       )}
     </div>
   );
 }
 
-/* ───────────────────────── Tabs ───────────────────────── */
+/* ───────────────────────── Sections ───────────────────────── */
 
-interface ProfileTabsProps {
-  user: User;
-  isMe: boolean;
-  hosted: Stay[];
-  joined: Stay[];
-  today: string;
-  onOpenPhoto: (index: number) => void;
-}
-
-/** Capsules like the category chips, one at a time, kept in the URL (?tab=); then the tab's content. */
-function ProfileTabs({ user, isMe, hosted, joined, today, onOpenPhoto }: ProfileTabsProps) {
-  const t = useTranslations("profile.tabs");
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const tabs = isMe ? TABS : PUBLIC_TABS;
-  const requested = params.get("tab");
-  const tab: Tab = tabs.find((key) => key === requested) ?? "houses";
-
-  function select(key: Tab) {
-    const next = new URLSearchParams(params.toString());
-    if (key === "houses") next.delete("tab");
-    else next.set("tab", key);
-    const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }
-
-  return (
-    <>
-      <div role="tablist" aria-label={t("label")} className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
-        {tabs.map((key) => (
-          // Every tab is a choice of its own – no check (the check marks filters).
-          <Chip key={key} role="tab" id={`profile-tab-${key}`} aria-selected={tab === key} aria-controls="profile-panel" active={tab === key} check={false} onClick={() => select(key)}>
-            {t(key)}
-          </Chip>
-        ))}
-      </div>
-      <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-tab-${tab}`} className="mt-8">
-        {tab === "houses" && <HousesTab user={user} isMe={isMe} hosted={hosted} joined={joined} today={today} />}
-        {tab === "photos" && <PhotosTab user={user} isMe={isMe} onOpen={onOpenPhoto} />}
-        {tab === "livedWith" && isMe && <LivedWithTab userId={user.id} />}
-        {tab === "nextStop" && isMe && <NextStopTab userId={user.id} />}
-      </div>
-    </>
-  );
-}
-
-/** A tab's section head: title + count badge on the left, one secondary action on the right. */
-function TabSection({ title, count, action, children }: { title: string; count?: number; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section>
-      <div className="mb-4 flex min-h-9 items-center justify-between gap-4">
-        <h2 className="flex items-center gap-2 text-h3 tracking-tight text-ink">
-          {title}
-          {count !== undefined && <Badge>{count}</Badge>}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-const CARD_GRID = "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-
-/* Houses: Hosting and Joined as card grids, Past folded underneath. */
-function HousesTab({ user, isMe, hosted, joined, today }: { user: User; isMe: boolean; hosted: Stay[]; joined: Stay[]; today: string }) {
-  const t = useTranslations("profile");
+function HouseCards({ houses }: { houses: Stay[] }) {
   const store = useStore();
-  const byEndDesc = (a: Stay, b: Stay) => b.endDate.localeCompare(a.endDate);
-  // Others only see what's public; your own profile also shows drafts.
-  const hosting = hosted.filter((s) => !isPast(s, today) && (isMe || s.status === "published"));
-  const joining = joined.filter((s) => !isPast(s, today));
-  const past = [...hosted.filter((s) => isPast(s, today) && (isMe || s.status !== "draft")), ...joined.filter((s) => isPast(s, today))].toSorted(byEndDesc);
-  const cards = (stays: Stay[]) => (
-    <div className={CARD_GRID}>
-      {stays.map((stay) => (
+  return (
+    <div className={cn(HOUSE_GRID, CONTENT)}>
+      {houses.map((stay) => (
         <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
       ))}
     </div>
   );
-  const empty = (text: string) => <p className="text-body text-muted">{text}</p>;
-
-  return (
-    <div className="space-y-12">
-      <TabSection
-        title={t("hosting")}
-        count={hosting.length}
-        action={
-          isMe && (
-            <Button variant="secondary" href="/create">
-              <Plus />
-              {t("openAnother")}
-            </Button>
-          )
-        }
-      >
-        {hosting.length > 0 ? cards(hosting) : empty(isMe ? t("emptyHostingMe") : t("emptyHosting", { name: firstName(user) }))}
-      </TabSection>
-      <TabSection title={t("joined")} count={joining.length}>
-        {joining.length > 0 ? cards(joining) : empty(isMe ? t("emptyJoinedMe") : t("emptyJoined"))}
-      </TabSection>
-      {past.length > 0 && <PastSection stays={past} />}
-    </div>
-  );
 }
 
-/** Ended Houses, folded by default: a row with the chevron and count, then ListRows. */
-function PastSection({ stays }: { stays: Stay[] }) {
-  const t = useTranslations("profile");
-  const f = useFormat();
-  const [open, setOpen] = useState(false);
+/** Open Houses. Without one: nothing for others, one plain line on your own profile. */
+function HostingNow({ houses, isMe }: { houses: Stay[]; isMe: boolean }) {
+  const t = useTranslations("profile.view");
+  if (houses.length === 0) {
+    return isMe ? (
+      <p className={cn(SECTION, "text-body text-muted")}>
+        {t("noOpenHouse")} ·{" "}
+        <Link href="/create" className="font-semibold text-ink underline-offset-4 hover:underline">
+          {t("openHouse")}
+        </Link>
+      </p>
+    ) : null;
+  }
   return (
-    <section>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="profile-past" className="flex min-h-9 items-center gap-2 text-h3 tracking-tight text-ink">
-        <ChevronRight className={cn("size-5 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
-        {t("past")}
-        <Badge>{stays.length}</Badge>
-      </button>
-      {open && (
-        <ul id="profile-past" className="mt-3 divide-y divide-line border-y border-line">
-          {stays.map((stay) => (
-            <li key={stay.id}>
-              <Link href={`/house/${stay.slug}`} className="block hover:bg-surface/60">
-                <ListRow
-                  lead={<StayThumb stay={stay} size={40} className="size-10" />}
-                  title={stay.title}
-                  subtitle={`${f.placeName(stay)} · ${f.shortRange(stay.startDate, stay.endDate)}`}
-                  action={<Badge>{t(`pastStatus.${stay.status === "completed" || stay.status === "closed" ? stay.status : "ended"}`)}</Badge>}
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <section aria-labelledby="profile-hosting" className={SECTION}>
+      <SectionHeader
+        id="profile-hosting"
+        eyebrow={t("hostingNow")}
+        action={
+          isMe && (
+            <Link href="/create" className={buttonStyles("tertiary", "md")}>
+              {t("openAnother")}
+            </Link>
+          )
+        }
+      />
+      <HouseCards houses={houses} />
     </section>
   );
 }
 
-/* Photos: a 4-column grid; own profile: "Add photo" first, drag to reorder, the first one is the profile photo. */
-function PhotosTab({ user, isMe, onOpen }: { user: User; isMe: boolean; onOpen: (index: number) => void }) {
-  const t = useTranslations("profile");
-  const store = useStore();
-  const showToast = useToast();
-  const [adding, setAdding] = useState(false);
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
-
-  function drop(e: DragEvent, to: number) {
-    e.preventDefault();
-    if (dragFrom !== null && dragFrom !== to) {
-      const next = [...user.photos];
-      const [moved] = next.splice(dragFrom, 1);
-      next.splice(to, 0, moved);
-      store.updateCurrentUser({ photos: next });
-      if (to === 0 || dragFrom === 0) showToast(t("profilePhotoChanged"));
-    }
-    setDragFrom(null);
-    setDragOver(null);
-  }
-
-  if (user.photos.length === 0 && !isMe) return <p className="text-body text-muted">{t("noPhotos", { name: firstName(user) })}</p>;
-
+/** One face, with their name on hover, linking to their profile. */
+function Face({ entry, muted = false }: { entry: LivedWithEntry; muted?: boolean }) {
   return (
-    <TabSection title={t("photos")} count={user.photos.length}>
-      {isMe && user.photos.length > 1 && <p className="-mt-2 mb-4 text-small text-muted">{t("dragHint")}</p>}
-      <ul className={CARD_GRID}>
-        {isMe && user.photos.length < MAX_PHOTOS && (
-          <li>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-line text-body font-semibold text-muted transition-colors hover:bg-surface hover:text-ink"
-            >
-              <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink">
-                <ImagePlus className="size-5" aria-hidden />
-              </span>
-              {t("addPhoto")}
-            </button>
-          </li>
-        )}
-        {user.photos.map((src, i) => (
-          <li
-            key={src}
-            draggable={isMe}
-            onDragStart={() => setDragFrom(i)}
-            onDragOver={(e) => {
-              if (dragFrom === null) return;
-              e.preventDefault();
-              setDragOver(i);
-            }}
-            onDragLeave={() => setDragOver((o) => (o === i ? null : o))}
-            onDrop={(e) => drop(e, i)}
-            onDragEnd={() => {
-              setDragFrom(null);
-              setDragOver(null);
-            }}
-            className={cn("relative", isMe && "cursor-grab active:cursor-grabbing", dragFrom === i && "opacity-50")}
-          >
-            <button
-              type="button"
-              onClick={() => onOpen(i)}
-              aria-label={t("openPhoto", { index: i + 1 })}
-              className={cn(
-                "relative block aspect-4/5 w-full overflow-hidden rounded-3xl bg-line outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-                dragOver === i && dragFrom !== i && "ring-2 ring-accent",
-              )}
-            >
-              <Img src={src} alt="" fill sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" draggable={false} />
-            </button>
-            {i === 0 && (
-              <Badge onPage className="pointer-events-none absolute left-3 top-3">
-                {t("profileBadge")}
-              </Badge>
-            )}
-          </li>
-        ))}
-      </ul>
-      {isMe && <PhotoSheet open={adding} onClose={() => setAdding(false)} />}
-    </TabSection>
+    <Link href={`/u/${entry.user.id}`} className="group/face relative block rounded-full ring-2 ring-bg hover:z-10 focus-visible:z-10">
+      <PersonPhoto src={entry.user.photos[0]} alt={entry.user.name} size={48} className={cn("size-12", muted && "opacity-60")} />
+      <span aria-hidden className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap glass-panel rounded-lg! px-2.5 py-1 text-small text-ink opacity-0 transition-opacity duration-150 group-hover/face:opacity-100 group-focus-visible/face:opacity-100">
+        {firstName(entry.user)}
+      </span>
+    </Link>
   );
 }
 
-/* Lived with (own only): everyone from your completed Houses, each with "Open a House with …". */
-function LivedWithTab({ userId }: { userId: string }) {
-  const t = useTranslations("profile");
-  const tCrews = useTranslations("profile.crews");
+/**
+ * Who they lived with, only people who confirmed it from both sides, and where: only the cities. Your own also shows who's
+ * waiting for you to confirm, and who hasn't yet.
+ */
+function LivedWithSection({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
+  const t = useTranslations("profile.view");
   const store = useStore();
-  const entries: LivedWithEntry[] = livedWithFor(store, userId).filter((e) => !isBlocked(store, e.user.id));
+  const people = view.livedWith.filter((e) => !isBlocked(store, e.user.id));
+  const toConfirm = view.toConfirm.filter((e) => !isBlocked(store, e.user.id));
+  const waiting = view.waitingForThem.filter((e) => !isBlocked(store, e.user.id));
+  const hasPlaces = view.livedInCount > 0;
+  if (people.length === 0 && !hasPlaces && toConfirm.length === 0 && waiting.length === 0) return null;
+  const rest = people.length - MAX_FACES;
   return (
-    <TabSection title={tCrews("livedWith")} count={entries.length}>
-      <p className="-mt-2 mb-4 text-small text-muted">{tCrews("onlyYou")}</p>
-      {entries.length > 0 ? (
-        <ul className="max-w-3xl divide-y divide-line border-y border-line">
-          {entries.map(({ user, house }) => (
-            <li key={user.id}>
-              <ListRow
-                lead={<Avatar user={user} size="md" linked />}
-                title={
-                  <Link href={`/u/${user.id}`} className="hover:underline">
-                    {user.name}
-                  </Link>
-                }
-                subtitle={house.title}
-                action={
-                  <Button variant="tertiary" href={inviteHref(user.id)}>
-                    {t("openWith", { name: firstName(user) })}
-                  </Button>
-                }
-              />
-            </li>
+    <section aria-labelledby="profile-lived" className={SECTION}>
+      <SectionHeader id="profile-lived" eyebrow={t("livedWith")} />
+      {people.length > 0 && (
+        <div className={cn(CONTENT, "flex flex-wrap items-center -space-x-2")}>
+          {people.slice(0, MAX_FACES).map((entry) => (
+            <Face key={entry.user.id} entry={entry} />
           ))}
-        </ul>
-      ) : (
-        <p className="text-body text-muted">{t("livedWithEmpty")}</p>
+          {rest > 0 && <span className="flex size-12 items-center justify-center rounded-full bg-surface text-small font-semibold text-ink ring-2 ring-bg">{t("more", { count: rest })}</span>}
+        </div>
       )}
-    </TabSection>
-  );
-}
-
-/* Next stop (own only): the places you want to go, "Remove" each, "Add a place" inline. */
-function NextStopTab({ userId }: { userId: string }) {
-  const t = useTranslations("profile.nextStop");
-  const store = useStore();
-  const format = useFormatter();
-  const [adding, setAdding] = useState(false);
-  const mine = store.interests.filter((i) => i.userId === userId).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-  function period(interest: Interest): string {
-    const months = interest.months.filter((m) => m !== FLEXIBLE).toSorted();
-    if (months.length === 0) return t("anytime");
-    const date = (month: string) => new Date(`${month}-01T00:00:00Z`);
-    const options = { month: "short", year: "numeric", timeZone: "UTC" } as const;
-    return months.length === 1 ? format.dateTime(date(months[0]), options) : format.dateTimeRange(date(months[0]), date(months.at(-1)!), options);
-  }
-
-  return (
-    <TabSection
-      title={t("title")}
-      count={mine.length}
-      action={
-        !adding && (
-          <Button variant="secondary" onClick={() => setAdding(true)}>
-            <Plus />
-            {t("add")}
-          </Button>
-        )
-      }
-    >
-      <p className="-mt-2 mb-4 text-small text-muted">{t("hint")}</p>
-      <div className="max-w-3xl space-y-6">
-        {adding && (
-          <div className="rounded-xl border border-line bg-surface p-6">
-            <AddPlaceForm onDone={() => setAdding(false)} />
-            <Button variant="tertiary" onClick={() => setAdding(false)} className="mt-4">
-              {t("cancel")}
-            </Button>
-          </div>
-        )}
-        {mine.length > 0 ? (
-          <ul className="divide-y divide-line border-y border-line">
-            {mine.map((interest) => (
-              <li key={interest.id}>
-                <ListRow
-                  lead={<MapPin aria-hidden />}
-                  title={interest.country ? `${interest.placeName}, ${interest.country}` : interest.placeName}
-                  aside={<Badge>{period(interest)}</Badge>}
-                  action={
-                    <Button
-                      variant="tertiary"
-                      aria-label={t("removeLabel", { place: interest.placeName })}
-                      // Toggling a place you're in takes you out of it.
-                      onClick={() => store.toggleInterest({ destinationId: interest.destinationId, placeName: interest.placeName, country: interest.country, region: interest.region, months: [] }, userId)}
-                    >
-                      {t("remove")}
-                    </Button>
-                  }
-                />
+      {hasPlaces && (
+        <p className={cn("text-small text-muted", people.length > 0 ? "mt-3" : CONTENT)}>
+          {t("livedInSummary", { count: view.livedInCount, places: view.livedInPlaces.join(", ") })}
+          {isMe && (
+            <>
+              {" · "}
+              <Link href="/my-stays" className="font-semibold text-ink underline-offset-4 hover:underline">
+                {t("seePast")}
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+      {toConfirm.length > 0 && (
+        <div className="mt-6">
+          <p className="text-small text-muted">{t("toConfirm")}</p>
+          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
+            {toConfirm.map((entry) => (
+              <li key={entry.user.id} className="flex items-center gap-3">
+                <Avatar user={entry.user} size="md" linked />
+                <span className="text-body font-semibold text-ink">{firstName(entry.user)}</span>
+                <Button variant="tertiary" onClick={() => store.confirmLivedWith(entry.user.id)}>
+                  {t("confirm")}
+                </Button>
               </li>
             ))}
           </ul>
-        ) : (
-          !adding && <p className="text-body text-muted">{t("empty")}</p>
-        )}
-      </div>
-    </TabSection>
+        </div>
+      )}
+      {waiting.length > 0 && <p className="mt-3 text-small text-muted">{t("waitingForThem", { count: waiting.length })}</p>}
+    </section>
+  );
+}
+
+/** A quiet masonry: the column layout breaks the rows, three heights keep it from reading as a grid. */
+const MASONRY_SHAPES = ["aspect-4/5", "aspect-square", "aspect-3/4"];
+
+function PhotosSection({ photos, onOpen }: { photos: string[]; onOpen: (index: number) => void }) {
+  const t = useTranslations("profile");
+  const tView = useTranslations("profile.view");
+  if (photos.length === 0) return null;
+  return (
+    <section aria-labelledby="profile-photos" className={SECTION}>
+      <SectionHeader id="profile-photos" eyebrow={tView("photos")} />
+      <ul className={cn(CONTENT, "columns-2 gap-3 md:columns-3 md:gap-4 split:columns-4")}>
+        {photos.map((src, i) => (
+          <li key={src} className="mb-3 break-inside-avoid md:mb-4">
+            <button type="button" onClick={() => onOpen(i)} aria-label={t("openPhoto", { index: i + 1 })} className={cn("relative block w-full overflow-hidden rounded-3xl bg-line outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2", MASONRY_SHAPES[i % MASONRY_SHAPES.length])}>
+              <Img src={src} alt="" fill sizes="(min-width: 1100px) 25vw, (min-width: 768px) 33vw, 50vw" className="object-cover" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Where they want to go: a wish, not a travel plan. In the fallback style too, unlike on Explore. */
+function NextStopSection({ user, isMe }: { user: User; isMe: boolean }) {
+  const t = useTranslations("profile.view");
+  const spots = useNextStopSpots(user.id, isMe);
+  const [adding, setAdding] = useState(false);
+  if (spots.length === 0 && !isMe) return null;
+  return (
+    <section aria-labelledby="profile-next" className={SECTION}>
+      <SectionHeader
+        id="profile-next"
+        eyebrow={t("nextStop")}
+        action={
+          isMe && (
+            <Button variant="tertiary" onClick={() => setAdding(true)}>
+              {t("addPlace")}
+            </Button>
+          )
+        }
+      />
+      {spots.length > 0 ? (
+        <>
+          <div className={cn(CONTENT, "card-grid [--card-cols:3] [--card-min:340px]")}>
+            {spots.map((spot) => (
+              <DemandCard key={spot.destinationId} spot={spot} />
+            ))}
+          </div>
+          {!isMe && <p className="mt-3 text-small text-muted">{t("nextStopHint")}</p>}
+        </>
+      ) : (
+        <p className={cn(CONTENT, "text-body text-muted")}>{t("nextStopEmpty")}</p>
+      )}
+      <AddPlaceSheet open={adding} onClose={() => setAdding(false)} />
+    </section>
+  );
+}
+
+/** Upcoming as a guest. Only ever filled for you and for people in those crews; your own always shows, with the lock. */
+function UpcomingSection({ houses, isMe }: { houses: Stay[]; isMe: boolean }) {
+  const t = useTranslations("profile.view");
+  if (houses.length === 0 && !isMe) return null;
+  return (
+    <section aria-labelledby="profile-upcoming" className={SECTION}>
+      <SectionHeader id="profile-upcoming" eyebrow={t("upcoming")} />
+      <p className="mt-1 flex items-center gap-1.5 text-small text-muted">
+        <Lock className="size-3.5 shrink-0" aria-hidden />
+        {isMe ? t("upcomingOwnHint") : t("upcomingCrewHint")}
+      </p>
+      {houses.length > 0 ? <HouseCards houses={houses} /> : <p className={cn(CONTENT, "text-body text-muted")}>{t("upcomingEmpty")}</p>}
+    </section>
   );
 }

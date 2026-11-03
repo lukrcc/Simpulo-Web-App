@@ -13,7 +13,8 @@ import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
  * Site footer below every page: wordmark, claim and socials (top, on the headings' baseline), four plain link columns –
  * Explore, Hosting, Simpulo, Popular – and a bottom row with the copyright and the legal links. On mobile a spacer at its
  * end keeps it clear of the bottom bar for the current mode (pill, docked or none) and of the sticky CTAs on routes
- * without the tab bar.
+ * without the tab bar. Its own surface, one colour, full width, with a clear edge on top. Only on Explore, Host and How it
+ * works; everywhere else SlimFooter, the same surface as one line (FooterByRoute).
  */
 const SOCIAL_ICONS: Record<SocialNetwork, IconType> = { instagram: SiInstagram, tiktok: SiTiktok, youtube: SiYoutube };
 
@@ -52,15 +53,9 @@ export async function Footer() {
   ];
 
   const socials = (Object.entries(SOCIAL_LINKS) as [SocialNetwork, string][]).filter(([, url]) => url.trim() !== "");
-  const legal = [
-    { href: "/impressum", label: t("links.impressum") },
-    { href: "/privacy", label: t("links.privacy") },
-    { href: "/terms", label: t("links.terms") },
-  ];
-
   return (
-    <footer className="border-t border-line">
-      <Container className="py-10 text-small text-muted">
+    <footer className="bg-(--footer-surface)">
+      <Container className="pt-16 pb-10 text-small text-muted">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-baseline md:gap-6">
           {/* Wordmark, claim and socials at the top: the grid aligns first baselines, so the wordmark sits on the
               column headings' baseline. Phones: first, above the links. */}
@@ -105,26 +100,89 @@ export async function Footer() {
         </div>
 
         {/* Bottom row across the full width. */}
-        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 text-small md:flex-row md:items-center md:justify-between">
-          <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
-          <nav aria-label={t("legalLabel")}>
-            <ul className="flex flex-wrap items-center gap-x-1.5">
-              {legal.map(({ href, label }, i) => (
-                <li key={href} className="flex items-center gap-1.5">
-                  {i > 0 && <span aria-hidden>·</span>}
-                  <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        <div className="mt-8 pt-6">
+          <FooterLegal />
         </div>
       </Container>
-      {/* usePathname suspends on dynamic routes during prerender, so the spacer has its own boundary. */}
-      <Suspense fallback={<TabBarSpacerFallback />}>
-        <TabBarSpacer />
-      </Suspense>
+      <FooterSpacer />
     </footer>
+  );
+}
+
+/** The one line of every page but Explore, Host and How it works: 72px, the copyright and legal links left, the socials right. */
+export async function SlimFooter() {
+  const t = await getTranslations("footer");
+  const legal = [
+    { href: "/impressum", label: t("links.impressum") },
+    { href: "/privacy", label: t("links.privacy") },
+    { href: "/terms", label: t("links.terms") },
+  ];
+  const socials = (Object.entries(SOCIAL_LINKS) as [SocialNetwork, string][]).filter(([, url]) => url.trim() !== "");
+  return (
+    <footer className="bg-(--footer-surface)">
+      <Container className="flex min-h-18 flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 text-small text-muted">
+        <p className="flex flex-wrap items-center gap-x-1.5">
+          <span>{t("copyright", { year: COPYRIGHT_YEAR })}</span>
+          {legal.map(({ href, label }) => (
+            <span key={href} className="flex items-center gap-1.5">
+              <span aria-hidden>·</span>
+              <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
+                {label}
+              </Link>
+            </span>
+          ))}
+        </p>
+        {socials.length > 0 && (
+          <ul aria-label={t("social.label")} className="flex items-center gap-4">
+            {socials.map(([network, url]) => {
+              const Icon = SOCIAL_ICONS[network];
+              return (
+                <li key={network}>
+                  <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-muted transition-colors hover:text-ink">
+                    <Icon className="size-4" aria-hidden />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Container>
+      <FooterSpacer />
+    </footer>
+  );
+}
+
+async function FooterLegal() {
+  const t = await getTranslations("footer");
+  const legal = [
+    { href: "/impressum", label: t("links.impressum") },
+    { href: "/privacy", label: t("links.privacy") },
+    { href: "/terms", label: t("links.terms") },
+  ];
+  return (
+    <div className="flex flex-col gap-3 text-small md:flex-row md:items-center md:justify-between">
+      <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
+      <nav aria-label={t("legalLabel")}>
+        <ul className="flex flex-wrap items-center gap-x-1.5">
+          {legal.map(({ href, label }, i) => (
+            <li key={href} className="flex items-center gap-1.5">
+              {i > 0 && <span aria-hidden>·</span>}
+              <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
+                {label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  );
+}
+
+/** usePathname suspends on dynamic routes during prerender, so the spacer has its own boundary. */
+function FooterSpacer() {
+  return (
+    <Suspense fallback={<TabBarSpacerFallback />}>
+      <TabBarSpacer />
+    </Suspense>
   );
 }

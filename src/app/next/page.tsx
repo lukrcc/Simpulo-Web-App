@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { NextView } from "@/components/explore/NextView";
-import { pageMetadata } from "@/lib/seo";
+import { permanentRedirect } from "next/navigation";
 
-/** Public and server-rendered, but kept out of the index for now (mock demand). */
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("explore.interests");
-  return pageMetadata({ title: t("title"), description: t("pageIntro"), path: "/next", noindex: true });
-}
-
+/** The old address of /destinations. */
 export default function NextPage() {
-  return <NextView />;
+  permanentRedirect("/destinations");
 }

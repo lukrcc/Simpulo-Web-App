@@ -30,7 +30,7 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
         const active = chip.value === value;
         return (
           // "All" never shows the check – it is the absence of a filter.
-          <Chip key={chip.value ?? "all"} active={active} check={chip.value !== null} size={small ? "sm" : "md"} quiet={small} onClick={() => onChange(chip.value)}>
+          <Chip key={chip.value ?? "all"} active={active} check={chip.value !== null} size={small ? "sm" : "md"} onClick={() => onChange(chip.value)}>
             {chip.label}
           </Chip>
         );

@@ -143,8 +143,9 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   );
 
   if (embedded) {
-    // Fills the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
-    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-bg", cardShadow)}>{content}</div>;
+    // The standard card, filling the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
+    // Messages and composer keep the page's tint inside it: other people's bubbles are surface too.
+    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-surface", cardShadow)}>{content}</div>;
   }
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /

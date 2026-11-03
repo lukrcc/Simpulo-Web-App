@@ -108,7 +108,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
         <p className="mb-2 text-eyebrow uppercase text-muted">
           {t("mockProviderLogin", { provider })}
         </p>
-        <ul className="scroll-pane max-h-[50vh] divide-y divide-line rounded-xl border border-line">
+        <ul className="scroll-pane max-h-[50vh] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] ">
           {users.map((user) => (
             <li key={user.id}>
               <button

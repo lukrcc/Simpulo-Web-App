@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialRow } from "@/components/ui/SocialRow";
@@ -7,8 +8,8 @@ import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { User } from "@/lib/types";
 
-/** Side card on the House page: who's hosting. Avatar, name and "View profile" all link to the profile. */
-export function HostCard({ host }: { host: User }) {
+/** Who's hosting. Avatar, name and "View profile" all link to the profile. */
+export function HostCard({ host, action }: { host: User; /** Beside "View profile": Message */ action?: ReactNode }) {
   const t = useTranslations("house.hostCard");
   const profile = `/u/${host.id}`;
 
@@ -28,9 +29,12 @@ export function HostCard({ host }: { host: User }) {
         {host.languages.length > 0 && <p className="mt-0.5 text-small text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialRow user={host} size="sm" className="mt-3" />
         {host.bio && <p className="mt-3 line-clamp-2 text-body text-ink">{host.bio}</p>}
-        <Link href={profile} className={buttonStyles("tertiary", "md", "mt-2")}>
-          {t("viewProfile")}
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <Link href={profile} className={buttonStyles("tertiary", "md")}>
+            {t("viewProfile")}
+          </Link>
+          {action}
+        </div>
       </div>
     </div>
   );
