@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { use, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { RequireLogin } from "@/components/auth/RequireLogin";
-import { AddPlaceSheet, DemandCard } from "@/components/explore/InterestRow";
 import { Container } from "@/components/layout/Container";
 import { PreviewBanner, PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
@@ -28,7 +27,6 @@ import { useToast } from "@/components/ui/Toast";
 import { MoreList } from "@/components/views/MoreList";
 import { HOUSE_GRID } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
-import { useNextStopSpots } from "@/lib/destinations";
 import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
 import { socialUrl } from "@/lib/socialLinks";
 import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
@@ -154,7 +152,6 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
       <HostingNow houses={view.hostingNow} isMe={isMe} />
       <LivedWithSection view={view} isMe={isMe} />
       <PhotosSection photos={photos} onOpen={setPhotoIndex} />
-      <NextStopSection user={user} isMe={isMe} />
       <UpcomingSection houses={view.upcoming} isMe={isMe} />
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
     </Container>
@@ -473,42 +470,6 @@ function PhotosSection({ photos, onOpen }: { photos: string[]; onOpen: (index: n
           </li>
         ))}
       </ul>
-    </section>
-  );
-}
-
-/** Where they want to go: a wish, not a travel plan. In the fallback style too, unlike on Explore. */
-function NextStopSection({ user, isMe }: { user: User; isMe: boolean }) {
-  const t = useTranslations("profile.view");
-  const spots = useNextStopSpots(user.id, isMe);
-  const [adding, setAdding] = useState(false);
-  if (spots.length === 0 && !isMe) return null;
-  return (
-    <section aria-labelledby="profile-next" className={SECTION}>
-      <SectionHeader
-        id="profile-next"
-        eyebrow={t("nextStop")}
-        action={
-          isMe && (
-            <Button variant="tertiary" onClick={() => setAdding(true)}>
-              {t("addPlace")}
-            </Button>
-          )
-        }
-      />
-      {spots.length > 0 ? (
-        <>
-          <div className={cn(CONTENT, "card-grid [--card-cols:3] [--card-min:340px]")}>
-            {spots.map((spot) => (
-              <DemandCard key={spot.destinationId} spot={spot} />
-            ))}
-          </div>
-          {!isMe && <p className="mt-3 text-small text-muted">{t("nextStopHint")}</p>}
-        </>
-      ) : (
-        <p className={cn(CONTENT, "text-body text-muted")}>{t("nextStopEmpty")}</p>
-      )}
-      <AddPlaceSheet open={adding} onClose={() => setAdding(false)} />
     </section>
   );
 }

@@ -44,6 +44,9 @@ function moneyRange(format: Intl.NumberFormat, min: number, max: number): string
     .trim();
 }
 
+/** "2027-03-…" → "March 2027" */
+const monthOf = (locale: string, date: string) => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${date.slice(0, 7)}-15T00:00:00Z`));
+
 /** Locale-aware number/date formatting – pure, usable on the server with getLocale(). */
 export function createFormatters(locale: string) {
   const currency = (code: string) => new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumFractionDigits: 0 });
@@ -94,6 +97,10 @@ export function useFormat() {
       ...f,
       shortRange: (start: string, end: string) => f.shortRange(start, end) ?? t("datesTbd"),
       longRange: (start: string, end: string) => f.longRange(start, end) ?? t("datesTbd"),
+      /** A House's dates on one line: "Feb 12–26" – or "March 2027" while only the month is settled. */
+      stayDates: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthOf(locale, stay.startDate) : (f.shortRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
+      /** "Feb 12–26, 2027" – or "March 2027" */
+      stayDatesLong: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthOf(locale, stay.startDate) : (f.longRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
       nights: (count: number) => t("nights", { count }),
       spots: (count: number) => t("spots", { count }),
       people: (count: number) => t("people", { count }),

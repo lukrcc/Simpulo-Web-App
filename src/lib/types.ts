@@ -14,6 +14,9 @@ export type {
   Crew,
   LivedWith,
   TypicalDayStop,
+  CrewVote,
+  VoteKind,
+  VoteOption,
   HouseInvite,
   HouseInviteStatus,
   Reaction,
@@ -61,4 +64,4 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "currency" | "customVibe" | "hostFeePerPerson">>;
+> & Partial<Pick<Stay, "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos">>;

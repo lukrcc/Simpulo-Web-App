@@ -3,13 +3,14 @@
 import { ChevronLeft, ChevronRight, MessageCircle, Plus, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
 import { useNotchClip } from "@/components/ui/notch";
-import { CardShareButton } from "@/components/share/HouseShare";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { CrewLine } from "@/components/ui/CrewLine";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
 import { Img } from "@/components/ui/Img";
@@ -22,7 +23,7 @@ import { isInvitedTo, useStore } from "@/lib/store";
 import type { CardVariant } from "@/lib/exploreLayout";
 import type { Stay, User } from "@/lib/types";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { useHouseNavigate } from "@/lib/houseTransition";
+import { rememberOrigin } from "@/lib/houseTransition";
 import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 
 interface StayCardProps {
@@ -46,6 +47,11 @@ interface StayCardProps {
    * whole (data-cf-dim, set per frame).
    */
   spotlight?: boolean;
+  /**
+   * default only: the House page's large card, 3:4 – every photo with swipe, arrows and dots, the host's tab and "N photos". No text: that's
+   * beside it. No lift, nothing over the photo.
+   */
+  gallery?: { onOpen: (index: number) => void; onOpenAll: () => void; countLabel: string };
   className?: string;
 }
 
@@ -65,13 +71,80 @@ const PHOTO_ZOOM = cn("scale-100 transition-[scale] md:motion-safe:group-hover:s
 
 /** The photo arrows: desktop only, shown on hover or keyboard focus. */
 const PHOTO_ARROW =
-  "icon-button absolute top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 hover:bg-ink/45 md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
+  "on-image absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
 
 /** One card API for every House tile: `variant` picks the layout. */
 export function StayCard({ variant = "default", ...props }: StayCardProps) {
   if (variant === "wide" && props.host) return <WideStayCard {...props} host={props.host} />;
   if (variant === "tall" && props.host) return <TallStayCard {...props} host={props.host} />;
   return <DefaultStayCard {...props} />;
+}
+
+/** A line of the building card: its placeholder bar until the answer is there, then the answer comes in. */
+function Reveal({ ready, width, className, children }: { ready: boolean; width: string; className?: string; children: ReactNode }) {
+  if (!ready) return <span aria-hidden className={cn("my-1 block h-3 rounded-full bg-white/35", className)} style={{ width }} />;
+  return <div className={cn("reveal-in", className)}>{children}</div>;
+}
+
+/**
+ * Open a House's preview, building itself up. It starts as a soft surface with only the host's tab and a placeholder bar per line; each
+ * answer takes its line's place, the cover fades in over the surface. Prices are in the House's own currency, not the viewer's.
+ */
+export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean }) {
+  const t = useTranslations("explore");
+  const format = useFormat();
+  const revealRef = useRef<HTMLElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+  useNotchClip(revealRef, clipRef);
+  const cover = stay.photos?.[0];
+  return (
+    <article ref={revealRef} data-notch="pending" className="notch-frame relative isolate aspect-4/5">
+      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--stage-sand)", host && "rounded-tl-none")}>
+        <div aria-hidden className="absolute -inset-8 bg-linear-to-br from-(--stage-peach) to-(--stage-mist) blur-xl" />
+        {cover && (
+          <div key={cover} className="reveal-photo absolute inset-0">
+            <Img src={cover} alt="" fill sizes="400px" style={stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined} className="object-cover" />
+            <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
+          </div>
+        )}
+        <div className={cn("absolute inset-x-0 bottom-0 px-5 pb-8", cover ? cn("text-white", TEXT_SHADOW) : "text-ink")}>
+          <Reveal ready={theme !== null} width="28%">
+            <p className="mb-1 truncate text-eyebrow uppercase">{theme}</p>
+          </Reveal>
+          <Reveal ready={showTitle} width="72%">
+            <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title}</h3>
+          </Reveal>
+          <Reveal ready={showMeta} width="58%" className="mt-1">
+            <p className="truncate text-small opacity-85">{[showDates ? format.stayDates(stay) : null, stay.region ? format.placeName(stay) : null].filter(Boolean).join(" · ")}</p>
+          </Reveal>
+          <Reveal ready={showPrice} width="34%" className="mt-1">
+            <p className="truncate text-body font-semibold">{format.priceLabel(stay)}</p>
+          </Reveal>
+          {stay.hostNote && (
+            <p className="reveal-in mt-1 flex items-center gap-1.5 text-small opacity-75">
+              <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{stay.hostNote}</span>
+            </p>
+          )}
+          <div className="mt-4 flex min-h-7 items-center justify-between gap-3">
+            <Reveal ready={showCrew} width="46%" className="min-w-0 flex-1">
+              {host && cover ? (
+                <CrewAvatars host={host} members={[]} stay={stay} />
+              ) : (
+                <span className="flex min-w-0 items-center gap-2">
+                  {host && <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7 border-2 border-surface" />}
+                  <CrewLine stay={stay} className="min-w-0 truncate" />
+                </span>
+              )}
+            </Reveal>
+            {host && <HostSocialIcons host={host} className={cover ? undefined : "text-ink/60!"} />}
+          </div>
+        </div>
+      </div>
+      {host && <CardTab host={host} className="max-w-[calc(100%-64px)]" />}
+      <span className="sr-only">{stay.title || t("untitledHouse")}</span>
+    </article>
+  );
 }
 
 /**
@@ -87,6 +160,7 @@ function DefaultStayCard({
   crewRow = "small",
   compact = false,
   spotlight = false,
+  gallery,
   tall = false,
   className,
 }: Omit<StayCardProps, "variant"> & { tall?: boolean }) {
@@ -96,7 +170,7 @@ function DefaultStayCard({
   const priceLabel = useViewerPriceLabel(stay);
   // The cover first, then the rest of the House's world. The host's portrait belongs in the tab's avatar.
   // Tall, compact and Spotlight cards show one photo: no swiping, no arrows, no dots.
-  const photos = host ? housePhotos(stay, host).slice(0, tall || compact || spotlight ? 1 : MAX_PHOTOS) : spotlight ? housePhotos(stay).slice(0, 1) : [];
+  const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : tall || compact || spotlight ? 1 : MAX_PHOTOS) : spotlight ? housePhotos(stay).slice(0, 1) : [];
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const [revealRef, revealed] = useRevealOnce<HTMLElement>();
   // One clipped layer: photos, gradients and overlays inside the notched silhouette; the host tab sits beside it.
@@ -104,7 +178,6 @@ function DefaultStayCard({
   useNotchClip(revealRef, clipRef);
 
   const href = `/house/${stay.slug}`;
-  const openHouse = useHouseNavigate(stay.id, href, revealRef);
   const guests = crew.filter((u) => u.id !== stay.hostId);
 
   return (
@@ -114,16 +187,18 @@ function DefaultStayCard({
       data-notch="pending"
       data-house-card={stay.id}
       className={cn(
-        spotlight ? "group relative isolate" : "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
+        gallery ? "notch-frame group relative isolate aspect-3/4" : spotlight ? "group relative isolate" : "notch-frame group relative isolate transition-[opacity,translate,scale,filter]",
         // In a row (compact) the row lifts the card and casts the shadow instead (.shelf in globals.css) – and its
         // photo doesn't zoom. In the grid: scale and the hover shadow, following the notched silhouette.
-        spotlight
+        gallery
+          ? undefined
+          : spotlight
           ? "h-full"
           : compact
             ? "lift-card"
             : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
-        !spotlight && HOVER_MOTION,
-        !tall && !spotlight && "aspect-4/5",
+        !spotlight && !gallery && HOVER_MOTION,
+        !tall && !spotlight && !gallery && "aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
         !revealed && "max-md:motion-safe:translate-y-3 max-md:motion-safe:opacity-0",
         className,
@@ -142,7 +217,7 @@ function DefaultStayCard({
       >
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
         {/* In the Spotlight and on a shelf (one photo) no scroller: it would keep the carousel's touch-action from applying, and the browser would take the swipe. */}
-        <div ref={ref} onScroll={onScroll} data-vt="image" className={cn("flex h-full", spotlight || compact ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
+        <div ref={ref} onScroll={onScroll} className={cn("flex h-full", spotlight || compact ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
           {photos.length === 0 &&
             (photoPlaceholder ? (
               <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">
@@ -161,16 +236,23 @@ function DefaultStayCard({
                 src={src}
                 alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={spotlight ? "400px" : CARD_SIZES}
+                sizes={gallery ? "(min-width: 1100px) 600px, 520px" : spotlight ? "400px" : CARD_SIZES}
                 // Which card is in the centre (the page's largest image) changes per session: none of them waits for lazy loading.
-                loading={spotlight ? "eager" : undefined}
-                className={cn("object-cover", !compact && !spotlight && PHOTO_ZOOM)}
+                loading={spotlight || (gallery && i === 0) ? "eager" : undefined}
+                className={cn("object-cover", !compact && !spotlight && !gallery && PHOTO_ZOOM)}
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
             );
             // Each slide clips its own photo, so the zoom never spills into the next one.
             // No outline: keyboard focus shows as the card's lift (has-focus-visible on the frame).
             const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden outline-none";
+            if (gallery) {
+              return (
+                <button key={src} type="button" onClick={() => gallery.onOpen(i)} aria-label={t("cards.photoAlt", { title: stay.title, number: i + 1 })} className={slideClass}>
+                  {image}
+                </button>
+              );
+            }
             return preview ? (
               <div key={src} className={slideClass}>
                 {image}
@@ -179,7 +261,7 @@ function DefaultStayCard({
               <Link
                 key={src}
                 href={href}
-                onNavigate={openHouse}
+                onNavigate={rememberOrigin}
                 className={slideClass}
                 aria-label={i === 0 ? (host ? t("houseWithHost", { title: stay.title, host: firstName(host) }) : stay.title) : undefined}
                 aria-hidden={i > 0 || undefined}
@@ -192,21 +274,27 @@ function DefaultStayCard({
         </div>
 
         {/* Readability gradient; it gets stronger on hover. */}
-        <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
-        {!spotlight && <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />}
+        {!gallery && <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />}
+        {!spotlight && !gallery && <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
         {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-black opacity-0" />}
 
-        {!preview && !spotlight && (
+        {!preview && !spotlight && !gallery && (
           <div className="absolute right-3 top-3 z-10 flex gap-2">
-            <CardShareButton stay={stay} />
             <SaveButton stay={stay} />
           </div>
         )}
 
+        {gallery && photos.length > 0 && (
+          <Button variant="glass" size="md" onClick={gallery.onOpenAll} className="absolute bottom-4 right-4 z-10">
+            {gallery.countLabel}
+          </Button>
+        )}
+
         {/* Bottom content – pointer-events pass through to the photo links. */}
         <div
+          hidden={Boolean(gallery)}
           className={cn(
             "pointer-events-none absolute bottom-0 text-white",
             TEXT_SHADOW,
@@ -217,10 +305,10 @@ function DefaultStayCard({
           {invited && (
             <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>
           )}
-          <h3 data-vt="title" className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
             <span className="shrink-0">
-              {format.shortRange(stay.startDate, stay.endDate)}
+              {format.stayDates(stay)}
               {stay.region && " ·"}
             </span>
             {stay.region && <PlaceText>{format.placeName(stay)}</PlaceText>}
@@ -250,12 +338,12 @@ function DefaultStayCard({
             {/* Desktop: ‹ › while hovering (or focused); phones swipe. One index with the swipe – see useSnapCarousel. */}
             {active > 0 && (
               <button type="button" onClick={() => step(-1)} aria-label={t("cards.prevPhoto")} className={cn(PHOTO_ARROW, "left-3")}>
-                <ChevronLeft className="size-5" aria-hidden />
+                <ChevronLeft className="size-4" aria-hidden />
               </button>
             )}
             {active < photos.length - 1 && (
               <button type="button" onClick={() => step(1)} aria-label={t("cards.nextPhoto")} className={cn(PHOTO_ARROW, "right-3")}>
-                <ChevronRight className="size-5" aria-hidden />
+                <ChevronRight className="size-4" aria-hidden />
               </button>
             )}
             {/* Dots: the current photo; each one jumps there (a taller hit area than the dot itself). */}
@@ -276,11 +364,11 @@ function DefaultStayCard({
           </>
         )}
       </div>
-      {/* The two 40px circles top right (12px in, 8px apart) take 100px; the tab stops 12px short of them. */}
+      {/* The heart’s 40px hit area top right, 12px in, takes 52px; the tab stops 12px short of it. */}
       {host && (
         <CardTab
           host={host}
-          className="max-w-[calc(100%-112px)]"
+          className="max-w-[calc(100%-64px)]"
         />
       )}
     </article>
@@ -370,7 +458,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
         <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
           <span className="shrink-0">
-            {format.shortRange(stay.startDate, stay.endDate)}
+            {format.stayDates(stay)}
             {stay.region && " ·"}
           </span>
           {stay.region && <PlaceText>{format.placeName(stay)}</PlaceText>}
@@ -390,7 +478,6 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
             className="absolute inset-0 z-0 rounded-[inherit]"
           />
           <div className="absolute right-3 top-3 z-10 flex gap-2">
-            <CardShareButton stay={stay} />
             <SaveButton stay={stay} />
           </div>
         </>

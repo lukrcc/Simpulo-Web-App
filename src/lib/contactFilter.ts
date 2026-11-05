@@ -26,6 +26,6 @@ export function maskContacts(text: string): { text: string; masked: boolean } {
 }
 
 /** Details are free only in a House's own chat, once its crew is complete; a direct chat stays filtered. */
-export function contactsAllowed(thread: { type: "house" | "direct" }, stay?: { spotsFilled: number; spotsTotal: number }): boolean {
+export function contactsAllowed(thread: { type: "house" | "direct" | "updates" }, stay?: { spotsFilled: number; spotsTotal: number }): boolean {
   return thread.type === "house" && stay !== undefined && stay.spotsFilled >= stay.spotsTotal;
 }

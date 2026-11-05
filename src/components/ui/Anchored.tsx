@@ -11,6 +11,8 @@ interface AnchoredProps {
   align?: "start" | "end";
   /** The body itself, for the opener's outside-click check (it isn't inside the opener's DOM) */
   ref?: RefObject<HTMLDivElement | null>;
+  /** "start" only: how wide the body is, so it stays inside the window */
+  width?: number;
   className?: string;
   children: ReactNode;
 }
@@ -20,7 +22,7 @@ interface AnchoredProps {
  * header has overflow hidden). Re-placed on resize and scroll; styling (surface, radius, shadow) stays with the
  * caller's content.
  */
-export function Anchored({ anchor, align = "end", ref, className, children }: AnchoredProps) {
+export function Anchored({ anchor, align = "end", ref, width = 0, className, children }: AnchoredProps) {
   const [style, setStyle] = useState<CSSProperties | null>(null);
   useLayoutEffect(() => {
     const place = () => {
@@ -28,7 +30,7 @@ export function Anchored({ anchor, align = "end", ref, className, children }: An
       if (!r) return;
       const top = r.bottom + 8;
       // clientWidth: the viewport without the scrollbar – what fixed `right` measures from.
-      setStyle(align === "end" ? { position: "fixed", top, right: Math.max(8, document.documentElement.clientWidth - r.right) } : { position: "fixed", top, left: r.left });
+      setStyle(align === "end" ? { position: "fixed", top, right: Math.max(8, document.documentElement.clientWidth - r.right) } : { position: "fixed", top, left: Math.max(8, Math.min(r.left, document.documentElement.clientWidth - width - 16)) });
     };
     place();
     window.addEventListener("resize", place);
@@ -37,10 +39,10 @@ export function Anchored({ anchor, align = "end", ref, className, children }: An
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [anchor, align]);
+  }, [anchor, align, width]);
   if (!style) return null;
   return createPortal(
-    <div ref={ref} data-anchored style={style} className={cn("z-60", className)}>
+    <div ref={ref} data-anchored style={style} className={cn("z-[72]", className)}>
       {children}
     </div>,
     document.body,

@@ -1,36 +1,43 @@
 "use client";
 
-import { ArrowUpRight, CalendarDays, Check, Home, Languages, LockOpen, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, Check, Home, Languages, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { Fragment, useEffect, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { Shelf } from "@/components/ui/Shelf";
 import { StayCard } from "@/components/StayCard";
-import { Button, buttonStyles } from "@/components/ui/ActionButton";
-import { Badge } from "@/components/ui/Badge";
-import { cardClass } from "@/components/ui/Card";
+import { buttonStyles } from "@/components/ui/ActionButton";
+import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { CrewLine } from "@/components/ui/CrewLine";
+import { IconButton } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SocialRow } from "@/components/ui/SocialRow";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
+import { openVote } from "@/lib/crewVotes";
+import type { MemberStage } from "@/lib/joinFlow";
 import { isListedStay } from "@/lib/launch";
 import { crewThreadId } from "@/lib/links";
 import { convertApprox } from "@/lib/rates";
 import { findUser, getCrew, isBlocked, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
-import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, typicalDayOf } from "@/lib/utils";
+import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, stayNights, typicalDayOf } from "@/lib/utils";
 import { AccommodationSection } from "./AccommodationSection";
-import { HostCard } from "./HostCard";
+import { HouseMap } from "./HouseMap";
 
 const SECTION = "mt-(--space-section)";
-const CONTENT = "mt-(--space-inner)";
+/** Under a section's eyebrow in the page's left column. */
+const ROW = "mt-3";
 const MAX_MORE_HOUSES = 12;
+
 
 function Fact({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-start gap-2">
       <Icon className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
       <div className="min-w-0">
         <dt className="text-small text-muted">{label}</dt>
@@ -40,17 +47,41 @@ function Fact({ icon: Icon, label, children }: { icon: LucideIcon; label: string
   );
 }
 
-/** The four facts under the stage: no frames, an icon, the label over the value. */
+/** Who's hosting, in one row. Avatar, name and "View profile" all link to the profile. */
+function HouseHostLine({ host }: { host: User }) {
+  const t = useTranslations("house.page");
+  const tCard = useTranslations("house.hostCard");
+  const profile = `/u/${host.id}`;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <Link href={profile} className="shrink-0 rounded-full" aria-label={tCard("profile", { name: host.name })}>
+        <PersonPhoto src={host.photos[0]} alt={host.name} size={44} className="size-11" />
+      </Link>
+      <div className="flex min-w-0 items-center gap-1">
+        <Link href={profile} className="truncate text-body font-semibold text-ink hover:underline">
+          {t("hostedByShort", { name: firstName(host) })}
+        </Link>
+        {host.verified && <VerifiedBadge />}
+      </div>
+      <SocialRow user={host} size="sm" />
+      <Link href={profile} className={buttonStyles("tertiary", "md", "ml-auto")}>
+        {tCard("viewProfile")}
+      </Link>
+    </div>
+  );
+}
+
+/** The four facts, two by two: no frames, an icon, the label over the value. */
 export function HouseFacts({ stay, host }: { stay: Stay; host?: User }) {
   const t = useTranslations("house.page");
   const tFacts = useTranslations("house.facts");
   const format = useFormat();
-  const languages = [...new Set([format.language(stay.language), ...(host?.languages ?? [])])];
+  const languages = [...new Set([stay.language, ...(stay.languages ?? [])].map(format.language).concat(host?.languages ?? []))];
   const held = [stay.spotsInvited ? tFacts("invited", { count: stay.spotsInvited }) : null, stay.spotsReserved ? tFacts("reserved", { count: stay.spotsReserved }) : null].filter(Boolean).join(" · ");
   return (
-    <dl className="card-grid mt-8 [--card-cols:4] [--card-min:220px]">
+    <dl className="grid grid-cols-2 gap-x-8 gap-y-6">
       <Fact icon={CalendarDays} label={t("factDates")}>
-        {format.longRange(stay.startDate, stay.endDate)}
+        {format.stayDatesLong(stay)}
       </Fact>
       <Fact icon={Users} label={t("factCrew")}>
         {t("factCrewValue", { total: stay.spotsTotal, open: openSpots(stay) })}
@@ -66,104 +97,96 @@ export function HouseFacts({ stay, host }: { stay: Stay; host?: User }) {
   );
 }
 
-/** Why I'm hosting: the host's own words large on the page, their card beside it (under it below 1100px). */
-export function HouseWhy({ stay, host, message }: { stay: Stay; host?: User; message?: ReactNode }) {
+/** Why I'm hosting: the host's own words. */
+export function HouseWhy({ stay }: { stay: Stay }) {
   const t = useTranslations("house.page");
   const quote = stay.whyText.trim();
-  if (!quote && !host) return null;
+  if (!quote) return null;
   return (
-    <section aria-labelledby="house-why" className={SECTION}>
+    <section aria-labelledby="house-why">
       <SectionHeader id="house-why" eyebrow={t("why")} />
-      <div className={cn(CONTENT, "grid items-start gap-8 split:grid-cols-[minmax(0,1fr)_minmax(360px,480px)] split:gap-12")}>
-        {quote && <blockquote className="max-w-[640px] whitespace-pre-line text-quote text-ink">{quote}</blockquote>}
-        {host && (
-          <div className={cardClass}>
-            <HostCard host={host} action={message} />
-          </div>
-        )}
-      </div>
+      <blockquote className={cn(ROW, "max-w-[640px] whitespace-pre-line text-quote text-ink")}>{quote}</blockquote>
     </section>
   );
 }
 
-/** The crew as a shelf: the host first, then the members, then one dashed card per open spot. */
+/** The crew as a row of faces: the host first, then the members, then one dashed circle per open spot. */
 export function HouseCrew({ stay, crew, canJoin, onJoin }: { stay: Stay; crew: User[]; canJoin: boolean; onJoin: () => void }) {
   const t = useTranslations("house.page");
-  const open = openSpots(stay);
-  const card = "flex w-full flex-col items-center rounded-[20px] p-5 text-center";
+  const person = "flex w-[72px] flex-col items-center text-center";
+  const spot = <span aria-hidden className="size-14 rounded-full border-2 border-dashed border-ink/15" />;
+  const spotLabel = <span className="mt-2 max-w-full truncate text-small text-muted">{canJoin ? t("yourSpot") : t("openSpot")}</span>;
   return (
-    <section aria-labelledby="house-crew" className={SECTION}>
+    <section aria-labelledby="house-crew">
       <SectionHeader id="house-crew" eyebrow={t("crew")} />
-      <Shelf>
+      <ul className={cn(ROW, "flex flex-wrap gap-x-4 gap-y-5")}>
         {crew.map((member) => (
-          <div key={member.id} className="flex w-44 shrink-0">
-            <Link href={`/u/${member.id}`} className={cn(card, "lift-card bg-surface")}>
-              <PersonPhoto src={member.photos[0]} alt={member.name} size={64} className="size-16" />
-              <p className="mt-3 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</p>
-              <p className="max-w-full truncate text-small text-muted">{member.country}</p>
-              {member.id === stay.hostId && <Badge className="mt-2">{t("hostBadge")}</Badge>}
+          <li key={member.id}>
+            <Link href={`/u/${member.id}`} className={person}>
+              <Avatar user={member} size="lg" />
+              <span className="mt-2 max-w-full truncate text-small text-ink">{firstName(member)}</span>
+              {member.id === stay.hostId && <span className="text-small text-muted">{t("hostBadge")}</span>}
             </Link>
-          </div>
+          </li>
         ))}
-        {Array.from({ length: open }, (_, i) => (
-          <div key={i} className="flex w-44 shrink-0">
-            <div className={cn(card, "justify-center border-2 border-dashed border-line")}>
-              <span aria-hidden className="size-16 rounded-full bg-ink/5" />
-              <p className="mt-3 text-body font-semibold text-ink">{canJoin ? t("yourSpot") : t("openSpot")}</p>
-              {canJoin && (
-                <Button variant="tertiary" onClick={onJoin} data-preview-action className="mt-1">
-                  {t("joinSpot")}
-                </Button>
-              )}
-            </div>
-          </div>
+        {Array.from({ length: openSpots(stay) }, (_, i) => (
+          <li key={i}>
+            {canJoin ? (
+              <button type="button" onClick={onJoin} data-preview-action className={person}>
+                {spot}
+                {spotLabel}
+              </button>
+            ) : (
+              <div className={person}>
+                {spot}
+                {spotLabel}
+              </div>
+            )}
+          </li>
         ))}
-      </Shelf>
+      </ul>
     </section>
   );
 }
 
-/** A typical day as stations you can run your eye along. */
+/** A typical day as a list: the time on the left, what happens on the right. */
 export function HouseDay({ stay }: { stay: Stay }) {
   const t = useTranslations("house.page");
   const stops = typicalDayOf(stay);
   if (stops.length === 0) return null;
   return (
-    <section aria-labelledby="house-day" className={SECTION}>
+    <section aria-labelledby="house-day">
       <SectionHeader id="house-day" eyebrow={t("day")} />
-      <Shelf>
+      <dl className={cn(ROW, "grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-2")}>
         {stops.map((stop) => (
-          <div key={`${stop.time}-${stop.label}`} className="flex w-55 shrink-0">
-            <div className="w-full rounded-[20px] bg-surface p-5">
-              <p className="text-small text-accent">{stop.time}</p>
-              <p className="mt-1 text-body font-semibold text-ink">{stop.label}</p>
-            </div>
-          </div>
+          <Fragment key={`${stop.time}-${stop.label}`}>
+            <dt className="text-small text-muted">{stop.time}</dt>
+            <dd className="text-body text-ink">{stop.label}</dd>
+          </Fragment>
         ))}
-      </Shelf>
+      </dl>
     </section>
   );
 }
 
-/** Who I'm looking for + House rules: two cards of one height (under each other below 1100px). */
+/** Who I'm looking for, then House rules: two short blocks, no cards. */
 export function HouseFit({ stay }: { stay: Stay }) {
   const t = useTranslations("house.page");
   const tFacts = useTranslations("house.facts");
   const looking = stay.lookingForText.trim();
-  if (!looking && !stay.ageRange && stay.houseRules.length === 0) return null;
   return (
-    <section className={cn(SECTION, "grid gap-6 split:grid-cols-2")}>
+    <>
       {(looking || stay.ageRange) && (
-        <div aria-labelledby="house-looking" role="group" className={cardClass}>
+        <section aria-labelledby="house-looking">
           <SectionHeader id="house-looking" eyebrow={t("lookingFor")} />
-          {looking && <p className="mt-4 whitespace-pre-line text-body text-ink">{looking}</p>}
+          {looking && <p className={cn(ROW, "whitespace-pre-line text-body text-ink")}>{looking}</p>}
           {stay.ageRange && <p className="mt-3 text-small text-muted">{tFacts("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
-        </div>
+        </section>
       )}
       {stay.houseRules.length > 0 && (
-        <div aria-labelledby="house-rules" role="group" className={cardClass}>
+        <section aria-labelledby="house-rules">
           <SectionHeader id="house-rules" eyebrow={t("rules")} />
-          <ul className="mt-4 space-y-2">
+          <ul className={cn(ROW, "space-y-2")}>
             {stay.houseRules.map((rule) => (
               <li key={rule} className="flex gap-2 text-body text-ink">
                 <Check className="mt-1 size-4 shrink-0 text-accent" aria-hidden />
@@ -171,9 +194,9 @@ export function HouseFit({ stay }: { stay: Stay }) {
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
-    </section>
+    </>
   );
 }
 
@@ -185,9 +208,9 @@ export function HouseOffer({ stay }: { stay: Stay }) {
   if (!stay.hostFeePerPerson || !stay.hostOffer?.length) return null;
   const fee = format.price(convertApprox(stay.hostFeePerPerson, stay.currency, currency), currency);
   return (
-    <section aria-labelledby="house-offer" className={SECTION}>
+    <section aria-labelledby="house-offer">
       <SectionHeader id="house-offer" eyebrow={t("offerTitle")} action={<span className="text-small text-muted">{fee} {t("perPerson")}</span>} />
-      <ul className={cn(CONTENT, "grid gap-x-6 gap-y-2 split:grid-cols-2")}>
+      <ul className={cn(ROW, "grid gap-x-6 gap-y-2 md:grid-cols-2")}>
         {stay.hostOffer.map((item) => (
           <li key={item} className="flex gap-2 text-body text-ink">
             <Check className="mt-1 size-4 shrink-0 text-accent" aria-hidden />
@@ -200,8 +223,8 @@ export function HouseOffer({ stay }: { stay: Stay }) {
 }
 
 /**
- * The map at full width. Google's embed takes no style, so the calm look comes from a CSS filter and one zoom step further out
- * (fewer labels); the accommodation lies over it, bottom left.
+ * The map as wide as the column, 260px, and over it (not on it) how the place stands. Booked: a pin. Not yet: no pin, a soft circle over the
+ * neighbourhood, and that the crew decides (or how many options they are voting on).
  */
 export function HouseWhere({ stay, chatLinkCount, canOpenChat }: { stay: Stay; chatLinkCount: number; canOpenChat: boolean }) {
   const t = useTranslations("house.page");
@@ -209,9 +232,12 @@ export function HouseWhere({ stay, chatLinkCount, canOpenChat }: { stay: Stay; c
   const tSection = useTranslations("house.accommodationSection");
   const format = useFormat();
   const { query, zoom } = mapQuery(stay);
-  const locked = stay.accommodationStatus === "locked" && stay.accommodationLink;
+  const locked = stay.accommodationStatus === "locked" && Boolean(stay.accommodationLink);
+  const vote = openVote(stay, "accommodation");
+  const hasCoordinates = !isCityOpen(stay) && Boolean(stay.lat || stay.lng);
+  const area = stay.location.area ?? stay.location.city ?? stay.region;
   return (
-    <section aria-labelledby="house-where" className={SECTION}>
+    <section aria-labelledby="house-where">
       <SectionHeader
         id="house-where"
         eyebrow={t("where")}
@@ -222,34 +248,23 @@ export function HouseWhere({ stay, chatLinkCount, canOpenChat }: { stay: Stay; c
           </a>
         }
       />
-      <div className={cn(CONTENT, "relative h-105 overflow-hidden rounded-3xl bg-line")}>
-        <iframe
-          src={`https://www.google.com/maps?q=${query}&z=${Math.max(zoom - 1, 2)}&output=embed`}
-          title={tMap("mapOf", { place: format.placeLabel(stay) })}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          className="absolute inset-0 size-full border-0 saturate-50 brightness-[1.03] contrast-[0.95]"
-        />
-        <div className="absolute bottom-4 left-4 w-[min(360px,calc(100%-32px))] rounded-[20px] bg-surface p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]">
-          <p className="text-small text-muted">{t("accommodation")}</p>
-          {locked ? (
-            <div className="mt-2">
-              <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={canOpenChat} inCard />
-            </div>
-          ) : (
-            <p className="mt-1 flex items-start gap-2 text-body font-semibold text-ink">
-              <LockOpen className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-              {t("accommodationOpen")}
-            </p>
-          )}
-          {!locked && canOpenChat && (
-            <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "md", "mt-1")}>
-              {tSection("openCrewChat")}
-            </Link>
-          )}
-        </div>
+      <div className={ROW}>
+        {locked ? (
+          <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={canOpenChat} inCard />
+        ) : (
+          <p className="flex flex-wrap items-center gap-x-3 text-small text-muted">
+            {vote ? t("crewVotingOptions", { count: vote.options.length }) : t("aroundArea", { area })}
+            {canOpenChat && (
+              <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "sm")}>
+                {tSection("openCrewChat")}
+              </Link>
+            )}
+          </p>
+        )}
       </div>
-      {isCityOpen(stay) && <p className="mt-2 text-small text-muted">{tMap("areaOpen")}</p>}
+      <div className="relative mt-3 h-65 overflow-hidden rounded-3xl bg-line">
+        <HouseMap lat={stay.lat} lng={stay.lng} pin={locked} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - 1, 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
+      </div>
     </section>
   );
 }
@@ -278,31 +293,103 @@ export function HouseMore({ stay }: { stay: Stay }) {
   );
 }
 
-/**
- * The floating Join bar: only once the whole stage has left the window, and out of the footer's way. Thumbnail, title, price
- * and the main action.
- */
-export function HouseJoinBar({ stay, photo, stageRef, cta }: { stay: Stay; photo?: string; stageRef: RefObject<HTMLElement | null>; cta: ReactNode }) {
+/** The heart and "…", at the top right of the content column; on phones the way back too. */
+export function HouseActions({ save, menu, onBack }: { save: ReactNode; menu?: ReactNode; /** Phones: the way back (no header there) */ onBack: () => void }) {
+  const t = useTranslations("house.page");
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <IconButton onClick={onBack} aria-label={t("back")} className="md:hidden">
+        <ArrowLeft className="size-5" aria-hidden />
+      </IconButton>
+      {save}
+      {menu}
+    </div>
+  );
+}
+
+/** The way in, small: 1 Request · 2 Host accepts · 3 Pay when the crew is complete. Once you've asked, where you are is in accent. */
+function JoinSteps({ stage }: { stage: MemberStage | null }) {
+  const t = useTranslations("house.page.steps");
+  const current = stage === "requested" ? 1 : stage === "accepted" || stage === "payment_due" ? 2 : -1;
+  return (
+    <ol aria-label={t("label")} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {(["request", "accepts", "pay"] as const).map((step, i) => (
+        <li key={step} aria-current={i === current ? "step" : undefined} className={cn("flex items-center gap-1 text-small", i === current ? "text-accent" : "text-muted")}>
+          <span aria-hidden className={cn("flex size-4.5 shrink-0 items-center justify-center rounded-full", i === current ? "bg-accent text-white" : "bg-ink/5")}>
+            {i + 1}
+          </span>
+          {t(step)}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** What it is, the host, and what it costs with the way in. The floating capsule comes when `ref`'s block has left the window. */
+export function HouseSummary({ stay, host, crew, cta, invite, message, actions, stage, showSteps, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; invite: ReactNode; message?: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; ref?: Ref<HTMLDivElement> }) {
+  const t = useTranslations("house.page");
+  const format = useFormat();
   const price = useViewerPriceLabel(stay);
-  const [stageGone, setStageGone] = useState(false);
+  const payBy = stage === "payment_due" && stay.paymentDueAt;
+  return (
+    <>
+      <div>
+        <div className="flex min-h-10 items-center justify-between gap-4">
+          <p className="min-w-0 truncate text-eyebrow uppercase text-accent">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
+          {actions}
+        </div>
+        <h1 className="mt-2 text-h1 text-ink">{stay.title}</h1>
+        <p className="mt-2 text-body-lg text-muted">
+          {stay.datesOpen ? t("lineOpen", { dates: format.stayDatesLong(stay), place: format.placeLabel(stay) }) : t("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: format.placeLabel(stay) })}
+        </p>
+      </div>
+      {host && <HouseHostLine host={host} />}
+      <div ref={ref}>
+        <p className="text-h2 text-ink">{price}</p>
+        <div className="mt-3 flex items-center gap-3">
+          <AvatarStack users={crew} size="sm" max={5} linked />
+          <CrewLine stay={stay} />
+        </div>
+        <div className="mt-5 flex flex-col gap-2 *:w-full">
+          {cta}
+          {invite}
+          {message}
+        </div>
+        <div className="mt-3 flex flex-col gap-2 empty:hidden">
+          {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
+          {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
+          {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
+          {showSteps && <JoinSteps stage={stage} />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The floating Join capsule, at every size: once the block with the price and the buttons has left the window, and out of the footer's way. Thumbnail,
+ * title, price and the main action.
+ */
+export function HouseJoinBar({ stay, photo, joinCardRef, cta }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode }) {
+  const price = useViewerPriceLabel(stay);
+  const [cardGone, setCardGone] = useState(false);
   const [atFooter, setAtFooter] = useState(false);
   useEffect(() => {
-    const stage = stageRef.current;
+    const card = joinCardRef.current;
     const footer = document.querySelector("footer");
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target === stage) setStageGone(!entry.isIntersecting);
+        if (entry.target === card) setCardGone(!entry.isIntersecting);
         else setAtFooter(entry.isIntersecting);
       }
     });
-    if (stage) observer.observe(stage);
+    if (card) observer.observe(card);
     if (footer) observer.observe(footer);
     return () => observer.disconnect();
-  }, [stageRef]);
-  const shown = stageGone && !atFooter;
+  }, [joinCardRef]);
+  const shown = cardGone && !atFooter;
   return (
     <div
-      data-house-join-bar
       inert={!shown}
       className={cn(
         "milk-glass fixed bottom-6 left-1/2 z-30 flex h-16 w-[min(100%-32px,640px)] -translate-x-1/2 items-center gap-3 rounded-full py-3 pl-3 pr-3 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-[translate,opacity] duration-300 motion-reduce:transition-none",

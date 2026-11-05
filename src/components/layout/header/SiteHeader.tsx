@@ -11,7 +11,8 @@ import { isNavActive, navItemsFor } from "@/components/layout/nav";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { activeCount } from "@/lib/exploreFilters";
 import { useExploreFilters } from "@/lib/exploreFilterState";
-import { setNotchOpen, setNotchSlot, useNotchState } from "@/lib/notchState";
+import { closeNotchPanel, setNotchOpen, setNotchPanelSlot, setNotchSlot, useNotchState } from "@/lib/notchState";
+import { lockScroll } from "@/components/ui/ModalOverlay";
 import { getCurrentUser, unreadThreadCount, useStore } from "@/lib/store";
 import { NavIcon } from "./FilledNavIcons";
 import { NotchGrip } from "./NotchGrip";
@@ -40,6 +41,7 @@ import { Container } from "@/components/layout/Container";
  *     edge, a 1px line rgba(0,0,0,0.08) half a pixel outside the shape, so it lies on one pixel row.
  * The concave tab shape exists only here and on the cards' host tab, nowhere else.
  */
+import { FocusHeader } from "./FocusHeader";
 
 /** The site header (desktop, ≥ md; phones have their own chrome). */
 export function SiteHeader() {
@@ -52,11 +54,10 @@ export function SiteHeader() {
 }
 
 function SiteHeaderByRoute() {
-  return <SiteHeaderView pathname={usePathname()} />;
+  const pathname = usePathname();
+  // Open a House is a focus mode: only the logo and the way out.
+  return pathname === "/create" ? <FocusHeader /> : <SiteHeaderView pathname={pathname} />;
 }
-
-/** The shape's layers: the open tab, in real pixels. */
-const SHAPE_H = 140;
 
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const t = useTranslations("nav");
@@ -76,31 +77,44 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const clipRef = useRef<HTMLDivElement>(null);
   const hitRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
+  const panelSlotRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   const refs = useMemo(
-    () => ({ header: headerRef, nav: navRef, shadow: shadowRef, path: pathRef, line: lineRef, edge: edgeRef, glass: glassRef, scrim: scrimRef, clip: clipRef, hit: hitRef, slot: slotRef, handle: handleRef }),
+    () => ({ header: headerRef, nav: navRef, shadow: shadowRef, path: pathRef, line: lineRef, edge: edgeRef, glass: glassRef, scrim: scrimRef, clip: clipRef, hit: hitRef, slot: slotRef, panelSlot: panelSlotRef, handle: handleRef }),
     [],
   );
-  const { mode, source, handle } = useNotchState();
-  const handleProps = useNotchShape(refs, mode, source, handle);
-  const open = mode === "filters";
+  const { mode, source, handle, auto } = useNotchState();
+  const handleProps = useNotchShape(refs, mode, source, handle, auto);
+  const open = mode !== "nav";
+  const closeTab = () => (mode === "panel" ? closeNotchPanel() : setNotchOpen(false));
   const filtersActive = activeCount(useExploreFilters()) > 0;
   const [gripHover, setGripHover] = useState(false);
 
   useLayoutEffect(() => {
     setNotchSlot(slotRef.current);
-    return () => setNotchSlot(null);
+    setNotchPanelSlot(panelSlotRef.current);
+    return () => {
+      setNotchSlot(null);
+      setNotchPanelSlot(null);
+    };
   }, []);
+
+  // The whole panel: the page behind it stays where it is.
+  useEffect(() => (mode === "panel" ? lockScroll() : undefined), [mode]);
 
   // Opened by hand: Escape or a click outside closes it. In Open Houses ("auto") it stays.
   useEffect(() => {
     if (!open || source !== "manual") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector('[role="dialog"]')) setNotchOpen(false);
+      if (e.key !== "Escape" || document.querySelector('[role="dialog"]')) return;
+      if (mode === "panel") closeNotchPanel();
+      else setNotchOpen(false);
     };
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Element;
-      if (!target.closest("[data-site-header], [role='dialog'], [data-anchored]")) setNotchOpen(false);
+      if (target.closest("[data-site-header], [role='dialog'], [data-anchored]")) return;
+      if (mode === "panel") closeNotchPanel();
+      else setNotchOpen(false);
     };
     window.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onPointer);
@@ -108,23 +122,23 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onPointer);
     };
-  }, [open, source]);
+  }, [open, source, mode]);
 
   return (
     <>
     {/* Under a tab opened by hand, over the page. Its strength comes with the tab (useNotchShape). */}
-    <div ref={scrimRef} aria-hidden data-notch-scrim onClick={() => setNotchOpen(false)} style={{ opacity: 0, pointerEvents: "none" }} className="fixed inset-0 z-39 hidden bg-[rgba(34,30,27,0.12)] backdrop-blur-[6px] md:block" />
+    <div ref={scrimRef} aria-hidden data-notch-scrim onClick={closeTab} style={{ opacity: 0, pointerEvents: "none" }} className="fixed inset-0 z-39 hidden bg-[rgba(34,30,27,0.12)] backdrop-blur-[6px] md:block" />
     <header ref={headerRef} data-site-header className="fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* The soft shadow: the same shape, blurred and lower, cut away inside the shape so nothing gathers in the curves. */}
-      <svg ref={shadowRef} aria-hidden height={SHAPE_H} style={{ filter: "blur(8px)", opacity: 0.04, visibility: "hidden" }} className="pointer-events-none absolute left-0 top-0 overflow-visible">
+      <svg ref={shadowRef} aria-hidden style={{ filter: "blur(8px)", opacity: 0.04, visibility: "hidden" }} className="pointer-events-none absolute left-0 top-0 overflow-visible">
         <g transform="translate(0 4)">
           <path ref={pathRef} fill="#000" />
         </g>
       </svg>
       {/* The one surface. Until it's measured: just the bar. */}
-      <div ref={glassRef} aria-hidden data-header-shape style={{ clipPath: "inset(0 0 76px 0)" }} className="milk-glass pointer-events-none absolute inset-x-0 top-0 h-35" />
+      <div ref={glassRef} aria-hidden data-header-shape style={{ clipPath: "inset(0 0 calc(100dvh - 64px) 0)" }} className="milk-glass pointer-events-none absolute inset-x-0 top-0 h-dvh" />
       {/* The edge: a 1px line on exact pixels, the same on straights and curves. */}
-      <svg ref={lineRef} aria-hidden height={SHAPE_H} style={{ visibility: "hidden" }} shapeRendering="geometricPrecision" className="pointer-events-none absolute left-0 top-0 overflow-visible">
+      <svg ref={lineRef} aria-hidden style={{ visibility: "hidden" }} shapeRendering="geometricPrecision" className="pointer-events-none absolute left-0 top-0 overflow-visible">
         <path ref={edgeRef} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
       </svg>
       {/* The tab below the bar takes the pointer: nothing behind it can be clicked. */}
@@ -177,8 +191,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         </div>
       </Container>
       {/* The page's filters come here (ExploreFilterBar): the tab's lower part, cut to the shape's own path. */}
-      <div ref={clipRef} data-notch-clip style={{ clipPath: "inset(0 0 76px 0)" }} className="pointer-events-none absolute inset-x-0 top-0 h-35">
+      <div ref={clipRef} data-notch-clip style={{ clipPath: "inset(0 0 calc(100dvh - 64px) 0)" }} className="pointer-events-none absolute inset-x-0 top-0 h-dvh">
         <div ref={slotRef} data-notch-slot className="pointer-events-none absolute top-20 h-10 opacity-0" />
+        {/* The whole filter panel (ExploreFeed): the third stage, as high as it needs up to 80vh. */}
+        <div ref={panelSlotRef} data-notch-panel className="pointer-events-none absolute top-19 opacity-0" />
       </div>
       {handle && (
         <button

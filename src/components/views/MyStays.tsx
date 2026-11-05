@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
+import { clearDraft, readDraft } from "@/components/create/model";
+import { regionShortName } from "@/components/create/places";
 import { MasterDetail } from "@/components/layout/MasterDetail";
 import { HouseDetail } from "@/components/stay/HouseDetail";
 import { Button } from "@/components/ui/ActionButton";
@@ -14,6 +16,8 @@ import { Badge } from "@/components/ui/Badge";
 import { cardClass } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
+import { MoreMenu } from "@/components/ui/MoreMenu";
+import { useToast } from "@/components/ui/Toast";
 import { StayThumb } from "@/components/ui/StayThumb";
 import { findUser, getCrew, isCrewMember, pendingRequestCount, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
@@ -94,6 +98,7 @@ function MyStaysContent() {
 
   const list = (
     <div className="space-y-2">
+      <DraftSection />
       <ListSection label={t("sections.hosting")} count={hosting.length} open={open.has("hosting")} onToggle={() => toggle("hosting")}>
         {hosting.length > 0 ? (
           <>
@@ -151,6 +156,7 @@ function MyStaysContent() {
   return (
     <MasterDetail
       fixedList
+      detailFill
       title={t("title")}
       list={list}
       // Desktop only – below lg a row opens /my-stays/[id].
@@ -166,6 +172,48 @@ function MyStaysContent() {
   );
 }
 
+/** The one draft of Open a House, on top while there is one: the cover or the soft surface, what it is so far, Continue and Discard in "…". */
+function DraftSection() {
+  const t = useTranslations("houses.sections");
+  const tResume = useTranslations("create.resume");
+  const f = useFormat();
+  const { currentUserId } = useStore();
+  const showToast = useToast();
+  const [draft, setDraft] = useState(readDraft);
+  const [open, setOpen] = useState(true);
+  if (!draft || (draft.ownerId && draft.ownerId !== currentUserId)) return null;
+  const { form } = draft;
+  const cover = form.photos[0];
+  const theme = form.customVibe?.trim() || (form.vibe ? f.vibe(form.vibe) : "");
+  return (
+    <ListSection label={t("drafts")} count={1} open={open} onToggle={() => setOpen((on) => !on)}>
+      <div className="flex items-center gap-1 rounded-2xl pr-1 transition-colors hover:bg-(--chip-bg)">
+        <Link href="/create" className="flex min-w-0 flex-1 items-center gap-3 p-2.5">
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-linear-to-br from-(--stage-peach) to-(--stage-mist)">{cover && <Img src={cover} alt="" fill sizes="56px" className="object-cover" />}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-body font-semibold text-ink">{form.title.trim() || theme || tResume("untitled")}</span>
+            <span className="block truncate text-small text-muted">{[form.city || regionShortName(form.region), draft.savedAt && f.day(draft.savedAt)].filter(Boolean).join(" · ")}</span>
+          </span>
+        </Link>
+        <MoreMenu
+          items={[
+            { label: tResume("continue"), href: "/create" },
+            {
+              label: tResume("discard"),
+              danger: true,
+              onSelect: () => {
+                clearDraft();
+                setDraft(null);
+                showToast(tResume("discarded"));
+              },
+            },
+          ]}
+        />
+      </div>
+    </ListSection>
+  );
+}
+
 /** A collapsible group of the list: "Hosting (3)" with a chevron, its rows below while open. */
 function ListSection({ label, count, open, onToggle, children }: { label: string; count: number; open: boolean; onToggle: () => void; children: ReactNode }) {
   const t = useTranslations("houses.sections");
@@ -178,7 +226,7 @@ function ListSection({ label, count, open, onToggle, children }: { label: string
         aria-expanded={open}
         aria-controls={id}
         aria-label={t("toggle", { label, count })}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-body font-semibold text-ink hover:bg-surface/60"
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-body font-semibold text-ink hover:bg-(--chip-bg)"
       >
         <ChevronRight className={cn("size-4 shrink-0 text-muted transition-transform duration-200", open && "rotate-90")} aria-hidden />
         <span className="flex-1">{label}</span>
@@ -219,11 +267,8 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
       href={isDesktop ? `/my-stays?id=${stay.id}` : `/my-stays/${stay.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      // Straight on the page background: a light surface on hover, and when active also a 3px ink bar at the left edge.
-      className={cn(
-        "relative flex items-center gap-3 rounded-2xl p-2.5 transition-colors",
-        active ? "bg-surface before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full before:bg-accent" : "hover:bg-surface/60",
-      )}
+      // Straight on the page background: a light surface on hover; the active one peach, like everything chosen.
+      className={cn("relative flex items-center gap-3 rounded-2xl p-2.5 transition-colors", active ? "bg-(--select-bg)" : "hover:bg-(--chip-bg)")}
     >
       {photo ? (
         <Img src={photo} alt={host.name} width={56} height={56} className="size-14 shrink-0 rounded-xl object-cover" />
@@ -240,7 +285,7 @@ function StayRowLink({ stay, active, isDesktop, pending = 0, waiting = false, in
           {stay.status === "draft" && <Badge>{tDraft("badge")}</Badge>}
         </div>
         <p className="truncate text-small text-muted">
-          {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
+          {f.placeName(stay)} · {f.stayDates(stay)}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <AvatarStack users={getCrew(store, stay)} size="xs" />

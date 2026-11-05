@@ -76,7 +76,7 @@ export interface Report {
   createdAt: string;
 }
 
-export type NotificationGroup = 'requests' | 'messages' | 'payments' | 'hostAlerts' | 'interests' | 'system';
+export type NotificationGroup = 'requests' | 'messages' | 'payments' | 'hostAlerts' | 'searches' | 'system';
 
 export interface UserSettings {
   /** inApp: shown under the bell (unset = on) */
@@ -99,6 +99,28 @@ export interface StayLocation {
   area?: string;
 }
 
+/** "Decide with crew": one proposal – a place (link + price per person) or a date range. */
+export interface VoteOption {
+  id: string;
+  voterIds: string[];
+  link?: string;
+  pricePerPerson?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+/** The crew's vote on the place or the dates (src/lib/crewVotes.ts). */
+export interface CrewVote {
+  options: VoteOption[];
+  /** YYYY-MM-DD, optional: the last day to vote */
+  deadline?: string;
+  /** The host ended it early */
+  closedAt?: string;
+  decidedOptionId?: string;
+}
+
+export type VoteKind = 'accommodation' | 'dates';
+
 /** One station of a House's typical day: "07:00" · "Gym". */
 export interface TypicalDayStop {
   time: string;
@@ -109,6 +131,8 @@ export interface Stay {
   id: string;
   /** "unlisted": works through its link but isn't on Explore (before the launch, src/lib/launch.ts). */
   visibility?: 'unlisted' | 'listed';
+  /** ISO. Until then only the people whose search it answers see it (src/lib/launch.ts). */
+  priorityUntil?: string;
   slug: string;
   title: string;
   hostId: string;
@@ -134,6 +158,14 @@ export interface Stay {
   currency: Currency;       // everything on the House is stored and charged in this currency
   accommodationStatus: AccommodationStatus;
   accommodationLink?: string;
+  /** "Decide with crew": the shortlist and who voted for which; the price stays a range until it's decided */
+  accommodationVote?: CrewVote;
+  /** "Decide with crew" on the dates */
+  datesVote?: CrewVote;
+  /** Only the month is settled: startDate and endDate are the month's bounds, shown as "March 2027" */
+  datesOpen?: boolean;
+  /** More languages spoken in the House, besides `language` (ISO 639-1) */
+  languages?: string[];
   description: string;
   whyText: string;
   dayText: string;
@@ -170,6 +202,12 @@ export interface Stay {
   hostOffer?: string[];
   /** The ages the host is aiming for ("Looking for 27–38") – shown only, no filter */
   ageRange?: { min: number; max: number };
+  /** Crew complete and the place chosen: everyone's share is due by this moment (48h), then an unpaid spot opens up again */
+  paymentDueAt?: string;
+  /** Everyone paid: the money is with the host, who confirms the booking within 48h; otherwise it all goes back */
+  allPaidAt?: string;
+  /** Who the House is for; unset = mixed */
+  who?: 'mixed' | 'women';
   /** Prepared on behalf of someone (admin): who it's for and the claim link. Kept after the claim, with claimedAt. */
   claim?: StayClaim;
   /** "Do it again?": the House this draft was copied from */
@@ -239,6 +277,9 @@ export interface HouseInvite {
   expiresAt: string;
   /** When the (mock) mail last went out */
   emailedAt?: string;
+  /** A saved search's head start, not the host's invite: for one person, holds no spot until it's used, the host doesn't see it */
+  priority?: true;
+  invitedUserId?: string;
   status: HouseInviteStatus;
   usedBy?: string;
 }
@@ -310,7 +351,8 @@ export interface Message {
  * – payments and booking status stay on the House page, never in the chat.
  */
 export type SystemEventKey =
-  | 'joined' | 'left' | 'removed' | 'closed' | 'crewComplete' | 'bookingConfirmed' | 'addressShared' | 'refund';
+  | 'joined' | 'left' | 'removed' | 'closed' | 'crewComplete' | 'bookingConfirmed' | 'addressShared' | 'refund'
+  | 'searchHouseOpened' | 'accommodationDecided' | 'datesDecided' | 'paymentLapsed';
 export interface MessageEvent {
   key: SystemEventKey;
   values: Record<string, string | number>;
@@ -319,11 +361,12 @@ export interface MessageEvent {
 /**
  * house: the House's group chat – created with the first confirmed join; host + confirmed crew.
  * direct: one guest and the host, about a House ("Message host").
+ * updates: Simpulo to one person, about their saved searches: system lines only, no House, nothing to answer.
  */
 export interface Thread {
   id: string;
-  type: 'house' | 'direct';
-  /** The House it's about (both kinds are tied to one) */
+  type: 'house' | 'direct' | 'updates';
+  /** The House it's about (house and direct are tied to one) */
   houseId?: string;
   participantIds: string[];
   messages: Message[];
@@ -343,7 +386,7 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
     verified: true, socials: [{ platform: 'instagram', value: 'lukas.moves' }, { platform: 'website', value: 'https://simpulo.app' }], savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
     email: 'lukas@simpulo.app', signInMethod: 'apple',
     settings: {
-      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, interests: { push: true, email: true }, system: { push: false, email: false } },
+      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, searches: { push: true, email: true }, system: { push: false, email: false } },
       // Someone who hosts nothing: Explore shows every House to the default mock user.
       blockedUserIds: ['u17'],
     },
@@ -675,6 +718,14 @@ const coreStays: Stay[] = [
     city: 'Lisbon', region: 'Portugal', location: { city: 'Lisbon', country: 'Portugal' }, lat: 38.72, lng: -9.14, mapPreviewUrl: map('lisbon'),
     startDate: '2027-01-10', endDate: '2027-02-07', spotsTotal: 5, spotsFilled: 1,
     budgetPerPerson: { min: 700, max: 950 }, currency: 'EUR', accommodationStatus: 'open',
+    accommodationVote: {
+      options: [
+        { id: 'p1', link: 'https://www.airbnb.com/rooms/example-alfama-townhouse', pricePerPerson: 820, voterIds: ['u3'] },
+        { id: 'p2', link: 'https://www.booking.com/hotel/pt/example-carcavelos-villa.html', pricePerPerson: 900, voterIds: ['u1'] },
+        { id: 'p3', link: 'https://www.airbnb.com/rooms/example-principe-real-loft', pricePerPerson: 740, voterIds: [] },
+      ],
+      deadline: '2026-12-15',
+    },
     description: 'Four weeks of deep work with people building their own thing. Big table, good wifi, surf at Carcavelos.',
     whyText: 'Shipping alone is slow. I want four other people at the table who are as serious about their project as I am.',
     dayText: '07:30 surf or run · 09:00–13:00 deep work · lunch together · 14:00–18:00 work · demo night every Friday.',
@@ -1492,7 +1543,22 @@ for (const stay of stays) {
   stay.themeQueries = THEME_QUERIES[source] ?? stay.imageQueries?.map((q, i) => THEME_QUERY_FIXES[`${stay.id}/${i + 1}`] ?? q);
   stay.imageQueries ??= stay.themeQueries;
   stay.photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(source, i + 1));
+  stay.who ??= /\bwomen\b/i.test(`${stay.title} ${stay.slug.replace(/-/g, ' ')}`) ? 'women' : 'mixed';
+  const hostAge = users.find((u) => u.id === stay.hostId)?.age;
+  if (hostAge) stay.ageRange ??= { min: Math.max(18, hostAge - 6), max: hostAge + 6 };
 }
+/*
+ * The state shelves need Houses in these states in every dev session, also later than the fixed dates here: the latest Houses with only
+ * their host count as just opened, some with two spots left get a smaller crew and with it their last spot.
+ */
+const MOCK_TODAY = new Date().toISOString().slice(0, 10);
+const latestFirst = stays.filter((s) => s.status === 'published').toSorted((a, b) => b.startDate.localeCompare(a.startDate));
+latestFirst.filter((s) => s.spotsFilled <= 1).slice(0, 8).forEach((stay, i) => {
+  stay.createdAt = new Date(Date.parse(`${MOCK_TODAY}T09:00:00Z`) - (i % 6) * 24 * 60 * 60 * 1000).toISOString();
+});
+latestFirst.filter((s) => s.accommodationStatus === 'open' && s.spotsFilled > 1 && s.spotsTotal - s.spotsFilled === 2).slice(0, 4).forEach((stay) => {
+  stay.spotsTotal -= 1;
+});
 for (const user of users) {
   if (user.imageQueries) continue;
   user.facePhotoQuery = FACE_QUERIES[user.id];

@@ -1,9 +1,5 @@
-// A place people can want to go. Everything that talks about a place refers to Destination.id, never to typed text.
-import type { WorldRegion } from "../interests";
-
-/** "fallback-dev": a mock photo standing in, only with APP_MODE "dev" (mock-destination-images.ts). */
-export type DestinationImageSource = "curated" | "pexels" | "fallback" | "fallback-dev";
-export type DestinationStatus = "approved" | "pending" | "hidden";
+// A city of the curated list: a source for the place search and the host's map, never a page or a card of its own.
+import type { WorldRegion } from "../worldRegions";
 
 export interface Destination {
   id: string;
@@ -11,31 +7,16 @@ export interface Destination {
   name: string;
   country: string;
   countryCode: string;
-  region: WorldRegion;
+  /** "": not known yet */
+  region: WorldRegion | "";
   lat: number;
   lng: number;
+  /** public/destinations/<slug>.jpg, if the file exists */
   coverImage?: string;
-  imageSource: DestinationImageSource;
-  /** Only with imageSource "pexels": shown as the card's credit */
-  photographer?: { name: string; url: string };
-  status: DestinationStatus;
-  interestedCount: number;
-  /** YYYY-MM, sorted */
-  interestedMonths: string[];
 }
 
-export interface DestinationInterest {
-  destinationId: string;
-  /** YYYY-MM, or just FLEXIBLE */
-  months: string[];
-  email?: string;
-  userId?: string;
-  consent: boolean;
-  createdAt: string;
-}
-
-/** What a search finds: a place, not yet a Destination unless someone picks it. */
-export type DestinationCandidate = Pick<Destination, "id" | "slug" | "name" | "country" | "countryCode" | "region" | "lat" | "lng">;
+/** A city of the list without a picture. */
+export type DestinationCandidate = Omit<Destination, "coverImage">;
 
 const fold = (text: string) => text.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ø/g, "o").replace(/ß/g, "ss").replace(/ł/g, "l");
 

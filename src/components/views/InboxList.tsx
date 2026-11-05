@@ -60,6 +60,7 @@ function InboxContent() {
   const mine = store.threads.filter((t) => me !== null && t.participantIds.includes(me));
 
   const rows: ThreadRow[] = mine.flatMap((thread): ThreadRow[] => {
+    if (thread.type === "updates") return [{ thread, title: t("updates"), past: false }];
     const stay = store.stays.find((s) => s.id === thread.houseId);
     if (!stay) return [];
     if (thread.type === "house") {
@@ -74,7 +75,7 @@ function InboxContent() {
   const q = query.trim().toLowerCase();
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
   const crews = rows.filter((r) => r.thread.type === "house" && !r.past && matches(r)).toSorted(newestFirst);
-  const direct = rows.filter((r) => r.thread.type === "direct" && matches(r)).toSorted(newestFirst);
+  const direct = rows.filter((r) => r.thread.type !== "house" && matches(r)).toSorted(newestFirst);
   const past = rows.filter((r) => r.past && matches(r)).toSorted(newestFirst);
   const ordered = [...crews, ...direct, ...past];
 

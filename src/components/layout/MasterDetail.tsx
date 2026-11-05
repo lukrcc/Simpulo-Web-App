@@ -27,7 +27,7 @@ const column = "split:scroll-pane split:h-full split:min-h-0";
  */
 export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false }: MasterDetailProps) {
   return (
-    <Container className="pt-6 md:pt-8 split:h-[calc(100dvh-var(--header-total)-var(--slim-footer-h))] split:overflow-hidden split:pb-6 split:pt-8">
+    <Container className={cn("pt-6 md:pt-8 split:h-[calc(100dvh-var(--header-total)-var(--slim-footer-h))] split:overflow-hidden split:pb-6", fixedList ? "split:pt-0" : "split:pt-8")}>
       <div data-app-pane="desktop" className={cn("split:grid split:h-full split:gap-6", fixedList ? "split:grid-cols-[380px_minmax(0,1fr)]" : "split:grid-cols-12")}>
         {/* No page title – the list starts 32px under the header; the name stays as the region's label. */}
         <div aria-label={title} className={cn("min-w-0", !fixedList && "split:col-span-4", "split:pr-2", column)}>

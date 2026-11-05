@@ -12,8 +12,6 @@ export const VISIBLE_CHIPS = 8;
 /** From this many Houses (in the feed's scope) on, the row gets its own sort capsule next to Filters. */
 export const SORT_INLINE_THRESHOLD = 50;
 
-/** From this many Houses on, the row gets the place / date search field. Built already, not shown at today's numbers. */
-export const SEARCH_INLINE_THRESHOLD = 300;
 
 /** The "More" categories popover (a 3-column grid): at most this wide (px). */
 export const MORE_POPOVER_MAX_WIDTH = 420;
@@ -30,20 +28,26 @@ export const LAUNCH_MIN_HOUSES = 10;
 /** The Spotlight only with at least this many Houses to choose from. */
 export const SPOTLIGHT_MIN = 5;
 
-/** A destination is on a public card only with at least this many people interested (and approved). */
-export const DESTINATION_MIN_INTEREST = 3;
+/** A place is on the host's map only with at least this many people searching for it. */
+export const MAP_MIN_PEOPLE = 3;
 
-/** From this many listed Houses, curated destinations show even without that many people. */
-export const DESTINATIONS_ALL_FROM_HOUSES = 50;
+/** A new House belongs to the people whose search it answers this long: only they see it, and each has a token to join. */
+export const SEARCH_HEAD_START_HOURS = 48;
 
 /*
  * The shelves' thresholds. To see the theme shelves in dev: lower THEME_SHELVES_MIN_TOTAL and THEME_SHELF_MIN_ITEMS here
  * (the Full data state has 100 Houses, with 5 to 24 per theme).
  */
-/** Short trips only with at least this many Houses of up to 5 nights. */
-export const SHORT_TRIPS_MIN = 8;
+/** A state shelf (Starting soon, Last spot, Just opened, Short trips) only with at least this many Houses of its own. */
+export const STATE_SHELF_MIN = 6;
 
-/** Theme shelves (Party houses, Train together, …) only from this many Houses overall. */
+/** Starting soon: starts within this many days. */
+export const STARTING_SOON_DAYS = 30;
+
+/** Just opened: at most this many days old, and only the host in it. */
+export const JUST_OPENED_DAYS = 7;
+
+/** Theme shelves (Party houses, Train together, …) only from this many Houses overall; before that the state shelves. */
 export const THEME_SHELVES_MIN_TOTAL = 300;
 
 /** A theme shelf only with at least this many Houses of its own. */

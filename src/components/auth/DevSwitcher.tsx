@@ -1,15 +1,16 @@
 "use client";
 
-import { Bell, MoreHorizontal } from "lucide-react";
+import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useNotificationText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
 import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
 import { APP_MODE } from "@/lib/appMode";
-import { DATA_STATES, readDataState, saveDataState } from "@/lib/data";
+import { DATA_STATES, installedUsers, readDataState, saveDataState } from "@/lib/data";
 import { computeReminders, type Reminder } from "@/lib/reminders";
-import { findUser, getCrew, OPEN_AS_PARAM, useStore } from "@/lib/store";
+import { findUser, getCrew, NOTIFY_GROUP, OPEN_AS_PARAM, settingsOf, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +48,7 @@ function DevSwitcherInner() {
   const { users, currentUserId, login, logout } = store;
   const stay = useRouteStay();
   const [open, setOpen] = useState(false);
-  const [panel, setPanel] = useState<"menu" | "scheduled" | null>(null);
+  const [panel, setPanel] = useState<"menu" | "scheduled" | "log" | null>(null);
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
   const reminders = currentUserId ? computeReminders(store, currentUserId) : [];
@@ -92,9 +93,6 @@ function DevSwitcherInner() {
             </div>
             <FlagSwitch flag="hostPremium" />
             <DataPreset />
-            <a href="/dev/destinations" className="block px-4 pb-2.5 font-medium text-muted hover:text-ink">
-              {t("destinations")}
-            </a>
             {(currentUserId || stay) && (
               <div className="flex items-center gap-1 px-2 py-1.5">
                 {currentUserId && (
@@ -108,6 +106,10 @@ function DevSwitcherInner() {
                     {t("scheduled")} · {reminders.length}
                   </button>
                 )}
+                <button type="button" onClick={() => setPanel((p) => (p === "log" ? null : "log"))} aria-pressed={panel === "log"} className={action}>
+                  <ScrollText className="size-3.5" />
+                  {t("log")}
+                </button>
                 {stay && (
                   <button
                     type="button"
@@ -124,7 +126,7 @@ function DevSwitcherInner() {
             )}
             {panel && (
               <div className="">
-                {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : <ScheduledPanel reminders={reminders} />}
+                {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : panel === "log" ? <DeliveryLog /> : <ScheduledPanel reminders={reminders} />}
               </div>
             )}
           </div>
@@ -231,6 +233,44 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
       <button type="button" disabled={!member} onClick={() => member && open(member.id)} className={item}>
         {member ? t("openAsMember", { name: member.name.split(" ")[0] }) : t("noCrewMember")}
       </button>
+      {/* Only for trying things out: not on the page. */}
+      {stay.accommodationStatus === "locked" && stay.hostId === store.currentUserId && (
+        <button
+          type="button"
+          onClick={() => {
+            void store.unlockAccommodation(stay.id);
+            onDone();
+          }}
+          className={item}
+        >
+          {t("unlockAccommodation")}
+        </button>
+      )}
+      {stay.accommodationStatus === "locked" && (
+        <button
+          type="button"
+          onClick={() => {
+            store.resetPayments(stay.id);
+            onDone();
+          }}
+          className={item}
+        >
+          {t("resetPayments")}
+        </button>
+      )}
+      {/* What the clock does when the 48 hours are up (payment, or the host's booking). */}
+      {(stay.paymentDueAt || stay.allPaidAt) && !stay.bookingConfirmedAt && (
+        <button
+          type="button"
+          onClick={() => {
+            store.lapsePaymentWindow(stay.id);
+            onDone();
+          }}
+          className={item}
+        >
+          {t("lapse48h")}
+        </button>
+      )}
       {/* What the scheduled job will do after the end date: completed, Crew record written. */}
       {(stay.status === "published" || stay.status === "booked") && (
         <button
@@ -245,6 +285,46 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
         </button>
       )}
     </div>
+  );
+}
+
+const LOG_MAX = 50;
+
+/**
+ * The store's outbox as the server would send it: who gets what, by email always and push if the app is installed, by their settings.
+ * Real sending is server-side; here it's a log, newest first, never a toast.
+ */
+function DeliveryLog() {
+  const t = useTranslations("auth.dev");
+  const tNotify = useTranslations("messages.notify");
+  const tCommon = useTranslations("common");
+  const text = useNotificationText();
+  const store = useStore();
+  const events = [...Map.groupBy(store.notifications.filter((n) => !n.mock), (n) => n.eventId).values()].reverse().slice(0, LOG_MAX);
+  const lines = events.flatMap((records) => {
+    const delivered = records
+      .map(({ userId: id }) => {
+        const prefs = settingsOf(findUser(store, id)).notifications[NOTIFY_GROUP[records[0].key]];
+        return { id, email: prefs.email, push: prefs.push && installedUsers.has(id) };
+      })
+      .filter((r) => r.email || r.push);
+    if (delivered.length === 0) return [];
+    const names = delivered.map(({ id }) => (id === store.currentUserId ? tCommon("you") : (findUser(store, id)?.name.split(" ")[0] ?? "")));
+    const anyPush = delivered.some((r) => r.push);
+    const anyEmail = delivered.some((r) => r.email);
+    const recipients = names.length > 3 ? tNotify("andMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 }) : names.join(", ");
+    const channels = anyEmail && anyPush ? tNotify("channelEmailPush") : anyPush ? tNotify("channelPush") : tNotify("channelEmail");
+    return [{ id: records[0].eventId, line: tNotify("delivery", { recipients, channels, text: text(records[0]) }) }];
+  });
+  if (lines.length === 0) return <p className="px-4 py-4 text-muted">{t("logEmpty")}</p>;
+  return (
+    <ul className="scroll-pane max-h-80">
+      {lines.map(({ id, line }) => (
+        <li key={id} className="px-4 py-2 text-muted">
+          {line}
+        </li>
+      ))}
+    </ul>
   );
 }
 

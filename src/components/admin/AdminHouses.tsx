@@ -89,7 +89,7 @@ function PreparedRow({ stay }: { stay: Stay }) {
           <Badge>{claim.claimedAt ? t("claimed") : t("unclaimed")}</Badge>
         </div>
         <p className="truncate text-small text-muted">
-          {claim.name} · {f.placeName(stay)} · {f.shortRange(stay.startDate, stay.endDate)}
+          {claim.name} · {f.placeName(stay)} · {f.stayDates(stay)}
         </p>
         {claim.claimedAt && (
           <p className="text-small text-muted">{t("claimedBy", { name: claimedBy?.name ?? claim.claimedBy ?? "", date: f.day(claim.claimedAt) })}</p>

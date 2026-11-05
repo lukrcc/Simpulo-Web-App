@@ -43,7 +43,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
   const items: MoreMenuItem[] = isHost
     ? [
         ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/my-stays?id=${stay.id}` }]),
-        { label: t("crewMenu.edit"), href: `/my-stays/${stay.id}/edit` },
+        ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/my-stays/${stay.id}/edit` }]),
         // Taking requests is a setting, not a status to show – it lives here.
         ...(stay.status === "published" || stay.status === "booked"
           ? [

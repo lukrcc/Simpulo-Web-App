@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Stay, Thread } from "@/lib/types";
+import { CrewVotes } from "@/components/stay/CrewVotes";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ function ThreadGate({ threadId, embedded, inline = false }: { threadId: string; 
     thread?.type === "direct" && thread.participantIds.some((id) => id !== store.currentUserId && isBlocked(store, id));
 
   if (blockedDirect) return <ThreadNotFound embedded={embedded} />;
+  if (thread?.type === "updates" && store.currentUserId && thread.participantIds.includes(store.currentUserId)) return <UpdatesContent key={thread.id} thread={thread} embedded={embedded} />;
 
   // Crew threads open up only after acceptance (participants), direct threads only to the two people in them.
   if (!thread || !stay || !store.currentUserId || !thread.participantIds.includes(store.currentUserId)) {
@@ -103,6 +105,42 @@ function ThreadNotFound({ embedded }: { embedded: boolean }) {
   );
 }
 
+/** Simpulo's lines about someone's saved searches: nothing to answer, no House. */
+function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolean }) {
+  const t = useTranslations("messages");
+  const { markThreadRead } = useStore();
+  const messageCount = thread.messages.length;
+  useEffect(() => {
+    markThreadRead(thread.id);
+  }, [messageCount, thread.id, markThreadRead]);
+  return (
+    <ThreadFrame embedded={embedded}>
+      <p className="shrink-0 px-5 py-4 text-h3 text-ink">{t("inbox.updates")}</p>
+      <MessageList thread={thread} emptyText={t("thread.notFound")} onReply={() => {}} />
+    </ThreadFrame>
+  );
+}
+
+function ThreadFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  if (embedded) {
+    // The standard card, filling the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
+    // Messages and composer keep the page's tint inside it: other people's bubbles are surface too.
+    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-surface", cardShadow)}>{children}</div>;
+  }
+
+  // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
+  // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
+  // itself never scrolls.
+  return (
+    <div
+      data-app-pane="always"
+      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]"
+    >
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{children}</div>
+    </div>
+  );
+}
+
 function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; stay: Stay; embedded: boolean; inline: boolean }) {
   const t = useTranslations("messages.thread");
   const store = useStore();
@@ -127,6 +165,7 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   const content = (
     <>
       {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} /> : <DirectHeader stay={stay} other={other} embedded={embedded} />}
+      {thread.type === "house" && <CrewVotes stay={stay} pinned />}
       <MessageList
         thread={thread}
         emptyText={thread.type === "house" ? t("sayHiCrew") : otherName ? t("sayHiDirect", { name: otherName }) : t("sayHiDirectUnknown")}
@@ -142,21 +181,5 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
     </>
   );
 
-  if (embedded) {
-    // The standard card, filling the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
-    // Messages and composer keep the page's tint inside it: other people's bubbles are surface too.
-    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-surface", cardShadow)}>{content}</div>;
-  }
-
-  // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
-  // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
-  // itself never scrolls.
-  return (
-    <div
-      data-app-pane="always"
-      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]"
-    >
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{content}</div>
-    </div>
-  );
+  return <ThreadFrame embedded={embedded}>{content}</ThreadFrame>;
 }

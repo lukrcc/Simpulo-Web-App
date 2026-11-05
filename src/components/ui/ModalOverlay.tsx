@@ -31,7 +31,7 @@ let lockedScrollY = 0;
  * Locks page scrolling without a jump: the body is pinned at the current offset (works on iOS too, where
  * overflow: hidden alone doesn't stop the page) and the scrollbar's width is kept as padding. Nested locks share one.
  */
-function lockScroll(): () => void {
+export function lockScroll(): () => void {
   if (scrollLocks++ === 0) {
     lockedScrollY = window.scrollY;
     const scrollbar = window.innerWidth - document.documentElement.clientWidth;

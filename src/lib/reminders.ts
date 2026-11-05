@@ -30,7 +30,8 @@ interface ReminderData {
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 /** Rule timings */
-const PAY_DUE_DAYS_BEFORE = 2;
+const PAY_DUE_HOURS_BEFORE = 24;
+const PAY_LAST_CALL_HOURS_BEFORE = 3;
 const BOOKING_UPLOAD_HOURS = 24;
 const REQUEST_ANSWER_HOURS = 48;
 const ARRIVAL_DAYS_BEFORE = 3;
@@ -60,12 +61,13 @@ export function computeReminders(data: ReminderData, userId: string, now = Date.
   for (const stay of data.stays) {
     const active = stay.status === "published" || stay.status === "booked";
 
-    // Own open share of a locked place: two days before the deadline, and on the day.
+    // Own open share, once it's due: a day before the 48 hours are up, and just before.
     const mine = data.payments.find((p) => p.stayId === stay.id && p.userId === userId && p.status === "pending");
-    if (mine && stay.accommodationStatus === "locked" && stay.payByDate) {
-      const values = { title: stay.title, price: mine.total, payBy: stay.payByDate, name };
-      add({ type: "payDue", stayId: stay.id, due: iso(dayStart(stay.payByDate) - PAY_DUE_DAYS_BEFORE * DAY), notifyKey: "reminderPayDue", values });
-      add({ type: "payToday", stayId: stay.id, due: iso(dayStart(stay.payByDate)), notifyKey: "reminderPayToday", values });
+    if (mine && stay.accommodationStatus === "locked" && stay.paymentDueAt) {
+      const deadline = new Date(stay.paymentDueAt).getTime();
+      const values = { title: stay.title, price: mine.total, payBy: stay.paymentDueAt.slice(0, 10), name };
+      add({ type: "payDue", stayId: stay.id, due: iso(deadline - PAY_DUE_HOURS_BEFORE * HOUR), notifyKey: "reminderPayDue", values });
+      add({ type: "payToday", stayId: stay.id, due: iso(deadline - PAY_LAST_CALL_HOURS_BEFORE * HOUR), notifyKey: "reminderPayToday", values });
     }
 
     if (stay.hostId === userId && active) {

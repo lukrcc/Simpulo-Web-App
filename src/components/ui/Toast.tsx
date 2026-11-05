@@ -2,6 +2,7 @@
 
 import { Bell, CircleCheck } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { GlassPanel } from "@/components/ui/GlassPanel";
 
 type ToastTone = "done" | "notify";
 
@@ -13,62 +14,47 @@ interface ToastState {
   href?: string;
 }
 
-/** `durationMs`: how long it stays (default TOAST_MS). `href`: the message links there. */
-type ShowToast = (message: string, tone?: ToastTone, durationMs?: number, href?: string) => void;
+/** `href`: the message links there. */
+type ShowToast = (message: string, tone?: ToastTone, href?: string) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
 
-const TOAST_MS = 2600;
-/** An action and its notification often fire together – keep both visible, never more than three. */
-const MAX_TOASTS = 3;
+const TOAST_MS = 4000;
 
+/**
+ * One toast at a time, answering what you just did: top right under the header, glass, gone after 4s; a new one takes its place. What
+ * happens elsewhere goes to the bell (and in dev to the Dev menu's log), never here.
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastState[]>([]);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const nextId = useRef(0);
-  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const showToast = useCallback<ShowToast>((message, tone = "done", durationMs = TOAST_MS, href) => {
+  const showToast = useCallback<ShowToast>((message, tone = "done", href) => {
     nextId.current += 1;
-    const id = nextId.current;
-    setToasts((list) => [...list, { id, message, tone, href }].slice(-MAX_TOASTS));
-    const timer = setTimeout(() => {
-      timers.current.delete(timer);
-      setToasts((list) => list.filter((t) => t.id !== id));
-    }, durationMs);
-    timers.current.add(timer);
+    setToast({ id: nextId.current, message, tone, href });
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
     <ToastContext.Provider value={showToast}>
       {children}
-      <div
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-28 z-[60] flex flex-col items-center gap-2 px-4 md:bottom-8"
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="animate-toast-in flex max-w-full items-center gap-2 glass-panel rounded-full! px-4 py-2.5 text-body font-medium text-ink"
-          >
-            {toast.tone === "notify" ? (
-              <Bell className="size-4 shrink-0 text-muted" />
-            ) : (
-              <CircleCheck className="size-4 shrink-0 text-ink" />
-            )}
+      <div aria-live="polite" className="pointer-events-none fixed right-(--page-margin) top-[calc(var(--header-total)+8px)] z-[80] w-[min(380px,calc(100vw-2*var(--page-margin)))]">
+        {toast && (
+          <GlassPanel key={toast.id} className="animate-toast-in flex items-start gap-2 rounded-[20px]! px-4 py-3 text-body font-medium text-ink">
+            {toast.tone === "notify" ? <Bell className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden /> : <CircleCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />}
             {toast.href ? (
-              <a href={toast.href} className="pointer-events-auto truncate underline underline-offset-4">
+              <a href={toast.href} className="pointer-events-auto min-w-0 underline underline-offset-4">
                 {toast.message}
               </a>
             ) : (
-              <span className="truncate">{toast.message}</span>
+              <span className="min-w-0">{toast.message}</span>
             )}
-          </div>
-        ))}
+          </GlassPanel>
+        )}
       </div>
     </ToastContext.Provider>
   );

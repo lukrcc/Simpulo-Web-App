@@ -380,17 +380,17 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
           </div>
         </div>
 
-        <IconButton size="lg" onClick={() => {
+        <IconButton variant="onImage" size="lg" onClick={() => {
             pauseAutoplay();
             emblaApi?.scrollPrev();
           }} aria-label={tc("previous", { item: tc("defaultItem") })} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
-          <ChevronLeft className="size-5" strokeWidth={2.5} aria-hidden />
+          <ChevronLeft className="size-5" aria-hidden />
         </IconButton>
-        <IconButton size="lg" onClick={() => {
+        <IconButton variant="onImage" size="lg" onClick={() => {
             pauseAutoplay();
             emblaApi?.scrollNext();
           }} aria-label={tc("next", { item: tc("defaultItem") })} className={cn(ARROW, "right-4", !ends.next && ARROW_GONE)}>
-          <ChevronRight className="size-5" strokeWidth={2.5} aria-hidden />
+          <ChevronRight className="size-5" aria-hidden />
         </IconButton>
       </section>
       </div>

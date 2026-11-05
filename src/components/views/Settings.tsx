@@ -30,10 +30,10 @@ type Section = (typeof SECTIONS)[number];
  * The four notification toggles – each one channel of one group. Payment and booking updates aren't here: they always
  * go out (see settingsOf).
  */
-type NotificationKey = "messages" | "nextStop" | "houseUpdates" | "news";
+type NotificationKey = "messages" | "savedSearches" | "houseUpdates" | "news";
 const NOTIFICATION_ROWS: ReadonlyArray<{ key: NotificationKey; group: NotificationGroup; channel: Exclude<NotificationChannel, "inApp"> }> = [
   { key: "messages", group: "messages", channel: "push" },
-  { key: "nextStop", group: "interests", channel: "push" },
+  { key: "savedSearches", group: "searches", channel: "push" },
   { key: "houseUpdates", group: "requests", channel: "push" },
   { key: "news", group: "system", channel: "email" },
 ];
@@ -351,7 +351,7 @@ function PaymentsSection({ me }: { me: User }) {
                 <li key={stay.id}>
                   <ListRow
                     title={stay.title}
-                    subtitle={done ? f.shortRange(stay.startDate, stay.endDate) : `${f.shortRange(stay.startDate, stay.endDate)} · ${t("onHold")}`}
+                    subtitle={done ? f.stayDates(stay) : `${f.stayDates(stay)} · ${t("onHold")}`}
                     aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>}
                     // "On hold until the booking is confirmed" is a sentence – it reads as the subtitle, the Badge says the state.
                     action={<Badge>{done ? t("paidOut") : t("status.pending")}</Badge>}

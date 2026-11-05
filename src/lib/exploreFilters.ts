@@ -1,7 +1,8 @@
-// Explore filters: OR within one filter, AND across filters – (Thailand OR Indonesia) AND English AND Feb 2027 AND
-// (Fitness OR Surf). The whole state lives in the URL (?country=TH,ID&lang=en&month=2027-02&vibe=fitness,surf
-// &budget=200-900&sort=newest), so a filtered Explore can be shared and survives a reload.
-import { FLEXIBLE, worldRegionOf, type WorldRegion } from "./interests";
+// Explore filters: OR within one filter, AND across filters – Lisbon AND Feb 2027 AND English AND (Fitness OR Surf). The whole state
+// lives in the URL (?place=lisbon&month=2027-02&lang=en&vibe=fitness,surf&budget=200-900&sort=newest), so a filtered Explore can be
+// shared and survives a reload.
+import { placeById } from "./data/places";
+import { runsIn, stayInPlace } from "./savedSearches";
 import { convertApprox } from "./rates";
 import type { Stay, Vibe } from "./types";
 import { openSpots } from "./utils";
@@ -17,41 +18,42 @@ export const LENGTH_KEYS: readonly LengthKey[] = ["weekend", "weeks", "long"];
 export type SpotsMin = 1 | 3;
 export const SPOTS_MINS: readonly SpotsMin[] = [1, 3];
 
+/** The crew's size: 3–4 · 5–6 · 7 and up. */
+export type CrewSizeKey = "3-4" | "5-6" | "7-10";
+export const CREW_SIZE_KEYS: readonly CrewSizeKey[] = ["3-4", "5-6", "7-10"];
+export type WhoKey = "mixed" | "women";
+export const WHO_KEYS: readonly WhoKey[] = ["mixed", "women"];
+export type AgeKey = "18-25" | "25-35" | "35+";
+export const AGE_KEYS: readonly AgeKey[] = ["18-25", "25-35", "35+"];
+/** booked: the place is locked · together: still decided with the crew */
+export type AccommodationKey = "booked" | "together";
+export const ACCOMMODATION_KEYS: readonly AccommodationKey[] = ["booked", "together"];
+
 export interface ExploreFilters {
   vibes: Vibe[];
-  /** ISO 3166-1 alpha-2 ("TH") */
-  countries: string[];
+  /** Where? A place's id (data/places): Houses within 50km of a city, inside a region or country */
+  place: string | null;
+  /** When? One month, YYYY-MM: Houses that run in it */
+  month: string | null;
   /** ISO 639-1 ("en") */
   languages: string[];
-  /** YYYY-MM – Houses that run in any of them */
-  months: string[];
   /** Per person in EUR (≈ for Houses priced in other currencies) */
   budget: { min: number; max: number } | null;
   /** How long the House runs (null: any length) */
   length: LengthKey | null;
   /** At least this many open spots (null: any) */
   spots: SpotsMin | null;
+  crewSize: CrewSizeKey | null;
+  who: WhoKey | null;
+  age: AgeKey | null;
+  accommodation: AccommodationKey | null;
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], countries: [], languages: [], months: [], budget: null, length: null, spots: null, sort: "soonest" };
-
-/** Country names as stored on Houses ("Bali, Indonesia" → "Indonesia") ↔ the codes in the URL. */
-const COUNTRY_CODES: Record<string, string> = {
-  Argentina: "AR", Austria: "AT", Belgium: "BE", Brazil: "BR", Colombia: "CO", Croatia: "HR", Czechia: "CZ", Egypt: "EG",
-  France: "FR", Georgia: "GE", Germany: "DE", Greece: "GR", Indonesia: "ID", Italy: "IT", Japan: "JP", Jordan: "JO",
-  Kenya: "KE", Mexico: "MX", Morocco: "MA", Netherlands: "NL", Norway: "NO", Philippines: "PH", Portugal: "PT",
-  "South Africa": "ZA", "South Korea": "KR", Spain: "ES", Switzerland: "CH", Taiwan: "TW", Thailand: "TH", Türkiye: "TR",
-  "United Arab Emirates": "AE", "United Kingdom": "GB", Vietnam: "VN", Denmark: "DK", "United States": "US", Australia: "AU",
-};
-const CODE_COUNTRIES = Object.fromEntries(Object.entries(COUNTRY_CODES).map(([name, code]) => [code, name]));
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, length: null, spots: null, crewSize: null, who: null, age: null, accommodation: null, sort: "soonest" };
 
 /** "Bali, Indonesia" → "Indonesia" */
 export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").at(-1)?.trim() ?? stay.region;
-/** A House's country as a URL code (unknown countries: their name in lower case, still unique). */
-export const countryCodeOf = (country: string) => COUNTRY_CODES[country] ?? country.toLowerCase();
-export const countryNameOf = (code: string) => CODE_COUNTRIES[code] ?? code;
-export const countryRegionOf = (code: string): WorldRegion | "" => worldRegionOf(countryNameOf(code));
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const list = (value: string | null) => (value ? value.split(",").map((v) => v.trim()).filter(Boolean) : []);
@@ -60,13 +62,17 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
   const [min, max] = (params.get("budget") ?? "").split("-").map(Number);
   return {
     vibes: list(params.get("vibe")).filter((v): v is Vibe => knownVibes.includes(v)),
-    countries: list(params.get("country")).map((c) => (c.length === 2 ? c.toUpperCase() : c)),
+    place: placeById(params.get("place"))?.id ?? null,
+    // An older link can hold several: the first counts.
+    month: list(params.get("month")).find((m) => MONTH.test(m)) ?? null,
     languages: list(params.get("lang")).map((l) => l.toLowerCase()),
-    // "Flexible" means any month – the same as no month filter.
-    months: list(params.get("month")).filter((m) => MONTH.test(m) && m !== FLEXIBLE),
     budget: Number.isFinite(min) && Number.isFinite(max) && max >= min && max > 0 ? { min, max } : null,
     length: LENGTH_KEYS.find((key) => key === params.get("len")) ?? null,
     spots: SPOTS_MINS.find((n) => String(n) === params.get("spots")) ?? null,
+    crewSize: CREW_SIZE_KEYS.find((key) => key === params.get("crew")) ?? null,
+    who: WHO_KEYS.find((key) => key === params.get("who")) ?? null,
+    age: AGE_KEYS.find((key) => key === params.get("age")) ?? null,
+    accommodation: ACCOMMODATION_KEYS.find((key) => key === params.get("stay")) ?? null,
     sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
   };
 }
@@ -75,13 +81,17 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
 export function withFilters(params: URLSearchParams, filters: ExploreFilters): string {
   const next = new URLSearchParams(params);
   const set = (key: string, values: readonly string[]) => (values.length > 0 ? next.set(key, values.join(",")) : next.delete(key));
-  set("country", filters.countries);
+  set("place", filters.place ? [filters.place] : []);
+  set("month", filters.month ? [filters.month] : []);
   set("lang", filters.languages);
-  set("month", filters.months);
   set("vibe", filters.vibes);
   set("budget", filters.budget ? [`${filters.budget.min}-${filters.budget.max}`] : []);
   set("len", filters.length ? [filters.length] : []);
   set("spots", filters.spots ? [String(filters.spots)] : []);
+  set("crew", filters.crewSize ? [filters.crewSize] : []);
+  set("who", filters.who ? [filters.who] : []);
+  set("age", filters.age ? [filters.age] : []);
+  set("stay", filters.accommodation ? [filters.accommodation] : []);
   set("sort", filters.sort === "soonest" ? [] : [filters.sort]);
   const query = next.toString();
   return query ? `?${query.replace(/%2C/g, ",")}` : "";
@@ -91,18 +101,22 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
 export function activeCount(filters: ExploreFilters): number {
   return (
     filters.vibes.length +
-    filters.countries.length +
+    (filters.place ? 1 : 0) +
+    (filters.month ? 1 : 0) +
     filters.languages.length +
-    filters.months.length +
     (filters.budget ? 1 : 0) +
     (filters.length ? 1 : 0) +
-    (filters.spots ? 1 : 0)
+    (filters.spots ? 1 : 0) +
+    (filters.crewSize ? 1 : 0) +
+    (filters.who ? 1 : 0) +
+    (filters.age ? 1 : 0) +
+    (filters.accommodation ? 1 : 0)
   );
 }
 
 /** The filter panel's filters that are on – one each, however many values (not the category chips, not sort). */
 export function panelFilterCount(filters: ExploreFilters): number {
-  return [filters.months.length > 0, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.countries.length > 0].filter(Boolean).length;
+  return [filters.place !== null, filters.month !== null, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSize !== null, filters.who !== null, filters.age !== null, filters.accommodation !== null].filter(Boolean).length;
 }
 
 const DAY_MS = 86_400_000;
@@ -120,12 +134,7 @@ export function hasLength(stay: Pick<Stay, "startDate" | "endDate">, length: Len
   return nights >= 18;
 }
 
-/** A House runs in a month when its stay overlaps it. Houses without dates match no month. */
-export function runsIn(stay: Pick<Stay, "startDate" | "endDate">, month: string): boolean {
-  if (!stay.startDate) return false;
-  const end = stay.endDate || stay.startDate;
-  return stay.startDate.slice(0, 7) <= month && end.slice(0, 7) >= month;
-}
+export { runsIn };
 
 /** A House's price per person in EUR as a range (a fixed price is a range of one); null without a price. */
 export function eurRange(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" | "currency">): { min: number; max: number } | null {
@@ -135,19 +144,42 @@ export function eurRange(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" |
   return null;
 }
 
+function hasCrewSize(stay: Pick<Stay, "spotsTotal">, size: CrewSizeKey): boolean {
+  if (size === "3-4") return stay.spotsTotal <= 4;
+  if (size === "5-6") return stay.spotsTotal === 5 || stay.spotsTotal === 6;
+  return stay.spotsTotal >= 7;
+}
+
+/** A House that names no ages is open to all of them. */
+function hasAge(stay: Pick<Stay, "ageRange">, age: AgeKey): boolean {
+  if (!stay.ageRange) return true;
+  const { min, max } = stay.ageRange;
+  if (age === "18-25") return min <= 25 && max >= 18;
+  if (age === "25-35") return min <= 35 && max >= 25;
+  return max >= 35;
+}
+
 type FilterKey = Exclude<keyof ExploreFilters, "sort">;
 
 /** OR within a filter, AND across them. `except` leaves one filter out – for the counts next to its own options. */
 export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: FilterKey): boolean {
   if (except !== "vibes" && filters.vibes.length > 0 && !filters.vibes.includes(stay.vibe)) return false;
-  if (except !== "countries" && filters.countries.length > 0 && !filters.countries.includes(countryCodeOf(countryOf(stay)))) return false;
-  if (except !== "languages" && filters.languages.length > 0 && !filters.languages.includes(stay.language)) return false;
-  if (except !== "months" && filters.months.length > 0 && !filters.months.some((m) => runsIn(stay, m))) return false;
+  if (except !== "place" && filters.place) {
+    const place = placeById(filters.place);
+    if (place && !stayInPlace(stay, place)) return false;
+  }
+  if (except !== "month" && filters.month && !runsIn(stay, filters.month)) return false;
+  if (except !== "languages" && filters.languages.length > 0 && ![stay.language, ...(stay.languages ?? [])].some((code) => filters.languages.includes(code))) return false;
   if (except !== "budget" && filters.budget) {
     const range = eurRange(stay);
     if (!range || range.max < filters.budget.min || range.min > filters.budget.max) return false;
   }
   if (except !== "length" && filters.length && !hasLength(stay, filters.length)) return false;
   if (except !== "spots" && filters.spots && openSpots(stay) < filters.spots) return false;
+  if (except !== "crewSize" && filters.crewSize && !hasCrewSize(stay, filters.crewSize)) return false;
+  // A House that doesn't say otherwise is mixed.
+  if (except !== "who" && filters.who && (stay.who ?? "mixed") !== filters.who) return false;
+  if (except !== "age" && filters.age && !hasAge(stay, filters.age)) return false;
+  if (except !== "accommodation" && filters.accommodation && (stay.accommodationStatus === "locked") !== (filters.accommodation === "booked")) return false;
   return true;
 }

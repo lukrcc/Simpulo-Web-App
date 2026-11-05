@@ -250,7 +250,7 @@ function InviteToHouseSheet({ person, houses, onClose }: { person: User | null; 
                     )
                   }
                   title={stay.title}
-                  subtitle={`${f.placeName(stay)} · ${f.shortRange(stay.startDate, stay.endDate)} · ${t("spotsLeft", { count: openSpots(stay) })}`}
+                  subtitle={`${f.placeName(stay)} · ${f.stayDates(stay)} · ${t("spotsLeft", { count: openSpots(stay) })}`}
                   action={
                     reason ? (
                       <Badge icon={reason === t("invited") ? <Check aria-hidden /> : undefined}>{reason}</Badge>
@@ -340,7 +340,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
                     )
                   }
                   title={stay.title}
-                  subtitle={`${f.placeName(stay)} · ${f.shortRange(stay.startDate, stay.endDate)}`}
+                  subtitle={`${f.placeName(stay)} · ${f.stayDates(stay)}`}
                   action={<Badge>{stay.status === "completed" ? t("completed") : t("locked")}</Badge>}
                 />
               </Link>

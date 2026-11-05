@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/ActionButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cardClass } from "@/components/ui/Card";
 import { useFormat } from "@/i18n/format";
-import { getLockDetails, getMyPayment, useStore } from "@/lib/store";
+import { getMyPayment, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,9 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
   const [paying, setPaying] = useState(false);
   const tSection = useTranslations("houses.detail.sections");
   const payment = getMyPayment(store, stay.id);
-  if (!payment || stay.accommodationStatus !== "locked") return null;
-  const due = stay.payByDate ?? getLockDetails(store, stay)?.payBy;
+  // Before the crew is complete there's nothing to pay yet.
+  if (!payment || stay.accommodationStatus !== "locked" || (payment.status !== "paid" && !stay.paymentDueAt)) return null;
+  const due = stay.paymentDueAt;
 
   // Your houses (Joined → Your payment): one list row – amount, status, Pay now as a tertiary action.
   if (variant === "panel") {
@@ -37,7 +38,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
         <ListRow
           lead={<CreditCard aria-hidden />}
           title={amount}
-          subtitle={paid && payment.paidAt ? t("paidOn", { date: f.day(payment.paidAt) }) : due ? tSection("payBy", { date: f.day(due) }) : undefined}
+          subtitle={paid && payment.paidAt ? t("paidOn", { date: f.day(payment.paidAt) }) : due ? tSection("payBy", { date: `${f.day(due)} ${f.time(due)}` }) : undefined}
           aside={<StatusBadge status={paid ? "paid" : "pending"} />}
           action={
             !paid && (
@@ -55,7 +56,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
   if (payment.status === "paid") {
     return (
       <p className={cn("flex items-center gap-1.5 text-small text-muted", className)}>
-        <Check className="size-4 text-emerald-600" aria-hidden />
+        <Check className="size-4 text-accent" aria-hidden />
         {t("paid")}
       </p>
     );
@@ -67,7 +68,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
       <p className="min-w-0 flex-1 text-body text-ink">
         {t.rich("yourShare", {
           amount: f.price(payment.total, stay.currency),
-          date: due ? f.day(due) : "–",
+          date: due ? `${f.day(due)} ${f.time(due)}` : "–",
           b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
         })}
       </p>

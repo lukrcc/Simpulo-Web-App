@@ -1,7 +1,7 @@
 // All data goes through here: the mock in dev and demo, the real source in production. No component imports a mock file.
 import { APP_MODE } from "../appMode";
-import { foldPlace, type Destination, type DestinationCandidate } from "./destinationTypes";
-import { MORE_CITIES } from "./moreCities";
+import { ALL_PLACES } from "./places";
+import { createListPlaceProvider, type PlaceProvider } from "./placeProvider";
 import type { Stay } from "../types";
 import { DATA_STATES, type DataAdapter, type DataState } from "./adapter";
 
@@ -20,21 +20,11 @@ export const getHouses = adapter.getHouses;
 export const getHouse = (slug: string): Stay | undefined => adapter.getHouses().find((house) => house.slug === slug);
 export const getUsers = adapter.getUsers;
 export const getJoinRequests = adapter.getJoinRequests;
-export const getInterests = adapter.getInterests;
+export const getSavedSearches = adapter.getSavedSearches;
 export const getClaimableHouses = adapter.getClaimableHouses;
-/** The curated destinations and those the source knows about. */
-const allDestinations: readonly Destination[] = [...adapter.getCuratedDestinations(), ...adapter.getKnownDestinations()];
-export const getDestinations = (): readonly Destination[] => allDestinations;
-const SEARCH_LIMIT = 6;
-/** The place search behind "Somewhere else?": the destinations and more cities, later the Places API. Names starting with it first. */
-export function searchDestinations(query: string): DestinationCandidate[] {
-  const q = foldPlace(query.trim());
-  if (!q) return [];
-  const known = [...getDestinations(), ...MORE_CITIES.filter((c) => !getDestinations().some((d) => d.id === c.id))];
-  const starts = known.filter((d) => foldPlace(d.name).startsWith(q));
-  const contains = known.filter((d) => !starts.includes(d) && (foldPlace(d.name).includes(q) || foldPlace(d.country).includes(q)));
-  return [...starts, ...contains].slice(0, SEARCH_LIMIT);
-}
+/** The one place search: our list of cities, regions and countries for now; createGooglePlacesProvider or createGeoNamesProvider later. */
+const placeProvider: PlaceProvider = createListPlaceProvider(() => ALL_PLACES);
+export const searchPlaces = placeProvider.search;
 export const defaultUserId = adapter.defaultUserId;
 export const installedUsers = adapter.installedUsers;
 export const paidUsersOf = adapter.paidUsers;

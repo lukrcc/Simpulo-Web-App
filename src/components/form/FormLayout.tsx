@@ -116,20 +116,6 @@ export const formInput =
 /** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
-/** A thin progress bar (accent fill) with "Step N of 9" above it – no step labels. */
-export function FlowProgress({ value, label, className }: { /** 0–1 */ value: number; label: string; className?: string }) {
-  return (
-    <div className={className}>
-      <p className="mb-2 text-small text-muted" aria-live="polite">
-        {label}
-      </p>
-      <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label} className="h-1 overflow-hidden rounded-full bg-line">
-        <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${value * 100}%` }} />
-      </div>
-    </div>
-  );
-}
-
 /**
  * Sticky footer bar inside the form column (above the safe area on phones, 16px off the bottom on desktop): Back /
  * Cancel as tertiary on the left, the form's one primary (Next, Publish, Save) on the right.

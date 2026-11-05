@@ -17,8 +17,10 @@ export function ChipIndicator() {
     const active = row.querySelector<HTMLElement>("[data-chip-active]");
     el.style.opacity = active ? "1" : "0";
     if (!active) return;
-    el.style.transform = `translateX(${active.offsetLeft}px)`;
+    // Rows may wrap (Open a House): the capsule follows onto the next line.
+    el.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
     el.style.width = `${active.offsetWidth}px`;
+    el.style.height = `${active.offsetHeight}px`;
     if (!el.dataset.placed) requestAnimationFrame(() => (el.dataset.placed = "true"));
   };
 

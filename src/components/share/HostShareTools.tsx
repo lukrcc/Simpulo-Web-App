@@ -14,12 +14,8 @@ import { downloadBlob, renderStoryImage } from "./storyImage";
 
 type Tool = "copy" | "story";
 
-/**
- * "Share" – the host's tools in Your houses (guests never see them): copy the link and download the story image
- * (1080×1920: House photo, title, dates · place · open spots, host face, wordmark, QR). Every link carries the host's ref and its
- * channel, like the share sheet.
- */
-export function HostShareTools({ stay, title, className }: { stay: Stay; /** Section heading */ title: string; className?: string }) {
+/** Copy the link and download the story image (1080×1920: House photo, title, dates · place · open spots, host face, wordmark, QR). Every link carries the host's ref and its channel, like the share sheet. */
+export function useHostShare(stay: Stay) {
   const t = useTranslations("growth.share");
   const tStory = useTranslations("growth.story");
   const tCommon = useTranslations("common");
@@ -32,7 +28,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
   const link = (channel: ShareChannel, medium?: string) => shareUrl(path, { refUserId: store.currentUserId, channel, medium });
   const spots = openSpots(stay);
   // Dates · place · open spots (left out once the crew is full).
-  const meta = [f.longRange(stay.startDate, stay.endDate), f.placeName(stay), spots > 0 && tStory("spotsOpen", { count: spots })].filter(Boolean).join(" · ");
+  const meta = [f.stayDatesLong(stay), f.placeName(stay), spots > 0 && tStory("spotsOpen", { count: spots })].filter(Boolean).join(" · ");
 
   async function run(tool: Tool, action: () => Promise<void>, failed: string) {
     setBusy(tool);
@@ -46,7 +42,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
   }
 
   const copy = () =>
-    run(
+    void run(
       "copy",
       async () => {
         await navigator.clipboard.writeText(link("copy"));
@@ -57,7 +53,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
     );
 
   const story = () =>
-    run(
+    void run(
       "story",
       async () => {
         const blob = await renderStoryImage({
@@ -78,9 +74,21 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
       t("storyFailed"),
     );
 
+  return { copy, story, busy };
+}
+
+/**
+ * "Share" – the host's tools in Your houses (guests never see them): copy the link and download the story image
+ * (1080×1920: House photo, title, dates · place · open spots, host face, wordmark, QR). Every link carries the host's ref and its
+ * channel, like the share sheet.
+ */
+export function HostShareTools({ stay, title, className }: { stay: Stay; /** Section heading */ title?: string; className?: string }) {
+  const t = useTranslations("growth.share");
+  const { copy, story, busy } = useHostShare(stay);
+
   const tools: { key: Tool; icon: LucideIcon; label: string; hint?: string; busyLabel?: string; onClick: () => void }[] = [
-    { key: "copy", icon: Link2, label: t("channels.copy"), onClick: () => void copy() },
-    { key: "story", icon: QrCode, label: t("storyButton"), hint: t("storyHint"), busyLabel: t("storyBusy"), onClick: () => void story() },
+    { key: "copy", icon: Link2, label: t("channels.copy"), onClick: copy },
+    { key: "story", icon: QrCode, label: t("storyButton"), hint: t("storyHint"), busyLabel: t("storyBusy"), onClick: story },
   ];
 
   // Two list rows, each a button as a whole (icon, label, hint) – no right-hand label, no boxes, no header action.
@@ -92,6 +100,7 @@ export function HostShareTools({ stay, title, className }: { stay: Stay; /** Sec
             <ListRow
               onClick={onClick}
               disabled={busy !== null}
+              className="hover:bg-(--chip-bg)"
               lead={busy === key ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />}
               title={busy === key && busyLabel ? busyLabel : label}
               subtitle={hint}

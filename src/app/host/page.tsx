@@ -2,6 +2,7 @@ import { ArrowRight, ChevronDown, Link2, MapPin, MessagesSquare, UserCheck, Wall
 import type { Metadata } from "next";
 import { getMessages, getTranslations } from "next-intl/server";
 import { pageMetadata } from "@/lib/seo";
+import { HostSearchMap } from "@/components/host/HostSearchMap";
 import { HostHeroCard, HostHousesRow, HostWays } from "@/components/host/HostShowcase";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
@@ -71,6 +72,8 @@ export default async function HostPage() {
       <HostWays className="mt-8" />
 
       <HostHousesRow className="mt-(--space-section)" />
+
+      <HostSearchMap className="mt-(--space-section)" />
 
       <section data-glow-section aria-labelledby="host-how" className="mt-(--space-section)">
         <SectionHeader id="host-how" title={t("howTitle")} />

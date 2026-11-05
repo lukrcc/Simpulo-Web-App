@@ -1,6 +1,6 @@
 // More places to search beyond the curated list. A stand-in for the Places API later: same shape, so the search doesn't
 // change. Coordinates are rounded city centres.
-import type { WorldRegion } from "../interests";
+import type { WorldRegion } from "../worldRegions";
 import { slugOf, type DestinationCandidate } from "./destinationTypes";
 
 type Row = readonly [name: string, country: string, countryCode: string, lat: number, lng: number];

@@ -5,7 +5,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { DevSwitcher } from "@/components/auth/DevSwitcher";
 import { InstallNudgeProvider } from "@/components/InstallNudge";
-import { NotificationToasts } from "@/components/NotificationToasts";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
 import { SITE_URL } from "@/lib/seo";
@@ -64,7 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang={locale} data-app-mode={APP_MODE} className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
       {/* relative + isolate: the frame for PageGlow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
-        {/* Before the router: the way back from a House page has to run ahead of it (src/lib/houseTransition.ts). */}
+        {/* Before the router: the way back from a House page is marked ahead of it (src/lib/houseTransition.ts). */}
         <Script id="house-back-gate" strategy="beforeInteractive">
           {HOUSE_BACK_GATE}
         </Script>
@@ -77,7 +76,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <AppShell>{children}</AppShell>
               </InstallNudgeProvider>
               <DevSwitcher />
-              <NotificationToasts />
             </AuthProvider>
           </ToastProvider>
         </StoreProvider>

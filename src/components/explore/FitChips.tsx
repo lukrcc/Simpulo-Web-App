@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -15,6 +15,8 @@ export interface ChipOption {
 
 /** The chips' gap (gap-1): their padding gives the air. */
 const GAP = 4;
+/** The chosen chip's ✕: its 16px and the 4px before it. */
+const REMOVE_W = 20;
 
 interface FitChipsProps {
   /** The categories, in order: those that fit are shown, all of them are under More */
@@ -49,7 +51,7 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       const [allW, ...rest] = widths;
       const moreW = rest.pop() ?? 0;
       const avail = row.clientWidth;
-      let used = allW + GAP + moreW;
+      let used = allW + GAP + moreW + (value.length > 0 ? REMOVE_W : 0);
       const fits: number[] = [];
       for (let i = 0; i < options.length; i++) {
         if (used + rest[i] + GAP > avail) break;
@@ -122,13 +124,13 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
           {labels.all}
         </Chip>
         {visible.map((o) => (
-          <Chip key={o.value} variant="text" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)}>
+          <Chip key={o.value} variant="text" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)} trailing={value.includes(o.value) ? <X aria-hidden /> : undefined}>
             {o.label}
           </Chip>
         ))}
-        <Chip ref={moreRef} variant="text" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
-          {labels.more}
-        </Chip>
+                  <Chip ref={moreRef} variant="text" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
+            {labels.more}
+          </Chip>
       </div>
 
       {moreOpen && (

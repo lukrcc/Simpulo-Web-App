@@ -93,7 +93,7 @@ export function Crews({ crews }: { crews: ProfileCrews }) {
               <li key={crew.houseId}>
                 <p className="flex items-baseline justify-between gap-3 text-body">
                   <span className="min-w-0 truncate font-medium text-ink">{stay.title}</span>
-                  <span className="shrink-0 text-small text-muted">{f.shortRange(stay.startDate, stay.endDate)}</span>
+                  <span className="shrink-0 text-small text-muted">{f.stayDates(stay)}</span>
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t("peopleIn", { title: stay.title })}>
                   {people.map((person) => (

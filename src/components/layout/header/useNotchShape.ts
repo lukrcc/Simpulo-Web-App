@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { setNotchOpen, type NotchMode } from "@/lib/notchState";
+import { closeNotchPanel, setNotchOpen, setNotchStage, type NotchMode } from "@/lib/notchState";
 import { easeSheet, snapDuration, snapTarget, useSheetDrag } from "@/lib/useSheetDrag";
 
 const BAR_H = 64;
@@ -9,8 +9,6 @@ const BAR_H = 64;
 const NOTCH_DEPTH = 6;
 const NOTCH_EXTRA = 70;
 const NOTCH_PADDING = 32;
-/** The SVG layers' height: the open tab, at its real pixel size. */
-const SVG_H = 140;
 const CONCAVE_R = 12;
 const BOTTOM_R = 16;
 /** The filters' inset from the open tab's edges. */
@@ -25,6 +23,16 @@ const CONTENT_SHIFT_PX = 8;
 /** The filter row's bottom edge (top-20 + h-10) and how far above its centre the handle needs it to stay. */
 const SLOT_BOTTOM = 120;
 const HANDLE_CLEARANCE = 6;
+/** The whole panel: from here on it shows and takes the pointer; up to here the chip row is still there. */
+const PANEL_FROM = 1.4;
+const ROW_UNTIL = 1.3;
+/** Around the panel inside the tab: above it, and below it where the handle lies. */
+const PANEL_TOP = 12;
+const PANEL_BOTTOM = 24;
+/** The shadow's room around the shape. */
+const SVG_MARGIN = 40;
+/** Only with a mouse and the header showing: touch has the same content as a bottom sheet. */
+const PANEL_QUERY = "(pointer: fine) and (min-width: 48rem)";
 
 const lerp = (from: number, to: number, p: number) => from + (to - from) * p;
 const n = (v: number) => Math.round(v * 100) / 100;
@@ -89,16 +97,19 @@ export interface NotchRefs {
   clip: RefObject<HTMLDivElement | null>;
   hit: RefObject<HTMLDivElement | null>;
   slot: RefObject<HTMLDivElement | null>;
+  panelSlot: RefObject<HTMLDivElement | null>;
   handle: RefObject<HTMLButtonElement | null>;
 }
 
 /**
- * Draws the header's one shape and moves it between its two states, straight on the DOM (never React state per frame).
- * `open` (p, 0 to 1) is the only source: width, depth, the filters and the handle are all worked out from it in every frame,
+ * Draws the header's one shape and moves it between its three stages, straight on the DOM (never React state per frame).
+ * `open` (p: 0 nav, 1 chips, 2 the whole panel) is the only source: width, depth, the filters and the handle are all worked out from it in every frame,
  * whether it's dragged live or animated (420ms on a click or scroll; the rest of the way, at least 180ms, after a drag).
  * The filters lie under a clip of the same path as the shape, so nothing of them shows outside it.
  */
-export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" | "manual", hasHandle: boolean) {
+const stageOf = (mode: NotchMode) => (mode === "panel" ? 2 : mode === "filters" ? 1 : 0);
+
+export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" | "manual", hasHandle: boolean, auto: boolean) {
   const [run] = useState(() => {
     const state = {
       open: 0,
@@ -107,28 +118,44 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
       /** Where the running animation goes */
       target: null as number | null,
       contentOn: null as boolean | null,
+      panelOn: null as boolean | null,
+      /** The tab's depth at the whole panel */
+      fullDepth: NOTCH_DEPTH + NOTCH_EXTRA,
+      auto: false,
       scrimOn: false,
       dragging: false,
+      depthAt(p: number) {
+        const chips = NOTCH_DEPTH + NOTCH_EXTRA;
+        return p <= 1 ? NOTCH_DEPTH + NOTCH_EXTRA * p : chips + (state.fullDepth - chips) * (p - 1);
+      },
+      /** The way back from a depth, for the drag. */
+      stageAt(depth: number) {
+        const chips = NOTCH_DEPTH + NOTCH_EXTRA;
+        return depth <= chips ? (depth - NOTCH_DEPTH) / NOTCH_EXTRA : 1 + (depth - chips) / Math.max(1, state.fullDepth - chips);
+      },
       paint() {
         const { width, navLeft, navRight, contentLeft, contentRight } = state.geometry;
         if (width === 0) return;
         // Whole pixels: width and depth animate, the radii don't.
-        const left = Math.round(lerp(navLeft - NOTCH_PADDING, contentLeft, state.open));
-        const right = Math.round(lerp(navRight + NOTCH_PADDING, contentRight, state.open));
-        const depth = Math.round(NOTCH_DEPTH + NOTCH_EXTRA * state.open);
+        const wide = Math.min(1, state.open);
+        const left = Math.round(lerp(navLeft - NOTCH_PADDING, contentLeft, wide));
+        const right = Math.round(lerp(navRight + NOTCH_PADDING, contentRight, wide));
+        const depth = Math.round(state.depthAt(state.open));
         const centre = (left + right) / 2;
         const d = headerPath(width, left, right, depth);
         refs.path.current?.setAttribute("d", d);
         refs.edge.current?.setAttribute("d", edgePath(width, left, right, depth));
         if (refs.glass.current) refs.glass.current.style.clipPath = `path("${d}")`;
         if (refs.clip.current) refs.clip.current.style.clipPath = `path("${d}")`;
+        const svgH = BAR_H + depth + SVG_MARGIN;
         for (const svg of [refs.shadow.current, refs.line.current]) {
           if (!svg) continue;
           svg.setAttribute("width", String(width));
-          svg.setAttribute("viewBox", `0 0 ${width} ${SVG_H}`);
+          svg.setAttribute("height", String(svgH));
+          svg.setAttribute("viewBox", `0 0 ${width} ${svgH}`);
           svg.style.visibility = "visible";
         }
-        if (refs.shadow.current) refs.shadow.current.style.clipPath = `path(evenodd, "M-200,-200 H${width + 200} V500 H-200 Z ${d}")`;
+        if (refs.shadow.current) refs.shadow.current.style.clipPath = `path(evenodd, "M-200,-200 H${width + 200} V${svgH + 200} H-200 Z ${d}")`;
         if (refs.hit.current) {
           refs.hit.current.style.left = `${n(left)}px`;
           refs.hit.current.style.width = `${n(right - left)}px`;
@@ -146,24 +173,39 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         const scrim = refs.scrim.current;
         if (!scrim) return;
         const on = state.scrimOn || state.dragging;
-        scrim.style.opacity = on ? state.open.toFixed(3) : "0";
-        scrim.style.pointerEvents = on && state.open > 0.01 ? "auto" : "none";
+        // Over a chip row that opened by itself it only comes with the panel.
+        const strength = state.auto ? Math.max(0, state.open - 1) : Math.min(1, state.open);
+        scrim.style.opacity = on ? strength.toFixed(3) : "0";
+        scrim.style.pointerEvents = on && strength > 0.01 ? "auto" : "none";
       },
       /** The filters, from p alone. Whatever would reach the handle is cut off: it never lies over a chip. */
       paintContent(depth: number) {
         const slot = refs.slot.current;
         if (!slot) return;
-        const opacity = Math.min(1, Math.max(0, (state.open - CONTENT_FROM) / (1 - CONTENT_FROM)));
-        const shift = (1 - opacity) * -CONTENT_SHIFT_PX;
+        const coming = Math.min(1, Math.max(0, (state.open - CONTENT_FROM) / (1 - CONTENT_FROM)));
+        // Gives way to the whole panel.
+        const opacity = Math.min(coming, Math.max(0, (ROW_UNTIL - state.open) / (ROW_UNTIL - 1)));
+        const shift = (1 - coming) * -CONTENT_SHIFT_PX;
         const overHandle = SLOT_BOTTOM + shift - (BAR_H + depth - HANDLE_FROM_BOTTOM - HANDLE_CLEARANCE);
         slot.style.opacity = opacity.toFixed(3);
         slot.style.transform = `translateY(${shift.toFixed(2)}px)`;
         slot.style.clipPath = overHandle > 0 ? `inset(0 0 ${n(overHandle)}px 0)` : "none";
-        const on = state.open > CONTENT_FROM;
-        if (on === state.contentOn) return;
-        state.contentOn = on;
-        slot.style.pointerEvents = on ? "auto" : "none";
-        slot.inert = !on;
+        const on = state.open > CONTENT_FROM && state.open < ROW_UNTIL;
+        if (on !== state.contentOn) {
+          state.contentOn = on;
+          slot.style.pointerEvents = on ? "auto" : "none";
+          slot.inert = !on;
+        }
+        const panel = refs.panelSlot.current;
+        if (!panel) return;
+        const panelOpacity = Math.min(1, Math.max(0, (state.open - PANEL_FROM) / (2 - PANEL_FROM)));
+        panel.style.opacity = panelOpacity.toFixed(3);
+        panel.style.transform = `translateY(${((1 - panelOpacity) * -CONTENT_SHIFT_PX).toFixed(2)}px)`;
+        const panelOn = state.open > PANEL_FROM;
+        if (panelOn === state.panelOn) return;
+        state.panelOn = panelOn;
+        panel.style.pointerEvents = panelOn ? "auto" : "none";
+        panel.inert = !panelOn;
       },
       animate(to: number, duration = DURATION_MS) {
         // Already on its way there (the state catching up with a released drag): it isn't started over.
@@ -211,28 +253,46 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         slot.style.left = `${n(contentLeft + SLOT_INSET)}px`;
         slot.style.width = `${n(contentRight - contentLeft - 2 * SLOT_INSET)}px`;
       }
+      const panel = refs.panelSlot.current;
+      if (panel) {
+        panel.style.left = `${n(contentLeft + SLOT_INSET)}px`;
+        panel.style.width = `${n(contentRight - contentLeft - 2 * SLOT_INSET)}px`;
+      }
       run.paint();
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(header);
     observer.observe(nav);
-    return () => observer.disconnect();
+    // The panel decides how deep the third stage goes (it stops itself at 80vh).
+    const panel = refs.panelSlot.current;
+    const fit = () => {
+      if (!panel || panel.offsetHeight === 0) return;
+      run.fullDepth = Math.max(NOTCH_DEPTH + NOTCH_EXTRA, panel.offsetHeight + PANEL_TOP + PANEL_BOTTOM);
+      run.paint();
+    };
+    const panelObserver = new ResizeObserver(fit);
+    if (panel) panelObserver.observe(panel);
+    return () => {
+      observer.disconnect();
+      panelObserver.disconnect();
+    };
   }, [refs, run]);
 
   // The handle mounts with the page that offers it.
   useLayoutEffect(() => run.paint(), [hasHandle, run]);
 
   useEffect(() => {
-    if (!run.dragging) run.animate(mode === "filters" ? 1 : 0);
+    if (!run.dragging) run.animate(stageOf(mode));
   }, [mode, run]);
 
   // A chip picked in the open tab hands it over to the page: the tab stays, its scrim goes on its own.
   useEffect(() => {
+    run.auto = auto;
     run.scrimOn = source === "manual";
     if (refs.scrim.current) refs.scrim.current.style.transition = run.scrimOn ? "none" : "opacity 200ms";
     run.paintScrim();
-  }, [source, refs, run]);
+  }, [source, auto, refs, run]);
 
   useEffect(
     () => () => {
@@ -247,7 +307,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
   const { handlers, wasDrag } = useSheetDrag({
     axis: "y",
     onPress: () => {
-      startOpen.current = run.open;
+      startOpen.current = run.depthAt(run.open);
     },
     onStart: () => {
       run.dragging = true;
@@ -256,20 +316,25 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
       run.frame = 0;
     },
     onDrag: (delta) => {
-      run.open = Math.min(1, Math.max(0, startOpen.current + delta / NOTCH_EXTRA));
+      // On to the whole panel with a mouse; touch stops at the chip row and has the sheet.
+      const top = window.matchMedia(PANEL_QUERY).matches && refs.panelSlot.current?.childElementCount ? 2 : 1;
+      run.open = Math.min(top, Math.max(0, run.stageAt(startOpen.current + delta)));
       run.paint();
     },
     onEnd: (speed) => {
-      const to = snapTarget(run.open, speed, 0.5);
+      // Snaps within the stretch it was let go in.
+      const from = Math.min(1, Math.floor(run.open));
+      const to = (from + snapTarget(run.open - from, speed, 0.5)) as 0 | 1 | 2;
       run.dragging = false;
       // First: the state changing right after this doesn't start it over at the full length.
       run.animate(to, snapDuration(run.open, to, DURATION_MS));
-      setNotchOpen(to === 1);
+      setNotchStage(to);
     },
   });
   function onClick() {
     if (wasDrag()) return;
-    setNotchOpen(mode !== "filters");
+    if (mode === "panel") closeNotchPanel();
+    else setNotchOpen(mode !== "filters");
   }
   return { ...handlers, onClick };
 }

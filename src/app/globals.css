@@ -26,7 +26,6 @@
   --select-bg: #f7d9c8;
   --chip-bg: rgba(255, 255, 255, 0.55);
   --chip-bg-hover: rgba(255, 255, 255, 0.8);
-  --rail-bg: rgba(255, 255, 255, 0.45);
   --chip-text-hover: rgba(255, 255, 255, 0.45);
   --filters-capsule: rgba(255, 255, 255, 0.6);
   --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
@@ -63,9 +62,6 @@
   --text-stage--font-weight: 700;
   --text-stage--letter-spacing: -0.02em;
   --text-stage-sm: 44px;
-  --text-tile: 16px;
-  --text-tile--line-height: 1.3;
-  --text-tile--font-weight: 600;
   --text-nav-main: 16px;
   --text-nav-main--line-height: 1.4;
   --text-nav-main--font-weight: 500;
@@ -83,7 +79,7 @@
   --text-greeting: 22px;
   --text-greeting--line-height: 1.25;
   --text-greeting--font-weight: 600;
-  --text-quote: 24px;
+  --text-quote: 22px;
   --text-quote--line-height: 1.4;
   --text-quote--font-weight: 500;
   --text-body-lg: 17px;
@@ -279,12 +275,11 @@
 [class*="card-surface"] {
   --chip-bg: rgba(34, 30, 27, 0.05);
   --chip-bg-hover: rgba(34, 30, 27, 0.09);
-  --rail-bg: rgba(34, 30, 27, 0.06);
 }
-.glass-panel {
+.glass-panel,
+[data-notch-panel] {
   --chip-bg: rgba(255, 255, 255, 0.55);
   --chip-bg-hover: rgba(255, 255, 255, 0.8);
-  --rail-bg: rgba(255, 255, 255, 0.45);
 }
 /* IconButton: frosted, no frame or shadow. Scale, not transform: the utilities place them with translate. */
 .icon-button {
@@ -299,6 +294,32 @@
 }
 .icon-button:active {
   scale: 0.94;
+}
+/* What lies on a photo: dark glass, white icon. Never the grey one above. */
+.on-image {
+  background-color: rgba(20, 18, 16, 0.28);
+  color: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  transition: background-color 150ms, scale 120ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms;
+}
+.on-image:hover {
+  background-color: rgba(20, 18, 16, 0.42);
+}
+.on-image:active {
+  scale: 0.94;
+}
+/* The heart on a photo: no circle. White outline, a breath of black inside; saved: accent. */
+.heart-on-image {
+  width: 24px;
+  height: 24px;
+  stroke: #fff;
+  stroke-width: 2px;
+  fill: rgba(0, 0, 0, 0.18);
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+}
+.heart-on-image[data-saved] {
+  fill: var(--accent);
 }
 /* The chosen text chip's capsule: one element, it slides. Only once placed: its first place takes no time. */
 .chip-indicator {
@@ -324,42 +345,40 @@
 .filters-capsule:hover {
   background-color: rgba(255, 255, 255, 0.8);
 }
-/* A place's tile and circle on /where-next. */
-.tile {
-  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1);
+.filters-capsule[data-active] {
+  background-color: var(--select-bg);
 }
-.tile:has(:focus-visible) {
-  z-index: 2;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+/* The host's map: land and markers move together on one curve. Under a finger: no transition. */
+.map-move {
+  transition: transform 450ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-@media (hover: hover) {
-  .tile:hover {
-    z-index: 2;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
-  }
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .tile:hover {
-    transform: scale(1.03);
-  }
-}
-.map-spot {
+[data-map-live] .map-move {
   transition: opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.map-enter {
+  animation: map-enter 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes map-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .chip-indicator[data-placed],
-  .tile,
-  .map-spot {
+  .map-move {
     transition: none;
+  }
+  .map-enter {
+    animation: none;
   }
 }
 /* SegmentedControl */
 .segmented {
-  background-color: var(--rail-bg);
+  background-color: rgba(255, 255, 255, 0.45);
 }
 .segmented-knob {
-  background-color: var(--surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background-color: var(--select-bg);
   transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -592,10 +611,10 @@ main:has([data-explore-blocks]) {
   transition-duration: 120ms;
 }
 @keyframes heart-pop {
-  50% { transform: scale(1.25); }
+  50% { transform: scale(1.2); }
 }
 .heart-pop {
-  animation: heart-pop 300ms ease-out;
+  animation: heart-pop 220ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
   .press-feedback:hover,
@@ -689,6 +708,34 @@ main:has([data-explore-blocks]) {
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes tab-out {
+  to { opacity: 0; }
+}
+.animate-tab-in { animation: fade-in 200ms ease-out; }
+.animate-tab-out { animation: tab-out 200ms ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-in,
+  .animate-tab-out {
+    animation: none;
+  }
+}
+/* Open a House's preview: an answer takes its placeholder's place, the cover fades in over the surface. */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal-in { animation: reveal-in 250ms cubic-bezier(0.32, 0.72, 0, 1); }
+.reveal-photo { animation: fade-in 450ms cubic-bezier(0.32, 0.72, 0, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-in,
+  .reveal-photo {
+    animation: none;
+  }
+}
+/* It's open: nothing left to save. */
+body:has([data-flow-done]) [data-save-exit] {
+  display: none;
 }
 .animate-toast-in { animation: toast-in 180ms ease-out; }
 .animate-sheet-in { animation: sheet-in 220ms ease-out; }
@@ -849,30 +896,20 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 }
 
-/*
- * Card → House page (src/lib/houseTransition.ts): image, title and host tab move in 450ms, the rest of the page fades in
- * 200ms. Both snapshots fill their group, cropped like the photos, so a change of format doesn't stretch them.
- */
-::view-transition-group(*),
-::view-transition-old(*),
-::view-transition-new(*) {
-  animation-duration: 450ms;
-  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+/* Open a House: each new question. */
+@keyframes question-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }
-::view-transition-old(*),
-::view-transition-new(*) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.question-in {
+  animation: question-in 300ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-::view-transition-image-pair(.house-image) {
-  overflow: hidden;
-  border-radius: 24px;
-}
-::view-transition-group(root),
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 200ms;
+@media (prefers-reduced-motion: reduce) {
+  .question-in {
+    animation: none;
+  }
 }
 
 /* The demo: its band, and the login page on its own. */
@@ -907,4 +944,9 @@ main:has([data-demo-login]) {
   .md\:text-h2 {
     font-family: var(--font-display), var(--font-sans);
   }
+}
+
+/* The map's zoom hint is our own, small and bottom right (HouseMap): Google's grey overlay stays away. Not a public class. */
+.house-map .gm-style-moc {
+  display: none !important;
 }

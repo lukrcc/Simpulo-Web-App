@@ -28,7 +28,7 @@ import { markHeroSeen } from "@/lib/heroRotation";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePageHidden } from "@/lib/usePageHidden";
-import { useHouseNavigate } from "@/lib/houseTransition";
+import { rememberOrigin } from "@/lib/houseTransition";
 import { cn, firstName, housePhotos } from "@/lib/utils";
 
 /** A slide counts as current once this much of it is visible. */
@@ -308,7 +308,6 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
   const frameRef = useRef<HTMLDivElement | null>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   useNotchClip(frameRef, clipRef);
-  const openHouse = useHouseNavigate(stay.id, href, frameRef);
 
   // The whole slide is clickable through a full-size link layer. Inner links/buttons sit above it as siblings –
   // nesting them inside the <a> would be invalid HTML (<a> in <a>). Overlay content is inset 24px (6) on mobile and
@@ -339,7 +338,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
       >
         <div ref={clipRef} className="relative h-full w-full overflow-hidden rounded-3xl bg-ink max-md:rounded-tl-none">
           {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
-          <div data-vt="image" className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
+          <div className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
             <Img
               src={photos[photo] ?? photos[0]}
               alt={t("cards.photoAlt", { title: stay.title, number: 1 })}
@@ -356,7 +355,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
           <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/45 to-transparent to-30% md:from-ink/35" />
 
-          <Link href={href} onNavigate={openHouse} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
+          <Link href={href} onNavigate={rememberOrigin} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
 
           {/* Top-right (md+): host photo thumbnails */}
@@ -388,8 +387,8 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               slide link – hidden from assistive tech, which uses the full-size link). */}
           <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
             <div className="flex flex-col items-center md:block">
-              <Link href={href} onNavigate={openHouse} tabIndex={-1} aria-hidden className="pointer-events-auto">
-                <h2 data-vt="title" className="line-clamp-2 text-h2 text-white md:text-h1">{stay.title}</h2>
+              <Link href={href} onNavigate={rememberOrigin} tabIndex={-1} aria-hidden className="pointer-events-auto">
+                <h2 className="line-clamp-2 text-h2 text-white md:text-h1">{stay.title}</h2>
               </Link>
               {/* Only where the card has no host tab (phones have one). */}
               <p className="mt-2 hidden items-center gap-1 text-small text-white/85 md:flex">
@@ -398,7 +397,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               </p>
               <p className="mt-2 text-small text-white/85">
                 <span className="inline-flex max-w-full items-center gap-1.5">
-                  {format.shortRange(stay.startDate, stay.endDate)} · <PlaceText>{format.placeName(stay)}</PlaceText>
+                  {format.stayDates(stay)} · <PlaceText>{format.placeName(stay)}</PlaceText>
                 </span>
               </p>
               <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
@@ -419,7 +418,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               {/* Phones: glass pill over the photo; md+: a secondary button (visual only there – the whole slide is the link). */}
               <Link
                 href={href}
-                onNavigate={openHouse}
+                onNavigate={rememberOrigin}
                 tabIndex={-1}
                 aria-hidden
                 className="glass-dark pointer-events-auto inline-flex h-11 items-center rounded-full px-7 text-body font-semibold md:hidden"

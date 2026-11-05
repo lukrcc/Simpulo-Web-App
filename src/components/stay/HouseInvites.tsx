@@ -9,13 +9,10 @@ import { cardClass } from "@/components/ui/Card";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { paymentSplit } from "@/lib/fees";
 import { findUser, houseInviteUrl, openHouseInvites, useStore } from "@/lib/store";
 import type { HouseInvite, Stay } from "@/lib/types";
 import { cn, openSpots } from "@/lib/utils";
 import { DetailSection, ListRow } from "./DetailSection";
-import { InterestLine } from "./InterestInvite";
-import { CardPayForm } from "./PaySheet";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -30,7 +27,7 @@ const linkOf = (stay: Stay, invite: HouseInvite) => houseInviteUrl(window.locati
 // ─── Host ──────────────────────────────────────────────────────────────────────
 
 /**
- * Your houses → "Interested & invites": people interested in the city and month, the open invite links (Resend /
+ * Your houses → "Invites": the open invite links (Resend /
  * Cancel) and "Invite" (name or email → a link that reserves a spot for 48h). The header's "Invite" opens the same
  * sheet (InviteSheet).
  */
@@ -67,7 +64,6 @@ export function HostInvitesSection({ stay }: { stay: Stay }) {
         </Button>
       }
     >
-      <InterestLine stay={stay} />
       <p className="py-2 text-small text-muted">{canInvite ? t("description") : t("full")}</p>
       {invites.length > 0 && (
         <ul className="">
@@ -215,7 +211,7 @@ export function InviteBanner({ stay, invite }: { stay: Stay; invite: HouseInvite
   return (
     <div role="status" className={cn(cardClass, "flex items-center gap-3 text-body")}>
       <MailOpen className="size-5 shrink-0 text-muted" aria-hidden />
-      <p className="min-w-0 flex-1 font-medium text-ink">{t("banner", { host: host?.name.split(" ")[0] ?? "", date: until(invite.expiresAt) })}</p>
+      <p className="min-w-0 flex-1 font-medium text-ink">{invite.priority ? t("bannerSearch", { date: until(invite.expiresAt) }) : t("banner", { host: host?.name.split(" ")[0] ?? "", date: until(invite.expiresAt) })}</p>
     </div>
   );
 }
@@ -239,35 +235,15 @@ function InviteJoin({ stay, invite, onDone }: { stay: Stay; invite: HouseInvite;
   const showToast = useToast();
   const [busy, setBusy] = useState(false);
   const host = findUser(store, stay.hostId);
-  const locked = stay.accommodationStatus === "locked" && stay.pricePerPerson;
-
-  function finish(result: "joined" | "declined" | "invalid") {
+  function finish(result: "joined" | "invalid") {
     if (result === "joined") showToast(t("joinedToast", { title: stay.title }));
     if (result === "invalid") showToast(t("invalid"));
-    if (result !== "declined") onDone();
-  }
-
-  if (locked) {
-    const amounts = paymentSplit(stay.pricePerPerson!, stay.hostFeePerPerson ?? 0);
-    return (
-      <div className="space-y-4">
-        <p className="text-small text-muted">{t("payText")}</p>
-        <CardPayForm
-          stay={stay}
-          amounts={{ ...amounts, hostFee: amounts.hostFee || undefined }}
-          onPay={async (card) => {
-            const result = await store.redeemHouseInvite(invite.token, card);
-            finish(result);
-            return result === "declined" ? "declined" : "paid";
-          }}
-        />
-      </div>
-    );
+    onDone();
   }
 
   return (
     <div className="space-y-5">
-      <p className="text-small text-muted">{t("joinText", { host: host?.name.split(" ")[0] ?? "" })}</p>
+      <p className="text-small text-muted">{t(invite.priority ? "joinTextSearch" : "joinText", { host: host?.name.split(" ")[0] ?? "" })}</p>
       <Button
         size="lg"
         disabled={busy}

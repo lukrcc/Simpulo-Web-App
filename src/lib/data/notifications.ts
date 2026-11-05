@@ -43,6 +43,9 @@ export type NotifyEventKey =
   | "crewFull"
   | "locked"
   | "paid"
+  | "paymentDue"
+  | "paymentLapsed"
+  | "bookingRefunded"
   | "left"
   | "newMessage"
   // Scheduled reminders (src/lib/reminders.ts)
@@ -53,10 +56,8 @@ export type NotifyEventKey =
   | "reminderArrival"
   | "reminderSavedSoon"
   | "hostOpened"
-  // A House opened in a place (and month) you said you're interested in
-  | "interestOpened"
-  // A host invited you to their new House in a place you're interested in
-  | "interestInvite"
+  // A House opened that answers a search you saved
+  | "searchOpened"
   // Crews: a past crew mate invited you to their new House / an invited person said yes (to the host)
   | "crewInvite"
   // A host invited you from their People to a House that's already open
@@ -77,13 +78,15 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   crewFull: "crew_full",
   locked: "house_locked",
   paid: "payment_due",
+  paymentDue: "payment_due",
+  paymentLapsed: "payment_due",
+  bookingRefunded: "payment_due",
   reminderPayDue: "payment_due",
   reminderPayToday: "payment_due",
   reminderBookingUpload: "payment_due",
   newMessage: "new_message",
   hostOpened: "house_opened_in_place",
-  interestOpened: "house_opened_in_place",
-  interestInvite: "house_opened_in_place",
+  searchOpened: "house_opened_in_place",
   crewInvite: "crew_invite",
   houseInvite: "crew_invite",
   inviteAccepted: "request_accepted",

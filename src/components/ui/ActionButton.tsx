@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "light" | "glass";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "glass";
 /** xl 48px · lg 44px · mid 40px · md 36px · sm 32px, 13px text · bar 36px, 14px text (Explore's filter bar) (tertiary is a text link – the size only sets its type) */
 export type ButtonSize = "xl" | "lg" | "mid" | "md" | "sm" | "bar";
 
@@ -10,14 +10,12 @@ const variants: Record<ButtonVariant, string> = {
   primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-ink/10 disabled:text-muted",
   secondary: "rounded-full bg-(--chip-bg) text-ink hover:bg-(--chip-bg-hover) disabled:text-muted",
   tertiary: "text-ink underline-offset-4 hover:underline disabled:text-muted disabled:no-underline",
-  // On a photo: the main action as a light capsule, the others in glass.
-  light: "rounded-full bg-surface text-ink hover:bg-bg disabled:bg-white/25 disabled:text-white/80",
-  glass: "glass-dark rounded-full hover:bg-ink/45",
+  // On a photo.
+  glass: "on-image rounded-full",
 };
 
 const filled: Record<ButtonSize, string> = { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" };
 const sizes: Record<ButtonVariant, Record<ButtonSize, string>> = {
-  light: filled,
   glass: filled,
   primary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
   secondary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },

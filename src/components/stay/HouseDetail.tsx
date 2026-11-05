@@ -1,37 +1,55 @@
 "use client";
 
-import { Check, CircleCheck, ExternalLink, Lock, LockOpen, MessageCircle, RotateCcw, UserPlus } from "lucide-react";
+import { ArrowRight, Check, ClipboardList, ExternalLink, Lock, MessageCircle, RotateCcw, Users, Vote, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { againHref } from "@/components/create/model";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { HostShareTools } from "@/components/share/HostShareTools";
 import { Button } from "@/components/ui/ActionButton";
-import { Avatar } from "@/components/ui/Avatar";
+import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
+import { Chip } from "@/components/ui/Chip";
+import { ChipIndicator } from "@/components/ui/ChipIndicator";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { Img } from "@/components/ui/Img";
+import { MoreMenu } from "@/components/ui/MoreMenu";
+import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StayThumb } from "@/components/ui/StayThumb";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getInvited, getMyPayment, isCrewMember, joinedAt, paymentStatus, useStore } from "@/lib/store";
+import { openVote } from "@/lib/crewVotes";
+import { paymentSplit } from "@/lib/fees";
+import { crewThreadId, findUser, getCrew, getCrewThread, getInvited, getMyPayment, getPayments, isCrewMember, joinedAt, paymentProgress, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
-import { openSpots } from "@/lib/utils";
+import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { CrewMenu } from "./CrewMenu";
-import { DetailSection, DetailSections, ListRow, detailCard } from "./DetailSection";
+import { DetailSection, ListRow } from "./DetailSection";
 import { HostCard } from "./HostCard";
-import { HostInvitesSection, InviteSheet } from "./HouseInvites";
+import { HostInvitesSection } from "./HouseInvites";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 
+type HostTab = "overview" | "requests" | "crew" | "payments" | "share";
+type GuestTab = "overview" | "crew" | "payment";
+type Tab = HostTab | GuestTab;
+
+/** A row that does something: only it gets a surface, and only on hover. */
+const ROW_HOVER = "rounded-2xl transition-colors duration-150 hover:bg-(--chip-bg)";
+/** Under the fixed head, inside the scrolling part: the rows' hover surfaces reach past the text without being cut off. */
+const TAB_PANEL = "col-start-1 row-start-1 min-w-0 px-3 pb-6";
+const TAB_FADE_MS = 200;
+
 /**
- * Your houses, right column: exactly two cards – the header (title, dates · place, status, actions) and one content
- * card whose sections follow a fixed order per role: hosting, joined, or – once it's over – past.
+ * Your houses, right column. No card and no white: everything lies on the page. The head stays, the tabs under it choose what fills the
+ * rest (?tab=), and only that part scrolls. A House that's over has no tabs.
  */
 export function HouseDetail({ stay }: { stay: Stay }) {
   const store = useStore();
@@ -39,164 +57,318 @@ export function HouseDetail({ stay }: { stay: Stay }) {
   return stay.hostId === store.currentUserId ? <HouseManage stay={stay} /> : <JoinedHouse stay={stay} />;
 }
 
-/** The header card: title, "dates · place", status badges left; right the secondary actions and exactly one primary. */
-function HeaderCard({ stay, badges, actions, menu }: { stay: Stay; badges?: ReactNode; actions?: ReactNode; menu?: ReactNode }) {
+/** The fixed head: thumbnail, title, "dates · place", status badges; right the page's actions with one primary. */
+function HouseHead({ stay, badges, actions, menu }: { stay: Stay; badges?: ReactNode; actions?: ReactNode; menu?: ReactNode }) {
   const f = useFormat();
+  const photo = housePhotos(stay)[0];
   return (
-    <section className={detailCard}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 basis-64">
-          <h2 className="text-h2">{stay.title}</h2>
-          <p className="mt-1 text-muted">
-            {f.longRange(stay.startDate, stay.endDate)} · {f.placeName(stay)}
+    <header className="flex flex-wrap items-start gap-x-6 gap-y-3 px-3">
+      <div className="flex min-w-0 flex-1 basis-80 items-start gap-4">
+        {photo ? <Img src={photo} alt="" width={56} height={56} className="size-14 shrink-0 rounded-[14px] object-cover" /> : <StayThumb stay={stay} size={56} className="size-14 rounded-[14px]" />}
+        <div className="min-w-0">
+          <h2 className="truncate text-h2 text-ink">{stay.title}</h2>
+          <p className="mt-0.5 truncate text-body text-muted">
+            {f.stayDatesLong(stay)} · {f.placeName(stay)}
           </p>
-          {badges && <div className="mt-3 flex flex-wrap items-center gap-2">{badges}</div>}
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {actions}
-          {menu}
+          {badges && <div className="mt-2 flex flex-wrap items-center gap-2">{badges}</div>}
         </div>
       </div>
-    </section>
+      <div className="flex shrink-0 flex-wrap items-center gap-4">
+        {actions}
+        {menu}
+      </div>
+    </header>
   );
 }
 
-/** "Locked · €480 pp" / "Accommodation open", and "Booked" once the confirmation is uploaded. */
-function AccommodationBadges({ stay }: { stay: Stay }) {
-  const t = useTranslations("house.accommodationChip");
-  const tBadges = useTranslations("houses.detail.badges");
-  const f = useFormat();
-  const locked = stay.accommodationStatus === "locked";
+/** Where the House stands, one badge: Closed, Draft, Booked, Crew complete, or whether it's taking requests. */
+function StatusLine({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.detail");
+  const key =
+    stay.status === "closed"
+      ? "badges.closed"
+      : stay.status === "draft"
+        ? "badges.draft"
+        : stay.status === "booked"
+          ? "badges.booked"
+          : stay.spotsFilled >= stay.spotsTotal
+            ? "crewComplete"
+            : stay.acceptingRequests
+              ? "takingRequests"
+              : "notTakingRequests";
+  return <Badge>{t(key)}</Badge>;
+}
+
+/** ?tab=, without a trip to the server. Anything this role doesn't have is the first tab. */
+function useTab<T extends Tab>(tabs: readonly T[]): [T, (tab: T) => void] {
+  const param = useSearchParams().get("tab");
+  const tab = tabs.find((t) => t === param) ?? tabs[0];
+  const select = (next: T) => {
+    const url = new URL(window.location.href);
+    if (next === tabs[0]) url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    // Without state of its own: only then does Next take the change over into useSearchParams.
+    window.history.replaceState(null, "", url.pathname + url.search);
+  };
+  return [tab, select];
+}
+
+/** The tabs as text chips with the sliding peach capsule, as on Explore. A tab's number sits in an accent dot. */
+function TabRow<T extends Tab>({ tabs, value, onChange, counts }: { tabs: readonly T[]; value: T; onChange: (tab: T) => void; counts?: Partial<Record<Tab, number>> }) {
+  const t = useTranslations("houses.tabs");
+  const name = (tab: Tab) => t(tab);
   return (
-    <>
-      <Badge icon={locked ? <Lock aria-hidden /> : <LockOpen aria-hidden />}>
-        {locked ? (stay.pricePerPerson ? t("lockedPrice", { price: f.price(stay.pricePerPerson, stay.currency) }) : t("locked")) : t("open")}
-      </Badge>
-      {stay.status === "booked" && <Badge icon={<CircleCheck aria-hidden />}>{tBadges("booked")}</Badge>}
-    </>
+    <div role="tablist" aria-label={t("label")} className="relative mt-4 flex shrink-0 flex-wrap items-center gap-1 px-3">
+      <ChipIndicator />
+      {tabs.map((tab) => {
+        const count = counts?.[tab] ?? 0;
+        return (
+          <Chip
+            key={tab}
+            variant="text"
+            role="tab"
+            aria-selected={tab === value}
+            active={tab === value}
+            onClick={() => onChange(tab)}
+            aria-label={count > 0 ? t("withCount", { label: name(tab), count }) : undefined}
+            trailing={count > 0 ? <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-small text-white">{count}</span> : undefined}
+          >
+            {name(tab)}
+          </Chip>
+        );
+      })}
+    </div>
+  );
+}
+
+/** What's under the tabs: the only part that scrolls. The old tab fades out while the new one fades in, 200ms. */
+function TabPanels<T extends Tab>({ tab, render }: { tab: T; render: (tab: T) => ReactNode }) {
+  const paneRef = useRef<HTMLDivElement>(null);
+  const [current, setCurrent] = useState(tab);
+  const [leaving, setLeaving] = useState<T | null>(null);
+  if (tab !== current) {
+    setLeaving(current);
+    setCurrent(tab);
+  }
+  useEffect(() => {
+    paneRef.current?.scrollTo({ top: 0 });
+    if (leaving === null) return;
+    const timer = window.setTimeout(() => setLeaving(null), TAB_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [current, leaving]);
+  return (
+    <div ref={paneRef} className="mt-5 split:scroll-pane split:min-h-0 split:flex-1">
+      <div className="grid grid-cols-1">
+        {(leaving === null ? [current] : [leaving, current]).map((panel) => (
+          <div key={panel} role="tabpanel" inert={panel !== current} className={cn(TAB_PANEL, leaving !== null && (panel === current ? "animate-tab-in" : "animate-tab-out"))}>
+            {render(panel)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabbedHouse({ head, tabs }: { head: ReactNode; tabs: ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-col split:h-full">
+      {head}
+      {tabs}
+    </div>
+  );
+}
+
+// ─── Overview ──────────────────────────────────────────────────────────────────
+
+interface Task {
+  key: string;
+  icon: LucideIcon;
+  text: string;
+  onClick?: () => void;
+  href?: string;
+  external?: boolean;
+}
+
+/** What there is to do, a sentence each: a click goes where it's done. Nothing to do: "All set", and what's next. */
+function TaskList({ tasks, stay }: { tasks: Task[]; stay: Stay }) {
+  const t = useTranslations("houses.overview");
+  const [now] = useState(() => Date.now());
+  if (tasks.length === 0) {
+    const days = stay.startDate ? Math.ceil((Date.parse(stay.startDate) - now) / 86_400_000) : 0;
+    return (
+      <div>
+        <p className="text-h2 text-ink">{t("allSet")}</p>
+        {days > 0 && <p className="mt-1 text-body text-muted">{t("arrival", { count: days })}</p>}
+      </div>
+    );
+  }
+  const row = cn("-mx-3 flex min-h-14 items-center gap-3 px-3 py-2 text-left text-body text-ink", ROW_HOVER);
+  return (
+    <ul className="flex flex-col gap-1">
+      {tasks.map(({ key, icon: Icon, text, onClick, href, external }) => {
+        const content = (
+          <>
+            <Icon className="size-5 shrink-0 text-muted" aria-hidden />
+            <span className="min-w-0 flex-1">{text}</span>
+            <ArrowRight className="size-4 shrink-0 text-muted" aria-hidden />
+          </>
+        );
+        return (
+          <li key={key}>
+            {href ? (
+              <Link href={href} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined} className={row}>
+                {content}
+              </Link>
+            ) : (
+              <button type="button" onClick={onClick} className={cn(row, "w-[calc(100%+24px)]")}>
+                {content}
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Label small and muted over the value. */
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-small text-muted">{label}</dt>
+      <dd className="mt-0.5 text-body font-semibold text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/** Under the tasks, compact: who's in, the price per person, and for the host the payout. */
+function OverviewFacts({ stay, payout }: { stay: Stay; payout?: string }) {
+  const t = useTranslations("houses.overview");
+  const store = useStore();
+  const price = useViewerPriceLabel(stay);
+  return (
+    <dl className="mt-(--space-inner) flex flex-wrap items-start gap-x-12 gap-y-4">
+      <Fact label={t("crew")}>
+        <span className="flex items-center gap-2">
+          <AvatarStack users={getCrew(store, stay)} size="sm" max={5} linked />
+          {t("crewIn", { filled: stay.spotsFilled, total: stay.spotsTotal })}
+        </span>
+      </Fact>
+      <Fact label={t("price")}>{price}</Fact>
+      {payout && <Fact label={t("payout")}>{payout}</Fact>}
+    </dl>
   );
 }
 
 // ─── Hosted ────────────────────────────────────────────────────────────────────
 
-/** Hosting: Crew → Interested & invites → Share → Payments. */
+const HOST_TABS: readonly HostTab[] = ["overview", "requests", "crew", "payments", "share"];
+const DRAFT_TABS: readonly HostTab[] = ["overview", "requests", "crew", "payments"];
+
 function HouseManage({ stay }: { stay: Stay }) {
   const t = useTranslations("houses.detail");
+  const tOverview = useTranslations("houses.overview");
+  const f = useFormat();
+  const store = useStore();
   const draft = stay.status === "draft";
   const open = stay.status === "published" || stay.status === "booked";
-
-  return (
-    <div className="space-y-6">
-      <HeaderCard
-        stay={stay}
-        menu={<CrewMenu stay={stay} afterLeaveHref="/my-stays" minimal />}
-        badges={
-          <>
-            <Badge>
-              {stay.status === "closed"
-                ? t("badges.closed")
-                : draft
-                  ? t("badges.draft")
-                  : stay.acceptingRequests
-                    ? t("takingRequests")
-                    : t("notTakingRequests")}
-            </Badge>
-            <AccommodationBadges stay={stay} />
-          </>
-        }
-        actions={
-          <>
-            {!draft && (
-              <>
-                {/* The host sees the public page as a guest would (dark preview banner, nothing changes data). */}
-                <Button variant="secondary" href={`/house/${stay.slug}?preview=guest`}>
-                  {t("viewPage")}
-                </Button>
-                <Button variant="secondary" href={`/my-stays/${stay.id}/edit`}>
-                  {t("editHouse")}
-                </Button>
-              </>
-            )}
-            <HostNextAction stay={stay} />
-          </>
-        }
-      />
-
-      <DetailSections>
-        <CrewSection stay={stay} manage />
-        {open && <HostInvitesSection stay={stay} />}
-        {/* A draft has no public page to share yet. */}
-        {!draft && <HostShareTools stay={stay} title={t("sections.share")} />}
-        <HostPaymentsSection stay={stay} />
-      </DetailSections>
-    </div>
-  );
-}
-
-/**
- * The host's one primary button – the next step: a draft is finished; open with spots left → Invite; crew full and
- * not locked → Lock accommodation; booked → Open crew group (the crew chat while there's no group link); while
- * shares are being paid → the crew chat. Closed: none.
- */
-function HostNextAction({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses.detail.next");
-  const store = useStore();
-  const [sheet, setSheet] = useState<"invite" | "lock" | null>(null);
+  const tabs = draft ? DRAFT_TABS : HOST_TABS;
+  const [tab, setTab] = useTab(tabs);
+  const [locking, setLocking] = useState(false);
+  const requests = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "pending").toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const chat = getCrewThread(store, stay.id) ? `/inbox/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
   const locked = stay.accommodationStatus === "locked";
-  const chat = getCrewThread(store, stay.id) ? `/inbox/${crewThreadId(stay.id)}` : null;
+  const voting = openVote(stay, "accommodation");
+  const progress = paymentProgress(store, stay.id);
+  const payout = locked ? getPayments(store, stay.id).reduce((sum, p) => sum + paymentSplit(p.share, p.hostFee).hostReceives, 0) : 0;
 
-  if (stay.status === "closed") return null;
-  if (stay.status === "draft") return <Button href={`/my-stays/${stay.id}/edit`}>{t("finish")}</Button>;
-  if (stay.status === "booked") {
-    if (stay.crewGroupUrl)
-      return (
-        <Button href={stay.crewGroupUrl} external>
-          <ExternalLink aria-hidden />
-          {t("openCrewGroup")}
-        </Button>
-      );
-    return chat && <Button href={chat}>{t("openCrewChat")}</Button>;
-  }
-  if (!full && !locked)
-    return (
-      <>
-        <Button onClick={() => setSheet("invite")} disabled={openSpots(stay) === 0}>
-          <UserPlus aria-hidden />
-          {t("invite")}
-        </Button>
-        <InviteSheet stay={stay} open={sheet === "invite"} onClose={() => setSheet(null)} />
-      </>
-    );
-  if (!locked)
-    return (
-      <>
-        <Button onClick={() => setSheet("lock")}>
-          <Lock aria-hidden />
-          {t("lockAccommodation")}
-        </Button>
-        {sheet === "lock" && <LockSheet stay={stay} onClose={() => setSheet(null)} />}
-      </>
-    );
-  return chat && <Button href={chat}>{t("openCrewChat")}</Button>;
-}
+  const tasks: Task[] = [
+    ...(draft ? [{ key: "finish", icon: ClipboardList, text: tOverview("finish"), href: `/my-stays/${stay.id}/edit` }] : []),
+    ...(requests.length > 0 ? [{ key: "requests", icon: Users, text: tOverview("requests", { count: requests.length }), onClick: () => setTab("requests") }] : []),
+    ...(stay.paymentDueAt && progress.paidCount < progress.count
+      ? [{ key: "payments", icon: Wallet, text: tOverview("paymentsOpen", { open: progress.count - progress.paidCount, count: progress.count, date: `${f.day(stay.paymentDueAt)}, ${f.time(stay.paymentDueAt)}` }), onClick: () => setTab("payments") }]
+      : []),
+    ...(voting && chat ? [{ key: "voting", icon: Vote, text: tOverview("voting"), href: chat }] : []),
+    ...(open && full && !locked && !voting ? [{ key: "lock", icon: Lock, text: tOverview("choosePlace"), onClick: () => setLocking(true) }] : []),
+    ...(stay.allPaidAt && !stay.bookingConfirmedAt ? [{ key: "book", icon: Lock, text: tOverview("bookPlace"), onClick: () => setTab("payments") }] : []),
+    ...(open && full && !stay.crewGroupUrl ? [{ key: "group", icon: MessageCircle, text: tOverview("groupLink"), href: `/my-stays/${stay.id}/edit` }] : []),
+  ];
 
-/** Payments: the payment status once the place is locked; before that one status line (locking is the header's job). */
-function HostPaymentsSection({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses.detail.sections");
-  if (stay.accommodationStatus === "locked") return <PaymentsSection stay={stay} />;
+  const primary = draft ? <Button href={`/my-stays/${stay.id}/edit`}>{t("next.finish")}</Button> : chat && stay.status !== "closed" ? <Button href={chat}>{t("next.openCrewChat")}</Button> : null;
+
   return (
-    <DetailSection title={t("payments")}>
-      <p className="text-body text-muted">{t("notLocked")}</p>
-    </DetailSection>
+    <TabbedHouse
+      head={
+        <HouseHead
+          stay={stay}
+          badges={<StatusLine stay={stay} />}
+          menu={<CrewMenu stay={stay} afterLeaveHref="/my-stays" minimal />}
+          actions={
+            <>
+              {/* The host sees the public page as a guest would (preview banner, nothing changes data). */}
+              {!draft && (
+                <Button variant="tertiary" href={`/house/${stay.slug}?preview=guest`}>
+                  {t("viewPage")}
+                </Button>
+              )}
+              {!draft && (
+                <Button variant="secondary" href={`/my-stays/${stay.id}/edit`}>
+                  {t("edit")}
+                </Button>
+              )}
+              {primary}
+            </>
+          }
+        />
+      }
+      tabs={
+        <>
+          <TabRow tabs={tabs} value={tab} onChange={setTab} counts={{ requests: requests.length }} />
+          <TabPanels
+            tab={tab}
+            render={(panel) => {
+              if (panel === "requests") return <RequestsTab stay={stay} requests={requests} />;
+              if (panel === "crew") return (
+                <>
+                  <CrewRows stay={stay} manage />
+                  {open && <HostInvitesSection stay={stay} />}
+                </>
+              );
+              if (panel === "payments") return <PaymentsSection stay={stay} onLock={open && full ? () => setLocking(true) : undefined} />;
+              if (panel === "share") return <div className="mx-auto w-full max-w-md"><HostShareTools stay={stay} /></div>;
+              return (
+                <>
+                  <TaskList tasks={tasks} stay={stay} />
+                  <OverviewFacts stay={stay} payout={locked ? f.price(payout, stay.currency) : undefined} />
+                </>
+              );
+            }}
+          />
+          {locking && <LockSheet stay={stay} onClose={() => setLocking(false)} />}
+        </>
+      }
+    />
   );
 }
 
-/**
- * Crew: everyone in (avatar, name, country · joined), the occupancy as a badge. Host (`manage`): Remove, the past-crew
- * invitees holding a spot, and the open requests to answer.
- */
-function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
+/** The open requests, the newest first. */
+function RequestsTab({ stay, requests }: { stay: Stay; requests: JoinRequest[] }) {
+  const t = useTranslations("houses.requests");
+  const store = useStore();
+  if (requests.length === 0) return <p className="text-body text-muted">{t("none")}</p>;
+  return (
+    <ul className="flex flex-col gap-2">
+      {requests.map((request) => {
+        const applicant = findUser(store, request.userId);
+        return applicant ? <RequestRow key={request.id} request={request} applicant={applicant} stay={stay} /> : null;
+      })}
+    </ul>
+  );
+}
+
+/** Everyone in (avatar, name, country · joined, Paid / Pending); the host removes someone from the row's "…". */
+function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
   const t = useTranslations("houses.crew");
   const tDetail = useTranslations("houses.detail");
   const f = useFormat();
@@ -206,16 +378,10 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
   const crew = getCrew(store, stay);
   const invited = getInvited(store, stay.id);
   const locked = stay.accommodationStatus === "locked" && stay.pricePerPerson !== undefined;
-  const requests = manage
-    ? store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "pending").toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
-    : [];
 
   return (
-    <DetailSection
-      title={tDetail("sections.crew")}
-      action={<Badge>{tDetail("badges.occupancy", { filled: stay.spotsFilled, total: stay.spotsTotal })}</Badge>}
-    >
-      <ul className="">
+    <>
+      <ul>
         {crew.map((member) => {
           const isHost = member.id === stay.hostId;
           const joined = joinedAt(store, stay, member.id);
@@ -234,18 +400,11 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
                 subtitle={`${member.country}${joined ? ` · ${t(isHost ? "opened" : "joined", { date: f.day(joined) })}` : ""}`}
                 aside={
                   <>
-                    {locked && stay.status !== "completed" && <StatusBadge status={paymentStatus(store, stay.id, member.id)} />}
+                    {locked && stay.status !== "completed" && (stay.paymentDueAt || paymentStatus(store, stay.id, member.id) === "paid") && <StatusBadge status={paymentStatus(store, stay.id, member.id)} />}
                     {isHost && <Badge>{t("host")}</Badge>}
                   </>
                 }
-                action={
-                  manage &&
-                  !isHost && (
-                    <Button variant="tertiary" onClick={() => setRemoving(member)} aria-label={t("removeLabel", { name: member.name })}>
-                      {tDetail("sections.remove")}
-                    </Button>
-                  )
-                }
+                action={manage && !isHost && <MoreMenu label={t("removeLabel", { name: member.name })} items={[{ label: tDetail("sections.remove"), danger: true, onSelect: () => setRemoving(member) }]} />}
               />
             </li>
           );
@@ -266,21 +425,6 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
           </li>
         ))}
       </ul>
-
-      {requests.length > 0 && (
-        <div className="mt-4">
-          <div className="mb-2">
-            <Badge>{tDetail("badges.new", { count: requests.length })}</Badge>
-          </div>
-          <ul className="">
-            {requests.map((request) => {
-              const applicant = findUser(store, request.userId);
-              return applicant ? <RequestRow key={request.id} request={request} applicant={applicant} stay={stay} /> : null;
-            })}
-          </ul>
-        </div>
-      )}
-
       <ConfirmSheet
         open={removing !== null}
         title={t("removeTitle", { name: removing?.name.split(" ")[0] ?? "" })}
@@ -295,11 +439,11 @@ function CrewSection({ stay, manage = false }: { stay: Stay; manage?: boolean })
           setRemoving(null);
         }}
       />
-    </DetailSection>
+    </>
   );
 }
 
-/** A pending request: the person (as a list row), their message, Accept (secondary) and Decline / Reply (tertiary). */
+/** A request: the person, their socials and message; Accept (primary), Reply (secondary), Decline (tertiary). */
 function RequestRow({ request, applicant, stay }: { request: JoinRequest; applicant: User; stay: Stay }) {
   const t = useTranslations("houses.requests");
   const f = useFormat();
@@ -319,26 +463,24 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
   }
 
   return (
-    <li className="pb-4">
-      <ListRow
-        lead={<Avatar user={applicant} size="md" linked />}
-        title={
-          <span className="flex min-w-0 items-center gap-1">
-            <Link href={`/u/${applicant.id}`} className="truncate hover:underline">
-              {applicant.name}
-            </Link>
-            {applicant.verified && <VerifiedBadge />}
-          </span>
-        }
-        subtitle={`${f.ageAndCountry(applicant)} · ${f.day(request.createdAt)}${applicant.photos.length === 0 ? ` · ${t("noPhoto")}` : ""}`}
-      />
-      <div className="pl-[52px]">
-        <SocialRow user={applicant} size="sm" />
-        <p className="mt-2 text-body leading-relaxed text-ink">{request.message}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-5">
+    <li className={cn("-mx-3 flex gap-3 p-3", ROW_HOVER)}>
+      <Avatar user={applicant} size="md" linked />
+      <div className="min-w-0 flex-1">
+        <p className="flex min-w-0 items-center gap-1 text-body font-semibold text-ink">
+          <Link href={`/u/${applicant.id}`} className="truncate hover:underline">
+            {applicant.name}
+          </Link>
+          {applicant.verified && <VerifiedBadge />}
+        </p>
+        <p className="text-small text-muted">
+          {f.ageAndCountry(applicant)} · {f.day(request.createdAt)}
+          {applicant.photos.length === 0 && ` · ${t("noPhoto")}`}
+        </p>
+        <SocialRow user={applicant} size="sm" className="mt-1 empty:hidden" />
+        {request.message.trim() && <p className="mt-2 max-w-[640px] text-body text-ink">{request.message}</p>}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           {!isFull && (
             <Button
-              variant="secondary"
               onClick={() => {
                 acceptRequest(request.id);
                 showToast(t("acceptedToast", { name: firstName }));
@@ -347,6 +489,9 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
               {t("accept")}
             </Button>
           )}
+          <Button variant="secondary" onClick={reply}>
+            {t("reply")}
+          </Button>
           <Button
             variant="tertiary"
             onClick={() => {
@@ -356,9 +501,6 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
           >
             {t("decline")}
           </Button>
-          <Button variant="tertiary" onClick={reply}>
-            {t("reply")}
-          </Button>
         </div>
       </div>
     </li>
@@ -367,24 +509,29 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
 
 // ─── Joined ────────────────────────────────────────────────────────────────────
 
-/** Joined: Crew → Your payment → Crew group (once complete) → Host. */
+const GUEST_TABS: readonly GuestTab[] = ["overview", "crew", "payment"];
+
 function JoinedHouse({ stay }: { stay: Stay }) {
   const t = useTranslations("houses");
+  const tOverview = useTranslations("houses.overview");
   const tSection = useTranslations("houses.detail.sections");
   const tNext = useTranslations("houses.detail.next");
+  const f = useFormat();
   const store = useStore();
   const router = useRouter();
   const requireAuth = useRequireAuth();
   const host = findUser(store, stay.hostId);
   const showToast = useToast();
+  const [tab, setTab] = useTab(GUEST_TABS);
   const [paying, setPaying] = useState(false);
   const request = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId);
   const accepted = request?.status === "accepted";
   const invited = request?.status === "invited";
   const hostName = host?.name.split(" ")[0] ?? "";
   const payment = getMyPayment(store, stay.id);
-  const owes = accepted && stay.accommodationStatus === "locked" && payment?.status === "pending";
+  const owes = accepted && stay.accommodationStatus === "locked" && payment?.status === "pending" && Boolean(stay.paymentDueAt);
   const crewGroup = accepted && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal ? stay.crewGroupUrl : null;
+  const chat = accepted ? `/inbox/${crewThreadId(stay.id)}` : null;
 
   function respond(accept: boolean) {
     store.respondToInvite(stay.id, accept);
@@ -395,7 +542,13 @@ function JoinedHouse({ stay }: { stay: Stay }) {
     requireAuth((userId) => router.push(`/inbox/${store.openDirectThread(stay.id, stay.hostId, userId)}`));
   }
 
-  // One primary – the next step: answer the invite, pay the share, the crew group once complete, else the crew chat.
+  const tasks: Task[] = [
+    ...(owes && stay.paymentDueAt ? [{ key: "pay", icon: Wallet, text: tOverview("yourShareDue", { date: `${f.day(stay.paymentDueAt)}, ${f.time(stay.paymentDueAt)}` }), onClick: () => setTab("payment") }] : []),
+    ...(accepted && chat && openVote(stay, "accommodation") ? [{ key: "voting", icon: Vote, text: tOverview("voting"), href: chat }] : []),
+    ...(crewGroup ? [{ key: "group", icon: ExternalLink, text: tNext("openCrewGroup"), href: crewGroup, external: true }] : []),
+  ];
+
+  // One primary – the next step: answer the invite, pay the share, else the crew chat.
   const next = invited ? (
     <>
       <Button variant="secondary" onClick={() => respond(false)}>
@@ -405,78 +558,72 @@ function JoinedHouse({ stay }: { stay: Stay }) {
     </>
   ) : owes ? (
     <Button onClick={() => setPaying(true)}>{tNext("payNow")}</Button>
-  ) : crewGroup ? (
-    <Button href={crewGroup} external>
-      <ExternalLink aria-hidden />
-      {tNext("openCrewGroup")}
-    </Button>
-  ) : accepted ? (
-    <Button href={`/inbox/${crewThreadId(stay.id)}`}>{tNext("openCrewChat")}</Button>
+  ) : chat ? (
+    <Button href={chat}>{tNext("openCrewChat")}</Button>
   ) : null;
 
   return (
-    <div className="space-y-6">
-      <HeaderCard
-        stay={stay}
-        menu={accepted && <CrewMenu stay={stay} afterLeaveHref="/my-stays" />}
-        badges={
-          <>
-            {request && <StatusBadge status={request.status} />}
-            {stay.status === "closed" && <Badge>{t("detail.badges.closed")}</Badge>}
-            <AccommodationBadges stay={stay} />
-            {request?.status === "pending" && (
-              <span className="text-small text-muted">{host ? t("joined.waiting", { name: hostName }) : t("joined.waitingForHost")}</span>
-            )}
-          </>
-        }
-        actions={
-          <>
-            <Button variant="secondary" href={`/house/${stay.slug}`}>
-              {t("detail.viewPage")}
-            </Button>
-            {next}
-          </>
-        }
-      />
-      <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
-
-      <DetailSections>
-        <CrewSection stay={stay} />
-        {accepted && (
-          <DetailSection title={tSection("yourPayment")}>
-            {stay.accommodationStatus === "locked" ? <MyShare stay={stay} variant="panel" /> : <p className="text-body text-muted">{tSection("notLockedGuest")}</p>}
-            <p className="mt-2 text-small text-muted">{tSection("refundNote")}</p>
-          </DetailSection>
-        )}
-        {/* The crew's own WhatsApp / Telegram group: confirmed members, once the crew is complete. */}
-        {crewGroup && (
-          <DetailSection
-            title={tSection("crewGroup")}
-            action={
-              <Button variant="secondary" href={crewGroup} external>
-                <ExternalLink aria-hidden />
-                {tSection("openCrewGroup")}
+    <TabbedHouse
+      head={
+        <HouseHead
+          stay={stay}
+          menu={accepted && <CrewMenu stay={stay} afterLeaveHref="/my-stays" minimal />}
+          badges={
+            <>
+              {request && <StatusBadge status={request.status} />}
+              <StatusLine stay={stay} />
+              {request?.status === "pending" && <span className="text-small text-muted">{host ? t("joined.waiting", { name: hostName }) : t("joined.waitingForHost")}</span>}
+            </>
+          }
+          actions={
+            <>
+              <Button variant="tertiary" href={`/house/${stay.slug}`}>
+                {t("detail.viewPage")}
               </Button>
-            }
-          >
-            <p className="text-body text-muted">{tSection("crewGroupText")}</p>
-          </DetailSection>
-        )}
-        {host && (
-          <DetailSection
-            title={tSection("host")}
-            action={
-              <Button variant="secondary" onClick={messageHost}>
-                <MessageCircle aria-hidden />
-                {tSection("messageHost", { name: hostName })}
-              </Button>
-            }
-          >
-            <HostCard host={host} />
-          </DetailSection>
-        )}
-      </DetailSections>
-    </div>
+              {next}
+            </>
+          }
+        />
+      }
+      tabs={
+        <>
+          <TabRow tabs={GUEST_TABS} value={tab} onChange={setTab} />
+          <TabPanels
+            tab={tab}
+            render={(panel) => {
+              if (panel === "crew") return <CrewRows stay={stay} />;
+              if (panel === "payment")
+                return (
+                  <div className="max-w-[640px]">
+                    {stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? <MyShare stay={stay} variant="panel" /> : <p className="text-body text-muted">{tSection("notLockedGuest")}</p>}
+                    <p className="mt-2 text-small text-muted">{tSection("refundNote")}</p>
+                  </div>
+                );
+              return (
+                <>
+                  {request?.status === "pending" ? <p className="text-body text-muted">{host ? t("joined.waiting", { name: hostName }) : t("joined.waitingForHost")}</p> : <TaskList tasks={tasks} stay={stay} />}
+                  <OverviewFacts stay={stay} />
+                  {host && (
+                    <div className="mt-(--space-inner)">
+                      <HostCard
+                        host={host}
+                        action={
+                          <Button variant="secondary" onClick={messageHost}>
+                            <MessageCircle aria-hidden />
+                            {tSection("messageHost", { name: hostName })}
+                          </Button>
+                        }
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            }}
+          />
+          <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
+        </>
+      }
+    />
   );
 }
 
@@ -492,8 +639,8 @@ function PastHouse({ stay }: { stay: Stay }) {
   const paid = payment?.status === "paid" ? f.price(payment.total, stay.currency) : tSection("summaryNothing");
 
   return (
-    <div className="space-y-6">
-      <HeaderCard
+    <TabbedHouse
+      head={<HouseHead
         stay={stay}
         badges={<Badge icon={<Check aria-hidden />}>{t("badge")}</Badge>}
         actions={
@@ -501,10 +648,9 @@ function PastHouse({ stay }: { stay: Stay }) {
             {t("viewPage")}
           </Button>
         }
-      />
-
-      <DetailSections>
-        <CrewSection stay={stay} />
+      />}
+      tabs={<div className="mt-5 px-3 pb-6 split:scroll-pane split:min-h-0 split:flex-1">
+        <CrewRows stay={stay} />
         {/* Same place, vibe and spots – the crew invited as the House is opened (see againHref / createStay). */}
         <DetailSection
           title={tSection("openAgain")}
@@ -520,14 +666,14 @@ function PastHouse({ stay }: { stay: Stay }) {
         <DetailSection title={tSection("summary")}>
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-body">
             <dt className="text-small leading-[22px] text-muted">{tSection("summaryDates")}</dt>
-            <dd className="text-ink">{f.longRange(stay.startDate, stay.endDate)}</dd>
+            <dd className="text-ink">{f.stayDatesLong(stay)}</dd>
             <dt className="text-small leading-[22px] text-muted">{tSection("summaryPlace")}</dt>
             <dd className="text-ink">{f.placeName(stay)}</dd>
             <dt className="text-small leading-[22px] text-muted">{tSection("summaryPaid")}</dt>
             <dd className="tabular-nums text-ink">{paid}</dd>
           </dl>
         </DetailSection>
-      </DetailSections>
-    </div>
+      </div>}
+    />
   );
 }

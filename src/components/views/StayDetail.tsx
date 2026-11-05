@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, Plus, RotateCcw, SearchX, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
@@ -15,12 +15,12 @@ import { useHouseShare } from "@/components/share/HouseShare";
 import { StayCard } from "@/components/StayCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
-import { HouseCrew, HouseDay, HouseFacts, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy } from "@/components/stay/HouseSections";
-import { HouseStage } from "@/components/stay/HouseStage";
+import { CrewVotes } from "@/components/stay/CrewVotes";
+import { HouseCard } from "@/components/stay/HouseCard";
+import { HouseActions, HouseCrew, HouseDay, HouseFacts, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseSummary, HouseWhere, HouseWhy } from "@/components/stay/HouseSections";
+import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
-import { InterestInvite } from "@/components/stay/InterestInvite";
 import { Button } from "@/components/ui/ActionButton";
-import { Badge } from "@/components/ui/Badge";
 import { cardClass } from "@/components/ui/Card";
 import { glassCircle } from "@/components/ui/glass";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -32,8 +32,10 @@ import { useFormat } from "@/i18n/format";
 import { crewThreadId, findUser, getCrew, getCrewLinks, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
+import { memberStage } from "@/lib/joinFlow";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
-import { isListedStay } from "@/lib/launch";
+import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
+import { inHeadStart, isListedStay } from "@/lib/launch";
 
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -92,7 +94,6 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
 
 function StayDetailContent({ stay }: { stay: Stay }) {
   const t = useTranslations("house");
-  const tProfile = useTranslations("profile");
   const store = useStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -114,11 +115,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     offerInstall(hostFirstName);
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
   // ?invite=token – read in its own boundary, like ?preview.
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   // Share: the system dialog where there is one, else the link is copied (see useHouseShare).
-  const houseShare = useHouseShare(stay);
+  const inviteFriends = useHouseShare(stay);
 
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
@@ -139,7 +141,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       : undefined;
   const chatLinkCount = getCrewLinks(store, stay.id).length;
   const photos = housePhotos(stay, host);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const stage = previewing ? null : memberStage(store, stay, store.currentUserId);
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
@@ -194,12 +197,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
   }
 
-  const cta = (look: "stage" | "bar") => (
+  const cta = (look: "card" | "bar") => (
     <StayCta
       look={look}
       stay={stay}
       isHost={isHost}
       request={myRequest}
+      paymentDue={stage === "payment_due" && !isHost}
+      onPay={() => setPaying(true)}
       spotsLeft={spotsLeft}
       invited={invite !== undefined}
       onJoinInvite={joinWithInvite}
@@ -213,8 +218,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
   const canJoin = !isHost && !isMember && !myRequest && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0;
   const message = !isHost && (
-    <Button variant="glass" size="xl" onClick={messageHost} data-preview-action>
-      <MessageCircle aria-hidden />
+    <Button variant="tertiary" size="lg" onClick={messageHost} data-preview-action className="mt-1 justify-center">
       {t("messageHost", { name: hostFirstName })}
     </Button>
   );
@@ -233,34 +237,35 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         <InviteBanner stay={stay} invite={invite} />
       </Container>
     )}
-    <Container className={invite ? "pt-4 md:pt-6" : "pt-4 md:pt-8"}>
-      {host && (
-        <div ref={stageRef}>
-          <HouseStage
+    <Container className="pt-4">
+      {/* The large card stays under the header; everything to read moves past it. */}
+      <div className="grid items-start gap-x-16 gap-y-8 split:grid-cols-[minmax(0,min(42%,600px))_minmax(0,1fr)]">
+        <HouseCard stay={stay} host={host} />
+        <div className="flex min-w-0 flex-col gap-10">
+          <HouseSummary
+            ref={summaryRef}
             stay={stay}
             host={host}
             crew={crew}
-            photos={photos}
-            save={<SaveButton stay={stay} />}
-            menu={!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={glassCircle} />}
-            onShare={houseShare.share}
-            shareCopied={houseShare.copied}
-            onBack={goBack}
-            cta={cta("stage")}
+            cta={cta("card")}
+            invite={
+              <Button variant="secondary" size="lg" onClick={inviteFriends}>
+                <UserPlus aria-hidden />
+                {t("page.inviteFriends")}
+              </Button>
+            }
             message={message}
+            stage={stage}
+            showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
+            actions={<HouseActions save={<SaveButton stay={stay} variant="surface" />} menu={!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={glassCircle} />} onBack={goBack} />}
           />
-        </div>
-      )}
-
-      <HouseFacts stay={stay} host={host} />
-
-      <div className="empty:hidden">
+          <div className="space-y-6 empty:hidden">
         {/* Declined, or the crew is full: the same trip, as their own House. */}
         {showOpenYourOwn && <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />}
 
         {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
         {myRequest?.status === "invited" && (
-          <div className={cn(cardClass, "mt-6 flex items-start gap-4")}>
+          <div className={cn(cardClass, "flex items-start gap-4")}>
             <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
             <div className="min-w-0 text-body">
               <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
@@ -269,23 +274,23 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           </div>
         )}
 
-        {/* The host, right after opening it: people who want this city and month – invite them. */}
-        {isHost && stay.visibility === "unlisted" && <p className="mt-6 text-body text-muted">{t("unlistedHint")}</p>}
-        {isHost && <InterestInvite stay={stay} className="mt-6" />}
+        {/* The host, right after opening it: who sees it so far. */}
+        {isHost && stay.visibility === "unlisted" && <p className="text-body text-muted">{t("unlistedHint")}</p>}
+        {isHost && stay.visibility !== "unlisted" && inHeadStart(stay) && <p className="text-body text-muted">{t("headStartHint", { hours: SEARCH_HEAD_START_HOURS })}</p>}
 
         {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
         {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
-          <Button variant="secondary" href={stay.crewGroupUrl} external className="mt-6">
+          <Button variant="secondary" href={stay.crewGroupUrl} external>
             <ExternalLink aria-hidden />
             {t("openCrewGroup")}
           </Button>
         )}
 
-        {/* Crew with an open share: pay right from the House page. */}
-        {isMember && <MyShare stay={stay} className="mt-6" />}
+        {/* Your own share, once paid. While it's due, the head's main action is paying. */}
+        {stage === "paid" && <MyShare stay={stay} />}
 
         {askForPhoto && (
-          <div className={cn(cardClass, "mt-6 flex items-center gap-4")}>
+          <div className={cn(cardClass, "flex items-center gap-4")}>
             <Camera className="size-5 shrink-0 text-muted" aria-hidden />
             <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
             <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}>
@@ -295,33 +300,27 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         )}
       </div>
 
-      <HouseWhy
-        stay={stay}
-        host={host}
-        message={
-          !isHost && (
-            <Button variant="secondary" onClick={messageHost} data-preview-action>
-              <MessageCircle aria-hidden />
-              {tProfile("message")}
-            </Button>
-          )
-        }
-      />
-      <HouseCrew stay={stay} crew={crew} canJoin={canJoin} onJoin={startRequest} />
-      <HouseDay stay={stay} />
-      <HouseFit stay={stay} />
-      <HouseOffer stay={stay} />
-      <HouseWhere stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
+          <HouseFacts stay={stay} host={host} />
+          <HouseWhy stay={stay} />
+          <HouseCrew stay={stay} crew={crew} canJoin={canJoin} onJoin={startRequest} />
+          <CrewVotes stay={stay} />
+          <HouseOffer stay={stay} />
+          <HouseDay stay={stay} />
+          <HouseFit stay={stay} />
+          <HouseWhere stay={stay} chatLinkCount={chatLinkCount} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
+        </div>
+      </div>
+
       <HouseMore stay={stay} />
 
-      <HouseJoinBar stay={stay} photo={photos[0]} stageRef={stageRef} cta={cta("bar")} />
+      <HouseJoinBar stay={stay} photo={photos[0]} joinCardRef={summaryRef} cta={cta("bar")} />
 
+      <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       {invite && <InviteJoinSheet stay={stay} invite={invite} open={inviteSheetOpen} onClose={() => setInviteSheetOpen(false)} />}
       <RequestSheet
         key={requestKey}
         open={sheetOpen}
-        stay={stay}
         hostName={hostFirstName}
         loggedIn={me !== undefined}
         blockedNote={previewing ? tPreview("hostRequestsDisabled") : undefined}
@@ -363,10 +362,10 @@ function InviteParam({ onChange }: { onChange: (token: string | null) => void })
 function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
   const t = useTranslations("growth.ownHouse");
   const format = useFormat();
-  const dates = format.longRange(stay.startDate, stay.endDate);
+  const dates = format.stayDatesLong(stay);
   const place = format.placeName(stay);
   return (
-    <div className={cn(cardClass, "mt-6")}>
+    <div className={cardClass}>
       <p className="font-semibold">{declined ? t("titleDeclined") : t("titleFull")}</p>
       <p className="mt-1 text-small text-muted">
         {stay.startDate && stay.endDate ? t("text", { dates, place }) : t("textNoDates", { place })}
@@ -380,11 +379,14 @@ function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
 }
 
 interface StayCtaProps {
-  /** On the stage's photo (a light capsule) or in the floating bar */
-  look: "stage" | "bar";
+  /** In the Join card (full size) or in the floating bar */
+  look: "card" | "bar";
   stay: Stay;
   isHost: boolean;
   request?: JoinRequest;
+  /** The crew is complete and the place chosen: paying is the next step */
+  paymentDue: boolean;
+  onPay: () => void;
   spotsLeft: number;
   /** A valid invite link: Join takes the reserved spot (account, then payment) */
   invited: boolean;
@@ -398,13 +400,13 @@ interface StayCtaProps {
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond }: StayCtaProps) {
+function StayCta({ look, stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond }: StayCtaProps) {
   const t = useTranslations("request.cta");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
-  // Exactly one primary on the page: whichever state the CTA is in replaces "Join this House" (the default below).
-  const variant = look === "stage" ? "light" : "primary";
-  const size = look === "stage" ? "xl" : "lg";
+  // Exactly one primary on the page: whichever state the CTA is in replaces "Request to join" (the default below).
+  const variant = "primary";
+  const size = look === "card" ? "xl" : "lg";
   // Over, and you were in it (host or crew): the same House again, with the same people.
   if (stay.status === "completed" && (isHost || request?.status === "accepted")) {
     return (
@@ -418,6 +420,13 @@ function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite
     return (
       <Button variant={variant} size={size} href={`/my-stays/${stay.id}`}>
         {t("manage")}
+      </Button>
+    );
+  }
+  if (paymentDue) {
+    return (
+      <Button variant={variant} size={size} onClick={onPay} data-preview-action>
+        {t("pay")}
       </Button>
     );
   }
@@ -454,11 +463,11 @@ function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite
   }
   if (request?.status === "invited") {
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 *:flex-1">
         <Button variant={variant} size={size} onClick={() => onRespond(true)}>
           {t("acceptInvite")}
         </Button>
-        <Button variant={look === "stage" ? "glass" : "secondary"} size={size} onClick={() => onRespond(false)}>
+        <Button variant="secondary" size={size} onClick={() => onRespond(false)}>
           {t("declineInvite")}
         </Button>
       </div>
@@ -495,7 +504,7 @@ function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite
       </Button>
     );
   }
-  // The page's one primary: "Join this House".
+  // The page's one primary: "Request to join".
   return (
     <Button variant={variant} size={size} onClick={onRequest} data-preview-action>
       {t("join")}
@@ -505,7 +514,6 @@ function StayCta({ look, stay, isHost, request, spotsLeft, invited, onJoinInvite
 
 interface RequestSheetProps {
   open: boolean;
-  stay: Stay;
   hostName: string;
   loggedIn: boolean;
   /** `sent` tells the parent whether a request went out. */
@@ -516,8 +524,6 @@ interface RequestSheetProps {
   blockedNote?: string;
 }
 
-const MIN_MESSAGE_LENGTH = 20;
-
 type RequestStep = "message" | "login" | "sent";
 const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
 
@@ -525,13 +531,12 @@ const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
  * One fixed-size modal, three steps sliding horizontally: message → (logged out) login → sent.
  * The message lives here, so going back from the login step – or closing mid-way – never loses it.
  */
-function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blockedNote }: RequestSheetProps) {
+function RequestSheet({ open, hostName, loggedIn, onClose, onSend, blockedNote }: RequestSheetProps) {
   const t = useTranslations("request");
   const { currentUserId } = useStore();
   const [message, setMessage] = useState("");
   const [step, setStep] = useState<RequestStep>("message");
   const [blocked, setBlocked] = useState(false);
-  const valid = message.trim().length >= MIN_MESSAGE_LENGTH;
 
   function send(userId: string) {
     if (onSend(message, userId)) setStep("sent");
@@ -539,7 +544,6 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!valid) return;
     if (blockedNote) return setBlocked(true);
     if (loggedIn && currentUserId) send(currentUserId);
     else setStep("login");
@@ -571,11 +575,7 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
           <Pane active={step === "message"}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="text-small text-muted">
-                {t.rich("intro", {
-                  name: hostName,
-                  title: stay.title,
-                  house: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
-                })}
+                {t("intro", { name: hostName })}
               </p>
               {!loggedIn && (
                 <p className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-small text-muted">
@@ -586,21 +586,18 @@ function RequestSheet({ open, stay, hostName, loggedIn, onClose, onSend, blocked
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={6}
+                rows={4}
                 autoFocus
+                aria-label={t("messageLabel", { name: hostName })}
                 placeholder={t("placeholder")}
                 className={formTextarea}
               />
-              <div className="-mt-2 flex items-center justify-between gap-3 text-small text-muted">
-                <span>{valid ? t("looksGood") : t("minLength", { count: MIN_MESSAGE_LENGTH })}</span>
-                <Badge>{message.trim().length}</Badge>
-              </div>
               {blocked && blockedNote && (
                 <p role="alert" className="rounded-xl bg-bg px-4 py-3 text-body text-ink">
                   {blockedNote}
                 </p>
               )}
-              <Button type="submit" size="lg" disabled={!valid} className="w-full">
+              <Button type="submit" size="lg" className="w-full">
                 {loggedIn ? t("send") : t("continue")}
               </Button>
             </form>

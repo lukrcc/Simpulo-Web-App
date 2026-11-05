@@ -1,24 +1,28 @@
+import { placeById, placeKindOf } from "@/lib/data/places";
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
+import { openVote } from "@/lib/crewVotes";
+import type { SearchPlace } from "@/lib/savedSearches";
 import type { PersonEntry } from "@/lib/store";
-import type { Currency, NewStayInput, Stay, User, Vibe } from "@/lib/types";
-import { addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
+import type { CrewVote, Currency, NewStayInput, Stay, User, Vibe, VoteOption } from "@/lib/types";
+import { LANGUAGES, VIBES, addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
 
 /*
- * Open a House – the form state and everything derived from it (no React here): the steps, defaults, validation per
- * step, the draft, templates and what gets saved to the House.
+ * Open a House – the form state and everything derived from it (no React here): four required steps, the optional details,
+ * defaults, validation, the draft, templates and what gets saved to the House.
  */
 
 export const DRAFT_KEY = "draftHouse";
 export const TEMPLATES_KEY = "simpulo:house-templates";
 export const HOST_NOTE_MAX = 60;
-export const MAX_IDEAS = 3;
+/** "Decide with crew": at most this many proposals. */
+export const MAX_PROPOSALS = 3;
 export const TITLE_MIN = 4;
 /** Editing: Houses opened before the 28-character limit keep their longer titles. */
 export const TITLE_MAX = 60;
-/** A new House's title – short enough for the hero (the counter in the form shows it). */
-export const TITLE_MAX_NEW = 28;
+/** A new House's title (the counter in the form shows it). */
+export const TITLE_MAX_NEW = 40;
 
-/** The title limit: 28 for a new House, 60 when editing one. */
+/** The title limit: 40 for a new House, 60 when editing one. */
 export const titleMaxFor = (editing?: Stay) => (editing ? TITLE_MAX : TITLE_MAX_NEW);
 export const CUSTOM_VIBE_MAX = 20;
 export const LOOKING_FOR_MIN = 20;
@@ -26,22 +30,58 @@ export const LOOKING_FOR_MAX = 160;
 export const MAX_NIGHTS = 120;
 export const SPOTS_MIN = 2;
 export const SPOTS_MAX = 16;
+/** A new House's size: a range, and the crew is complete at its top end (exact on the edit page). */
+export const CREW_SIZES = [
+  { label: "3–4", spots: 4 },
+  { label: "5–6", spots: 6 },
+  { label: "7–10", spots: 10 },
+] as const;
+export const crewSizeOf = (spots: number) => (CREW_SIZES.find((size) => spots <= size.spots) ?? CREW_SIZES[CREW_SIZES.length - 1]).spots;
 export const SPOTS_QUICK = [4, 6, 8, 12] as const;
 export const DEFAULT_LANGUAGE = "en";
 
-/** One question per step. "extras" is the optional one between the host experience and Publish. */
-export const STEPS = ["vibe", "where", "when", "crew", "budget", "title", "pitch", "host", "extras", "publish"] as const;
+/** Required: all it takes to open a House. */
+export const REQUIRED_STEPS = ["vibe", "where", "crew", "cover"] as const;
+/** Editing lists these on top: a House's cover and title are details there, and older Houses may have neither. */
+export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew"] as const;
+/** Up to this many photos on "Pick a cover"; the first is the cover. */
+export const MAX_COVER_PHOTOS = 6;
+/** Optional, one screen each, reached from the "details" list – before or after opening. */
+export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
+export const STEPS = [...REQUIRED_STEPS, "ready", "details", ...DETAIL_STEPS] as const;
 export type StepKey = (typeof STEPS)[number];
+export type DetailKey = (typeof DETAIL_STEPS)[number];
 
-/** The steps a host goes through: "host" only while host experiences are offered (feature flag hostPremium). */
-export function stepsFor(hostExperience: boolean): StepKey[] {
-  return hostExperience ? [...STEPS] : STEPS.filter((key) => key !== "host");
+/** The details a host can add: "host" only while host experiences are offered (feature flag hostPremium). */
+export function detailsFor(hostExperience: boolean): DetailKey[] {
+  return DETAIL_STEPS.filter((key) => hostExperience || key !== "host");
 }
 
-/** Steps that count in "Step N of 9" – the optional one doesn't. */
-export const isNumbered = (key: StepKey) => key !== "extras";
+/** The optional list on "Ready to open?", grouped. Title and photos are step 4 by then. */
+export const OPTIONAL_GROUPS = [
+  { key: "about", details: ["why", "lookingFor", "rules", "languages"] },
+  { key: "place", details: ["dates", "accommodation"] },
+  { key: "extras", details: ["host", "crewGroup"] },
+] as const satisfies ReadonlyArray<{ key: string; details: readonly DetailKey[] }>;
+
+export const isDetail = (key: StepKey): key is DetailKey => (DETAIL_STEPS as readonly string[]).includes(key);
 
 export type HostExperience = "rent" | "program";
+/** "month": only the month is settled · "exact": the host's dates · "crew": the crew votes on proposals */
+export type DatesMode = "month" | "exact" | "crew";
+/** "later": the host locks a place on the Manage page · "crew": the crew votes on proposals */
+export type AccommodationMode = "later" | "crew";
+export interface DateProposal {
+  id: string;
+  start: string;
+  end: string;
+}
+export interface PlaceProposal {
+  id: string;
+  link: string;
+  /** Per person, as typed */
+  price: string;
+}
 
 export interface FormState {
   /** "" = not picked yet */
@@ -52,8 +92,18 @@ export interface FormState {
   region: string;
   /** The area ("Canggu"); "" = still open */
   city: string;
+  /** "2027-03" */
+  month: string;
+  datesMode: DatesMode;
+  /** With datesMode "exact" */
   startDate: string;
   endDate: string;
+  dateProposals: DateProposal[];
+  /** YYYY-MM-DD, optional: the last day to vote */
+  datesDeadline: string;
+  accommodationMode: AccommodationMode;
+  placeProposals: PlaceProposal[];
+  accommodationDeadline: string;
   spotsTotal: number;
   /** "" = default from the host's country */
   currency: Currency | "";
@@ -70,12 +120,14 @@ export interface FormState {
   whyText: string;
   dayText: string;
   hostNote: string;
-  /** Up to 3 links; posted into the crew chat on publish (create only) */
-  accommodationIdeas: string[];
+  /** One rule per line */
+  rulesText: string;
+  /** Theme photos; the first is the cover */
+  photos: string[];
   /** Optional WhatsApp / Telegram invite link for the crew ("" = none) */
   crewGroupUrl: string;
-  /** ISO 639-1; "" = the host's first language */
-  language: string;
+  /** English names ("German"); none = the host's first language */
+  languages: string[];
   /** People the host lived with, invited on publish ("Open again", "Invite to a House") */
   inviteIds: string[];
   /** "Open again": the completed House this one repeats ("" = a new one) */
@@ -87,8 +139,15 @@ export const initialForm: FormState = {
   customVibe: null,
   region: "",
   city: "",
+  month: "",
+  datesMode: "month",
   startDate: "",
   endDate: "",
+  dateProposals: [],
+  datesDeadline: "",
+  accommodationMode: "later",
+  placeProposals: [],
+  accommodationDeadline: "",
   spotsTotal: 4,
   currency: "",
   budgetMin: "",
@@ -101,9 +160,10 @@ export const initialForm: FormState = {
   whyText: "",
   dayText: "",
   hostNote: "",
-  accommodationIdeas: [""],
+  rulesText: "",
+  photos: [],
   crewGroupUrl: "",
-  language: "",
+  languages: [],
   inviteIds: [],
   againFrom: "",
 };
@@ -111,8 +171,21 @@ export const initialForm: FormState = {
 /** The edit page (and "Open again") start from the House as it is. */
 export function formFromStay(stay: Stay): FormState {
   const budget = stay.budgetPerPerson ?? (stay.pricePerPerson ? { min: stay.pricePerPerson, max: stay.pricePerPerson } : undefined);
+  const datesVote = openVote(stay, "dates");
+  const placeVote = openVote(stay, "accommodation");
+  const nameOf = (code: string) => LANGUAGES.find((l) => l.code === code)?.name;
   return {
     ...initialForm,
+    month: stay.startDate.slice(0, 7),
+    datesMode: datesVote ? "crew" : stay.datesOpen ? "month" : "exact",
+    dateProposals: datesVote?.options.map((o) => ({ id: o.id, start: o.startDate ?? "", end: o.endDate ?? "" })) ?? [],
+    datesDeadline: datesVote?.deadline ?? "",
+    accommodationMode: placeVote ? "crew" : "later",
+    placeProposals: placeVote?.options.map((o) => ({ id: o.id, link: o.link ?? "", price: String(o.pricePerPerson ?? "") })) ?? [],
+    accommodationDeadline: placeVote?.deadline ?? "",
+    rulesText: stay.houseRules.join("\n"),
+    photos: stay.photos ?? [],
+    languages: [stay.language, ...(stay.languages ?? [])].flatMap((code) => nameOf(code) ?? []),
     vibe: stay.vibe,
     customVibe: stay.customVibe ?? null,
     region: stay.region,
@@ -132,7 +205,6 @@ export function formFromStay(stay: Stay): FormState {
     dayText: stay.dayText,
     hostNote: stay.hostNote ?? "",
     crewGroupUrl: stay.crewGroupUrl ?? "",
-    language: stay.language,
   };
 }
 
@@ -140,8 +212,15 @@ export function formFromStay(stay: Stay): FormState {
 export function againForm(source: Stay, crewIds: string[]): FormState {
   return {
     ...formFromStay(source),
+    month: "",
+    datesMode: "month",
     startDate: "",
     endDate: "",
+    dateProposals: [],
+    datesDeadline: "",
+    accommodationMode: "later",
+    placeProposals: [],
+    accommodationDeadline: "",
     inviteIds: crewIds.slice(0, Math.max(0, source.spotsTotal - 1)),
     againFrom: source.id,
   };
@@ -160,20 +239,34 @@ export function suggestionVibe(form: FormState): Vibe {
 
 /** The House language as saved: the host's pick, else their first language, else English. */
 export function languageOf(form: FormState, me?: User): string {
-  return form.language || (me?.languages.map(languageCode).find(Boolean) ?? DEFAULT_LANGUAGE);
+  return form.languages.map(languageCode).find(Boolean) ?? me?.languages.map(languageCode).find(Boolean) ?? DEFAULT_LANGUAGE;
 }
 
-/** The House currency as it will be saved: the host's pick, else the currency of their country. */
-export function currencyOf(form: FormState, me?: User): Currency {
-  return form.currency || currencyForCountry(me?.country ?? "");
+/** The House currency as it will be saved: the host's pick, else theirs (profile, then browser), else their country's. */
+export function currencyOf(form: FormState, me?: User, preferred?: Currency | null): Currency {
+  return form.currency || preferred || currencyForCountry(me?.country ?? "");
 }
 
 /** A single http(s) link and nothing else. */
 export const isLink = (value: string) => findUrls(value)[0] === value;
 
-/** The idea links as they'll be posted: trimmed, non-empty links only (anything else is dropped, never blocks). */
-export function ideasOf(form: FormState): string[] {
-  return form.accommodationIdeas.map((l) => l.trim()).filter(isLink).slice(0, MAX_IDEAS);
+/** A month's first and last day, the start no earlier than tomorrow (a House still has to lie ahead). */
+export function monthBounds(month: string, today: string): { start: string; end: string } {
+  if (!month) return { start: "", end: "" };
+  const { from, to } = monthRange(month);
+  const earliest = earliestStart(today);
+  const start = earliest && from < earliest ? earliest : from;
+  return { start, end: to > start ? to : addDays(start, 1) };
+}
+
+/** The proposals as a vote; anyone who already voted keeps their vote. */
+function voteOf(options: Array<Omit<VoteOption, "voterIds">>, deadline: string, previous?: CrewVote): CrewVote | undefined {
+  if (options.length === 0) return undefined;
+  return {
+    ...previous,
+    deadline: deadline || undefined,
+    options: options.map((option) => ({ ...option, voterIds: previous?.options.find((o) => o.id === option.id)?.voterIds ?? [] })),
+  };
 }
 
 /** Slider scale per currency: about €100–3000 per person in every currency, in round steps. */
@@ -209,28 +302,65 @@ function hostFeeOf(form: FormState, me?: User): number | undefined {
   return form.hostExperience === "program" && canChargeHostFee(me) && fee > 0 ? fee : undefined;
 }
 
-/** The optional fields of "Make it better" – how many are filled. */
-export function extrasCount(form: FormState): number {
-  return [form.whyText, form.dayText, form.hostNote, form.crewGroupUrl, ...form.accommodationIdeas].filter((v) => v.trim() !== "").length;
+/** Whether an optional detail has been added – its check in the list. */
+export function detailDone(key: DetailKey, form: FormState): boolean {
+  switch (key) {
+    case "title":
+      return form.title.trim() !== "" || form.hostNote.trim() !== "";
+    case "photos":
+      return form.photos.length > 0;
+    case "why":
+      return form.whyText.trim() !== "" || form.dayText.trim() !== "";
+    case "dates":
+      return form.datesMode !== "month";
+    case "accommodation":
+      return form.accommodationMode === "crew";
+    case "host":
+      return form.hostExperience === "program";
+    case "lookingFor":
+      return form.lookingForText.trim() !== "";
+    case "rules":
+      return form.rulesText.trim() !== "";
+    case "languages":
+      return form.languages.length > 0;
+    case "crewGroup":
+      return form.crewGroupUrl.trim() !== "";
+  }
 }
 
 /**
- * The House as it will be saved. New Houses always go out with the place open (locking happens on the Manage
- * page); editing keeps the stay's lock (price, link, status) and the fields this form doesn't show untouched.
+ * The House as it will be saved. A new House goes out with the place open (the host locks it on the Manage page, or the crew
+ * votes); editing keeps the stay's lock (price, link, status). With only a month, or dates still to be voted on, the dates are the
+ * month's bounds and `datesOpen` shows them as the month. An empty title takes `fallbackTitle` (the first suggestion).
  */
-export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInput {
+export function toInput(form: FormState, { me, editing, today = "", fallbackTitle = "", preferredCurrency }: { me?: User; editing?: Stay; today?: string; fallbackTitle?: string; preferredCurrency?: Currency | null } = {}): NewStayInput {
   const locked = editing?.accommodationStatus === "locked";
+  const exact = form.datesMode === "exact";
+  const bounds = monthBounds(form.month, today);
+  const languages = form.languages.map(languageCode).filter((code): code is string => Boolean(code));
   return {
-    title: form.title.trim(),
+    title: form.title.trim() || fallbackTitle,
     city: form.city.trim(),
     region: form.region.trim(),
-    startDate: form.startDate,
-    endDate: form.endDate,
+    startDate: exact ? form.startDate : bounds.start,
+    endDate: exact ? form.endDate : bounds.end,
+    datesOpen: !exact,
+    datesVote:
+      form.datesMode === "crew"
+        ? voteOf(form.dateProposals.filter((p) => p.start && p.end).map((p) => ({ id: p.id, startDate: p.start, endDate: p.end })), form.datesDeadline, editing?.datesVote)
+        : undefined,
+    accommodationVote: locked
+      ? editing?.accommodationVote
+      : form.accommodationMode === "crew"
+        ? voteOf(form.placeProposals.filter((p) => isLink(p.link.trim())).map((p) => ({ id: p.id, link: p.link.trim(), pricePerPerson: Math.round(Number(p.price)) })), form.accommodationDeadline, editing?.accommodationVote)
+        : undefined,
     spotsTotal: form.spotsTotal,
     vibe: form.customVibe !== null || !form.vibe ? "social" : form.vibe,
     customVibe: form.customVibe?.trim() || undefined,
     language: languageOf(form, me),
-    currency: locked && editing ? editing.currency : currencyOf(form, me),
+    languages: languages.length > 1 ? languages.slice(1) : undefined,
+    photos: form.photos.length > 0 ? form.photos : editing?.photos,
+    currency: locked && editing ? editing.currency : currencyOf(form, me, preferredCurrency),
     pricePerPerson: editing?.pricePerPerson,
     budgetPerPerson: locked ? editing?.budgetPerPerson : budgetOf(form),
     accommodationLink: editing?.accommodationLink,
@@ -243,7 +373,7 @@ export function toInput(form: FormState, me?: User, editing?: Stay): NewStayInpu
     hostNote: form.hostNote.trim() || undefined,
     hostFeePerPerson: hostFeeOf(form, me),
     interests: editing?.interests ?? [],
-    houseRules: editing?.houseRules ?? [],
+    houseRules: form.rulesText.split("\n").map((rule) => rule.trim()).filter(Boolean),
   };
 }
 
@@ -268,11 +398,11 @@ export function isValidGroupUrl(raw: string): boolean {
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "vibe" | "region" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl";
+export type FieldKey = "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
-  | { key: "vibe" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "budget" | "budgetOrder" | "hostFee" | "crewGroupUrl" | "lookingFor" | "lookingForUnfinished" }
+  | { key: "cover" | "vibe" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "budget" | "budgetOrder" | "hostFee" | "crewGroupUrl" | "lookingForUnfinished" | "month" | "dateProposal" | "placeProposal" }
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
   | { key: "spots"; min: number; max: number }
@@ -314,8 +444,26 @@ export function todayString(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** What blocks leaving a step, per field. Optional fields never block – unless what's typed is wrong. */
-export function stepErrors(step: StepKey, { form, me, minSpots, today, editing, starters = [] }: ValidationContext): FieldErrors {
+/** The host's exact dates. */
+function datesErrors({ form, today, editing }: ValidationContext): FieldErrors {
+  const errors: FieldErrors = {};
+  // A House that already started can still be edited without moving its start.
+  const startChanged = !editing || form.startDate !== editing.startDate;
+  if (!form.startDate) errors.startDate = { key: "startDate" };
+  // Houses start tomorrow at the earliest ("" = clock not read yet, before hydration).
+  else if (startChanged && today && form.startDate <= today) errors.startDate = { key: "startPast" };
+  if (!form.endDate) errors.endDate = { key: "endDate" };
+  else if (form.startDate) {
+    const nights = nightsBetween(form.startDate, form.endDate);
+    if (nights < 1) errors.endDate = { key: "dateOrder" };
+    else if (nights > MAX_NIGHTS) errors.endDate = { key: "tooLong", max: MAX_NIGHTS };
+  }
+  return errors;
+}
+
+/** What blocks leaving a step, per field. Details never block – unless what's typed is wrong. */
+export function stepErrors(step: StepKey, context: ValidationContext): FieldErrors {
+  const { form, me, minSpots, today, editing, starters = [] } = context;
   const errors: FieldErrors = {};
   switch (step) {
     case "vibe":
@@ -323,25 +471,11 @@ export function stepErrors(step: StepKey, { form, me, minSpots, today, editing, 
       break;
     case "where":
       if (!form.region.trim()) errors.region = { key: "region" };
+      if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
+      else if (!form.month) errors.month = { key: "month" };
       break;
-    case "when": {
-      // A House that already started can still be edited without moving its start.
-      const startChanged = !editing || form.startDate !== editing.startDate;
-      if (!form.startDate) errors.startDate = { key: "startDate" };
-      // Houses start tomorrow at the earliest ("" = clock not read yet, before hydration).
-      else if (startChanged && today && form.startDate <= today) errors.startDate = { key: "startPast" };
-      if (!form.endDate) errors.endDate = { key: "endDate" };
-      else if (form.startDate) {
-        const nights = nightsBetween(form.startDate, form.endDate);
-        if (nights < 1) errors.endDate = { key: "dateOrder" };
-        else if (nights > MAX_NIGHTS) errors.endDate = { key: "tooLong", max: MAX_NIGHTS };
-      }
-      break;
-    }
-    case "crew":
+    case "crew": {
       if (form.spotsTotal < minSpots || form.spotsTotal > SPOTS_MAX) errors.spotsTotal = { key: "spots", min: minSpots, max: SPOTS_MAX };
-      break;
-    case "budget": {
       if (form.budgetTbd || editing?.accommodationStatus === "locked") break;
       const min = Number(form.budgetMin);
       const max = Number(form.budgetMax);
@@ -349,19 +483,35 @@ export function stepErrors(step: StepKey, { form, me, minSpots, today, editing, 
       else if (max < min) errors.budget = { key: "budgetOrder" };
       break;
     }
+    case "dates":
+      if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
+      else if (form.datesMode === "crew") {
+        const earliest = earliestStart(today);
+        const valid = (p: DateProposal) => p.start && p.end && nightsBetween(p.start, p.end) >= 1 && (!earliest || p.start >= earliest);
+        if (form.dateProposals.length === 0 || !form.dateProposals.every(valid)) errors.dateProposals = { key: "dateProposal" };
+      }
+      break;
+    case "accommodation":
+      if (form.accommodationMode === "crew" && (form.placeProposals.length === 0 || !form.placeProposals.every((p) => isLink(p.link.trim()) && Number(p.price) > 0))) errors.placeProposals = { key: "placeProposal" };
+      break;
+    case "cover": {
+      if (editing) break;
+      if (form.photos.length === 0) errors.photos = { key: "cover" };
+      const length = form.title.trim().length;
+      if (length < TITLE_MIN || length > TITLE_MAX_NEW) errors.title = { key: "titleLength", min: TITLE_MIN, max: TITLE_MAX_NEW };
+      break;
+    }
     case "title": {
+      // Empty is fine: the House takes the first suggestion.
       const title = form.title.trim().length;
       const max = titleMaxFor(editing);
-      if (title < TITLE_MIN || title > max) errors.title = { key: "titleLength", min: TITLE_MIN, max };
+      if (title > 0 && (title < TITLE_MIN || title > max)) errors.title = { key: "titleLength", min: TITLE_MIN, max };
       break;
     }
-    case "pitch": {
-      // The hook on cards and the Spotlight – one honest line at least.
-      const text = form.lookingForText.trim();
-      if (text.length < LOOKING_FOR_MIN) errors.lookingForText = { key: "lookingFor" };
-      else if (ownWords(text, starters).length < 3) errors.lookingForText = { key: "lookingForUnfinished" };
+    case "lookingFor":
+      // Optional – but a starter alone isn't an answer yet.
+      if (form.lookingForText.trim() && ownWords(form.lookingForText, starters).length < 3) errors.lookingForText = { key: "lookingForUnfinished" };
       break;
-    }
     case "host": {
       if (form.hostExperience !== "program" || !canChargeHostFee(me)) break;
       const fee = Math.round(Number(form.hostFee));
@@ -370,20 +520,28 @@ export function stepErrors(step: StepKey, { form, me, minSpots, today, editing, 
       else if (base !== undefined && fee > maxHostFee(base)) errors.hostFee = { key: "hostFeeTooHigh", max: maxHostFee(base) };
       break;
     }
-    case "extras":
+    case "crewGroup":
       if (form.crewGroupUrl.trim() && !isValidGroupUrl(form.crewGroupUrl)) errors.crewGroupUrl = { key: "crewGroupUrl" };
-      break;
-    case "publish":
       break;
   }
   return errors;
 }
 
+/** Where a form with some answers starts: the first required step not done yet, or "Ready to open?". */
+export function firstOpenStep(context: ValidationContext): StepKey {
+  return REQUIRED_STEPS.find((key) => Object.keys(stepErrors(key, context)).length > 0) ?? "ready";
+}
+
 // ─── Draft ─────────────────────────────────────────────────────────────────────
 
+/** The one draft (one per person; in this browser while it's a mock). */
 export interface Draft {
   form: FormState;
   step: StepKey;
+  /** When it last changed ("" for older drafts) */
+  savedAt: string;
+  /** Who started it; null: not logged in yet */
+  ownerId: string | null;
 }
 
 /** Only the keys this form knows, with their defaults – older drafts and templates may carry others or miss some. */
@@ -391,9 +549,7 @@ function cleanForm(raw: object): FormState {
   const fits = (key: string, value: unknown) =>
     key === "customVibe" ? value === null || typeof value === "string" : typeof value === typeof initialForm[key as keyof FormState];
   const known = Object.entries(raw).filter(([key, value]) => key in initialForm && fits(key, value));
-  const form: FormState = { ...initialForm, ...Object.fromEntries(known) };
-  const ideas = form.accommodationIdeas.filter((link, i) => typeof link === "string" && (i === 0 || link.trim() !== "")).slice(0, MAX_IDEAS);
-  return { ...form, accommodationIdeas: ideas.length > 0 ? ideas : [""] };
+  return { ...initialForm, ...Object.fromEntries(known) };
 }
 
 /** Anything typed or picked yet – an untouched form isn't worth offering as a draft. */
@@ -405,11 +561,13 @@ export function readDraft(): Draft | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
-    const draft = JSON.parse(raw) as { form?: object; step?: unknown };
-    const form = cleanForm(draft.form ?? {});
+    const draft = JSON.parse(raw) as { form?: object; step?: unknown; savedAt?: unknown; ownerId?: unknown };
+    const stored = cleanForm(draft.form ?? {});
+    // A local preview link doesn't outlive the page.
+    const form = { ...stored, photos: stored.photos.filter((photo) => !photo.startsWith("blob:")) };
     if (!hasContent(form)) return null;
     const step = STEPS.find((key) => key === draft.step) ?? "vibe";
-    return { form, step };
+    return { form, step, savedAt: typeof draft.savedAt === "string" ? draft.savedAt : "", ownerId: typeof draft.ownerId === "string" ? draft.ownerId : null };
   } catch {
     return null;
   }
@@ -440,7 +598,7 @@ export interface HouseTemplate {
   form: FormState;
 }
 
-const withoutDates = (form: FormState): FormState => ({ ...form, startDate: "", endDate: "", inviteIds: [], againFrom: "" });
+const withoutDates = (form: FormState): FormState => ({ ...form, month: "", datesMode: "month", startDate: "", endDate: "", dateProposals: [], datesDeadline: "", photos: [], inviteIds: [], againFrom: "" });
 
 export function readTemplates(): HouseTemplate[] {
   try {
@@ -479,13 +637,14 @@ export function removeTemplate(id: string): HouseTemplate[] {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** /create with a place and dates filled in – the flow picks them up (see prefillOf). */
-export function createHref({ region, city, from, to }: { region?: string; city?: string; from?: string; to?: string }): string {
+/** /create with a place, dates and a category filled in – the flow picks them up (see prefillOf). */
+export function createHref({ region, city, from, to, vibe }: { region?: string; city?: string; from?: string; to?: string; vibe?: Vibe | null }): string {
   const params = new URLSearchParams();
   if (region?.trim()) params.set("region", region.trim());
   if (city?.trim()) params.set("city", city.trim());
   if (from && ISO_DATE.test(from)) params.set("from", from);
   if (to && ISO_DATE.test(to)) params.set("to", to);
+  if (vibe) params.set("vibe", vibe);
   const query = params.toString();
   return query ? `/create?${query}` : "/create";
 }
@@ -502,21 +661,58 @@ export function inviteHref(userId: string): string {
   return `/create?${INVITE_PARAM}=${encodeURIComponent(userId)}`;
 }
 
+/** "2027-03" → its first and last day. */
+export function monthRange(month: string): { from: string; to: string } {
+  const [year, m] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
+}
+
+/** Open a House with what a search asked for (see prefillOf). A world region says too little to fill in the place. */
+export function createHrefOf({ place, month, category }: { place: SearchPlace | null; month: string | null; category?: Vibe | null }): string {
+  const params = new URLSearchParams();
+  if (place && placeKindOf(place.id) !== "world") params.set("place", place.id);
+  if (month) params.set("month", month);
+  if (category) params.set("category", category);
+  const query = params.toString();
+  return query ? `/create?${query}` : "/create";
+}
+
+/** A place from the search, as the form's region and city ("Lisbon" + "Portugal"; a region or country has no city yet). */
+export function formPlaceOf(place: SearchPlace): Pick<FormState, "region" | "city"> {
+  const name = place.name.split(",")[0].trim();
+  const kind = placeKindOf(place.id);
+  if (kind === "city") return { region: place.country, city: name };
+  return { region: kind === "country" ? place.country : `${name}, ${place.country}`, city: "" };
+}
+
 export const INVITE_PARAM = "invite";
 
 /**
- * What a /create?region=…&from=…&to=… link fills in. A start before the earliest allowed one moves to it; an end
- * that's no longer after the start is dropped. null when the link carries nothing.
+ * What a /create link fills in: ?place=<id>&month=YYYY-MM&category=<vibe> (from a search) or ?region=…&city=…&from=…&to=…&vibe=… (the same
+ * trip again). A start before the earliest allowed one moves to it; an end that's no longer after the start is dropped. null when the
+ * link carries nothing.
  */
 export function prefillOf(search: string, today: string): Partial<FormState> | null {
   const params = new URLSearchParams(search);
-  const region = params.get("region")?.trim().slice(0, 80) ?? "";
-  const city = params.get("city")?.trim().slice(0, 80) ?? "";
+  const place = placeById(params.get("place"));
+  const named = place && placeKindOf(place.id) !== "world" ? formPlaceOf(place) : null;
+  const region = named?.region ?? params.get("region")?.trim().slice(0, 80) ?? "";
+  const city = named?.city ?? params.get("city")?.trim().slice(0, 80) ?? "";
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
   const earliest = earliestStart(today);
   const start = ISO_DATE.test(from) ? (earliest && from < earliest ? earliest : from) : "";
   const end = ISO_DATE.test(to) && start && to > start ? to : "";
-  if (!region && !city && !start) return null;
-  return { ...(region && { region }), ...(city && { city }), ...(start && { startDate: start, endDate: end }) };
+  const linkedMonth = params.get("month") ?? "";
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(linkedMonth) && linkedMonth >= today.slice(0, 7) ? linkedMonth : start.slice(0, 7);
+  const vibe = VIBES.find((v) => v.key === (params.get("category") ?? params.get("vibe")))?.key;
+  if (!region && !city && !month && !vibe) return null;
+  return {
+    ...(region && { region }),
+    ...(city && { city }),
+    ...(month && { month }),
+    ...(start && end && { datesMode: "exact" as const, startDate: start, endDate: end }),
+    ...(vibe && { vibe }),
+  };
 }

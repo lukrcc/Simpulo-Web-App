@@ -61,7 +61,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           <Link href={`/house/${stay.slug}`} className="block truncate text-body font-semibold leading-5 hover:underline">
             {stay.title}
           </Link>
-          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.shortRange(stay.startDate, stay.endDate), filled: stay.spotsFilled, total: stay.spotsTotal })}</p>
+          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.stayDates(stay), filled: stay.spotsFilled, total: stay.spotsTotal })}</p>
         </div>
 
         {groupChat && (
@@ -111,7 +111,7 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
           <p className="truncate text-body font-semibold leading-5">{t("unknown")}</p>
         )}
         <Link href={`/house/${stay.slug}`} className="block truncate text-small text-muted hover:underline">
-          {t("about", { title: stay.title, dates: f.shortRange(stay.startDate, stay.endDate) })}
+          {t("about", { title: stay.title, dates: f.stayDates(stay) })}
         </Link>
       </div>
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}

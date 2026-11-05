@@ -7,8 +7,8 @@ import { NOTCH_OPEN_TOTAL, registerNotchFilters, setNotchAuto, useNotchState } f
 import { cn } from "@/lib/utils";
 
 /*
- * Open Houses' filters, from md. In the page: a plain row under the section's heading that doesn't stick (chips 36px,
- * 14px/500, 8px apart, as many as fit whole, the last place always "More ▾" | right: Sort capsule + Filters 36px).
+ * Open Houses' filters, from md. In the page: a plain row under the section's heading that doesn't stick (Where? + When? | chips 36px,
+ * as many as fit whole, the last place always "More ▾" | right: Sort + Filters 36px).
  * Once it has gone under the header the header's tab takes over with the same controls and the same state, until the grid's
  * bottom edge reaches the tab. Only one of the two is ever showing.
  */
@@ -27,9 +27,24 @@ function watchLine(target: Element, line: number, onCross: (passed: boolean) => 
   return observer;
 }
 
-export function ExploreFilterBar({ chips, controls, gridEndRef, handle }: { chips: ReactNode; controls: ReactNode; gridEndRef: RefObject<HTMLDivElement | null>; /** The tab's handle: Explore itself */ handle: boolean }) {
+/**
+ * Smoothly scrolls `el` to just under the header and its filter row (phones: no top header, only the safe area).
+ * Instant with reduced motion.
+ */
+export function scrollUnderHeader(el: HTMLElement | null) {
+  if (!el) return;
+  const root = getComputedStyle(document.documentElement);
+  const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
+  // The row showing (from md): the header's open tab takes its place, 24px under it. Else the page's own chip row.
+  const row = document.querySelector<HTMLElement>("[data-explore-filter-row]");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const offset = row && row.offsetHeight > 0 ? NOTCH_OPEN_TOTAL + 24 : px("--header-total") + px("--filter-row-h");
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
+}
+
+export function ExploreFilterBar({ fields, chips, controls, gridEndRef, handle }: { /** Where? and When?, before the chips */ fields?: ReactNode; chips: ReactNode; controls: ReactNode; gridEndRef: RefObject<HTMLDivElement | null>; /** The tab's handle: Explore itself */ handle: boolean }) {
   const startRef = useRef<HTMLDivElement>(null);
-  const { mode, slot } = useNotchState();
+  const { chips: tabHasChips, slot } = useNotchState();
 
   useEffect(() => {
     const start = startRef.current;
@@ -73,13 +88,14 @@ export function ExploreFilterBar({ chips, controls, gridEndRef, handle }: { chip
 
   const row = (
     <>
+      {fields && <div className="flex min-w-0 shrink-0 items-center gap-2">{fields}</div>}
       <div className="min-w-0 flex-1">{chips}</div>
       <div className="flex shrink-0 items-center gap-2">{controls}</div>
     </>
   );
   return (
     <>
-      <div data-explore-filter-row className={cn("hidden h-16 items-center gap-6 md:flex", mode === "filters" && "invisible")}>
+      <div data-explore-filter-row className={cn("hidden h-16 items-center gap-6 md:flex", tabHasChips && "invisible")}>
         {row}
       </div>
       <div ref={startRef} aria-hidden className="h-0" />

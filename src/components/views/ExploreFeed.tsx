@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { CollectionRow } from "@/components/explore/CollectionRow";
-import { CategoryRow, ChoiceChips, FiltersButton, LanguageFilter, MonthSection, PanelSection, PlaceDateSearch, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
-import { EXPLORE_SPACING, HOUSE_GRID, SEARCH_INLINE_THRESHOLD, SHELF_EVERY_ROWS, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
-import { DemandCard, InterestRow, useDemandSpots } from "@/components/explore/InterestRow";
+import { CategoryRow, ChoiceChips, FiltersButton, LanguageFilter, PanelSection, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
+import { EXPLORE_SPACING, HOUSE_GRID, SHELF_EVERY_ROWS, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
-import { ExploreFilterBar } from "@/components/explore/ExploreFilterBar";
+import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
+import { NoHouseYet, NotifyLine } from "@/components/explore/NoHouseYet";
+import { MonthField, PlaceField, ToggleCapsule } from "@/components/explore/SearchFields";
 import { SpotlightIntro } from "@/components/explore/SpotlightIntro";
 import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
@@ -23,18 +24,18 @@ import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
 import { cardClass } from "@/components/ui/Card";
 import { useFormat } from "@/i18n/format";
-import { useFormatter } from "next-intl";
 import { COLLECTIONS, planShelves, type Collection, type ShelfSlot } from "@/lib/collections";
 import { citySlugOf } from "@/lib/data/stays";
 import {
   activeCount,
-  countryCodeOf,
-  countryNameOf,
   countryOf,
-  countryRegionOf,
   EMPTY_FILTERS,
   eurRange,
+  ACCOMMODATION_KEYS,
+  AGE_KEYS,
+  CREW_SIZE_KEYS,
   LENGTH_KEYS,
+  WHO_KEYS,
   matchesFilters,
   panelFilterCount,
   SORT_KEYS,
@@ -44,15 +45,19 @@ import {
   type SortKey,
 } from "@/lib/exploreFilters";
 import { setExploreFilters, useExploreFilters } from "@/lib/exploreFilterState";
-import { adoptNotchToAuto, NOTCH_OPEN_TOTAL } from "@/lib/notchState";
+import { closeNotchPanel, setNotchStage, useNotchState } from "@/lib/notchState";
+import { ActiveFilters } from "@/components/explore/ActiveFilters";
+import { IconButton } from "@/components/ui/IconButton";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
+import { adoptNotchToAuto } from "@/lib/notchState";
 import { useHeroStays } from "@/lib/heroRotation";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { getCardVariant, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
-import { WORLD_REGIONS } from "@/lib/interests";
-import { hasCardImage, type DestinationSpot } from "@/lib/destinations";
+import { placeById } from "@/lib/data/places";
 import { MD_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { VIBES } from "@/lib/catalog";
-import { isListedStay, isPreLaunch } from "@/lib/launch";
+import { hasHeadStart, isListedStay, isPreLaunch } from "@/lib/launch";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -88,8 +93,6 @@ const PAGE_SIZE = 24;
 /** Budget slider ends are rounded to this (EUR). */
 const BUDGET_ROUND = 50;
 
-type FeedCard = { kind: "stay"; stay: Stay } | { kind: "interest"; spot: DestinationSpot };
-
 /** What a page's feed is limited to: a collection, a city or a vibe (their own pages). None = Explore itself. */
 export type FeedScope = { collection: Collection["id"] } | { citySlug: string } | { vibe: Vibe };
 
@@ -115,21 +118,33 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const t = useTranslations("explore");
   const tf = useTranslations("explore.filtersUi");
   const tCollections = useTranslations("explore.collections");
-  const tRegion = useTranslations("explore.interests.regions");
   const tc = useTranslations("common");
   const format = useFormat();
-  const formatter = useFormatter();
   const store = useStore();
   // The one filter state – in the URL (src/lib/exploreFilterState.ts); every control below reads and writes only it.
   const filters = useExploreFilters();
-  const [panelOpen, setPanelOpenState] = useState(false);
+  const [sheetOpen, setSheetOpenState] = useState(false);
   const panelOpenRef = useRef(false);
   const scrollAfterPanel = useRef(false);
-  const setPanelOpen = (next: boolean) => {
+  const setSheetOpen = (next: boolean) => {
     panelOpenRef.current = next;
-    setPanelOpenState(next);
+    setSheetOpenState(next);
   };
-  const spots = useDemandSpots().filter((s) => s.count > 0 && hasCardImage(s));
+  // With a mouse the panel is the header tab's third stage; on touch (and phones) the same content is a bottom sheet.
+  const { mode: tabMode, panelSlot } = useNotchState();
+  const mouse = useMediaQuery("(pointer: fine) and (min-width: 48rem)");
+  const tabPanel = tabMode === "panel";
+  const panelOpen = sheetOpen || tabPanel;
+  const wasTabPanel = useRef(false);
+  useEffect(() => {
+    if (wasTabPanel.current === tabPanel) return;
+    wasTabPanel.current = tabPanel;
+    panelOpenRef.current = tabPanel;
+    if (tabPanel || !scrollAfterPanel.current) return;
+    // Filters changed while it was open: to the grid, now that it has gone.
+    scrollAfterPanel.current = false;
+    scrollUnderHeader(resultsRef.current);
+  }, [tabPanel]);
   const collection = scope && "collection" in scope ? COLLECTIONS.find((c) => c.id === scope.collection) : undefined;
 
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -147,31 +162,13 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   // Houses of people you blocked never show up.
   const blocked = settingsOf(getCurrentUser(store)).blockedUserIds;
-  const listed = useMemo(() => store.stays.filter((s) => isListedStay(s) && !blocked.includes(s.hostId)), [store.stays, blocked]);
+  const listed = useMemo(() => store.stays.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId)), [store.stays, store.houseInvites, store.currentUserId, blocked]);
   const base = useMemo(() => listed.filter((s) => inScope(s, scope)), [listed, scope]);
   // The hero (bento / carousel): open Houses with a free spot that haven't started, in the session's weighted order.
   const featured = useHeroStays(listed, (s) => findUser(store, s.hostId));
   const spotlightStays = useMemo(() => featured.slice(0, MAX_SPOTLIGHT), [featured]);
 
   // Options with how many Houses each would show alongside the other filters.
-  const countryOptions = useMemo<CheckOption[]>(() => {
-    const codes = [...new Set(base.map((s) => countryCodeOf(countryOf(s))))];
-    const regionOrder = (code: string) => WORLD_REGIONS.indexOf(countryRegionOf(code) as (typeof WORLD_REGIONS)[number]);
-    return codes
-      .map((code) => ({
-        value: code,
-        label: countryNameOf(code),
-        group: countryRegionOf(code) ? tRegion(countryRegionOf(code) as (typeof WORLD_REGIONS)[number]) : tf("otherRegion"),
-        count: base.filter((s) => countryCodeOf(countryOf(s)) === code && matchesFilters(s, filters, "countries")).length,
-      }))
-      // Regions in a fixed order; inside each, countries with Houses for the other filters first.
-      .toSorted(
-        (a, b) =>
-          (regionOrder(a.value) === -1 ? 99 : regionOrder(a.value)) - (regionOrder(b.value) === -1 ? 99 : regionOrder(b.value)) ||
-          Number(b.count > 0) - Number(a.count > 0) ||
-          a.label.localeCompare(b.label),
-      );
-  }, [base, filters, tRegion, tf]);
   const languageOptions = useMemo<CheckOption[]>(
     () =>
       [...new Set(base.map((s) => s.language).filter(Boolean))]
@@ -231,19 +228,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // The Spotlight's Houses don't open the grid as well.
   const spotlightIds = useMemo(() => new Set(showSpotlight ? featured.slice(0, SPOTLIGHT_VISIBLE).map((s) => s.id) : []), [featured, showSpotlight]);
   const ordered = withoutSpotlightUpFront(results, spotlightIds, cols || 4);
-  const allCards: FeedCard[] = ordered.map((stay) => ({ kind: "stay", stay }));
 
   // Paging: 24 cards, then "Show more". A new filter or sort starts at the first page again.
   const pageKey = withFilters(new URLSearchParams(), filters);
   const [paging, setPaging] = useState({ key: pageKey, visible: PAGE_SIZE });
   if (paging.key !== pageKey) setPaging({ key: pageKey, visible: PAGE_SIZE });
   const visible = cols > 0 ? Math.ceil(paging.visible / cols) * cols : paging.visible;
-  const cards = allCards.slice(0, visible);
-  const hasMore = allCards.length > cards.length;
-  // On the last page, demand tiles fill the open cells of the last row, so the grid ends on a straight edge.
-  // Filtered results end where they end – fillers only round off the full feed.
-  const fillers = !filtered && results.length > 0 && !hasMore && cols > 0 ? spots.slice(0, (cols - (cards.length % cols)) % cols) : [];
-  cards.push(...fillers.map((spot): FeedCard => ({ kind: "interest", spot })));
+  const cards = ordered.slice(0, visible);
+  const hasMore = ordered.length > cards.length;
 
   // The shelves go into the one list, after every 3 full rows, each behind its threshold (src/config/explore.ts). Searching
   // (a chip or filter on), or a scoped page: none in the list. Before the column count is known (server render) none either.
@@ -256,19 +248,18 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           cols * SHELF_EVERY_ROWS,
           listed.length,
         );
-  // What's loaded, cut at the shelves that have been reached. One that ends what's loaded takes the last row's fillers above it.
-  const loaded = cards.length - fillers.length;
-  const segments: { cards: FeedCard[]; shelf: ShelfSlot }[] = [];
+  // What's loaded, cut at the shelves that have been reached.
+  const segments: { cards: Stay[]; shelf: ShelfSlot }[] = [];
   let cut = 0;
   for (const slot of slots) {
-    if (slot.after > loaded) break;
-    const end = slot.after === loaded ? cards.length : slot.after;
-    segments.push({ cards: cards.slice(cut, end), shelf: slot });
-    cut = end;
+    if (slot.after > cards.length) break;
+    segments.push({ cards: cards.slice(cut, slot.after), shelf: slot });
+    cut = slot.after;
   }
   const rest = cards.slice(cut);
-  // A scoped page ends with Where next, unless it's searching.
-  const trailing = scoped && !filtered;
+  // What this search would be saved as ("Notify me").
+  const draft = useMemo(() => ({ place: placeById(filters.place), month: filters.month, category: filters.vibes[0] ?? null }), [filters.place, filters.month, filters.vibes]);
+  const searched = draft.place !== null || draft.month !== null;
 
   const clearFilters = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
   const rowVibes = [...fixedVibes, ...(lastVibe ? [lastVibe] : [])];
@@ -284,16 +275,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
   const panelCount = panelFilterCount(filters);
   const clearPanel = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
-
-  /** The row's search field: a country and / or month named in the text become those filters ("Portugal March"). */
-  function searchPlaceDate(query: string) {
-    const text = query.toLocaleLowerCase();
-    const countries = countryOptions.filter((o) => text.includes(o.label.toLocaleLowerCase())).map((o) => o.value);
-    const houseMonths = [...new Set(base.map((s) => s.startDate.slice(0, 7)).filter(Boolean))];
-    const months = houseMonths.filter((month) => text.includes(formatter.dateTime(new Date(`${month}-01T00:00:00Z`), { month: "long", timeZone: "UTC" }).toLocaleLowerCase()));
-    if (countries.length === 0 && months.length === 0) return;
-    update({ ...(countries.length > 0 && { countries }), ...(months.length > 0 && { months }) });
-  }
 
   const sortInline = base.length >= SORT_INLINE_THRESHOLD;
   /** The category chips – the filter row's (36px) or the compact bar's (32px); one choice in the row (several only
@@ -312,19 +293,113 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   };
   const openOfVibe = (vibe: Vibe) => listed.filter((s) => s.vibe === vibe && s.acceptingRequests).length;
   const chipRow = showVibes && <CategoryRow {...vibeRow} />;
-  // Before the launch: no Spotlight, no grid, no filters. Where people want to go, and who could open the first House.
+  // Before the launch: no Spotlight, no grid. The slogan and the same search, ending where an empty result ends.
   if (!scoped && isPreLaunch(store.stays)) return <ExplorePrelaunch />;
 
+  const useTab = inBar && mouse;
+  const openPanel = () => (useTab ? setNotchStage(2) : setSheetOpen(true));
   // Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway.
   const controls = (
     <>
-      {base.length >= SEARCH_INLINE_THRESHOLD && <PlaceDateSearch onSearch={searchPlaceDate} />}
       {sortInline && (
         <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
           <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
         </SortCapsule>
       )}
-      <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} />
+      <FiltersButton count={panelCount} onClick={openPanel} expanded={panelOpen} />
+    </>
+  );
+  const fields = (
+    <>
+      <PlaceField value={filters.place} onChange={(place) => update({ place })} />
+      <MonthField value={filters.month} onChange={(month) => update({ month })} />
+      <ToggleCapsule label={tf("shortTrips")} active={filters.length === "weekend"} onToggle={() => update({ length: filters.length === "weekend" ? null : "weekend" })} />
+      {/* What's set in the panel, each with its ✕: two, then "+N". Below 1200px only the "+N". */}
+      <span className="flex items-center gap-2 max-nav:hidden">
+        <ActiveFilters filters={filters} onChange={update} currency={currency} withoutShortTrips limit={2} onMore={openPanel} />
+      </span>
+      <span className="flex items-center gap-2 nav:hidden">
+        <ActiveFilters filters={filters} onChange={update} currency={currency} withoutShortTrips limit={0} onMore={openPanel} />
+      </span>
+    </>
+  );
+  const panelBody = (
+    // Left what you're after, right the practical side. One column under 900px, with scrolling. No Sort: that's the capsule.
+    <div className="grid gap-x-10 min-[56.25rem]:grid-cols-2">
+      <div>
+        <div className="grid grid-cols-2 gap-x-4">
+          <PanelSection title={tf("where")}>
+            <PlaceField value={filters.place} onChange={(place) => update({ place })} className="w-full max-w-none" />
+          </PanelSection>
+          <PanelSection title={tf("when")}>
+            <MonthField value={filters.month} onChange={(month) => update({ month })} className="w-full" />
+          </PanelSection>
+        </div>
+        {showVibes && (
+          <PanelSection title={tf("category")}>
+            <ChoiceChips clearable label={tf("category")} value={single as string | null} onChange={vibeRow.onSelect} options={vibeOptions} />
+          </PanelSection>
+        )}
+        <PanelSection title={tf("crewSize")}>
+          <SegmentedControl label={tf("crewSize")} value={filters.crewSize} onChange={(crewSize) => update({ crewSize })} options={[{ value: null, label: tf("any") }, ...CREW_SIZE_KEYS.map((key) => ({ value: key, label: key.replace("-", "–") }))]} />
+        </PanelSection>
+        <PanelSection title={tf("who")}>
+          <SegmentedControl label={tf("who")} value={filters.who} onChange={(who) => update({ who })} options={[{ value: null, label: tf("any") }, ...WHO_KEYS.map((key) => ({ value: key, label: tf(`whoOptions.${key}`) }))]} />
+        </PanelSection>
+        <PanelSection title={tf("age")}>
+          <SegmentedControl label={tf("age")} value={filters.age} onChange={(age) => update({ age })} options={[{ value: null, label: tf("any") }, ...AGE_KEYS.map((key) => ({ value: key, label: tf(`ageOptions.${key}`) }))]} />
+        </PanelSection>
+      </div>
+      <div>
+        <PanelSection title={tf("length")}>
+          <SegmentedControl
+            label={tf("length")}
+            value={filters.length}
+            onChange={(length) => update({ length })}
+            options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
+          />
+        </PanelSection>
+        <PanelSection title={tf("price")}>
+          {budgetBounds ? (
+            <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
+          ) : (
+            <p className="text-small text-muted">{tf("noBudget")}</p>
+          )}
+        </PanelSection>
+        <PanelSection title={tf("accommodation")}>
+          <SegmentedControl label={tf("accommodation")} value={filters.accommodation} onChange={(accommodation) => update({ accommodation })} options={[{ value: null, label: tf("any") }, ...ACCOMMODATION_KEYS.map((key) => ({ value: key, label: tf(`accommodationOptions.${key}`) }))]} />
+        </PanelSection>
+        <div className="grid grid-cols-2 gap-x-4">
+          <PanelSection title={tf("spots")}>
+            <SegmentedControl
+              label={tf("spots")}
+              value={filters.spots}
+              onChange={(spots) => update({ spots })}
+              options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
+            />
+          </PanelSection>
+          <PanelSection title={t("language")}>
+            {languageOptions.length > 0 ? (
+              <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
+            ) : (
+              <p className="text-small text-muted">{tf("noOptions")}</p>
+            )}
+          </PanelSection>
+        </div>
+      </div>
+    </div>
+  );
+  const panelActive = <ActiveFilters filters={filters} onChange={update} currency={currency} withCategory />;
+  const panelFooter = (close: () => void) => (
+    <>
+      <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0 && filters.vibes.length === 0}>
+        {tf("clearAll")}
+      </Button>
+      {/* The panel's one primary: it only closes – the filters apply live. */}
+      <Button variant="primary" size="md" onClick={close}>
+        {/* The number rolls to each new count. */}
+        {tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}
+      </Button>
     </>
   );
   const Wrap = headless ? Fragment : Container;
@@ -354,7 +429,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           All the values: EXPLORE_SPACING. */}
       <Wrap>
         <div data-explore-blocks>
-          <FullBleedSection padding={cn(showSpotlight ? EXPLORE_SPACING.underHero : EXPLORE_SPACING.scopedTop, !trailing && EXPLORE_SPACING.feedEnd)}>
+          <FullBleedSection padding={cn(showSpotlight ? EXPLORE_SPACING.underHero : EXPLORE_SPACING.scopedTop, EXPLORE_SPACING.feedEnd)}>
             {!headless && (
               <>
                 {/* The page's one H1 (Explore is the home page; a /collections page is titled by its collection). No
@@ -370,6 +445,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                 <ExploreFilterBar
                   gridEndRef={gridEndRef}
                   handle={!scoped}
+                  fields={fields}
                   chips={
                     showVibes && (
                       <FitChips
@@ -387,7 +463,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                           <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
                         </SortCapsule>
                       )}
-                      <FiltersButton count={panelCount} onClick={() => setPanelOpen(true)} expanded={panelOpen} />
+                      <FiltersButton count={panelCount} onClick={openPanel} expanded={panelOpen} />
                     </>
                   }
                 />
@@ -402,7 +478,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
             {/* Where a filter change scrolls to: the grid's start right under the tab. */}
             <div ref={resultsRef} data-explore-results className={!headless ? "mt-5 md:mt-2" : undefined}>
               <div ref={setColumnProbe} aria-hidden className={cn(HOUSE_GRID, "h-0")} />
-              {results.length === 0 ? (
+              {results.length === 0 && searched ? (
+                // Nothing for this place and month: open the first House, or hear first.
+                <NoHouseYet draft={draft} stays={base} />
+              ) : results.length === 0 ? (
                 // Nothing for these filters: say so, and the way back.
                 <div className={cn(cardClass, "flex flex-col items-center py-12 text-center")}>
                   <p className="text-h3 tracking-tight text-ink">{t("noResults.title")}</p>
@@ -420,10 +499,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     const next = segments[i + 1];
                     const goesOn = next ? next.cards.length > 0 : rest.length > 0 || hasMore;
                     return (
-                      <Fragment key={shelf.kind === "interests" ? "interests" : shelf.collection.id}>
+                      <Fragment key={`${shelf.collection.id}-${shelf.after}`}>
                         {part.length > 0 && <FeedGrid cards={part} spotlightIds={spotlightIds} />}
                         <div className={cn(EXPLORE_SPACING.shelfTop, goesOn && EXPLORE_SPACING.shelfBottom)}>
-                          {shelf.kind === "interests" ? <InterestRow exclude={fillers} /> : <CollectionRow collection={shelf.collection} stays={shelf.stays} />}
+                          <CollectionRow collection={shelf.collection} stays={shelf.stays} />
                         </div>
                       </Fragment>
                     );
@@ -436,87 +515,51 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               {hasMore && (
                 <div className={cn(rest.length > 0 && EXPLORE_SPACING.showMore, "flex justify-center")}>
                   <Button variant="secondary" size="lg" onClick={() => setPaging({ key: pageKey, visible: visible + PAGE_SIZE })}>
-                    {t("showMore", { count: Math.min(cols > 0 ? Math.ceil((visible + PAGE_SIZE) / cols) * cols - visible : PAGE_SIZE, allCards.length - visible) })}
+                    {t("showMore", { count: Math.min(cols > 0 ? Math.ceil((visible + PAGE_SIZE) / cols) * cols - visible : PAGE_SIZE, ordered.length - visible) })}
                   </Button>
                 </div>
               )}
+              {results.length > 0 && <NotifyLine draft={draft} className={EXPLORE_SPACING.showMore} />}
             </div>
           </FullBleedSection>
-          {trailing && (
-            <FullBleedSection padding={cn(EXPLORE_SPACING.section, EXPLORE_SPACING.feedEnd)}>
-              <InterestRow exclude={fillers} />
-            </FullBleedSection>
-          )}
         </div>
       </Wrap>
 
-      {/* Filters, from the right. Live – the footer only clears or closes. */}
+      {/* The filter panel: with a mouse in the header's tab, its third stage. Live – the footer only clears or closes. */}
+      {useTab &&
+        panelSlot &&
+        createPortal(
+          <div role="group" aria-label={t("filters")} className="flex max-h-[calc(80vh-var(--band-h)-100px)] flex-col">
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pb-2">
+              <h2 className="text-h3 text-ink">{t("filters")}</h2>
+              <span className="text-small text-muted">{resultLabel}</span>
+              {panelActive}
+              <IconButton size="xs" onClick={closeNotchPanel} aria-label={tc("close")} className="ml-auto">
+                <X className="size-4" aria-hidden />
+              </IconButton>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{panelBody}</div>
+            <div className="flex shrink-0 items-center justify-between gap-4 pt-1">{panelFooter(closeNotchPanel)}</div>
+          </div>,
+          panelSlot,
+        )}
+      {/* Touch and phones: the same content as a bottom sheet. */}
       <Sheet
         variant="panel"
         wide
         titleNote={resultLabel}
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
         onClosed={() => {
           if (scrollAfterPanel.current) scrollUnderHeader(resultsRef.current);
           scrollAfterPanel.current = false;
         }}
         title={t("filters")}
-        footer={
-          <>
-            <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0 && filters.vibes.length === 0}>
-              {tf("clearAll")}
-            </Button>
-            {/* The panel's one primary: it only closes – the filters apply live. */}
-            <Button variant="primary" size="md" onClick={() => setPanelOpen(false)}>
-              {/* The number rolls to each new count. */}
-              {tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}
-            </Button>
-          </>
-        }
+        footer={panelFooter(() => setSheetOpen(false))}
       >
-        {/* Left what you're after, right the practical side. One column under 900px, with scrolling. No Sort: that's the capsule. */}
-        <div className="grid gap-x-10 px-6 min-[56.25rem]:grid-cols-[1.4fr_1fr]">
-          <div>
-            {showVibes && (
-              <PanelSection title={tf("category")}>
-                <ChoiceChips clearable label={tf("category")} value={single as string | null} onChange={vibeRow.onSelect} options={vibeOptions} />
-              </PanelSection>
-            )}
-            <MonthSection value={filters.months} onChange={(months) => update({ months })} title={tf("when")} />
-          </div>
-          <div>
-            <PanelSection title={tf("length")}>
-              <SegmentedControl
-                label={tf("length")}
-                value={filters.length}
-                onChange={(length) => update({ length })}
-                options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
-              />
-            </PanelSection>
-            <PanelSection title={tf("price")}>
-              {budgetBounds ? (
-                <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
-              ) : (
-                <p className="text-small text-muted">{tf("noBudget")}</p>
-              )}
-            </PanelSection>
-            <PanelSection title={tf("spots")}>
-              <SegmentedControl
-                label={tf("spots")}
-                value={filters.spots}
-                onChange={(spots) => update({ spots })}
-                options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
-              />
-            </PanelSection>
-            <PanelSection title={t("language")}>
-              {languageOptions.length > 0 ? (
-                <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
-              ) : (
-                <p className="text-small text-muted">{tf("noOptions")}</p>
-              )}
-            </PanelSection>
-          </div>
+        <div className="px-6">
+          <div className="flex flex-wrap gap-2 empty:hidden pb-4">{panelActive}</div>
+          {panelBody}
         </div>
       </Sheet>
 
@@ -524,33 +567,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   );
 }
 
-/**
- * Smoothly scrolls `el` to just under the header and its filter row (phones: no top header, only the safe area).
- * Instant with reduced motion.
- */
-function scrollUnderHeader(el: HTMLElement | null) {
-  if (!el) return;
-  const root = getComputedStyle(document.documentElement);
-  const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
-  // Open Houses' row showing (from md): the header's open tab takes its place, 24px under it. Else the page's own chip row.
-  const row = document.querySelector<HTMLElement>("[data-explore-filter-row]");
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const offset = row && row.offsetHeight > 0 ? NOTCH_OPEN_TOTAL + 24 : px("--header-total") + px("--filter-row-h");
-  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
-}
-
 /** One stretch of the list's grid, between two shelves. */
-function FeedGrid({ cards, spotlightIds }: { cards: readonly FeedCard[]; spotlightIds: ReadonlySet<string> }) {
+function FeedGrid({ cards, spotlightIds }: { cards: readonly Stay[]; spotlightIds: ReadonlySet<string> }) {
   const store = useStore();
   return (
     <div className={HOUSE_GRID}>
-      {cards.map((card) =>
-        card.kind === "interest" ? (
-          <DemandCard key={card.spot.placeName} spot={card.spot} tile />
-        ) : (
-          <StayCard key={card.stay.id} stay={card.stay} host={findUser(store, card.stay.hostId)} crew={getCrew(store, card.stay)} variant={getCardVariant(card.stay, spotlightIds)} />
-        ),
-      )}
+      {cards.map((stay) => (
+        <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} variant={getCardVariant(stay, spotlightIds)} />
+      ))}
     </div>
   );
 }

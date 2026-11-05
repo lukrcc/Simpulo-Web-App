@@ -26,10 +26,6 @@ function isUrl(value: string): boolean {
   }
 }
 
-/** Today as YYYY-MM-DD (UTC, like every calendar date in the app). */
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * Host locks the accommodation: link, total price for the whole place, split across the spots → share per person,
@@ -49,7 +45,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
   const [currency, setCurrency] = useState<Currency>(stay.currency);
   const [spots, setSpots] = useState(maxSpots);
   // Houses without dates have no arrival to cap the default at.
-  const [payBy, setPayBy] = useState(() => defaultPayBy(stay));
+  const [payBy] = useState(() => defaultPayBy(stay));
   const [busy, setBusy] = useState(false);
 
   const cleanUrl = url.trim();
@@ -124,17 +120,6 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
               </Chip>
             ))}
           </div>
-        </FormField>
-
-        <FormField label={t("payBy")} helper={t("payByHint")}>
-          <input
-            type="date"
-            value={payBy}
-            min={today()}
-            max={stay.startDate || undefined}
-            onChange={(e) => setPayBy(e.target.value)}
-            className={formInput}
-          />
         </FormField>
 
         {/* The split, as plain text under a line – no box inside the sheet. */}

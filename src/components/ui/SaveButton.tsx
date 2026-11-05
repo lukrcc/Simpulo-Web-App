@@ -13,8 +13,8 @@ import { glassCircle } from "./glass";
 
 interface SaveButtonProps {
   stay: Pick<Stay, "id" | "title">;
-  /** "glass" on photos, "outline" on the page background */
-  variant?: "glass" | "outline";
+  /** "onImage": on photos, no circle. "surface": on the page, in the grey IconButton. */
+  variant?: "onImage" | "surface";
   className?: string;
 }
 
@@ -23,7 +23,7 @@ interface SaveButtonProps {
  * then it's saved. A click presses the button in; switching on fills the heart with a short pop, switching off only
  * empties it. Reduced motion: just the fill.
  */
-export function SaveButton({ stay, variant = "glass", className }: SaveButtonProps) {
+export function SaveButton({ stay, variant = "onImage", className }: SaveButtonProps) {
   const t = useTranslations("common.ui.save");
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -58,14 +58,10 @@ export function SaveButton({ stay, variant = "glass", className }: SaveButtonPro
       aria-pressed={saved}
       aria-label={saved ? t("unsave", { title: stay.title }) : t("save", { title: stay.title })}
       title={saved ? t("saved") : t("saveShort")}
-      className={cn(
-        "press-feedback",
-        variant === "glass" ? glassCircle : "flex size-10 shrink-0 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg",
-        className,
-      )}
+      className={cn("press-feedback", variant === "surface" ? glassCircle : "flex size-10 shrink-0 items-center justify-center rounded-full", className)}
     >
-      {/* Off: the outline in the button's colour (white on photos); on: filled in accent – the circle stays as it is. */}
-      <Heart ref={heartRef} onAnimationEnd={(e) => e.currentTarget.classList.remove("heart-pop")} className={cn("size-5", saved && "fill-accent text-accent")} />
+      {/* On a photo: the white outline stays, on or off, only the inside turns accent. On the page: the outline turns accent too. */}
+      <Heart ref={heartRef} data-saved={saved || undefined} onAnimationEnd={(e) => e.currentTarget.classList.remove("heart-pop")} className={variant === "surface" ? cn("size-5", saved && "fill-accent text-accent") : "heart-on-image"} />
     </button>
   );
 }

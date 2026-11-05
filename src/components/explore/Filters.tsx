@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ListRow } from "@/components/ui/ListRow";
@@ -12,7 +12,6 @@ import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Combobox } from "@/components/ui/Combobox";
 import { RangeSlider } from "@/components/ui/RangeSlider";
-import { upcomingMonths } from "@/components/form/MonthChips";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
@@ -66,11 +65,11 @@ export interface CheckOption {
   group?: string;
 }
 
-/** One section of the filter panel: 20px inside, a 13px/600 muted title (and an optional note at its right). */
+/** One section of the filter panel: a 13px/600 muted title (and an optional note at its right). Tight: the panel fits without scrolling from 800px. */
 export function PanelSection({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
   return (
-    <section className="pb-5">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
+    <section className="pb-3">
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
         <h3 className="text-small font-semibold text-muted">{title}</h3>
         {note && <span className="text-small tabular-nums text-muted">{note}</span>}
       </div>
@@ -111,40 +110,6 @@ export function ChoiceChips<T extends string | number>({
         </Chip>
       ))}
     </div>
-  );
-}
-
-/**
- * "When": the next 12 months as chips in two rows of six (multi-select, no scrolling) – short month names, the span
- * named at the title's right. It reads today's date, so it may only mount on the client – the panel renders its
- * children only while it's open.
- */
-export function MonthSection({ value, onChange, title }: { value: readonly string[]; onChange: (months: string[]) => void; title: string }) {
-  const format = useFormatter();
-  const [months] = useState(() => upcomingMonths(new Date()));
-  const date = (month: string) => new Date(`${month}-01T00:00:00Z`);
-  const long = (month: string) => format.dateTime(date(month), { month: "long", year: "numeric", timeZone: "UTC" });
-  const spanEnd = (month: string) => format.dateTime(date(month), { month: "short", year: "numeric", timeZone: "UTC" });
-  const toggle = (month: string) => onChange(value.includes(month) ? value.filter((m) => m !== month) : [...value, month].toSorted());
-  return (
-    <PanelSection title={title} note={`${spanEnd(months[0])} – ${spanEnd(months.at(-1)!)}`}>
-      <div role="group" aria-label={title} className="grid grid-cols-6 gap-1.5">
-        {months.map((month) => (
-          <Chip
-            key={month}
-            active={value.includes(month)}
-            size="sm"
-            aria-label={long(month)}
-            title={long(month)}
-            onClick={() => toggle(month)}
-            // px-1! – the chip size's own 14px sides would win otherwise (no tailwind-merge) and cut "May" short.
-            className="w-full justify-center gap-0.5 px-1!"
-          >
-            {format.dateTime(date(month), { month: "short", timeZone: "UTC" })}
-          </Chip>
-        ))}
-      </div>
-    </PanelSection>
   );
 }
 
@@ -457,7 +422,7 @@ export function SortList<T extends string = SortKey>({ options, value, onChange 
  * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px text chip with the current order
  * that opens the same choices as the panel's Sort section, right under it.
  */
-export function SortCapsule({ label, children }: { label: string; children: ReactNode }) {
+export function SortCapsule({ label, name, children }: { label: string; /** What it chooses, for screen readers: "Sort" unless it says */ name?: string; children: ReactNode }) {
   const t = useTranslations("explore");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -473,7 +438,7 @@ export function SortCapsule({ label, children }: { label: string; children: Reac
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={id}
-        aria-label={`${t("sort")}: ${label}`}
+        aria-label={`${name ?? t("sort")}: ${label}`}
         className={chipStyles(false, { variant: "text" })}
       >
         <ArrowUpDown className="sm:hidden" aria-hidden />
@@ -486,7 +451,7 @@ export function SortCapsule({ label, children }: { label: string; children: Reac
           <GlassPanel
             id={id}
             role="dialog"
-            aria-label={t("sort")}
+            aria-label={name ?? t("sort")}
             onChange={() => setOpen(false)}
             className="animate-fade-in w-60 rounded-[20px] p-2"
           >
@@ -497,34 +462,3 @@ export function SortCapsule({ label, children }: { label: string; children: Reac
     </div>
   );
 }
-
-/**
- * Place / date search for the row (only with very many Houses – see SEARCH_INLINE_THRESHOLD): one field, "Lisbon" or
- * "March"; on Enter `onSearch` turns the text into the matching filters.
- */
-export function PlaceDateSearch({ onSearch }: { onSearch: (query: string) => void }) {
-  const t = useTranslations("explore.filtersUi");
-  const [query, setQuery] = useState("");
-  return (
-    <form
-      role="search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (query.trim()) onSearch(query.trim());
-      }}
-      className="relative hidden shrink-0 md:block"
-    >
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("searchPlaceDate")}
-        aria-label={t("searchPlaceDate")}
-        className="h-9 w-56 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] pl-9 pr-4 text-small outline-none placeholder:text-muted focus:border-accent"
-      />
-    </form>
-  );
-}
-
-

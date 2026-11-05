@@ -25,16 +25,6 @@ function CompassFilled(props: IconProps) {
   );
 }
 
-function MapPinFilled(props: IconProps) {
-  const pin = "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0";
-  return (
-    <Base {...props}>
-      <path stroke="none" fillRule="evenodd" d={`${pin} M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z`} />
-      <path fill="none" d={pin} />
-    </Base>
-  );
-}
-
 function HouseFilled(props: IconProps) {
   const house = "M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z";
   return (
@@ -74,7 +64,6 @@ function LightbulbFilled(props: IconProps) {
 
 const FILLED: Partial<Record<NavItem["labelKey"], ComponentType<IconProps>>> = {
   explore: CompassFilled,
-  whereNext: MapPinFilled,
   houses: HouseFilled,
   messages: MessageCircleFilled,
   host: MegaphoneFilled,

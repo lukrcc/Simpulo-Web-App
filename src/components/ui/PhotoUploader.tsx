@@ -15,8 +15,8 @@ interface PhotoUploaderProps {
   onChange: (photos: string[]) => void;
   /** Number of slots (3 in the create stepper, 5 on Edit profile) */
   slots?: number;
-  /** "profile": "Face" under the first slot, "Add photo" on empty ones, all slots in one row */
-  labels?: "stepper" | "profile";
+  /** "profile": "Face" under the first slot, "Add photo" on empty ones, all slots in one row. "house": "Add photo" on empty ones, none required */
+  labels?: "stepper" | "profile" | "house";
 }
 
 const isObjectUrl = (url: string) => url.startsWith("blob:");
@@ -27,6 +27,7 @@ const isObjectUrl = (url: string) => url.startsWith("blob:");
  */
 export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels = "stepper" }: PhotoUploaderProps) {
   const profile = labels === "profile";
+  const house = labels === "house";
   const t = useTranslations("common.ui.photoUploader");
   const inputRef = useRef<HTMLInputElement>(null);
   /** Which slot the file picker was opened for. */
@@ -91,13 +92,13 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                 className={cn(
                   "group relative aspect-4/5 overflow-hidden rounded-2xl",
                   src ? "cursor-grab bg-line active:cursor-grabbing" : "border-2 border-dashed",
-                  !src && (slot === 0 ? "border-line bg-bg" : "border-line bg-surface"),
+                  !src && (house ? "border-ink/15" : slot === 0 ? "border-line bg-bg" : "border-line bg-surface"),
                   dragFrom === slot && "opacity-50",
                 )}
               >
                 {src ? (
                   <>
-                    <Img src={src} alt={t(slotLabel(slot))} fill sizes="200px" className="pointer-events-none object-cover" />
+                    <Img src={src} alt={house ? "" : t(slotLabel(slot))} fill sizes="200px" className="pointer-events-none object-cover" />
                     <button
                       type="button"
                       onClick={() => pick(slot)}
@@ -108,7 +109,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                       type="button"
                       onClick={() => remove(slot)}
                       aria-label={t("remove", { index: slot + 1 })}
-                      className="icon-button absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
+                      className="on-image absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -119,9 +120,9 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                     onClick={() => pick(slot)}
                     className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center text-muted"
                   >
-                    <ImagePlus className={cn("size-6", slot === 0 && "text-ink")} aria-hidden />
-                    <span className="text-small font-medium">{profile ? t("addPhoto") : t(slotLabel(slot))}</span>
-                    {slot === 0 && !profile && <span className="text-eyebrow uppercase text-ink">{t("required")}</span>}
+                    <ImagePlus className={cn("size-6", slot === 0 && !house && "text-ink")} aria-hidden />
+                    <span className="text-small font-medium">{profile || house ? t("addPhoto") : t(slotLabel(slot))}</span>
+                    {slot === 0 && !profile && !house && <span className="text-eyebrow uppercase text-ink">{t("required")}</span>}
                   </button>
                 )}
               </div>

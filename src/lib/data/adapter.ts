@@ -1,6 +1,5 @@
 // The one contract between the app and where its data comes from: the mock (dev, demo) or the real source (production).
-import type { Interest } from "../interests";
-import type { Destination } from "./destinationTypes";
+import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
 import type { GrowthEvent } from "../growth";
 import type { JoinRequest, Payment, Stay, Thread, User } from "../types";
@@ -22,15 +21,10 @@ export interface DataAdapter {
   getHouses(): Stay[];
   getUsers(): User[];
   getJoinRequests(): JoinRequest[];
-  /** Where people want to go, with who's interested */
-  /** The demand a data state starts with */
-  getInterests(state: DataState): readonly Interest[];
-  /** The curated destinations as this source shows them */
-  getCuratedDestinations(): readonly Destination[];
+  /** The saved searches a data state starts with */
+  getSavedSearches(state: DataState): readonly SavedSearch[];
   /** Houses from outside waiting for their host */
   getClaimableHouses(): Stay[];
-  /** Destinations beyond the curated list: places people picked earlier */
-  getKnownDestinations(): Destination[];
   /** Who a past demo session is logged in as; null in production */
   defaultUserId: string | null;
   installedUsers: ReadonlySet<string>;

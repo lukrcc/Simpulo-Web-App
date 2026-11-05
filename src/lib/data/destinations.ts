@@ -1,6 +1,5 @@
-// The curated destinations: always approved. Image: public/destinations/<slug>.jpg if the file exists (curated), else the
-// fallback card. No image URLs in here. Coordinates are rounded city centres.
-import type { WorldRegion } from "../interests";
+// The curated cities. Image: public/destinations/<slug>.jpg if the file exists. No image URLs in here. Coordinates are rounded city centres.
+import type { WorldRegion } from "../worldRegions";
 import { CURATED_IMAGE_SLUGS } from "./destination-images.generated";
 import { slugOf, type Destination } from "./destinationTypes";
 
@@ -69,10 +68,6 @@ export const CURATED_DESTINATIONS: readonly Destination[] = (Object.entries(LIST
       lat,
       lng,
       ...(curated && { coverImage: `/destinations/${slug}.jpg` }),
-      imageSource: curated ? "curated" : "fallback",
-      status: "approved",
-      interestedCount: 0,
-      interestedMonths: [],
     };
   }),
 );
