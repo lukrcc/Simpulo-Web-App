@@ -16,7 +16,7 @@ export default async function AboutPage() {
       <p>{t("houses")}</p>
       <p>{t("people")}</p>
       <p>
-        <Button variant="tertiary" size="lg" href="/how-it-works">
+        <Button variant="tertiary" size="md" href="/how-it-works">
           {t("cta")}
         </Button>
       </p>

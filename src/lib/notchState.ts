@@ -13,7 +13,7 @@ import { BAND_HEIGHT } from "./appMode";
 export type NotchMode = "nav" | "filters" | "panel";
 
 /** The header's height at the tab, open: everything that scrolls to just under it. */
-export const NOTCH_OPEN_TOTAL = 140 + BAND_HEIGHT;
+export const NOTCH_OPEN_TOTAL = 108 + BAND_HEIGHT;
 
 interface NotchSnapshot {
   mode: NotchMode;

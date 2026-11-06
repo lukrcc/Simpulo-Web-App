@@ -56,7 +56,7 @@ export function MyShare({ stay, variant = "banner", className }: { stay: Stay; v
   if (payment.status === "paid") {
     return (
       <p className={cn("flex items-center gap-1.5 text-small text-muted", className)}>
-        <Check className="size-4 text-accent" aria-hidden />
+        <Check className="size-4 text-muted" aria-hidden />
         {t("paid")}
       </p>
     );

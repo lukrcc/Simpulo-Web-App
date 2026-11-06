@@ -144,7 +144,7 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
         <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} />
       </FormField>
 
-      <Button type="submit" size="lg" className="w-full">
+      <Button type="submit" size="md" className="w-full">
         {t("continue")}
       </Button>
     </form>

@@ -29,6 +29,10 @@ export const AGE_KEYS: readonly AgeKey[] = ["18-25", "25-35", "35+"];
 export type AccommodationKey = "booked" | "together";
 export const ACCOMMODATION_KEYS: readonly AccommodationKey[] = ["booked", "together"];
 
+/** included: a host experience comes with it · none: the stay alone */
+export type HostExperienceKey = "included" | "none";
+export const HOST_EXPERIENCE_KEYS: readonly HostExperienceKey[] = ["included", "none"];
+
 export interface ExploreFilters {
   vibes: Vibe[];
   /** Where? A place's id (data/places): Houses within 50km of a city, inside a region or country */
@@ -47,10 +51,13 @@ export interface ExploreFilters {
   who: WhoKey | null;
   age: AgeKey | null;
   accommodation: AccommodationKey | null;
+  hostExperience: HostExperienceKey | null;
+  /** Only Houses whose host is verified */
+  verifiedOnly: boolean;
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, length: null, spots: null, crewSize: null, who: null, age: null, accommodation: null, sort: "soonest" };
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, length: null, spots: null, crewSize: null, who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, sort: "soonest" };
 
 /** "Bali, Indonesia" → "Indonesia" */
 export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").at(-1)?.trim() ?? stay.region;
@@ -73,6 +80,8 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     who: WHO_KEYS.find((key) => key === params.get("who")) ?? null,
     age: AGE_KEYS.find((key) => key === params.get("age")) ?? null,
     accommodation: ACCOMMODATION_KEYS.find((key) => key === params.get("stay")) ?? null,
+    hostExperience: HOST_EXPERIENCE_KEYS.find((key) => key === params.get("xp")) ?? null,
+    verifiedOnly: params.get("verified") === "1",
     sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
   };
 }
@@ -92,6 +101,8 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
   set("who", filters.who ? [filters.who] : []);
   set("age", filters.age ? [filters.age] : []);
   set("stay", filters.accommodation ? [filters.accommodation] : []);
+  set("xp", filters.hostExperience ? [filters.hostExperience] : []);
+  set("verified", filters.verifiedOnly ? ["1"] : []);
   set("sort", filters.sort === "soonest" ? [] : [filters.sort]);
   const query = next.toString();
   return query ? `?${query.replace(/%2C/g, ",")}` : "";
@@ -110,13 +121,15 @@ export function activeCount(filters: ExploreFilters): number {
     (filters.crewSize ? 1 : 0) +
     (filters.who ? 1 : 0) +
     (filters.age ? 1 : 0) +
-    (filters.accommodation ? 1 : 0)
+    (filters.accommodation ? 1 : 0) +
+    (filters.hostExperience ? 1 : 0) +
+    (filters.verifiedOnly ? 1 : 0)
   );
 }
 
 /** The filter panel's filters that are on – one each, however many values (not the category chips, not sort). */
 export function panelFilterCount(filters: ExploreFilters): number {
-  return [filters.place !== null, filters.month !== null, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSize !== null, filters.who !== null, filters.age !== null, filters.accommodation !== null].filter(Boolean).length;
+  return [filters.place !== null, filters.month !== null, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSize !== null, filters.who !== null, filters.age !== null, filters.accommodation !== null, filters.hostExperience !== null, filters.verifiedOnly].filter(Boolean).length;
 }
 
 const DAY_MS = 86_400_000;
@@ -161,8 +174,8 @@ function hasAge(stay: Pick<Stay, "ageRange">, age: AgeKey): boolean {
 
 type FilterKey = Exclude<keyof ExploreFilters, "sort">;
 
-/** OR within a filter, AND across them. `except` leaves one filter out – for the counts next to its own options. */
-export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: FilterKey): boolean {
+/** OR within a filter, AND across them. `except` leaves one filter out – for the counts next to its own options. `verifiedHosts`: who's verified, from the people. */
+export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: FilterKey, verifiedHosts?: ReadonlySet<string>): boolean {
   if (except !== "vibes" && filters.vibes.length > 0 && !filters.vibes.includes(stay.vibe)) return false;
   if (except !== "place" && filters.place) {
     const place = placeById(filters.place);
@@ -181,5 +194,7 @@ export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: Fil
   if (except !== "who" && filters.who && (stay.who ?? "mixed") !== filters.who) return false;
   if (except !== "age" && filters.age && !hasAge(stay, filters.age)) return false;
   if (except !== "accommodation" && filters.accommodation && (stay.accommodationStatus === "locked") !== (filters.accommodation === "booked")) return false;
+  if (except !== "hostExperience" && filters.hostExperience && Boolean(stay.hostFeePerPerson) !== (filters.hostExperience === "included")) return false;
+  if (except !== "verifiedOnly" && filters.verifiedOnly && verifiedHosts && !verifiedHosts.has(stay.hostId)) return false;
   return true;
 }

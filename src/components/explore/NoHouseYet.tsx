@@ -21,7 +21,7 @@ function SavedLine({ className }: { className?: string }) {
   const t = useTranslations("explore.search");
   return (
     <p role="status" className={cn("flex items-center justify-center gap-1.5 text-body text-ink", className)}>
-      <Check className="size-4 shrink-0 text-accent motion-safe:animate-check-in" strokeWidth={3} aria-hidden />
+      <Check className="size-4 shrink-0 text-ink motion-safe:animate-check-in" strokeWidth={3} aria-hidden />
       {t("saved")}
     </p>
   );
@@ -45,7 +45,7 @@ export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Hous
     <div>
       <div className="flex flex-col items-center py-(--space-inner) text-center">
         <h2 className="max-w-160 text-h2 text-ink">{title}</h2>
-        <Button href={createHrefOf(draft)} variant="primary" size="lg" data-preview-action className="mt-6">
+        <Button href={createHrefOf(draft)} variant="primary" size="md" data-preview-action className="mt-6">
           {t("openFirst")}
         </Button>
         {saved ? (

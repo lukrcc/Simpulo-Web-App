@@ -43,6 +43,11 @@ export function socialUrl(link: SocialLink): string {
   return link.platform === "website" ? link.value : PROFILE_URL[link.platform](link.value);
 }
 
+/** How a link reads: "@mara.goes", a website by its domain. */
+export function socialHandle(link: SocialLink): string {
+  return link.platform === "website" ? link.value.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : `@${link.value.replace(/^@/, "")}`;
+}
+
 /**
  * What's stored for a typed value: the bare handle (no "@", no URL around it), or – for a website – the URL with
  * https:// added when it was left out. "" when nothing usable was typed.

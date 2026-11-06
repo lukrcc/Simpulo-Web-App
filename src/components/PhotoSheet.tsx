@@ -30,7 +30,7 @@ function PhotoSheetBody({ onDone }: { onDone: () => void }) {
       <PhotoUploader photos={photos} onChange={setPhotos} />
       <p className="text-small text-muted">{t("hint")}</p>
       <Button
-        size="lg"
+        size="md"
         disabled={!photos[0]}
         onClick={() => {
           store.updateCurrentUser({ photos });

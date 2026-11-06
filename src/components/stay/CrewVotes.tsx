@@ -85,7 +85,7 @@ function Vote({ stay, kind, vote }: { stay: Stay; kind: VoteKind; vote: CrewVote
                 <span className="shrink-0 text-small tabular-nums text-muted">{t("votes", { count })}</span>
               </span>
               <span className="mt-2 block h-2 overflow-hidden rounded-full bg-ink/5">
-                <span className="block h-full origin-left rounded-full bg-(--select-bg) transition-transform duration-300 motion-reduce:transition-none" style={{ transform: `scaleX(${total ? count / total : 0})` }} />
+                <span className="block h-full origin-left rounded-full bg-(--stage-peach) transition-transform duration-300 motion-reduce:transition-none" style={{ transform: `scaleX(${total ? count / total : 0})` }} />
               </span>
             </>
           );
@@ -97,7 +97,7 @@ function Vote({ stay, kind, vote }: { stay: Stay; kind: VoteKind; vote: CrewVote
                   aria-pressed={mine}
                   aria-label={t("voteFor", { option: label ?? "" })}
                   onClick={() => (choosable ? decideVote(stay.id, kind, option.id) : store.castVote(stay.id, kind, option.id))}
-                  className={cn("block min-w-0 flex-1 rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-accent")}
+                  className={cn("block min-w-0 flex-1 rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ink/25")}
                 >
                   {row}
                 </button>

@@ -27,7 +27,7 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
         </div>
         <h1 className="mt-6 text-h2">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
-        <Button variant="primary" size="lg" onClick={() => retry()} className="mt-8">
+        <Button variant="primary" size="md" onClick={() => retry()} className="mt-8">
           <RotateCcw aria-hidden />
           {t("retry")}
         </Button>

@@ -76,7 +76,7 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
       {options.length === 0 && empty && <p className="px-3 py-2.5 text-small text-muted">{empty}</p>}
       {groups.map((group, g) => (
         <div key={group.name ?? `group-${g}`} role="group" aria-label={group.name}>
-          {group.name && <p className="px-3 pb-1 pt-2.5 text-eyebrow uppercase text-muted">{group.name}</p>}
+          {group.name && <p className="px-3 pb-1 pt-2.5 text-eyebrow uppercase text-ink/55">{group.name}</p>}
           {group.items.map(({ option, index }) => {
             const isSelected = selected?.(option) ?? false;
             return (
@@ -96,7 +96,7 @@ export function OptionList({ id, options, active, selected, onPick, onHover, emp
                   {option.label}
                   {option.hint && <span className="ml-1.5 text-muted">{option.hint}</span>}
                 </span>
-                {isSelected && <Check className="size-4 shrink-0 text-accent" strokeWidth={3} aria-hidden />}
+                {isSelected && <Check className="size-4 shrink-0 text-ink" strokeWidth={3} aria-hidden />}
               </div>
             );
           })}

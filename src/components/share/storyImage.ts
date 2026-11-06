@@ -164,8 +164,8 @@ export async function renderStoryImage(content: StoryContent): Promise<Blob> {
     ctx.fillText(line, SIDE, y);
     y -= 108;
   }
-  // The accent bar above the title.
-  ctx.fillStyle = ACCENT;
+  // The bar above the title.
+  ctx.fillStyle = COLORS.ink;
   roundRect(ctx, SIDE, y - 10, 120, 14, 7);
 
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Export failed"))), "image/png"));

@@ -1,3 +1,4 @@
+import { Tooltip } from "@/components/ui/Tooltip";
 import { Suspense, type ReactNode } from "react";
 import { DemoBand } from "@/components/demo/DemoBand";
 import { DemoGuard } from "@/components/demo/DemoGuard";
@@ -16,6 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <PageGlow />
       </Suspense>
+      <Tooltip />
       <Suspense fallback={null}>
         <HouseTransitions />
       </Suspense>
@@ -27,10 +29,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
       <SiteHeader />
       <MobileHeader />
-      {/* From md the header is fixed: the content starts 16px below its bar (80px), and its tab hangs into that space.
+      {/* From md the header is fixed: the content starts 16px below its bar (72px), and its tab hangs into that space.
           Every scrolling page ends with the same space before the footer: 96px mobile, --space-section desktop. Full-height
           app pages drop that padding and the footer via data-app-pane (globals.css). */}
-      <main className="flex-1 pb-24 md:pt-20 md:pb-(--space-section)">{children}</main>
+      <main className="flex-1 pb-24 md:pt-18 md:pb-(--space-section)">{children}</main>
       {/* usePathname suspends on dynamic routes during prerender. */}
       <Suspense fallback={<SlimFooter />}>
         <FooterByRoute full={<Footer />} slim={<SlimFooter />} />

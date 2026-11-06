@@ -1,7 +1,7 @@
 // Class strings for UI layered over photos.
 
 export const glassCircle =
-  "icon-button flex size-10 shrink-0 items-center justify-center rounded-full";
+  "bg-transparent text-muted transition-colors duration-150 hover:bg-ink/6 hover:text-ink flex size-10 shrink-0 items-center justify-center rounded-full";
 
 /** Readability gradient for text over images: rgba(0,0,0,0.75) at the bottom → transparent. */
 export const imageGradient = "bg-linear-to-t from-ink/75 via-ink/30 to-transparent";

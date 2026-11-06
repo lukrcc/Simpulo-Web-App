@@ -1,0 +1,357 @@
+"use client";
+
+import { CalendarCheck, ChevronDown, ChevronRight, CreditCard, Inbox, Mail, PenLine, Plus, Sparkles, Vote, Wallet, Home, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState, type ReactNode } from "react";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
+import { StatusLine } from "@/components/stay/HouseDetail";
+import { buttonStyles } from "@/components/ui/ActionButton";
+import { AvatarStack } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { Chip } from "@/components/ui/Chip";
+import { ChipIndicator } from "@/components/ui/ChipIndicator";
+import { Img } from "@/components/ui/Img";
+import { vibeIcons } from "@/components/ui/VibeBadge";
+import { EarningsView } from "@/components/views/Earnings";
+import { useFormat } from "@/i18n/format";
+import { earningsFor } from "@/lib/earnings";
+import { guestTasks, hostTasks, manageHref, type HouseTask, type HouseTaskKind } from "@/lib/houseTasks";
+import { getCrew, getMyPayment, isCrewMember, useStore } from "@/lib/store";
+import type { JoinRequest, Stay } from "@/lib/types";
+import { cn, housePhotos } from "@/lib/utils";
+import { waitlistPosition } from "@/lib/waitlist";
+
+type HousesTab = "houses" | "earnings";
+
+/** /houses – Your houses at a glance: the numbers, what needs you, your Houses as cards. ?tab=earnings: the money. The page scrolls; no footer. */
+export function YourHouses() {
+  const t = useTranslations("houses");
+  return (
+    <RequireLogin title={t("loginTitle")} description={t("loginDescription")}>
+      <YourHousesContent />
+    </RequireLogin>
+  );
+}
+
+const SECTION_TITLE = "text-eyebrow uppercase text-ink/55";
+const CARD_GRID = "grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]";
+
+function YourHousesContent() {
+  const t = useTranslations("houses.home");
+  const store = useStore();
+  const [now] = useState(() => new Date().toISOString());
+  const today = now.slice(0, 10);
+  const me = store.currentUserId;
+  const earnings = earningsFor(store, me, today);
+  const param = useSearchParams().get("tab");
+  const tab: HousesTab = param === "earnings" && earnings.any ? "earnings" : "houses";
+  const select = (next: HousesTab) => {
+    const url = new URL(window.location.href);
+    if (next === "houses") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url.pathname + url.search);
+    window.scrollTo({ top: 0 });
+  };
+
+  const over = (s: Stay) => s.status === "completed" || s.endDate < today;
+  const hosting = store.stays.filter((s) => s.hostId === me && (s.status === "published" || s.status === "booked") && !over(s)).toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+  const drafts = store.stays.filter((s) => s.hostId === me && s.status === "draft");
+  const joined = store.joinRequests
+    .filter((r) => r.userId === me && ["accepted", "pending", "invited", "waitlist_requested", "waitlisted"].includes(r.status))
+    .flatMap((r) => {
+      const stay = store.stays.find((s) => s.id === r.stayId);
+      return stay && !over(stay) && stay.status !== "closed" ? [{ request: r, stay }] : [];
+    })
+    .toSorted((a, b) => a.stay.startDate.localeCompare(b.stay.startDate));
+  const past = store.stays.filter((s) => over(s) && (s.hostId === me || isCrewMember(store, s, me))).toSorted((a, b) => b.endDate.localeCompare(a.endDate));
+  const tasks = [...hosting, ...drafts].flatMap((s) => hostTasks(store, s)).concat(joined.flatMap(({ stay }) => guestTasks(store, stay, now)));
+  const isHost = hosting.length > 0 || drafts.length > 0 || earnings.any;
+  const requestsWaiting = hosting.reduce((sum, s) => sum + store.joinRequests.filter((r) => r.stayId === s.id && (r.status === "pending" || r.status === "waitlist_requested")).length, 0);
+
+  return (
+    <Container className="pb-(--space-section) pt-6 md:pt-8">
+      {earnings.any && (
+        <div role="tablist" aria-label={t("tabsLabel")} className="relative -ml-3 mb-8 flex items-center gap-1">
+          <ChipIndicator />
+          {(["houses", "earnings"] as const).map((value) => (
+            <Chip key={value} variant="text" role="tab" aria-selected={tab === value} active={tab === value} hoverSurface={false} onClick={() => select(value)}>
+              {t(`tabs.${value}`)}
+            </Chip>
+          ))}
+        </div>
+      )}
+
+      {tab === "earnings" ? (
+        <EarningsView earnings={earnings} />
+      ) : (
+        <div className="flex flex-col gap-(--space-section)">
+          {isHost && <StatStrip earnings={earnings} requests={requestsWaiting} active={hosting.length} onEarnings={earnings.any ? () => select("earnings") : undefined} />}
+
+          <section aria-labelledby="needs-you">
+            <h2 id="needs-you" className={SECTION_TITLE}>
+              {t("needsYou")}
+            </h2>
+            {tasks.length === 0 ? <p className="mt-3 text-body-lg text-muted">{t("allSet")}</p> : <TaskList tasks={tasks} />}
+          </section>
+
+          {(hosting.length > 0 || drafts.length > 0) && (
+            <section aria-labelledby="hosting">
+              {drafts.length > 0 && (
+                <div className="mb-8">
+                  <h2 className={SECTION_TITLE}>{t("drafts")}</h2>
+                  <ul className="mt-3 flex flex-wrap gap-3">
+                    {drafts.map((stay) => (
+                      <li key={stay.id}>
+                        <DraftChip stay={stay} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <h2 id="hosting" className={SECTION_TITLE}>
+                {t("hosting")}
+              </h2>
+              <ul className={cn(CARD_GRID, "mt-4")}>
+                {hosting.map((stay) => (
+                  <li key={stay.id}>
+                    <HouseTile stay={stay} status={<StatusLine stay={stay} className="bg-ink/6" />} attention={tasks.some((task) => task.stay.id === stay.id)} />
+                  </li>
+                ))}
+                <li>
+                  <Link href="/create" className="flex h-full min-h-56 flex-col items-center justify-center gap-2 rounded-3xl bg-ink/4 text-body font-semibold text-ink transition-colors duration-150 hover:bg-ink/7">
+                    <Plus className="size-5" aria-hidden />
+                    {t("openHouse")}
+                  </Link>
+                </li>
+              </ul>
+            </section>
+          )}
+
+          {joined.length > 0 && (
+            <section aria-labelledby="joined">
+              <h2 id="joined" className={SECTION_TITLE}>
+                {t("joined")}
+              </h2>
+              <ul className={cn(CARD_GRID, "mt-4")}>
+                {joined.map(({ request, stay }) => (
+                  <li key={stay.id}>
+                    <HouseTile stay={stay} status={<GuestStatus stay={stay} request={request} />} attention={tasks.some((task) => task.stay.id === stay.id)} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {!isHost && joined.length === 0 && (
+            <div className="flex flex-col items-start gap-4">
+              <p className="text-h2 text-ink">{t("emptyTitle")}</p>
+              <p className="max-w-[640px] text-body-lg text-muted">{t("emptyText")}</p>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/" className={buttonStyles("primary", "md")}>
+                  {t("emptyExplore")}
+                </Link>
+                <Link href="/create" className={buttonStyles("secondary", "md")}>
+                  {t("openHouse")}
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {past.length > 0 && <PastSection houses={past} />}
+        </div>
+      )}
+    </Container>
+  );
+}
+
+/** Four numbers on soft cards; the money ones lead to Earnings. */
+function StatStrip({ earnings, requests, active, onEarnings }: { earnings: ReturnType<typeof earningsFor>; requests: number; active: number; onEarnings?: () => void }) {
+  const t = useTranslations("houses.home.stats");
+  const f = useFormat();
+  const tile = "card-soft flex min-w-0 flex-col items-start gap-1 rounded-3xl p-5 text-left";
+  const value = "text-h2 tabular-nums text-ink";
+  const label = "text-small text-muted";
+  const money = (amount: number) => f.price(amount, earnings.currency);
+  const clickable = (children: ReactNode) =>
+    onEarnings ? (
+      <button type="button" onClick={onEarnings} className={cn(tile, "transition-transform duration-150 hover:-translate-y-0.5")}>
+        {children}
+      </button>
+    ) : (
+      <div className={tile}>{children}</div>
+    );
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {clickable(
+        <>
+          <span className={label}>{t("earnedYear")}</span>
+          <span className={value}>{money(earnings.thisYear)}</span>
+        </>,
+      )}
+      {clickable(
+        <>
+          <span className={label}>{t("nextPayout")}</span>
+          <span className={value}>{earnings.next ? money(earnings.next.amount) : "–"}</span>
+          {earnings.next && <span className={label}>{f.day(earnings.next.date)}</span>}
+        </>,
+      )}
+      <div className={tile}>
+        <span className={label}>{t("requests")}</span>
+        <span className={value}>{requests}</span>
+      </div>
+      <div className={tile}>
+        <span className={label}>{t("active")}</span>
+        <span className={value}>{active}</span>
+      </div>
+    </div>
+  );
+}
+
+const TASK_ICON: Record<HouseTaskKind, LucideIcon> = {
+  finish: PenLine,
+  requests: Inbox,
+  choosePlace: Home,
+  voting: Vote,
+  paymentsOpen: Wallet,
+  book: CalendarCheck,
+  invite: Mail,
+  pay: CreditCard,
+  offer: Sparkles,
+};
+/** Tasks with their own action word get a small secondary capsule; the rest a chevron. */
+const TASK_ACTION: Partial<Record<HouseTaskKind, "finish" | "review" | "choose" | "markBooked" | "answer" | "pay" | "takeSpot">> = { finish: "finish", requests: "review", choosePlace: "choose", book: "markBooked", invite: "answer", pay: "pay", offer: "takeSpot" };
+
+/** Everything that waits for you, over all Houses: icon, the sentence, the House small; the whole row leads there. */
+function TaskList({ tasks }: { tasks: HouseTask[] }) {
+  const t = useTranslations("houses.home.tasks");
+  const f = useFormat();
+  return (
+    <ul className="-mx-3 mt-3 flex flex-col">
+      {tasks.map((task) => {
+        const Icon = TASK_ICON[task.kind];
+        const action = TASK_ACTION[task.kind];
+        return (
+          <li key={task.id}>
+            <Link href={task.href} className="flex items-center gap-4 rounded-2xl px-3 py-3 transition-colors duration-150 hover:bg-(--chip-bg)">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink">
+                <Icon className="size-4.5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-body font-semibold text-ink">{t(task.kind, { count: task.count ?? 0, date: task.date ? f.day(task.date) : "" })}</span>
+                <span className="block truncate text-small text-muted">{task.stay.title}</span>
+              </span>
+              {action ? <span className={buttonStyles("secondary", "sm", "pointer-events-none shrink-0")}>{t(`actions.${action}`)}</span> : <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** A House as a compact card: cover 16:10, title, dates · place, the crew and "2 of 6", its status; a dot when something waits. */
+function HouseTile({ stay, status, attention }: { stay: Stay; status: ReactNode; attention: boolean }) {
+  const t = useTranslations("houses.home");
+  const f = useFormat();
+  const store = useStore();
+  const cover = housePhotos(stay)[0];
+  const VibeIcon = vibeIcons[stay.vibe];
+  return (
+    <Link href={manageHref(stay)} className="card-soft group flex h-full flex-col overflow-hidden rounded-3xl transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1">
+      <span className="relative block aspect-16/10 overflow-hidden bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to)">
+        {cover ? (
+          <Img src={cover} alt="" fill sizes="(min-width: 1100px) 360px, 50vw" className="object-cover" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-ink/55">
+            <VibeIcon className="size-8" aria-hidden />
+          </span>
+        )}
+        {attention && (
+          <span className="absolute right-4 top-4 size-2.5 rounded-full bg-accent ring-2 ring-white">
+            <span className="sr-only">{t("needsYouDot")}</span>
+          </span>
+        )}
+      </span>
+      <span className="flex flex-1 flex-col gap-2 p-5">
+        <span className="line-clamp-2 text-h3 text-ink">{stay.title}</span>
+        <span className="truncate text-small text-muted">
+          {f.stayDatesLong(stay)} · {f.placeName(stay)}
+        </span>
+        <span className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
+          <AvatarStack users={getCrew(store, stay)} size="xs" max={5} />
+          <span className="text-small text-muted">{t("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>
+          <span className="ml-auto">{status}</span>
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/** A guest's own status on the card: Requested / Invited / Waitlist / Accepted / Pay by … / Paid / Booked. */
+function GuestStatus({ stay, request }: { stay: Stay; request: JoinRequest }) {
+  const t = useTranslations("houses.home.guest");
+  const f = useFormat();
+  const store = useStore();
+  const payment = getMyPayment(store, stay.id);
+  const label =
+    request.status === "pending"
+      ? t("requested")
+      : request.status === "invited"
+        ? t("invited")
+        : request.status === "waitlist_requested"
+          ? t("waitlistRequested")
+          : request.status === "waitlisted"
+            ? t("waitlisted", { position: waitlistPosition(store, stay.id, request.userId) ?? 1 })
+            : stay.bookingConfirmedAt
+              ? t("booked")
+              : payment?.status === "paid"
+                ? t("paid")
+                : payment?.status === "pending" && stay.paymentDueAt
+                  ? t("payBy", { date: f.day(stay.paymentDueAt) })
+                  : t("accepted");
+  return <Badge className="bg-ink/6">{label}</Badge>;
+}
+
+/** A draft, small: its icon or cover, the title, "Continue". */
+function DraftChip({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.home");
+  const cover = housePhotos(stay)[0];
+  const VibeIcon = vibeIcons[stay.vibe];
+  return (
+    <Link href={`/my-stays/${stay.id}/edit`} className="card-soft flex items-center gap-3 rounded-2xl py-2 pl-2 pr-4 transition-transform duration-150 hover:-translate-y-0.5">
+      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) text-ink/55">
+        {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <VibeIcon className="size-4.5" aria-hidden />}
+      </span>
+      <span className="min-w-0">
+        <span className="block max-w-56 truncate text-body font-semibold text-ink">{stay.title || t("untitled")}</span>
+        <span className="block text-small text-muted">{t("continue")}</span>
+      </span>
+    </Link>
+  );
+}
+
+/** Houses that are over: closed at first, the same cards when opened. */
+function PastSection({ houses }: { houses: Stay[] }) {
+  const t = useTranslations("houses.home");
+  const [open, setOpen] = useState(false);
+  return (
+    <section aria-labelledby="past">
+      <button type="button" id="past" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={cn(SECTION_TITLE, "-ml-2 flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-(--chip-bg)")}>
+        {t("past", { count: houses.length })}
+        <ChevronDown className={cn("size-4 transition-transform duration-200", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <ul className={cn(CARD_GRID, "mt-4")}>
+          {houses.map((stay) => (
+            <li key={stay.id}>
+              <HouseTile stay={stay} status={<Badge className="bg-ink/6">{t("pastBadge")}</Badge>} attention={false} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

@@ -37,18 +37,18 @@ export default async function HostPage() {
   return (
     <>
       {/* Hero, on the stage gradient: text left, the House card (448 × 560) right, centred on each other. */}
-      <StageBand from="md" className="pb-16">
+      <StageBand from="md" className="pb-16 [--stage-focus:82%]">
         <Container className="pt-16">
           <section className="grid grid-cols-1 items-center gap-10 split:grid-cols-12 split:gap-8">
             <div className="split:col-span-7">
-              <p className="text-eyebrow uppercase text-muted">{t("eyebrow")}</p>
+              <p className="text-eyebrow uppercase text-ink/55">{t("eyebrow")}</p>
               <h1 className="mt-3 text-display text-ink">{t("title")}</h1>
               <p className="mt-6 max-w-140 text-body-lg text-muted">{t("intro")}</p>
               <div className="mt-8 flex flex-wrap items-center gap-6">
-                <Button href="/create" size="lg">
+                <Button href="/create" size="md">
                   {t("openHouse")}
                 </Button>
-                <Button href="/how-it-works" variant="tertiary" size="lg">
+                <Button href="/how-it-works" variant="tertiary" size="md">
                   {t("howItWorks")}
                   <ArrowRight aria-hidden />
                 </Button>
@@ -108,13 +108,13 @@ export default async function HostPage() {
         </div>
       </section>
 
-      {/* The page's last word: the one main action, on peach. */}
-      <section data-glow-section className="mt-(--space-section) flex flex-col items-start gap-6 rounded-3xl bg-(--select-bg) p-16 text-ink md:flex-row md:items-center md:justify-between">
+      {/* The page's last word: the one main action, on the stage's shade as light as the patches on the page. */}
+      <section data-glow-section className="mt-(--space-section) flex flex-col items-start gap-6 rounded-3xl bg-[color-mix(in_srgb,var(--stage-peach)_28%,transparent)] p-16 text-ink md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-h2">{t("ctaTitle")}</h2>
           <p className="mt-2 text-body-lg text-muted">{t("ctaText")}</p>
         </div>
-        <Button href="/create" size="lg">
+        <Button href="/create" size="md">
           {t("openHouse")}
         </Button>
       </section>

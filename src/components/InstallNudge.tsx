@@ -51,12 +51,12 @@ export function InstallNudgeProvider({ children }: { children: ReactNode }) {
           <p className="text-ink">{t("text", { name: hostName ?? "" })}</p>
         </div>
         <div className="mt-6 flex gap-2">
-          <Button variant="secondary" size="lg" onClick={close} className="flex-1">
+          <Button variant="secondary" size="md" onClick={close} className="flex-1">
             {t("later")}
           </Button>
           <Button
             variant="primary"
-            size="lg"
+            size="md"
             onClick={() => {
               close();
               router.push(GET_THE_APP_HREF);

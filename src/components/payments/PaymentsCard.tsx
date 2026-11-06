@@ -56,7 +56,7 @@ export function PaymentsSection({ stay, onLock }: { stay: Stay; /** The crew is 
         <span className="text-muted"> · {stay.paymentDueAt ? t("dueOn", { date: f.day(stay.paymentDueAt) }) : t("waitingForCrew")}</span>
       </p>
       <div role="progressbar" aria-valuemin={0} aria-valuemax={progress.count} aria-valuenow={progress.paidCount} aria-label={t("title")} className="mt-2 h-2 overflow-hidden rounded-full bg-ink/5">
-        <div className="h-full origin-left rounded-full bg-accent transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none" style={{ transform: `scaleX(${share})` }} />
+        <div className="h-full origin-left rounded-full bg-ink/70 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none" style={{ transform: `scaleX(${share})` }} />
       </div>
 
       <ul className="mt-3">
@@ -131,7 +131,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
   if (stay.status === "booked" && stay.bookingConfirmedAt) {
     return (
       <div className="mt-4 flex items-start gap-3 pt-4">
-        <CircleCheck className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
+        <CircleCheck className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-ink">{t("confirmedTitle", { date: f.day(stay.bookingConfirmedAt) })}</p>
           <p className="mt-0.5 text-small text-muted">{t("confirmedText")}</p>
@@ -166,7 +166,7 @@ function BookingBlock({ stay, payments }: { stay: Stay; payments: Payment[] }) {
     // Part of the Payments section: plain content under a line, never a box inside the card.
     <div className="mt-4 pt-4">
       <p className="flex items-center gap-2 font-semibold">
-        <Wallet className="size-5 shrink-0 text-accent" aria-hidden />
+        <Wallet className="size-5 shrink-0 text-muted" aria-hidden />
         {t("fundsTitle", { amount: f.price(released, stay.currency) })}
       </p>
       <p className="mt-1 text-small text-muted">{t("fundsText")}</p>

@@ -6,7 +6,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ListRow } from "@/components/ui/ListRow";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Chip, ChipCheck, chipStyles } from "@/components/ui/Chip";
+import { buttonStyles } from "@/components/ui/ActionButton";
+import { Chip, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -25,8 +26,11 @@ export function FiltersButton({
   onClick,
   expanded,
   controls,
+  variant = "capsule",
   className,
 }: {
+  /** "capsule": the glass capsule of the filter rows · "secondary": the button beside a section's title */
+  variant?: "capsule" | "secondary";
   count: number;
   onClick: () => void;
   expanded?: boolean;
@@ -44,8 +48,10 @@ export function FiltersButton({
       aria-haspopup="dialog"
       aria-controls={controls}
       aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={cn("filters-capsule inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-body font-semibold text-ink [&>svg]:size-4", className)}
+      className={variant === "secondary" ? buttonStyles("secondary", "sm", className) : cn("filters-capsule inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav text-ink [&>svg]:size-4", className)}
     >
+      {/* Gives the button its text's baseline (an icon first would give the icon's bottom edge): it lines up with a title beside it. */}
+      <span aria-hidden className="-ml-2 w-0 overflow-hidden">{"\u200b"}</span>
       <SlidersHorizontal aria-hidden />
       {t("filters")}
       {count > 0 && (
@@ -66,12 +72,18 @@ export interface CheckOption {
 }
 
 /** One section of the filter panel: a 13px/600 muted title (and an optional note at its right). Tight: the panel fits without scrolling from 800px. */
-export function PanelSection({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
+export function PanelSection({ title, note, onClear, children }: { title: string; note?: ReactNode; /** A value is set here: "Clear" beside the title */ onClear?: () => void; children: ReactNode }) {
+  const t = useTranslations("explore.filtersUi");
   return (
-    <section className="pb-3">
-      <div className="mb-1.5 flex items-baseline justify-between gap-3">
-        <h3 className="text-small font-semibold text-muted">{title}</h3>
+    <section className="pb-2.5">
+      <div className="mb-1 flex min-h-5 items-baseline justify-between gap-3">
+        <h3 className="text-small font-semibold text-ink">{title}</h3>
         {note && <span className="text-small tabular-nums text-muted">{note}</span>}
+        {onClear && (
+          <button type="button" onClick={onClear} aria-label={t("clearSection", { section: title })} className="text-small text-ink underline-offset-4 hover:underline">
+            {t("clear")}
+          </button>
+        )}
       </div>
       {children}
     </section>
@@ -101,7 +113,6 @@ export function ChoiceChips<T extends string | number>({
           role="radio"
           aria-checked={value === o.value}
           active={value === o.value}
-          check={o.value !== null}
           size="sm"
           onClick={() => onChange(clearable && value === o.value ? null : o.value)}
           className="px-2.5!"
@@ -159,7 +170,7 @@ export function PriceFilter({
         {bars.map((count, i) => {
           const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
           const inRange = at >= current.min && at <= current.max;
-          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-accent/70" : "bg-ink/15")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink/55" : "bg-ink/18")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
         })}
       </div>
       <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
@@ -180,7 +191,7 @@ function PriceField({ label, amount, currency, onCommit }: { label: string; amou
     else setDraft(String(amount));
   };
   return (
-    <label className="flex h-10 items-center gap-2 rounded-xl bg-(--chip-bg) px-3 focus-within:ring-2 focus-within:ring-accent">
+    <label className="flex h-10 items-center gap-2 rounded-xl bg-(--chip-bg) px-3 focus-within:ring-2 focus-within:ring-ink/25">
       <span className="text-small text-muted">{label}</span>
       <input
         inputMode="numeric"
@@ -305,7 +316,7 @@ export function CategoryRow({
             aria-haspopup="true"
             className={chip(moreActive)}
           >
-            {moreActive && <ChipCheck />}
+            
             {moreLabel}
             <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
@@ -422,7 +433,7 @@ export function SortList<T extends string = SortKey>({ options, value, onChange 
  * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px text chip with the current order
  * that opens the same choices as the panel's Sort section, right under it.
  */
-export function SortCapsule({ label, name, children }: { label: string; /** What it chooses, for screen readers: "Sort" unless it says */ name?: string; children: ReactNode }) {
+export function SortCapsule({ label, name, variant = "chip", children }: { label: string; /** What it chooses, for screen readers: "Sort" unless it says */ name?: string; /** "chip": a text chip in the filter rows · "tertiary": the text button beside a section's title */ variant?: "chip" | "tertiary"; children: ReactNode }) {
   const t = useTranslations("explore");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -439,7 +450,7 @@ export function SortCapsule({ label, name, children }: { label: string; /** What
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${name ?? t("sort")}: ${label}`}
-        className={chipStyles(false, { variant: "text" })}
+        className={variant === "tertiary" ? buttonStyles("tertiary", "sm") : chipStyles(false, { variant: "text", size: "sm" })}
       >
         <ArrowUpDown className="sm:hidden" aria-hidden />
         <span className="max-sm:sr-only">{label}</span>

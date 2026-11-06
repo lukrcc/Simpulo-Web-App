@@ -1,6 +1,6 @@
 import { CURRENT_USER_ID, joinRequests, stays, users } from "../mock";
 import { getMockDataset } from "../mock-datasets";
-import { mockInstalledUsers, mockPaidUsers, mockPreviewForUrl } from "../mock-extras";
+import { mockInstalledUsers, mockPaidUsers, mockPastEarnings, mockPreviewForUrl } from "../mock-extras";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
 import { MOCK_SEARCHES, MOCK_SEARCHES_FULL } from "../mock-saved-searches";
@@ -17,6 +17,7 @@ export const mockAdapter: DataAdapter = {
   defaultUserId: CURRENT_USER_ID,
   installedUsers: mockInstalledUsers,
   paidUsers: (stayId) => mockPaidUsers[stayId] ?? [],
+  pastEarnings: (userId) => mockPastEarnings[userId] ?? [],
   previewForUrl: mockPreviewForUrl,
   withAttribution: withMockAttribution,
   withChatHistory: withMockHistory,

@@ -17,9 +17,9 @@ export function ExplorePrelaunch() {
   const filters = useExploreFilters();
   return (
     <div data-explore-blocks className="pb-(--space-section)">
-      <StageBand from="md" className="pb-(--space-inner)">
+      <StageBand from="md" className="pb-(--space-inner) [--stage-focus:100%]">
         <Container className="pt-12 md:pt-16">
-          <p className="text-eyebrow uppercase text-accent">{t("eyebrow")}</p>
+          <p className="text-eyebrow uppercase text-ink/55">{t("eyebrow")}</p>
           <h1 className="mt-3 text-h1 text-ink md:text-display">{t("title")}</h1>
           <p className="mt-4 max-w-xl text-body-lg text-muted">{t("text")}</p>
           <div className="mt-8 flex flex-wrap items-center gap-2">

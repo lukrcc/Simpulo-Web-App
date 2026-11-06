@@ -49,7 +49,7 @@ export function LanguageInput({ languages, onChange }: LanguageInputProps) {
       <div
         onClick={() => inputRef.current?.focus()}
         // The form field look (formInput) around chips + a typed search: grows past 44px as chips wrap.
-        className="flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-2 py-1.5 transition-shadow focus-within:ring-2 focus-within:ring-accent"
+        className="flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-2 py-1.5 transition-shadow focus-within:ring-2 focus-within:ring-ink/25"
       >
         {languages.map((language) => (
           <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-body">

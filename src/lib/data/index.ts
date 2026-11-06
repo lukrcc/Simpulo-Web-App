@@ -28,6 +28,8 @@ export const searchPlaces = placeProvider.search;
 export const defaultUserId = adapter.defaultUserId;
 export const installedUsers = adapter.installedUsers;
 export const paidUsersOf = adapter.paidUsers;
+export const pastEarningsOf = adapter.pastEarnings;
+export type { PastEarning } from "./adapter";
 export const previewForUrl = adapter.previewForUrl;
 /** Preview of a House's accommodation link (the booked place once it's locked). */
 export const stayLinkPreview = (stay: Pick<Stay, "accommodationLink" | "title">) => (stay.accommodationLink ? adapter.previewForUrl(stay.accommodationLink, stay.title) : null);

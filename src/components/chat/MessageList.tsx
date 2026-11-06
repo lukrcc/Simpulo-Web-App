@@ -34,6 +34,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   const { toggleReaction } = store;
   const me = store.currentUserId;
   const paneRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
   const unreadRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
   const countRef = useRef(thread.messages.length);
@@ -68,7 +69,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   useLayoutEffect(() => {
     const pane = paneRef.current;
     if (!pane) return;
-    if (unreadRef.current) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24;
+    if (unreadRef.current) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24 - parseFloat(getComputedStyle(pane).getPropertyValue("--chat-top") || "0");
     else pane.scrollTop = pane.scrollHeight;
     atBottomRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < BOTTOM_THRESHOLD;
   }, []);
@@ -85,6 +86,17 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     if (lastFromMe || atBottomRef.current) scrollToBottom(true);
     else setShowPill(true);
   }, [count, lastFromMe, scrollToBottom]);
+
+  // The composer growing, or the head's height arriving: whoever was at the end stays there.
+  useEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const observer = new ResizeObserver(() => {
+      if (atBottomRef.current) scrollToBottom(false);
+    });
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
 
   // The typing line appearing at the bottom stays in view.
   const typing = typingUser !== undefined;
@@ -122,18 +134,17 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   }
 
   return (
-    // Slightly darker than the page, so the white / tinted bubbles stand out.
-    <div className="relative min-h-0 flex-1 bg-bg">
-      <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
+    <div className="relative min-h-0 flex-1">
+      <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain">
+        {/* Under the glass head and over the floating composer: the messages keep clear of them when at either end. */}
+        <div ref={innerRef} className="mx-auto max-w-[960px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
         {count === 0 && !footer && <p className="py-16 text-center text-small text-muted">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
-              <div key={row.key} ref={unreadRef} className="my-4 flex items-center justify-center">
-                <span className="rounded-full bg-surface/80 px-2.5 py-0.5 text-small font-semibold text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
-                  {t("newMessages")}
-                </span>
+              <div key={row.key} ref={unreadRef} className="my-4 text-center text-small font-semibold text-muted">
+                {t("newMessages")}
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
@@ -188,7 +199,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
         {typingUser && (
           <div className="mt-3 flex items-center gap-2" aria-live="polite">
             <Avatar user={typingUser} size="sm" />
-            <div className="flex items-center gap-2 rounded-[18px] rounded-bl-[6px] bg-surface px-3 py-2 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">
+            <div className="flex items-center gap-2 rounded-[20px] bg-(--select-bg) px-3.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span className="flex gap-1" aria-hidden>
                 {[0, 150, 300].map((delay) => (
                   <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />
@@ -199,13 +210,14 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
           </div>
         )}
         {footer}
+        </div>
       </div>
 
       {showPill && (
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 glass-panel rounded-full! px-4 py-2 text-small font-semibold text-ink"
+          className="absolute bottom-[calc(var(--chat-bottom,0px)+28px)] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 glass-panel rounded-full! px-4 py-2 text-small font-semibold text-ink"
         >
           <ArrowDown className="size-3.5" />
           {t("newMessages")}

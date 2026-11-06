@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { iconButtonStyles } from "@/components/ui/IconButton";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
@@ -16,19 +17,16 @@ import type { Stay, User } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
 import { WhosInSheet } from "./WhosInSheet";
 
-/** One 64px row – the desktop panel (rounded top) and the mobile page alike. */
+/** One 64px row – the desktop panel and the mobile page alike. The glass is the frame's: messages scroll under it. */
 function headerClass(embedded: boolean) {
-  return cn(
-    "relative flex h-16 shrink-0 items-center gap-2 bg-surface",
-    embedded ? "rounded-t-3xl px-4" : "px-2 sm:px-4",
-  );
+  return cn("relative flex h-16 shrink-0 items-center gap-2", embedded ? "px-4" : "px-2 sm:px-4");
 }
 
 function BackToInbox({ embedded }: { embedded: boolean }) {
   const t = useTranslations("messages.thread");
   if (embedded) return null;
   return (
-    <Link href="/inbox" aria-label={t("backToMessages")} className="shrink-0 rounded-full p-2 hover:bg-bg">
+    <Link href="/inbox" aria-label={t("backToMessages")} className={iconButtonStyles("md")}>
       <ArrowLeft className="size-5" />
     </Link>
   );
@@ -65,7 +63,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
         </div>
 
         {groupChat && (
-          <Button variant="secondary" href={groupChat} external className="max-md:hidden">
+          <Button variant="secondary" size="sm" href={groupChat} external className="max-md:hidden">
             {t("openGroupChat")}
             <ArrowUpRight aria-hidden />
           </Button>
@@ -87,7 +85,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
       </header>
 
       {stay.status === "closed" && (
-        <p className="shrink-0 bg-bg px-4 py-1.5 text-small text-muted">{t("closed")}</p>
+        <p className="shrink-0 px-4 pb-2 text-small text-muted">{t("closed")}</p>
       )}
     </>
   );

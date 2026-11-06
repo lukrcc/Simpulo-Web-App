@@ -1,11 +1,12 @@
 "use client";
 
+import { selectedSurface } from "@/components/ui/Chip";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formTextarea } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/store";
 import type { Report, ReportReason } from "@/lib/types";
@@ -63,7 +64,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
               key={r}
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 text-body transition-colors",
-                reason === r ? "bg-(--select-bg) font-medium" : "bg-ink/5 hover:bg-ink/10",
+                reason === r ? cn(selectedSurface, "font-medium") : "bg-ink/5 hover:bg-ink/10",
               )}
             >
               <Checkbox radio name="report-reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
@@ -83,9 +84,11 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
             />
           </FormField>
         </div>
-        <Button type="submit" size="lg" disabled={!reason} className="mt-4 w-full">
+        <ModalFooter onCancel={onClose} className="mt-4">
+<Button type="submit" size="md" disabled={!reason}>
           {t("send")}
         </Button>
+</ModalFooter>
       </form>
     </Sheet>
   );

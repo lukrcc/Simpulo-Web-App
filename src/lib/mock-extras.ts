@@ -1,4 +1,5 @@
 // App-side mock helpers that aren't part of the data contract in ./mock.ts.
+import type { PastEarning } from "./data/adapter";
 import { linkDomain, type LinkPreview } from "./links";
 import type { Stay } from "./types";
 
@@ -48,6 +49,27 @@ export const mockPaidUsers: Record<string, string[]> = {
   s1: ["u1", "u4", "u2"],
   s3: ["u3"],
   s7: ["u7"],
+};
+
+/**
+ * Earnings history: Houses hosts with a host experience ran before the data starts (Your houses › Earnings). Lukas coaches his
+ * training Houses, Mara films with her creators, Aisha runs mobility sessions.
+ */
+export const mockPastEarnings: Record<string, PastEarning[]> = {
+  u1: [
+    { id: "pe-u1-1", title: "Fitness House Lisbon", startDate: "2026-01-10", endDate: "2026-01-24", guests: 4, share: 420, hostFee: 90, currency: "EUR" },
+    { id: "pe-u1-2", title: "Fitness House Tarifa", startDate: "2026-04-06", endDate: "2026-04-16", guests: 3, share: 360, hostFee: 90, currency: "EUR" },
+    { id: "pe-u1-3", title: "Fitness House Canggu", startDate: "2026-07-01", endDate: "2026-07-15", guests: 4, share: 450, hostFee: 100, currency: "EUR" },
+  ],
+  u2: [
+    { id: "pe-u2-1", title: "Creator House Lisbon", startDate: "2026-02-02", endDate: "2026-02-14", guests: 3, share: 520, hostFee: 120, currency: "EUR" },
+    { id: "pe-u2-2", title: "Creator House Ericeira", startDate: "2026-05-11", endDate: "2026-05-21", guests: 3, share: 410, hostFee: 100, currency: "EUR" },
+    { id: "pe-u2-3", title: "Creator House Bali", startDate: "2026-08-03", endDate: "2026-08-17", guests: 3, share: 560, hostFee: 120, currency: "EUR" },
+  ],
+  u4: [
+    { id: "pe-u4-1", title: "Mobility House Porto", startDate: "2026-03-09", endDate: "2026-03-16", guests: 4, share: 310, hostFee: 70, currency: "EUR" },
+    { id: "pe-u4-2", title: "Mobility House Madeira", startDate: "2026-09-14", endDate: "2026-09-24", guests: 3, share: 380, hostFee: 80, currency: "EUR" },
+  ],
 };
 
 /** Users with the app installed (home screen + notifications on) – they get a push as well as the email. */

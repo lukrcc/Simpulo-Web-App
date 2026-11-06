@@ -157,7 +157,7 @@ function FlagSwitch({ flag }: { flag: FeatureFlag }) {
       <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag(flag, e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
-        className="relative h-5 w-8 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+        className="relative h-5 w-8 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/25"
       />
     </label>
   );

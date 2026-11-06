@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
       { source: "/where-next", destination: "/", permanent: true },
       { source: "/destinations", destination: "/", permanent: true },
       { source: "/next", destination: "/", permanent: true },
+      // Your houses moved to /houses (overview) and /houses/[id]/manage (one House); editing stays at /my-stays/[id]/edit.
+      { source: "/my-stays", has: [{ type: "query", key: "id", value: "(?<id>.+)" }], destination: "/houses/:id/manage", permanent: false },
+      { source: "/my-stays", destination: "/houses", permanent: false },
+      { source: "/my-stays/:id", destination: "/houses/:id/manage", permanent: false },
     ];
   },
   images: {

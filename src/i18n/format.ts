@@ -124,6 +124,12 @@ export function useFormat() {
        * On cards: one currency, the viewer's, in their browser's number format – "£380 pp", "£340–470 pp". Converted
        * amounts are rounded (fixed mock rates), the House's own currency stays exact.
        */
+      /** One amount of the House (e.g. the place's total) in the viewer's currency: exact when it's the same, else 3 significant digits. */
+      viewerAmount: (amount: number, from: Currency, code: string, numberLocale: string) => {
+        const same = code === from;
+        const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, ...(same ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 3 }) });
+        return clean(money.format(convertApprox(amount, from, code as Currency)));
+      },
       viewerPriceLabel: (stay: PricedStay, code: string, numberLocale: string) => {
         const price = stayPrice(stay);
         if (price.kind === "tbd") return t("budgetTbd");

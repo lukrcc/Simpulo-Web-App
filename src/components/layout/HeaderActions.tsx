@@ -14,6 +14,7 @@ import { GET_THE_APP_HREF } from "./secondaryLinks";
 /** Avatar → Profile · Settings · Get the app · Log out. */
 export function AccountMenu({ me }: { me: User }) {
   const t = useTranslations("nav");
+  const tFooter = useTranslations("footer");
   const { logout } = useStore();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -41,11 +42,12 @@ export function AccountMenu({ me }: { me: User }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("yourProfile")}
+        data-tooltip={t("yourProfile")}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ink/25 focus-visible:ring-offset-2"
       >
-        <Avatar user={me} size="base" />
+        <Avatar user={me} size="sm" />
       </button>
       {open && (
         // In a portal: the site header clips its overflow. The backdrop closes it; it sits under the menu.
@@ -60,6 +62,14 @@ export function AccountMenu({ me }: { me: User }) {
               </Link>
             ))}
             <div className="my-1.5" role="separator" />
+            <div className="flex gap-3 px-4 py-1.5 text-small text-muted">
+              <Link href="/impressum" role="menuitem" onClick={() => setOpen(false)} className="hover:text-ink">
+                {tFooter("links.impressum")}
+              </Link>
+              <Link href="/privacy" role="menuitem" onClick={() => setOpen(false)} className="hover:text-ink">
+                {tFooter("links.privacy")}
+              </Link>
+            </div>
             <button
               type="button"
               role="menuitem"

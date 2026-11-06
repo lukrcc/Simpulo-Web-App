@@ -11,16 +11,16 @@ import { pageMetadata } from "@/lib/seo";
 const TOP_CITIES = 8;
 
 export async function generateStaticParams() {
-  const params: { vibe: string }[] = (await getVibes()).map((v) => ({ vibe: v.vibe }));
-  return params.length > 0 ? params : [{ vibe: PLACEHOLDER_PARAM }];
+  const params: { slug: string }[] = (await getVibes()).map((v) => ({ slug: v.vibe }));
+  return params.length > 0 ? params : [{ slug: PLACEHOLDER_PARAM }];
 }
 
 async function vibeOf(key: string) {
   return (await getVibes()).find((v) => v.vibe === key);
 }
 
-export async function generateMetadata({ params }: PageProps<"/houses/[vibe]">): Promise<Metadata> {
-  const { vibe: key } = await params;
+export async function generateMetadata({ params }: PageProps<"/houses/[slug]">): Promise<Metadata> {
+  const { slug: key } = await params;
   const entry = await vibeOf(key);
   if (!entry) return {};
   const t = await getTranslations("seo.vibe");
@@ -34,8 +34,11 @@ export async function generateMetadata({ params }: PageProps<"/houses/[vibe]">):
   });
 }
 
-/** "Founder houses": every open House with this vibe, plus links to the other vibes. */
-export default function VibePage({ params }: PageProps<"/houses/[vibe]">) {
+/**
+ * "Founder houses": every open House with this vibe, plus links to the other vibes. The segment is [slug] because /houses/[slug]/manage (Your houses › one House)
+ * shares this level: a category's key here, a House's id there.
+ */
+export default function VibePage({ params }: PageProps<"/houses/[slug]">) {
   // Every page is prerendered (generateStaticParams); params are read inside the boundary.
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -44,8 +47,8 @@ export default function VibePage({ params }: PageProps<"/houses/[vibe]">) {
   );
 }
 
-async function VibePageContent({ params }: { params: PageProps<"/houses/[vibe]">["params"] }) {
-  const { vibe: key } = await params;
+async function VibePageContent({ params }: { params: PageProps<"/houses/[slug]">["params"] }) {
+  const { slug: key } = await params;
   const entry = await vibeOf(key);
   if (!entry) notFound();
   const t = await getTranslations("seo");

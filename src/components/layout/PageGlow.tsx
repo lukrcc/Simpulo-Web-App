@@ -24,8 +24,8 @@ interface Layout {
 }
 
 const spot = (style: CSSProperties, background: string): CSSProperties => ({ position: "absolute", background, ...style });
-const topPeach = `radial-gradient(closest-side, color-mix(in srgb, var(--stage-peach) 45%, transparent), transparent)`;
-const peachSpot = `radial-gradient(closest-side, color-mix(in srgb, var(--stage-peach) 70%, transparent), transparent)`;
+const topPeach = `radial-gradient(closest-side, color-mix(in srgb, var(--stage-peach) 13%, transparent), transparent)`;
+const peachSpot = `radial-gradient(closest-side, color-mix(in srgb, var(--stage-peach) 20%, transparent), transparent)`;
 
 /** The gaps' centres, with evenly spaced ones added wherever two of them (or the last and the footer) are too far apart. */
 function spreadSpots(gaps: number[], footer: number | null): number[] {

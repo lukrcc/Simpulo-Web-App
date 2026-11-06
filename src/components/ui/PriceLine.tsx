@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 import { useFormat } from "@/i18n/format";
 import { convertApprox } from "@/lib/rates";
-import type { Stay } from "@/lib/types";
+import type { Currency, Stay } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { cn, stayPrice } from "@/lib/utils";
 
@@ -38,6 +38,14 @@ const noSubscribe = () => () => {};
  * A card's price line, in the viewer's currency and number format only: "€450 pp", "€400–550 pp" or "Price set with
  * crew". EUR and "en" on the server and during hydration, so the static HTML is one currency too.
  */
+/** An amount of the House in the viewer's currency (profile, else browser) and number format. */
+export function useViewerAmount(): (amount: number, from: Currency) => string {
+  const format = useFormat();
+  const currency = usePreferredCurrency() ?? "EUR";
+  const locale = useSyncExternalStore(noSubscribe, () => navigator.language, () => "en");
+  return (amount, from) => format.viewerAmount(amount, from, currency, locale);
+}
+
 export function useViewerPriceLabel(stay: PricedStay): string {
   const format = useFormat();
   const currency = usePreferredCurrency() ?? "EUR";

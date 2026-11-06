@@ -1,3 +1,4 @@
+import { SPOTLIGHT_INTRO_KEY } from "@/config/explore";
 import type { Metadata, Viewport } from "next";
 import { Inter, Inter_Tight } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
@@ -60,9 +61,11 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} data-app-mode={APP_MODE} className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
+    <html lang={locale} data-app-mode={APP_MODE} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
       {/* relative + isolate: the frame for PageGlow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
+        {/* Before anything paints: the Spotlight's first showing of this session starts hidden (SpotlightCoverflow). */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(!sessionStorage.getItem(${JSON.stringify(SPOTLIGHT_INTRO_KEY)})&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-spot-intro","")}catch(e){}` }} />
         {/* Before the router: the way back from a House page is marked ahead of it (src/lib/houseTransition.ts). */}
         <Script id="house-back-gate" strategy="beforeInteractive">
           {HOUSE_BACK_GATE}

@@ -146,7 +146,7 @@ export function HostApplicationForm() {
           <input type="date" value={fields.to} min={fields.from || undefined} onChange={(e) => set("to", e.target.value)} className={formInput} />
         </FormField>
       </div>
-      <Button type="submit" size="lg" className="w-full sm:w-auto">
+      <Button type="submit" size="md" className="w-full sm:w-auto">
         {t("submit")}
       </Button>
     </form>

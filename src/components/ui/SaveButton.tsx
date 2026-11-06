@@ -56,8 +56,7 @@ export function SaveButton({ stay, variant = "onImage", className }: SaveButtonP
       type="button"
       onClick={toggle}
       aria-pressed={saved}
-      aria-label={saved ? t("unsave", { title: stay.title }) : t("save", { title: stay.title })}
-      title={saved ? t("saved") : t("saveShort")}
+      aria-label={saved ? t("saved") : t("saveShort")}
       className={cn("press-feedback", variant === "surface" ? glassCircle : "flex size-10 shrink-0 items-center justify-center rounded-full", className)}
     >
       {/* On a photo: the white outline stays, on or off, only the inside turns accent. On the page: the outline turns accent too. */}

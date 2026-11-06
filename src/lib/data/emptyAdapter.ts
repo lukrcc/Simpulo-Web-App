@@ -15,6 +15,7 @@ export const emptyAdapter: DataAdapter = {
   defaultUserId: null,
   installedUsers: new Set(),
   paidUsers: () => [],
+  pastEarnings: () => [],
   previewForUrl: (url, fallbackTitle) => ({ title: fallbackTitle ?? linkDomain(url), imageUrl: "", domain: linkDomain(url) }),
   withAttribution: (requests) => requests,
   withChatHistory: (threads) => ({ threads, lastReadAt: {} }),

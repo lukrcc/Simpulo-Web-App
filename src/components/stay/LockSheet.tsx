@@ -7,7 +7,7 @@ import { FormField, formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { Chip } from "@/components/ui/Chip";
 import { Select } from "@/components/ui/Select";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { previewForUrl } from "@/lib/data";
@@ -150,7 +150,8 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
           <p className="mt-1 text-small text-muted">{t("hint")}</p>
         </div>
 
-        <Button type="submit" size="lg" disabled={!canSubmit} className="w-full">
+        <ModalFooter onCancel={onClose}>
+<Button type="submit" size="md" disabled={!canSubmit}>
           {busy ? (
             <Loader2 className="animate-spin" aria-label={t("locking")} />
           ) : (
@@ -160,6 +161,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
             </>
           )}
         </Button>
+</ModalFooter>
       </form>
     </Sheet>
   );

@@ -31,7 +31,7 @@ export function MoreMenu({ items, label, className, buttonClassName }: MoreMenuP
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label={label ?? t("more")}
+        aria-label={label ?? t("ui.moreMenu.moreOptions")}
         aria-haspopup="menu"
         aria-expanded={open}
         className={buttonClassName ?? "rounded-full p-2 text-muted hover:bg-ink/5 hover:text-ink"}

@@ -10,11 +10,12 @@ import { MonthName, newYearOf, shortMonth, upcomingMonths } from "@/components/f
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Chip, ChipCheck } from "@/components/ui/Chip";
+import { Chip, ChipCheck, selectedSurface } from "@/components/ui/Chip";
 import { ChipIndicator } from "@/components/ui/ChipIndicator";
 import { Combobox } from "@/components/ui/Combobox";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Img } from "@/components/ui/Img";
+import { WAITLIST_MAX_LIMIT } from "@/lib/waitlist";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { RangeSlider } from "@/components/ui/RangeSlider";
@@ -28,7 +29,6 @@ import { CURRENCIES, VIBES, cn, nightsBetween } from "@/lib/utils";
 import { SearchDemandHint } from "./SearchDemandHint";
 import {
   BUDGET_SCALE,
-  CREW_SIZES,
   CUSTOM_VIBE_MAX,
   HOST_NOTE_MAX,
   LOOKING_FOR_MAX,
@@ -37,8 +37,8 @@ import {
   MAX_PROPOSALS,
   OPTIONAL_GROUPS,
   SPOTS_MAX,
+  SPOTS_MIN,
   TITLE_MAX_NEW,
-  crewSizeOf,
   detailDone,
   fieldId,
   formPlaceOf,
@@ -225,30 +225,41 @@ const earliest = (today: string) => {
 
 /* ───────────────────────── 3 · Crew + budget ───────────────────────── */
 
-/** New Houses: the size as a range. Editing: the exact number, which may be outside those ranges (never below who's in). */
-export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing) */ minSpots: number; editing: boolean }) {
+/**
+ * How many people, including the host: 2–10, the exact number (crewSize = spotsTotal, the host counts). Editing never goes below who's in, and
+ * adds how many may wait on the waitlist once it's full.
+ */
+export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
   const t = useTranslations("create.house");
   return (
     <div className="space-y-8">
       <div id={fieldId("spotsTotal")}>
-        <Group label={t("crewSize")}>
-          {editing ? (
-            <SegmentedControl
-              label={t("crewSize")}
-              className="max-w-120"
-              value={form.spotsTotal}
-              onChange={(spots) => patch({ spotsTotal: spots })}
-              options={Array.from(new Set([Math.max(minSpots, 2), form.spotsTotal, 4, 6, 8, 10, 12, SPOTS_MAX]))
-                .filter((n) => n >= minSpots)
-                .toSorted((a, b) => a - b)
-                .map((n) => ({ value: n, label: String(n) }))}
-            />
-          ) : (
-            <SegmentedControl label={t("crewSize")} className="max-w-80" value={crewSizeOf(form.spotsTotal)} onChange={(spots) => patch({ spotsTotal: spots })} options={CREW_SIZES.map((size) => ({ value: size.spots, label: size.label }))} />
-          )}
+        <Group label={t("crewSizeQuestion")}>
+          <SegmentedControl
+            label={t("crewSizeQuestion")}
+            className="max-w-130"
+            value={form.spotsTotal}
+            onChange={(spots) => patch({ spotsTotal: spots })}
+            options={Array.from({ length: SPOTS_MAX - SPOTS_MIN + 1 }, (_, i) => SPOTS_MIN + i)
+              .filter((n) => n >= minSpots)
+              .map((n) => ({ value: n, label: String(n) }))}
+          />
         </Group>
         {errorOf("spotsTotal") && <div className="mt-2"><ErrorLine text={errorOf("spotsTotal")} /></div>}
       </div>
+      {/* The waitlist behind a full House – a detail for later, so only when editing. */}
+      {editing && (
+        <Group label={t("waitlistMax")}>
+          <SegmentedControl
+            label={t("waitlistMax")}
+            className="max-w-80"
+            value={form.waitlistMax}
+            onChange={(waitlistMax) => patch({ waitlistMax })}
+            options={Array.from({ length: WAITLIST_MAX_LIMIT + 1 }, (_, n) => ({ value: n, label: String(n) }))}
+          />
+          <p className="mt-2 text-small text-muted">{t("waitlistMaxHint")}</p>
+        </Group>
+      )}
       <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
     </div>
   );
@@ -395,7 +406,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
               setDragging(false);
               void add(e.dataTransfer.files);
             }}
-            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150", dragging ? "bg-(--select-bg)" : "bg-ink/5 hover:bg-ink/8")}
+            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150", dragging ? selectedSurface : "bg-ink/5 hover:bg-ink/8")}
           >
             <ImagePlus className="size-6 text-muted" aria-hidden />
             <span className="text-body font-semibold text-ink">{t("drop")}</span>
@@ -494,7 +505,7 @@ export function OptionalList({ form, details, invalid, onOpen }: { form: FormSta
         if (rows.length === 0) return null;
         return (
           <section key={group.key} aria-label={tReady(`groups.${group.key}`)}>
-            <h2 className="mb-1 text-eyebrow uppercase text-muted">{tReady(`groups.${group.key}`)}</h2>
+            <h2 className="mb-1 text-eyebrow uppercase text-ink/55">{tReady(`groups.${group.key}`)}</h2>
             <ul>
               {rows.map((key) => {
                 const done = detailDone(key, form);
@@ -622,7 +633,7 @@ export function DatesDetail({ form, patch, errorOf, touch, today }: StepProps & 
                 />
               </div>
               {proposals.length > 1 && (
-                <Button variant="tertiary" size="lg" icon onClick={() => patch({ dateProposals: proposals.filter((p) => p.id !== proposal.id) })} aria-label={t("remove", { number: i + 1 })}>
+                <Button variant="tertiary" size="md" icon onClick={() => patch({ dateProposals: proposals.filter((p) => p.id !== proposal.id) })} aria-label={t("remove", { number: i + 1 })}>
                   <X />
                 </Button>
               )}
@@ -643,6 +654,37 @@ export function DatesDetail({ form, patch, errorOf, touch, today }: StepProps & 
 }
 
 /** The place: the host sorts it out later, or the crew votes on 1–3 links with a price. */
+/** "Add a photo of the place" (optional): the accommodation tile on the House page uses it when the listing's link has no picture. */
+function PlacePhoto({ value, onChange }: { value: string; onChange: (photo: string) => void }) {
+  const t = useTranslations("create.house");
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="flex items-center gap-4">
+      {value && <Img src={value} alt="" width={64} height={64} className="size-16 shrink-0 rounded-2xl object-cover" />}
+      <Button variant="tertiary" className="-ml-4" onClick={() => inputRef.current?.click()}>
+        <ImagePlus aria-hidden />
+        {value ? t("placePhotoChange") : t("placePhoto")}
+      </Button>
+      {value && (
+        <Button variant="tertiary" onClick={() => onChange("")}>
+          {t("placePhotoRemove")}
+        </Button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void fileToPhoto(file).then(onChange, () => {});
+        }}
+      />
+    </div>
+  );
+}
+
 export function AccommodationDetail({ form, patch, errorOf, touch, currency, locked, today }: StepProps & { currency: Currency; locked: boolean; today: string }) {
   const t = useTranslations("create.vote");
   const tHouse = useTranslations("create.house");
@@ -662,6 +704,7 @@ export function AccommodationDetail({ form, patch, errorOf, touch, currency, loc
         ]}
       />
       {form.accommodationMode === "later" && <p className="text-body text-muted">{t("explainLater")}</p>}
+      <PlacePhoto value={form.accommodationPhoto} onChange={(accommodationPhoto) => patch({ accommodationPhoto })} />
       {form.accommodationMode === "crew" && (
         <div id={fieldId("placeProposals")} className="space-y-4">
           <p className="text-body text-muted">{t("explainPlace")}</p>
@@ -674,7 +717,7 @@ export function AccommodationDetail({ form, patch, errorOf, touch, currency, loc
                   <input type="url" inputMode="url" aria-label={t("linkLabel", { number: i + 1 })} className={formInput} value={proposal.link} onChange={(e) => set({ link: e.target.value })} onBlur={() => touch("placeProposals")} placeholder="https://www.airbnb.com/rooms/…" />
                   <AmountInput value={proposal.price} onChange={(price) => set({ price })} currency={currency} label={t("priceLabel", { number: i + 1 })} onBlur={() => touch("placeProposals")} />
                   {proposals.length > 1 ? (
-                    <Button variant="tertiary" size="lg" icon onClick={() => patch({ placeProposals: proposals.filter((p) => p.id !== proposal.id) })} aria-label={t("remove", { number: i + 1 })}>
+                    <Button variant="tertiary" size="md" icon onClick={() => patch({ placeProposals: proposals.filter((p) => p.id !== proposal.id) })} aria-label={t("remove", { number: i + 1 })}>
                       <X />
                     </Button>
                   ) : (
@@ -799,7 +842,7 @@ function DetailRow({ title, value, done, invalid, onOpen }: { title: string; val
   const t = useTranslations("create.details");
   return (
     <li>
-      <button type="button" onClick={onOpen} className="flex min-h-14 w-full items-center gap-3 rounded-2xl py-2 text-left outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-accent">
+      <button type="button" onClick={onOpen} className="flex min-h-14 w-full items-center gap-3 rounded-2xl py-2 text-left outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-ink/25">
         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", done ? "bg-(--select-bg)" : "bg-ink/5")}>{done && <ChipCheck />}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-body font-medium text-ink">{title}</span>

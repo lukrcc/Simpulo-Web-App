@@ -112,7 +112,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
  * Numbers are typed (inputMode="numeric") – never steppers; the global CSS hides number spinners.
  */
 export const formInput =
-  "h-11 w-full rounded-xl bg-ink/5 px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:text-muted aria-invalid:ring-2 aria-invalid:ring-red-300";
+  "h-11 w-full rounded-xl bg-ink/5 px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-ink/25 disabled:cursor-not-allowed disabled:text-muted aria-invalid:ring-2 aria-invalid:ring-red-300";
 /** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
 export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
 
@@ -138,7 +138,7 @@ export function PreviewColumn({ label, children }: { label?: string; children: R
   const t = useTranslations("common.ui.form");
   return (
     <div>
-      <p className="mb-2 text-eyebrow uppercase text-accent">{label ?? t("preview")}</p>
+      <p className="mb-2 text-eyebrow uppercase text-ink/55">{label ?? t("preview")}</p>
       {children}
     </div>
   );

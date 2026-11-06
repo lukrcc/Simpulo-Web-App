@@ -24,7 +24,7 @@ export function DemoLoginForm() {
           {t("wrong")}
         </p>
       )}
-      <Button type="submit" variant="primary" size="lg" disabled={pending} className="w-full">
+      <Button type="submit" variant="primary" size="md" disabled={pending} className="w-full">
         {t("enter")}
       </Button>
     </form>

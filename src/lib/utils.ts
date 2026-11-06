@@ -40,8 +40,8 @@ export function stayNights(stay: Pick<Stay, "startDate" | "endDate">): number {
 }
 
 /** Spots anyone can still request: not taken, and not held by an invite that's waiting for an answer. */
-export function openSpots(stay: Pick<Stay, "spotsTotal" | "spotsFilled" | "spotsInvited" | "spotsReserved">): number {
-  return Math.max(0, stay.spotsTotal - stay.spotsFilled - (stay.spotsInvited ?? 0) - (stay.spotsReserved ?? 0));
+export function openSpots(stay: Pick<Stay, "spotsTotal" | "spotsFilled" | "spotsInvited" | "spotsReserved" | "spotsOffered">): number {
+  return Math.max(0, stay.spotsTotal - stay.spotsFilled - (stay.spotsInvited ?? 0) - (stay.spotsReserved ?? 0) - (stay.spotsOffered ?? 0));
 }
 
 export function googleMapsUrl(stay: Pick<Stay, "lat" | "lng" | "city" | "region">): string {

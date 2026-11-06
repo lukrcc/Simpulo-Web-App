@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { ListRow } from "@/components/ui/ListRow";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { MOCK_DELAY_MS, useStore } from "@/lib/store";
 
 type Step = "intro" | "checking" | "done";
@@ -36,9 +36,11 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
           <BadgeCheck size={48} strokeWidth={1.75} fill="none" className="text-accent" aria-hidden />
           <p className="mt-4 text-body-lg font-semibold">{t("successTitle")}</p>
           <p className="mt-1 text-small text-muted">{t("successText")}</p>
-          <Button variant="primary" size="lg" onClick={close} className="mt-6 w-full">
+          <ModalFooter className="mt-6">
+<Button variant="primary" size="md" onClick={close}>
             {t("done")}
           </Button>
+</ModalFooter>
         </div>
       ) : (
         <>
@@ -51,7 +53,8 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
               <ListRow lead={<Camera aria-hidden />} title={t("stepSelfie")} />
             </li>
           </ul>
-          <Button variant="primary" size="lg" onClick={start} disabled={step === "checking"} className="mt-6 w-full">
+          <ModalFooter onCancel={close} className="mt-6">
+<Button variant="primary" size="md" onClick={start} disabled={step === "checking"}>
             {step === "checking" ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden />
@@ -61,6 +64,7 @@ export function VerifyIdSheet({ open, onClose }: { open: boolean; onClose: () =>
               t("start")
             )}
           </Button>
+</ModalFooter>
           <p className="mt-3 text-center text-small text-muted">{t("mockNote")}</p>
         </>
       )}

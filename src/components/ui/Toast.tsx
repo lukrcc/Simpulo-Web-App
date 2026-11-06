@@ -45,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div aria-live="polite" className="pointer-events-none fixed right-(--page-margin) top-[calc(var(--header-total)+8px)] z-[80] w-[min(380px,calc(100vw-2*var(--page-margin)))]">
         {toast && (
           <GlassPanel key={toast.id} className="animate-toast-in flex items-start gap-2 rounded-[20px]! px-4 py-3 text-body font-medium text-ink">
-            {toast.tone === "notify" ? <Bell className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden /> : <CircleCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />}
+            {toast.tone === "notify" ? <Bell className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden /> : <CircleCheck className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />}
             {toast.href ? (
               <a href={toast.href} className="pointer-events-auto min-w-0 underline underline-offset-4">
                 {toast.message}

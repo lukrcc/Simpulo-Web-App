@@ -12,6 +12,18 @@ export interface AppData {
   threads: Thread[];
 }
 
+/** A House a host ran before the data starts (the mock's earnings history): enough to show what it paid out. */
+export interface PastEarning {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  guests: number;
+  share: number;
+  hostFee: number;
+  currency: "EUR" | "USD" | "GBP";
+}
+
 /** The mock's data states, chosen in the Dev menu; "full" everywhere else. */
 export const DATA_STATES = ["prelaunch", "launch", "full"] as const;
 export type DataState = (typeof DATA_STATES)[number];
@@ -29,6 +41,8 @@ export interface DataAdapter {
   defaultUserId: string | null;
   installedUsers: ReadonlySet<string>;
   paidUsers(stayId: string): string[];
+  /** Earlier Houses of a host, for Earnings (the real source: the payout records) */
+  pastEarnings(userId: string): PastEarning[];
   previewForUrl(url: string, fallbackTitle?: string): LinkPreview;
   withAttribution(requests: JoinRequest[], stays: Stay[]): JoinRequest[];
   withChatHistory(threads: Thread[], seed: { stays: Stay[]; users: User[]; joinRequests: JoinRequest[] }): { threads: Thread[]; lastReadAt: Record<string, string> };

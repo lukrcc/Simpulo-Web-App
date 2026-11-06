@@ -17,6 +17,7 @@ import { useFormat } from "@/i18n/format";
 import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
+import { selectedSurface } from "@/components/ui/Chip";
 import { cn, housePhotos } from "@/lib/utils";
 
 interface ThreadRow {
@@ -115,7 +116,7 @@ function InboxContent() {
   const group = (label: string, items: ThreadRow[]) =>
     items.length > 0 && (
       <section className="mt-5">
-        <h2 className="mb-1 px-3 text-eyebrow uppercase text-muted">{label}</h2>
+        <h2 className="mb-1 px-3 text-eyebrow uppercase text-ink/55">{label}</h2>
         {list(items)}
       </section>
     );
@@ -125,10 +126,10 @@ function InboxContent() {
   return (
     <MasterDetail
       title={t("title")}
-      detailFill
+      fullHeight
       list={
         <>
-          <label className="sticky top-0 z-10 flex h-11 items-center gap-2 rounded-xl bg-surface px-4 transition-shadow focus-within:ring-2 focus-within:ring-accent">
+          <label className="flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-ink/5 px-4 transition-shadow focus-within:ring-2 focus-within:ring-ink/25">
             <Search className="size-4 shrink-0 text-muted" aria-hidden />
             <input
               type="search"
@@ -139,6 +140,7 @@ function InboxContent() {
               className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
             />
           </label>
+          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3">
           {group(t("crews"), crews)}
           {group(t("direct"), direct)}
           {past.length > 0 && (
@@ -151,6 +153,7 @@ function InboxContent() {
             </section>
           )}
           {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
+          </div>
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
@@ -192,7 +195,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/inbox?id=${thread.id}` : `/inbox/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("block rounded-xl px-3 transition-colors", active ? "bg-surface shadow-xs" : "hover:bg-ink/[0.03]")}
+      className={cn("block rounded-2xl px-3 transition-colors", active ? selectedSurface : "hover:bg-(--chip-bg)")}
     >
       <span className="flex items-center gap-3 py-3">
         {cover ? (

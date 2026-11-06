@@ -47,7 +47,6 @@ export function AuthSheet({ open, context, onClose, onSuccess }: AuthSheetProps)
       onClose={onClose}
       title={completing ? tOnboarding("title") : t("title")}
       subtitle={completing ? undefined : context}
-      size="wide"
       focusOverlay
     >
       {/* Remounted on every open, so it always starts at the provider buttons. */}
@@ -105,7 +104,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
           <ArrowLeft />
           {tc("back")}
         </Button>
-        <p className="mb-2 text-eyebrow uppercase text-muted">
+        <p className="mb-2 text-eyebrow uppercase text-ink/55">
           {t("mockProviderLogin", { provider })}
         </p>
         <ul className="scroll-pane max-h-[50vh] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] ">
@@ -159,7 +158,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
  */
 function AuthButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <Button variant="secondary" size="lg" onClick={onClick} className="w-full">
+    <Button variant="secondary" size="md" onClick={onClick} className="w-full">
       <span className="flex w-6 shrink-0 justify-center [&_svg]:size-5!" aria-hidden>
         {icon}
       </span>
@@ -219,7 +218,7 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
           aria-label={t("emailLabel")}
           className={cn(formInput, "min-w-0 flex-1")}
         />
-        <Button type="submit" variant="primary" size="lg" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}>
+        <Button type="submit" variant="primary" size="md" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}>
           {t("sendLink")}
         </Button>
       </div>

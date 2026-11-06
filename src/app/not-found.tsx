@@ -13,10 +13,10 @@ export default function NotFound() {
         <h1 className="mt-8 text-h2">{t("title")}</h1>
         <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button variant="primary" size="lg" href="/">
+          <Button variant="primary" size="md" href="/">
             {t("explore")}
           </Button>
-          <Button variant="secondary" size="lg" href="/how-it-works">
+          <Button variant="secondary" size="md" href="/how-it-works">
             {t("howItWorks")}
           </Button>
         </div>

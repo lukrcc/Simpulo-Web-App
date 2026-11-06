@@ -34,7 +34,7 @@ export function usePreviewGuard() {
 export function PreviewBanner({ message, onExit }: { message: string; onExit: () => void }) {
   const t = useTranslations("common.ui.preview");
   return (
-    <div role="status" className="sticky top-(--header-total) z-30 flex h-10 items-center justify-center gap-3 bg-(--select-bg) px-4 text-body text-ink">
+    <div role="status" className="sticky top-(--header-total) z-30 flex h-10 items-center justify-center gap-3 bg-bg bg-[linear-gradient(color-mix(in_srgb,var(--stage-peach)_28%,transparent),color-mix(in_srgb,var(--stage-peach)_28%,transparent))] px-4 text-body text-ink">
       <Eye className="size-4 shrink-0 text-muted" aria-hidden />
       <span className="truncate">{message}</span>
       <span aria-hidden className="text-muted">

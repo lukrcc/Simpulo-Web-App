@@ -46,7 +46,7 @@ export function ClaimView({ params }: { params: Promise<{ token: string }> }) {
           title={mine ? t("mineTitle") : t("claimedTitle")}
           description={mine ? t("mineText") : t("claimedText")}
           action={
-            <Button href={mine ? `/my-stays/${stay.id}` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
+            <Button href={mine ? `/houses/${stay.id}/manage` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
           }
         />
       </Container>
@@ -95,7 +95,7 @@ function ClaimOffer({ stay }: { stay: Stay }) {
         </div>
       </div>
       <div className="mt-8 split:col-span-7 split:mt-0 split:pt-6">
-        <p className="text-eyebrow uppercase text-ink">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
+        <p className="text-eyebrow uppercase text-ink/55">{t("eyebrow", { name: claim.name.split(" ")[0] })}</p>
         <h1 className="mt-2 text-h2 md:text-h1">{t("title")}</h1>
         <p className="mt-3 max-w-xl text-body-lg leading-relaxed text-muted">{t("intro")}</p>
 
@@ -112,7 +112,7 @@ function ClaimOffer({ stay }: { stay: Stay }) {
           </a>
         )}
 
-        <Button size="lg" onClick={claimIt} className="mt-8 w-full sm:w-auto">
+        <Button size="md" onClick={claimIt} className="mt-8 w-full sm:w-auto">
           {t("claim")}
         </Button>
 

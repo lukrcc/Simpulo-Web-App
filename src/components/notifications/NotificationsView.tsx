@@ -76,7 +76,7 @@ function NotificationsList() {
 
       <div role="tablist" aria-label={t("title")} className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
         {[null, ...NOTIFICATION_CATEGORIES].map((c) => (
-          <Chip key={c ?? "all"} role="tab" aria-selected={category === c} active={category === c} check={c !== null} onClick={() => setCategory(c)}>
+          <Chip key={c ?? "all"} role="tab" aria-selected={category === c} active={category === c} onClick={() => setCategory(c)}>
             {t(`tabs.${c ?? "all"}`)}
           </Chip>
         ))}
@@ -96,7 +96,7 @@ function NotificationsList() {
             if (list.length === 0) return null;
             return (
               <section key={group} aria-labelledby={`n-${group}`}>
-                <h2 id={`n-${group}`} className="mb-1 px-3 text-eyebrow uppercase text-muted">
+                <h2 id={`n-${group}`} className="mb-1 px-3 text-eyebrow uppercase text-ink/55">
                   {t(`groups.${group}`)}
                 </h2>
                 <ul className="rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-4">

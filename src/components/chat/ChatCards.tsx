@@ -1,22 +1,22 @@
 "use client";
 
-import { FileText, RotateCcw } from "lucide-react";
+import { ArrowUpRight, FileText, RotateCcw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { againHref } from "@/components/create/model";
-import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
 import { Button } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
 import { Img } from "@/components/ui/Img";
 import { useMessageText } from "@/i18n/events";
 import { previewForUrl } from "@/lib/data";
 import type { Attachment, Message, Stay } from "@/lib/types";
+import { linkDomain } from "@/lib/links";
 import { cn, splitLinks } from "@/lib/utils";
 import { dayOf, formatSize } from "./chatUtils";
 
 /** Cards (links, "Do it again?") take the full bubble column, up to this width. */
 export const CARD_WIDTH = "w-full max-w-[420px]";
 
-/** "Today", "Yesterday", otherwise "Mon, Jan 12" – centered between two thin rules. */
+/** "Today", "Yesterday", otherwise "Mon, Jan 12": small and muted, centred, nothing around it. */
 export function DayDivider({ day }: { day: string }) {
   const t = useTranslations("messages.thread");
   const locale = useLocale();
@@ -29,7 +29,7 @@ export function DayDivider({ day }: { day: string }) {
         : new Intl.DateTimeFormat(locale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
   return (
     <div className="my-5 flex justify-center">
-      <span className="rounded-full bg-surface/80 px-3 py-1 text-small font-medium text-muted shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]">{label}</span>
+      <span className="text-small text-muted">{label}</span>
     </div>
   );
 }
@@ -42,7 +42,7 @@ export function SystemLine({ message }: { message: Message }) {
   );
 }
 
-/** Message text with its links clickable, in the bubble's own colour. */
+/** Message text with its links clickable, in the bubble's own colour. A link says only its domain: the preview below has the rest. */
 export function MessageText({ text }: { text: string }) {
   return (
     <>
@@ -53,9 +53,9 @@ export function MessageText({ text }: { text: string }) {
             href={part.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn("break-all underline underline-offset-2", "text-ink decoration-muted")}
+            className="break-all underline underline-offset-2"
           >
-            {part.text}
+            {linkDomain(part.url)}
           </a>
         ) : (
           <span key={i}>{part.text}</span>
@@ -79,7 +79,7 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
           onClick={() => onOpen(i)}
           aria-label={t("openPhoto", { index: i + 1, count: images.length })}
           className={cn(
-            "relative overflow-hidden bg-bg outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            "relative overflow-hidden bg-bg outline-none focus-visible:ring-2 focus-visible:ring-ink/25",
             single ? "aspect-[4/3]" : shown.length === 3 && i === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square",
           )}
         >
@@ -106,26 +106,39 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
       rel="noopener noreferrer"
       download={file.name}
       className={cn(
-        "flex w-64 max-w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)]",
-        mine ? "bg-(--select-bg) text-ink" : "bg-surface text-ink hover:bg-bg",
+        "flex w-64 max-w-full items-center gap-3 rounded-[20px] px-3 py-2.5 text-left",
+        mine ? "bg-ink text-white" : "bg-(--select-bg) text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-surface",
       )}
     >
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-white/40" : "bg-bg")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-white/15" : "bg-ink/5")}>
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-body font-medium">{file.name ?? t("file")}</span>
-        {file.size !== undefined && <span className="block text-small text-muted">{formatSize(file.size, locale)}</span>}
+        {file.size !== undefined && <span className={cn("block text-small", mine ? "text-white/60" : "text-muted")}>{formatSize(file.size, locale)}</span>}
       </span>
     </a>
   );
 }
 
-/** A pasted link as a preview card. (Locking a place happens on the House page – the chat shows no booking status.) */
-export function ChatLinkCard({ url }: { url: string }) {
+/**
+ * A link's preview, part of its bubble and as wide: the picture 64px, the title on one line, the domain, "Open". No box of its own.
+ * (Locking a place happens on the House page – the chat shows no booking status.)
+ */
+export function ChatLinkCard({ url, mine }: { url: string; mine: boolean }) {
+  const t = useTranslations("house.linkPreview");
+  const preview = previewForUrl(url);
   return (
-    <div className={cn(CARD_WIDTH, cardClass, "text-left text-ink")}>
-      <LinkPreviewCard href={url} preview={previewForUrl(url)} layout="row" />
+    <div className={cn("mt-2 flex items-center gap-3 rounded-2xl p-2", mine ? "bg-white/10" : "bg-ink/5")}>
+      {preview.imageUrl && <Img src={preview.imageUrl} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl object-cover" />}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-body font-semibold">{preview.title}</p>
+        <p className={cn("truncate text-small", mine ? "text-white/60" : "text-muted")}>{preview.domain}</p>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-small font-semibold underline-offset-4 hover:underline">
+          {t("open")}
+          <ArrowUpRight className="size-3.5" aria-hidden />
+        </a>
+      </div>
     </div>
   );
 }
@@ -139,13 +152,13 @@ export function DoItAgainCard({ stay, isHost }: { stay: Stay; isHost: boolean })
   return (
     <div className="mt-6 flex justify-center">
       <div className={cn(CARD_WIDTH, cardClass, "text-center text-ink")}>
-        <p className="flex items-center justify-center gap-1.5 text-eyebrow uppercase text-ink">
+        <p className="flex items-center justify-center gap-1.5 text-eyebrow uppercase text-ink/55">
           <RotateCcw className="size-3.5" aria-hidden />
           {t("title")}
         </p>
         <p className="mt-2 text-body text-ink">{isHost ? t("hostText", { title: stay.title }) : t("guestText")}</p>
         {/* Secondary: the chat page's one primary is Send. */}
-        <Button href={againHref(stay.id)} variant="secondary" size="lg" className="mt-4 w-full">
+        <Button href={againHref(stay.id)} variant="secondary" size="md" className="mt-4 w-full">
           {t("action")}
         </Button>
       </div>

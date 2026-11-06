@@ -18,22 +18,22 @@ interface RangeSliderProps {
 // Both inputs span the whole track; only their thumbs take pointer events, so either handle can be grabbed.
 const thumb =
   "pointer-events-none absolute inset-0 h-full w-full appearance-none bg-transparent outline-none " +
-  "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md active:[&::-webkit-slider-thumb]:cursor-grabbing " +
-  "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md " +
-  "focus-visible:[&::-webkit-slider-thumb]:ring-4 focus-visible:[&::-webkit-slider-thumb]:ring-accent focus-visible:[&::-moz-range-thumb]:ring-4 focus-visible:[&::-moz-range-thumb]:ring-accent";
+  "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md active:[&::-webkit-slider-thumb]:cursor-grabbing " +
+  "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md " +
+  "focus-visible:[&::-webkit-slider-thumb]:ring-4 focus-visible:[&::-webkit-slider-thumb]:ring-ink/25 focus-visible:[&::-moz-range-thumb]:ring-4 focus-visible:[&::-moz-range-thumb]:ring-ink/25";
 
 /**
- * Two-handle slider (native range inputs, so keyboard, touch and screen readers work as usual): white handles with an accent
- * edge, the range between them accent.
+ * Two-handle slider (native range inputs, so keyboard, touch and screen readers work as usual): white handles with a soft shadow,
+ * the range between them ink.
  */
 export function RangeSlider({ min, max, step, value, onChange, labels, muted = false, formatValue }: RangeSliderProps) {
   const [low, high] = value;
   const percent = (n: number) => ((n - min) / (max - min)) * 100;
   return (
     <div className={cn("relative h-8 transition-opacity", muted && "opacity-45")}>
-      {/* The chosen range in accent. */}
+      {/* The chosen range. */}
       <div className="absolute inset-x-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-ink/10">
-        <div className="absolute inset-y-0 rounded-full bg-accent" style={{ left: `${percent(low)}%`, right: `${100 - percent(high)}%` }} />
+        <div className="absolute inset-y-0 rounded-full bg-ink" style={{ left: `${percent(low)}%`, right: `${100 - percent(high)}%` }} />
       </div>
       <input
         type="range"

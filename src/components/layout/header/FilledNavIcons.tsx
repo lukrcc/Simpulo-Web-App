@@ -70,16 +70,20 @@ const FILLED: Partial<Record<NavItem["labelKey"], ComponentType<IconProps>>> = {
   howItWorks: LightbulbFilled,
 };
 
-const LAYER = "absolute inset-0 size-4 nav:size-5 transition-opacity duration-150 motion-reduce:transition-none";
+const LAYER = "absolute inset-0 size-4 transition-opacity duration-150 motion-reduce:transition-none";
+/** On the 24px grid: thinner than Lucide's 2. */
+const STROKE = 1.5;
+/** The current page's icon is full, the others a step back from their word. */
+const REST_OPACITY = 0.7;
 
-/** 20px (16px below 1024px), both forms on top of each other: the current page crossfades to the filled one. Colour comes from the link's text. */
+/** 16px, both forms on top of each other: the current page crossfades to the filled one. Colour comes from the link's text. */
 export function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
   const Outline = item.icon;
   const Filled = FILLED[item.labelKey] ?? Outline;
   return (
-    <span aria-hidden className="relative size-4 shrink-0 nav:size-5">
-      <Outline data-nav-icon="outline" style={{ opacity: active ? 0 : 1 }} className={LAYER} />
-      <Filled data-nav-icon="filled" style={{ opacity: active ? 1 : 0 }} className={LAYER} />
+    <span aria-hidden className="relative size-4 shrink-0">
+      <Outline data-nav-icon="outline" strokeWidth={STROKE} style={{ opacity: active ? 0 : REST_OPACITY }} className={LAYER} />
+      <Filled data-nav-icon="filled" strokeWidth={STROKE} style={{ opacity: active ? 1 : 0 }} className={LAYER} />
     </span>
   );
 }

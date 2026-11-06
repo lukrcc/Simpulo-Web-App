@@ -47,7 +47,7 @@ export function AdminHouses() {
       title={t("housesTitle")}
       intro={t("housesIntro")}
       aside={
-        <Link href="/admin/houses/new" className={buttonStyles("primary", "lg")}>
+        <Link href="/admin/houses/new" className={buttonStyles("primary", "md")}>
           <Plus className="size-4" aria-hidden />
           {t("newHouse")}
         </Link>
@@ -259,7 +259,7 @@ export function AdminNewHouse() {
           />
         </FormField>
         {text("sourceLink", { type: "url", placeholder: t("fields.sourceLinkPlaceholder") })}
-        <button type="submit" className={buttonStyles("primary", "lg", "w-full sm:w-auto")}>
+        <button type="submit" className={buttonStyles("primary", "md", "w-full sm:w-auto")}>
           {t("create")}
         </button>
       </form>

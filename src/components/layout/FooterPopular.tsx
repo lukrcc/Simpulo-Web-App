@@ -46,7 +46,7 @@ export function FooterPopular() {
   ].slice(0, MAX_LINKS);
   return (
     <nav aria-label={t("columns.popular")} className="md:col-span-2">
-      <h2 className="text-eyebrow uppercase text-ink">{t("columns.popular")}</h2>
+      <h2 className="text-eyebrow uppercase text-ink/55">{t("columns.popular")}</h2>
       <ul className="mt-3">
         {links.map(({ href, label }) => (
           <li key={href}>

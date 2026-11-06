@@ -122,7 +122,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                   >
                     <ImagePlus className={cn("size-6", slot === 0 && !house && "text-ink")} aria-hidden />
                     <span className="text-small font-medium">{profile || house ? t("addPhoto") : t(slotLabel(slot))}</span>
-                    {slot === 0 && !profile && !house && <span className="text-eyebrow uppercase text-ink">{t("required")}</span>}
+                    {slot === 0 && !profile && !house && <span className="text-eyebrow uppercase text-ink/55">{t("required")}</span>}
                   </button>
                 )}
               </div>

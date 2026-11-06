@@ -222,7 +222,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
         onTouchEnd={() => setTouched(false)}
         onTouchCancel={() => setTouched(false)}
         aria-label={t("featuredHousesKeyboard")}
-        className="no-scrollbar relative flex snap-x snap-mandatory overflow-x-auto px-[12vw] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:scroll-px-8 md:gap-8 md:px-8"
+        className="no-scrollbar relative flex snap-x snap-mandatory overflow-x-auto px-[12vw] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/25 md:scroll-px-8 md:gap-8 md:px-8"
       >
         {slides.map(({ stay, host, guests }, i) => (
           <Slide
@@ -426,7 +426,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                 {t("viewHouse")}
               </Link>
               <span aria-hidden className="hidden md:block">
-                <span className={buttonStyles("secondary", "lg")}>{t("viewHouse")}</span>
+                <span className={buttonStyles("secondary", "md")}>{t("viewHouse")}</span>
               </span>
             </div>
           </div>

@@ -52,13 +52,10 @@ function NotifySheet({ draft, onClose }: { draft: SearchDraft; onClose: () => vo
           </Link>
           {tried && !consent && <p className="mt-1.5 text-small text-red-600">{t("consentError")}</p>}
         </div>
-        <Button type="submit" variant="primary" size="lg" className="w-full">
-          {t("submit")}
-        </Button>
-        <Button
+        <div className="flex items-center justify-between gap-4">
+<Button
           variant="tertiary"
           size="md"
-          className="w-full"
           onClick={() => {
             onClose();
             requireAuth((userId) => store.saveSearch({ ...draft, userId, consent: true }), t("login"));
@@ -66,6 +63,10 @@ function NotifySheet({ draft, onClose }: { draft: SearchDraft; onClose: () => vo
         >
           {t("loginInstead")}
         </Button>
+<Button type="submit" variant="primary" size="md">
+          {t("submit")}
+        </Button>
+</div>
       </form>
     </Sheet>
   );

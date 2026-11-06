@@ -98,6 +98,16 @@ function sessionOrder(candidates: readonly Stay[], weightOf: (stay: Stay) => num
   return [...order.filter((id) => !seen.includes(id)), ...order.filter((id) => seen.includes(id))].map((id) => byId.get(id)!);
 }
 
+/** A host once, their first House in this order: with that no host can follow themselves, also not where the loop closes or the list repeats. */
+export function onePerHost(stays: readonly Stay[]): Stay[] {
+  const hosts = new Set<string>();
+  return stays.filter((stay) => {
+    if (hosts.has(stay.hostId)) return false;
+    hosts.add(stay.hostId);
+    return true;
+  });
+}
+
 const noSubscribe = () => () => {};
 /** One order per page view and candidate set – computed once, so the hero doesn't reshuffle on every render. */
 let cached: { key: string; stays: Stay[] } | null = null;

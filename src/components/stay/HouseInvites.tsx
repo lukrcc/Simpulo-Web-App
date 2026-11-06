@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { FormField, formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { findUser, houseInviteUrl, openHouseInvites, useStore } from "@/lib/store";
@@ -170,9 +170,11 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
             {copied ? t("copied") : t("copy")}
           </Button>
         </div>
-        <Button variant="secondary" size="lg" onClick={onDone} className="w-full">
+        <ModalFooter>
+<Button variant="secondary" size="md" onClick={onDone}>
           {t("done")}
         </Button>
+</ModalFooter>
       </div>
     );
   }
@@ -193,9 +195,11 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
           className={formInput}
         />
       </FormField>
-      <Button type="submit" size="lg" className="w-full">
+      <ModalFooter onCancel={onDone}>
+<Button type="submit" size="md">
         {t("create")}
       </Button>
+</ModalFooter>
     </form>
   );
 }
@@ -223,7 +227,7 @@ export function InviteBanner({ stay, invite }: { stay: Stay; invite: HouseInvite
 export function InviteJoinSheet({ stay, invite, open, onClose }: { stay: Stay; invite: HouseInvite; open: boolean; onClose: () => void }) {
   const t = useTranslations("house.inviteLink");
   return (
-    <Sheet open={open} onClose={onClose} title={t("sheetTitle", { title: stay.title })} size="wide">
+    <Sheet open={open} onClose={onClose} title={t("sheetTitle", { title: stay.title })}>
       {open && <InviteJoin stay={stay} invite={invite} onDone={onClose} />}
     </Sheet>
   );
@@ -245,7 +249,7 @@ function InviteJoin({ stay, invite, onDone }: { stay: Stay; invite: HouseInvite;
     <div className="space-y-5">
       <p className="text-small text-muted">{t(invite.priority ? "joinTextSearch" : "joinText", { host: host?.name.split(" ")[0] ?? "" })}</p>
       <Button
-        size="lg"
+        size="md"
         disabled={busy}
         onClick={async () => {
           setBusy(true);

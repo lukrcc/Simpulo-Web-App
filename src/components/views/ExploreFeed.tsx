@@ -6,7 +6,7 @@ import { useEffect, Fragment, useCallback, useMemo, useRef, useState, useSyncExt
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { CategoryRow, ChoiceChips, FiltersButton, LanguageFilter, PanelSection, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
-import { EXPLORE_SPACING, HOUSE_GRID, SHELF_EVERY_ROWS, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
+import { EXPLORE_SPACING, HOUSE_GRID, SORT_INLINE_THRESHOLD, SPOTLIGHT_MIN, VISIBLE_CHIPS } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
 import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
@@ -20,6 +20,8 @@ import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Switch } from "@/components/ui/Switch";
+import { useFeatureFlag } from "@/lib/featureFlags";
 import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
 import { cardClass } from "@/components/ui/Card";
@@ -33,6 +35,7 @@ import {
   eurRange,
   ACCOMMODATION_KEYS,
   AGE_KEYS,
+  HOST_EXPERIENCE_KEYS,
   CREW_SIZE_KEYS,
   LENGTH_KEYS,
   WHO_KEYS,
@@ -51,7 +54,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { adoptNotchToAuto } from "@/lib/notchState";
-import { useHeroStays } from "@/lib/heroRotation";
+import { onePerHost, useHeroStays } from "@/lib/heroRotation";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { getCardVariant, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
 import { placeById } from "@/lib/data/places";
@@ -165,16 +168,21 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const listed = useMemo(() => store.stays.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId)), [store.stays, store.houseInvites, store.currentUserId, blocked]);
   const base = useMemo(() => listed.filter((s) => inScope(s, scope)), [listed, scope]);
   // The hero (bento / carousel): open Houses with a free spot that haven't started, in the session's weighted order.
-  const featured = useHeroStays(listed, (s) => findUser(store, s.hostId));
+  const candidates = useHeroStays(listed, (s) => findUser(store, s.hostId));
+  // One House per host.
+  const featured = useMemo(() => onePerHost(candidates), [candidates]);
   const spotlightStays = useMemo(() => featured.slice(0, MAX_SPOTLIGHT), [featured]);
+
+  const verifiedHosts = useMemo(() => new Set(store.users.filter((u) => u.verified).map((u) => u.id)), [store.users]);
+  const hostPremium = useFeatureFlag("hostPremium");
 
   // Options with how many Houses each would show alongside the other filters.
   const languageOptions = useMemo<CheckOption[]>(
     () =>
       [...new Set(base.map((s) => s.language).filter(Boolean))]
-        .map((code) => ({ value: code, label: format.language(code), count: base.filter((s) => s.language === code && matchesFilters(s, filters, "languages")).length }))
+        .map((code) => ({ value: code, label: format.language(code), count: base.filter((s) => s.language === code && matchesFilters(s, filters, "languages", verifiedHosts)).length }))
         .toSorted((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
-    [base, filters, format],
+    [base, filters, format, verifiedHosts],
   );
   const budgetBounds = useMemo(() => {
     const ranges = base.map(eurRange).filter((r): r is { min: number; max: number } => r !== null);
@@ -207,7 +215,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const sortOptions = SORT_KEYS.map((key) => ({ value: key, label: t(`sortOptions.${key}`) }));
 
   const results = base
-    .filter((s) => matchesFilters(s, filters))
+    .filter((s) => matchesFilters(s, filters, undefined, verifiedHosts))
     .toSorted(
       (a, b) =>
         // Houses that aren't taking requests go after the open ones, each group in the chosen order.
@@ -237,22 +245,23 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const cards = ordered.slice(0, visible);
   const hasMore = ordered.length > cards.length;
 
-  // The shelves go into the one list, after every 3 full rows, each behind its threshold (src/config/explore.ts). Searching
-  // (a chip or filter on), or a scoped page: none in the list. Before the column count is known (server render) none either.
+  // The shelves go into the one list and take turns without end (planShelves). Searching (a chip or filter on), or a scoped page: none in
+  // the list. Before the column count is known (server render) none either.
   const slots =
     scoped || filtered || cols === 0
       ? []
-      : planShelves(
-          base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b)),
-          ordered,
-          cols * SHELF_EVERY_ROWS,
-          listed.length,
-        );
+      : planShelves({
+          stays: base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b)),
+          grid: ordered,
+          cols,
+          total: listed.length,
+          loaded: cards.length,
+          pageSize: PAGE_SIZE,
+        });
   // What's loaded, cut at the shelves that have been reached.
   const segments: { cards: Stay[]; shelf: ShelfSlot }[] = [];
   let cut = 0;
   for (const slot of slots) {
-    if (slot.after > cards.length) break;
     segments.push({ cards: cards.slice(cut, slot.after), shelf: slot });
     cut = slot.after;
   }
@@ -277,7 +286,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const clearPanel = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
 
   const sortInline = base.length >= SORT_INLINE_THRESHOLD;
-  /** The category chips – the filter row's (36px) or the compact bar's (32px); one choice in the row (several only
+  /** The category chips – the filter row's (32px) or the compact bar's (32px); one choice in the row (several only
    *  in the panel), a pick from More takes the last slot. */
   const vibeRow = {
     label: t("filterByVibe"),
@@ -315,10 +324,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       <MonthField value={filters.month} onChange={(month) => update({ month })} />
       <ToggleCapsule label={tf("shortTrips")} active={filters.length === "weekend"} onToggle={() => update({ length: filters.length === "weekend" ? null : "weekend" })} />
       {/* What's set in the panel, each with its ✕: two, then "+N". Below 1200px only the "+N". */}
-      <span className="flex items-center gap-2 max-nav:hidden">
+      <span className="flex items-center gap-1 max-nav:hidden">
         <ActiveFilters filters={filters} onChange={update} currency={currency} withoutShortTrips limit={2} onMore={openPanel} />
       </span>
-      <span className="flex items-center gap-2 nav:hidden">
+      <span className="flex items-center gap-1 nav:hidden">
         <ActiveFilters filters={filters} onChange={update} currency={currency} withoutShortTrips limit={0} onMore={openPanel} />
       </span>
     </>
@@ -328,30 +337,36 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     <div className="grid gap-x-10 min-[56.25rem]:grid-cols-2">
       <div>
         <div className="grid grid-cols-2 gap-x-4">
-          <PanelSection title={tf("where")}>
+          <PanelSection title={tf("where")} onClear={filters.place ? () => update({ place: null }) : undefined}>
             <PlaceField value={filters.place} onChange={(place) => update({ place })} className="w-full max-w-none" />
           </PanelSection>
-          <PanelSection title={tf("when")}>
+          <PanelSection title={tf("when")} onClear={filters.month ? () => update({ month: null }) : undefined}>
             <MonthField value={filters.month} onChange={(month) => update({ month })} className="w-full" />
           </PanelSection>
         </div>
         {showVibes && (
-          <PanelSection title={tf("category")}>
+          <PanelSection title={tf("category")} onClear={filters.vibes.length > 0 ? () => update({ vibes: [] }) : undefined}>
             <ChoiceChips clearable label={tf("category")} value={single as string | null} onChange={vibeRow.onSelect} options={vibeOptions} />
           </PanelSection>
         )}
-        <PanelSection title={tf("crewSize")}>
+        <PanelSection title={tf("crewSize")} onClear={filters.crewSize ? () => update({ crewSize: null }) : undefined}>
           <SegmentedControl label={tf("crewSize")} value={filters.crewSize} onChange={(crewSize) => update({ crewSize })} options={[{ value: null, label: tf("any") }, ...CREW_SIZE_KEYS.map((key) => ({ value: key, label: key.replace("-", "–") }))]} />
         </PanelSection>
-        <PanelSection title={tf("who")}>
+        <PanelSection title={tf("who")} onClear={filters.who ? () => update({ who: null }) : undefined}>
           <SegmentedControl label={tf("who")} value={filters.who} onChange={(who) => update({ who })} options={[{ value: null, label: tf("any") }, ...WHO_KEYS.map((key) => ({ value: key, label: tf(`whoOptions.${key}`) }))]} />
         </PanelSection>
-        <PanelSection title={tf("age")}>
+        <PanelSection title={tf("age")} onClear={filters.age ? () => update({ age: null }) : undefined}>
           <SegmentedControl label={tf("age")} value={filters.age} onChange={(age) => update({ age })} options={[{ value: null, label: tf("any") }, ...AGE_KEYS.map((key) => ({ value: key, label: tf(`ageOptions.${key}`) }))]} />
         </PanelSection>
+        <div className="flex items-center justify-between gap-3 pb-2.5">
+          <span className="text-small font-semibold text-ink">{tf("verifiedOnly")}</span>
+          <span className="-my-2.5">
+            <Switch on={filters.verifiedOnly} label={tf("verifiedOnly")} onChange={(verifiedOnly) => update({ verifiedOnly })} />
+          </span>
+        </div>
       </div>
       <div>
-        <PanelSection title={tf("length")}>
+        <PanelSection title={tf("length")} onClear={filters.length ? () => update({ length: null }) : undefined}>
           <SegmentedControl
             label={tf("length")}
             value={filters.length}
@@ -359,18 +374,23 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
             options={[{ value: null, label: tf("lengthOptions.any") }, ...LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))]}
           />
         </PanelSection>
-        <PanelSection title={tf("price")}>
+        <PanelSection title={tf("price")} onClear={filters.budget ? () => update({ budget: null }) : undefined}>
           {budgetBounds ? (
             <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
           ) : (
             <p className="text-small text-muted">{tf("noBudget")}</p>
           )}
         </PanelSection>
-        <PanelSection title={tf("accommodation")}>
+        <PanelSection title={tf("accommodation")} onClear={filters.accommodation ? () => update({ accommodation: null }) : undefined}>
           <SegmentedControl label={tf("accommodation")} value={filters.accommodation} onChange={(accommodation) => update({ accommodation })} options={[{ value: null, label: tf("any") }, ...ACCOMMODATION_KEYS.map((key) => ({ value: key, label: tf(`accommodationOptions.${key}`) }))]} />
         </PanelSection>
+        {hostPremium && (
+          <PanelSection title={tf("hostExperience")} onClear={filters.hostExperience ? () => update({ hostExperience: null }) : undefined}>
+            <SegmentedControl label={tf("hostExperience")} value={filters.hostExperience} onChange={(hostExperience) => update({ hostExperience })} options={[{ value: null, label: tf("any") }, ...HOST_EXPERIENCE_KEYS.map((key) => ({ value: key, label: tf(`hostExperienceOptions.${key}`) }))]} />
+          </PanelSection>
+        )}
         <div className="grid grid-cols-2 gap-x-4">
-          <PanelSection title={tf("spots")}>
+          <PanelSection title={tf("spots")} onClear={filters.spots ? () => update({ spots: null }) : undefined}>
             <SegmentedControl
               label={tf("spots")}
               value={filters.spots}
@@ -378,7 +398,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               options={[{ value: null, label: tf("spotsOptions.any") }, ...SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))]}
             />
           </PanelSection>
-          <PanelSection title={t("language")}>
+          <PanelSection title={t("language")} onClear={filters.languages.length > 0 ? () => update({ languages: [] }) : undefined}>
             {languageOptions.length > 0 ? (
               <LanguageFilter options={languageOptions} value={filters.languages} onChange={(languages) => update({ languages })} label={t("language")} placeholder={t("anyLanguage")} />
             ) : (
@@ -392,7 +412,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const panelActive = <ActiveFilters filters={filters} onChange={update} currency={currency} withCategory />;
   const panelFooter = (close: () => void) => (
     <>
-      <Button variant="tertiary" size="md" onClick={clearPanel} disabled={panelCount === 0 && filters.vibes.length === 0}>
+      <Button variant="tertiary" size="md" onClick={clearPanel} className="-ml-4" disabled={panelCount === 0 && filters.vibes.length === 0}>
         {tf("clearAll")}
       </Button>
       {/* The panel's one primary: it only closes – the filters apply live. */}
@@ -436,12 +456,24 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     "See all": this is the main list – "Show 24 more" below it pages on. */}
                 <SectionHeader
                   as="h1"
-                  eyebrow={collection ? tCollections(`${collection.id}.eyebrow`) : t("eyebrow")}
+                  eyebrow={collection && tCollections(`${collection.id}.eyebrow`)}
                   title={collection ? tCollections(`${collection.id}.title`) : t("title")}
                   subline={collection && tCollections(`${collection.id}.subline`)}
                   meta={filtered ? resultLabel : t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) })}
+                  action={
+                    inBar && (
+                      <>
+                        {sortInline && (
+                          <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
+                            <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
+                          </SortCapsule>
+                        )}
+                        <FiltersButton variant="secondary" count={panelCount} onClick={openPanel} expanded={panelOpen} />
+                      </>
+                    )
+                  }
                 />
-                {/* From md: a plain row here; once it's gone under the header, the header's tab has the same controls. */}
+                {/* From md: a plain row here, Sort and Filters beside the title; once it's gone under the header, the header's tab has all of them in one row. */}
                 <ExploreFilterBar
                   gridEndRef={gridEndRef}
                   handle={!scoped}
@@ -476,7 +508,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               </>
             )}
             {/* Where a filter change scrolls to: the grid's start right under the tab. */}
-            <div ref={resultsRef} data-explore-results className={!headless ? "mt-5 md:mt-2" : undefined}>
+            <div ref={resultsRef} data-explore-results className={!headless ? "mt-5 md:mt-6" : undefined}>
               <div ref={setColumnProbe} aria-hidden className={cn(HOUSE_GRID, "h-0")} />
               {results.length === 0 && searched ? (
                 // Nothing for this place and month: open the first House, or hear first.
@@ -514,7 +546,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               <div ref={gridEndRef} aria-hidden className="h-0" />
               {hasMore && (
                 <div className={cn(rest.length > 0 && EXPLORE_SPACING.showMore, "flex justify-center")}>
-                  <Button variant="secondary" size="lg" onClick={() => setPaging({ key: pageKey, visible: visible + PAGE_SIZE })}>
+                  <Button variant="secondary" size="md" onClick={() => setPaging({ key: pageKey, visible: visible + PAGE_SIZE })}>
                     {t("showMore", { count: Math.min(cols > 0 ? Math.ceil((visible + PAGE_SIZE) / cols) * cols - visible : PAGE_SIZE, ordered.length - visible) })}
                   </Button>
                 </div>
@@ -529,10 +561,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       {useTab &&
         panelSlot &&
         createPortal(
-          <div role="group" aria-label={t("filters")} className="flex max-h-[calc(80vh-var(--band-h)-100px)] flex-col">
+          <div data-filter-panel role="group" aria-label={t("filters")} className="flex max-h-[calc(80vh-var(--band-h)-92px)] flex-col">
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pb-2">
               <h2 className="text-h3 text-ink">{t("filters")}</h2>
-              <span className="text-small text-muted">{resultLabel}</span>
+              <span className="text-small text-ink">{resultLabel}</span>
               {panelActive}
               <IconButton size="xs" onClick={closeNotchPanel} aria-label={tc("close")} className="ml-auto">
                 <X className="size-4" aria-hidden />
@@ -557,7 +589,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         title={t("filters")}
         footer={panelFooter(() => setSheetOpen(false))}
       >
-        <div className="px-6">
+        <div data-filter-panel className="px-6">
           <div className="flex flex-wrap gap-2 empty:hidden pb-4">{panelActive}</div>
           {panelBody}
         </div>

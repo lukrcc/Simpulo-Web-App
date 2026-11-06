@@ -40,7 +40,7 @@ export function Select({ fit = false, className, value, children, ...props }: Se
         (label !== null ? (
           <ValueCheck text={label} />
         ) : (
-          <Check className="pointer-events-none absolute right-9 top-1/2 size-3.5 -translate-y-1/2 text-accent" strokeWidth={3} aria-hidden />
+          <Check className="pointer-events-none absolute right-9 top-1/2 size-3.5 -translate-y-1/2 text-ink" strokeWidth={3} aria-hidden />
         ))}
       <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
     </span>

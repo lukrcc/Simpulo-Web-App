@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import type { CSSProperties, MouseEvent } from "react";
-import { MAX_SOCIAL_LINKS, socialUrl } from "@/lib/socialLinks";
-import type { User } from "@/lib/types";
+import { MAX_SOCIAL_LINKS, socialHandle, socialUrl } from "@/lib/socialLinks";
+import type { SocialPlatform, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SOCIAL_ICONS } from "./socialIcons";
 
@@ -43,7 +43,6 @@ export function SocialRow({ user, size = "md", className }: SocialRowProps) {
             rel="noopener"
             onClick={stop}
             aria-label={t("onNetwork", { name: user.name.split(" ")[0], network: label })}
-            title={label}
             style={{ "--brand": hex ?? "var(--ink)", "--circle": onInk ? "var(--ink)" : "var(--surface)" } as CSSProperties}
             className={cn(
               // Hover: the circle takes a 10 % tint of the brand colour; the icon stays as it is.
@@ -52,6 +51,46 @@ export function SocialRow({ user, size = "md", className }: SocialRowProps) {
             )}
           >
             <Icon className={sizes[size].icon} color="currentColor" />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Each platform's tile: its brand colour, Instagram its gradient; Kick's green with a dark mark, a website in ink. */
+const TILE: Record<SocialPlatform, { background: string; icon: string }> = {
+  instagram: { background: "linear-gradient(45deg, #F58529, #DD2A7B 50%, #8134AF)", icon: "#fff" },
+  tiktok: { background: "#000", icon: "#fff" },
+  youtube: { background: "#FF0000", icon: "#fff" },
+  x: { background: "#000", icon: "#fff" },
+  twitch: { background: "#9146FF", icon: "#fff" },
+  kick: { background: "#53FC18", icon: "#221E1B" },
+  website: { background: "var(--ink)", icon: "#fff" },
+};
+
+/** A person's links as app tiles, 36px, 8px apart: each opens in a new tab; the tooltip (and its label) is "@handle on Platform". */
+export function SocialTiles({ user, className }: { user: Pick<User, "name" | "socials">; className?: string }) {
+  const t = useTranslations("common.ui.socialRow");
+  const links = (user.socials ?? []).slice(0, MAX_SOCIAL_LINKS);
+  if (links.length === 0) return null;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {links.map((link) => {
+        const { icon: Icon, brand } = SOCIAL_ICONS[link.platform];
+        const tile = TILE[link.platform];
+        return (
+          <a
+            key={`${link.platform}-${link.value}`}
+            href={socialUrl(link)}
+            target="_blank"
+            rel="noopener"
+            onClick={stop}
+            aria-label={t("handleOn", { handle: socialHandle(link), network: brand ?? t("website") })}
+            style={{ background: tile.background, color: tile.icon }}
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-[10px] transition-[translate,box-shadow,scale] duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_10px_rgba(0,0,0,0.15)] active:scale-95"
+          >
+            <Icon className="size-5" color="currentColor" />
           </a>
         );
       })}

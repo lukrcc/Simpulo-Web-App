@@ -40,8 +40,8 @@ export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClas
   // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
     <span className={cn("flex min-w-0 items-center gap-2", contentClassName)}>
-      <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7 shrink-0" />
-      <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-body font-medium text-ink">
+      <PersonPhoto src={host.photos[0]} alt={host.name} size={26} className="size-[26px] shrink-0" />
+      <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-nav text-ink">
         <span className="min-w-0 truncate">{firstName(host)}</span>
         {host.verified && <VerifiedBadge size={14} className="shrink-0" />}
         {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
@@ -55,7 +55,7 @@ export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClas
       data-card-tab
       style={{ "--tab-bg": bg, ...style } as CSSProperties}
       className={cn(
-        "card-tab pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] bg-(--tab-bg) py-1.5 pl-1.5 pr-3.5",
+        "card-tab pointer-events-none absolute left-0 top-0 z-10 flex h-10 items-center rounded-br-[20px] bg-(--tab-bg) py-1.5 pl-4 pr-3.5",
         // Clear of the share + save buttons top-right (and the concave corner beside the tab).
         "max-w-[calc(100%-7rem)]",
         cornerRight,

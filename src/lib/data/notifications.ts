@@ -47,6 +47,15 @@ export type NotifyEventKey =
   | "paymentLapsed"
   | "bookingRefunded"
   | "left"
+  // The waitlist (src/lib/waitlist.ts)
+  | "waitlistRequest"
+  | "waitlistAccepted"
+  | "waitlistRemoved"
+  | "waitlistOffer"
+  | "waitlistMovedUp"
+  | "waitlistOfferExpired"
+  | "waitlistTookSpot"
+  | "leftRefund"
   | "newMessage"
   // Scheduled reminders (src/lib/reminders.ts)
   | "reminderPayDue"
@@ -92,6 +101,14 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   inviteAccepted: "request_accepted",
   doItAgain: "do_it_again",
   left: "system",
+  waitlistRequest: "request_received",
+  waitlistAccepted: "request_accepted",
+  waitlistRemoved: "request_declined",
+  waitlistOffer: "request_accepted",
+  waitlistMovedUp: "system",
+  waitlistOfferExpired: "system",
+  waitlistTookSpot: "system",
+  leftRefund: "payment_due",
   reminderArrival: "system",
   reminderSavedSoon: "system",
   systemWelcome: "system",

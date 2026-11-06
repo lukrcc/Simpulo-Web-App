@@ -77,7 +77,7 @@ export function BottomTabBar() {
                   <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
                   {/* Active marker: a 6px ink dot under the icon (space kept for inactive tabs). */}
                   <span
-                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-accent" : "bg-transparent")}
+                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-ink" : "bg-transparent")}
                     aria-hidden
                   />
                   {t(`items.${labelKey}`)}

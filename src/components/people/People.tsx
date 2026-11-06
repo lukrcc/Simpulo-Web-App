@@ -311,15 +311,15 @@ export function PersonPanel({ personId }: { personId: string | null }) {
         {user.bio && <p className="mt-4 leading-relaxed text-ink">{user.bio}</p>}
         <div className="mt-5 flex flex-wrap gap-2">
           {/* Secondary: this panel sits inside the Houses tab, whose page keeps its own single primary. */}
-          <Button variant="secondary" size="lg" onClick={() => invite.start(user)}>
+          <Button variant="secondary" size="md" onClick={() => invite.start(user)}>
             <UserPlus aria-hidden />
             {t("invite")}
           </Button>
-          <Button variant="secondary" size="lg" onClick={() => message(person)}>
+          <Button variant="secondary" size="md" onClick={() => message(person)}>
             <MessageCircle aria-hidden />
             {t("message")}
           </Button>
-          <Button variant="tertiary" size="lg" href={`/u/${user.id}`} className="px-2">
+          <Button variant="tertiary" size="md" href={`/u/${user.id}`} className="px-2">
             {t("viewProfile")}
           </Button>
         </div>
@@ -330,7 +330,7 @@ export function PersonPanel({ personId }: { personId: string | null }) {
         <ul className="">
           {houses.map((stay) => (
             <li key={stay.id}>
-              <Link href={`/my-stays?id=${stay.id}`} className="block hover:opacity-80">
+              <Link href={`/houses/${stay.id}/manage`} className="block hover:opacity-80">
                 <ListRow
                   lead={
                     stay.photos?.[0] ? (

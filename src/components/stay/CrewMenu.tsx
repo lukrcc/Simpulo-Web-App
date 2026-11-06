@@ -6,7 +6,9 @@ import { useState } from "react";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 import { useToast } from "@/components/ui/Toast";
+import { useFormat } from "@/i18n/format";
 import { useStore } from "@/lib/store";
+import { waitlistOf, waitlistRefund } from "@/lib/waitlist";
 import type { Stay } from "@/lib/types";
 
 interface CrewMenuProps {
@@ -20,11 +22,16 @@ interface CrewMenuProps {
 /** ⋯ menu for a crew: members can leave; the host can't – they edit or close the House instead. */
 export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProps) {
   const t = useTranslations("houses");
-  const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = useStore();
+  const store = useStore();
+  const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = store;
+  const f = useFormat();
   const router = useRouter();
   const showToast = useToast();
   const [confirm, setConfirm] = useState<"leave" | "close" | null>(null);
   const isHost = stay.hostId === currentUserId;
+  // Paid, and people are waiting: the spot goes to the waitlist and the refund keeps Simpulo's fee (src/lib/waitlist.ts).
+  const paid = store.payments.find((p) => p.stayId === stay.id && p.userId === currentUserId && p.status === "paid");
+  const toWaitlist = paid && waitlistOf(store, stay.id).length > 0 ? paid : undefined;
 
   function leave() {
     setConfirm(null);
@@ -42,7 +49,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
 
   const items: MoreMenuItem[] = isHost
     ? [
-        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/my-stays?id=${stay.id}` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/houses/${stay.id}/manage` }]),
         ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/my-stays/${stay.id}/edit` }]),
         // Taking requests is a setting, not a status to show – it lives here.
         ...(stay.status === "published" || stay.status === "booked"
@@ -66,7 +73,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
       <ConfirmSheet
         open={confirm === "leave"}
         title={t("crewMenu.leaveTitle")}
-        description={t("crewMenu.leaveDescription")}
+        description={toWaitlist ? t("crewMenu.leaveWaitlistDescription", { amount: f.price(waitlistRefund(toWaitlist), stay.currency), fee: f.price(toWaitlist.fee, stay.currency) }) : t("crewMenu.leaveDescription")}
         confirmLabel={t("crewMenu.leaveConfirm")}
         onConfirm={leave}
         onClose={() => setConfirm(null)}

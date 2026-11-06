@@ -2,35 +2,33 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "glass";
-/** xl 48px · lg 44px · mid 40px · md 36px · sm 32px, 13px text · bar 36px, 14px text (Explore's filter bar) (tertiary is a text link – the size only sets its type) */
-export type ButtonSize = "xl" | "lg" | "mid" | "md" | "sm" | "bar";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "onImage";
+/** md 44px, the standard · sm 36px. */
+export type ButtonSize = "md" | "sm";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "rounded-full bg-ink text-surface hover:bg-ink/90 disabled:bg-ink/10 disabled:text-muted",
-  secondary: "rounded-full bg-(--chip-bg) text-ink hover:bg-(--chip-bg-hover) disabled:text-muted",
-  tertiary: "text-ink underline-offset-4 hover:underline disabled:text-muted disabled:no-underline",
-  // On a photo.
-  glass: "on-image rounded-full",
+  primary: "bg-ink bg-[linear-gradient(to_bottom,#2E2925,#221E1B)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-[#3A3430] hover:bg-none hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:bg-none disabled:text-muted disabled:shadow-none",
+  secondary: "border border-ink/10 bg-(--select-bg) text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px hover:border-ink/20 hover:bg-white disabled:translate-y-0 disabled:text-muted",
+  tertiary: "text-ink hover:bg-ink/6 disabled:text-muted disabled:hover:bg-transparent",
+  // On a photo, and only there.
+  onImage: "on-image",
 };
 
-const filled: Record<ButtonSize, string> = { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" };
-const sizes: Record<ButtonVariant, Record<ButtonSize, string>> = {
-  glass: filled,
-  primary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
-  secondary: { xl: "h-12 px-6 text-body", lg: "h-11 px-5 text-body", mid: "h-10 px-4 text-body", md: "h-9 px-4 text-body", sm: "h-8 px-3.5 text-small", bar: "h-9 px-4 text-nav" },
-  tertiary: { xl: "text-body", lg: "text-body", mid: "text-body", md: "text-body", sm: "text-small", bar: "text-nav" },
-};
+const sizes: Record<ButtonSize, string> = { md: "h-11 px-5", sm: "h-9 px-4" };
+/** The page\'s one main action: as wide as its words, never narrower than 200px. */
+const primaryMd = "h-11 min-w-[200px] px-7";
+/** Tertiary lines up with the text beside it: pull it out by this. */
+const tertiarySizes: Record<ButtonSize, string> = { md: "h-11 px-4", sm: "h-9 px-4" };
 
-/** Icon-only buttons: a circle of the size's height (44 / 40 / 36 / 32px). */
-const iconSizes: Record<ButtonSize, string> = { xl: "size-12", lg: "size-11", mid: "size-10", md: "size-9", sm: "size-8", bar: "size-9" };
+/** Icon-only buttons: a circle of the size's height. */
+const iconSizes: Record<ButtonSize, string> = { md: "size-11", sm: "size-9" };
 
-/** The one button system: primary (ink), secondary (surface + line border), tertiary (text link in ink). */
+/** The one button system, three ranks: primary (ink, one per area), secondary (raised warm white), tertiary (nothing until hovered). */
 export function buttonStyles(variant: ButtonVariant = "primary", size: ButtonSize = "md", className?: string, icon = false): string {
   return cn(
-    "inline-flex shrink-0 items-center justify-center gap-1.5 font-semibold transition-colors disabled:cursor-not-allowed [&_svg]:size-4",
+    "press inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-body font-semibold transition-colors disabled:cursor-not-allowed [&_svg]:size-4",
     variants[variant],
-    icon ? iconSizes[size] : sizes[variant][size],
+    icon ? iconSizes[size] : variant === "tertiary" ? tertiarySizes[size] : variant === "primary" && size === "md" ? primaryMd : sizes[size],
     className,
   );
 }
@@ -71,3 +69,8 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
     </button>
   );
 }
+
+/** "Open a House" in the header: on every page, so it can't be the page's primary. Light glass, the same hover as secondary. */
+export const headerActionStyles = cn(
+  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white/60 px-4 text-body font-semibold text-ink backdrop-blur-md transition-colors hover:-translate-y-px hover:border-ink/20 hover:bg-white",
+);

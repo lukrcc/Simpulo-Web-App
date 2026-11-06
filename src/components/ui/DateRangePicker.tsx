@@ -1,5 +1,6 @@
 "use client";
 
+import { selectedSurface } from "@/components/ui/Chip";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -198,7 +199,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                         key={day}
                         className={cn(
                           "py-0.5",
-                          inRange && "bg-(--select-bg)/40",
+                          inRange && "bg-ink/5",
                           isStart && rangeEnd && "rounded-l-full bg-linear-to-r from-transparent from-50% to-ink/5 to-50%",
                           isEnd && "rounded-r-full bg-linear-to-l from-transparent from-50% to-ink/5 to-50%",
                         )}
@@ -213,7 +214,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                           data-tap="none"
                           className={cn(
                             "mx-auto flex size-9 items-center justify-center rounded-full text-small tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
-                            isStart || isEnd ? "bg-(--select-bg) font-semibold text-ink" : "enabled:hover:bg-ink/10",
+                            isStart || isEnd ? cn(selectedSurface, "font-semibold text-ink") : "enabled:hover:bg-ink/10",
                           )}
                         >
                           {Number(day.slice(8))}

@@ -4,6 +4,7 @@ import { ArrowUp, FileText, Paperclip, Reply, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
+import { IconButton } from "@/components/ui/IconButton";
 import { previewForUrl } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import type { Attachment } from "@/lib/types";
@@ -11,8 +12,8 @@ import { cn, findUrls } from "@/lib/utils";
 import { formatSize } from "./chatUtils";
 import { EmojiPicker } from "./EmojiPicker";
 
-/** Textarea grows to 6 lines (20px each) plus its 10px top/bottom padding, then scrolls. */
-const MAX_HEIGHT = 6 * 20 + 20;
+/** Textarea grows to 6 lines (20px each) plus its 8px top/bottom padding, then scrolls. */
+const MAX_HEIGHT = 6 * 20 + 16;
 
 interface PendingFile {
   file: File;
@@ -115,17 +116,17 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
   }
 
   return (
-    <div className="shrink-0 bg-bg px-3 pt-1.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4">
+    <div className="glass-float rounded-3xl p-2">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] py-1.5 pl-3 pr-1.5">
+        <div className="mb-2 flex items-center gap-2 rounded-2xl bg-ink/5 py-1.5 pl-3 pr-1.5">
           <Reply className="size-4 shrink-0 text-muted" aria-hidden />
-          <div className="min-w-0 flex-1 border-l-[3px] border-ink pl-2 text-small">
+          <div className="min-w-0 flex-1 border-l-2 border-ink/20 pl-2 text-small">
             <p className="font-semibold text-ink">{t("replyingTo", { name: replyTo.name })}</p>
             <p className="truncate text-muted">{replyTo.text}</p>
           </div>
-          <button type="button" onClick={onCancelReply} aria-label={t("cancelReply")} className="rounded-full p-1.5 text-muted hover:bg-bg">
+          <IconButton size="xs" onClick={onCancelReply} aria-label={t("cancelReply")}>
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
       )}
 
@@ -185,9 +186,9 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label={t("attach")}
-          className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
         >
-          <Paperclip className="size-5" />
+          <Paperclip className="size-[18px]" />
         </button>
         <EmojiPicker onPick={insertEmoji} />
         <textarea
@@ -199,19 +200,19 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           onPaste={onPaste}
           placeholder={placeholder}
           aria-label={t("messageLabel")}
-          className="ml-1 min-h-10 min-w-0 flex-1 resize-none rounded-[20px] bg-surface px-4 py-2.5 text-small leading-5 shadow-[0_1px_1px_color-mix(in_srgb,var(--ink)_6%,transparent)] outline-none ring-1 ring-transparent transition-shadow placeholder:text-muted focus:ring-line"
+          className="ml-1 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-body leading-5 outline-none placeholder:text-muted"
         />
-        {/* The chat's one primary control: surface and muted until there's something to send, then ink with a white arrow. */}
+        {/* The chat's one primary control: a faint tint until there's something to send, then ink with a white arrow. */}
         <button
           type="submit"
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-surface transition-[background-color,color,transform] hover:bg-ink/90 active:scale-95",
-            "disabled:pointer-events-none disabled:bg-(--chip-bg) disabled:text-muted",
+            "ml-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-[background-color,color,transform] hover:bg-ink/90 active:scale-95",
+            "disabled:pointer-events-none disabled:bg-[rgba(34,30,27,0.08)] disabled:text-muted",
           )}
         >
-          <ArrowUp className="size-5" strokeWidth={2.25} />
+          <ArrowUp className="size-[18px]" strokeWidth={2.25} />
         </button>
       </form>
     </div>

@@ -90,15 +90,16 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label={unread > 0 ? t("labelUnread", { count: unread }) : t("label")}
+        aria-label={t("label")}
         aria-haspopup="dialog"
         aria-expanded={open}
         className={cn(
           "relative flex items-center justify-center rounded-full transition-colors",
-          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "icon-button size-9",
+          variant === "plain" ? "size-9 text-muted hover:bg-ink/5 hover:text-ink" : "icon-button size-8",
         )}
       >
-        <Bell className={variant === "plain" ? "size-5" : "size-[18px]"} aria-hidden />
+        {unread > 0 && <span className="sr-only">{t("labelUnread", { count: unread })}</span>}
+        <Bell className={variant === "plain" ? "size-5" : "size-4"} aria-hidden />
         {/* Header: the dot only (the count is in the label); elsewhere the count itself. */}
         {unread > 0 &&
           (variant !== "plain" ? (

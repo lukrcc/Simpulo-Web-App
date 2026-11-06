@@ -1,5 +1,5 @@
 import { isCrewMember, livedWithFor, type LivedWithEntry, type StoreData } from "./store";
-import type { LivedWith, Stay, User } from "./types";
+import type { LivedWith, Stay, User, Vibe } from "./types";
 
 /*
  * What a profile shows, and to whom – the one place for it (CLAUDE.md "Privatsphäre Profil"). A component never picks a person's
@@ -24,6 +24,10 @@ export interface ProfileView {
   livedInCount: number;
   /** Those Houses' cities: no date, no title */
   livedInPlaces: string[];
+  /** The year of the first thing they did here; null without any. There's no sign-up date in the data yet. */
+  memberSince: number | null;
+  /** The date (ISO) of the first thing they did here – "joined March 2026"; null without any */
+  joinedAt: string | null;
   /** Housemates, both sides confirmed */
   livedWith: LivedWithEntry[];
   /** Own profile only: housemates still waiting for your confirmation */
@@ -41,6 +45,9 @@ export function profileViewFor(store: StoreData & { livedWith: LivedWith[] }, us
     .flatMap((r) => store.stays.filter((s) => s.id === r.stayId && s.hostId !== user.id));
   const livedIn = [...new Set([...hosted, ...asGuest])].filter((s) => wasLivedIn(s, today));
 
+  const firstDates = [...hosted.map((s) => s.createdAt), ...store.joinRequests.filter((r) => r.userId === user.id).map((r) => r.createdAt)].filter(Boolean).toSorted();
+  const firstYear = firstDates[0] ? Number(firstDates[0].slice(0, 4)) : null;
+
   const mine = (from: string, to: string) => store.livedWith.some((l) => l.userId === from && l.otherUserId === to && l.confirmedAt);
   const entries = livedWithFor(store, user.id);
   const confirmedByThem = (e: LivedWithEntry) => mine(e.user.id, user.id);
@@ -52,8 +59,39 @@ export function profileViewFor(store: StoreData & { livedWith: LivedWith[] }, us
     hostedCount: hosted.filter((s) => (s.status === "published" || s.status === "booked" || s.status === "completed") && s.visibility !== "unlisted").length,
     livedInCount: livedIn.length,
     livedInPlaces: [...new Set(livedIn.map((s) => s.location?.city ?? s.city))],
+    memberSince: firstYear,
+    joinedAt: firstDates[0] ?? null,
     livedWith: entries.filter((e) => confirmedByUser(e) && confirmedByThem(e)),
     toConfirm: own ? entries.filter((e) => !confirmedByUser(e)) : [],
     waitingForThem: own ? entries.filter((e) => confirmedByUser(e) && !confirmedByThem(e)) : [],
+  };
+}
+
+/** The middle of their latest reply times; null without any. */
+export function medianReplyMinutes(user: Pick<User, "replyMinutes">): number | null {
+  const times = (user.replyMinutes ?? []).toSorted((a, b) => a - b);
+  if (times.length === 0) return null;
+  const middle = Math.floor(times.length / 2);
+  return times.length % 2 ? times[middle] : Math.round((times[middle - 1] + times[middle]) / 2);
+}
+
+export interface InCommon {
+  /** Rarest first: everyone here has English */
+  languages: string[];
+  interests: Vibe[];
+  /** People both of them lived with, each confirmed from both sides */
+  livedWith: User[];
+}
+
+/** What the viewer shares with this person. Nothing logged out or on your own House. Only what either profile shows anyway. */
+export function inCommonWith(store: StoreData & { livedWith: LivedWith[] }, person: User, viewerId: string | null, today: string): InCommon {
+  const viewer = viewerId === null || viewerId === person.id ? undefined : store.users.find((u) => u.id === viewerId);
+  if (!viewer) return { languages: [], interests: [], livedWith: [] };
+  const theirs = profileViewFor(store, person, viewerId, today).livedWith;
+  const mine = new Set(profileViewFor(store, viewer, viewerId, today).livedWith.map((e) => e.user.id));
+  return {
+    languages: person.languages.filter((l) => viewer.languages.includes(l)).toSorted((a, b) => Number(a === "English") - Number(b === "English")),
+    interests: (person.interests ?? []).filter((i) => viewer.interests?.includes(i)),
+    livedWith: theirs.filter((e) => mine.has(e.user.id)).map((e) => e.user),
   };
 }

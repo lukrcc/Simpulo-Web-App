@@ -80,7 +80,7 @@ export async function Footer() {
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title} className="md:col-span-2">
-              <h2 className="text-eyebrow uppercase text-ink">{column.title}</h2>
+              <h2 className="text-eyebrow uppercase text-ink/55">{column.title}</h2>
               <ul className="mt-3">
                 {column.links.map(({ href, label, premium }) => {
                   const item = (

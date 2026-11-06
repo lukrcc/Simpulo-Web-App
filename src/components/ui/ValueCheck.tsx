@@ -10,7 +10,7 @@ export function ValueCheck({ text, inset = "left-4", maxRight = "right-10" }: { 
   return (
     <span aria-hidden className={cn("pointer-events-none absolute inset-y-0 flex min-w-0 items-center overflow-hidden text-body", inset, maxRight)}>
       <span className="invisible truncate whitespace-pre">{text}</span>
-      <Check className="ml-1.5 size-3.5 shrink-0 text-accent" strokeWidth={3} />
+      <Check className="ml-1.5 size-3.5 shrink-0 text-ink" strokeWidth={3} />
     </span>
   );
 }

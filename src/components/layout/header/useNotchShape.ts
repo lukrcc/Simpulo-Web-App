@@ -4,31 +4,33 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { closeNotchPanel, setNotchOpen, setNotchStage, type NotchMode } from "@/lib/notchState";
 import { easeSheet, snapDuration, snapTarget, useSheetDrag } from "@/lib/useSheetDrag";
 
-const BAR_H = 64;
-/** The tab below the bar: closed (the handle's 6px over the edge), and how much further it goes when open (140px in all). */
+const BAR_H = 56;
+/** The tab below the bar: closed, and how much further it goes when open (108px in all: the 32px row with 10px above and below). */
 const NOTCH_DEPTH = 6;
-const NOTCH_EXTRA = 70;
+const NOTCH_EXTRA = 46;
 const NOTCH_PADDING = 32;
 const CONCAVE_R = 12;
 const BOTTOM_R = 16;
 /** The filters' inset from the open tab's edges. */
 const SLOT_INSET = 20;
-/** The handle's centre, up from the tab's bottom edge: 6px, and half its 3px line. */
-const HANDLE_FROM_BOTTOM = 7.5;
+/** The handle is a pill on the tab's edge, half in, half out: this much of it reaches in. */
+const HANDLE_REACH = 6;
 
 const DURATION_MS = 420;
 /** The filters start to show from here on, and only then take the pointer. */
 const CONTENT_FROM = 0.6;
 const CONTENT_SHIFT_PX = 8;
-/** The filter row's bottom edge (top-20 + h-10) and how far above its centre the handle needs it to stay. */
-const SLOT_BOTTOM = 120;
-const HANDLE_CLEARANCE = 6;
+/** The filter row's bottom edge (top 66px + h-8). */
+const SLOT_BOTTOM = 98;
 /** The whole panel: from here on it shows and takes the pointer; up to here the chip row is still there. */
 const PANEL_FROM = 1.4;
 const ROW_UNTIL = 1.3;
 /** Around the panel inside the tab: above it, and below it where the handle lies. */
 const PANEL_TOP = 12;
 const PANEL_BOTTOM = 24;
+/** The third stage is clearer glass than the bar: this is where it ends up. */
+/** The panel's glass: --glass-bg and --glass-blur (globals.css) as numbers, for p to run to. */
+const PANEL_GLASS_ALPHA = 0.72;
 /** The shadow's room around the shape. */
 const SVG_MARGIN = 40;
 /** Only with a mouse and the header showing: touch has the same content as a bottom sheet. */
@@ -144,7 +146,11 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         const centre = (left + right) / 2;
         const d = headerPath(width, left, right, depth);
         refs.path.current?.setAttribute("d", d);
-        refs.edge.current?.setAttribute("d", edgePath(width, left, right, depth));
+        // The panel's edge lies inside the form (a 2px line along it, its outer half cut away); the bar's and the chip row's just outside.
+        const edgeInside = state.open > 1;
+        refs.edge.current?.setAttribute("d", edgeInside ? d : edgePath(width, left, right, depth));
+        refs.edge.current?.setAttribute("stroke-width", edgeInside ? "2" : "1");
+        if (refs.line.current) refs.line.current.style.clipPath = edgeInside ? `path("${d}")` : "";
         if (refs.glass.current) refs.glass.current.style.clipPath = `path("${d}")`;
         if (refs.clip.current) refs.clip.current.style.clipPath = `path("${d}")`;
         const svgH = BAR_H + depth + SVG_MARGIN;
@@ -163,10 +169,36 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         }
         if (refs.handle.current) {
           refs.handle.current.style.left = `${n(centre)}px`;
-          refs.handle.current.style.top = `${n(BAR_H + depth - HANDLE_FROM_BOTTOM)}px`;
+          refs.handle.current.style.top = `${n(BAR_H + depth)}px`;
         }
+        state.paintGlass();
         state.paintContent(depth);
         state.paintScrim();
+      },
+      /** From the chip row to the panel: the shape goes from the bar's milk to clear glass, its shadow from a hint to a real one, its edge from dark to light. */
+      paintGlass() {
+        const to = Math.min(1, Math.max(0, state.open - 1));
+        const glass = refs.glass.current;
+        if (glass) {
+          if (to === 0) {
+            glass.style.backgroundImage = "";
+            glass.style.backdropFilter = "";
+            glass.style.setProperty("-webkit-backdrop-filter", "");
+          } else {
+            const tint = `rgba(${n(lerp(247, 250, to))}, ${n(lerp(245, 248, to))}, ${n(lerp(241, 244, to))}, ${n(lerp(0.94, PANEL_GLASS_ALPHA, to))})`;
+            const blur = `blur(24px) saturate(${n(lerp(1.3, 1.2, to))}) brightness(${n(lerp(1, 1.12, to))})`;
+            glass.style.backgroundImage = `linear-gradient(${tint}, ${tint})`;
+            glass.style.backdropFilter = blur;
+            glass.style.setProperty("-webkit-backdrop-filter", blur);
+          }
+        }
+        const shadow = refs.shadow.current;
+        if (shadow) {
+          shadow.style.filter = `blur(${n(lerp(8, 32, to))}px)`;
+          shadow.style.opacity = String(n(lerp(0.04, 0.16, to)));
+          shadow.firstElementChild?.setAttribute("transform", `translate(0 ${n(lerp(4, 24, to))})`);
+        }
+        refs.edge.current?.setAttribute("stroke", to === 0 ? "rgba(0,0,0,0.08)" : `rgba(${Math.round(lerp(0, 255, to))},${Math.round(lerp(0, 255, to))},${Math.round(lerp(0, 255, to))},${n(lerp(0.08, 0.6, to))})`);
       },
       /** The scrim under a tab opened by hand comes with p. A tab that opened by itself has none. */
       paintScrim() {
@@ -175,6 +207,12 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         const on = state.scrimOn || state.dragging;
         // Over a chip row that opened by itself it only comes with the panel.
         const strength = state.auto ? Math.max(0, state.open - 1) : Math.min(1, state.open);
+        // Behind the panel nothing at all: the page shows as it is, only the panel is glass. The layer stays, for the click beside it.
+        const toPanel = Math.min(1, Math.max(0, state.open - 1));
+        const blur = `blur(${n(lerp(6, 0, toPanel))}px)`;
+        scrim.style.backgroundColor = `rgba(34, 30, 27, ${n(lerp(0.12, 0, toPanel))})`;
+        scrim.style.backdropFilter = blur;
+        scrim.style.setProperty("-webkit-backdrop-filter", blur);
         scrim.style.opacity = on ? strength.toFixed(3) : "0";
         scrim.style.pointerEvents = on && strength > 0.01 ? "auto" : "none";
       },
@@ -186,7 +224,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         // Gives way to the whole panel.
         const opacity = Math.min(coming, Math.max(0, (ROW_UNTIL - state.open) / (ROW_UNTIL - 1)));
         const shift = (1 - coming) * -CONTENT_SHIFT_PX;
-        const overHandle = SLOT_BOTTOM + shift - (BAR_H + depth - HANDLE_FROM_BOTTOM - HANDLE_CLEARANCE);
+        const overHandle = SLOT_BOTTOM + shift - (BAR_H + depth - HANDLE_REACH);
         slot.style.opacity = opacity.toFixed(3);
         slot.style.transform = `translateY(${shift.toFixed(2)}px)`;
         slot.style.clipPath = overHandle > 0 ? `inset(0 0 ${n(overHandle)}px 0)` : "none";
@@ -302,7 +340,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
     [run],
   );
 
-  // The handle: a click toggles, a drag follows the pointer and snaps on release.
+  // The handle: a click goes to the next stage and closes from the last, a drag follows the pointer and snaps on release.
   const startOpen = useRef(0);
   const { handlers, wasDrag } = useSheetDrag({
     axis: "y",
@@ -333,8 +371,11 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
   });
   function onClick() {
     if (wasDrag()) return;
-    if (mode === "panel") closeNotchPanel();
-    else setNotchOpen(mode !== "filters");
+    if (mode === "panel") return closeNotchPanel();
+    if (mode === "nav") return setNotchOpen(true);
+    // The whole panel is the mouse's; touch has it as a sheet, so there the chip row is the last stage.
+    if (window.matchMedia(PANEL_QUERY).matches && refs.panelSlot.current?.childElementCount) setNotchStage(2);
+    else setNotchOpen(false);
   }
   return { ...handlers, onClick };
 }

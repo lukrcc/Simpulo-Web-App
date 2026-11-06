@@ -91,7 +91,7 @@ export function GetTheApp({ className }: { className?: string }) {
             ))}
           </ol>
 
-          <Button variant="primary" size="lg" onClick={install} className="mt-7 w-full">
+          <Button variant="primary" size="md" onClick={install} className="mt-7 w-full">
             <CtaIcon />
             {selected === "iphone" ? t("ctaIphone") : t("ctaAndroid")}
           </Button>
@@ -105,7 +105,7 @@ export function GetTheApp({ className }: { className?: string }) {
 /** 32px dark number circle with a dot ("1.") – shared with the steps card on /how-it-works. */
 export function StepNumber({ n }: { n: number }) {
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-(--select-bg) text-body font-semibold text-ink">
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink/5 text-body font-semibold text-ink">
       {n}
       <span className="text-ink">.</span>
     </span>

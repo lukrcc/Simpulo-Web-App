@@ -3,8 +3,7 @@
 import { ChevronLeft, ChevronRight, MessageCircle, Plus, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/ActionButton";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
 import { useNotchClip } from "@/components/ui/notch";
@@ -13,6 +12,7 @@ import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CrewLine } from "@/components/ui/CrewLine";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
+import { IconButton } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { PlaceText } from "@/components/ui/PlaceText";
@@ -22,6 +22,7 @@ import { useFormat } from "@/i18n/format";
 import { isInvitedTo, useStore } from "@/lib/store";
 import type { CardVariant } from "@/lib/exploreLayout";
 import type { Stay, User } from "@/lib/types";
+import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { rememberOrigin } from "@/lib/houseTransition";
 import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
@@ -48,10 +49,12 @@ interface StayCardProps {
    */
   spotlight?: boolean;
   /**
-   * default only: the House page's large card, 3:4 – every photo with swipe, arrows and dots, the host's tab and "N photos". No text: that's
-   * beside it. No lift, nothing over the photo.
+   * default only: the House page's large card, 3:4 – every photo by swipe or drag, the arrows on hover, ← → and the dots; the host's tab. No
+   * text: that's beside it. No lift, no opening a photo.
    */
-  gallery?: { onOpen: (index: number) => void; onOpenAll: () => void; countLabel: string };
+  gallery?: boolean;
+  /** default only: no hover movement – neither the card's lift nor the photo's zoom (the profile, where cards lie in a stack) */
+  still?: boolean;
   className?: string;
 }
 
@@ -69,9 +72,11 @@ const MAX_PHOTOS = 5;
 const HOVER_MOTION = "duration-350 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[scale]";
 const PHOTO_ZOOM = cn("scale-100 transition-[scale] md:motion-safe:group-hover:scale-[1.04]", HOVER_MOTION);
 
-/** The photo arrows: desktop only, shown on hover or keyboard focus. */
-const PHOTO_ARROW =
-  "on-image absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100";
+/**
+ * The photo arrows: 12px from the card's edge, in the middle, showing while the pointer is over the card (or on keyboard focus). Touch swipes
+ * instead: none there. Their hit area reaches past the circle to at least 44px.
+ */
+const PHOTO_ARROW = "photo-arrow absolute top-1/2 z-10 -translate-y-1/2 opacity-0 before:absolute before:-inset-1 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
 
 /** One card API for every House tile: `variant` picks the layout. */
 export function StayCard({ variant = "default", ...props }: StayCardProps) {
@@ -99,8 +104,8 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
   const cover = stay.photos?.[0];
   return (
     <article ref={revealRef} data-notch="pending" className="notch-frame relative isolate aspect-4/5">
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--stage-sand)", host && "rounded-tl-none")}>
-        <div aria-hidden className="absolute -inset-8 bg-linear-to-br from-(--stage-peach) to-(--stage-mist) blur-xl" />
+      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--card-blank)", host && "rounded-tl-none")}>
+        <div aria-hidden className="absolute -inset-8 bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) blur-xl" />
         {cover && (
           <div key={cover} className="reveal-photo absolute inset-0">
             <Img src={cover} alt="" fill sizes="400px" style={stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined} className="object-cover" />
@@ -112,7 +117,7 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
             <p className="mb-1 truncate text-eyebrow uppercase">{theme}</p>
           </Reveal>
           <Reveal ready={showTitle} width="72%">
-            <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title}</h3>
+            <h3 className={cn("line-clamp-2 text-card-title", cardTitle)}>{stay.title}</h3>
           </Reveal>
           <Reveal ready={showMeta} width="58%" className="mt-1">
             <p className="truncate text-small opacity-85">{[showDates ? format.stayDates(stay) : null, stay.region ? format.placeName(stay) : null].filter(Boolean).join(" · ")}</p>
@@ -161,6 +166,7 @@ function DefaultStayCard({
   compact = false,
   spotlight = false,
   gallery,
+  still = false,
   tall = false,
   className,
 }: Omit<StayCardProps, "variant"> & { tall?: boolean }) {
@@ -172,6 +178,19 @@ function DefaultStayCard({
   // Tall, compact and Spotlight cards show one photo: no swiping, no arrows, no dots.
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : tall || compact || spotlight ? 1 : MAX_PHOTOS) : spotlight ? housePhotos(stay).slice(0, 1) : [];
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
+  const drag = usePhotoDrag(ref, active, scrollTo, Boolean(gallery) && photos.length > 1);
+  // The House page's card: ← → page through the photos (not while typing or in a dialog).
+  useEffect(() => {
+    if (!gallery || photos.length < 2) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable], [role=dialog], [aria-modal]") || document.querySelector("[aria-modal=true]")) return;
+      step(e.key === "ArrowRight" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [gallery, photos.length, step]);
   const [revealRef, revealed] = useRevealOnce<HTMLElement>();
   // One clipped layer: photos, gradients and overlays inside the notched silhouette; the host tab sits beside it.
   const clipRef = useRef<HTMLDivElement>(null);
@@ -179,6 +198,8 @@ function DefaultStayCard({
 
   const href = `/house/${stay.slug}`;
   const guests = crew.filter((u) => u.id !== stay.hostId);
+  // 36px; on the large cards 40px.
+  const arrowSize = gallery || spotlight ? "md" : "sm";
 
   return (
     // The frame scales on hover as one element (clipped card + tab); the clip sits on the inner layer.
@@ -196,7 +217,9 @@ function DefaultStayCard({
           ? "h-full"
           : compact
             ? "lift-card"
-            : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
+            : still
+              ? undefined
+              : "md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
         !spotlight && !gallery && HOVER_MOTION,
         !tall && !spotlight && !gallery && "aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
@@ -217,7 +240,7 @@ function DefaultStayCard({
       >
         {/* Photo track – each slide is the card link, so swiping and tapping both work. */}
         {/* In the Spotlight and on a shelf (one photo) no scroller: it would keep the carousel's touch-action from applying, and the browser would take the swipe. */}
-        <div ref={ref} onScroll={onScroll} className={cn("flex h-full", spotlight || compact ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto")}>
+        <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("flex h-full", spotlight || compact ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto", drag.className)}>
           {photos.length === 0 &&
             (photoPlaceholder ? (
               <div className="flex h-full w-full shrink-0 flex-col items-center justify-center gap-3 bg-line pb-24 text-muted">
@@ -239,7 +262,7 @@ function DefaultStayCard({
                 sizes={gallery ? "(min-width: 1100px) 600px, 520px" : spotlight ? "400px" : CARD_SIZES}
                 // Which card is in the centre (the page's largest image) changes per session: none of them waits for lazy loading.
                 loading={spotlight || (gallery && i === 0) ? "eager" : undefined}
-                className={cn("object-cover", !compact && !spotlight && !gallery && PHOTO_ZOOM)}
+                className={cn("object-cover", !compact && !spotlight && !gallery && !still && PHOTO_ZOOM)}
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
             );
@@ -248,9 +271,9 @@ function DefaultStayCard({
             const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden outline-none";
             if (gallery) {
               return (
-                <button key={src} type="button" onClick={() => gallery.onOpen(i)} aria-label={t("cards.photoAlt", { title: stay.title, number: i + 1 })} className={slideClass}>
+                <div key={src} className={slideClass} aria-hidden={i !== active || undefined}>
                   {image}
-                </button>
+                </div>
               );
             }
             return preview ? (
@@ -280,16 +303,10 @@ function DefaultStayCard({
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
         {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-black opacity-0" />}
 
-        {!preview && !spotlight && !gallery && (
-          <div className="absolute right-3 top-3 z-10 flex gap-2">
+        {!preview && !spotlight && (
+          <div className="absolute right-2 top-2 z-10 flex">
             <SaveButton stay={stay} />
           </div>
-        )}
-
-        {gallery && photos.length > 0 && (
-          <Button variant="glass" size="md" onClick={gallery.onOpenAll} className="absolute bottom-4 right-4 z-10">
-            {gallery.countLabel}
-          </Button>
         )}
 
         {/* Bottom content – pointer-events pass through to the photo links. */}
@@ -298,14 +315,14 @@ function DefaultStayCard({
           className={cn(
             "pointer-events-none absolute bottom-0 text-white",
             TEXT_SHADOW,
-            compact ? "px-4 pb-7" : "px-5 pb-8",
+            "px-5 pb-5",
             "inset-x-0",
           )}
         >
           {invited && (
             <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>
           )}
-          <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <h3 className={cn("line-clamp-2 text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
             <span className="shrink-0">
               {format.stayDates(stay)}
@@ -337,17 +354,17 @@ function DefaultStayCard({
           <>
             {/* Desktop: ‹ › while hovering (or focused); phones swipe. One index with the swipe – see useSnapCarousel. */}
             {active > 0 && (
-              <button type="button" onClick={() => step(-1)} aria-label={t("cards.prevPhoto")} className={cn(PHOTO_ARROW, "left-3")}>
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
+              <IconButton variant="onImage" size={arrowSize} onClick={() => step(-1)} aria-label={t("cards.prevPhoto")} className={cn(PHOTO_ARROW, "left-4")}>
+                <ChevronLeft className="size-4.5" strokeWidth={2.5} aria-hidden />
+              </IconButton>
             )}
             {active < photos.length - 1 && (
-              <button type="button" onClick={() => step(1)} aria-label={t("cards.nextPhoto")} className={cn(PHOTO_ARROW, "right-3")}>
-                <ChevronRight className="size-4" aria-hidden />
-              </button>
+              <IconButton variant="onImage" size={arrowSize} onClick={() => step(1)} aria-label={t("cards.nextPhoto")} className={cn(PHOTO_ARROW, "right-4")}>
+                <ChevronRight className="size-4.5" strokeWidth={2.5} aria-hidden />
+              </IconButton>
             )}
             {/* Dots: the current photo; each one jumps there (a taller hit area than the dot itself). */}
-            <div className="absolute inset-x-0 bottom-1 flex justify-center">
+            <div className="absolute inset-x-0 bottom-2 flex justify-center">
               {photos.map((src, i) => (
                 <button
                   key={src}
@@ -355,6 +372,7 @@ function DefaultStayCard({
                   onClick={() => scrollTo(i)}
                   aria-label={t("cards.showPhoto", { number: i + 1, count: photos.length })}
                   aria-current={i === active || undefined}
+                  data-no-tooltip
                   className="flex h-5 items-center px-0.5"
                 >
                   <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-surface" : "w-1 bg-white/50")} />
@@ -364,7 +382,7 @@ function DefaultStayCard({
           </>
         )}
       </div>
-      {/* The heart’s 40px hit area top right, 12px in, takes 52px; the tab stops 12px short of it. */}
+      {/* The heart’s 40px hit area top right, its icon 16px in, takes 48px; the tab stops 16px short of it. */}
       {host && (
         <CardTab
           host={host}
@@ -440,7 +458,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
             <span className={cn("absolute inset-x-0 bottom-0 truncate px-3 pb-3 text-body font-semibold text-white", TEXT_SHADOW)}>{firstName(member)}</span>
           </li>
         ))}
-        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-(--select-bg) text-body-lg font-semibold text-ink")}>+{rest}</li>}
+        {rest > 0 && <li className={cn(tile, "flex items-center justify-center bg-ink/5 text-body-lg font-semibold text-ink")}>+{rest}</li>}
         {openTiles > 0 && (
           // No padding on the tile itself: with flex-basis 0 it would make this tile wider than the others.
           <li className={cn(tile, "flex flex-col items-center justify-center gap-2 bg-bg text-center text-muted")}>
@@ -455,7 +473,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
       {/* Readability gradient for the text on top. */}
       <div style={overPhotos} className="pointer-events-none absolute left-0 top-0 h-1/2 bg-linear-to-b from-ink/65 via-ink/25 to-transparent" />
       <div style={overPhotos} className={cn("pointer-events-none absolute left-0 top-0 px-5 pt-5 text-white", TEXT_SHADOW)}>
-        <h3 className={cn("line-clamp-2 text-h3", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+        <h3 className={cn("line-clamp-2 text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-small text-white/85">
           <span className="shrink-0">
             {format.stayDates(stay)}
@@ -477,7 +495,7 @@ function WideStayCard({ stay, host, crew = [], preview, className }: VariantCard
             aria-label={t("houseWithHost", { title: stay.title, host: firstName(host) })}
             className="absolute inset-0 z-0 rounded-[inherit]"
           />
-          <div className="absolute right-3 top-3 z-10 flex gap-2">
+          <div className="absolute right-2 top-2 z-10 flex">
             <SaveButton stay={stay} />
           </div>
         </>
@@ -514,3 +532,4 @@ function useRevealOnce<T extends Element>() {
 
   return [ref, visible] as const;
 }
+

@@ -46,7 +46,7 @@ export function SearchDemandHint({ className, ...query }: DemandQuery & { classN
   const month = query.startDate.slice(0, 7);
   return (
     <div className={cn("flex flex-wrap items-center gap-3 text-body font-semibold text-ink", className)}>
-      <Sparkles className="size-4 shrink-0 text-accent" aria-hidden />
+      <Sparkles className="size-4 shrink-0 text-ink" aria-hidden />
       {faces.length > 0 && <AvatarStack users={faces} size="sm" max={MAX_FACES} />}
       <span className="min-w-0 flex-1">{month ? t("placeMonth", { count, place, month: monthName(month) }) : t("place", { count, place })}</span>
     </div>

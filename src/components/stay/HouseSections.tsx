@@ -1,33 +1,34 @@
 "use client";
 
-import { ArrowLeft, ArrowUpRight, CalendarDays, Check, Home, Languages, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, Check, Clock, Home, Languages, Plus, Sparkles, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Fragment, useEffect, useState, type ReactNode, type Ref, type RefObject } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { Shelf } from "@/components/ui/Shelf";
 import { StayCard } from "@/components/StayCard";
-import { buttonStyles } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { CrewLine } from "@/components/ui/CrewLine";
 import { IconButton } from "@/components/ui/IconButton";
+import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { SocialRow } from "@/components/ui/SocialRow";
+import { SocialTiles } from "@/components/ui/SocialRow";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
 import { openVote } from "@/lib/crewVotes";
 import type { MemberStage } from "@/lib/joinFlow";
 import { isListedStay } from "@/lib/launch";
-import { crewThreadId } from "@/lib/links";
+import { inCommonWith, medianReplyMinutes, profileViewFor } from "@/lib/profilePrivacy";
 import { convertApprox } from "@/lib/rates";
 import { findUser, getCrew, isBlocked, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, stayNights, typicalDayOf } from "@/lib/utils";
-import { AccommodationSection } from "./AccommodationSection";
-import { HouseMap } from "./HouseMap";
+import { AccommodationTile } from "./AccommodationTile";
+import { HostPreview, useHoverPreview } from "./HostPreview";
+import { EMBED_CAPSULE, HouseMap, mapIsEmbed } from "./HouseMap";
 
 const SECTION = "mt-(--space-section)";
 /** Under a section's eyebrow in the page's left column. */
@@ -47,26 +48,72 @@ function Fact({ icon: Icon, label, children }: { icon: LucideIcon; label: string
   );
 }
 
-/** Who's hosting, in one row. Avatar, name and "View profile" all link to the profile. */
+/** Who's hosting, left, and what you share with them, right. All of the left leads to their profile, except the social links, which are their own. */
 function HouseHostLine({ host }: { host: User }) {
   const t = useTranslations("house.page");
   const tCard = useTranslations("house.hostCard");
-  const profile = `/u/${host.id}`;
+  const format = useFormat();
+  const store = useStore();
+  const hosted = store.stays.filter((s) => s.hostId === host.id && s.visibility !== "unlisted" && (s.status === "published" || s.status === "booked" || s.status === "completed")).length;
+  const blockRef = useRef<HTMLDivElement>(null);
+  const preview = useHoverPreview();
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Link href={profile} className="shrink-0 rounded-full" aria-label={tCard("profile", { name: host.name })}>
-        <PersonPhoto src={host.photos[0]} alt={host.name} size={44} className="size-11" />
-      </Link>
-      <div className="flex min-w-0 items-center gap-1">
-        <Link href={profile} className="truncate text-body font-semibold text-ink hover:underline">
-          {t("hostedByShort", { name: firstName(host) })}
-        </Link>
-        {host.verified && <VerifiedBadge />}
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div ref={blockRef} className="relative -mx-2 flex min-w-60 flex-1 items-start gap-3 p-2">
+        <Link {...preview.anchorProps} href={`/u/${host.id}`} aria-label={tCard("profile", { name: host.name })} className="absolute inset-0 rounded-[14px] transition-colors duration-150 hover:bg-(--chip-bg-hover)" />
+        <PersonPhoto src={host.photos[0]} alt="" size={48} className="pointer-events-none relative size-12 shrink-0" />
+        <div className="pointer-events-none relative min-w-0 flex-1">
+          <p className="flex min-w-0 items-center gap-1 text-body font-semibold text-ink">
+            <span className="truncate">{t("hostedByShort", { name: firstName(host) })}</span>
+            {host.verified && <VerifiedBadge />}
+          </p>
+          <p className="text-small text-muted">
+            {format.ageAndCountry(host)}
+            {hosted > 0 && ` · ${t("hostedCount", { count: hosted })}`}
+          </p>
+          <SocialTiles user={host} className="pointer-events-auto mt-2" />
+        </div>
       </div>
-      <SocialRow user={host} size="sm" />
-      <Link href={profile} className={buttonStyles("tertiary", "md", "ml-auto")}>
-        {tCard("viewProfile")}
-      </Link>
+      <HostFit host={host} />
+      {preview.open && <HostPreview host={host} anchor={blockRef} {...preview.previewProps} />}
+    </div>
+  );
+}
+
+/** Beside the host: what you have in common, three lines at most. Logged out or with nothing shared: how they reply and whom they lived with. */
+function HostFit({ host }: { host: User }) {
+  const t = useTranslations("house.page.hostFit");
+  const format = useFormat();
+  const store = useStore();
+  const locale = useLocale();
+  const today = new Date().toISOString().slice(0, 10);
+  const shared = inCommonWith(store, host, store.currentUserId, today);
+  const list = (items: string[]) => new Intl.ListFormat(locale, { type: "conjunction" }).format(items.slice(0, 2));
+  const icon = "size-3.5 shrink-0 text-muted";
+  const lines: { key: string; lead: ReactNode; text: string }[] = [];
+  if (shared.languages.length > 0) lines.push({ key: "language", lead: <Languages className={icon} aria-hidden />, text: t("languages", { languages: list(shared.languages) }) });
+  if (shared.interests.length > 0) lines.push({ key: "interest", lead: <Sparkles className={icon} aria-hidden />, text: t("interests", { interests: list(shared.interests.map(format.vibe)) }) });
+  if (shared.livedWith.length > 0) {
+    const person = shared.livedWith[0];
+    lines.push({ key: "lived", lead: <PersonPhoto src={person.photos[0]} alt="" size={20} className="size-5 shrink-0" />, text: t("livedWith", { name: firstName(person) }) });
+  }
+  const common = lines.length > 0;
+  if (!common) {
+    const minutes = medianReplyMinutes(host);
+    const count = profileViewFor(store, host, store.currentUserId, today).livedWith.length;
+    if (minutes !== null) lines.push({ key: "reply", lead: <Clock className={icon} aria-hidden />, text: t("replies", { time: minutes < 60 ? t("minutes", { count: minutes }) : t("hours", { count: Math.round(minutes / 60) }) }) });
+    if (count > 0) lines.push({ key: "people", lead: <Users className={icon} aria-hidden />, text: t("people", { count, name: firstName(host) }) });
+  }
+  if (lines.length === 0) return null;
+  return (
+    <div data-host-fit className="ml-auto flex min-w-0 max-w-full flex-col items-end gap-1 pt-2 text-right">
+      <p className="text-eyebrow uppercase text-ink/55">{t(common ? "inCommon" : "host")}</p>
+      {lines.map((line) => (
+        <p key={line.key} className="flex min-w-0 max-w-full items-center justify-end gap-1.5 text-small text-ink">
+          {line.lead}
+          <span className="truncate">{line.text}</span>
+        </p>
+      ))}
     </div>
   );
 }
@@ -110,12 +157,19 @@ export function HouseWhy({ stay }: { stay: Stay }) {
   );
 }
 
-/** The crew as a row of faces: the host first, then the members, then one dashed circle per open spot. */
-export function HouseCrew({ stay, crew, canJoin, onJoin }: { stay: Stay; crew: User[]; canJoin: boolean; onJoin: () => void }) {
+/**
+ * The crew as a row of faces (72px): the host first with a "Host" capsule, then the members, then one dashed circle per open spot – exactly
+ * crewSize (host included) − people in. Someone in the crew invites through a circle (a link that holds the spot for 48h); someone who could
+ * join asks for it there. Under them the waitlist, when there is one: mini faces and how many – your own place if you're on it.
+ */
+export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, onInvite }: { stay: Stay; crew: User[]; /** The accepted waitlist, in order */ waitlist: User[]; /** The viewer's own place (#2), or that their request is open */ myWaitlist?: { position: number } | { requested: true }; canJoin: boolean; onJoin: () => void; /** In the crew, and the House is open */ onInvite?: () => void }) {
   const t = useTranslations("house.page");
-  const person = "flex w-[72px] flex-col items-center text-center";
-  const spot = <span aria-hidden className="size-14 rounded-full border-2 border-dashed border-ink/15" />;
-  const spotLabel = <span className="mt-2 max-w-full truncate text-small text-muted">{canJoin ? t("yourSpot") : t("openSpot")}</span>;
+  const store = useStore();
+  const host = findUser(store, stay.hostId);
+  const person = "flex w-[88px] flex-col items-center text-center";
+  const action = onInvite ?? (canJoin ? onJoin : undefined);
+  const restLabel = canJoin ? t("yourSpot") : t("openSpot");
+  const spot = "flex size-18 items-center justify-center rounded-full border-2 border-dashed border-ink/15 text-ink";
   return (
     <section aria-labelledby="house-crew">
       <SectionHeader id="house-crew" eyebrow={t("crew")} />
@@ -123,28 +177,56 @@ export function HouseCrew({ stay, crew, canJoin, onJoin }: { stay: Stay; crew: U
         {crew.map((member) => (
           <li key={member.id}>
             <Link href={`/u/${member.id}`} className={person}>
-              <Avatar user={member} size="lg" />
-              <span className="mt-2 max-w-full truncate text-small text-ink">{firstName(member)}</span>
-              {member.id === stay.hostId && <span className="text-small text-muted">{t("hostBadge")}</span>}
+              <span className="relative">
+                <Avatar user={member} size="crew" />
+                {member.id === stay.hostId && (
+                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-(--select-bg) px-2 py-px text-small text-ink shadow-(--select-shadow)">{t("hostBadge")}</span>
+                )}
+              </span>
+              <span className="mt-2.5 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</span>
             </Link>
           </li>
         ))}
         {Array.from({ length: openSpots(stay) }, (_, i) => (
           <li key={i}>
-            {canJoin ? (
-              <button type="button" onClick={onJoin} data-preview-action className={person}>
-                {spot}
-                {spotLabel}
+            {action ? (
+              <button type="button" onClick={action} data-preview-action aria-label={onInvite ? t("spotInvite") : undefined} className={cn(person, "group/spot")}>
+                <span aria-hidden className={cn(spot, "transition-colors duration-150 group-hover/spot:border-transparent group-hover/spot:bg-(--chip-bg) group-focus-visible/spot:border-transparent group-focus-visible/spot:bg-(--chip-bg)")}>
+                  <Plus className="size-5 opacity-0 transition-opacity duration-150 group-hover/spot:opacity-100 group-focus-visible/spot:opacity-100" />
+                </span>
+                {onInvite ? (
+                  <span className="mt-2.5 grid max-w-full text-body font-semibold">
+                    <span className="col-start-1 row-start-1 truncate text-muted transition-opacity duration-150 group-hover/spot:opacity-0 group-focus-visible/spot:opacity-0">{restLabel}</span>
+                    <span className="col-start-1 row-start-1 truncate text-ink opacity-0 transition-opacity duration-150 group-hover/spot:opacity-100 group-focus-visible/spot:opacity-100">{t("spotInviteShort")}</span>
+                  </span>
+                ) : (
+                  <span className="mt-2.5 max-w-full truncate text-body font-semibold text-muted group-hover/spot:text-ink">{restLabel}</span>
+                )}
               </button>
             ) : (
               <div className={person}>
-                {spot}
-                {spotLabel}
+                <span aria-hidden className={spot} />
+                <span className="mt-2.5 max-w-full truncate text-body font-semibold text-muted">{restLabel}</span>
               </div>
             )}
           </li>
         ))}
       </ul>
+      {(waitlist.length > 0 || myWaitlist) && (
+        <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-small text-muted">
+          {waitlist.length > 0 && (
+            <span className="flex items-center gap-2">
+              <AvatarStack users={waitlist} size="mini" max={4} linked />
+              <span>{t("onWaitlist", { count: waitlist.length })}</span>
+            </span>
+          )}
+          {myWaitlist && (
+            <span className="font-semibold text-ink">
+              {"position" in myWaitlist ? t("yourWaitlistPlace", { position: myWaitlist.position }) : t("yourWaitlistRequest", { name: host ? firstName(host) : "" })}
+            </span>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -174,8 +256,10 @@ export function HouseFit({ stay }: { stay: Stay }) {
   const t = useTranslations("house.page");
   const tFacts = useTranslations("house.facts");
   const looking = stay.lookingForText.trim();
+  if (!looking && !stay.ageRange && stay.houseRules.length === 0) return null;
   return (
-    <>
+    // Side by side, one alone takes the width.
+    <div className="grid gap-x-8 gap-y-(--space-section) sm:grid-cols-2 sm:[&>:only-child]:col-span-2">
       {(looking || stay.ageRange) && (
         <section aria-labelledby="house-looking">
           <SectionHeader id="house-looking" eyebrow={t("lookingFor")} />
@@ -189,14 +273,14 @@ export function HouseFit({ stay }: { stay: Stay }) {
           <ul className={cn(ROW, "space-y-2")}>
             {stay.houseRules.map((rule) => (
               <li key={rule} className="flex gap-2 text-body text-ink">
-                <Check className="mt-1 size-4 shrink-0 text-accent" aria-hidden />
+                <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
                 {rule}
               </li>
             ))}
           </ul>
         </section>
       )}
-    </>
+    </div>
   );
 }
 
@@ -213,7 +297,7 @@ export function HouseOffer({ stay }: { stay: Stay }) {
       <ul className={cn(ROW, "grid gap-x-6 gap-y-2 md:grid-cols-2")}>
         {stay.hostOffer.map((item) => (
           <li key={item} className="flex gap-2 text-body text-ink">
-            <Check className="mt-1 size-4 shrink-0 text-accent" aria-hidden />
+            <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
             {item}
           </li>
         ))}
@@ -223,47 +307,37 @@ export function HouseOffer({ stay }: { stay: Stay }) {
 }
 
 /**
- * The map as wide as the column, 260px, and over it (not on it) how the place stands. Booked: a pin. Not yet: no pin, a soft circle over the
- * neighbourhood, and that the crew decides (or how many options they are voting on).
+ * Where: one row, 300px, map 70 % | place 30 %. The map is a picture, not a tool: the whole of it opens Google Maps, zoomed out so the city or
+ * region reads; booked with a pin, not yet a soft circle over the neighbourhood. Beside it the place (AccommodationTile).
  */
-export function HouseWhere({ stay, chatLinkCount, canOpenChat }: { stay: Stay; chatLinkCount: number; canOpenChat: boolean }) {
+export function HouseWhere({ stay, canOpenChat }: { stay: Stay; canOpenChat: boolean }) {
   const t = useTranslations("house.page");
   const tMap = useTranslations("house.map");
-  const tSection = useTranslations("house.accommodationSection");
   const format = useFormat();
   const { query, zoom } = mapQuery(stay);
   const locked = stay.accommodationStatus === "locked" && Boolean(stay.accommodationLink);
-  const vote = openVote(stay, "accommodation");
   const hasCoordinates = !isCityOpen(stay) && Boolean(stay.lat || stay.lng);
+  const embed = mapIsEmbed(hasCoordinates);
   const area = stay.location.area ?? stay.location.city ?? stay.region;
   return (
     <section aria-labelledby="house-where">
-      <SectionHeader
-        id="house-where"
-        eyebrow={t("where")}
-        action={
-          <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className={buttonStyles("tertiary", "md")}>
-            {tMap("openInMaps")}
-            <ArrowUpRight aria-hidden />
+      <SectionHeader id="house-where" eyebrow={t("where")} />
+      <div className={cn(ROW, "grid gap-4 sm:h-75 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]")}>
+        <div className="relative h-75 overflow-hidden rounded-3xl bg-line sm:h-full">
+          <HouseMap lat={stay.lat} lng={stay.lng} pin={locked} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - 3, 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
+          <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" aria-label={tMap("openInMaps")} className="group absolute inset-0 z-10 cursor-pointer bg-black/0 transition-colors duration-150 hover:bg-black/6">
+            {!locked && <span className="glass-panel absolute left-4 top-4 max-w-[calc(100%-32px)] rounded-2xl! px-3 py-2 text-small text-ink">{t("aroundArea", { area })}</span>}
+            {/* Over the embed (no key) it covers the embed's own camera button exactly; Google's attribution below stays free. */}
+          <span
+            className={cn("glass-panel absolute inline-flex items-center gap-1.5 rounded-full! px-4 text-small font-semibold text-ink transition-[translate,box-shadow] duration-150 group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_16px_rgba(0,0,0,0.16)]", !embed && "bottom-4 right-4 h-9")}
+            style={embed ? EMBED_CAPSULE : undefined}
+          >
+              {tMap("openInMaps")}
+              <ArrowUpRight className="size-4" aria-hidden />
+            </span>
           </a>
-        }
-      />
-      <div className={ROW}>
-        {locked ? (
-          <AccommodationSection stay={stay} chatLinkCount={chatLinkCount} canOpenChat={canOpenChat} inCard />
-        ) : (
-          <p className="flex flex-wrap items-center gap-x-3 text-small text-muted">
-            {vote ? t("crewVotingOptions", { count: vote.options.length }) : t("aroundArea", { area })}
-            {canOpenChat && (
-              <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "sm")}>
-                {tSection("openCrewChat")}
-              </Link>
-            )}
-          </p>
-        )}
-      </div>
-      <div className="relative mt-3 h-65 overflow-hidden rounded-3xl bg-line">
-        <HouseMap lat={stay.lat} lng={stay.lng} pin={locked} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - 1, 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
+        </div>
+        <AccommodationTile stay={stay} canOpenChat={canOpenChat} />
       </div>
     </section>
   );
@@ -293,76 +367,109 @@ export function HouseMore({ stay }: { stay: Stay }) {
   );
 }
 
-/** The heart and "…", at the top right of the content column; on phones the way back too. */
-export function HouseActions({ save, menu, onBack }: { save: ReactNode; menu?: ReactNode; /** Phones: the way back (no header there) */ onBack: () => void }) {
+/** Beside the title: "…"; on phones the way back too. The heart is on the card. */
+export function HouseActions({ menu, onBack }: { menu?: ReactNode; /** Phones: the way back (no header there) */ onBack: () => void }) {
   const t = useTranslations("house.page");
   return (
     <div className="flex shrink-0 items-center gap-2">
       <IconButton onClick={onBack} aria-label={t("back")} className="md:hidden">
         <ArrowLeft className="size-5" aria-hidden />
       </IconButton>
-      {save}
       {menu}
     </div>
   );
 }
 
-/** The way in, small: 1 Request · 2 Host accepts · 3 Pay when the crew is complete. Once you've asked, where you are is in accent. */
+/** The way in, one small line: 1 Request · 2 Host accepts · 3 Pay when complete. Once you've asked, where you are stands out. */
 function JoinSteps({ stage }: { stage: MemberStage | null }) {
   const t = useTranslations("house.page.steps");
   const current = stage === "requested" ? 1 : stage === "accepted" || stage === "payment_due" ? 2 : -1;
   return (
-    <ol aria-label={t("label")} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <ol aria-label={t("label")} className="flex flex-wrap items-center gap-x-1.5 text-small text-muted">
       {(["request", "accepts", "pay"] as const).map((step, i) => (
-        <li key={step} aria-current={i === current ? "step" : undefined} className={cn("flex items-center gap-1 text-small", i === current ? "text-accent" : "text-muted")}>
-          <span aria-hidden className={cn("flex size-4.5 shrink-0 items-center justify-center rounded-full", i === current ? "bg-accent text-white" : "bg-ink/5")}>
-            {i + 1}
-          </span>
-          {t(step)}
+        <li key={step} aria-current={i === current ? "step" : undefined} className={cn("whitespace-nowrap", i === current && "font-semibold text-ink")}>
+          {i > 0 && <span aria-hidden className="mr-1.5 font-medium text-muted">·</span>}
+          {i + 1} {t(step)}
         </li>
       ))}
     </ol>
   );
 }
 
-/** What it is, the host, and what it costs with the way in. The floating capsule comes when `ref`'s block has left the window. */
-export function HouseSummary({ stay, host, crew, cta, invite, message, actions, stage, showSteps, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; invite: ReactNode; message?: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; ref?: Ref<HTMLDivElement> }) {
-  const t = useTranslations("house.page");
+const lineDate = (chunks: ReactNode) => <span className="font-semibold text-ink">{chunks}</span>;
+
+/** At the top of the request: what you're asking to join, in one glance. */
+export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) {
   const format = useFormat();
   const price = useViewerPriceLabel(stay);
+  return (
+    <div className="flex items-center gap-3">
+      {photo && (
+        <span className="relative size-14 shrink-0 overflow-hidden rounded-[14px] bg-ink/5">
+          <Img src={photo} alt="" fill sizes="56px" className="object-cover" />
+        </span>
+      )}
+      <div className="min-w-0">
+        <p className="truncate text-body font-semibold text-ink">{stay.title}</p>
+        <p className="truncate text-small text-muted">{`${format.stayDates(stay)} · ${stay.city} · ${price}`}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The booking card, the page's one container: what it is, the host, what it costs with the way in, how joining goes. The floating capsule
+ * comes when `ref`'s block has left the window.
+ */
+export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; /** Message and Invite */ secondary: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; /** A line under the actions, e.g. how the waitlist works */ note?: string; ref?: Ref<HTMLDivElement> }) {
+  const t = useTranslations("house.page");
+  const format = useFormat();
+  const label = useViewerPriceLabel(stay);
+  // "£640–810 pp": the amount large, "pp" small. "Price set with crew" stays whole.
+  const perPerson = /^(.*\S)\s+(pp)$/.exec(label);
   const payBy = stage === "payment_due" && stay.paymentDueAt;
   return (
-    <>
+    <GlassPanel className="card-soft flex flex-col gap-5 rounded-3xl! p-10">
       <div>
-        <div className="flex min-h-10 items-center justify-between gap-4">
-          <p className="min-w-0 truncate text-eyebrow uppercase text-accent">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
+        <div className="flex min-h-9 items-center justify-between gap-4">
+          <p className="min-w-0 truncate text-eyebrow uppercase text-ink/55">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
           {actions}
         </div>
-        <h1 className="mt-2 text-h1 text-ink">{stay.title}</h1>
+        <h1 className="mt-1 text-h1 text-ink">{stay.title}</h1>
         <p className="mt-2 text-body-lg text-muted">
-          {stay.datesOpen ? t("lineOpen", { dates: format.stayDatesLong(stay), place: format.placeLabel(stay) }) : t("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: format.placeLabel(stay) })}
+          {stay.datesOpen
+            ? t.rich("lineOpen", { dates: format.stayDatesLong(stay), place: format.placeLabel(stay), date: lineDate })
+            : t.rich("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: format.placeLabel(stay), date: lineDate })}
         </p>
       </div>
       {host && <HouseHostLine host={host} />}
-      <div ref={ref}>
-        <p className="text-h2 text-ink">{price}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <AvatarStack users={crew} size="sm" max={5} linked />
-          <CrewLine stay={stay} />
+      <div ref={ref} className="flex flex-col gap-4">
+        <div className="min-w-0">
+          <p className="flex items-baseline gap-1.5">
+            <span className="text-h2 text-ink">{perPerson ? perPerson[1] : label}</span>
+            {perPerson && <span className="text-small text-muted">{perPerson[2]}</span>}
+          </p>
+          <div className="mt-1.5 flex items-center gap-2.5">
+            <AvatarStack users={crew} size="sm" max={5} linked />
+            <CrewLine stay={stay} />
+          </div>
         </div>
-        <div className="mt-5 flex flex-col gap-2 *:w-full">
-          {cta}
-          {invite}
-          {message}
+        {/* One row from the left, each as wide as its words; on a narrow card it wraps. */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>
+          {secondary}
         </div>
-        <div className="mt-3 flex flex-col gap-2 empty:hidden">
+      </div>
+      {(payBy || note || openVote(stay, "accommodation") || openVote(stay, "dates") || showSteps) && (
+        <div className="flex flex-col gap-1.5">
+          {note && <p className="text-small text-muted">{note}</p>}
           {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
           {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
           {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
           {showSteps && <JoinSteps stage={stage} />}
         </div>
-      </div>
-    </>
+      )}
+    </GlassPanel>
   );
 }
 
@@ -392,18 +499,18 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta }: { stay: Stay; ph
     <div
       inert={!shown}
       className={cn(
-        "milk-glass fixed bottom-6 left-1/2 z-30 flex h-16 w-[min(100%-32px,640px)] -translate-x-1/2 items-center gap-3 rounded-full py-3 pl-3 pr-3 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
+        "glass-float fixed bottom-6 left-1/2 z-30 flex h-16 w-[min(100%-32px,640px)] -translate-x-1/2 items-center gap-3 rounded-full py-2 pl-2 pr-3 transition-[translate,opacity] duration-300 motion-reduce:transition-none",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
       )}
     >
       {photo && (
-        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-line">
-          <Img src={photo} alt="" fill sizes="40px" className="object-cover" />
+        <span className="relative size-12 shrink-0 overflow-hidden rounded-full bg-line ring-1 ring-white/60">
+          <Img src={photo} alt="" fill sizes="48px" className="object-cover" />
         </span>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-semibold text-ink">{stay.title}</p>
-        <p className="truncate text-small text-muted">{price}</p>
+        <p className="truncate text-small text-ink/70">{price}</p>
       </div>
       {cta}
     </div>

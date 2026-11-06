@@ -3,14 +3,13 @@ import { cn } from "@/lib/utils";
 
 /**
  * 24px pill on surface-1 (the warm grey), muted 12px – for Host, "3 of 4", "1 new" and statuses. Never a bare number.
- * `onPage`: straight on the page background (bg), where surface-1 wouldn't show – surface with a line border instead.
  */
-export function Badge({ children, icon, onPage = false, className }: { children: ReactNode; icon?: ReactNode; onPage?: boolean; className?: string }) {
+export function Badge({ children, icon, className }: { children: ReactNode; icon?: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
         "inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-small font-medium text-muted [&_svg]:size-3",
-        onPage ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "bg-bg",
+        "bg-bg",
         className,
       )}
     >

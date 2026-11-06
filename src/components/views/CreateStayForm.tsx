@@ -301,7 +301,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!editing || (!isDraft && !validateAll())) return;
     store.updateStay(editing.id, input());
     showToast(isDraft ? tDraft("savedToast") : t("saved"));
-    router.push(`/my-stays/${editing.id}`);
+    router.push(`/houses/${editing.id}/manage`);
   }
 
   function publishDraft() {
@@ -455,26 +455,26 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     editing ? (
       isDraft ? (
         <>
-          <Button variant="secondary" size="xl" onClick={save}>
+          <Button variant="secondary" size="md" onClick={save}>
             {tDraft("saveDraft")}
           </Button>
-          <Button size="xl" onClick={publishDraft} disabled={!profileReady}>
+          <Button size="md" onClick={publishDraft} disabled={!profileReady}>
             {tDraft("publish")}
           </Button>
         </>
       ) : (
-        <Button size="xl" onClick={save}>
+        <Button size="md" onClick={save}>
           {t("save")}
         </Button>
       )
     ) : null
   ) : step === "ready" ? (
-    <Button size="xl" onClick={publish} disabled={!profileReady}>
+    <Button size="md" onClick={publish} disabled={!profileReady}>
       {t("publish.button")}
     </Button>
   ) : (
     // Looks disabled until the step is valid, but a tap still shows what's missing.
-    <Button size="xl" onClick={next} aria-disabled={!stepValid || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:bg-ink/10 aria-disabled:text-muted aria-disabled:hover:bg-ink/10">
+    <Button size="md" onClick={next} aria-disabled={!stepValid || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:bg-ink/10 aria-disabled:text-muted aria-disabled:hover:bg-ink/10">
       {isDetail(step) || fromList ? tDetails("done") : t("next")}
     </Button>
   );
@@ -641,11 +641,11 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
           <h1 className="text-h1 text-ink">{t("title")}</h1>
           {notified > 0 && <p className="mt-3 text-body-lg font-semibold text-ink">{t("notified", { count: notified })}</p>}
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button size="xl" disabled={busy !== null} onClick={copy}>
+            <Button size="md" disabled={busy !== null} onClick={copy}>
               <Link2 aria-hidden />
               {t("copy")}
             </Button>
-            <Button variant="secondary" size="xl" disabled={busy !== null} onClick={story}>
+            <Button variant="secondary" size="md" disabled={busy !== null} onClick={story}>
               <QrCode aria-hidden />
               {t("story")}
             </Button>
@@ -662,7 +662,7 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
             >
               {t("saveTemplate")}
             </Button>
-            <Button variant="tertiary" href={`/my-stays?id=${stay.id}`}>
+            <Button variant="tertiary" href={`/houses/${stay.id}/manage`}>
               {t("yourHouses")}
             </Button>
           </div>

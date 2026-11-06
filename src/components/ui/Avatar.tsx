@@ -3,17 +3,19 @@ import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
 
-/** xs 24 · sm 32 · base 36 (the site header) · md 40 · lg 56 · xl 96 */
-type AvatarSize = "xs" | "sm" | "base" | "md" | "lg" | "xl";
+/** xs 24 · mini 28 (the waitlist) · sm 32 · base 36 (the site header) · md 40 · lg 56 · crew 72 (the House page) · xl 96 */
+type AvatarSize = "xs" | "mini" | "sm" | "base" | "md" | "lg" | "crew" | "xl";
 
-const sizePx: Record<AvatarSize, number> = { xs: 24, sm: 32, base: 36, md: 40, lg: 56, xl: 96 };
+const sizePx: Record<AvatarSize, number> = { xs: 24, mini: 28, sm: 32, base: 36, md: 40, lg: 56, crew: 72, xl: 96 };
 
 const sizeClasses: Record<AvatarSize, string> = {
   xs: "size-6",
+  mini: "size-7",
   sm: "size-8",
   base: "size-9",
   md: "size-10",
   lg: "size-14",
+  crew: "size-18",
   xl: "size-24",
 };
 
@@ -36,7 +38,7 @@ export function Avatar({ user, size = "md", linked = false, className }: AvatarP
   );
   if (!linked) return image;
   return (
-    <Link href={`/u/${user.id}`} className="shrink-0 rounded-full" title={user.name}>
+    <Link href={`/u/${user.id}`} aria-label={user.name} data-tooltip={user.name} className="shrink-0 rounded-full">
       {image}
     </Link>
   );
@@ -45,7 +47,7 @@ export function Avatar({ user, size = "md", linked = false, className }: AvatarP
 interface AvatarStackProps {
   users: Array<Pick<User, "id" | "name" | "photos">>;
   max?: number;
-  size?: Extract<AvatarSize, "xs" | "sm" | "md">;
+  size?: Extract<AvatarSize, "xs" | "mini" | "sm" | "md">;
   linked?: boolean;
 }
 

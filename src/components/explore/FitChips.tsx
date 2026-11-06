@@ -29,7 +29,7 @@ interface FitChipsProps {
 }
 
 /**
- * Open Houses' categories as text chips (36px, 15px/500) with one sliding peach capsule: All, as many categories as fit whole, and always "More ▾" last – no scrolling, no arrows. The row measures its width (ResizeObserver) against the chips' widths,
+ * Open Houses' categories as text chips (32px, 14px/500) with one sliding peach capsule: All, as many categories as fit whole, and always "More ▾" last – no scrolling, no arrows. The row measures its width (ResizeObserver) against the chips' widths,
  * taken from an invisible copy of every chip. A picked category that doesn't fit takes the last visible chip's place.
  * More opens all categories as capsule chips in a 3-column grid (single choice; picking closes it).
  */
@@ -103,15 +103,15 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       {/* Clipped: in the page's flow its full width would otherwise widen the document. */}
       <div className="absolute inset-x-0 top-0 h-0 overflow-hidden">
         <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute left-0 top-0 flex w-max">
-          <span className={chipStyles(false, { variant: "text" })}>
+          <span className={chipStyles(false, { variant: "text", size: "sm" })}>
             <TextChipLabel>{labels.all}</TextChipLabel>
           </span>
           {options.map((o) => (
-            <span key={o.value} className={chipStyles(false, { variant: "text" })}>
+            <span key={o.value} className={chipStyles(false, { variant: "text", size: "sm" })}>
               <TextChipLabel>{o.label}</TextChipLabel>
             </span>
           ))}
-          <span className={chipStyles(false, { variant: "text" })}>
+          <span className={chipStyles(false, { variant: "text", size: "sm" })}>
             <TextChipLabel>{labels.more}</TextChipLabel>
             <ChevronDown aria-hidden />
           </span>
@@ -120,15 +120,15 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
 
       <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center gap-1", shown === null && "invisible")}>
         <ChipIndicator />
-        <Chip variant="text" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
+        <Chip variant="text" size="sm" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {labels.all}
         </Chip>
         {visible.map((o) => (
-          <Chip key={o.value} variant="text" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)} trailing={value.includes(o.value) ? <X aria-hidden /> : undefined}>
+          <Chip key={o.value} variant="text" size="sm" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)} trailing={value.includes(o.value) ? <X aria-hidden /> : undefined}>
             {o.label}
           </Chip>
         ))}
-                  <Chip ref={moreRef} variant="text" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
+                  <Chip ref={moreRef} variant="text" size="sm" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
             {labels.more}
           </Chip>
       </div>

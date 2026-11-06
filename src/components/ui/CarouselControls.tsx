@@ -49,7 +49,7 @@ export function CarouselControls({
               data-tap="none"
               className={cn(
                 "h-2 rounded-full transition-all duration-250",
-                i === active ? "w-6 bg-accent" : "w-2 bg-ink/15 hover:bg-ink/30",
+                i === active ? "w-6 bg-ink" : "w-2 bg-ink/15 hover:bg-ink/30",
               )}
             />
           ))}

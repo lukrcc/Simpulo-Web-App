@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { getMyPayment, useStore } from "@/lib/store";
@@ -23,7 +23,7 @@ const inputClass = cn(formInput, "tabular-nums");
  */
 export function PaySheet({ stay, open, onClose }: { stay: Stay; open: boolean; onClose: () => void }) {
   return (
-    <Sheet open={open} onClose={onClose} title={useTranslations("house.pay")("title")} size="wide">
+    <Sheet open={open} onClose={onClose} title={useTranslations("house.pay")("title")}>
       {/* Remounted per open, so a declined attempt doesn't linger. */}
       {open && <PayForm stay={stay} onDone={onClose} />}
     </Sheet>
@@ -42,6 +42,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 
   return (
     <CardPayForm
+      onCancel={onDone}
       stay={stay}
       amounts={payment}
       onPay={async (card) => {
@@ -57,6 +58,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 }
 
 interface CardPayFormProps {
+  onCancel?: () => void;
   stay: Stay;
   /** What's charged: share, optional host programme fee, Simpulo fee, total */
   amounts: { share: number; hostFee?: number; fee: number; total: number };
@@ -65,7 +67,7 @@ interface CardPayFormProps {
 }
 
 /** The breakdown and the card fields (mock card network) – paying a share, or joining through an invite link. */
-export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
+export function CardPayForm({ stay, amounts, onPay, onCancel }: CardPayFormProps) {
   const t = useTranslations("house.pay");
   const tPremium = useTranslations("growth.premium");
   const f = useFormat();
@@ -138,9 +140,11 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={!complete || busy} className="w-full">
+      <ModalFooter onCancel={onCancel}>
+<Button type="submit" size="md" disabled={!complete || busy}>
         {busy ? <Loader2 className="animate-spin" aria-label={t("processing")} /> : t("payButton", { amount: money(payment.total) })}
       </Button>
+</ModalFooter>
     </form>
   );
 }

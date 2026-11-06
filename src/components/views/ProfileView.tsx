@@ -1,10 +1,11 @@
 "use client";
 
-import { BadgeCheck, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { use, useState } from "react";
+import { SocialTiles } from "@/components/ui/SocialRow";
+import { useFormatter, useTranslations } from "next-intl";
+import { use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
@@ -13,24 +14,28 @@ import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { StayCard } from "@/components/StayCard";
-import { Button, buttonStyles } from "@/components/ui/ActionButton";
-import { iconButtonStyles } from "@/components/ui/IconButton";
+import { useDismiss } from "@/components/explore/Filters";
+import { Button } from "@/components/ui/ActionButton";
+import { Anchored } from "@/components/ui/Anchored";
+import { GlassPanel } from "@/components/ui/GlassPanel";
+import { Sheet } from "@/components/ui/Sheet";
+import { IconButton, iconButtonStyles } from "@/components/ui/IconButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { MoreMenu } from "@/components/ui/MoreMenu";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
+import { cardGradient, cardTextShadow } from "@/components/ui/glass";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useToast } from "@/components/ui/Toast";
 import { MoreList } from "@/components/views/MoreList";
-import { HOUSE_GRID } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
 import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
-import { socialUrl } from "@/lib/socialLinks";
 import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
+import { usePhotoDrag } from "@/lib/usePhotoDrag";
+import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { cn, firstName } from "@/lib/utils";
 
 export function MyProfile() {
@@ -104,8 +109,8 @@ function BlockedProfile({ user }: { user: User }) {
 }
 
 /**
- * A person's page, one column: who they are, then what they host, who they lived with, their photos, where they want to go
- * and, for the crew, where they're going. Empty sections don't exist. What's in them: src/lib/profilePrivacy.ts.
+ * A person's page, one screen from 1100px: who they are, what they offer, what speaks for them. A tile with nothing in it isn't there, and the
+ * others take its room. What's in them: src/lib/profilePrivacy.ts.
  * Own profile: "Preview" renders the stranger's page, under a band, and nothing in it changes data.
  */
 function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
@@ -136,55 +141,60 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const today = new Date().toISOString().slice(0, 10);
   const viewerId = previewing ? null : store.currentUserId;
   const view = profileViewFor(store, user, viewerId, today);
-  const photos = user.photos.slice(0, MAX_PHOTOS);
+  const { photos } = user;
+  // Without an open House someone else's page has no middle: the right side takes its place. Nothing lived yet: the right side is small and the
+  // middle gets wider.
+  const offer = view.hostingNow.length > 0 || isMe;
+  const quiet = view.livedWith.length === 0 && view.livedInCount === 0 && view.toConfirm.length === 0;
 
   return (
-    <Container page>
+    <Container className={cn("pb-6 pt-6 split:pb-0 split:pt-0", previewing ? "split:h-[calc(100dvh-var(--header-total)-48px-40px)]" : "split:h-[calc(100dvh-var(--header-total)-48px)]")}>
       {/* Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header). */}
       {isMe && (
         <div className="-mt-2 mb-2 flex justify-end md:hidden">
-          <Link href="/settings" aria-label={t("settings")} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-ink/5">
+          <Link href="/settings" aria-label={t("settings")} className={iconButtonStyles("lg")}>
             <Settings className="size-5" />
           </Link>
         </div>
       )}
-      <ProfileHead user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} onOpenPhotos={() => photos.length > 0 && setPhotoIndex(0)} />
-      <HostingNow houses={view.hostingNow} isMe={isMe} />
-      <LivedWithSection view={view} isMe={isMe} />
-      <PhotosSection photos={photos} onOpen={setPhotoIndex} />
-      <UpcomingSection houses={view.upcoming} isMe={isMe} />
+      <div
+        data-profile-bento
+        className={cn(
+          "flex flex-col gap-5 split:grid split:h-full",
+          offer ? (quiet ? "split:grid-cols-[1fr_1.4fr_0.6fr]" : "split:grid-cols-3") : quiet ? "split:grid-cols-[1.4fr_1fr]" : "split:grid-cols-[1fr_2fr]",
+        )}
+      >
+        <IdentityTile user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} onOpenPhotos={(index) => photos.length > 0 && setPhotoIndex(index)} />
+        {offer && <OfferTile houses={view.hostingNow} view={view} />}
+        <ProofTile view={view} isMe={isMe} />
+      </div>
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
     </Container>
   );
 }
 
-/** Profile photos in the masonry, at most. */
-const MAX_PHOTOS = 9;
-const MAX_LINKS = 4;
-const MAX_FACES = 12;
-const SECTION = "mt-(--space-section)";
-const CONTENT = "mt-(--space-inner)";
+const MAX_FACES = 8;
 const ROUND_BUTTON = iconButtonStyles();
 
-/* ───────────────────────── Head ───────────────────────── */
+/* ───────────────────────── Who ───────────────────────── */
 
-interface ProfileHeadProps {
+interface IdentityProps {
   user: User;
   isMe: boolean;
   previewing: boolean;
   onPreview?: () => void;
   view: ProfileVisibility;
-  onOpenPhotos: () => void;
+  onOpenPhotos: (index: number) => void;
 }
 
 /**
- * No frame: the avatar, then name, where they're from, the trust band, links, languages and bio. Top right never a filled
- * button: the page's main action is the House below. Someone else: Message, share, "…". You: Edit profile and "…".
+ * Who they are, as high as the page. On top their photos, landscape, as wide as the tile (45 % of its height from 1100px, else 4:3): swipe or
+ * drag, arrows on hover, dots; a click opens the lightbox. Over the photo, bottom left as on the cards: name, "34 · Spain · based in Ibiza",
+ * the verified check. Under it what speaks for them; the actions stay at the bottom, and only what's above them scrolls if a window is short.
  */
-function ProfileHead({ user, isMe, previewing, onPreview, view, onOpenPhotos }: ProfileHeadProps) {
+function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }: IdentityProps) {
   const t = useTranslations("profile");
   const tView = useTranslations("profile.view");
-  const f = useFormat();
   const store = useStore();
   const router = useRouter();
   const requireAuth = useRequireAuth();
@@ -211,92 +221,175 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, onOpenPhotos }: 
   }
 
   return (
-    <header className="relative flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
-      <button
-        type="button"
-        onClick={onOpenPhotos}
-        disabled={user.photos.length === 0}
-        aria-label={t("openPhotos")}
-        className="shrink-0 self-start rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-default"
-      >
-        <PersonPhoto src={user.photos[0]} alt={user.name} size={144} className="size-36" />
-      </button>
+    <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl! p-0">
+      <ProfilePhotos user={user} onOpen={onOpenPhotos} />
+      <div className="flex min-h-0 flex-1 flex-col gap-5 p-8 pt-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 split:scroll-pane">
+          <ProHostLabel user={user} className="empty:hidden" />
+          <TrustBand view={view} />
+          <SocialTiles user={user} />
+          {user.languages.length > 0 && <p className="text-small text-muted">{tView("speaks", { languages: user.languages.join(", ") })}</p>}
+          {user.bio && <Bio text={user.bio} />}
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <h1 className="text-h1 text-ink">{user.name}</h1>
-        <p className="mt-1 text-body-lg text-muted">
-          {f.ageAndCountry(user)}
-          {user.city && ` · ${t("basedIn", { city: user.city })}`}
-        </p>
-        <ProHostLabel user={user} className="mt-2" />
-        <TrustBand user={user} view={view} />
-        <SocialCapsules user={user} />
-        {user.languages.length > 0 && <p className="mt-3 text-small text-muted">{tView("speaks", { languages: user.languages.join(", ") })}</p>}
-        {user.bio && <p className="mt-4 max-w-[640px] text-body-lg text-ink">{user.bio}</p>}
-      </div>
-
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {isMe ? (
-          <>
-            <Button variant="secondary" size="mid" href="/profile/edit">
-              <Pencil aria-hidden />
-              {t("editProfile")}
-            </Button>
-            <MoreMenu
-              label={tView("options")}
-              buttonClassName={ROUND_BUTTON}
-              items={[
-                ...(onPreview ? [{ label: tView("previewAsOthers"), onSelect: onPreview }] : []),
-                { label: tView("shareProfile"), onSelect: () => setSharing(true) },
-              ]}
-            />
-          </>
-        ) : (
-          <>
-            {messageStayId && (
-              <Button variant="secondary" size="mid" onClick={() => message(messageStayId)} data-preview-action>
-                <MessageCircle aria-hidden />
-                {t("message")}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isMe ? (
+            <>
+              <Button size="md" href="/profile/edit" className="flex-1">
+                <Pencil aria-hidden />
+                {t("editProfile")}
               </Button>
-            )}
-            <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} title={t("share")} className={ROUND_BUTTON}>
-              <Share2 className="size-4" aria-hidden />
-            </button>
-            {previewing ? (
-              <button type="button" onClick={() => guard(() => undefined)} aria-label={tView("options")} className={ROUND_BUTTON}>
-                <MoreHorizontal className="size-5" aria-hidden />
+              <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={ROUND_BUTTON}>
+                <Share2 className="size-4" aria-hidden />
               </button>
-            ) : (
-              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} buttonClassName={ROUND_BUTTON} />
-            )}
-          </>
-        )}
+              <MoreMenu
+                label={tView("options")}
+                buttonClassName={ROUND_BUTTON}
+                items={onPreview ? [{ label: tView("previewAsOthers"), onSelect: onPreview }] : []}
+              />
+            </>
+          ) : (
+            <>
+              {messageStayId && (
+                <Button size="md" onClick={() => message(messageStayId)} data-preview-action className="flex-1">
+                  <MessageCircle aria-hidden />
+                  {t("message")}
+                </Button>
+              )}
+              <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={ROUND_BUTTON}>
+                <Share2 className="size-4" aria-hidden />
+              </button>
+              {previewing ? (
+                <button type="button" onClick={() => guard(() => undefined)} aria-label={tView("options")} className={ROUND_BUTTON}>
+                  <MoreHorizontal className="size-5" aria-hidden />
+                </button>
+              ) : (
+                <SafetyMenu target={{ kind: "user", id: user.id }} user={user} buttonClassName={ROUND_BUTTON} />
+              )}
+            </>
+          )}
+        </div>
       </div>
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
-    </header>
+    </GlassPanel>
   );
 }
 
-/** What speaks for them, in one row: the label small over the value. What's at zero isn't there. */
-function TrustBand({ user, view }: { user: User; view: ProfileVisibility }) {
+const PHOTO_ARROW = "absolute top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
+
+/** The profile photos, landscape, one at a time; the name and where they're from lie on the bottom left. */
+function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) => void }) {
+  const t = useTranslations("profile");
+  const tView = useTranslations("profile.view");
+  const f = useFormat();
+  const { photos } = user;
+  const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
+  const drag = usePhotoDrag(ref, active, scrollTo, photos.length > 1);
+  return (
+    <div className="group relative aspect-4/3 w-full shrink-0 overflow-hidden rounded-t-3xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) split:aspect-auto split:h-[45%]">
+      <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto", drag.className)}>
+        {photos.map((src, i) => (
+          <button
+            key={src}
+            type="button"
+            onClick={() => !drag.dragged() && onOpen(i)}
+            aria-label={t("openPhoto", { index: i + 1 })}
+            aria-hidden={i !== active || undefined}
+            tabIndex={i === active ? 0 : -1}
+            data-no-tooltip
+            className="relative block h-full w-full shrink-0 snap-center snap-always outline-none"
+          >
+            <Img src={src} alt="" fill sizes="(min-width: 1100px) 34vw, 100vw" loading={i === 0 ? "eager" : undefined} className="object-cover object-[center_30%]" />
+          </button>
+        ))}
+      </div>
+      <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
+      <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-5 text-white", cardTextShadow)}>
+        <h1 className="flex min-w-0 items-center gap-2 text-h2 text-white">
+          <span className="truncate">{user.name}</span>
+          {user.verified && <VerifiedBadge className="shrink-0" />}
+        </h1>
+        <p className="mt-1 truncate text-body text-white/85">
+          {f.ageAndCountry(user)}
+          {user.city && ` · ${t("basedIn", { city: user.city })}`}
+        </p>
+      </div>
+      {photos.length > 1 && (
+        <>
+          {active > 0 && (
+            <IconButton variant="onImage" size="sm" onClick={() => step(-1)} aria-label={tView("prevPhoto")} className={cn(PHOTO_ARROW, "left-4")}>
+              <ChevronLeft className="size-4.5" strokeWidth={2.5} aria-hidden />
+            </IconButton>
+          )}
+          {active < photos.length - 1 && (
+            <IconButton variant="onImage" size="sm" onClick={() => step(1)} aria-label={tView("nextPhoto")} className={cn(PHOTO_ARROW, "right-4")}>
+              <ChevronRight className="size-4.5" strokeWidth={2.5} aria-hidden />
+            </IconButton>
+          )}
+          {/* Dots at the top: the name has the bottom. */}
+          <div className="absolute inset-x-0 top-3 flex justify-center">
+            {photos.map((src, i) => (
+              <button key={src} type="button" onClick={() => scrollTo(i)} aria-label={tView("showPhoto", { number: i + 1, count: photos.length })} aria-current={i === active || undefined} data-no-tooltip className="flex h-5 items-center px-0.5">
+                <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-surface" : "w-1 bg-white/50")} />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Four lines at most; if it's longer, "More" opens the rest in a popover. */
+
+function Bio({ text }: { text: string }) {
+  const t = useTranslations("profile.view");
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [clipped, setClipped] = useState(false);
+  const [open, setOpen] = useState(false);
+  useDismiss(open, () => setOpen(false), moreRef, moreRef, panelRef);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    const measure = () => setClipped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text]);
+  return (
+    <div>
+      <p ref={textRef} className="line-clamp-4 text-body text-ink">
+        {text}
+      </p>
+      {clipped && (
+        <button ref={moreRef} type="button" onClick={() => setOpen((on) => !on)} aria-expanded={open} className="mt-1 text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {t("bioMore")}
+        </button>
+      )}
+      {open && (
+        <Anchored anchor={moreRef} ref={panelRef} align="start" width={360}>
+          <GlassPanel role="dialog" aria-label={t("bioMore")} className="animate-fade-in max-h-80 w-[min(360px,calc(100vw-32px))] overflow-y-auto rounded-[20px]! p-4 text-body text-ink">
+            {text}
+          </GlassPanel>
+        </Anchored>
+      )}
+    </div>
+  );
+}
+
+/** What speaks for them, the label small over the value: Houses hosted, Member since, and People lived with when there are any. (Verified sits on the photo.) */
+function TrustBand({ view }: { view: ProfileVisibility }) {
   const t = useTranslations("profile.view");
   const items = [
-    view.hostedCount > 0 && { label: t("trustHosted", { count: view.hostedCount }), value: view.hostedCount },
-    view.livedInCount > 0 && { label: t("trustLivedIn", { count: view.livedInCount }), value: view.livedInCount },
-    view.livedWith.length > 0 && { label: t("trustPeople", { count: view.livedWith.length }), value: view.livedWith.length },
+    { label: t("trustHosted", { count: view.hostedCount }), value: String(view.hostedCount) },
+    view.memberSince !== null && { label: t("memberSince"), value: String(view.memberSince) },
+    view.livedWith.length > 0 && { label: t("trustPeople", { count: view.livedWith.length }), value: String(view.livedWith.length) },
   ].filter((item) => item !== false);
-  if (!user.verified && items.length === 0) return null;
   return (
-    <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-3">
-      {user.verified && (
-        <div>
-          <dt className="text-small text-muted">{t("trustVerifiedLabel")}</dt>
-          <dd className="mt-0.5 flex items-center gap-1.5 text-body font-semibold text-ink">
-            <BadgeCheck className="size-4 text-accent" aria-hidden />
-            {t("trustVerified")}
-          </dd>
-        </div>
-      )}
+    <dl className="flex flex-wrap gap-x-6 gap-y-2">
       {items.map(({ label, value }) => (
         <div key={label}>
           <dt className="text-small text-muted">{label}</dt>
@@ -307,185 +400,197 @@ function TrustBand({ user, view }: { user: User; view: ProfileVisibility }) {
   );
 }
 
-/** Public links as capsules: the mark in its brand colour + the handle. At most four, then "+N" shows the rest. */
-function SocialCapsules({ user }: { user: User }) {
+/* ───────────────────────── What's on offer ───────────────────────── */
+
+/** The card fills the tile from 1100px; below that it keeps the grid's 4:5. */
+const FILL_CARD = "split:aspect-auto! split:h-full";
+
+/** Their open House as a large card, several as a stack. None: on your own page where you've lived and the way to open one. */
+function OfferTile({ houses, view }: { houses: Stay[]; view: ProfileVisibility }) {
   const t = useTranslations("profile.view");
-  const [all, setAll] = useState(false);
-  const links = user.socials ?? [];
-  if (links.length === 0) return null;
-  const shown = all ? links : links.slice(0, MAX_LINKS);
-  return (
-    <div className="mt-5 flex flex-wrap items-center gap-2">
-      {shown.map((link) => {
-        const { icon: Icon, brand, hex, onInk } = SOCIAL_ICONS[link.platform];
-        const handle = link.platform === "website" ? link.value.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : `@${link.value.replace(/^@/, "")}`;
-        return (
-          <a key={`${link.platform}-${link.value}`} href={socialUrl(link)} target="_blank" rel="noopener" title={brand ?? undefined} className="inline-flex h-9 max-w-full items-center gap-2 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3 text-small text-ink transition-colors hover:bg-bg">
-            <span className={cn("flex shrink-0 items-center justify-center", onInk && "size-5 rounded-full bg-ink")} style={{ color: hex ?? "var(--ink)" }}>
-              <Icon className={onInk ? "size-3" : "size-4"} color="currentColor" />
-            </span>
-            <span className="truncate">{handle}</span>
-          </a>
-        );
-      })}
-      {!all && links.length > MAX_LINKS && (
-        <button type="button" onClick={() => setAll(true)} className="inline-flex h-9 items-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3 text-small text-ink transition-colors hover:bg-bg">
-          {t("moreLinks", { count: links.length - MAX_LINKS })}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ───────────────────────── Sections ───────────────────────── */
-
-function HouseCards({ houses }: { houses: Stay[] }) {
   const store = useStore();
+  if (houses.length === 0) {
+    return (
+      <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col justify-end gap-4 rounded-3xl! p-8">
+        {view.livedInCount > 0 ? (
+          <div className="min-h-0 flex-1 split:scroll-pane">
+            <p className="text-h2 text-ink">{t("livedInTitle", { count: view.livedInCount })}</p>
+            <ul className="mt-3 space-y-1">
+              {view.livedInPlaces.map((place) => (
+                <li key={place} className="text-body text-muted">
+                  {place}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="flex-1 text-h2 text-ink">{t("noOpenHouse")}</p>
+        )}
+        <Button href="/create" size="md">
+          {t("openHouseAction")}
+        </Button>
+      </GlassPanel>
+    );
+  }
+  if (houses.length === 1) {
+    return (
+      <div className="mx-auto w-full min-h-0 min-w-0 max-w-130 split:max-w-none">
+        <StayCard stay={houses[0]} host={findUser(store, houses[0].hostId)} crew={getCrew(store, houses[0])} still className={FILL_CARD} />
+      </div>
+    );
+  }
+  return <HouseStack houses={houses} />;
+}
+
+/** Behind the front card: each one 12px further right and up, a little smaller and darker; at most two show. */
+const STACK_STEP = 12;
+const STACK_SCALE = [1, 0.96, 0.92];
+const STACK_DIM = [1, 0.84, 0.7];
+
+/**
+ * Several open Houses as a stack: the front card as on the grid (its photos swipe by themselves), up to two peeking out behind it, up and to the
+ * right. "‹ 1 / 2 ›" under it, or a click on a card that peeks out: the front one slides back, the next comes forward (transform, 400ms).
+ */
+function HouseStack({ houses }: { houses: Stay[] }) {
+  const t = useTranslations("profile.view");
+  const store = useStore();
+  const [front, setFront] = useState(0);
+  const count = houses.length;
+  const turn = (delta: number) => setFront((current) => (current + delta + count) % count);
   return (
-    <div className={cn(HOUSE_GRID, CONTENT)}>
-      {houses.map((stay) => (
-        <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
-      ))}
+    <div className="mx-auto flex w-full min-h-0 min-w-0 max-w-130 flex-col gap-3 split:max-w-none">
+      <div className="relative min-h-0 flex-1 max-split:aspect-4/5">
+        {houses.map((stay, i) => {
+          const depth = (i - front + count) % count;
+          const shown = Math.min(depth, STACK_SCALE.length - 1);
+          return (
+            <div
+              key={stay.id}
+              className="absolute bottom-0 left-0 transition-[transform,filter,opacity] duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+              style={{
+                width: `calc(100% - ${2 * STACK_STEP}px)`,
+                height: `calc(100% - ${2 * STACK_STEP}px)`,
+                transformOrigin: "top right",
+                transform: `translate(${shown * STACK_STEP}px, ${-shown * STACK_STEP}px) scale(${STACK_SCALE[shown]})`,
+                filter: depth === 0 ? undefined : `brightness(${STACK_DIM[shown]})`,
+                opacity: depth < STACK_SCALE.length ? 1 : 0,
+                zIndex: count - depth,
+              }}
+            >
+              {/* Behind the front card only the edges show: their host tabs fade out (they'd pile up top left). */}
+              <div inert={depth !== 0} aria-hidden={depth !== 0 || undefined} className={cn("h-full [&_[data-card-tab]]:transition-opacity [&_[data-card-tab]]:duration-300", depth !== 0 && "[&_[data-card-tab]]:opacity-0")}>
+                <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} still className={FILL_CARD} />
+              </div>
+              {/* A card that peeks out brings itself forward. */}
+              {depth > 0 && depth < STACK_SCALE.length && <button type="button" onClick={() => setFront(i)} aria-label={t("bringForward", { title: stay.title })} data-no-tooltip className="absolute inset-0 z-30 cursor-pointer rounded-3xl" />}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex shrink-0 items-center justify-center gap-2">
+        <IconButton size="xs" onClick={() => turn(-1)} aria-label={t("prevHouse")}>
+          <ChevronLeft className="size-4" aria-hidden />
+        </IconButton>
+        <span className="min-w-12 text-center text-small tabular-nums text-muted">
+          {front + 1} / {count}
+        </span>
+        <IconButton size="xs" onClick={() => turn(1)} aria-label={t("nextHouse")}>
+          <ChevronRight className="size-4" aria-hidden />
+        </IconButton>
+      </div>
     </div>
   );
 }
 
-/** Open Houses. Without one: nothing for others, one plain line on your own profile. */
-function HostingNow({ houses, isMe }: { houses: Stay[]; isMe: boolean }) {
-  const t = useTranslations("profile.view");
-  if (houses.length === 0) {
-    return isMe ? (
-      <p className={cn(SECTION, "text-body text-muted")}>
-        {t("noOpenHouse")} ·{" "}
-        <Link href="/create" className="font-semibold text-ink underline-offset-4 hover:underline">
-          {t("openHouse")}
-        </Link>
-      </p>
-    ) : null;
-  }
-  return (
-    <section aria-labelledby="profile-hosting" className={SECTION}>
-      <SectionHeader
-        id="profile-hosting"
-        eyebrow={t("hostingNow")}
-        action={
-          isMe && (
-            <Link href="/create" className={buttonStyles("tertiary", "md")}>
-              {t("openAnother")}
-            </Link>
-          )
-        }
-      />
-      <HouseCards houses={houses} />
-    </section>
-  );
-}
+/* ───────────────────────── Proof ───────────────────────── */
 
 /** One face, with their name on hover, linking to their profile. */
-function Face({ entry, muted = false }: { entry: LivedWithEntry; muted?: boolean }) {
+function Face({ entry }: { entry: LivedWithEntry }) {
   return (
-    <Link href={`/u/${entry.user.id}`} className="group/face relative block rounded-full ring-2 ring-bg hover:z-10 focus-visible:z-10">
-      <PersonPhoto src={entry.user.photos[0]} alt={entry.user.name} size={48} className={cn("size-12", muted && "opacity-60")} />
-      <span aria-hidden className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap glass-panel rounded-lg! px-2.5 py-1 text-small text-ink opacity-0 transition-opacity duration-150 group-hover/face:opacity-100 group-focus-visible/face:opacity-100">
-        {firstName(entry.user)}
-      </span>
+    <Link href={`/u/${entry.user.id}`} aria-label={firstName(entry.user)} data-tooltip={firstName(entry.user)} className="relative block rounded-full ring-2 ring-bg hover:z-10 focus-visible:z-10">
+      <PersonPhoto src={entry.user.photos[0]} alt={entry.user.name} size={44} className="size-11" />
     </Link>
   );
 }
 
+const strong = (chunks: ReactNode) => <span className="font-semibold text-ink">{chunks}</span>;
+
 /**
- * Who they lived with, only people who confirmed it from both sides, and where: only the cities. Your own also shows who's
- * waiting for you to confirm, and who hasn't yet.
+ * The right column. LIVED WITH: "Lived with 8 people in 3 Houses" and the faces – only people who confirmed it from both sides, "+N" for the rest;
+ * your own also has who's waiting for you to confirm. PLACES: the cities, no dates. Nothing lived yet: only "New to Simpulo · joined {month}". Your
+ * own page keeps "Upcoming: N Houses →" at the bottom.
  */
-function LivedWithSection({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
+function ProofTile({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
   const t = useTranslations("profile.view");
+  const formatter = useFormatter();
   const store = useStore();
+  const [confirming, setConfirming] = useState(false);
   const people = view.livedWith.filter((e) => !isBlocked(store, e.user.id));
   const toConfirm = view.toConfirm.filter((e) => !isBlocked(store, e.user.id));
   const waiting = view.waitingForThem.filter((e) => !isBlocked(store, e.user.id));
-  const hasPlaces = view.livedInCount > 0;
-  if (people.length === 0 && !hasPlaces && toConfirm.length === 0 && waiting.length === 0) return null;
   const rest = people.length - MAX_FACES;
+  const empty = people.length === 0 && view.livedInCount === 0 && toConfirm.length === 0;
   return (
-    <section aria-labelledby="profile-lived" className={SECTION}>
-      <SectionHeader id="profile-lived" eyebrow={t("livedWith")} />
-      {people.length > 0 && (
-        <div className={cn(CONTENT, "flex flex-wrap items-center -space-x-2")}>
-          {people.slice(0, MAX_FACES).map((entry) => (
-            <Face key={entry.user.id} entry={entry} />
-          ))}
-          {rest > 0 && <span className="flex size-12 items-center justify-center rounded-full bg-surface text-small font-semibold text-ink ring-2 ring-bg">{t("more", { count: rest })}</span>}
+    <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col gap-8 rounded-3xl! p-6">
+      {empty ? (
+        <div>
+          <p className="text-body font-semibold text-ink">{t("newHere", { date: view.joinedAt ? formatter.dateTime(new Date(view.joinedAt), { month: "long", year: "numeric" }) : "" })}</p>
+          <p className="mt-1 text-small text-muted">{t("newHereLine")}</p>
         </div>
-      )}
-      {hasPlaces && (
-        <p className={cn("text-small text-muted", people.length > 0 ? "mt-3" : CONTENT)}>
-          {t("livedInSummary", { count: view.livedInCount, places: view.livedInPlaces.join(", ") })}
-          {isMe && (
-            <>
-              {" · "}
-              <Link href="/my-stays" className="font-semibold text-ink underline-offset-4 hover:underline">
-                {t("seePast")}
-              </Link>
-            </>
+      ) : (
+        <>
+          <section className="flex flex-col gap-3">
+            <h2 className="text-eyebrow uppercase text-ink/55">{t("livedWith")}</h2>
+            <p className="text-body text-muted">
+              {people.length > 0 ? t.rich("livedWithLine", { people: people.length, houses: view.livedInCount, b: strong }) : t.rich("livedInLine", { houses: view.livedInCount, b: strong })}
+            </p>
+            {people.length > 0 && (
+              <div className="flex flex-wrap items-center -space-x-2">
+                {people.slice(0, MAX_FACES).map((entry) => (
+                  <Face key={entry.user.id} entry={entry} />
+                ))}
+                {rest > 0 && <span className="flex size-11 items-center justify-center rounded-full bg-(--chip-bg) text-small font-semibold text-ink ring-2 ring-bg">{t("more", { count: rest })}</span>}
+              </div>
+            )}
+            {(toConfirm.length > 0 || waiting.length > 0) && (
+              <p className="flex flex-wrap items-center gap-x-3 text-small text-muted">
+                {toConfirm.length > 0 && (
+                  <button type="button" onClick={() => setConfirming(true)} className="font-semibold text-ink underline-offset-4 hover:underline">
+                    {t("confirmLink", { count: toConfirm.length })}
+                  </button>
+                )}
+                {waiting.length > 0 && <span>{t("waitingForThem", { count: waiting.length })}</span>}
+              </p>
+            )}
+          </section>
+          {view.livedInPlaces.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-eyebrow uppercase text-ink/55">{t("places")}</h2>
+              <p className="text-body text-ink">{view.livedInPlaces.join(" · ")}</p>
+            </section>
           )}
-        </p>
+        </>
       )}
-      {toConfirm.length > 0 && (
-        <div className="mt-6">
-          <p className="text-small text-muted">{t("toConfirm")}</p>
-          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
-            {toConfirm.map((entry) => (
-              <li key={entry.user.id} className="flex items-center gap-3">
-                <Avatar user={entry.user} size="md" linked />
-                <span className="text-body font-semibold text-ink">{firstName(entry.user)}</span>
-                <Button variant="tertiary" onClick={() => store.confirmLivedWith(entry.user.id)}>
-                  {t("confirm")}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {isMe && view.upcoming.length > 0 && (
+        <Link href="/houses" className="mt-auto flex items-center gap-1.5 text-small font-semibold text-ink underline-offset-4 hover:underline">
+          <Lock className="size-3.5 shrink-0 text-muted" aria-hidden />
+          {t("upcomingLine", { count: view.upcoming.length })}
+        </Link>
       )}
-      {waiting.length > 0 && <p className="mt-3 text-small text-muted">{t("waitingForThem", { count: waiting.length })}</p>}
-    </section>
-  );
-}
-
-/** A quiet masonry: the column layout breaks the rows, three heights keep it from reading as a grid. */
-const MASONRY_SHAPES = ["aspect-4/5", "aspect-square", "aspect-3/4"];
-
-function PhotosSection({ photos, onOpen }: { photos: string[]; onOpen: (index: number) => void }) {
-  const t = useTranslations("profile");
-  const tView = useTranslations("profile.view");
-  if (photos.length === 0) return null;
-  return (
-    <section aria-labelledby="profile-photos" className={SECTION}>
-      <SectionHeader id="profile-photos" eyebrow={tView("photos")} />
-      <ul className={cn(CONTENT, "columns-2 gap-3 md:columns-3 md:gap-4 split:columns-4")}>
-        {photos.map((src, i) => (
-          <li key={src} className="mb-3 break-inside-avoid md:mb-4">
-            <button type="button" onClick={() => onOpen(i)} aria-label={t("openPhoto", { index: i + 1 })} className={cn("relative block w-full overflow-hidden rounded-3xl bg-line outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2", MASONRY_SHAPES[i % MASONRY_SHAPES.length])}>
-              <Img src={src} alt="" fill sizes="(min-width: 1100px) 25vw, (min-width: 768px) 33vw, 50vw" className="object-cover" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/** Upcoming as a guest. Only ever filled for you and for people in those crews; your own always shows, with the lock. */
-function UpcomingSection({ houses, isMe }: { houses: Stay[]; isMe: boolean }) {
-  const t = useTranslations("profile.view");
-  if (houses.length === 0 && !isMe) return null;
-  return (
-    <section aria-labelledby="profile-upcoming" className={SECTION}>
-      <SectionHeader id="profile-upcoming" eyebrow={t("upcoming")} />
-      <p className="mt-1 flex items-center gap-1.5 text-small text-muted">
-        <Lock className="size-3.5 shrink-0" aria-hidden />
-        {isMe ? t("upcomingOwnHint") : t("upcomingCrewHint")}
-      </p>
-      {houses.length > 0 ? <HouseCards houses={houses} /> : <p className={cn(CONTENT, "text-body text-muted")}>{t("upcomingEmpty")}</p>}
-    </section>
+      <Sheet open={confirming} onClose={() => setConfirming(false)} title={t("confirmTitle")}>
+        <p className="text-small text-muted">{t("toConfirm")}</p>
+        <ul className="mt-4 space-y-3">
+          {toConfirm.map((entry) => (
+            <li key={entry.user.id} className="flex items-center gap-3">
+              <Avatar user={entry.user} size="md" linked />
+              <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
+              <Button variant="tertiary" onClick={() => store.confirmLivedWith(entry.user.id)}>
+                {t("confirm")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+    </GlassPanel>
   );
 }

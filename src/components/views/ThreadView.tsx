@@ -3,7 +3,7 @@
 import { SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, use, useEffect, useState } from "react";
+import { type ReactNode, use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { DoItAgainCard } from "@/components/chat/ChatCards";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
@@ -11,14 +11,12 @@ import { MessageList } from "@/components/chat/MessageList";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
-import { cardShadow } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { cn } from "@/lib/utils";
 
 /** /inbox/[threadId] – the mobile detail page. On desktop the same chat opens inside /inbox. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
@@ -114,29 +112,55 @@ function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolea
     markThreadRead(thread.id);
   }, [messageCount, thread.id, markThreadRead]);
   return (
-    <ThreadFrame embedded={embedded}>
-      <p className="shrink-0 px-5 py-4 text-h3 text-ink">{t("inbox.updates")}</p>
+    <ThreadFrame embedded={embedded} head={<p className="flex h-16 items-center px-5 text-h3 text-ink">{t("inbox.updates")}</p>}>
       <MessageList thread={thread} emptyText={t("thread.notFound")} onReply={() => {}} />
     </ThreadFrame>
   );
 }
 
-function ThreadFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
-  if (embedded) {
-    // The standard card, filling the column: header pinned on top, only the messages scroll, composer pinned at the bottom.
-    // Messages and composer keep the page's tint inside it: other people's bubbles are surface too.
-    return <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-surface", cardShadow)}>{children}</div>;
-  }
+/**
+ * The chat: messages over the whole height, the glass head and the floating glass composer over them. Both can grow (a pinned vote, a reply
+ * being written), so their heights are measured and the messages keep clear of them (--chat-top, --chat-bottom).
+ */
+function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean; head: ReactNode; composer?: ReactNode; children: ReactNode }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const measure = () => {
+      stage.style.setProperty("--chat-top", `${headRef.current?.offsetHeight ?? 0}px`);
+      stage.style.setProperty("--chat-bottom", `${composerRef.current?.offsetHeight ?? 0}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (headRef.current) observer.observe(headRef.current);
+    if (composerRef.current) observer.observe(composerRef.current);
+    return () => observer.disconnect();
+  }, []);
+  const stage = (
+    <div ref={stageRef} className="relative flex h-full min-h-0 flex-col overflow-hidden">
+      <div ref={headRef} className="chat-glass absolute inset-x-0 top-0 z-20">
+        {head}
+      </div>
+      {children}
+      {composer && (
+        <div ref={composerRef} className="absolute inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20">
+          {composer}
+        </div>
+      )}
+    </div>
+  );
+  // Desktop: the right column, a little lighter than the page, nothing around it.
+  if (embedded) return <div className="h-full min-h-0 bg-white/35">{stage}</div>;
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
   // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
   // itself never scrolls.
   return (
-    <div
-      data-app-pane="always"
-      className="relative z-41 flex h-dvh flex-col overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]"
-    >
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-(--header-h) md:pt-0">{children}</div>
+    <div data-app-pane="always" className="relative z-41 h-dvh overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]">
+      <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--header-h) md:pt-0">{stage}</div>
     </div>
   );
 }
@@ -162,24 +186,23 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   // Over (or completed): the crew chat ends with "Do it again?". Read on the client only – this view never prerenders.
   const ended = !inline && thread.type === "house" && stay.status !== "closed" && (stay.status === "completed" || (stay.endDate !== "" && stay.endDate < new Date().toISOString().slice(0, 10)));
 
-  const content = (
-    <>
-      {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} /> : <DirectHeader stay={stay} other={other} embedded={embedded} />}
-      {thread.type === "house" && <CrewVotes stay={stay} pinned />}
+  return (
+    <ThreadFrame
+      embedded={embedded}
+      head={
+        <>
+          {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} /> : <DirectHeader stay={stay} other={other} embedded={embedded} />}
+          {thread.type === "house" && <CrewVotes stay={stay} pinned />}
+        </>
+      }
+      composer={<Composer threadId={thread.id} placeholder={thread.type === "house" ? t("composerCrew") : t("composerDirect", { name: otherName ?? "" })} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />}
+    >
       <MessageList
         thread={thread}
         emptyText={thread.type === "house" ? t("sayHiCrew") : otherName ? t("sayHiDirect", { name: otherName }) : t("sayHiDirectUnknown")}
         onReply={setReplyTo}
         footer={ended ? <DoItAgainCard stay={stay} isHost={isHost} /> : undefined}
       />
-      <Composer
-        threadId={thread.id}
-        placeholder={thread.type === "house" ? t("composerCrew") : t("composerDirect", { name: otherName ?? "" })}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-      />
-    </>
+    </ThreadFrame>
   );
-
-  return <ThreadFrame embedded={embedded}>{content}</ThreadFrame>;
 }

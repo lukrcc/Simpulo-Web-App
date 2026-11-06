@@ -182,7 +182,7 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
           className={cn("absolute z-10 flex touch-none items-center justify-center outline-none", bottom ? "inset-x-0 top-0 h-7" : "left-0 top-1/2 h-16 w-6 -translate-y-1/2 pointer-fine:cursor-grab")}
         >
           <span className={bottom ? undefined : "rotate-90"}>
-            <NotchGrip open={!bottom} hover={false} />
+            <NotchGrip />
           </span>
         </button>
         {hero ? (

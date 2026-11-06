@@ -14,21 +14,24 @@ const sizes: Record<ChipSize, string> = {
 export type ChipVariant = "capsule" | "text";
 
 /**
- * The one selection chip, anywhere. "capsule" (panels and popovers): --chip-bg without a frame; chosen: peach, 600, with the accent check
- * on the left (it scales in). "text" (a row of categories): no surface, 15px/500 muted, 36px high; chosen: ink, 600, on the row's one
- * sliding capsule (ChipIndicator). Never black: that's for the one main action.
+ * The one selection chip, anywhere. "capsule" (panels and popovers): --chip-bg without a frame; chosen: raised warm white, 600. "text" (a row of categories): no surface, 15px/500 muted, 36px high; chosen: ink, 600, on the row's one
+ * sliding capsule (ChipIndicator).
  */
-export function chipStyles(active: boolean, { size = "md", variant = "capsule" }: { size?: ChipSize; variant?: ChipVariant } = {}): string {
+/** Chosen, anywhere: warm white, raised by its shadow; ink 600 goes with it. Never orange, never black. */
+export const selectedSurface = "bg-(--select-bg) shadow-(--select-shadow)";
+
+export function chipStyles(active: boolean, { size = "md", variant = "capsule", hoverSurface = true }: { size?: ChipSize; variant?: ChipVariant; /** Text chips: a surface on hover (filters), or only the text darkening (tabs) */ hoverSurface?: boolean } = {}): string {
   if (variant === "text") {
     return cn(
-      "relative z-1 inline-flex h-9 min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-body font-medium transition-colors duration-150 [&_svg]:size-4",
-      active ? "font-semibold text-ink" : "text-muted hover:bg-(--chip-text-hover) hover:text-ink",
+      "press relative z-1 inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full font-medium transition-colors duration-150 [&_svg]:size-4",
+      size === "sm" ? "h-8 px-3 text-nav" : "h-9 px-3.5 text-body",
+      active ? "font-semibold text-ink" : cn("text-muted hover:text-ink", hoverSurface && "hover:bg-(--chip-text-hover)"),
     );
   }
   return cn(
-    "inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full text-nav text-ink transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45",
+    "press inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full text-nav transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45",
     sizes[size],
-    active ? "bg-(--select-bg) font-semibold" : "bg-(--chip-bg) hover:bg-(--chip-bg-hover)",
+    active ? cn(selectedSurface, "font-semibold text-ink") : "bg-(--chip-bg) text-muted hover:bg-(--chip-bg-hover) hover:text-ink",
   );
 }
 
@@ -46,19 +49,19 @@ export function TextChipLabel({ children }: { children: ReactNode }) {
 
 /** The accent check of an active chip – it scales in (0.6 → 1, 140ms) when the chip is picked. */
 export function ChipCheck() {
-  return <Check className="size-3.5 shrink-0 text-accent motion-safe:animate-check-in" strokeWidth={3} aria-hidden />;
+  return <Check className="size-3.5 shrink-0 text-ink motion-safe:animate-check-in" strokeWidth={3} aria-hidden />;
 }
 
 type ChipProps = {
   active: boolean;
-  /** The accent check while active – off for "All" and chips that clear a filter */
-  check?: boolean;
   size?: ChipSize;
   variant?: ChipVariant;
   /** A leading icon (e.g. the + of "+ Custom"); the check takes its place while active */
   icon?: ReactNode;
   /** A text chip's chevron */
   trailing?: ReactNode;
+  /** Text chips: false for tabs, where only the chosen one has a surface */
+  hoverSurface?: boolean;
   /** A text chip that isn't in its row's capsule (a menu's trigger): chosen only shows in the text */
   indicate?: boolean;
   ref?: Ref<HTMLButtonElement>;
@@ -67,10 +70,10 @@ type ChipProps = {
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">;
 
 /** A selection chip as a button (aria-pressed unless a role says otherwise). The label truncates when it must. */
-export function Chip({ active, check = true, size, variant = "capsule", icon, trailing, indicate = true, className, children, type = "button", ...props }: ChipProps) {
+export function Chip({ active, size, variant = "capsule", icon, trailing, indicate = true, hoverSurface = true, className, children, type = "button", ...props }: ChipProps) {
   if (variant === "text") {
     return (
-      <button type={type} data-chip-active={active && indicate ? "" : undefined} aria-pressed={props.role || "aria-expanded" in props ? undefined : active} className={cn(chipStyles(active, { variant }), className)} {...props}>
+      <button type={type} data-chip-active={active && indicate ? "" : undefined} aria-pressed={props.role || "aria-expanded" in props ? undefined : active} className={cn(chipStyles(active, { variant, size, hoverSurface }), className)} {...props}>
         <TextChipLabel>{children}</TextChipLabel>
         {trailing}
       </button>
@@ -78,7 +81,7 @@ export function Chip({ active, check = true, size, variant = "capsule", icon, tr
   }
   return (
     <button type={type} aria-pressed={props.role ? undefined : active} className={cn(chipStyles(active, { size }), "[&>svg]:size-3.5", className)} {...props}>
-      {active && check ? <ChipCheck /> : icon}
+      {icon}
       <span className="min-w-0 truncate">{children}</span>
     </button>
   );

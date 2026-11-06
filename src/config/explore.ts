@@ -16,14 +16,24 @@ export const SORT_INLINE_THRESHOLD = 50;
 /** The "More" categories popover (a 3-column grid): at most this wide (px). */
 export const MORE_POPOVER_MAX_WIDTH = 420;
 
-/** The House grid, everywhere: as many columns of at least 300px as fit, at most 5 (the 1680px container then keeps a card under 380px). */
-export const HOUSE_GRID = "card-grid house-grid [--card-min:300px] [--card-cols:5]";
+/** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */
+export const HOUSE_GRID = "card-grid house-grid [--card-min:260px] [--card-cols:6]";
 
-/** A shelf goes into Open Houses after this many full rows of the grid. */
-export const SHELF_EVERY_ROWS = 3;
+/** The first SHELF_EARLY_COUNT shelves go into Open Houses after this many full rows of the grid each ... */
+export const SHELF_EVERY_EARLY = 3;
+/** ... every later one after this many. */
+export const SHELF_EVERY_LATE = 5;
+export const SHELF_EARLY_COUNT = 2;
+/** A shelf leaves out what the grid shows in this many rows right below it, even when they aren't loaded yet. */
+export const SHELF_CLEAR_ROWS_BELOW = 3;
 
 /** Below this many published Houses Explore shows its pre-launch view, and Houses are only reachable by link (src/lib/launch.ts). */
 export const LAUNCH_MIN_HOUSES = 10;
+
+/** The Spotlight goes on by itself every so often. */
+export const SPOTLIGHT_AUTOPLAY_MS = 7_000;
+/** sessionStorage: the Spotlight's entrance has played in this session. Read before the first paint too (app/layout.tsx). */
+export const SPOTLIGHT_INTRO_KEY = "simpulo:spotlight-intro";
 
 /** The Spotlight only with at least this many Houses to choose from. */
 export const SPOTLIGHT_MIN = 5;
@@ -47,13 +57,11 @@ export const STARTING_SOON_DAYS = 30;
 /** Just opened: at most this many days old, and only the host in it. */
 export const JUST_OPENED_DAYS = 7;
 
-/** Theme shelves (Party houses, Train together, …) only from this many Houses overall; before that the state shelves. */
+/** Theme shelves (Party houses, Train together, …) join the rotation from this many Houses overall. */
 export const THEME_SHELVES_MIN_TOTAL = 300;
 
 /** A theme shelf only with at least this many Houses of its own. */
 export const THEME_SHELF_MIN_ITEMS = 12;
-
-export const MAX_THEME_SHELVES = 4;
 
 /** Cards in one shelf at most; "See all" has the rest. */
 export const SHELF_MAX_ITEMS = 24;
@@ -85,15 +93,15 @@ export const spotlightThemeFallback = (count: number) => `${count} ${count === 1
  */
 export const EXPLORE_SPACING = {
   /** The Spotlight's top edge in the window, from the bar (--spot-top, globals.css). */
-  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-64px)]",
+  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-56px)]",
   /** With the text over the carousel instead (it doesn't fit beside it): from the bar to the text. */
   spotlightTextTop: "lg:pt-[calc(var(--space-inner)+6px)]",
   /** From that title's subline to the centre card. */
   spotlightIntroBottom: "mb-(--space-inner)",
   /** Every section after the first. */
   section: "pt-(--space-section)",
-  /** Open Houses under the hero, from its lowest card, where the Spotlight ends. */
-  underHero: "pt-(--space-section)",
+  /** Open Houses under the hero, from its lowest card, where the Spotlight ends: always 96px. */
+  underHero: "pt-24",
   /** A scoped feed's first section (collection pages): no hero above it. */
   scopedTop: "pt-(--space-inner)",
   /** The last section to the footer. */

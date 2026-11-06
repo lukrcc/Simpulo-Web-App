@@ -4,7 +4,7 @@ import type { Vibe } from "@/lib/types";
 import { Badge } from "./Badge";
 
 /** Each vibe's icon. */
-const vibeIcons: Record<Vibe, LucideIcon> = {
+export const vibeIcons: Record<Vibe, LucideIcon> = {
   fitness: Dumbbell,
   "surf-water": WavesHorizontal,
   "remote-work": Laptop,

@@ -1,3 +1,4 @@
+import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
 import { placeById, placeKindOf } from "@/lib/data/places";
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
 import { openVote } from "@/lib/crewVotes";
@@ -29,14 +30,9 @@ export const LOOKING_FOR_MIN = 20;
 export const LOOKING_FOR_MAX = 160;
 export const MAX_NIGHTS = 120;
 export const SPOTS_MIN = 2;
-export const SPOTS_MAX = 16;
+/** Everyone in the House, the host included */
+export const SPOTS_MAX = 10;
 /** A new House's size: a range, and the crew is complete at its top end (exact on the edit page). */
-export const CREW_SIZES = [
-  { label: "3–4", spots: 4 },
-  { label: "5–6", spots: 6 },
-  { label: "7–10", spots: 10 },
-] as const;
-export const crewSizeOf = (spots: number) => (CREW_SIZES.find((size) => spots <= size.spots) ?? CREW_SIZES[CREW_SIZES.length - 1]).spots;
 export const SPOTS_QUICK = [4, 6, 8, 12] as const;
 export const DEFAULT_LANGUAGE = "en";
 
@@ -105,6 +101,10 @@ export interface FormState {
   placeProposals: PlaceProposal[];
   accommodationDeadline: string;
   spotsTotal: number;
+  /** Places on the waitlist once the House is full, 0–5 (src/lib/waitlist.ts) */
+  waitlistMax: number;
+  /** Optional: the host's own photo of the place, for when the link has none ("" = none) */
+  accommodationPhoto: string;
   /** "" = default from the host's country */
   currency: Currency | "";
   budgetMin: string;
@@ -149,6 +149,8 @@ export const initialForm: FormState = {
   placeProposals: [],
   accommodationDeadline: "",
   spotsTotal: 4,
+  waitlistMax: WAITLIST_MAX_DEFAULT,
+  accommodationPhoto: "",
   currency: "",
   budgetMin: "",
   budgetMax: "",
@@ -193,6 +195,8 @@ export function formFromStay(stay: Stay): FormState {
     startDate: stay.startDate,
     endDate: stay.endDate,
     spotsTotal: stay.spotsTotal,
+    waitlistMax: waitlistMaxOf(stay),
+    accommodationPhoto: stay.accommodationPhoto ?? "",
     currency: stay.currency,
     budgetMin: budget ? String(budget.min) : "",
     budgetMax: budget ? String(budget.max) : "",
@@ -355,6 +359,8 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
         ? voteOf(form.placeProposals.filter((p) => isLink(p.link.trim())).map((p) => ({ id: p.id, link: p.link.trim(), pricePerPerson: Math.round(Number(p.price)) })), form.accommodationDeadline, editing?.accommodationVote)
         : undefined,
     spotsTotal: form.spotsTotal,
+    waitlistMax: form.waitlistMax,
+    accommodationPhoto: form.accommodationPhoto || undefined,
     vibe: form.customVibe !== null || !form.vibe ? "social" : form.vibe,
     customVibe: form.customVibe?.trim() || undefined,
     language: languageOf(form, me),

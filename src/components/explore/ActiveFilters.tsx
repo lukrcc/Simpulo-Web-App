@@ -35,6 +35,8 @@ export function ActiveFilters({ filters, onChange, currency, withCategory = fals
     ...(filters.who ? [{ key: "who", label: t(`whoOptions.${filters.who}`), remove: { who: null } }] : []),
     ...(filters.age ? [{ key: "age", label: `${t("age")}: ${t(`ageOptions.${filters.age}`)}`, remove: { age: null } }] : []),
     ...(filters.accommodation ? [{ key: "accommodation", label: t(`accommodationOptions.${filters.accommodation}`), remove: { accommodation: null } }] : []),
+    ...(filters.hostExperience ? [{ key: "hostExperience", label: `${t("hostExperience")}: ${t(`hostExperienceOptions.${filters.hostExperience}`)}`, remove: { hostExperience: null } }] : []),
+    ...(filters.verifiedOnly ? [{ key: "verifiedOnly", label: t("verifiedOnly"), remove: { verifiedOnly: false } }] : []),
     ...filters.languages.map((code) => ({ key: `lang-${code}`, label: format.language(code), remove: { languages: filters.languages.filter((l) => l !== code) } })),
   ];
   if (items.length === 0) return null;
@@ -43,7 +45,7 @@ export function ActiveFilters({ filters, onChange, currency, withCategory = fals
   return (
     <>
       {shown.map((item) => (
-        <Chip key={item.key} active check={false} size="sm" aria-label={t("remove", { label: item.label })} onClick={() => onChange(item.remove)}>
+        <Chip key={item.key} active size="sm" aria-label={t("remove", { label: item.label })} onClick={() => onChange(item.remove)}>
           <span className="flex items-center gap-1">
             {item.label}
             <X className="size-3.5 shrink-0" aria-hidden />

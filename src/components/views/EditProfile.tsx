@@ -475,7 +475,7 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
         const name = nameOf(link.platform);
         return (
           <FormField key={link.platform} label={name} error={problem ? t(`errors.${problem}`) : null}>
-            <span className={cn(formInput, "flex items-center gap-2 focus-within:ring-2 focus-within:ring-accent")}>
+            <span className={cn(formInput, "flex items-center gap-2 focus-within:ring-2 focus-within:ring-ink/25")}>
               <Icon className="size-4 shrink-0 text-ink" aria-hidden />
               {link.platform !== "website" && <span className="shrink-0 text-body text-muted">{HANDLE_PREFIX[link.platform]}</span>}
               <input

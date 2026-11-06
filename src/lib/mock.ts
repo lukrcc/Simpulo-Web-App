@@ -19,7 +19,8 @@ export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
 // who hasn't claimed it yet (no host, never listed – see Stay.claim)
 export type StayStatus = 'draft_unclaimed' | 'draft' | 'published' | 'booked' | 'completed' | 'closed';
 // invited = the host asked them (from a past crew) – it holds a spot until they accept (→ accepted) or decline
-export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'invited';
+/** 'waitlist_requested' → 'waitlisted': the waitlist behind a full House (src/lib/waitlist.ts) */
+export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'invited' | 'waitlist_requested' | 'waitlisted';
 
 /**
  * Where someone came from: the `ref` (the user whose share link they opened) and the UTM tags of their first visit
@@ -55,6 +56,10 @@ export interface User extends Attribution {
   /** Public links, at most 4, in the order the host added them. Contact happens in Messages – no phone, WhatsApp,
    *  FaceTime or email fields. URLs are built from the handle (see src/lib/socialLinks.ts). */
   socials?: SocialLink[];
+  /** What they're into, from the categories */
+  interests?: Vibe[];
+  /** How long their latest replies took, in minutes, latest first (mock: later from the messages) */
+  replyMinutes?: number[];
   preferredCurrency?: Currency; // for approximate conversions only; unset = from the browser locale
   savedStayIds?: string[];  // hearted Houses ("Saved" on the Houses page)
   hostAlerts?: string[];    // host ids: notify me when they open a House ("Notify me" on profiles; no counts anywhere)
@@ -217,6 +222,12 @@ export interface Stay {
   crewGroupUrl?: string;
   /** Places the host suggested when opening it – the House thread starts with them once it exists */
   accommodationIdeas?: string[];
+  /** Places on the waitlist (requested + waitlisted), 0–5; unset = 3 (src/lib/waitlist.ts) */
+  waitlistMax?: number;
+  /** Spots offered to someone on the waitlist (24h) – held, like reserved ones. Derived (syncWaitlist). */
+  spotsOffered?: number;
+  /** The host's own photo of the place – the accommodation tile uses it when the link has no picture */
+  accommodationPhoto?: string;
 }
 
 /**
@@ -293,6 +304,8 @@ export interface Payment extends Attribution {
   fee: number;              // guest fee: 10 % of the share, min 10, max 50 (house currency)
   total: number;            // share + hostFee + fee – what the guest pays
   status: PaymentRecordStatus;
+  /** Refunded: how much went back, when less than `total` (a paid spot that went to the waitlist keeps Simpulo's fee) */
+  refundedAmount?: number;
   paidAt?: string;
 }
 
@@ -302,7 +315,12 @@ export interface JoinRequest extends Attribution {
   userId: string;
   message: string;
   status: RequestStatus;
+  /** When it was sent – also the requestedAt that orders the waitlist */
   createdAt: string;
+  /** Waitlisted: a spot is offered until then (24h) – take it, or the next one gets it */
+  offerExpiresAt?: string;
+  /** Joined the waitlist while every free spot had an open request: those requests (ids) – they go first */
+  coveredBy?: string[];
 }
 
 export type MessageType = 'text' | 'image' | 'link' | 'system';
@@ -1466,6 +1484,11 @@ export const joinRequests: JoinRequest[] = [
   { id: 'r66', stayId: 's52', userId: 'u4', message: 'Riding upwind since last summer, want to land my first jump.', status: 'accepted', createdAt: '2026-10-17T12:00:00Z' },
   { id: 'r67', stayId: 's53', userId: 'u14', message: 'Played tennis for ten years, switching to padel. Gym at 6 as usual.', status: 'accepted', createdAt: '2026-10-19T09:00:00Z' },
   { id: 'r68', stayId: 's53', userId: 'u23', message: 'Padel three times a week in Dubai – London session in the evening.', status: 'accepted', createdAt: '2026-10-19T10:00:00Z' },
+  // Waitlist: Fitness House Canggu is full – Sofia is on its waitlist, Ben asked to join it (src/lib/waitlist.ts).
+  { id: 'rw1', stayId: 's1', userId: 'u9', message: 'If anyone drops out I\'m in – I train in Canggu anyway.', status: 'waitlisted', createdAt: '2026-10-22T08:00:00Z' },
+  { id: 'rw2', stayId: 's1', userId: 'u10', message: 'Would love the next free spot.', status: 'waitlist_requested', createdAt: '2026-10-23T09:30:00Z' },
+  // Creator House Uluwatu: 2 free spots, both already asked for (Lukas and Karim) – the waitlist shows beside "Request to join".
+  { id: 'rw3', stayId: 's2', userId: 'u14', message: 'Shooting a Bali series in December – would love to be part of this.', status: 'pending', createdAt: '2026-10-24T11:00:00Z' },
 ];
 
 // The extra Houses come with a filled-spot count but no crew: give each the accepted requests behind it, picked
@@ -1496,6 +1519,32 @@ const EXTRA_CREW_MESSAGES = [
         createdAt: new Date(new Date(house.createdAt).getTime() + (i + 1) * 5 * 60 * 60 * 1000).toISOString(),
       });
     }
+  }
+}
+
+/**
+ * The crew count includes the host: spotsTotal = everyone in the House, spotsFilled = the host + accepted members. The hand-written
+ * Houses are brought in line here – a missing member is added from the pool, a count below the crew raised to it, never above the total.
+ */
+{
+  const pool = users.filter((u) => u.id !== CURRENT_USER_ID && u.photos.length > 0);
+  let n = 0;
+  for (const [index, stay] of coreStays.entries()) {
+    const crew = () => joinRequests.filter((r) => r.stayId === stay.id && r.status === 'accepted').length;
+    const want = Math.min(Math.max(stay.spotsFilled, 1), stay.spotsTotal);
+    const candidates = pool.filter((u) => u.id !== stay.hostId && !joinRequests.some((r) => r.stayId === stay.id && r.userId === u.id));
+    for (let i = 0; crew() + 1 < want && i < candidates.length; i++) {
+      n++;
+      joinRequests.push({
+        id: `rc${n}`,
+        stayId: stay.id,
+        userId: candidates[(index * 5 + i * 3) % candidates.length].id,
+        message: EXTRA_CREW_MESSAGES[(index + i) % EXTRA_CREW_MESSAGES.length],
+        status: 'accepted',
+        createdAt: new Date(new Date(stay.createdAt).getTime() + (i + 1) * 4 * 60 * 60 * 1000).toISOString(),
+      });
+    }
+    stay.spotsFilled = Math.min(crew() + 1, stay.spotsTotal);
   }
 }
 
@@ -1538,11 +1587,19 @@ export const START_FILTERS = [
 // Extra Houses: imageQueries[0] is the cover, [1..3] the gallery; extra hosts keep their portrait + lifestyle photos.
 // Houses added after the image fetch borrow the photos of a similar House.
 const BORROWED_PHOTOS: Record<string, string> = { s54: 's34', s55: 's24' };
+/** The cover is the place or the activity, not a person: where the first photo shows someone up front, this one of the House's photos leads. */
+const COVER_PHOTO: Record<string, number> = {
+  s1: 3, s2: 3, x2: 3, s3: 2, x5: 2, s6: 3, s8: 2, s10: 2, x10: 2, s12: 3, x13: 2, s14: 2, x16: 2, s20: 2, s22: 3, x22: 2, s25: 2, x25: 3,
+  x26: 2, x27: 3, s30: 3, x32: 2, s33: 2, s34: 3, s35: 3, x36: 2, s37: 2, x38: 2, s39: 3, x39: 2, s41: 2, x42: 2, s43: 2, x43: 2, x44: 2,
+  x47: 2, s49: 2, x50: 2, s52: 2,
+};
 for (const stay of stays) {
   const source = BORROWED_PHOTOS[stay.id] ?? stay.id;
   stay.themeQueries = THEME_QUERIES[source] ?? stay.imageQueries?.map((q, i) => THEME_QUERY_FIXES[`${stay.id}/${i + 1}`] ?? q);
   stay.imageQueries ??= stay.themeQueries;
-  stay.photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(source, i + 1));
+  const photos = (stay.themeQueries ?? []).map((_, i) => houseThemePath(source, i + 1));
+  const lead = (COVER_PHOTO[source] ?? 1) - 1;
+  stay.photos = lead > 0 && photos[lead] ? [photos[lead], ...photos.filter((_, i) => i !== lead)] : photos;
   stay.who ??= /\bwomen\b/i.test(`${stay.title} ${stay.slug.replace(/-/g, ' ')}`) ? 'women' : 'mixed';
   const hostAge = users.find((u) => u.id === stay.hostId)?.age;
   if (hostAge) stay.ageRange ??= { min: Math.max(18, hostAge - 6), max: hostAge + 6 };
@@ -1567,4 +1624,12 @@ for (const user of users) {
   const house = hosted ?? stays.find((s) => s.id === joined?.stayId);
   // Someone without any photo (u17, just signed up) stays that way – it's how the "no photo yet" states are tested.
   if (user.photos.length > 0) user.photos = [userFace(user.id), ...(house?.photos ?? [])];
+}
+/* Interests: the categories of their own Houses, and two more per person. Reply times: a person's own pace with some spread. Both fixed per id. */
+for (const user of users) {
+  const seed = [...user.id].reduce((sum, ch, i) => sum + ch.charCodeAt(0) * (i + 7), 0);
+  const own = stays.filter((s) => s.hostId === user.id).map((s) => s.vibe);
+  user.interests ??= [...new Set([...own, VIBES[seed % VIBES.length].key, VIBES[(seed * 3 + 5) % VIBES.length].key])];
+  const pace = 20 + (seed % 12) * 15;
+  user.replyMinutes ??= [1, 0.6, 1.4, 0.8, 2].map((factor) => Math.round(pace * factor));
 }

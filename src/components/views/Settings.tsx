@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { cardClass } from "@/components/ui/Card";
 import { ListRow } from "@/components/ui/ListRow";
 import { Select } from "@/components/ui/Select";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
@@ -483,10 +483,12 @@ function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClo
           />
         </FormField>
       </div>
-      <Button variant="primary" size="lg" disabled={!ready} onClick={onConfirm} className="mt-5 w-full">
+      <ModalFooter onCancel={onClose} className="mt-5">
+<Button variant="primary" size="md" disabled={!ready} onClick={onConfirm}>
         <Lock aria-hidden />
         {t("confirm")}
       </Button>
+</ModalFooter>
     </Sheet>
   );
 }
