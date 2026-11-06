@@ -12,10 +12,17 @@ interface ToastState {
   tone: ToastTone;
   /** The message is a link to here */
   href?: string;
+  action?: ToastAction;
 }
 
-/** `href`: the message links there. */
-type ShowToast = (message: string, tone?: ToastTone, href?: string) => void;
+/** A small text button after the message, e.g. "Undo"; pressing it closes the toast. */
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+/** `href`: the message links there. `options.action`: "Declined · Undo"; `options.ms`: how long it stays (default 4s). */
+type ShowToast = (message: string, tone?: ToastTone, href?: string, options?: { action?: ToastAction; ms?: number }) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
 
@@ -30,11 +37,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const showToast = useCallback<ShowToast>((message, tone = "done", href) => {
+  const showToast = useCallback<ShowToast>((message, tone = "done", href, options) => {
     nextId.current += 1;
-    setToast({ id: nextId.current, message, tone, href });
+    setToast({ id: nextId.current, message, tone, href, action: options?.action });
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToast(null), TOAST_MS);
+    timer.current = setTimeout(() => setToast(null), options?.ms ?? TOAST_MS);
   }, []);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -52,6 +59,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               </a>
             ) : (
               <span className="min-w-0">{toast.message}</span>
+            )}
+            {toast.action && (
+              <>
+                <span aria-hidden className="text-muted">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearTimeout(timer.current);
+                    setToast(null);
+                    toast.action?.onClick();
+                  }}
+                  className="pointer-events-auto -my-1 -mr-1 rounded-full px-2 py-1 font-semibold text-ink transition-colors duration-150 hover:bg-ink/6 focus-visible:outline-2 focus-visible:outline-(--focus-ring)"
+                >
+                  {toast.action.label}
+                </button>
+              </>
             )}
           </GlassPanel>
         )}

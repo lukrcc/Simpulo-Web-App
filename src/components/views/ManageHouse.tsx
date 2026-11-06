@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useStore } from "@/lib/store";
+import { didntWorkOut } from "@/lib/requests";
 
 /** /your-houses/[id] – one House you host or joined: "← Your houses", the head, where it stands, the tabs. The page scrolls; no footer. */
 export function ManageHouse({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +32,7 @@ function ManageHouseGate({ id }: { id: string }) {
   // Host, or someone on the way in (request, invite, waitlist) – everyone else gets the public page.
   const involved =
     stay !== undefined &&
-    (stay.hostId === store.currentUserId || store.joinRequests.some((r) => r.stayId === stay.id && r.userId === store.currentUserId && r.status !== "declined"));
+    (stay.hostId === store.currentUserId || store.joinRequests.some((r) => r.stayId === stay.id && r.userId === store.currentUserId && !didntWorkOut(r)));
 
   useEffect(() => {
     if (stay && !involved) router.replace(`/house/${stay.slug}`);

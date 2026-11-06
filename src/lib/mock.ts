@@ -1,7 +1,7 @@
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
-import { FACE_QUERIES, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
+import { FACE_QUERIES, isWoman, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
 import { extraHosts, extraHouses, type ExtraHost, type ExtraHouse } from './mock-houses-extra';
 import { VIBES, locationOf } from './catalog';
 
@@ -20,7 +20,7 @@ export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
 export type StayStatus = 'draft_unclaimed' | 'draft' | 'published' | 'booked' | 'completed' | 'closed';
 // invited = the host asked them (from a past crew) – it holds a spot until they accept (→ accepted) or decline
 /** 'waitlist_requested' → 'waitlisted': the waitlist behind a full House (src/lib/waitlist.ts) */
-export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'invited' | 'waitlist_requested' | 'waitlisted';
+export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'invited' | 'waitlist_requested' | 'waitlisted';
 
 /**
  * Where someone came from: the `ref` (the user whose share link they opened) and the UTM tags of their first visit
@@ -47,6 +47,8 @@ export interface User extends Attribution {
   facePhotoQuery?: string;  // Pixabay search for the face photo (mock only)
   imageQueries?: string[];  // Pixabay searches (mock only): [0] portrait (= facePhotoQuery), [1..2] lifestyle photos
   verified: boolean;
+  /** From the profile – only used for audience Houses (women only); unset = not given */
+  gender?: 'woman' | 'man' | 'other';
   /** Professional host: runs hosted experiences ("Pro host" label – feature flag hostPremium) */
   isPro: boolean;
   /** May add a host fee to their Houses (feature flag hostPremium) */
@@ -213,6 +215,8 @@ export interface Stay {
   allPaidAt?: string;
   /** Who the House is for; unset = mixed */
   who?: 'mixed' | 'women';
+  /** An audience House: only people whose profile fits can ask (women only); null/unset = everyone */
+  audience?: 'women' | null;
   /** Prepared on behalf of someone (admin): who it's for and the claim link. Kept after the claim, with claimedAt. */
   claim?: StayClaim;
   /** "Do it again?": the House this draft was copied from */
@@ -1420,6 +1424,14 @@ export const joinRequests: JoinRequest[] = [
   { id: 'r11', stayId: 's16', userId: 'u3', message: 'Not e-com but fintech. Fine with gym at 6.', status: 'declined', createdAt: '2026-10-14T11:00:00Z' },
   { id: 'r12', stayId: 's18', userId: 'u7', message: 'US streaming hours, this is literally my schedule.', status: 'accepted', createdAt: '2026-10-18T02:00:00Z' },
   { id: 'r13', stayId: 's13', userId: 'u1', message: 'I\'m in Osaka right now – happy to help with logistics.', status: 'pending', createdAt: '2026-10-20T06:00:00Z' },
+  // Lukas asked twice and it didn't work out – once the host said no, once the 48h ran out. Your houses › Past shows similar Houses.
+  { id: 'rd1', stayId: 's7', userId: 'u1', message: 'Building a co-living app – would love to ship next to other founders.', status: 'declined', createdAt: '2026-11-02T10:00:00Z' },
+  { id: 'rd2', stayId: 's5', userId: 'u1', message: 'A remote month in the mountains is exactly what I need.', status: 'expired', createdAt: '2026-10-30T09:00:00Z' },
+  // Requests to Lukas's Fitness House that he let run out – his response rate drops under 70 % (Needs you shows the nudge).
+  { id: 're1', stayId: 's1', userId: 'u11', message: 'Would love to train with you all.', status: 'expired', createdAt: '2026-10-09T08:00:00Z' },
+  { id: 're2', stayId: 's1', userId: 'u14', message: 'Morning lifts, evening calls – is that okay?', status: 'expired', createdAt: '2026-10-10T18:00:00Z' },
+  { id: 're3', stayId: 's1', userId: 'u16', message: 'Marathon block in February, this fits perfectly.', status: 'expired', createdAt: '2026-10-12T07:00:00Z' },
+  { id: 're4', stayId: 's1', userId: 'u20', message: 'Climber, but I\'ll lift if you make me.', status: 'expired', createdAt: '2026-10-13T12:00:00Z' },
   { id: 'r14', stayId: 's1', userId: 'u17', message: 'First trip like this – I train 4×/week and I\'m an early riser.', status: 'pending', createdAt: '2026-10-21T07:00:00Z' },
   { id: 'r15', stayId: 's21', userId: 'u16', message: 'I stream backend coding on Twitch at night – would love a proper stream room and raids with the house.', status: 'accepted', createdAt: '2026-10-21T09:30:00Z' },
   { id: 'r16', stayId: 's22', userId: 'u7', message: 'Game-dev streamer, happy to carry the second camera and do a co-stream night market tour.', status: 'accepted', createdAt: '2026-10-20T20:15:00Z' },
@@ -1502,11 +1514,15 @@ const EXTRA_CREW_MESSAGES = [
   'First time doing something like this, but it feels right.',
   'Dates work perfectly for me. Happy to help with planning.',
 ];
+/** Women-only: set explicitly, or named so ("Women's Creator House") – `who` is filled in from the same rule further down. */
+const womenOnly = (house: { who?: string; title: string; slug: string }) => house.who === 'women' || /\bwomen\b/i.test(`${house.title} ${house.slug.replace(/-/g, ' ')}`);
+
 {
   const pool = users.filter((u) => u.id !== CURRENT_USER_ID && u.photos.length > 0);
   let n = 0;
   for (const [index, house] of extraHouses.entries()) {
-    const candidates = pool.filter((u) => u.id !== house.hostId);
+    // A women-only House takes women only (the portrait searches say "man" / "woman").
+    const candidates = pool.filter((u) => u.id !== house.hostId && (!womenOnly(house) || isWoman(u.id)));
     const crewSize = Math.max(0, (house.status === 'full' ? house.spotsTotal : house.spotsFilled) - 1);
     for (let i = 0; i < crewSize; i++) {
       const member = candidates[(index * 7 + i * 11) % candidates.length];
@@ -1534,7 +1550,7 @@ const EXTRA_CREW_MESSAGES = [
   for (const [index, stay] of coreStays.entries()) {
     const crew = () => joinRequests.filter((r) => r.stayId === stay.id && r.status === 'accepted').length;
     const want = Math.min(Math.max(stay.spotsFilled, 1), stay.spotsTotal);
-    const candidates = pool.filter((u) => u.id !== stay.hostId && !joinRequests.some((r) => r.stayId === stay.id && r.userId === u.id));
+    const candidates = pool.filter((u) => u.id !== stay.hostId && !joinRequests.some((r) => r.stayId === stay.id && r.userId === u.id) && (!womenOnly(stay) || isWoman(u.id)));
     for (let i = 0; crew() + 1 < want && i < candidates.length; i++) {
       n++;
       joinRequests.push({
@@ -1560,6 +1576,36 @@ const EXTRA_CREW_MESSAGES = [
   for (const user of users) {
     user.verified = user.id === CURRENT_USER_ID ? false : hosts.has(user.id) ? hash(user.id) % 3 !== 0 : hash(user.id) % 2 === 0;
   }
+}
+
+/**
+ * Open requests wait 48 hours (config/policies.ts), so the mock's are dated from now: one just in, one at 31h left, one close to the end
+ * (under 12h – the countdown turns ink), the rest spread in between. Older ones would expire on the first load.
+ */
+{
+  const MOCK_HOUR = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+  const AGO: Record<string, number> = { r3: 17, r4: 41, r14: 3, r5: 26, r9: 20, r18: 9 };
+  let i = 0;
+  for (const request of joinRequests) {
+    if (request.status !== 'pending') continue;
+    request.createdAt = new Date(MOCK_HOUR - (AGO[request.id] ?? 6 + ((i++ * 7) % 34)) * 3_600_000).toISOString();
+  }
+}
+
+/**
+ * Who a House is for, and who people are: a women-only House is an audience House (`audience: 'women'`); the profile's gender comes from
+ * the mock portraits. A few people leave it open – they can still ask, the host decides.
+ */
+for (const stay of stays) if (womenOnly(stay)) stay.audience = 'women';
+for (const user of users) {
+  if (user.id !== CURRENT_USER_ID && Number(user.id.replace(/\D/g, '')) % 9 === 4) continue;
+  user.gender = isWoman(user.id) ? 'woman' : 'man';
+}
+
+/** Women-only Houses: anyone else asking or in the crew is taken out (the mock's guard – the real app checks at request time). */
+for (let i = joinRequests.length - 1; i >= 0; i--) {
+  const stay = stays.find((s) => s.id === joinRequests[i].stayId);
+  if (stay && womenOnly(stay) && !isWoman(joinRequests[i].userId)) joinRequests.splice(i, 1);
 }
 
 export const threads: Thread[] = [

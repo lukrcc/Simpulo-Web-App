@@ -50,6 +50,7 @@ export type NotifyEventKey =
   // The waitlist (src/lib/waitlist.ts)
   | "waitlistRequest"
   | "requestWithdrawn"
+  | "requestExpired"
   | "houseCancelled"
   | "waitlistAccepted"
   | "waitlistRemoved"
@@ -105,6 +106,7 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   left: "system",
   waitlistRequest: "request_received",
   requestWithdrawn: "request_received",
+  requestExpired: "request_declined",
   houseCancelled: "system",
   waitlistAccepted: "request_accepted",
   waitlistRemoved: "request_declined",

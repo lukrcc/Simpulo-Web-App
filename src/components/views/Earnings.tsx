@@ -1,33 +1,179 @@
 "use client";
 
-import { Download } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, Download, Landmark, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { Button } from "@/components/ui/ActionButton";
+import Link from "next/link";
+import { useState } from "react";
+import { RequireLogin } from "@/components/auth/RequireLogin";
+import { Container } from "@/components/layout/Container";
+import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/PayoutSetup";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { useFormat } from "@/i18n/format";
-import { earningsCsv, type Earnings } from "@/lib/earnings";
+import { earningsCsv, earningsFor, type Earnings } from "@/lib/earnings";
 import { manageHref } from "@/lib/houseTasks";
-import { cn } from "@/lib/utils";
-import { PayoutStatusCard } from "@/components/payouts/PayoutSetup";
-import { useStore } from "@/lib/store";
+import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useBalance, usePayouts } from "@/lib/payments/usePayouts";
+import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const SECTION_TITLE = "text-eyebrow uppercase text-ink/55";
-const CHART_HEIGHT = 160;
+const CHART_HEIGHT = 200;
 
-/**
- * Your houses › Earnings: four numbers, the payouts per month over the last 12 (one series: bars ink 70 %, a tooltip on each), the table per House,
- * the payout history, a CSV for the tax return. Amounts in the House's currency – that's what is paid out.
- */
-export function EarningsView({ earnings }: { earnings: Earnings }) {
+/** /your-houses/earnings – everything in cards, the same container as Explore. */
+export function EarningsPage() {
+  const t = useTranslations("houses.earnings");
+  return (
+    <RequireLogin title={t("loginTitle")}>
+      <EarningsContent />
+    </RequireLogin>
+  );
+}
+
+function EarningsContent() {
+  const t = useTranslations("houses.earnings");
+  const tHouses = useTranslations("houses");
+  const store = useStore();
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const earnings = earningsFor(store, store.currentUserId, today);
+  return (
+    <Container className="pb-(--space-section) pt-6 md:pt-8">
+      <Link href="/your-houses" className={buttonStyles("tertiary", "sm", "-ml-4")}>
+        <ArrowLeft aria-hidden />
+        {tHouses("title")}
+      </Link>
+      <h1 className="sr-only">{t("title")}</h1>
+      <div className="mt-6 flex flex-col gap-5">
+        <PayoutAccountCard />
+        <HeadCard earnings={earnings} />
+        {earnings.months.some((m) => m.amount > 0) && <ChartCard earnings={earnings} />}
+        <PayoutsCard earnings={earnings} />
+      </div>
+      <p className="mt-4 text-small text-muted">{t("taxNote")}</p>
+    </Container>
+  );
+}
+
+/** One card: "Payouts not set up" + Set up, or "Payouts to ****1234 · Edit" (and the in-between states). */
+function PayoutAccountCard() {
+  const tE = useTranslations("houses.earnings");
+  const tPayouts = useTranslations("payouts");
+  const { status, last4 } = usePayoutAccount();
+  const { start, busy } = useStartOnboarding();
+  const [setup, setSetup] = useState(false);
+  if (status === null) return <div className="card-soft h-20 animate-pulse rounded-3xl" />;
+  const line = status === "active" ? tE("accountActive", { last4: last4 ?? "1234" }) : status === "pending" ? tPayouts("pendingTitle") : status === "action_required" ? tPayouts("actionTitle") : tE("accountNone");
+  return (
+    <section className="card-soft flex flex-wrap items-center gap-4 rounded-3xl px-6 py-5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink">
+        {status === "pending" ? <Loader2 className="size-4.5 animate-spin" aria-hidden /> : <Landmark className="size-4.5" aria-hidden />}
+      </span>
+      <p className="min-w-0 flex-1 text-body font-semibold text-ink">{line}</p>
+      {status === "active" && (
+        <Button variant="tertiary" size="sm" onClick={start} disabled={busy}>
+          {tE("accountEdit")}
+        </Button>
+      )}
+      {status === "none" && (
+        <Button variant="secondary" size="sm" onClick={() => setSetup(true)}>
+          {tE("accountSetUp")}
+        </Button>
+      )}
+      {status === "action_required" && (
+        <Button variant="secondary" size="sm" onClick={start} disabled={busy}>
+          {tPayouts("actionAction")}
+        </Button>
+      )}
+      <PayoutSetupSheet open={setup} onClose={() => setSetup(false)} />
+    </section>
+  );
+}
+
+/** This year large on the left; pending and the next payout small on the right; all time only when it says something else. */
+function HeadCard({ earnings }: { earnings: Earnings }) {
   const t = useTranslations("houses.earnings");
   const f = useFormat();
   const me = useStore().currentUserId;
-  // The history and the next payout come from the payment provider (getPayouts / getBalance).
-  const records = usePayouts(me, earnings) ?? [];
   const balance = useBalance(me, earnings);
   const money = (amount: number) => f.price(amount, earnings.currency);
+  const small = "flex flex-col gap-0.5";
+  return (
+    <section className="card-soft flex flex-wrap items-end justify-between gap-6 rounded-3xl p-6">
+      <div>
+        <p className={SECTION_TITLE}>{t("thisYear")}</p>
+        <p className="mt-2 text-display tabular-nums text-ink">{money(earnings.thisYear)}</p>
+        {earnings.allTime !== earnings.thisYear && <p className="mt-1 text-small text-muted">{t("allTimeLine", { amount: money(earnings.allTime) })}</p>}
+      </div>
+      <div className="flex gap-10">
+        <div className={small}>
+          <span className="text-small text-muted">{t("pending")}</span>
+          <span className="text-h3 tabular-nums text-ink">{balance ? money(balance.pending) : "…"}</span>
+        </div>
+        <div className={small}>
+          <span className="text-small text-muted">{t("next")}</span>
+          <span className="text-h3 tabular-nums text-ink">{balance?.next ? `${money(balance.next.amount)} · ${f.day(balance.next.date)}` : balance ? "—" : "…"}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Payouts per month, the last 12 (one series): bars in muted with rounded corners, the current month in ink, the amount as a tooltip. Under them
+ * the month, the year small under a January.
+ */
+function ChartCard({ earnings }: { earnings: Earnings }) {
+  const t = useTranslations("houses.earnings");
+  const f = useFormat();
+  const formatter = useFormatter();
+  const { months } = earnings;
+  const max = Math.max(1, ...months.map((m) => m.amount));
+  // The current month in ink – or, while it has nothing yet, the latest month that paid out.
+  const latest = months.findLastIndex((m) => m.amount > 0);
+  const current = months[months.length - 1].amount > 0 || latest < 0 ? months.length - 1 : latest;
+  return (
+    <section aria-labelledby="earnings-months" className="card-soft rounded-3xl p-6">
+      <h2 id="earnings-months" className={SECTION_TITLE}>
+        {t("perMonth")}
+      </h2>
+      <div className="mt-5 flex items-end gap-2" style={{ height: CHART_HEIGHT }}>
+        {months.map(({ month, amount }, i) => {
+          const date = new Date(`${month}-01T00:00:00Z`);
+          const label = `${formatter.dateTime(date, { month: "long", year: "numeric", timeZone: "UTC" })} · ${f.price(amount, earnings.currency)}`;
+          return (
+            <button key={month} type="button" aria-label={label} data-tooltip={label} className="group flex h-full min-w-0 flex-1 items-end justify-center rounded-lg outline-none">
+              <span
+                className={cn("block w-full max-w-10 rounded-md transition-colors duration-150", i === current ? "bg-ink" : "bg-ink/20 group-hover:bg-ink/35 group-focus-visible:bg-ink/35")}
+                style={{ height: amount > 0 ? Math.max(6, Math.round((amount / max) * CHART_HEIGHT)) : 3 }}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex gap-2">
+        {months.map(({ month }) => {
+          const date = new Date(`${month}-01T00:00:00Z`);
+          return (
+            <span key={month} className="flex min-w-0 flex-1 flex-col items-center text-center">
+              <span className="truncate text-small text-muted">{formatter.dateTime(date, { month: "short", timeZone: "UTC" })}</span>
+              {month.endsWith("-01") && <span className="text-eyebrow text-ink/40">{month.slice(0, 4)}</span>}
+            </span>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** One table for every payout: House · Dates · Guests · Gross · Fee · Payout · Paid on · Status; "Export CSV" in its head. */
+function PayoutsCard({ earnings }: { earnings: Earnings }) {
+  const t = useTranslations("houses.earnings");
+  const f = useFormat();
+  const me = useStore().currentUserId;
+  // The provider's payout records (dates, status) next to each House's figures.
+  const records = usePayouts(me, earnings) ?? [];
+  const money = (amount: number) => f.price(amount, earnings.currency);
+  const recordOf = (rowId: string) => records.find((r) => r.id === `po-${rowId}`);
 
   function exportCsv() {
     const blob = new Blob([earningsCsv(earnings)], { type: "text/csv;charset=utf-8" });
@@ -39,131 +185,63 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
     URL.revokeObjectURL(url);
   }
 
-  const tiles = [
-    { label: t("allTime"), value: money(earnings.allTime) },
-    { label: t("thisYear"), value: money(earnings.thisYear) },
-    { label: t("pending"), value: balance ? money(balance.pending) : "…" },
-    { label: t("next"), value: balance?.next ? money(balance.next.amount) : balance ? "–" : "…", sub: balance?.next ? f.day(balance.next.date) : undefined },
-  ];
-
+  const columns = ["house", "dates", "guests", "gross", "fee", "payout", "paidOn", "status"] as const;
+  const right = new Set<string>(["guests", "gross", "fee", "payout"]);
   return (
-    <div className="flex flex-col gap-(--space-section)">
-      <div className="flex flex-col gap-4">
-      <PayoutStatusCard />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {tiles.map((tile) => (
-          <div key={tile.label} className="card-soft flex min-w-0 flex-col gap-1 rounded-3xl p-5">
-            <span className="text-small text-muted">{tile.label}</span>
-            <span className="text-h2 tabular-nums text-ink">{tile.value}</span>
-            {tile.sub && <span className="text-small text-muted">{tile.sub}</span>}
-          </div>
-        ))}
-      </div>
-      </div>
-
-      <section aria-labelledby="earnings-months">
-        <h2 id="earnings-months" className={SECTION_TITLE}>
-          {t("perMonth")}
+    <section aria-labelledby="earnings-payouts" className="card-soft overflow-hidden rounded-3xl">
+      <div className="flex items-center justify-between gap-4 px-6 pt-5">
+        <h2 id="earnings-payouts" className={SECTION_TITLE}>
+          {t("payouts")}
         </h2>
-        {earnings.months.some((m) => m.amount > 0) ? <MonthBars months={earnings.months} money={money} /> : <p className="mt-3 text-body text-muted">{t("noMonths")}</p>}
-      </section>
-
-      <section aria-labelledby="earnings-houses">
-        <h2 id="earnings-houses" className={SECTION_TITLE}>
-          {t("perHouse")}
-        </h2>
-        <div className="-mx-3 mt-3 overflow-x-auto">
-          <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
+        <Button variant="secondary" size="sm" onClick={exportCsv} disabled={earnings.rows.length === 0}>
+          <Download aria-hidden />
+          {t("export")}
+        </Button>
+      </div>
+      {earnings.rows.length === 0 ? (
+        <p className="px-6 pb-6 pt-4 text-body text-muted">{t("noPayouts")}</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto px-6 pb-2">
+          <table className="w-full min-w-[820px] text-left">
             <thead>
               <tr className="text-small text-muted">
-                {(["house", "dates", "guests", "gross", "fee", "payout", "status"] as const).map((key, i) => (
-                  <th key={key} scope="col" className={cn("px-3 pb-2 font-medium", i >= 2 && i <= 5 && "text-right")}>
+                {columns.map((key) => (
+                  <th key={key} scope="col" className={cn("pb-2 pr-4 font-medium last:pr-0", right.has(key) && "text-right")}>
                     {t(`columns.${key}`)}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-body text-ink">
-              {earnings.rows.map((row) => (
-                <tr key={row.id} className="[&>td]:px-3 [&>td]:py-3 hover:[&>td]:bg-(--chip-bg) [&>td:first-child]:rounded-l-2xl [&>td:last-child]:rounded-r-2xl">
-                  <td className="max-w-64 truncate font-semibold">{row.stay ? <Link href={manageHref(row.stay)} className="hover:underline">{row.title}</Link> : row.title}</td>
-                  <td className="whitespace-nowrap text-muted">{f.stayDatesLong({ startDate: row.startDate, endDate: row.endDate })}</td>
-                  <td className="text-right tabular-nums">{row.guests}</td>
-                  <td className="text-right tabular-nums">{money(row.gross)}</td>
-                  <td className="text-right tabular-nums text-muted">{row.fee > 0 ? `−${money(row.fee)}` : money(0)}</td>
-                  <td className="text-right font-semibold tabular-nums">{money(row.payout)}</td>
-                  <td>
-                    <Badge className="bg-ink/6">{t(`status.${row.status}`)}</Badge>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-ink/8 border-t border-ink/8 text-body text-ink">
+              {earnings.rows.map((row) => {
+                const record = recordOf(row.id);
+                return (
+                  <tr key={row.id} className="[&>td]:py-3.5 [&>td]:pr-4 [&>td:last-child]:pr-0">
+                    <td className="max-w-64 truncate font-semibold">{row.stay ? <Link href={manageHref(row.stay)} className="hover:underline">{row.title}</Link> : row.title}</td>
+                    <td className="whitespace-nowrap text-muted">{f.stayDatesLong({ startDate: row.startDate, endDate: row.endDate })}</td>
+                    <td className="text-right tabular-nums">{row.guests}</td>
+                    <td className="text-right tabular-nums">{money(row.gross)}</td>
+                    <td className="text-right tabular-nums text-muted">
+                      {row.fee > 0 ? (
+                        `−${money(row.fee)}`
+                      ) : (
+                        <span tabIndex={0} data-tooltip={t("freeReason")} className="cursor-help underline decoration-dotted underline-offset-4 outline-none">
+                          {t("free")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-right font-semibold tabular-nums">{money(row.payout)}</td>
+                    <td className="whitespace-nowrap text-muted">{row.status === "pending" ? "—" : f.day(record?.date ?? row.payoutDate)}</td>
+                    <td>
+                      <Badge className="bg-ink/6">{t(`status.${row.status}`)}</Badge>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section aria-labelledby="earnings-payouts">
-        <h2 id="earnings-payouts" className={SECTION_TITLE}>
-          {t("payouts")}
-        </h2>
-        {records.length === 0 && <p className="mt-3 text-body text-muted">{t("noPayouts")}</p>}
-        <ul className="-mx-3 mt-3 flex flex-col">
-          {records.map((payout) => (
-            <li key={payout.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 rounded-2xl px-3 py-3 sm:grid-cols-[120px_120px_minmax(0,1fr)_auto]">
-              <span className="text-body text-ink">{f.day(payout.date)}</span>
-              <span className="text-body font-semibold tabular-nums text-ink sm:text-right">{money(payout.amount)}</span>
-              <span className="text-small text-muted">{t("account", { account: payout.account })}</span>
-              <span className="justify-self-end sm:justify-self-start">
-                <Badge className="bg-ink/6">{t(`status.${payout.status}`)}</Badge>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="flex flex-col items-start gap-2">
-        <Button variant="secondary" onClick={exportCsv}>
-          <Download aria-hidden />
-          {t("export")}
-        </Button>
-        <p className="text-small text-muted">{t("taxNote")}</p>
-      </div>
-    </div>
-  );
-}
-
-/** One bar per month, ink 70 % with a 4px round top on the baseline; hover or focus shows "March 2026 · €1,240". Month names, the year only before a January. */
-function MonthBars({ months, money }: { months: Earnings["months"]; money: (amount: number) => string }) {
-  const formatter = useFormatter();
-  const max = Math.max(1, ...months.map((m) => m.amount));
-  return (
-    <div className="mt-4">
-      <div className="flex items-end gap-2 border-b border-ink/10" style={{ height: CHART_HEIGHT }}>
-        {months.map(({ month, amount }) => {
-          const date = new Date(`${month}-01T00:00:00Z`);
-          const label = `${formatter.dateTime(date, { month: "long", year: "numeric", timeZone: "UTC" })} · ${money(amount)}`;
-          return (
-            <button key={month} type="button" aria-label={label} data-tooltip={label} className="group flex h-full min-w-0 flex-1 items-end justify-center rounded-t-md outline-none">
-              {/* A thin bar (at most 36px) in its month's column; the whole column takes the hover. */}
-              <span
-                className="block w-full max-w-9 rounded-t-[4px] bg-ink/70 transition-colors duration-150 group-hover:bg-ink group-focus-visible:bg-ink"
-                style={{ height: amount > 0 ? Math.max(4, Math.round((amount / max) * CHART_HEIGHT)) : 0 }}
-              />
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex gap-2">
-        {months.map(({ month }) => {
-          const date = new Date(`${month}-01T00:00:00Z`);
-          return (
-            <span key={month} className="min-w-0 flex-1 truncate text-center text-small text-muted">
-              {month.endsWith("-01") && <span className="mr-1 text-ink/55">{month.slice(0, 4)}</span>}
-              {formatter.dateTime(date, { month: "short", timeZone: "UTC" })}
-            </span>
-          );
-        })}
-      </div>
-    </div>
+      )}
+    </section>
   );
 }

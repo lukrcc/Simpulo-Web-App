@@ -8,6 +8,7 @@ import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type 
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 import { ageOn, MIN_AGE } from "@/lib/birthDate";
+import { audienceFit, didntWorkOut } from "@/lib/requests";
 import { hasOffer, waitlistOf, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
@@ -229,6 +230,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   }
   // Only verified guests (the host's choice): no request without the check – and the way to it.
   const verifiedOnly = Boolean(stay.verifiedGuestsOnly) && !isHost && !isMember && !myRequest && !me?.verified;
+  // An audience House (women only): a calm line above the button. The profile says otherwise → the button stays, but can't be pressed;
+  // the profile doesn't say (or logged out) → the same line, and the request goes through – the host decides.
+  const audience = !isHost && !isMember && !myRequest ? audienceFit(stay, me) : "none";
   // An open request (to join or for the waitlist) can be taken back: a link under the actions, confirmed in a small popover.
   const withdrawNote =
     myRequest && !previewing && (myRequest.status === "pending" || myRequest.status === "waitlist_requested") ? (
@@ -271,12 +275,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       onRespond={respondToInvite}
       waitlist={{ can: canWaitlist, onJoin: startWaitlist, position: myPosition, offer: offer ? { pay: payToTake, onTake: takeSpot } : undefined }}
       verifiedOnly={verifiedOnly}
+      audienceBlocked={audience === "blocked"}
     />
   );
   const cta = ctaFor(true);
 
   // The crew-only and host-only panels: between the facts and the House's own story.
-  const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (myRequest?.status === "declined" || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
+  const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (didntWorkOut(myRequest) || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
   /** A free spot: a link that holds it for 48h, on the clipboard. */
   async function inviteToSpot() {
     const created = store.createHouseInvite(stay.id, {});
@@ -331,12 +336,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             }
             stage={stage}
             note={ctaNote}
+            notice={audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : undefined}
             showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
             actions={<HouseActions menu={!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={iconButtonStyles("sm")} />} onBack={goBack} />}
           />
           <div className="space-y-6 empty:hidden">
         {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
-        {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={myRequest?.status === "declined"} />}
+        {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
 
         {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
         {myRequest?.status === "invited" && (
@@ -490,12 +496,14 @@ interface StayCtaProps {
   withSecondary: boolean;
   /** The host takes only verified guests, and the viewer isn't one */
   verifiedOnly: boolean;
+  /** Women-only House, and the profile says otherwise */
+  audienceBlocked?: boolean;
 }
 
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly }: StayCtaProps) {
+function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly, audienceBlocked }: StayCtaProps) {
   const t = useTranslations("request.cta");
   const tVerifyCta = useTranslations("verification");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
@@ -600,7 +608,8 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
       </Button>
     );
   }
-  if (request?.status === "declined") {
+  // Declined or expired: the same calm words – never which of the two.
+  if (didntWorkOut(request)) {
     return (
       <Button variant={variant} size={size} disabled>
         {t("declined")}
@@ -634,6 +643,14 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
     return (
       <Button variant={variant} size={size} disabled>
         {tVerifyCta("verifiedOnlyCta")}
+      </Button>
+    );
+  }
+  // An audience House the profile doesn't fit: the same button, not pressable – the line above it says why.
+  if (audienceBlocked) {
+    return (
+      <Button variant={variant} size={size} disabled>
+        {t("join")}
       </Button>
     );
   }

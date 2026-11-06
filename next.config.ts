@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
       { source: "/destinations", destination: "/", permanent: true },
       { source: "/next", destination: "/", permanent: true },
       // Your houses: /your-houses (overview), /your-houses/[id] (one House), /your-houses/[id]/edit. Older paths keep working.
+      // Earnings has its own page.
+      { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/earnings", permanent: true },
       { source: "/houses", destination: "/your-houses", permanent: true },
       { source: "/houses/:id/manage", destination: "/your-houses/:id", permanent: true },
       // The category pages are gone: a category is a filter on Explore.

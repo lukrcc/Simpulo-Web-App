@@ -52,6 +52,8 @@ import type {
 } from "./types";
 import { findUrls, makeId, openSpots, slugify } from "./utils";
 import { bindPaymentsMock } from "./payments/mock";
+import { audienceFit, didntWorkOut, requestExpiresAt } from "./requests";
+import { earningsFor } from "./earnings";
 import { payments } from "./payments";
 import { hasOffer, pendingRequestsOf, WAITLIST_OFFER_HOURS, waitlistOf, waitlistOpen, waitlistReason, waitlistRefund } from "./waitlist";
 
@@ -164,6 +166,7 @@ type StoreAction =
   | { type: "requestWaitlist"; stayId: string; id: string; message: string; at: string }
   | { type: "withdrawRequest"; stayId: string; at: string }
   | { type: "deleteDraft"; stayId: string }
+  | { type: "undoDecline"; requestId: string }
   | { type: "addSupportCase"; supportCase: SupportCase }
   | { type: "removeFromWaitlist"; requestId: string }
   | { type: "takeWaitlistSpot"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
@@ -274,6 +277,8 @@ interface StoreActions {
   addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
   leaveStay: (stayId: string) => void;
+  /** Host: takes back "Not a fit" right after (the toast's Undo) – the request is open again, the guest's notification gone. */
+  undoDecline: (requestId: string) => void;
   /** Host: a House that's still a draft is deleted (never published, nobody in it). */
   deleteDraft: (stayId: string) => void;
   /** Takes back the current user's open request (to join or for the waitlist); the host is told. */
@@ -470,6 +475,11 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
   const joined = published.filter((s) => s.hostId !== me && requests.some((r) => r.stayId === s.id && r.userId === me && r.status === "accepted"));
   const locked = joined.filter((s) => s.accommodationStatus === "locked" && s.pricePerPerson);
   const others = published.filter((s) => s.hostId !== me && !joined.includes(s));
+  // Requests of Lukas's that didn't work out (declined or expired): the same words for both, leading to Your houses.
+  const gone = requests.filter((r) => r.userId === me && (r.status === "declined" || r.status === "expired")).flatMap((r) => {
+    const stay = published.find((s) => s.id === r.stayId);
+    return stay ? [{ stay, key: r.status === "declined" ? ("declined" as const) : ("requestExpired" as const) }] : [];
+  });
   const names = users.filter((u) => u.id !== me && u.photos.length > 0).map((u) => u.name.split(" ")[0]);
   const chats = threads.filter((t) => t.participantIds.includes(me));
   const pick = <T,>(list: T[], i: number): T | undefined => list[i % Math.max(1, list.length)];
@@ -481,7 +491,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
     (i) => { const s = pick(locked, i); return s ? { key: "reminderPayDue", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const s = pick(others, i * 7); return s ? { key: "searchOpened", values: { place: s.city || s.region, title: s.title, hours: SEARCH_HEAD_START_HOURS }, stayId: s.id } : null; },
     (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
-    (i) => { const s = pick(others, i * 5 + 2); return s ? { key: "declined", values: { title: s.title }, stayId: s.id } : null; },
+    (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses" } : null; },
     (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
     (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/how-it-works"] as const)[i % 3] }),
   ];
@@ -603,7 +613,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 1;
+const MOCK_VERSION = 2;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 
@@ -932,6 +942,18 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
   return next;
 }
 
+/** Open requests past their 48 hours become "expired"; the guest gets the same words as for a no. */
+function expireRequests(state: StoreState, at: string): StoreState {
+  const due = state.joinRequests.filter((r) => r.status === "pending" && requestExpiresAt(r) <= at);
+  if (due.length === 0) return state;
+  let next: StoreState = { ...state, joinRequests: state.joinRequests.map((r) => (due.some((d) => d.id === r.id) ? { ...r, status: "expired" as const } : r)) };
+  for (const r of due) {
+    const stay = state.stays.find((s) => s.id === r.stayId);
+    if (stay) next = { ...next, notifications: notify(next, [r.userId], "requestExpired", { title: stay.title }, `${r.id}-expired`, stay.id, undefined, { href: "/your-houses" }) };
+  }
+  return next;
+}
+
 /**
  * The waitlist's clock (src/lib/waitlist.ts): offers that ran out drop their person from the list; every free spot of an open House goes,
  * as an offer for 24h, to the first waitlisted person without one (they and the host are told); `Stay.spotsOffered` counts the running
@@ -981,7 +1003,9 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
   const at = "at" in action && action.at ? action.at : new Date().toISOString();
   const settled = moved ? settlePayments(applied, at, action.type !== "settlePayments") : applied;
   // The waitlist follows every change and every tick of the clock: offers run out, free spots are offered.
-  const next = moved || applied.joinRequests !== state.joinRequests ? syncWaitlist(settled, at) : settled;
+  const synced = moved || applied.joinRequests !== state.joinRequests ? syncWaitlist(settled, at) : settled;
+  // Open requests expire after 48h (config/policies.ts): the guest hears it like a no – "didn't work out".
+  const next = moved ? expireRequests(synced, at) : synced;
   if (next.stays === state.stays) return next;
   const stays = withLaunchVisibility(next.stays);
   return stays === next.stays ? next : { ...next, stays };
@@ -1114,7 +1138,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       if (!stay || !me || stay.hostId !== me || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) === 0) return state;
       if (!getPeople(state, me).some((p) => p.user.id === action.userId)) return state;
       // Already in, already asking (answer the request instead) or already invited: nothing to send.
-      const existing = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === action.userId && r.status !== "declined");
+      const existing = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === action.userId && !didntWorkOut(r));
       if (existing) return state;
       const invite: JoinRequest = { id: `inv-${stay.id}-${action.userId}`, stayId: stay.id, userId: action.userId, message: "", status: "invited", createdAt: action.at };
       return {
@@ -1318,12 +1342,23 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const reason = stay ? waitlistReason(state, stay) : null;
       if (!stay || !me || stay.hostId === me || stay.status !== "published" || !reason || !waitlistOpen(state, stay)) return state;
       // Already on the way in (or on the list): nothing to add. A declined request may try again.
-      if (state.joinRequests.some((r) => r.stayId === stay.id && r.userId === me && r.status !== "declined")) return state;
+      if (state.joinRequests.some((r) => r.stayId === stay.id && r.userId === me && !didntWorkOut(r))) return state;
       const attribution = attributionFor(state, me, undefined);
       return {
         ...state,
         joinRequests: [...state.joinRequests, { id: action.id, stayId: stay.id, userId: me, message: action.message.trim(), status: "waitlist_requested", createdAt: action.at, ...attribution, ...(reason === "covered" && { coveredBy: pendingRequestsOf(state, stay.id).map((r) => r.id) }) }],
         notifications: notify(state, [stay.hostId], "waitlistRequest", { name: firstNameOf(state, me), title: stay.title }, action.id, stay.id),
+      };
+    }
+
+    case "undoDecline": {
+      const request = state.joinRequests.find((r) => r.id === action.requestId && r.status === "declined");
+      const stay = request && state.stays.find((s) => s.id === request.stayId);
+      if (!request || !stay || stay.hostId !== me) return state;
+      return {
+        ...state,
+        joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "pending" as const } : r)),
+        notifications: state.notifications.filter((n) => n.eventId !== `n-${request.id}-declined`),
       };
     }
 
@@ -1450,13 +1485,15 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const stay = state.stays.find((s) => s.id === action.request.stayId);
       // An invite counts as asked: it's answered with respondToInvite, not with a request.
       const alreadyAsked = state.joinRequests.some(
-        (r) => r.stayId === action.request.stayId && r.userId === me && r.status !== "declined",
+        (r) => r.stayId === action.request.stayId && r.userId === me && r.status !== "declined" && r.status !== "expired",
       );
       // The host can't join their own House; a second request would only duplicate the first; a House that
       // isn't taking requests doesn't get new ones.
       // Only verified guests, if the host asked for it.
       const unverified = stay?.verifiedGuestsOnly && !state.users.find((u) => u.id === me)?.verified;
-      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified) return state;
+      // An audience House the profile doesn't fit (women only, profile says otherwise): no request. Not given: the host decides.
+      const wrongAudience = stay ? audienceFit(stay, state.users.find((u) => u.id === me)) === "blocked" : false;
+      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified || wrongAudience) return state;
       const { id, stayId, message, status, createdAt } = action.request;
       const attribution = attributionFor(state, me, action.request);
       const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me };
@@ -1535,7 +1572,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "declined" } : r)),
-        notifications: notify(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`, stay.id),
+        notifications: notify(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`, stay.id, undefined, { href: "/your-houses" }),
       };
     }
 
@@ -1868,6 +1905,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       payments: () => latest.current.payments,
       currencyOf: (houseId) => latest.current.stays.find((s) => s.id === houseId)?.currency ?? "EUR",
       initiallyVerified: (userId) => Boolean(latest.current.users.find((u) => u.id === userId)?.verified),
+      initiallyPaidOut: (userId) => earningsFor(latest.current, userId, new Date().toISOString().slice(0, 10)).payouts.some((p) => p.status === "paid"),
     });
   }, []);
 
@@ -2164,6 +2202,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (stayId: string) => dispatch({ type: "leaveStay", stayId, systemMessage: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
   );
+  const undoDecline = useCallback((requestId: string) => dispatch({ type: "undoDecline", requestId }), []);
   const deleteDraft = useCallback((stayId: string) => dispatch({ type: "deleteDraft", stayId }), []);
   const withdrawRequest = useCallback((stayId: string) => dispatch({ type: "withdrawRequest", stayId, at: new Date().toISOString() }), []);
   const addSupportCase = useCallback((input: Pick<SupportCase, "stayId" | "category" | "text" | "photo">) => {
@@ -2406,6 +2445,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       requestWaitlist,
       withdrawRequest,
       deleteDraft,
+      undoDecline,
       addSupportCase,
       removeFromWaitlist,
       takeWaitlistSpot,
@@ -2439,7 +2479,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, withdrawRequest, deleteDraft, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2503,6 +2543,7 @@ export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
   left: "messages",
   waitlistRequest: "requests",
   requestWithdrawn: "requests",
+  requestExpired: "requests",
   houseCancelled: "payments",
   waitlistAccepted: "requests",
   waitlistRemoved: "requests",

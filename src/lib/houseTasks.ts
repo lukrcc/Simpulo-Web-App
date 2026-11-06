@@ -1,5 +1,6 @@
 // What a House needs from you right now – Your houses ("NEEDS YOU", the dot on a House's card) and the manage page's next step.
 import { openVote } from "./crewVotes";
+import { requestExpiresAt } from "./requests";
 import { getMyPayment, paymentProgress, type StoreData } from "./store";
 import type { Payment, Stay } from "./types";
 import { hasOffer } from "./waitlist";
@@ -38,8 +39,10 @@ export function hostTasks(data: TaskData, stay: Stay): HouseTask[] {
   if (stay.status === "draft") return [{ id: id("finish"), kind: "finish", stay, href: `/your-houses/${stay.id}/edit` }];
   if (stay.status !== "published" && stay.status !== "booked") return [];
   const tasks: HouseTask[] = [];
-  const asked = data.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;
-  if (asked > 0) tasks.push({ id: id("requests"), kind: "requests", stay, count: asked, href: manageHref(stay, "requests") });
+  const open = data.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested"));
+  // The date: when the first open request expires (48h after it came in) – Needs you sorts by it.
+  const firstExpiry = open.filter((r) => r.status === "pending").map(requestExpiresAt).toSorted()[0];
+  if (open.length > 0) tasks.push({ id: id("requests"), kind: "requests", stay, count: open.length, date: firstExpiry, href: manageHref(stay, "requests") });
   const full = stay.spotsFilled >= stay.spotsTotal;
   if (stay.accommodationStatus !== "locked") {
     if (openVote(stay, "accommodation")) tasks.push({ id: id("voting"), kind: "voting", stay, href: manageHref(stay) });

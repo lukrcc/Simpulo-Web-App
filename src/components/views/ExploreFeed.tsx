@@ -64,6 +64,7 @@ import { hasHeadStart, isListedStay, isPreLaunch } from "@/lib/launch";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { answersSlowly, responseRate } from "@/lib/requests";
 
 /**
  * The grid's real column count, from the browser's own layout of an empty grid with the same rules (`probe`). 0 on the
@@ -174,6 +175,13 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const spotlightStays = useMemo(() => featured.slice(0, MAX_SPOTLIGHT), [featured]);
 
   const verifiedHosts = useMemo(() => new Set(store.users.filter((u) => u.verified).map((u) => u.id)), [store.users]);
+  // Hosts who let many requests expire (under 70 % answered, last 90 days; internal, never shown) sit a little lower in the default order.
+  const [loadedAt] = useState(() => Date.now());
+  const slowHosts = useMemo(
+    () => new Set([...new Set(store.stays.map((s) => s.hostId))].filter((id) => answersSlowly(responseRate(store, id, loadedAt)))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only stays and requests decide it
+    [store.stays, store.joinRequests, loadedAt],
+  );
   const hostPremium = useFeatureFlag("hostPremium");
 
   // Options with how many Houses each would show alongside the other filters.
@@ -220,7 +228,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       (a, b) =>
         // Houses that aren't taking requests go after the open ones, each group in the chosen order.
         Number(!a.acceptingRequests) - Number(!b.acceptingRequests) ||
-        compareBy(filters.sort, a, b),
+        compareBy(filters.sort, a, b, slowHosts),
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const resultLabel = tc("houses", { count: results.length });
@@ -251,7 +259,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     scoped || filtered || cols === 0
       ? []
       : planShelves({
-          stays: base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b)),
+          stays: base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b, slowHosts)),
           grid: ordered,
           cols,
           total: listed.length,
@@ -611,9 +619,18 @@ function FeedGrid({ cards, spotlightIds }: { cards: readonly Stay[]; spotlightId
   );
 }
 
-/** The chosen order: soonest start, lowest price per person (≈ EUR, Houses without a price last) or just opened. */
-function compareBy(sort: SortKey, a: Stay, b: Stay): number {
-  if (sort === "soonest") return a.startDate.localeCompare(b.startDate);
+/** How far back a slow host's House moves in the default order: as if it started this many days later. */
+const SLOW_HOST_SHIFT_DAYS = 7;
+
+/**
+ * The chosen order: soonest start, lowest price per person (≈ EUR, Houses without a price last) or just opened. "Soonest" is the default (the
+ * recommended order): a host who answers under 70 % of requests counts as starting a week later there – lower, never hidden.
+ */
+function compareBy(sort: SortKey, a: Stay, b: Stay, slowHosts?: ReadonlySet<string>): number {
+  if (sort === "soonest") {
+    const start = (s: Stay) => Date.parse(s.startDate) + (slowHosts?.has(s.hostId) ? SLOW_HOST_SHIFT_DAYS * 86_400_000 : 0);
+    return start(a) - start(b) || a.startDate.localeCompare(b.startDate);
+  }
   if (sort === "newest") return b.createdAt.localeCompare(a.createdAt);
   const price = (s: Stay) => eurRange(s)?.min ?? Number.POSITIVE_INFINITY;
   return price(a) - price(b) || a.startDate.localeCompare(b.startDate);

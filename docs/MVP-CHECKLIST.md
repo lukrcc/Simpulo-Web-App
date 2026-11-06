@@ -49,6 +49,8 @@ Nebenwege: Join waitlist (Anfrage → Platz #N → Angebot 24h) · Anfrage zurü
 | Einladungs-Seite `/invite/[token]` | ✅ | Große Karte, „{Name} invited you · spot held for 47h“, Accept, abgelaufen; alte `?invite=`-Links leiten weiter |
 | Request to join | ✅ | |
 | Join waitlist | ✅ | Bei vollem House oder wenn alle freien Plätze angefragt sind |
+| Abgelehnt/abgelaufen | ✅ | Neutral „Didn't work out“, Past mit 3 ähnlichen Houses, Glocke |
+| Zielgruppen-Houses (women only) | ✅ | Ruhiger Hinweis über dem Button; Profil passt nicht → deaktiviert, Angabe fehlt → erlaubt |
 | Anfrage zurückziehen | ✅ | Anfrage und Wartelisten-Anfrage, House-Seite und Verwaltungsseite, Popover, Glocke beim Host |
 | House verlassen (vor/nach Zahlung) | ✅ | Nach den Stornoregeln |
 | Bezahlen | ✅ | `PaySheet` über `lib/payments` (Mock), Karte / Apple Pay / Google Pay, Fehlerfall |
@@ -66,7 +68,8 @@ Nebenwege: Join waitlist (Anfrage → Platz #N → Angebot 24h) · Anfrage zurü
 | House bearbeiten | ✅ | `/your-houses/[id]/edit` |
 | House absagen | ✅ | Volle Rückerstattung über `lib/payments`, Glocke + Mail-Log an Crew, Wartende, Anfragende, Systemzeilen, Status „Cancelled“ |
 | Entwurf löschen | ✅ | Im Flow und in Your houses › DRAFTS („…“ › Delete draft) |
-| Anfragen annehmen/ablehnen | ✅ | Verifizierte Gäste oben |
+| Anfragen annehmen/ablehnen | ✅ | Verifizierte Gäste oben; „Not a fit“ ohne Grund mit Undo (5s); Ablauf nach 48h mit Countdown |
+| Antwortquote | ✅ | Intern: Needs-you-Hinweis unter 70 %, leicht tiefer in der Standardsortierung |
 | Warteliste verwalten | ✅ | |
 | Mark as booked + 48h-Frist | ✅ | |
 | Abstimmung „Decide with crew“ | ✅ | |
@@ -104,7 +107,7 @@ Nebenwege: Join waitlist (Anfrage → Platz #N → Angebot 24h) · Anfrage zurü
 | Echte Datenquelle | ❌ | `emptyAdapter` ohne Backend; der Mock lebt im Browser |
 | Stripe (Connect Express, Payment Element, Identity) | ❌ | `StripePaymentsAdapter` mit TODO je Methode; Webhooks, Server-Routen, Geheimnisse auf dem Server |
 | Versand von E-Mail und Push | ❌ | Vorlagen fertig (`lib/emails`), Versand und Zustell-Einstellungen fehlen |
-| Uhr und Regeln auf dem Server | ❌ | Zahlungs- und Wartelisten-Fristen, Einladungs-Ablauf, Kontaktdaten-Schutz, Profil-Privatsphäre, Stornoregeln laufen im Browser |
+| Uhr und Regeln auf dem Server | ❌ | Zahlungs- und Wartelisten-Fristen, Ablauf von Anfragen (48h), Antwortquote, Einladungs-Ablauf, Kontaktdaten-Schutz, Profil-Privatsphäre, Stornoregeln laufen im Browser |
 | Einladungs-Tokens serverseitig | ❌ | Danach zeigt das OG-Bild von `/invite/[token]` das konkrete House |
 | Support-Fälle | ❌ | `/admin/support` liest den Browser-Zustand; Antwort an den Gast in Messages |
 | Admin-Zugriffsschutz | ❌ | Nur über Modus/Flag |

@@ -25,6 +25,9 @@ export const PLACE_COVER_QUERIES: Record<string, string> = {
  * One portrait per person, matching their name (gender), age and what they do. Each names "man" or "woman" – the
  * fetch script only accepts hits whose tags say the same (see scripts/fetch-mock-images.ts).
  */
+/** Whether the person is a woman – read from their portrait search ("woman …"); used for women-only Houses in the mock. */
+export const isWoman = (userId: string) => /\bwoman\b/.test(FACE_QUERIES[userId] ?? "");
+
 export const FACE_QUERIES: Record<string, string> = {
   u1: 'young man smiling',
   u2: 'young woman smiling beach',

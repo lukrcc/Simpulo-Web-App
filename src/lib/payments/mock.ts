@@ -22,6 +22,8 @@ interface MockSource {
   payments: () => readonly Payment[];
   currencyOf: (houseId: string) => Currency;
   initiallyVerified: (userId: string) => boolean;
+  /** Paid out before (the mock's history): then the payout account exists – a history without an account can't be. */
+  initiallyPaidOut: (userId: string) => boolean;
 }
 
 let source: MockSource | null = null;
@@ -68,7 +70,7 @@ class MockPaymentsAdapter implements PaymentsAdapter {
   async getPayoutAccountStatus(userId: string) {
     const state = load();
     const account = state.accounts[userId];
-    if (!account) return { status: "none" as const };
+    if (!account) return source?.initiallyPaidOut(userId) ? { status: "active" as const, last4: "1234" } : { status: "none" as const };
     // The review "comes back" a few seconds after submitting.
     if (account.status === "pending" && account.readyAt && account.readyAt <= new Date().toISOString()) {
       account.status = account.outcome ?? "active";

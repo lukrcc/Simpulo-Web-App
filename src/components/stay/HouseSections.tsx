@@ -421,7 +421,7 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
  * The booking card, the page's one container: what it is, the host, what it costs with the way in, how joining goes. The floating capsule
  * comes when `ref`'s block has left the window.
  */
-export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; /** Message and Invite */ secondary: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; /** A line under the actions, e.g. how the waitlist works */ note?: ReactNode; ref?: Ref<HTMLDivElement> }) {
+export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; /** Message and Invite */ secondary: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; /** A line under the actions, e.g. how the waitlist works */ note?: ReactNode; /** A calm line right above the actions, e.g. "This House is for women only." */ notice?: ReactNode; ref?: Ref<HTMLDivElement> }) {
   const t = useTranslations("house.page");
   const format = useFormat();
   const label = useViewerPriceLabel(stay);
@@ -455,6 +455,7 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
             <CrewLine stay={stay} />
           </div>
         </div>
+        {notice && <p className="text-body text-muted">{notice}</p>}
         {/* One row from the left, each as wide as its words; on a narrow card it wraps. */}
         <div className="flex flex-wrap gap-2">
           <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>

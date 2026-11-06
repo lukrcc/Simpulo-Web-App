@@ -2,11 +2,12 @@
 
 import { CalendarPlus, Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { REQUEST_POLICY } from "@/config/policies";
+import { hoursLeft } from "@/lib/requests";
 import { againHref } from "@/components/create/model";
-import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { Receipt } from "@/components/payments/Receipt";
 import { HelpButton, helpAvailable } from "@/components/help/HelpSheet";
@@ -215,11 +216,11 @@ function HouseManage({ stay }: { stay: Stay }) {
   const tabs = draft ? DRAFT_TABS : HOST_TABS;
   const [tab, setTab] = useTab(tabs);
   const [locking, setLocking] = useState(false);
-  // Verified guests first (they put their ID behind it), then the newest.
+  // Verified guests first (they put their ID behind it), then whichever expires first (the oldest).
   const verified = (userId: string) => Boolean(findUser(store, userId)?.verified);
   const requests = store.joinRequests
     .filter((r) => r.stayId === stay.id && r.status === "pending")
-    .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || b.createdAt.localeCompare(a.createdAt));
+    .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || a.createdAt.localeCompare(b.createdAt));
   const waitlistRequests = waitlistRequestsOf(store, stay.id);
   const chat = getCrewThread(store, stay.id) ? `/messages/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
@@ -441,25 +442,21 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
   );
 }
 
-/** A request: the person, their socials and message; Accept (primary), Reply (secondary), Decline (tertiary). */
+/**
+ * A request: the person, their socials and message, how long it still waits ("Expires in 31h", ink under 12h); two buttons: Accept (primary)
+ * and "Not a fit" (tertiary) – no reason, no confirmation, a toast "Declined · Undo" for 5s instead. Waitlist requests don't expire.
+ */
 function RequestRow({ request, applicant, stay }: { request: JoinRequest; applicant: User; stay: Stay }) {
   const t = useTranslations("houses.requests");
   const f = useFormat();
-  const { acceptRequest, declineRequest, openDirectThread } = useStore();
-  const requireAuth = useRequireAuth();
-  const router = useRouter();
+  const { acceptRequest, declineRequest, undoDecline } = useStore();
   const showToast = useToast();
   const firstName = applicant.name.split(" ")[0];
   // Spots held by open invites count as taken – a full crew can't take anyone else.
   const waitlist = request.status === "waitlist_requested";
   const isFull = !waitlist && openSpots(stay) === 0;
-
-  function reply() {
-    requireAuth(
-      (userId) => router.push(`/messages/${openDirectThread(stay.id, applicant.id, userId)}`),
-      t("loginToMessage", { name: firstName }),
-    );
-  }
+  const now = useNowMs();
+  const left = !waitlist && now !== null ? hoursLeft(request, now) : null;
 
   return (
     <li className={cn("-mx-3 flex gap-3 p-3", ROW_HOVER)}>
@@ -488,22 +485,29 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
               {t("accept")}
             </Button>
           )}
-          <Button variant="secondary" onClick={reply}>
-            {t("reply")}
-          </Button>
           <Button
             variant="tertiary"
             onClick={() => {
               declineRequest(request.id);
-              showToast(t("declinedToast", { name: firstName }));
+              showToast(t("declinedToast"), "done", undefined, { ms: UNDO_MS, action: { label: t("undo"), onClick: () => undoDecline(request.id) } });
             }}
           >
-            {t("decline")}
+            {t("notAFit")}
           </Button>
         </div>
+        {left !== null && <p className={cn("mt-2 text-small", left < REQUEST_POLICY.urgentHours ? "text-ink" : "text-muted")}>{t("expiresIn", { hours: left })}</p>}
       </div>
     </li>
   );
+}
+
+/** "Declined · Undo" stays this long. */
+const UNDO_MS = 5000;
+
+const noClock = () => () => {};
+/** Now in the browser (rounded to the minute, so it's stable within a render); null on the server. */
+function useNowMs(): number | null {
+  return useSyncExternalStore(noClock, () => Math.floor(Date.now() / 60_000) * 60_000, () => null);
 }
 
 // ─── Joined ────────────────────────────────────────────────────────────────────

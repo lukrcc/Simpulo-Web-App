@@ -23,7 +23,7 @@ export interface EmailContent {
 export const EMAIL_ACTION: Record<NotificationType, { label: string; path: string }> = {
   request_received: { label: "See the request", path: "/your-houses" },
   request_accepted: { label: "Open your House", path: "/your-houses" },
-  request_declined: { label: "Find another House", path: "/" },
+  request_declined: { label: "See similar Houses", path: "/your-houses" },
   crew_full: { label: "Open the House chat", path: "/messages" },
   house_locked: { label: "See the place", path: "/your-houses" },
   payment_due: { label: "Pay your share", path: "/your-houses" },

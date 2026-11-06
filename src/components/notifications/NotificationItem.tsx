@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CheckCircle2, CreditCard, Lock, MailOpen, MapPin, MessageCircle, RotateCcw, Sparkles, UserPlus, Users, XCircle, type LucideIcon } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Lock, MailOpen, MapPin, MessageCircle, RotateCcw, Sparkles, UserPlus, Users, Compass, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
@@ -14,7 +14,7 @@ import { hrefOf } from "./useNotifications";
 const ICONS: Record<NotificationType, LucideIcon> = {
   request_received: UserPlus,
   request_accepted: CheckCircle2,
-  request_declined: XCircle,
+  request_declined: Compass,
   crew_full: Users,
   house_locked: Lock,
   payment_due: CreditCard,

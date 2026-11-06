@@ -11,7 +11,7 @@ export function FooterByRoute({ full, slim }: { full: ReactNode; slim: ReactNode
   // Open a House: the focus mode has no footer.
   if (pathname === "/create") return null;
   // Your houses (overview and one House) has no footer at all.
-  if (pathname === "/your-houses" || /^\/houses\/[^/]+\/manage$/.test(pathname)) return null;
+  if (pathname === "/your-houses" || pathname.startsWith("/your-houses/")) return null;
   // A profile and Messages are one screen from 1100px, with no footer under them (Impressum and Privacy are in the avatar's menu).
   if (pathname === "/profile" || pathname.startsWith("/u/") || pathname.startsWith("/messages")) return <div className="split:hidden">{slim}</div>;
   return FULL_ROUTES.includes(pathname) || pathname.startsWith("/collections/") ? full : slim;
