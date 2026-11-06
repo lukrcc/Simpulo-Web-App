@@ -226,6 +226,8 @@ export interface Stay {
   waitlistMax?: number;
   /** Spots offered to someone on the waitlist (24h) – held, like reserved ones. Derived (syncWaitlist). */
   spotsOffered?: number;
+  /** Only ID-verified guests can request (the host's choice; voluntary verification, see CLAUDE.md "Verifizierung") */
+  verifiedGuestsOnly?: boolean;
   /** The host's own photo of the place – the accommodation tile uses it when the link has no picture */
   accommodationPhoto?: string;
 }
@@ -1545,6 +1547,18 @@ const EXTRA_CREW_MESSAGES = [
       });
     }
     stay.spotsFilled = Math.min(crew() + 1, stay.spotsTotal);
+  }
+}
+
+/**
+ * Who's ID-verified (Stripe Identity, voluntary): about two thirds of the hosts and half of the guests, fixed per person (a hash of the id).
+ * Lukas, the dev user, isn't – so the check can be tried.
+ */
+{
+  const hosts = new Set(coreStays.map((s) => s.hostId).concat(stays.map((s) => s.hostId)));
+  const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  for (const user of users) {
+    user.verified = user.id === CURRENT_USER_ID ? false : hosts.has(user.id) ? hash(user.id) % 3 !== 0 : hash(user.id) % 2 === 0;
   }
 }
 

@@ -6,12 +6,18 @@ import { useSyncExternalStore } from "react";
 export interface FeatureFlags {
   /** Pro hosts: the host fee ("Host experience"), what it includes (hostOffer) and the "Pro host" label. Off = none of it exists. */
   hostPremium: boolean;
+  /** Dev menu (payments mock): every payment is declined */
+  simulatePaymentFailure: boolean;
+  /** Dev menu (payments mock): the payout onboarding comes back "action required" */
+  simulateOnboardingActionRequired: boolean;
 }
 
 export type FeatureFlag = keyof FeatureFlags;
 
 export const DEFAULT_FLAGS: FeatureFlags = {
   hostPremium: process.env.NEXT_PUBLIC_FLAG_HOST_PREMIUM !== "false",
+  simulatePaymentFailure: false,
+  simulateOnboardingActionRequired: false,
 };
 
 const FLAGS_KEY = "simpulo:flags";
@@ -41,6 +47,11 @@ export function setFeatureFlag(flag: FeatureFlag, on: boolean) {
     // not saved – still switched for this visit
   }
   for (const listener of listeners) listener();
+}
+
+/** Outside React (the payments mock): the flag as it is right now. */
+export function readFeatureFlag(flag: FeatureFlag): boolean {
+  return typeof window === "undefined" ? DEFAULT_FLAGS[flag] : read()[flag];
 }
 
 /** All flags; the server render (and hydration) uses the defaults. */

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -109,6 +110,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const [waitlistSheet, setWaitlistSheet] = useState(false);
   // When the page opened: whether an offer is still running (the store's clock drops it when it runs out).
   const [openedAt] = useState(() => new Date().toISOString());
+  const tVerify = useTranslations("verification");
   const format = useFormat();
   /** Bumped after a sent request – remounts the sheet so the next one starts empty. */
   const [requestKey, setRequestKey] = useState(0);
@@ -222,7 +224,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     store.takeWaitlistSpot(stay.id);
     if (payToTake) setPaying(true);
   }
-  const ctaNote = offer?.offerExpiresAt
+  // Only verified guests (the host's choice): no request without the check – and the way to it.
+  const verifiedOnly = Boolean(stay.verifiedGuestsOnly) && !isHost && !isMember && !myRequest && !me?.verified;
+  const ctaNote = verifiedOnly && spotsLeft > 0
+    ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
+    : offer?.offerExpiresAt
     ? t("page.offerUntil", { time: `${format.day(offer.offerExpiresAt)} ${format.time(offer.offerExpiresAt)}` })
     : canWaitlist && waitlistWhy === "covered" && canJoin
       ? t("page.allSpotsRequested")
@@ -245,6 +251,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       onMessageHost={messageHost}
       onRespond={respondToInvite}
       waitlist={{ can: canWaitlist, onJoin: startWaitlist, position: myPosition, offer: offer ? { pay: payToTake, onTake: takeSpot } : undefined }}
+      verifiedOnly={verifiedOnly}
     />
   );
   const cta = ctaFor(true);
@@ -458,13 +465,16 @@ interface StayCtaProps {
   waitlist: { can: boolean; onJoin: () => void; position: number | null; offer?: { pay: boolean; onTake: () => void } };
   /** Beside "Request to join", when every free spot has an open request: secondary "Join waitlist" (not in the floating bar) */
   withSecondary: boolean;
+  /** The host takes only verified guests, and the viewer isn't one */
+  verifiedOnly: boolean;
 }
 
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary }: StayCtaProps) {
+function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly }: StayCtaProps) {
   const t = useTranslations("request.cta");
+  const tVerifyCta = useTranslations("verification");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
   // Exactly one primary on the page: whichever state the CTA is in replaces "Request to join" (the default below).
@@ -594,6 +604,13 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
     return (
       <Button variant={variant} size={size} onClick={onMessageHost}>
         {t("crewSet")}
+      </Button>
+    );
+  }
+  if (verifiedOnly) {
+    return (
+      <Button variant={variant} size={size} disabled>
+        {tVerifyCta("verifiedOnlyCta")}
       </Button>
     );
   }

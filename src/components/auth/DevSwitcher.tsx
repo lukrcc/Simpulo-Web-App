@@ -92,6 +92,8 @@ function DevSwitcherInner() {
               )}
             </div>
             <FlagSwitch flag="hostPremium" />
+            <FlagSwitch flag="simulatePaymentFailure" />
+            <FlagSwitch flag="simulateOnboardingActionRequired" />
             <DataPreset />
             {(currentUserId || stay) && (
               <div className="flex items-center gap-1 px-2 py-1.5">

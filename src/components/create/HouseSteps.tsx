@@ -231,6 +231,7 @@ const earliest = (today: string) => {
  */
 export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
   const t = useTranslations("create.house");
+  const tVerify = useTranslations("verification");
   return (
     <div className="space-y-8">
       <div id={fieldId("spotsTotal")}>
@@ -259,6 +260,15 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
           />
           <p className="mt-2 text-small text-muted">{t("waitlistMaxHint")}</p>
         </Group>
+      )}
+      {editing && (
+        <div className="flex items-center justify-between gap-6">
+          <div>
+            <p className="text-body font-semibold text-ink">{tVerify("verifiedOnly")}</p>
+            <p className="mt-1 max-w-[520px] text-small text-muted">{tVerify("verifiedOnlyText")}</p>
+          </div>
+          <Switch on={form.verifiedGuestsOnly} label={tVerify("verifiedOnly")} onChange={(verifiedGuestsOnly) => patch({ verifiedGuestsOnly })} />
+        </div>
       )}
       <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
     </div>

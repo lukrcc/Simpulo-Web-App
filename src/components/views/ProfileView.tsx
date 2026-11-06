@@ -194,6 +194,7 @@ interface IdentityProps {
  */
 function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }: IdentityProps) {
   const t = useTranslations("profile");
+  const tVerify = useTranslations("verification");
   const tView = useTranslations("profile.view");
   const store = useStore();
   const router = useRouter();
@@ -226,6 +227,12 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-8 pt-6">
         <div className="flex min-h-0 flex-1 flex-col gap-4 split:scroll-pane">
           <ProHostLabel user={user} className="empty:hidden" />
+          {/* Your own profile without the check: a quiet nudge. Someone else's never says anything about it. */}
+          {isMe && !user.verified && (
+            <p className="text-small text-muted">
+              {tVerify.rich("profileHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
+            </p>
+          )}
           <TrustBand view={view} />
           <SocialTiles user={user} />
           {user.languages.length > 0 && <p className="text-small text-muted">{tView("speaks", { languages: user.languages.join(", ") })}</p>}

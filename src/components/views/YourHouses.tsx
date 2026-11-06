@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, ChevronDown, ChevronRight, CreditCard, Inbox, Mail, PenLine, Plus, Sparkles, Vote, Wallet, Home, type LucideIcon } from "lucide-react";
+import { Landmark, CalendarCheck, ChevronDown, ChevronRight, CreditCard, Inbox, Mail, PenLine, Plus, Sparkles, Vote, Wallet, Home, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,6 +16,8 @@ import { ChipIndicator } from "@/components/ui/ChipIndicator";
 import { Img } from "@/components/ui/Img";
 import { vibeIcons } from "@/components/ui/VibeBadge";
 import { EarningsView } from "@/components/views/Earnings";
+import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
+import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useFormat } from "@/i18n/format";
 import { earningsFor } from "@/lib/earnings";
 import { guestTasks, hostTasks, manageHref, type HouseTask, type HouseTaskKind } from "@/lib/houseTasks";
@@ -67,6 +69,9 @@ function YourHousesContent() {
     })
     .toSorted((a, b) => a.stay.startDate.localeCompare(b.stay.startDate));
   const past = store.stays.filter((s) => over(s) && (s.hostId === me || isCrewMember(store, s, me))).toSorted((a, b) => b.endDate.localeCompare(a.endDate));
+  // Hosting an open House and payouts aren't ready yet: setting them up is a task until the account is active.
+  const payout = usePayoutAccount();
+  const needsPayouts = hosting.length > 0 && payout.status !== null && payout.status !== "active";
   const tasks = [...hosting, ...drafts].flatMap((s) => hostTasks(store, s)).concat(joined.flatMap(({ stay }) => guestTasks(store, stay, now)));
   const isHost = hosting.length > 0 || drafts.length > 0 || earnings.any;
   const requestsWaiting = hosting.reduce((sum, s) => sum + store.joinRequests.filter((r) => r.stayId === s.id && (r.status === "pending" || r.status === "waitlist_requested")).length, 0);
@@ -94,7 +99,8 @@ function YourHousesContent() {
             <h2 id="needs-you" className={SECTION_TITLE}>
               {t("needsYou")}
             </h2>
-            {tasks.length === 0 ? <p className="mt-3 text-body-lg text-muted">{t("allSet")}</p> : <TaskList tasks={tasks} />}
+            {needsPayouts && <PayoutTask />}
+            {tasks.length === 0 && !needsPayouts ? <p className="mt-3 text-body-lg text-muted">{t("allSet")}</p> : <TaskList tasks={tasks} />}
           </section>
 
           {(hosting.length > 0 || drafts.length > 0) && (
@@ -249,6 +255,24 @@ function TaskList({ tasks }: { tasks: HouseTask[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/** "Set up payouts" as the first task: opens the short explanation, then Stripe's onboarding. */
+function PayoutTask() {
+  const t = useTranslations("payouts");
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="-mx-3 mt-3 flex w-[calc(100%+24px)] items-center gap-4 rounded-2xl px-3 py-3 text-left transition-colors duration-150 hover:bg-(--chip-bg)">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink">
+          <Landmark className="size-4.5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 text-body font-semibold text-ink">{t("task")}</span>
+        <span className={buttonStyles("secondary", "sm", "pointer-events-none shrink-0")}>{t("taskAction")}</span>
+      </button>
+      <PayoutSetupSheet open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 

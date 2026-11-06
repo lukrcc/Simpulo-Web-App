@@ -480,6 +480,8 @@
         "doItAgain": "Want to do it again?"
       },
       "hostPremium": "Host premium",
+      "simulatePaymentFailure": "Simulate payment failure",
+      "simulateOnboardingActionRequired": "Simulate onboarding action required",
       "data": "Data",
       "presets": {
         "prelaunch": "Pre-launch",
@@ -819,15 +821,27 @@
       "expiryPlaceholder": "MM/YY",
       "cvc": "CVC",
       "cvcPlaceholder": "CVC",
-      "mockNote": "Test mode – no real card is charged. Numbers starting with 0000 are declined.",
-      "declined": "Your card was declined. Try another card.",
+      "mockNote": "Test mode – no real card is charged. A number starting with 0000 is declined.",
+      "declined": "Card declined – try another card",
       "processing": "Processing payment",
       "payButton": "Pay {amount}",
-      "paidToast": "Paid {amount} – thanks!"
+      "paidToast": "Paid {amount} – thanks!",
+      "feeIncluded": "Simpulo fee (included)",
+      "payBy": "Pay by {date}",
+      "applePay": "Apple Pay",
+      "googlePay": "Google Pay",
+      "orCard": "or pay by card",
+      "successTitle": "You're in.",
+      "successText": "Booking confirmation follows within 48h.",
+      "done": "Done",
+      "receipt": "Receipt",
+      "receiptPaid": "Paid {date}",
+      "receiptMethod": "{brand} ****{last4}",
+      "downloadReceipt": "Download receipt"
     },
     "banner": {
       "yourShare": "Your share: <b>{amount}</b> · due {date}",
-      "payNow": "Pay now",
+      "payNow": "Pay your share",
       "paid": "You've paid your share",
       "paidOn": "Paid · {date}"
     },
@@ -1493,7 +1507,7 @@
         "invite": "You're invited – answer the host",
         "pay": "Pay your share – due {date}",
         "offer": "A spot opened for you – take it by {date}",
-        "actions": { "finish": "Finish", "review": "Review", "choose": "Choose", "markBooked": "Mark as booked", "answer": "Answer", "pay": "Pay", "takeSpot": "Take spot" }
+        "actions": { "finish": "Finish", "review": "Review", "choose": "Choose", "markBooked": "Mark as booked", "answer": "Answer", "pay": "Pay your share", "takeSpot": "Take spot" }
       },
       "guest": {
         "requested": "Requested",
@@ -1593,7 +1607,7 @@
         "ready": "All set – see you there",
         "waiting": "Waiting for {name} to answer",
         "yourShare": "Your share is open – due {date}",
-        "payNow": "Pay now"
+        "payNow": "Pay your share"
       },
       "requestsTitle": "Requests",
       "noRequests": "No open requests",
@@ -2276,6 +2290,8 @@
       "profile": "Profile",
       "notifications": "Notifications",
       "payments": "Payments",
+      "payouts": "Payouts",
+      "verification": "Verification",
       "preferences": "Preferences",
       "privacy": "Privacy & safety"
     },
@@ -2304,11 +2320,90 @@
       "payouts": "Payouts",
       "noPayouts": "No payouts yet – they start once everyone in your House pays their share.",
       "paidOut": "Paid out",
+      "scheduled": "Scheduled",
       "onHold": "On hold until the booking is confirmed"
     },
     "save": "Save",
     "saved": "Settings saved",
     "unsaved": "Unsaved changes"
+  },
+  "dev": {
+    "simulation": {
+      "band": "Simulation – this page stands in for the payment provider. Nothing is sent, no money moves.",
+      "loginTitle": "Log in to continue",
+      "onboardingTitle": "Payout details",
+      "onboardingIntro": "What the provider's onboarding would ask. Filled with test values.",
+      "name": "Full name",
+      "birthDate": "Date of birth",
+      "country": "Country",
+      "iban": "IBAN",
+      "ibanHelper": "A test IBAN – nothing is checked.",
+      "submit": "Submit",
+      "identityTitle": "Verify your ID",
+      "identityIntro": "A photo of an ID and a selfie – both simulated here.",
+      "uploadId": "Upload your ID",
+      "uploadHint": "Passport, ID card or driving licence",
+      "uploaded": "Uploaded",
+      "sampleId": "sample-id.jpg",
+      "useSample": "Use a sample ID",
+      "selfie": "Take a selfie",
+      "selfieTaken": "Selfie taken"
+    }
+  },
+  "payouts": {
+    "byStripe": "Payments by Stripe",
+    "setupTitle": "Set up payouts",
+    "point1": "Your crew pays through Simpulo",
+    "point2": "We send the money to your bank after everyone paid",
+    "point3": "Stripe verifies your identity – takes ~5 minutes",
+    "continue": "Continue to Stripe",
+    "noneTitle": "Payouts not set up",
+    "noneText": "Set up where your crew's money goes – you need it before payments start.",
+    "setupAction": "Set up payouts",
+    "pendingTitle": "Stripe is checking your details",
+    "pendingText": "Usually a few minutes. You can close this page.",
+    "actionTitle": "Stripe needs one more thing",
+    "actionText": "Add the missing detail and payouts are ready.",
+    "actionAction": "Continue to Stripe",
+    "activeTitle": "Payouts ready · Bank ****{last4}",
+    "activeText": "Paid out the day after check-in, once everyone paid.",
+    "returnTitle": "Payouts",
+    "returnBack": "Back to Settings",
+    "openedTitle": "Set up payouts for your host experience",
+    "openedText": "Your crew pays you through Simpulo – set up where the money goes before payments start.",
+    "task": "Set up payouts to receive your crew's payments",
+    "taskAction": "Set up"
+  },
+  "verification": {
+    "noneTitle": "Not verified",
+    "noneText": "Verify with an ID and a selfie – it takes about 2 minutes.",
+    "action": "Verify with ID",
+    "processingTitle": "Stripe Identity is checking your ID",
+    "processingText": "Usually under a minute. The check mark appears once it's done.",
+    "verifiedTitle": "ID verified",
+    "verifiedText": "Your profile shows the check mark.",
+    "failedTitle": "The check didn't go through",
+    "failedText": "Try again with a clear photo of your ID.",
+    "whyTitle": "Why verify",
+    "why1": "Hosts accept verified guests more often.",
+    "why2": "Verified hosts get more requests.",
+    "why3": "Some Houses only take verified guests.",
+    "voluntary": "Voluntary. Your ID goes to Stripe Identity, Simpulo never sees it.",
+    "tooltip": "ID verified by Stripe Identity",
+    "profileHint": "<link>Get verified</link> – hosts accept verified guests more often",
+    "createHint": "Verified hosts get more requests – <link>verify now</link>",
+    "verifiedOnlyCta": "Verified guests only",
+    "verifiedOnlyHint": "This host takes requests from verified guests – <link>verify with ID</link>",
+    "verifiedOnly": "Only verified guests can request",
+    "verifiedOnlyText": "Guests verify with an ID through Stripe Identity. Fewer requests, more trust."
+  },
+  "refund": {
+    "line": "Refund of {amount} on its way · 5–10 days",
+    "reason": {
+      "booking_not_confirmed": "The host didn't confirm the booking within 48 hours, so every share goes back.",
+      "spot_transferred": "Your spot went to the waitlist – everything but the Simpulo fee goes back.",
+      "cancelled": "You left the House – your share goes back."
+    }
   },
   "safety": {
     "moreOptions": "More options",

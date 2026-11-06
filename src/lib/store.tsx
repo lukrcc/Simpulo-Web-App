@@ -51,6 +51,8 @@ import type {
   UserSettings,
 } from "./types";
 import { findUrls, makeId, openSpots, slugify } from "./utils";
+import { bindPaymentsMock } from "./payments/mock";
+import { payments } from "./payments";
 import { hasOffer, pendingRequestsOf, WAITLIST_OFFER_HOURS, waitlistOf, waitlistOpen, waitlistReason, waitlistRefund } from "./waitlist";
 
 export { crewThreadId };
@@ -291,6 +293,8 @@ interface StoreActions {
   ) => Promise<void>;
   /** Mock card payment of the current user's share. Card numbers starting with 0000 are declined. */
   payShare: (stayId: string, cardNumber: string) => Promise<"paid" | "declined">;
+  /** After lib/payments charged it: the share is paid */
+  markSharePaid: (stayId: string) => void;
   /** Host, once everyone paid: upload the booking confirmation → House status 'booked'. */
   confirmBooking: (stayId: string, file: File) => Promise<void>;
   /** Dev only: every payment of the stay back to pending, booking proof cleared. */
@@ -1359,7 +1363,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       );
       // The host can't join their own House; a second request would only duplicate the first; a House that
       // isn't taking requests doesn't get new ones.
-      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests) return state;
+      // Only verified guests, if the host asked for it.
+      const unverified = stay?.verifiedGuestsOnly && !state.users.find((u) => u.id === me)?.verified;
+      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified) return state;
       const { id, stayId, message, status, createdAt } = action.request;
       const attribution = attributionFor(state, me, action.request);
       const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me };
@@ -1746,6 +1752,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const hostPremium = useFeatureFlag("hostPremium");
   const { currentUserId, threads, stays, houseInvites } = state;
+
+  // The payments mock reads the payment records and who's verified from here (lib/payments/mock.ts); Stripe has its own.
+  const latest = useRef(state);
+  useEffect(() => {
+    latest.current = state;
+  });
+  // A share that became refunded (booking not confirmed, spot to the waitlist, left): the refund goes through the payment provider.
+  const refundedBefore = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const now = new Set(state.payments.filter((p) => p.status === "refunded").map((p) => p.id));
+    if (refundedBefore.current) {
+      for (const payment of state.payments) {
+        if (payment.status !== "refunded" || refundedBefore.current.has(payment.id)) continue;
+        const stay = state.stays.find((s) => s.id === payment.stayId);
+        const reason = payment.refundedAmount !== undefined ? "spot_transferred" : stay && stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled";
+        void payments.refund(payment.id, payment.refundedAmount ?? payment.total, reason);
+      }
+    }
+    refundedBefore.current = now;
+  }, [state.payments, state.stays]);
+  useEffect(() => {
+    bindPaymentsMock({
+      payments: () => latest.current.payments,
+      currencyOf: (houseId) => latest.current.stays.find((s) => s.id === houseId)?.currency ?? "EUR",
+      initiallyVerified: (userId) => Boolean(latest.current.users.find((u) => u.id === userId)?.verified),
+    });
+  }, []);
 
   // Invite links lapse after 48h: swept now, and again when the next one is due (and every minute as a backstop).
   const nextExpiry = houseInvites.filter((i) => i.status === "pending").reduce<string | null>((min, i) => (!min || i.expiresAt < min ? i.expiresAt : min), null);
@@ -2179,6 +2212,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "payShare", stayId, message: { id: makeId("m"), createdAt: new Date().toISOString() } });
     return "paid";
   }, []);
+  // The provider charged the share (lib/payments): only the record changes here.
+  const markSharePaid = useCallback((stayId: string) => dispatch({ type: "payShare", stayId, message: { id: makeId("m"), createdAt: new Date().toISOString() } }), []);
   const confirmBooking = useCallback(async (stayId: string, file: File) => {
     await sleep(MOCK_DELAY_MS);
     // Mock upload: a local object URL stands in for the stored file.
@@ -2270,6 +2305,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleReaction,
       lockAccommodation,
       payShare,
+      markSharePaid,
       confirmBooking,
       resetPayments,
       setAcceptingRequests,
@@ -2284,7 +2320,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

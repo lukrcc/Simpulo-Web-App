@@ -8,6 +8,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { againHref } from "@/components/create/model";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
+import { Receipt } from "@/components/payments/Receipt";
+import { RefundNotice } from "@/components/payments/Refund";
 import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { HostShareTools } from "@/components/share/HostShareTools";
 import { Button } from "@/components/ui/ActionButton";
@@ -190,7 +192,11 @@ function HouseManage({ stay }: { stay: Stay }) {
   const tabs = draft ? DRAFT_TABS : HOST_TABS;
   const [tab, setTab] = useTab(tabs);
   const [locking, setLocking] = useState(false);
-  const requests = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "pending").toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // Verified guests first (they put their ID behind it), then the newest.
+  const verified = (userId: string) => Boolean(findUser(store, userId)?.verified);
+  const requests = store.joinRequests
+    .filter((r) => r.stayId === stay.id && r.status === "pending")
+    .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || b.createdAt.localeCompare(a.createdAt));
   const waitlistRequests = waitlistRequestsOf(store, stay.id);
   const chat = getCrewThread(store, stay.id) ? `/inbox/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
@@ -494,6 +500,8 @@ function JoinedHouse({ stay }: { stay: Stay }) {
   const invited = request?.status === "invited";
   const hostName = host?.name.split(" ")[0] ?? "";
   const payment = getMyPayment(store, stay.id);
+  // Refunded (the booking wasn't confirmed, the spot went to the waitlist, or left): "Refund of €410 on its way · 5–10 days".
+  const refunded = !payment ? store.payments.findLast((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status === "refunded") : undefined;
   const owes = accepted && stay.accommodationStatus === "locked" && payment?.status === "pending" && Boolean(stay.paymentDueAt);
   const chat = accepted ? `/inbox/${crewThreadId(stay.id)}` : null;
 
@@ -548,8 +556,17 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               if (panel === "crew") return <CrewRows stay={stay} />;
               return (
                   <div className="max-w-[640px]">
-                    {stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? <MyShare stay={stay} variant="panel" /> : <p className="text-body text-muted">{tSection("notLockedGuest")}</p>}
-                    <p className="mt-2 text-small text-muted">{tSection("refundNote")}</p>
+                    {refunded ? (
+                      <RefundNotice payment={refunded} currency={stay.currency} reason={refunded.refundedAmount ? "spot_transferred" : stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled"} />
+                    ) : stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? (
+                      <div className="flex flex-col gap-6">
+                        <MyShare stay={stay} variant="panel" />
+                        {payment?.status === "paid" && <Receipt stay={stay} payment={payment} />}
+                      </div>
+                    ) : (
+                      <p className="text-body text-muted">{tSection("notLockedGuest")}</p>
+                    )}
+                    <p className="mt-4 text-small text-muted">{tSection("refundNote")}</p>
                   </div>
                 );
             }}

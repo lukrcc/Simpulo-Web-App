@@ -21,9 +21,14 @@ import { useFormat } from "@/i18n/format";
 import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
+import { earningsFor } from "@/lib/earnings";
+import { IdentityCard } from "@/components/payouts/IdentityCard";
+import { PayoutStatusCard } from "@/components/payouts/PayoutSetup";
+import { RefundLine } from "@/components/payments/Refund";
+import { usePayouts } from "@/lib/payments/usePayouts";
 
 /** The sections, in the side navigation's order – each is also its URL hash (#notifications). */
-const SECTIONS = ["account", "profile", "notifications", "payments", "preferences", "privacy"] as const;
+const SECTIONS = ["account", "profile", "notifications", "payments", "payouts", "verification", "preferences", "privacy"] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -43,8 +48,6 @@ const MOCK_PAYMENT_METHODS = [
   { id: "pm-1", kind: "card", brand: "Visa", last4: "4242", expires: "08/28" },
   { id: "pm-2", kind: "wallet", brand: "Apple Pay" },
 ] as const;
-/** ⚠ MOCK: the host's payout account. */
-const MOCK_PAYOUT_ACCOUNT = { bank: "N26", last4: "1234" };
 
 /** What has to be typed to delete the account. */
 const DELETE_WORD = "DELETE";
@@ -164,6 +167,8 @@ function SettingsContent({ me }: { me: User }) {
             />
           )}
           {section === "payments" && <PaymentsSection me={me} />}
+          {section === "payouts" && <PayoutsSection me={me} />}
+          {section === "verification" && <VerificationSection />}
           {section === "preferences" && (
             <PreferencesSection currency={draft.currency ?? me.preferredCurrency ?? ""} onCurrencyChange={(currency) => setDraft((d) => ({ ...d, currency }))} />
           )}
@@ -279,14 +284,6 @@ function PaymentsSection({ me }: { me: User }) {
   const history = store.payments
     .filter((p) => p.userId === me.id && p.status !== "pending")
     .toSorted((a, b) => (b.paidAt ?? "").localeCompare(a.paidAt ?? ""));
-  const hosted = store.stays.filter((s) => s.hostId === me.id && s.status !== "draft" && s.status !== "draft_unclaimed");
-  // Payouts: what the crew paid into each of the host's locked Houses (shares + host programme; Simpulo's fee isn't theirs).
-  const payouts = hosted
-    .map((stay) => {
-      const paid = store.payments.filter((p) => p.stayId === stay.id && p.userId !== me.id && p.status === "paid");
-      return { stay, amount: paid.reduce((sum, p) => sum + p.share + (p.hostFee ?? 0), 0), done: stay.status === "booked" || stay.status === "completed" };
-    })
-    .filter((p) => p.amount > 0);
 
   return (
     <>
@@ -317,7 +314,7 @@ function PaymentsSection({ me }: { me: User }) {
               <li key={payment.id}>
                 <ListRow
                   title={stay?.title ?? t("unknownHouse")}
-                  subtitle={payment.paidAt ? f.day(payment.paidAt) : undefined}
+                  subtitle={payment.status === "refunded" ? <RefundLine payment={payment} currency={stay?.currency} /> : payment.paidAt ? f.day(payment.paidAt) : undefined}
                   aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(payment.total, stay?.currency)}</span>}
                   action={<Badge>{t(`status.${payment.status}`)}</Badge>}
                 />
@@ -327,41 +324,62 @@ function PaymentsSection({ me }: { me: User }) {
         )}
       </Card>
 
-      {hosted.length > 0 && (
-        <>
-          <Card title={t("payoutAccount")}>
-            <li>
+    </>
+  );
+}
+
+/**
+ * Payouts (Stripe Connect Express): the account's state (set up, being checked, ready, needs one more thing) and what was paid out –
+ * the history from the provider (payments.getPayouts), the next one from its balance.
+ */
+function PayoutsSection({ me }: { me: User }) {
+  const t = useTranslations("settings.payments");
+  const f = useFormat();
+  const store = useStore();
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const earnings = earningsFor(store, me.id, today);
+  const records = usePayouts(me.id, earnings);
+  return (
+    <>
+      <PayoutStatusCard />
+      <Card title={t("payouts")}>
+        {records === null ? (
+          <li className="py-2 text-small text-muted">…</li>
+        ) : records.length === 0 ? (
+          <li className="py-2 text-small text-muted">{t("noPayouts")}</li>
+        ) : (
+          records.map((payout) => (
+            <li key={payout.id}>
               <ListRow
                 lead={<Landmark aria-hidden />}
-                title={MOCK_PAYOUT_ACCOUNT.bank}
-                subtitle={t("accountEnding", { last4: MOCK_PAYOUT_ACCOUNT.last4 })}
-                action={
-                  <Button variant="tertiary" onClick={() => showToast(t("addSoon"))}>
-                    {t("change")}
-                  </Button>
-                }
+                title={f.day(payout.date)}
+                subtitle={t("accountEnding", { last4: payout.account.slice(-4) })}
+                aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(payout.amount, payout.currency)}</span>}
+                action={<Badge>{payout.status === "paid" ? t("paidOut") : t("scheduled")}</Badge>}
               />
             </li>
-          </Card>
-          <Card title={t("payouts")}>
-            {payouts.length === 0 ? (
-              <li className="py-2 text-small text-muted">{t("noPayouts")}</li>
-            ) : (
-              payouts.map(({ stay, amount, done }) => (
-                <li key={stay.id}>
-                  <ListRow
-                    title={stay.title}
-                    subtitle={done ? f.stayDates(stay) : `${f.stayDates(stay)} · ${t("onHold")}`}
-                    aside={<span className="shrink-0 text-body font-medium tabular-nums text-ink">{f.price(amount, stay.currency)}</span>}
-                    // "On hold until the booking is confirmed" is a sentence – it reads as the subtitle, the Badge says the state.
-                    action={<Badge>{done ? t("paidOut") : t("status.pending")}</Badge>}
-                  />
-                </li>
-              ))
-            )}
-          </Card>
-        </>
-      )}
+          ))
+        )}
+      </Card>
+    </>
+  );
+}
+
+/** Verification (Stripe Identity), voluntary: why it helps, the state, "Verify with ID". */
+function VerificationSection() {
+  const t = useTranslations("verification");
+  return (
+    <>
+      <IdentityCard />
+      <section className={cardClass}>
+        <h2 className="text-body-lg font-semibold text-ink">{t("whyTitle")}</h2>
+        <ul className="mt-3 flex flex-col gap-2 text-body text-ink">
+          <li>{t("why1")}</li>
+          <li>{t("why2")}</li>
+          <li>{t("why3")}</li>
+        </ul>
+        <p className="mt-4 text-small text-muted">{t("voluntary")}</p>
+      </section>
     </>
   );
 }

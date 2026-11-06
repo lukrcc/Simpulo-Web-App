@@ -103,6 +103,8 @@ export interface FormState {
   spotsTotal: number;
   /** Places on the waitlist once the House is full, 0–5 (src/lib/waitlist.ts) */
   waitlistMax: number;
+  /** Only ID-verified guests can request */
+  verifiedGuestsOnly: boolean;
   /** Optional: the host's own photo of the place, for when the link has none ("" = none) */
   accommodationPhoto: string;
   /** "" = default from the host's country */
@@ -150,6 +152,7 @@ export const initialForm: FormState = {
   accommodationDeadline: "",
   spotsTotal: 4,
   waitlistMax: WAITLIST_MAX_DEFAULT,
+  verifiedGuestsOnly: false,
   accommodationPhoto: "",
   currency: "",
   budgetMin: "",
@@ -196,6 +199,7 @@ export function formFromStay(stay: Stay): FormState {
     endDate: stay.endDate,
     spotsTotal: stay.spotsTotal,
     waitlistMax: waitlistMaxOf(stay),
+    verifiedGuestsOnly: Boolean(stay.verifiedGuestsOnly),
     accommodationPhoto: stay.accommodationPhoto ?? "",
     currency: stay.currency,
     budgetMin: budget ? String(budget.min) : "",
@@ -360,6 +364,7 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
         : undefined,
     spotsTotal: form.spotsTotal,
     waitlistMax: form.waitlistMax,
+    verifiedGuestsOnly: form.verifiedGuestsOnly || undefined,
     accommodationPhoto: form.accommodationPhoto || undefined,
     vibe: form.customVibe !== null || !form.vibe ? "social" : form.vibe,
     customVibe: form.customVibe?.trim() || undefined,

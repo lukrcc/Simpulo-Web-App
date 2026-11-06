@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Eye, Link2, QrCode } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMessages, useTranslations } from "next-intl";
@@ -68,6 +69,8 @@ import { useDismiss } from "@/components/explore/Filters";
 import { FormContainer, FormGrid, PreviewColumn } from "@/components/form/FormLayout";
 import { useHostShare } from "@/components/share/HostShareTools";
 import { BuildingCard, StayCard } from "@/components/StayCard";
+import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
+import { usePayoutAccount } from "@/lib/payments/hooks";
 import { Button } from "@/components/ui/ActionButton";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -443,6 +446,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     </>
   );
 
+  const tVerify = useTranslations("verification");
   const openOptional = details.filter((key) => !detailDone(key, form)).length;
   const position = REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]);
   // Past the required steps: the count of what's left is what matters.
@@ -490,6 +494,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       </div>
       <div className="mt-10 space-y-4">
         {step === "ready" && <ProfileNote me={me} />}
+        {/* Voluntary: never a lock on publishing, only why it helps. */}
+        {step === "ready" && me && !me.verified && (
+          <p className="text-small text-muted">
+            {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           {canGoBack && (
             <Button variant="tertiary" onClick={back}>
@@ -629,6 +639,26 @@ function DraftLine({ savedAt, conflict, onKeep, onStartOver }: { savedAt: string
 }
 
 /** It's open: the card, the link and the story image, who heard first, and the way on. */
+/** On the success screen of a House with a host experience, while payouts aren't ready: why, and "Set up payouts". */
+function OpenedPayouts() {
+  const t = useTranslations("payouts");
+  const { status } = usePayoutAccount();
+  const [open, setOpen] = useState(false);
+  if (status === null || status === "active") return null;
+  return (
+    <div className="card-soft mt-8 flex flex-wrap items-center gap-4 rounded-3xl p-6">
+      <div className="min-w-0 flex-1">
+        <p className="text-body font-semibold text-ink">{t("openedTitle")}</p>
+        <p className="text-small text-muted">{t("openedText")}</p>
+      </div>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        {t("setupAction")}
+      </Button>
+      <PayoutSetupSheet open={open} onClose={() => setOpen(false)} />
+    </div>
+  );
+}
+
 function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: number; host?: User; form: FormState }) {
   const t = useTranslations("create.opened");
   const showToast = useToast();
@@ -640,6 +670,8 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
         <section>
           <h1 className="text-h1 text-ink">{t("title")}</h1>
           {notified > 0 && <p className="mt-3 text-body-lg font-semibold text-ink">{t("notified", { count: notified })}</p>}
+          {/* A host experience is paid to the host through Simpulo: payouts first (Stripe Connect). */}
+          {(stay.hostFeePerPerson ?? 0) > 0 && <OpenedPayouts />}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button size="md" disabled={busy !== null} onClick={copy}>
               <Link2 aria-hidden />

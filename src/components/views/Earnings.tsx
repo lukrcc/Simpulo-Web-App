@@ -9,6 +9,9 @@ import { useFormat } from "@/i18n/format";
 import { earningsCsv, type Earnings } from "@/lib/earnings";
 import { manageHref } from "@/lib/houseTasks";
 import { cn } from "@/lib/utils";
+import { PayoutStatusCard } from "@/components/payouts/PayoutSetup";
+import { useStore } from "@/lib/store";
+import { useBalance, usePayouts } from "@/lib/payments/usePayouts";
 
 const SECTION_TITLE = "text-eyebrow uppercase text-ink/55";
 const CHART_HEIGHT = 160;
@@ -20,6 +23,10 @@ const CHART_HEIGHT = 160;
 export function EarningsView({ earnings }: { earnings: Earnings }) {
   const t = useTranslations("houses.earnings");
   const f = useFormat();
+  const me = useStore().currentUserId;
+  // The history and the next payout come from the payment provider (getPayouts / getBalance).
+  const records = usePayouts(me, earnings) ?? [];
+  const balance = useBalance(me, earnings);
   const money = (amount: number) => f.price(amount, earnings.currency);
 
   function exportCsv() {
@@ -35,12 +42,14 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
   const tiles = [
     { label: t("allTime"), value: money(earnings.allTime) },
     { label: t("thisYear"), value: money(earnings.thisYear) },
-    { label: t("pending"), value: money(earnings.pending) },
-    { label: t("next"), value: earnings.next ? money(earnings.next.amount) : "–", sub: earnings.next ? f.day(earnings.next.date) : undefined },
+    { label: t("pending"), value: balance ? money(balance.pending) : "…" },
+    { label: t("next"), value: balance?.next ? money(balance.next.amount) : balance ? "–" : "…", sub: balance?.next ? f.day(balance.next.date) : undefined },
   ];
 
   return (
     <div className="flex flex-col gap-(--space-section)">
+      <div className="flex flex-col gap-4">
+      <PayoutStatusCard />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="card-soft flex min-w-0 flex-col gap-1 rounded-3xl p-5">
@@ -49,6 +58,7 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
             {tile.sub && <span className="text-small text-muted">{tile.sub}</span>}
           </div>
         ))}
+      </div>
       </div>
 
       <section aria-labelledby="earnings-months">
@@ -97,7 +107,7 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
           {t("payouts")}
         </h2>
         <ul className="-mx-3 mt-3 flex flex-col">
-          {earnings.payouts.map((payout) => (
+          {records.map((payout) => (
             <li key={payout.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 rounded-2xl px-3 py-3 sm:grid-cols-[120px_120px_minmax(0,1fr)_auto]">
               <span className="text-body text-ink">{f.day(payout.date)}</span>
               <span className="text-body font-semibold tabular-nums text-ink sm:text-right">{money(payout.amount)}</span>
