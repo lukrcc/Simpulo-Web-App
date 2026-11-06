@@ -25,7 +25,7 @@ function isExploreRoute(pathname: string): boolean {
     pathname === "/" ||
     pathname === "/saved" ||
     pathname.startsWith("/collections/") ||
-    pathname.startsWith("/houses/")
+    pathname.startsWith("/co-living/")
   );
 }
 

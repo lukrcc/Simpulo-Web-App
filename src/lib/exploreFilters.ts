@@ -68,7 +68,7 @@ const list = (value: string | null) => (value ? value.split(",").map((v) => v.tr
 export function parseFilters(params: URLSearchParams, knownVibes: readonly string[]): ExploreFilters {
   const [min, max] = (params.get("budget") ?? "").split("-").map(Number);
   return {
-    vibes: list(params.get("vibe")).filter((v): v is Vibe => knownVibes.includes(v)),
+    vibes: list(params.get("vibe") ?? params.get("category")).filter((v): v is Vibe => knownVibes.includes(v)),
     place: placeById(params.get("place"))?.id ?? null,
     // An older link can hold several: the first counts.
     month: list(params.get("month")).find((m) => MONTH.test(m)) ?? null,

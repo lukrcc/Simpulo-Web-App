@@ -136,7 +136,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
           ref={popoverRef}
           role="dialog"
           aria-label={t("dialog")}
-          className="absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 shadow-xl sm:w-[min(100%,36rem)] sm:p-5"
+          className="glass-panel absolute left-0 top-full z-30 mt-1.5 scroll-mb-28 w-full rounded-[20px]! p-4 sm:w-[min(100%,36rem)] sm:p-5"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {QUICK.map(({ key, apply }) => {

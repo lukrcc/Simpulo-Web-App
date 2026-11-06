@@ -33,10 +33,10 @@ export function useNotifications(): NotificationRepository & { ready: boolean } 
 /** Where a notification leads: its own target, the chat for messages, the host's Manage page or the House page. */
 export function hrefOf(n: AppNotification, stays: readonly Stay[], me: string | null): string | null {
   if (n.href) return n.href;
-  if (n.threadId) return `/inbox/${n.threadId}`;
+  if (n.threadId) return `/messages/${n.threadId}`;
   const stay = n.stayId ? stays.find((s) => s.id === n.stayId) : undefined;
   if (!stay) return null;
   // "Want to do it again?" leads everyone in the crew to the past House (crew, chat, "Do it again").
-  if (n.key === "doItAgain") return `/houses/${stay.id}/manage`;
-  return stay.hostId === me ? `/houses/${stay.id}/manage` : `/house/${stay.slug}`;
+  if (n.key === "doItAgain") return `/your-houses/${stay.id}`;
+  return stay.hostId === me ? `/your-houses/${stay.id}` : `/house/${stay.slug}`;
 }

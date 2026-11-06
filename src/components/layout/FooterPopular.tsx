@@ -42,7 +42,7 @@ export function FooterPopular() {
   if (cities.length < MIN_CITIES) return null;
   const links = [
     ...cities.map((c) => ({ href: `/co-living/${c.slug}`, label: t("coLivingIn", { city: c.name }) })),
-    ...vibes.map((v) => ({ href: `/houses/${v.vibe}`, label: t("vibeHouses", { vibe: format.vibe(v.vibe) }) })),
+    ...vibes.map((v) => ({ href: `/explore?vibe=${v.vibe}`, label: t("vibeHouses", { vibe: format.vibe(v.vibe) }) })),
   ].slice(0, MAX_LINKS);
   return (
     <nav aria-label={t("columns.popular")} className="md:col-span-2">

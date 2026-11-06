@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { NAV_ICONS } from "@/config/nav";
 
 export interface NavItem {
-  href: "/" | "/host" | "/how-it-works" | "/houses" | "/inbox" | "/profile";
+  href: "/" | "/host" | "/how-it-works" | "/your-houses" | "/messages" | "/profile";
   /** Message key under nav.items */
   labelKey: "explore" | "host" | "howItWorks" | "houses" | "messages" | "profile";
   icon: LucideIcon;
@@ -19,8 +19,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // The page for potential hosts.
   { href: "/host", labelKey: "host", icon: NAV_ICONS.host, audience: "guest" },
   { href: "/how-it-works", labelKey: "howItWorks", icon: NAV_ICONS.howItWorks, audience: "guest" },
-  { href: "/houses", labelKey: "houses", headerLabelKey: "yourHouses", icon: NAV_ICONS.houses, audience: "member" },
-  { href: "/inbox", labelKey: "messages", icon: NAV_ICONS.messages, audience: "member" },
+  { href: "/your-houses", labelKey: "houses", headerLabelKey: "yourHouses", icon: NAV_ICONS.houses, audience: "member" },
+  { href: "/messages", labelKey: "messages", icon: NAV_ICONS.messages, audience: "member" },
   { href: "/profile", labelKey: "profile", icon: NAV_ICONS.profile, audience: "member", tabBarOnly: true },
 ];
 
@@ -36,11 +36,10 @@ export function navItemsFor(loggedIn: boolean, place: "header" | "tabBar" = "tab
 
 export function isNavActive(href: NavItem["href"], pathname: string | null): boolean {
   if (!pathname) return false;
-  // Your houses: /houses, one House's /houses/[id]/manage, editing at /my-stays/[id]/edit, and People. The category pages /houses/[vibe] are Explore's.
-  const yourHouses = pathname === "/houses" || /^\/houses\/[^/]+\/manage$/.test(pathname) || pathname.startsWith("/my-stays/") || pathname === "/people";
-  if (href === "/houses") return yourHouses;
-  // Explore covers the feed, House pages and the city / vibe landing pages.
-  if (href === "/") return !yourHouses && (pathname === "/" || pathname === "/explore" || /^\/(house|houses|co-living)\//.test(pathname));
+  // Your houses: /your-houses and everything under it (one House, editing).
+  if (href === "/your-houses") return pathname === "/your-houses" || pathname.startsWith("/your-houses/");
+  // Explore covers the feed, House pages and the city landing pages.
+  if (href === "/") return pathname === "/" || pathname === "/explore" || /^\/(house|co-living)\//.test(pathname);
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -64,9 +63,9 @@ export function mobileChromeFor(standalone: boolean, loggedIn: boolean): MobileC
 export function hidesTabBar(pathname: string): boolean {
   return (
     pathname.startsWith("/house/") ||
-    /^\/inbox\/[^/]+/.test(pathname) ||
+    /^\/messages\/[^/]+/.test(pathname) ||
     pathname === "/create" ||
-    /^\/my-stays\/[^/]+\/edit$/.test(pathname) ||
+    /^\/your-houses\/[^/]+\/edit$/.test(pathname) ||
     pathname === "/profile/edit"
   );
 }

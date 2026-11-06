@@ -6,9 +6,11 @@ import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
+import { ageOn, MIN_AGE } from "@/lib/birthDate";
 import { hasOffer, waitlistOf, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
-import { formTextarea } from "@/components/form/FormLayout";
+import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
 import { useInstallNudge } from "@/components/InstallNudge";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
@@ -111,6 +113,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   // When the page opened: whether an offer is still running (the store's clock drops it when it runs out).
   const [openedAt] = useState(() => new Date().toISOString());
   const tVerify = useTranslations("verification");
+  const tWithdraw = useTranslations("withdraw");
   const format = useFormat();
   /** Bumped after a sent request – remounts the sheet so the next one starts empty. */
   const [requestKey, setRequestKey] = useState(0);
@@ -189,11 +192,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     if (previewing) return showToast(tPreview("noChanges"));
     requireAuth((userId) => {
       if (userId === stay.hostId) {
-        router.push(`/houses/${stay.id}/manage`);
+        router.push(`/your-houses/${stay.id}`);
         return;
       }
       // userId is passed explicitly: right after an inline login the store doesn't know the new user yet.
-      router.push(`/inbox/${store.openDirectThread(stay.id, stay.hostId, userId)}`);
+      router.push(`/messages/${store.openDirectThread(stay.id, stay.hostId, userId)}`);
     }, t("loginToMessage", { name: hostFirstName }));
   }
 
@@ -226,7 +229,23 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   }
   // Only verified guests (the host's choice): no request without the check – and the way to it.
   const verifiedOnly = Boolean(stay.verifiedGuestsOnly) && !isHost && !isMember && !myRequest && !me?.verified;
-  const ctaNote = verifiedOnly && spotsLeft > 0
+  // An open request (to join or for the waitlist) can be taken back: a link under the actions, confirmed in a small popover.
+  const withdrawNote =
+    myRequest && !previewing && (myRequest.status === "pending" || myRequest.status === "waitlist_requested") ? (
+      <ConfirmPopover
+        trigger={tWithdraw(myRequest.status === "pending" ? "action" : "waitlistAction")}
+        title={tWithdraw(myRequest.status === "pending" ? "title" : "waitlistTitle")}
+        text={tWithdraw("text")}
+        confirmLabel={tWithdraw("confirm")}
+        cancelLabel={tWithdraw("keep")}
+        onConfirm={() => {
+          store.withdrawRequest(stay.id);
+          showToast(tWithdraw("toast"));
+        }}
+        triggerClassName="text-small"
+      />
+    ) : null;
+  const ctaNote = withdrawNote ?? (verifiedOnly && spotsLeft > 0
     ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
     : offer?.offerExpiresAt
     ? t("page.offerUntil", { time: `${format.day(offer.offerExpiresAt)} ${format.time(offer.offerExpiresAt)}` })
@@ -234,7 +253,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       ? t("page.allSpotsRequested")
       : canWaitlist || myRequest?.status === "waitlisted"
       ? t("page.waitlistMoveUp")
-      : undefined;
+      : undefined);
 
   const ctaFor = (withSecondary: boolean) => (
     <StayCta
@@ -419,10 +438,14 @@ function PreviewParam({ onChange }: { onChange: (preview: boolean) => void }) {
   return null;
 }
 
-/** Reports ?invite=token to the House page (own boundary, like PreviewParam). */
+/** Old invite links (?invite=token on the House page) go to the invite's own page, /invite/[token]. */
 function InviteParam({ onChange }: { onChange: (token: string | null) => void }) {
   const token = useSearchParams().get("invite");
-  useEffect(() => onChange(token), [token, onChange]);
+  const router = useRouter();
+  useEffect(() => {
+    if (token) router.replace(`/invite/${token}`);
+    else onChange(null);
+  }, [token, onChange, router]);
   return null;
 }
 
@@ -491,7 +514,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   }
   if (isHost) {
     return (
-      <Button variant={variant} size={size} href={`/houses/${stay.id}/manage`}>
+      <Button variant={variant} size={size} href={`/your-houses/${stay.id}`}>
         {t("manage")}
       </Button>
     );
@@ -505,7 +528,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   }
   if (request?.status === "accepted") {
     return (
-      <Button variant={variant} size={size} href={`/inbox/${crewThreadId(stay.id)}`}>
+      <Button variant={variant} size={size} href={`/messages/${crewThreadId(stay.id)}`}>
         {t("accepted")}
       </Button>
     );
@@ -661,12 +684,30 @@ const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
  */
 function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn, onClose, onSend, blockedNote }: RequestSheetProps) {
   const t = useTranslations("request");
-  const { currentUserId } = useStore();
+  const tAge = useTranslations("age");
+  const store = useStore();
+  const { currentUserId } = store;
+  const me = store.users.find((u) => u.id === currentUserId);
   const [message, setMessage] = useState("");
   const [step, setStep] = useState<RequestStep>("message");
   const [blocked, setBlocked] = useState(false);
+  // 18+: the date of birth is asked here the first time (progressive profile); under 18, a friendly no – nothing is sent.
+  const [birth, setBirth] = useState("");
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const tooYoung = (iso: string) => ageOn(iso, today) < MIN_AGE;
+  const refused = Boolean(me?.birthDate && tooYoung(me.birthDate));
+  const [refusedNow, setRefusedNow] = useState(false);
 
   function send(userId: string) {
+    const user = store.users.find((u) => u.id === userId);
+    const date = user?.birthDate || birth;
+    // Logged in just now and no date of birth yet: back to the form, which asks for it.
+    if (!date) return setStep("message");
+    if (tooYoung(date)) {
+      setRefusedNow(true);
+      return setStep("message");
+    }
+    if (!user?.birthDate) store.updateCurrentUser({ birthDate: date });
     if (onSend(message, userId)) setStep("sent");
   }
 
@@ -710,6 +751,17 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
           style={{ transform: `translateX(calc(${index} * (-100% - 8px)))` }}
         >
           <Pane active={step === "message"}>
+            {refused || refusedNow ? (
+              <div className="flex flex-col gap-3 py-2">
+                <p className="text-h3 text-ink">{tAge("tooYoungTitle")}</p>
+                <p className="text-body text-muted">{tAge("tooYoungText")}</p>
+                <ModalFooter>
+                  <Button variant="secondary" onClick={close}>
+                    {tAge("close")}
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <RequestSummary stay={stay} photo={photo} />
               {!loggedIn && (
@@ -730,6 +782,11 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                 />
                 <p className="mt-2 text-small text-muted">{waitlist ? t("waitlistNote", { name: hostName }) : t("optionalNote")}</p>
               </div>
+              {loggedIn && me && !me.birthDate && (
+                <FormField label={tAge("label")} helper={tAge("helper")}>
+                  <input type="date" required value={birth} max={today} onChange={(e) => setBirth(e.target.value)} className={formInput} />
+                </FormField>
+              )}
               {blocked && blockedNote && (
                 <p role="alert" className="text-body text-ink">
                   {blockedNote}
@@ -741,6 +798,7 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                 </Button>
               </ModalFooter>
             </form>
+            )}
           </Pane>
 
           <Pane active={step === "login"}>

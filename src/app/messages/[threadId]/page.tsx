@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("chat") };
 }
 
-export default function ThreadPage({ params }: PageProps<"/inbox/[threadId]">) {
+export default function ThreadPage({ params }: PageProps<"/messages/[threadId]">) {
   return (
     <Suspense fallback={<ThreadSkeleton />}>
       <MockDelay ms={400} fallback={<ThreadSkeleton />}>

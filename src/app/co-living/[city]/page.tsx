@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/co-living/[city]"
     title: t("h1", { city: city.name }),
     description: t("description", { city: city.name, country: city.country, count: city.count }),
     path: `/co-living/${city.slug}`,
+    image: { url: `/co-living/${city.slug}/opengraph-image`, alt: t("h1", { city: city.name }) },
     // Fewer than three Houses is thin content: the page works, but stays out of the index.
     noindex: city.count < MIN_INDEXABLE_HOUSES,
   });
@@ -54,7 +55,7 @@ async function CityPageContent({ params }: { params: PageProps<"/co-living/[city
     .toSorted((a, b) => Number(b.country === city.country) - Number(a.country === city.country) || b.count - a.count)
     .slice(0, MAX_RELATED);
   const tVibe = await getTranslations("common.vibes");
-  // The vibe pages of the vibes this city's Houses have.
+  // The categories this city's Houses have, as Explore filters.
   const vibes = [...new Set(stays.map((s) => s.vibe))];
   return (
     <LandingPage
@@ -62,13 +63,14 @@ async function CityPageContent({ params }: { params: PageProps<"/co-living/[city
       intro={t("city.intro", { city: city.name })}
       stays={stays}
       scope={{ citySlug: city.slug }}
+      createHref={`/create?place=${encodeURIComponent(city.slug)}`}
       breadcrumbs={[
         { name: t("breadcrumbs.home"), path: "/" },
         { name: t("city.h1", { city: city.name }), path: `/co-living/${city.slug}` },
       ]}
       related={[
         { title: t("city.related"), links: others.map((c) => ({ href: `/co-living/${c.slug}`, label: t("city.link", { city: c.name }) })) },
-        { title: t("city.vibes", { city: city.name }), links: vibes.map((v) => ({ href: `/houses/${v}`, label: t("vibe.h1", { vibe: tVibe(v) }) })) },
+        { title: t("city.vibes", { city: city.name }), links: vibes.map((v) => ({ href: `/explore?category=${v}`, label: t("vibe.h1", { vibe: tVibe(v) }) })) },
       ]}
     />
   );

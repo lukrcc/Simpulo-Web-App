@@ -65,7 +65,7 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
         <h2 id="earnings-months" className={SECTION_TITLE}>
           {t("perMonth")}
         </h2>
-        <MonthBars months={earnings.months} money={money} />
+        {earnings.months.some((m) => m.amount > 0) ? <MonthBars months={earnings.months} money={money} /> : <p className="mt-3 text-body text-muted">{t("noMonths")}</p>}
       </section>
 
       <section aria-labelledby="earnings-houses">
@@ -106,6 +106,7 @@ export function EarningsView({ earnings }: { earnings: Earnings }) {
         <h2 id="earnings-payouts" className={SECTION_TITLE}>
           {t("payouts")}
         </h2>
+        {records.length === 0 && <p className="mt-3 text-body text-muted">{t("noPayouts")}</p>}
         <ul className="-mx-3 mt-3 flex flex-col">
           {records.map((payout) => (
             <li key={payout.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 rounded-2xl px-3 py-3 sm:grid-cols-[120px_120px_minmax(0,1fr)_auto]">

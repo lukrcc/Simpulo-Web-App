@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, RotateCcw } from "lucide-react";
+import { CalendarPlus, Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,9 @@ import { againHref } from "@/components/create/model";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { MyShare } from "@/components/payments/MyShare";
 import { Receipt } from "@/components/payments/Receipt";
+import { HelpButton, helpAvailable } from "@/components/help/HelpSheet";
+import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
+import { downloadIcs } from "@/lib/ics";
 import { RefundNotice } from "@/components/payments/Refund";
 import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { HostShareTools } from "@/components/share/HostShareTools";
@@ -48,7 +51,7 @@ const TAB_PANEL = "col-start-1 row-start-1 min-w-0 px-3";
 const TAB_FADE_MS = 200;
 
 /**
- * Your houses › one House (/houses/[id]/manage). No card and no white: everything lies on the page. The head, then where it stands as a
+ * Your houses › one House (/your-houses/[id]). No card and no white: everything lies on the page. The head, then where it stands as a
  * stepper with the next task, then the tabs (?tab=). The page scrolls as a whole. A House that's over has no tabs.
  */
 export function HouseDetail({ stay }: { stay: Stay }) {
@@ -179,6 +182,26 @@ function TabbedHouse({ head, progress, tabs }: { head: ReactNode; progress?: Rea
   );
 }
 
+/**
+ * In the head, when it's time: "Add to calendar" once the booking is confirmed (.ics), "Something went wrong" from three days before arrival
+ * until the day after it ends.
+ */
+function StayExtras({ stay }: { stay: Stay }) {
+  const t = useTranslations("calendar");
+  const [now] = useState(() => Date.now());
+  return (
+    <>
+      {stay.bookingConfirmedAt && (
+        <Button variant="tertiary" size="sm" onClick={() => downloadIcs(stay)}>
+          <CalendarPlus aria-hidden />
+          {t("add")}
+        </Button>
+      )}
+      {helpAvailable(stay, now) && <HelpButton stay={stay} />}
+    </>
+  );
+}
+
 // ─── Hosted ────────────────────────────────────────────────────────────────────
 
 const HOST_TABS: readonly HostTab[] = ["requests", "crew", "payments", "share"];
@@ -198,10 +221,10 @@ function HouseManage({ stay }: { stay: Stay }) {
     .filter((r) => r.stayId === stay.id && r.status === "pending")
     .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || b.createdAt.localeCompare(a.createdAt));
   const waitlistRequests = waitlistRequestsOf(store, stay.id);
-  const chat = getCrewThread(store, stay.id) ? `/inbox/${crewThreadId(stay.id)}` : null;
+  const chat = getCrewThread(store, stay.id) ? `/messages/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
 
-  const primary = draft ? <Button size="sm" href={`/my-stays/${stay.id}/edit`}>{t("next.finish")}</Button> : chat && stay.status !== "closed" ? <Button size="sm" href={chat}>{t("next.openCrewChat")}</Button> : null;
+  const primary = draft ? <Button size="sm" href={`/your-houses/${stay.id}/edit`}>{t("next.finish")}</Button> : chat && stay.status !== "closed" ? <Button size="sm" href={chat}>{t("next.openCrewChat")}</Button> : null;
 
   return (
     <TabbedHouse
@@ -209,7 +232,7 @@ function HouseManage({ stay }: { stay: Stay }) {
         <HouseHead
           stay={stay}
           badges={<StatusLine stay={stay} />}
-          menu={<CrewMenu stay={stay} afterLeaveHref="/houses" minimal />}
+          menu={<CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal />}
           actions={
             <>
               {/* The host sees the public page as a guest would (preview banner, nothing changes data). */}
@@ -219,10 +242,11 @@ function HouseManage({ stay }: { stay: Stay }) {
                 </Button>
               )}
               {!draft && (
-                <Button variant="secondary" size="sm" href={`/my-stays/${stay.id}/edit`}>
+                <Button variant="secondary" size="sm" href={`/your-houses/${stay.id}/edit`}>
                   {t("edit")}
                 </Button>
               )}
+              <StayExtras stay={stay} />
               {primary}
             </>
           }
@@ -432,7 +456,7 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
 
   function reply() {
     requireAuth(
-      (userId) => router.push(`/inbox/${openDirectThread(stay.id, applicant.id, userId)}`),
+      (userId) => router.push(`/messages/${openDirectThread(stay.id, applicant.id, userId)}`),
       t("loginToMessage", { name: firstName }),
     );
   }
@@ -488,6 +512,7 @@ const GUEST_TABS: readonly GuestTab[] = ["crew", "payment"];
 
 function JoinedHouse({ stay }: { stay: Stay }) {
   const t = useTranslations("houses");
+  const tWithdraw = useTranslations("withdraw");
   const tSection = useTranslations("houses.detail.sections");
   const tNext = useTranslations("houses.detail.next");
   const store = useStore();
@@ -503,7 +528,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
   // Refunded (the booking wasn't confirmed, the spot went to the waitlist, or left): "Refund of €410 on its way · 5–10 days".
   const refunded = !payment ? store.payments.findLast((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status === "refunded") : undefined;
   const owes = accepted && stay.accommodationStatus === "locked" && payment?.status === "pending" && Boolean(stay.paymentDueAt);
-  const chat = accepted ? `/inbox/${crewThreadId(stay.id)}` : null;
+  const chat = accepted ? `/messages/${crewThreadId(stay.id)}` : null;
 
   function respond(accept: boolean) {
     store.respondToInvite(stay.id, accept);
@@ -529,7 +554,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
       head={
         <HouseHead
           stay={stay}
-          menu={accepted && <CrewMenu stay={stay} afterLeaveHref="/houses" minimal />}
+          menu={accepted && <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal />}
           badges={
             <>
               {request && <StatusBadge status={request.status} />}
@@ -541,6 +566,21 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               <Button variant="tertiary" size="sm" href={`/house/${stay.slug}`}>
                 {t("detail.viewPage")}
               </Button>
+              {(request?.status === "pending" || request?.status === "waitlist_requested") && (
+                <ConfirmPopover
+                  trigger={tWithdraw(request.status === "pending" ? "action" : "waitlistAction")}
+                  title={tWithdraw(request.status === "pending" ? "title" : "waitlistTitle")}
+                  text={tWithdraw("text")}
+                  confirmLabel={tWithdraw("confirm")}
+                  cancelLabel={tWithdraw("keep")}
+                  onConfirm={() => {
+                    store.withdrawRequest(stay.id);
+                    showToast(tWithdraw("toast"));
+                  }}
+                  triggerClassName="px-2 text-body"
+                />
+              )}
+              {accepted && <StayExtras stay={stay} />}
               {next}
             </>
           }
@@ -557,7 +597,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
               return (
                   <div className="max-w-[640px]">
                     {refunded ? (
-                      <RefundNotice payment={refunded} currency={stay.currency} reason={refunded.refundedAmount ? "spot_transferred" : stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled"} />
+                      <RefundNotice payment={refunded} currency={stay.currency} reason={refunded.refundedAmount !== undefined ? "spot_transferred" : stay.status === "closed" ? "host_cancelled" : stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled"} />
                     ) : stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? (
                       <div className="flex flex-col gap-6">
                         <MyShare stay={stay} variant="panel" />

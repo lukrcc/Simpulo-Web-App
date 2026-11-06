@@ -30,12 +30,12 @@ export interface HouseTask {
 
 type TaskData = StoreData & { payments: Payment[] };
 
-export const manageHref = (stay: Pick<Stay, "id">, tab?: string) => `/houses/${stay.id}/manage${tab ? `?tab=${tab}` : ""}`;
+export const manageHref = (stay: Pick<Stay, "id">, tab?: string) => `/your-houses/${stay.id}${tab ? `?tab=${tab}` : ""}`;
 
 /** The host's open tasks for one House, most pressing first. */
 export function hostTasks(data: TaskData, stay: Stay): HouseTask[] {
   const id = (kind: HouseTaskKind) => `${stay.id}-${kind}`;
-  if (stay.status === "draft") return [{ id: id("finish"), kind: "finish", stay, href: `/my-stays/${stay.id}/edit` }];
+  if (stay.status === "draft") return [{ id: id("finish"), kind: "finish", stay, href: `/your-houses/${stay.id}/edit` }];
   if (stay.status !== "published" && stay.status !== "booked") return [];
   const tasks: HouseTask[] = [];
   const asked = data.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;

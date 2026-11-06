@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("editHouse") };
 }
 
-export default function EditStayPage({ params }: PageProps<"/my-stays/[id]/edit">) {
+export default function EditStayPage({ params }: PageProps<"/your-houses/[id]/edit">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <EditStay params={params} />

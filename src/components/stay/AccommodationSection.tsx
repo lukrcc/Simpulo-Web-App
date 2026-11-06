@@ -38,7 +38,7 @@ export function AccommodationSection({ stay, chatLinkCount, canOpenChat = false,
           {chatLinkCount !== undefined && ` · ${t("chatLinks", { count: chatLinkCount })}`}
         </p>
         {canOpenChat && (
-          <Link href={`/inbox/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "md", "mt-1")}>
+          <Link href={`/messages/${crewThreadId(stay.id)}`} className={buttonStyles("tertiary", "md", "mt-1")}>
             {t("openCrewChat")}
           </Link>
         )}

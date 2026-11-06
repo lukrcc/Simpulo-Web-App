@@ -18,7 +18,7 @@ import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 
-/** /inbox/[threadId] – the mobile detail page. On desktop the same chat opens inside /inbox. */
+/** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
   const isDesktop = useIsDesktop();
@@ -26,7 +26,7 @@ export function ThreadView({ params }: { params: Promise<{ threadId: string }> }
   const t = useTranslations("messages.thread");
 
   useEffect(() => {
-    if (isDesktop) router.replace(`/inbox?id=${threadId}`);
+    if (isDesktop) router.replace(`/messages?id=${threadId}`);
   }, [isDesktop, threadId, router]);
 
   return (
@@ -37,7 +37,7 @@ export function ThreadView({ params }: { params: Promise<{ threadId: string }> }
 }
 
 /**
- * The right column of /inbox on desktop. `inline`: inside another page (the past House view), which has its own
+ * The right column of /messages on desktop. `inline`: inside another page (the past House view), which has its own
  * "Do it again" – so the chat doesn't end with one.
  */
 export function ThreadPanel({ threadId, inline = false }: { threadId: string; inline?: boolean }) {
@@ -64,7 +64,7 @@ function ThreadGate({ threadId, embedded, inline = false }: { threadId: string; 
         title={thread ? t("crewOnly") : t("notFound")}
         description={thread ? t("crewOnlyDescription") : undefined}
         action={
-          <Button href={stay ? `/house/${stay.slug}` : "/inbox"}>
+          <Button href={stay ? `/house/${stay.slug}` : "/messages"}>
             {stay ? t("viewHouse") : t("backToMessages")}
           </Button>
         }
@@ -94,7 +94,7 @@ function ThreadNotFound({ embedded }: { embedded: boolean }) {
         icon={SearchX}
         title={t("notFound")}
         action={
-          <Button href="/inbox">
+          <Button href="/messages">
             {t("backToMessages")}
           </Button>
         }

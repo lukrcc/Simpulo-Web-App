@@ -280,7 +280,7 @@ export function MessageBubble(props: MessageBubbleProps) {
             role="menu"
             aria-label={t("react")}
             className={cn(
-              "absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-1 shadow-lg",
+              "glass-panel absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full! p-1",
               mine ? "right-0" : "left-0",
             )}
           >

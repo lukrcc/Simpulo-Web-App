@@ -23,10 +23,18 @@ const nextConfig: NextConfig = {
       { source: "/where-next", destination: "/", permanent: true },
       { source: "/destinations", destination: "/", permanent: true },
       { source: "/next", destination: "/", permanent: true },
-      // Your houses moved to /houses (overview) and /houses/[id]/manage (one House); editing stays at /my-stays/[id]/edit.
-      { source: "/my-stays", has: [{ type: "query", key: "id", value: "(?<id>.+)" }], destination: "/houses/:id/manage", permanent: false },
-      { source: "/my-stays", destination: "/houses", permanent: false },
-      { source: "/my-stays/:id", destination: "/houses/:id/manage", permanent: false },
+      // Your houses: /your-houses (overview), /your-houses/[id] (one House), /your-houses/[id]/edit. Older paths keep working.
+      { source: "/houses", destination: "/your-houses", permanent: true },
+      { source: "/houses/:id/manage", destination: "/your-houses/:id", permanent: true },
+      // The category pages are gone: a category is a filter on Explore.
+      { source: "/houses/:slug", destination: "/explore?category=:slug", permanent: true },
+      { source: "/my-stays", has: [{ type: "query", key: "id", value: "(?<id>.+)" }], destination: "/your-houses/:id", permanent: true },
+      { source: "/my-stays", destination: "/your-houses", permanent: true },
+      { source: "/my-stays/:id/edit", destination: "/your-houses/:id/edit", permanent: true },
+      { source: "/my-stays/:id", destination: "/your-houses/:id", permanent: true },
+      // Messages: /messages and /messages/[threadId].
+      { source: "/inbox", destination: "/messages", permanent: true },
+      { source: "/inbox/:threadId", destination: "/messages/:threadId", permanent: true },
     ];
   },
   images: {

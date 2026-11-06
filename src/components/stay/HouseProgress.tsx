@@ -82,7 +82,7 @@ export function HostProgress({ stay, requests, chat, onTab, onLock }: { stay: St
     current === "open" ? (
       <>
         {sentence(t("next.finish"))}
-        <Button size="sm" href={`/my-stays/${stay.id}/edit`}>{t("next.finishAction")}</Button>
+        <Button size="sm" href={`/your-houses/${stay.id}/edit`}>{t("next.finishAction")}</Button>
       </>
     ) : current === "crew" ? (
       requests.length > 0 ? (

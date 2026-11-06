@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** One House you host or joined: where it stands and everything to manage. The segment is the House's id. */
-export default function ManageHousePage({ params }: PageProps<"/houses/[slug]/manage">) {
+export default function ManageHousePage({ params }: PageProps<"/your-houses/[id]">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <ManageHouse params={params} />

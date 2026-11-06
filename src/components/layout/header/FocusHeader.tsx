@@ -20,7 +20,7 @@ export function FocusHeader() {
       <Container className="flex h-full items-center justify-between">
         <Logo />
         <Link
-          href={me ? "/houses" : "/"}
+          href={me ? "/your-houses" : "/"}
           data-save-exit
           onClick={() => {
             if (readDraft()) showToast(tDraft("savedToast"));

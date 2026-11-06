@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { citySlugOf, getCities, getPublicStays, getVibes, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
+import { citySlugOf, getCities, getPublicStays, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
 import { COLLECTIONS, MIN_COLLECTION_SIZE } from "@/lib/collections";
 import { absoluteUrl } from "@/lib/seo";
 import { isListedStay } from "@/lib/launch";
@@ -16,7 +16,7 @@ const STATIC_PAGES = ["/", "/how-it-works", "/host", "/safety", "/faq", "/about"
  * has no update times yet.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [stays, cities, vibes] = await Promise.all([getPublicStays(), getCities(), getVibes()]);
+  const [stays, cities] = await Promise.all([getPublicStays(), getCities()]);
   const newest = (dates: string[]) => new Date(dates.toSorted().at(-1) ?? STATIC_UPDATED.toISOString());
   return [
     ...STATIC_PAGES.map((path) => ({ url: absoluteUrl(path), lastModified: STATIC_UPDATED })),
@@ -26,12 +26,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .map((city) => ({
         url: absoluteUrl(`/co-living/${city.slug}`),
         lastModified: newest(stays.filter((s) => citySlugOf(s) === city.slug && isListedStay(s)).map((s) => s.createdAt)),
-      })),
-    ...vibes
-      .filter((v) => v.count >= MIN_INDEXABLE_HOUSES)
-      .map((v) => ({
-        url: absoluteUrl(`/houses/${v.vibe}`),
-        lastModified: newest(stays.filter((s) => s.vibe === v.vibe && isListedStay(s)).map((s) => s.createdAt)),
       })),
     ...COLLECTIONS.map((c) => ({ collection: c, houses: stays.filter((s) => isListedStay(s) && c.filter(s)) }))
       .filter(({ houses }) => houses.length >= MIN_COLLECTION_SIZE)

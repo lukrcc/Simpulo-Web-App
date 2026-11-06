@@ -26,7 +26,7 @@ function BackToInbox({ embedded }: { embedded: boolean }) {
   const t = useTranslations("messages.thread");
   if (embedded) return null;
   return (
-    <Link href="/inbox" aria-label={t("backToMessages")} className={iconButtonStyles("md")}>
+    <Link href="/messages" aria-label={t("backToMessages")} className={iconButtonStyles("md")}>
       <ArrowLeft className="size-5" />
     </Link>
   );
@@ -79,7 +79,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           <AvatarStack users={crew} size="xs" max={embedded ? 4 : 3} />
         </button>
 
-        <CrewMenu stay={stay} afterLeaveHref="/inbox" />
+        <CrewMenu stay={stay} afterLeaveHref="/messages" />
 
         <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
       </header>
@@ -113,7 +113,7 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
         </Link>
       </div>
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
-      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/inbox")} className="shrink-0" />}
+      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} className="shrink-0" />}
     </header>
   );
 }

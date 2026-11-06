@@ -25,10 +25,14 @@ import { getCrew, getMyPayment, isCrewMember, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
 import { waitlistPosition } from "@/lib/waitlist";
+import { clearDraft, readDraft } from "@/components/create/model";
+import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { MoreMenu } from "@/components/ui/MoreMenu";
+import { useToast } from "@/components/ui/Toast";
 
 type HousesTab = "houses" | "earnings";
 
-/** /houses – Your houses at a glance: the numbers, what needs you, your Houses as cards. ?tab=earnings: the money. The page scrolls; no footer. */
+/** /your-houses – Your houses at a glance: the numbers, what needs you, your Houses as cards. ?tab=earnings: the money. The page scrolls; no footer. */
 export function YourHouses() {
   const t = useTranslations("houses");
   return (
@@ -59,22 +63,27 @@ function YourHousesContent() {
   };
 
   const over = (s: Stay) => s.status === "completed" || s.endDate < today;
-  const hosting = store.stays.filter((s) => s.hostId === me && (s.status === "published" || s.status === "booked") && !over(s)).toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+  // Cancelled Houses stay listed, as "Cancelled", until their dates are over.
+  const hosting = store.stays.filter((s) => s.hostId === me && (s.status === "published" || s.status === "booked" || s.status === "closed") && !over(s)).toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+  const active = hosting.filter((s) => s.status !== "closed");
   const drafts = store.stays.filter((s) => s.hostId === me && s.status === "draft");
+  // The Open a House flow's own draft (this browser), shown with the draft Houses.
+  const [localDraft, setLocalDraft] = useState<ReturnType<typeof readDraft>>(() => (typeof window === "undefined" ? null : readDraft()));
+  const ownLocalDraft = localDraft && (!localDraft.ownerId || localDraft.ownerId === me) ? localDraft : null;
   const joined = store.joinRequests
     .filter((r) => r.userId === me && ["accepted", "pending", "invited", "waitlist_requested", "waitlisted"].includes(r.status))
     .flatMap((r) => {
       const stay = store.stays.find((s) => s.id === r.stayId);
-      return stay && !over(stay) && stay.status !== "closed" ? [{ request: r, stay }] : [];
+      return stay && !over(stay) ? [{ request: r, stay }] : [];
     })
     .toSorted((a, b) => a.stay.startDate.localeCompare(b.stay.startDate));
   const past = store.stays.filter((s) => over(s) && (s.hostId === me || isCrewMember(store, s, me))).toSorted((a, b) => b.endDate.localeCompare(a.endDate));
   // Hosting an open House and payouts aren't ready yet: setting them up is a task until the account is active.
   const payout = usePayoutAccount();
-  const needsPayouts = hosting.length > 0 && payout.status !== null && payout.status !== "active";
-  const tasks = [...hosting, ...drafts].flatMap((s) => hostTasks(store, s)).concat(joined.flatMap(({ stay }) => guestTasks(store, stay, now)));
-  const isHost = hosting.length > 0 || drafts.length > 0 || earnings.any;
-  const requestsWaiting = hosting.reduce((sum, s) => sum + store.joinRequests.filter((r) => r.stayId === s.id && (r.status === "pending" || r.status === "waitlist_requested")).length, 0);
+  const needsPayouts = hosting.some((s) => s.status !== "closed") && payout.status !== null && payout.status !== "active";
+  const tasks = [...active, ...drafts].flatMap((s) => hostTasks(store, s)).concat(joined.flatMap(({ stay }) => guestTasks(store, stay, now)));
+  const isHost = hosting.length > 0 || drafts.length > 0 || Boolean(ownLocalDraft) || earnings.any;
+  const requestsWaiting = active.reduce((sum, s) => sum + store.joinRequests.filter((r) => r.stayId === s.id && (r.status === "pending" || r.status === "waitlist_requested")).length, 0);
 
   return (
     <Container className="pb-(--space-section) pt-6 md:pt-8">
@@ -93,7 +102,7 @@ function YourHousesContent() {
         <EarningsView earnings={earnings} />
       ) : (
         <div className="flex flex-col gap-(--space-section)">
-          {isHost && <StatStrip earnings={earnings} requests={requestsWaiting} active={hosting.length} onEarnings={earnings.any ? () => select("earnings") : undefined} />}
+          {isHost && <StatStrip earnings={earnings} requests={requestsWaiting} active={active.length} onEarnings={earnings.any ? () => select("earnings") : undefined} />}
 
           <section aria-labelledby="needs-you">
             <h2 id="needs-you" className={SECTION_TITLE}>
@@ -103,15 +112,29 @@ function YourHousesContent() {
             {tasks.length === 0 && !needsPayouts ? <p className="mt-3 text-body-lg text-muted">{t("allSet")}</p> : <TaskList tasks={tasks} />}
           </section>
 
-          {(hosting.length > 0 || drafts.length > 0) && (
+          {(hosting.length > 0 || drafts.length > 0 || ownLocalDraft) && (
             <section aria-labelledby="hosting">
-              {drafts.length > 0 && (
+              {(drafts.length > 0 || ownLocalDraft) && (
                 <div className="mb-8">
                   <h2 className={SECTION_TITLE}>{t("drafts")}</h2>
                   <ul className="mt-3 flex flex-wrap gap-3">
+                    {ownLocalDraft && (
+                      <li>
+                        <DraftChip
+                          title={ownLocalDraft.form.title || t("localDraft")}
+                          cover={ownLocalDraft.form.photos[0]}
+                          vibe={ownLocalDraft.form.vibe || "social"}
+                          href="/create"
+                          onDelete={() => {
+                            clearDraft();
+                            setLocalDraft(null);
+                          }}
+                        />
+                      </li>
+                    )}
                     {drafts.map((stay) => (
                       <li key={stay.id}>
-                        <DraftChip stay={stay} />
+                        <DraftChip title={stay.title} cover={housePhotos(stay)[0]} vibe={stay.vibe} href={`/your-houses/${stay.id}/edit`} onDelete={() => store.deleteDraft(stay.id)} />
                       </li>
                     ))}
                   </ul>
@@ -321,7 +344,9 @@ function GuestStatus({ stay, request }: { stay: Stay; request: JoinRequest }) {
   const store = useStore();
   const payment = getMyPayment(store, stay.id);
   const label =
-    request.status === "pending"
+    stay.status === "closed"
+      ? t("cancelled")
+      : request.status === "pending"
       ? t("requested")
       : request.status === "invited"
         ? t("invited")
@@ -339,21 +364,37 @@ function GuestStatus({ stay, request }: { stay: Stay; request: JoinRequest }) {
   return <Badge className="bg-ink/6">{label}</Badge>;
 }
 
-/** A draft, small: its icon or cover, the title, "Continue". */
-function DraftChip({ stay }: { stay: Stay }) {
+/** A draft, small: its cover or category icon, the title, "Continue"; "…" › "Delete draft" with a confirmation. */
+function DraftChip({ title, cover, vibe, href, onDelete }: { title: string; cover?: string; vibe: Stay["vibe"]; href: string; onDelete: () => void }) {
   const t = useTranslations("houses.home");
-  const cover = housePhotos(stay)[0];
-  const VibeIcon = vibeIcons[stay.vibe];
+  const showToast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const VibeIcon = vibeIcons[vibe];
   return (
-    <Link href={`/my-stays/${stay.id}/edit`} className="card-soft flex items-center gap-3 rounded-2xl py-2 pl-2 pr-4 transition-transform duration-150 hover:-translate-y-0.5">
-      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) text-ink/55">
-        {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <VibeIcon className="size-4.5" aria-hidden />}
-      </span>
-      <span className="min-w-0">
-        <span className="block max-w-56 truncate text-body font-semibold text-ink">{stay.title || t("untitled")}</span>
-        <span className="block text-small text-muted">{t("continue")}</span>
-      </span>
-    </Link>
+    <div className="card-soft flex items-center gap-1 rounded-2xl py-2 pl-2 pr-1">
+      <Link href={href} className="flex min-w-0 items-center gap-3 rounded-xl pr-2 transition-opacity duration-150 hover:opacity-80">
+        <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) text-ink/55">
+          {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <VibeIcon className="size-4.5" aria-hidden />}
+        </span>
+        <span className="min-w-0">
+          <span className="block max-w-56 truncate text-body font-semibold text-ink">{title || t("untitled")}</span>
+          <span className="block text-small text-muted">{t("continue")}</span>
+        </span>
+      </Link>
+      <MoreMenu label={t("draftOptions")} items={[{ label: t("deleteDraft"), danger: true, onSelect: () => setConfirming(true) }]} />
+      <ConfirmSheet
+        open={confirming}
+        title={t("deleteDraftTitle")}
+        description={t("deleteDraftText")}
+        confirmLabel={t("deleteDraftConfirm")}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onDelete();
+          showToast(t("draftDeleted"));
+        }}
+      />
+    </div>
   );
 }
 

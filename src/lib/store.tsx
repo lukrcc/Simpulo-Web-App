@@ -87,8 +87,27 @@ interface StoreState {
   crews: Crew[];
   /** Every pair of housemates from completed Houses, both ways (see LivedWith) – written with the Crew record */
   livedWith: LivedWith[];
-  /** Hosts' invite links (?invite=token) – kept in this browser across reloads, so a copied link still opens */
+  /** Hosts' invite links (/invite/[token]) – kept in this browser across reloads, so a copied link still opens */
   houseInvites: HouseInvite[];
+  /** "Something went wrong" during a stay – /admin/support (mock) */
+  supportCases: SupportCase[];
+}
+
+export type SupportCategory = "place" | "host" | "safety" | "payment" | "other";
+
+/** A help request from someone in a House, shortly before or during the stay. */
+export interface SupportCase {
+  id: string;
+  /** "SUP-4821" – what the person quotes */
+  number: string;
+  stayId: string;
+  userId: string;
+  category: SupportCategory;
+  text: string;
+  /** A photo as a data URL (mock upload) */
+  photo?: string;
+  createdAt: string;
+  status: "open" | "closed";
 }
 
 /** What a House prepared on someone's behalf needs (admin form). */
@@ -143,6 +162,9 @@ type StoreAction =
   | { type: "updateStay"; stayId: string; patch: NewStayInput }
   | { type: "leaveStay"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "requestWaitlist"; stayId: string; id: string; message: string; at: string }
+  | { type: "withdrawRequest"; stayId: string; at: string }
+  | { type: "deleteDraft"; stayId: string }
+  | { type: "addSupportCase"; supportCase: SupportCase }
   | { type: "removeFromWaitlist"; requestId: string }
   | { type: "takeWaitlistSpot"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "removeMember"; stayId: string; userId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
@@ -252,6 +274,12 @@ interface StoreActions {
   addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
   leaveStay: (stayId: string) => void;
+  /** Host: a House that's still a draft is deleted (never published, nobody in it). */
+  deleteDraft: (stayId: string) => void;
+  /** Takes back the current user's open request (to join or for the waitlist); the host is told. */
+  withdrawRequest: (stayId: string) => void;
+  /** "Something went wrong": a case for support (mock: /admin/support). Returns its number. */
+  addSupportCase: (input: Pick<SupportCase, "stayId" | "category" | "text" | "photo">) => string;
   /** A full House: asks the host for a place on its waitlist (optional message). Accept/decline as with requests. */
   requestWaitlist: (stayId: string, message: string) => void;
   /** Host: takes someone off the waitlist. */
@@ -482,7 +510,7 @@ function mockCrewInbox(stays: Stay[], requests: JoinRequest[], users: User[], cr
     const due = doItAgainDue(crew);
     if (!stay || Date.parse(due) > MOCK_NOW) return [];
     return crew.memberIds.map((userId) =>
-      seeded({ id: `n-again-${stay.id}-${userId}`, userId, key: "doItAgain", values: { title: stay.title }, createdAt: due, stayId: stay.id, href: `/houses/${stay.id}/manage` }),
+      seeded({ id: `n-again-${stay.id}-${userId}`, userId, key: "doItAgain", values: { title: stay.title }, createdAt: due, stayId: stay.id, href: `/your-houses/${stay.id}` }),
     );
   });
   const invites = requests.flatMap((r) => {
@@ -547,6 +575,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     crews,
     livedWith: withMockConfirmations(crews.flatMap(livedWithOf)),
     houseInvites: [],
+    supportCases: [],
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -570,6 +599,34 @@ interface PersistedGrowth {
 }
 
 const GROWTH_KEY = "simpulo:growth";
+/**
+ * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
+ * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
+ */
+const MOCK_VERSION = 1;
+const MOCK_PREFIX = "simpulo:mock:";
+const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
+
+function readPersistedMock(dataState: string): StoreState | null {
+  try {
+    const raw = localStorage.getItem(mockKey(dataState));
+    return raw ? (JSON.parse(raw) as StoreState) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Dev menu: back to the mock data as shipped – every saved mock state, the payments mock, the growth data; then a reload. */
+export function resetMockData() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(MOCK_PREFIX) || key === GROWTH_KEY || key === "simpulo:payments") localStorage.removeItem(key);
+    }
+  } catch {
+    // nothing to clear
+  }
+  window.location.reload();
+}
 
 function persistedGrowth(state: StoreState): PersistedGrowth {
   return {
@@ -1240,7 +1297,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       if (next === state) return state;
       let left: StoreState = { ...next, notifications: notify(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id, stay.id) };
       // Paid, and people are waiting: the spot goes to the waitlist (syncWaitlist offers it), the refund keeps Simpulo's fee.
-      // Nobody waiting: the usual cancellation (the whole share back, withoutMember).
+      // Nobody waiting: no refund (below).
+      // Paid and nobody waiting: no refund (config/policies.ts) – the record says "refunded 0" so the guest sees why.
+      if (paid && waitlistOf(state, stay.id).length === 0) {
+        left = { ...left, payments: left.payments.map((p) => (p.id === paid.id ? { ...p, refundedAmount: 0 } : p)) };
+      }
       if (paid && waitlistOf(state, stay.id).length > 0) {
         const amount = waitlistRefund(paid);
         left = {
@@ -1265,6 +1326,26 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         notifications: notify(state, [stay.hostId], "waitlistRequest", { name: firstNameOf(state, me), title: stay.title }, action.id, stay.id),
       };
     }
+
+    case "deleteDraft": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || stay.hostId !== me || stay.status !== "draft") return state;
+      return { ...state, stays: state.stays.filter((s) => s.id !== stay.id), joinRequests: state.joinRequests.filter((r) => r.stayId !== stay.id) };
+    }
+
+    case "withdrawRequest": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      const request = me ? state.joinRequests.find((r) => r.stayId === action.stayId && r.userId === me && (r.status === "pending" || r.status === "waitlist_requested")) : undefined;
+      if (!stay || !request || !me) return state;
+      return {
+        ...state,
+        joinRequests: state.joinRequests.filter((r) => r.id !== request.id),
+        notifications: notify(state, [stay.hostId], "requestWithdrawn", { name: firstNameOf(state, me), title: stay.title }, `${request.id}-withdrawn`, stay.id),
+      };
+    }
+
+    case "addSupportCase":
+      return me ? { ...state, supportCases: [...(state.supportCases ?? []), { ...action.supportCase, userId: me }] } : state;
 
     case "removeFromWaitlist": {
       const request = state.joinRequests.find((r) => r.id === action.requestId && (r.status === "waitlisted" || r.status === "waitlist_requested"));
@@ -1346,11 +1427,21 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       if (!stay || !me || stay.hostId !== me || stay.status === "closed") return state;
       const name = state.users.find((u) => u.id === me)?.name.split(" ")[0] ?? "The host";
       const systemMessage = systemLine(action.systemMessage, crewThreadId(stay.id), "closed", { name });
+      // Cancelled by the host: every paid share goes back in full (through lib/payments – see the refund effect), open ones are dropped; the
+      // crew, everyone waiting and everyone who asked hear it (bell + email).
+      const told = [
+        ...crewIds(state, stay).filter((id) => id !== me),
+        ...state.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlisted" || r.status === "waitlist_requested")).map((r) => r.userId),
+      ];
+      const refunds = state.payments.some((p) => p.stayId === stay.id && p.status === "paid") ? [systemLine({ id: `${action.systemMessage.id}-refund`, createdAt: action.systemMessage.createdAt }, crewThreadId(stay.id), "refund", { count: state.payments.filter((p) => p.stayId === stay.id && p.status === "paid").length })] : [];
       return {
         ...state,
-        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "closed", acceptingRequests: false } : s)),
-        // The system message makes the House thread unread for every member – that's the notification.
-        threads: postToHouse(state.threads, stay.id, [systemMessage]),
+        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "closed", acceptingRequests: false, paymentDueAt: undefined } : s)),
+        payments: state.payments
+          .filter((p) => !(p.stayId === stay.id && p.status === "pending"))
+          .map((p) => (p.stayId === stay.id && p.status === "paid" ? { ...p, status: "refunded" as const } : p)),
+        threads: postToHouse(state.threads, stay.id, [systemMessage, ...refunds]),
+        notifications: notify(state, told, "houseCancelled", { title: stay.title }, `${action.systemMessage.id}-cancelled`, stay.id),
       };
     }
 
@@ -1764,9 +1855,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const now = new Set(state.payments.filter((p) => p.status === "refunded").map((p) => p.id));
     if (refundedBefore.current) {
       for (const payment of state.payments) {
-        if (payment.status !== "refunded" || refundedBefore.current.has(payment.id)) continue;
+        if (payment.status !== "refunded" || refundedBefore.current.has(payment.id) || payment.refundedAmount === 0) continue;
         const stay = state.stays.find((s) => s.id === payment.stayId);
-        const reason = payment.refundedAmount !== undefined ? "spot_transferred" : stay && stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled";
+        const reason = payment.refundedAmount !== undefined ? "spot_transferred" : stay?.status === "closed" ? "host_cancelled" : stay && stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled";
         void payments.refund(payment.id, payment.refundedAmount ?? payment.total, reason);
       }
     }
@@ -1801,10 +1892,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Mock data volume (DevSwitcher "Data"): another preset than "full" is swapped in right after hydration. Runs before
   // the growth restore below, so restored claims and events land on top of it.
+  const mockRestored = useRef(false);
   useEffect(() => {
-    const state = readDataState();
-    if (state !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(state), state) });
+    const dataState = readDataState();
+    // What this browser saved for this data state wins over the shipped mock (it started from it).
+    const saved = readPersistedMock(dataState);
+    if (saved) dispatch({ type: "loadDataset", state: { ...saved, typing: {} } });
+    else if (dataState !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(dataState), dataState) });
+    mockRestored.current = true;
   }, []);
+
+  // Saved shortly after each change (not the login, not who's "typing").
+  useEffect(() => {
+    if (!mockRestored.current) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(mockKey(readDataState()), JSON.stringify({ ...state, currentUserId: null, typing: {} }));
+      } catch {
+        // storage full or unavailable – it holds for this visit
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [state]);
 
   // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
   useEffect(() => {
@@ -2055,6 +2164,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (stayId: string) => dispatch({ type: "leaveStay", stayId, systemMessage: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
   );
+  const deleteDraft = useCallback((stayId: string) => dispatch({ type: "deleteDraft", stayId }), []);
+  const withdrawRequest = useCallback((stayId: string) => dispatch({ type: "withdrawRequest", stayId, at: new Date().toISOString() }), []);
+  const addSupportCase = useCallback((input: Pick<SupportCase, "stayId" | "category" | "text" | "photo">) => {
+    const number = `SUP-${String(1000 + Math.floor(Math.random() * 9000))}`;
+    dispatch({ type: "addSupportCase", supportCase: { ...input, id: makeId("sup"), number, userId: "", createdAt: new Date().toISOString(), status: "open" } });
+    return number;
+  }, []);
   const requestWaitlist = useCallback(
     (stayId: string, message: string) => dispatch({ type: "requestWaitlist", stayId, message, id: makeId("r"), at: new Date().toISOString() }),
     [],
@@ -2288,6 +2404,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addApplication,
       leaveStay,
       requestWaitlist,
+      withdrawRequest,
+      deleteDraft,
+      addSupportCase,
       removeFromWaitlist,
       takeWaitlistSpot,
       closeStay,
@@ -2320,7 +2439,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, withdrawRequest, deleteDraft, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2383,6 +2502,8 @@ export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
   reminderPendingRequests: "requests",
   left: "messages",
   waitlistRequest: "requests",
+  requestWithdrawn: "requests",
+  houseCancelled: "payments",
   waitlistAccepted: "requests",
   waitlistRemoved: "requests",
   waitlistOffer: "requests",
@@ -2680,9 +2801,8 @@ export function validHouseInvite(store: Pick<StoreState, "houseInvites" | "curre
 /** The current user's updates chat from Simpulo. */
 export const updatesThreadId = (userId: string) => `updates-${userId}`;
 
-/** The House URL with the invite token. */
-export const houseInviteUrl = (origin: string, stay: Pick<Stay, "slug">, invite: Pick<HouseInvite, "token">) =>
-  `${origin}/house/${stay.slug}?invite=${invite.token}`;
+/** The invite link: its own page (/invite/[token]). */
+export const houseInviteUrl = (origin: string, _stay: Pick<Stay, "slug">, invite: Pick<HouseInvite, "token">) => `${origin}/invite/${invite.token}`;
 
 /** An unguessable token for an invite link. */
 function inviteToken(): string {

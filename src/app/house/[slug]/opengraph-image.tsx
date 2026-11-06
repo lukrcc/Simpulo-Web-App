@@ -1,82 +1,32 @@
-import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/lib/ogFonts";
-import { getStayRecord, getUser } from "@/lib/data/stays";
-import { firstName } from "@/lib/utils";
-import { COLORS } from "@/lib/colors";
+import { getCrew, getStayRecord } from "@/lib/data/stays";
+import { OG_SIZE, OgCard, ogDates, ogPictures, ogPrice } from "@/lib/ogCard";
 
-export const alt = "A House on Simpulo: the host, the title, the dates and the place";
-export const size = { width: 1200, height: 630 };
+export const alt = "A House on Simpulo: cover, title, dates, place, price and crew";
+export const size = OG_SIZE;
 export const contentType = "image/png";
 
-const WHITE = COLORS.surface;
-const INK = COLORS.ink;
-const ACCENT = COLORS.accent;
-
-/**
- * Photo as a data URI – null when it's missing or unreachable, so the card shows a solid block. Local files
- * (/mock/…) are read from public/ and turned into JPEG, since the image renderer doesn't take WebP.
- */
-async function loadPhoto(url: string | undefined): Promise<string | null> {
-  if (!url) return null;
-  try {
-    if (url.startsWith("/")) {
-      const { readFile } = await import("node:fs/promises");
-      const { default: sharp } = await import("sharp");
-      const file = await readFile(`${process.cwd()}/public${url}`);
-      return `data:image/jpeg;base64,${(await sharp(file).jpeg({ quality: 85 }).toBuffer()).toString("base64")}`;
-    }
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || !type.startsWith("image/")) return null;
-    const data = Buffer.from(await res.arrayBuffer()).toString("base64");
-    return `data:${type};base64,${data}`;
-  } catch {
-    return null;
-  }
-}
-
-/** "Feb 12 – 26" – stored dates are calendar dates, so format them in UTC. */
-function formatDates(start: string, end: string): string {
-  const format = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
-  return format.formatRange(new Date(start), new Date(end));
-}
-
-/** Share card for a House on white: host photo on the left half, title, host, dates · city and a small wordmark on the right. */
+/** Share card for a House: cover, title, dates · place, price pp, the crew and "2 of 6 in", the wordmark. */
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const t = await getTranslations({ locale: "en", namespace: "states.og" });
   const record = await getStayRecord(slug);
   // Drafts never get a card of their own.
   const stay = record && record.status !== "draft" && record.status !== "draft_unclaimed" ? record : undefined;
-  const host = stay && (await getUser(stay.hostId));
-  const [photo, fonts] = await Promise.all([loadPhoto(host?.photos[0]), loadOgFonts()]);
-
+  const crew = stay ? await getCrew(stay) : [];
+  const [pictures, fonts] = await Promise.all([stay ? ogPictures(stay, crew) : Promise.resolve({ cover: null, faces: [] }), loadOgFonts()]);
   return new ImageResponse(
-    (
-      <div style={{ display: "flex", width: "100%", height: "100%", background: WHITE, color: INK }}>
-        <div style={{ display: "flex", width: 600, height: 630, background: COLORS.bg }}>
-          {photo && (
-            <img src={photo} alt="" width={600} height={630} style={{ width: 600, height: 630, objectFit: "cover" }} />
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", width: 600, height: 630, padding: "64px 56px 48px" }}>
-          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
-            <div style={{ display: "flex", fontSize: 64, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>
-              {stay?.title ?? "Simpulo"}
-            </div>
-            {host && <div style={{ display: "flex", marginTop: 24, fontSize: 34 }}>{t("with", { name: firstName(host) })}</div>}
-            {stay && (
-              <div style={{ display: "flex", marginTop: 12, fontSize: 30, color: COLORS.muted }}>
-                {`${formatDates(stay.startDate, stay.endDate)} · ${stay.city || stay.region}`}
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 32, fontWeight: 700, letterSpacing: -1 }}>
-            simpulo<span style={{ color: ACCENT }}>.</span>
-          </div>
-        </div>
-      </div>
+    stay ? (
+      <OgCard
+        cover={pictures.cover}
+        title={stay.title}
+        line={`${ogDates(stay.startDate, stay.endDate)} · ${stay.city || stay.region}`}
+        strong={ogPrice(stay)}
+        faces={pictures.faces}
+        crewLine={`${stay.spotsFilled} of ${stay.spotsTotal} in`}
+      />
+    ) : (
+      <OgCard cover={null} title="Simpulo" line="Share a place. Find your people." />
     ),
     { ...size, fonts },
   );

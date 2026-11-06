@@ -120,7 +120,7 @@ export function NotificationBell({ variant = "plain" }: { variant?: "plain" | "h
           <div
             role="dialog"
             aria-label={t("title")}
-            className="animate-fade-in flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_12px_40px_color-mix(in_srgb,var(--ink)_14%,transparent)]"
+            className="glass-panel animate-fade-in flex max-h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[24px]!"
           >
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <p className="font-semibold text-ink">{t("title")}</p>

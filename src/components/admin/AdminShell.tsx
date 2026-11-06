@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 const ADMIN_NAV = [
   { href: "/admin/growth", key: "growth" },
   { href: "/admin/houses", key: "houses" },
+  { href: "/admin/support", key: "support" },
 ] as const;
 
 /** Frame of the admin pages: a quiet "Admin · mock data" pill and the two sections. Must render inside Suspense. */

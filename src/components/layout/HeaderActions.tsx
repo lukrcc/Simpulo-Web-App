@@ -33,7 +33,7 @@ export function AccountMenu({ me }: { me: User }) {
     { href: "/settings", label: t("menu.settings"), icon: Settings },
     { href: GET_THE_APP_HREF, label: t("menu.getTheApp"), icon: Download },
   ];
-  const itemClass = "flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-ink hover:bg-bg";
+  const itemClass = "flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-ink hover:bg-white/50";
 
   return (
     <div className="relative">
@@ -53,7 +53,7 @@ export function AccountMenu({ me }: { me: User }) {
         // In a portal: the site header clips its overflow. The backdrop closes it; it sits under the menu.
         <Anchored anchor={buttonRef} align="end">
           <button type="button" aria-label={t("menu.close")} tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 -z-10 cursor-default" />
-          <div role="menu" className="animate-fade-in w-[220px] overflow-hidden rounded-2xl bg-surface py-1.5 shadow-xl">
+          <div role="menu" className="glass-panel animate-fade-in w-[220px] overflow-hidden rounded-[20px]! py-1.5">
             <p className="truncate px-4 pb-2 pt-1.5 text-small text-muted">{me.name}</p>
             {items.map(({ href, label, icon: Icon }) => (
               <Link key={href} role="menuitem" href={href} onClick={() => setOpen(false)} className={itemClass}>

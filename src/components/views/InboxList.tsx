@@ -192,7 +192,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
 
   return (
     <Link
-      href={isDesktop ? `/inbox?id=${thread.id}` : `/inbox/${thread.id}`}
+      href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
       className={cn("block rounded-2xl px-3 transition-colors", active ? selectedSurface : "hover:bg-(--chip-bg)")}

@@ -10,7 +10,7 @@ import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureF
 import { APP_MODE } from "@/lib/appMode";
 import { DATA_STATES, installedUsers, readDataState, saveDataState } from "@/lib/data";
 import { computeReminders, type Reminder } from "@/lib/reminders";
-import { findUser, getCrew, NOTIFY_GROUP, OPEN_AS_PARAM, settingsOf, useStore } from "@/lib/store";
+import { findUser, getCrew, NOTIFY_GROUP, OPEN_AS_PARAM, resetMockData, settingsOf, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +95,11 @@ function DevSwitcherInner() {
             <FlagSwitch flag="simulatePaymentFailure" />
             <FlagSwitch flag="simulateOnboardingActionRequired" />
             <DataPreset />
+            <div className="px-4 pb-2.5">
+              <button type="button" onClick={resetMockData} className="font-medium text-ink underline-offset-4 hover:underline">
+                {t("resetMock")}
+              </button>
+            </div>
             {(currentUserId || stay) && (
               <div className="flex items-center gap-1 px-2 py-1.5">
                 {currentUserId && (

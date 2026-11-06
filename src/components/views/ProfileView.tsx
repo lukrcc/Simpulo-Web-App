@@ -216,7 +216,7 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
     guard(() =>
       requireAuth((userId) => {
         const threadId = store.openDirectThread(stayId, user.id, userId);
-        if (threadId) router.push(`/inbox/${threadId}`);
+        if (threadId) router.push(`/messages/${threadId}`);
       }, t("loginToMessage", { name: firstName(user) })),
     );
   }
@@ -579,7 +579,7 @@ function ProofTile({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
         </>
       )}
       {isMe && view.upcoming.length > 0 && (
-        <Link href="/houses" className="mt-auto flex items-center gap-1.5 text-small font-semibold text-ink underline-offset-4 hover:underline">
+        <Link href="/your-houses" className="mt-auto flex items-center gap-1.5 text-small font-semibold text-ink underline-offset-4 hover:underline">
           <Lock className="size-3.5 shrink-0 text-muted" aria-hidden />
           {t("upcomingLine", { count: view.upcoming.length })}
         </Link>

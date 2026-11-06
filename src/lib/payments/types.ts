@@ -39,7 +39,7 @@ export interface Receipt {
   last4: string;
 }
 
-export type RefundReason = "booking_not_confirmed" | "spot_transferred" | "cancelled";
+export type RefundReason = "booking_not_confirmed" | "spot_transferred" | "cancelled" | "host_cancelled";
 
 export interface Refund {
   id: string;

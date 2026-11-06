@@ -249,6 +249,8 @@
       "imprint": "Impressum",
       "privacy": "Privacy",
       "terms": "Terms",
+      "cookies": "Cookies",
+      "cancellation": "Cancellation",
       "hostAHouse": "Host a house",
       "safety": "Safety",
       "faq": "FAQ",
@@ -481,6 +483,7 @@
       },
       "hostPremium": "Host premium",
       "simulatePaymentFailure": "Simulate payment failure",
+      "resetMock": "Reset mock data",
       "simulateOnboardingActionRequired": "Simulate onboarding action required",
       "data": "Data",
       "presets": {
@@ -1509,7 +1512,16 @@
         "offer": "A spot opened for you – take it by {date}",
         "actions": { "finish": "Finish", "review": "Review", "choose": "Choose", "markBooked": "Mark as booked", "answer": "Answer", "pay": "Pay your share", "takeSpot": "Take spot" }
       },
+      "deleteDraft": "Delete draft",
+      "deleteDraftTitle": "Delete this draft?",
+      "deleteDraftText": "It's gone for good – nobody has seen it.",
+      "deleteDraftConfirm": "Delete",
+      "keep": "Keep",
+      "draftDeleted": "Draft deleted",
+      "draftOptions": "Draft options",
+      "localDraft": "Your draft",
       "guest": {
+        "cancelled": "Cancelled",
         "requested": "Requested",
         "invited": "Invited",
         "waitlistRequested": "Waitlist requested",
@@ -1532,7 +1544,9 @@
       "status": { "paid": "Paid", "scheduled": "Scheduled", "pending": "Pending" },
       "account": "to {account}",
       "export": "Export CSV",
-      "taxNote": "Simpulo doesn't give tax advice."
+      "taxNote": "Simpulo doesn't give tax advice.",
+      "noPayouts": "No payouts yet – the first one comes the day after your first House's check-in.",
+      "noMonths": "Nothing paid out in the last 12 months yet."
     },
     "loginTitle": "Log in to see your houses",
     "loginDescription": "Houses you host or joined show up here.",
@@ -1680,7 +1694,7 @@
         "occupancy": "{filled} of {total}",
         "booked": "Booked",
         "draft": "Draft",
-        "closed": "Closed",
+        "closed": "Cancelled",
         "new": "{count} new"
       }
     },
@@ -1743,16 +1757,17 @@
       "leftToast": "You left {title}",
       "manage": "Manage House",
       "edit": "Edit House",
-      "close": "Close this House",
+      "close": "Cancel this House",
       "view": "View House",
       "leave": "Leave this House",
       "leaveTitle": "Leave this House?",
       "leaveDescription": "Your spot opens up again and you'll lose access to the House chat. You can ask to join again later.",
       "leaveConfirm": "Leave House",
+      "leavePaidDescription": "You've paid and nobody is on the waitlist to take your spot – you won't get your share back. You lose access to the House chat.",
       "leaveWaitlistDescription": "Your spot goes to the next person on the waitlist. You get {amount} back – everything but the Simpulo fee ({fee}) – and lose access to the House chat.",
-      "closeTitle": "Close this House?",
-      "closeDescription": "It disappears from Explore and takes no new requests. Everyone in the House gets a message in the House chat.",
-      "closeConfirm": "Close House",
+      "closeTitle": "Cancel this House?",
+      "closeDescription": "It disappears from Explore and takes no new requests. Every paid share is refunded in full, and everyone in the House, on the waitlist or with an open request is told.",
+      "closeConfirm": "Cancel House",
       "stopRequests": "Stop taking requests",
       "takeRequests": "Take requests again"
     },
@@ -1892,7 +1907,7 @@
       "joined": "{name} joined the House",
       "left": "{name} left the House",
       "removed": "{name} is no longer in the House",
-      "closed": "{name} closed this House – it's no longer listed and takes no new requests",
+      "closed": "{name} cancelled this House – every paid share is refunded",
       "crewComplete": "House complete 🎉",
       "bookingConfirmed": "Host confirmed the booking",
       "addressShared": "The address is on the House page now",
@@ -1913,6 +1928,8 @@
       "paid": "{title}: {name} paid their share",
       "left": "{name} left {title}",
       "waitlistRequest": "{name} asked to join the waitlist for {title}",
+      "requestWithdrawn": "{name} withdrew their request for {title}",
+      "houseCancelled": "{title} was cancelled by the host – every paid share is refunded",
       "waitlistAccepted": "{title}: you're on the waitlist – you move up automatically if someone drops out",
       "waitlistRemoved": "{title}: you're no longer on the waitlist",
       "waitlistOffer": "{title}: a spot opened for you – take it within 24 hours",
@@ -2397,12 +2414,85 @@
     "verifiedOnly": "Only verified guests can request",
     "verifiedOnlyText": "Guests verify with an ID through Stripe Identity. Fewer requests, more trust."
   },
+  "policy": {
+    "title": "Cancellation",
+    "description": "When you get your money back on Simpulo: before the crew is complete, after paying, and when the host cancels.",
+    "intro": "Simple rules, the same for every House.",
+    "draft": "Draft – the legal review of these rules is still open.",
+    "short": "Cancellation: free until the crew is complete. After paying, only by handing your spot to the waitlist (everything back but the Simpulo fee). Full refund if the host cancels or doesn't confirm the booking in 48h.",
+    "link": "Cancellation rules",
+    "rules": {
+      "beforeComplete": { "title": "Before the crew is complete", "body": "Withdraw your request or leave your spot any time, for free. Nothing is paid before the crew is complete and the place is chosen." },
+      "afterPayment": { "title": "After you paid", "body": "You can leave by handing your spot to the next person on the waitlist. Once they take it, you get everything back except the Simpulo fee." },
+      "withoutTransfer": { "title": "Nobody on the waitlist", "body": "If you leave after paying and nobody takes your spot, there's no refund – the crew has booked the place counting on you." },
+      "hostCancels": { "title": "The host cancels or doesn't book", "body": "If the host cancels the House, or doesn't confirm the booking within {hours} hours after everyone paid, you get your whole share back." }
+    }
+  },
+  "invitePage": {
+    "metaTitle": "You're invited",
+    "metaDescription": "Your spot in a House on Simpulo is held for you.",
+    "invited": "{name} invited you",
+    "searchInvited": "You searched for this – it's yours first",
+    "held": "spot held for {hours}h",
+    "text": "Your spot is reserved. Accept and you're in the crew – you pay your share once the crew is complete and the place is chosen, like everyone.",
+    "accept": "Accept invite",
+    "seeHouse": "See the House",
+    "explore": "Explore Houses",
+    "loginToAccept": "Log in to take your spot",
+    "ownHouse": "This is your own House.",
+    "joinedToast": "You're in – welcome to {title}",
+    "invalid": "This invite isn't valid any more.",
+    "expiredTitle": "This invite has expired",
+    "expiredText": "Invite links hold a spot for 48 hours, once. Ask the host for a new one – or have a look at the House."
+  },
+  "help": {
+    "button": "Something went wrong",
+    "title": "Something went wrong?",
+    "intro": "Tell us what's up with {title} – we answer quickly, usually within an hour.",
+    "categoryLabel": "What is it about?",
+    "categories": { "place": "Place not as described", "host": "Host unreachable", "safety": "Safety", "payment": "Payment", "other": "Other" },
+    "safetyNote": "In danger? Call the local emergency number first (112 in the EU).",
+    "textLabel": "What happened",
+    "placeholder": "What happened, and since when?",
+    "photo": "Add a photo (optional)",
+    "photoChange": "Change photo",
+    "send": "Send",
+    "sentTitle": "We're on it",
+    "sentText": "Case {number} – we'll reply in Messages.",
+    "done": "Done",
+    "adminTitle": "Support",
+    "adminIntro": "Help requests from Houses about to start or running (mock, this browser).",
+    "adminEmpty": "No cases yet."
+  },
+  "calendar": {
+    "add": "Add to calendar"
+  },
+  "withdraw": {
+    "action": "Withdraw request",
+    "title": "Withdraw your request?",
+    "text": "The host is told. You can ask again later.",
+    "waitlistAction": "Withdraw waitlist request",
+    "waitlistTitle": "Withdraw from the waitlist?",
+    "confirm": "Withdraw",
+    "keep": "Keep",
+    "toast": "Request withdrawn"
+  },
+  "age": {
+    "label": "Your date of birth",
+    "close": "Close",
+    "helper": "Simpulo is 18+. Only your age is shown, never the date.",
+    "tooYoungTitle": "Simpulo is for adults",
+    "tooYoungText": "You need to be 18 to join a House. We'd love to see you back then."
+  },
   "refund": {
     "line": "Refund of {amount} on its way · 5–10 days",
+    "none": "No refund – left after paying",
     "reason": {
       "booking_not_confirmed": "The host didn't confirm the booking within 48 hours, so every share goes back.",
       "spot_transferred": "Your spot went to the waitlist – everything but the Simpulo fee goes back.",
-      "cancelled": "You left the House – your share goes back."
+      "cancelled": "You left the House – your share goes back.",
+      "host_cancelled": "The host cancelled the House – your whole share goes back.",
+      "forfeited": "You left after paying and nobody on the waitlist took your spot – no refund (see the cancellation rules)."
     }
   },
   "safety": {
@@ -2589,7 +2679,8 @@
       "devOnly": "Admin · mock data",
       "nav": {
         "growth": "Growth",
-        "houses": "Prepared Houses"
+        "houses": "Prepared Houses",
+        "support": "Support"
       },
       "growthTitle": "Growth",
       "growthIntro": "Every tracked event in this browser plus the seeded history. Revenue is Simpulo's part – guest fees plus 10 % of host experiences – converted to ≈ EUR.",
@@ -2764,11 +2855,13 @@
     "city": {
       "h1": "Co-living in {city}",
       "description": "Find people to share a house with in {city}, {country}: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
-      "intro": "Intro paragraph about co-living in {city} – who goes there, what a typical House looks like, when to go.",
+      "intro": "Share a house in {city} with people who want the same kind of trip – a few weeks, one crew, a host who knows the place. Ask to join an open House below, or open your own.",
       "related": "Also popular",
       "link": "{city}",
       "vibes": "Vibes in {city}"
     },
+    "emptyTitle": "No House here yet – open the first one.",
+    "emptyAction": "Open a House",
     "vibe": {
       "h1": "{vibe} houses",
       "description": "Shared {vibe} houses for a few weeks: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",

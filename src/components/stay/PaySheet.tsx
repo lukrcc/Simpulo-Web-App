@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
@@ -85,6 +86,7 @@ interface CardPayFormProps {
 export function CardPayForm({ stay, amounts, onPay, onCancel }: CardPayFormProps) {
   const t = useTranslations("house.pay");
   const tPremium = useTranslations("growth.premium");
+  const tPolicy = useTranslations("policy");
   const f = useFormat();
   const [card, setCard] = useState(TEST_CARD);
   const [expiry, setExpiry] = useState(TEST_CARD ? "12/30" : "");
@@ -144,6 +146,13 @@ export function CardPayForm({ stay, amounts, onPay, onCancel }: CardPayFormProps
         </div>
         <p className="text-small text-muted">{t("mockNote")}</p>
       </div>
+
+      <p className="text-small text-muted">
+        {tPolicy("short")}{" "}
+        <Link href="/cancellation" target="_blank" className="font-semibold text-ink underline-offset-4 hover:underline">
+          {tPolicy("link")}
+        </Link>
+      </p>
 
       {declined && (
         <p role="alert" className="rounded-2xl bg-ink/6 px-4 py-3 text-body font-semibold text-ink">

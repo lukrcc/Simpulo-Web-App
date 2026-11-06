@@ -304,7 +304,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!editing || (!isDraft && !validateAll())) return;
     store.updateStay(editing.id, input());
     showToast(isDraft ? tDraft("savedToast") : t("saved"));
-    router.push(`/houses/${editing.id}/manage`);
+    router.push(`/your-houses/${editing.id}`);
   }
 
   function publishDraft() {
@@ -694,7 +694,7 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
             >
               {t("saveTemplate")}
             </Button>
-            <Button variant="tertiary" href={`/houses/${stay.id}/manage`}>
+            <Button variant="tertiary" href={`/your-houses/${stay.id}`}>
               {t("yourHouses")}
             </Button>
           </div>

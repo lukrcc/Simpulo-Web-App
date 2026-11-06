@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/layout/Container";
-import { TodoNote } from "@/components/layout/ContentPage";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { ExploreFeed, type FeedScope } from "@/components/views/ExploreFeed";
 import { breadcrumbList } from "@/lib/seo";
@@ -10,7 +9,6 @@ import { JsonLd } from "./JsonLd";
 
 interface LandingPageProps {
   h1: string;
-  /** Placeholder until the real copy is written */
   intro: string;
   stays: Stay[];
   /** The feed's scope: the same Houses as `stays`, filterable like Explore (filters in the URL) */
@@ -20,8 +18,11 @@ interface LandingPageProps {
   related: ReadonlyArray<{ title: string; links: ReadonlyArray<{ href: string; label: string }> }>;
 }
 
-/** /co-living/[city] and /houses/[vibe]: H1, intro, the matching Houses with Explore's filters, related pages. */
-export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, related }: LandingPageProps) {
+/**
+ * /co-living/[city]: H1, a short intro, the city's open Houses as normal cards with Explore's filters, related links. Only Houses – no place
+ * tiles (CLAUDE.md "Ein Objekt"). No House yet: "No House here yet – open the first one".
+ */
+export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, related, createHref }: LandingPageProps & { /** "Open the first one" with the place filled in */ createHref: string }) {
   const t = await getTranslations("seo");
   return (
     <Container page>
@@ -45,16 +46,23 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
         </ol>
       </nav>
       <h1 className="mt-4 text-h2 md:text-h1">{h1}</h1>
-      <div className="mt-4 max-w-2xl">
-        <TodoNote>{intro}</TodoNote>
-      </div>
+      <p className="mt-4 max-w-[640px] text-body-lg text-muted">{intro}</p>
       {/* How many Houses: the feed's own count (it follows the filters); the server HTML still lists them all. */}
       <p className="sr-only">{t("count", { count: stays.length })}</p>
 
       {/* Explore's grid and filters, limited to this page's Houses (rendered on the server too). */}
-      <section aria-label={t("housesLabel")} className="mt-6">
-        <ExploreFeed scope={scope} headless />
-      </section>
+      {stays.length === 0 ? (
+        <div className="mt-(--space-section) flex flex-col items-start gap-4">
+          <p className="text-h2 text-ink">{t("emptyTitle")}</p>
+          <Link href={createHref} className={buttonStyles("primary", "md")}>
+            {t("emptyAction")}
+          </Link>
+        </div>
+      ) : (
+        <section aria-label={t("housesLabel")} className="mt-6">
+          <ExploreFeed scope={scope} headless />
+        </section>
+      )}
 
       {related
         .filter((group) => group.links.length > 0)

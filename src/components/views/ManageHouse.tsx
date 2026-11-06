@@ -12,9 +12,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useStore } from "@/lib/store";
 
-/** /houses/[id]/manage – one House you host or joined: "← Your houses", the head, where it stands, the tabs. The page scrolls; no footer. */
-export function ManageHouse({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug: id } = use(params);
+/** /your-houses/[id] – one House you host or joined: "← Your houses", the head, where it stands, the tabs. The page scrolls; no footer. */
+export function ManageHouse({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const t = useTranslations("houses.manage");
   return (
     <RequireLogin title={t("loginTitle")}>
@@ -40,7 +40,7 @@ function ManageHouseGate({ id }: { id: string }) {
   if (!stay) {
     return (
       <Container page width="narrow">
-        <EmptyState icon={SearchX} title={t("manage.notFound")} action={<Button href="/houses">{t("manage.backToHouses")}</Button>} />
+        <EmptyState icon={SearchX} title={t("manage.notFound")} action={<Button href="/your-houses">{t("manage.backToHouses")}</Button>} />
       </Container>
     );
   }
@@ -48,7 +48,7 @@ function ManageHouseGate({ id }: { id: string }) {
 
   return (
     <Container className="pb-(--space-section) pt-6 md:pt-8">
-      <Button href="/houses" variant="tertiary" size="sm" className="-ml-4 mb-4">
+      <Button href="/your-houses" variant="tertiary" size="sm" className="-ml-4 mb-4">
         <ArrowLeft aria-hidden />
         {t("title")}
       </Button>

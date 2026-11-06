@@ -48,6 +48,8 @@ export async function Footer() {
         { href: "/impressum", label: t("links.impressum") },
         { href: "/privacy", label: t("links.privacy") },
         { href: "/terms", label: t("links.terms") },
+        { href: "/cancellation", label: t("links.cancellation") },
+        { href: "/privacy#cookies", label: t("links.cookies") },
       ],
     },
   ];
@@ -116,6 +118,7 @@ export async function SlimFooter() {
     { href: "/impressum", label: t("links.impressum") },
     { href: "/privacy", label: t("links.privacy") },
     { href: "/terms", label: t("links.terms") },
+    { href: "/privacy#cookies", label: t("links.cookies") },
   ];
   const socials = (Object.entries(SOCIAL_LINKS) as [SocialNetwork, string][]).filter(([, url]) => url.trim() !== "");
   return (
@@ -158,6 +161,7 @@ async function FooterLegal() {
     { href: "/impressum", label: t("links.impressum") },
     { href: "/privacy", label: t("links.privacy") },
     { href: "/terms", label: t("links.terms") },
+    { href: "/privacy#cookies", label: t("links.cookies") },
   ];
   return (
     <div className="flex flex-col gap-3 text-small md:flex-row md:items-center md:justify-between">

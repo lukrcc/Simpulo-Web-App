@@ -46,7 +46,7 @@ export function ClaimView({ params }: { params: Promise<{ token: string }> }) {
           title={mine ? t("mineTitle") : t("claimedTitle")}
           description={mine ? t("mineText") : t("claimedText")}
           action={
-            <Button href={mine ? `/houses/${stay.id}/manage` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
+            <Button href={mine ? `/your-houses/${stay.id}` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
           }
         />
       </Container>
@@ -83,7 +83,7 @@ function ClaimOffer({ stay }: { stay: Stay }) {
     requireAuth(() => {
       store.claimStay(claim.token);
       showToast(t("claimedToast"));
-      router.push(`/my-stays/${stay.id}/edit`);
+      router.push(`/your-houses/${stay.id}/edit`);
     }, t("loginContext"));
   }
 

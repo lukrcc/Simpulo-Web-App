@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 
 /** Links and buttons that would do something real (`data-preview-action`: Join, pay, message the host). */
-const BLOCKED = 'a[href^="/create"], a[href^="/inbox"], [data-preview-action]';
+const BLOCKED = 'a[href^="/create"], a[href^="/messages"], [data-preview-action]';
 
 /** Demo only: what would act for real says so instead, with a link to the real thing. Runs ahead of the page's own handlers. */
 export function DemoGuard() {

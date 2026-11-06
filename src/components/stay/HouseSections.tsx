@@ -425,6 +425,7 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
   const t = useTranslations("house.page");
   const format = useFormat();
   const label = useViewerPriceLabel(stay);
+  const tPolicy = useTranslations("policy");
   // "£640–810 pp": the amount large, "pp" small. "Price set with crew" stays whole.
   const perPerson = /^(.*\S)\s+(pp)$/.exec(label);
   const payBy = stage === "payment_due" && stay.paymentDueAt;
@@ -467,6 +468,13 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
           {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
           {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
           {showSteps && <JoinSteps stage={stage} />}
+          {showSteps && (
+            <p className="text-small text-muted">
+              <Link href="/cancellation" className="underline-offset-4 hover:text-ink hover:underline">
+                {tPolicy("link")}
+              </Link>
+            </p>
+          )}
         </div>
       )}
     </GlassPanel>

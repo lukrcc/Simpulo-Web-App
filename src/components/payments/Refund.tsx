@@ -12,16 +12,18 @@ export const refundAmountOf = (payment: Pick<Payment, "total" | "refundedAmount"
 export function RefundLine({ payment, currency }: { payment: Payment; currency?: Currency }) {
   const t = useTranslations("refund");
   const f = useFormat();
-  return <>{t("line", { amount: f.price(refundAmountOf(payment), currency) })}</>;
+  return <>{payment.refundedAmount === 0 ? t("none") : t("line", { amount: f.price(refundAmountOf(payment), currency) })}</>;
 }
 
 /**
  * The same as a note with its reason: the host didn't confirm the booking in 48h, the spot went to the waitlist, or the House was left / cancelled.
  * Your houses › House › Payment.
  */
-export function RefundNotice({ payment, currency, reason }: { payment: Payment; currency: Currency; reason: "booking_not_confirmed" | "spot_transferred" | "cancelled" }) {
+export function RefundNotice({ payment, currency, reason }: { payment: Payment; currency: Currency; reason: "booking_not_confirmed" | "spot_transferred" | "cancelled" | "host_cancelled" }) {
   const t = useTranslations("refund");
   const f = useFormat();
+  // Left after paying with nobody to take the spot: nothing goes back.
+  if (payment.refundedAmount === 0) return <p className="text-body text-muted">{t("reason.forfeited")}</p>;
   return (
     <div className="flex items-start gap-3">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink">

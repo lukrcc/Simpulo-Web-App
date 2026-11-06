@@ -73,7 +73,7 @@ export function AccommodationTile({ stay, canOpenChat }: { stay: Stay; canOpenCh
       </>
     );
     return canOpenChat ? (
-      <Link href={`/inbox/${crewThreadId(stay.id)}`} className={cn(TILE, "card-soft p-6 transition-transform duration-150 hover:-translate-y-0.5")}>
+      <Link href={`/messages/${crewThreadId(stay.id)}`} className={cn(TILE, "card-soft p-6 transition-transform duration-150 hover:-translate-y-0.5")}>
         {inner}
       </Link>
     ) : (

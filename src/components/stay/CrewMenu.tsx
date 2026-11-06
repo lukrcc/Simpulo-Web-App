@@ -49,8 +49,8 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
 
   const items: MoreMenuItem[] = isHost
     ? [
-        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/houses/${stay.id}/manage` }]),
-        ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/my-stays/${stay.id}/edit` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/your-houses/${stay.id}` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/your-houses/${stay.id}/edit` }]),
         // Taking requests is a setting, not a status to show – it lives here.
         ...(stay.status === "published" || stay.status === "booked"
           ? [
@@ -73,7 +73,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
       <ConfirmSheet
         open={confirm === "leave"}
         title={t("crewMenu.leaveTitle")}
-        description={toWaitlist ? t("crewMenu.leaveWaitlistDescription", { amount: f.price(waitlistRefund(toWaitlist), stay.currency), fee: f.price(toWaitlist.fee, stay.currency) }) : t("crewMenu.leaveDescription")}
+        description={toWaitlist ? t("crewMenu.leaveWaitlistDescription", { amount: f.price(waitlistRefund(toWaitlist), stay.currency), fee: f.price(toWaitlist.fee, stay.currency) }) : paid ? t("crewMenu.leavePaidDescription") : t("crewMenu.leaveDescription")}
         confirmLabel={t("crewMenu.leaveConfirm")}
         onConfirm={leave}
         onClose={() => setConfirm(null)}

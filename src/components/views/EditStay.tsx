@@ -41,7 +41,7 @@ function EditStayGate({ id }: { id: string }) {
           icon={SearchX}
           title={t("notFound")}
           action={
-            <Button href="/houses">{t("backToHouses")}</Button>
+            <Button href="/your-houses">{t("backToHouses")}</Button>
           }
         />
       </Container>
