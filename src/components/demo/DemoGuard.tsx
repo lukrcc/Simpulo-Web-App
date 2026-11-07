@@ -16,7 +16,7 @@ export function DemoGuard() {
       if (!(event.target as Element).closest?.(BLOCKED)) return;
       event.preventDefault();
       event.stopPropagation();
-      showToast(t("toast"), "notify", `${process.env.NEXT_PUBLIC_PRODUCTION_URL ?? ""}/host`);
+      showToast(t("toast"), "notify", `${process.env.NEXT_PUBLIC_PRODUCTION_URL ?? ""}/how-it-works?role=host`);
     };
     window.addEventListener("click", onClick, { capture: true });
     return () => window.removeEventListener("click", onClick, { capture: true });

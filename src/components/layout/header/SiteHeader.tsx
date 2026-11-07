@@ -1,4 +1,5 @@
 "use client";
+import { Plus } from "lucide-react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,12 +9,12 @@ import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { AccountMenu } from "@/components/layout/HeaderActions";
 import { Logo } from "@/components/layout/Logo";
 import { isNavActive, navItemsFor } from "@/components/layout/nav";
-import { NotificationBell } from "@/components/layout/NotificationBell";
+import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { activeCount } from "@/lib/exploreFilters";
 import { useExploreFilters } from "@/lib/exploreFilterState";
 import { closeNotchPanel, setNotchOpen, setNotchPanelSlot, setNotchSlot, useNotchState } from "@/lib/notchState";
 import { lockScroll } from "@/components/ui/ModalOverlay";
-import { getCurrentUser, unreadThreadCount, useStore } from "@/lib/store";
+import { getCurrentUser, useStore } from "@/lib/store";
 import { NavIcon } from "./FilledNavIcons";
 import { headerActionStyles } from "@/components/ui/ActionButton";
 import { NotchGrip } from "./NotchGrip";
@@ -56,8 +57,10 @@ export function SiteHeader() {
 
 function SiteHeaderByRoute() {
   const pathname = usePathname();
-  // Open a House is a focus mode: only the logo and the way out.
-  return pathname === "/create" ? <FocusHeader /> : <SiteHeaderView pathname={pathname} />;
+  // Open a House is a focus mode: only the logo and the way out. /get (getting the app) shows only the logo.
+  if (pathname === "/create") return <FocusHeader />;
+  if (pathname === "/get") return <FocusHeader exit={false} />;
+  return <SiteHeaderView pathname={pathname} />;
 }
 
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
@@ -66,7 +69,9 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const store = useStore();
   const requireAuth = useRequireAuth();
   const me = getCurrentUser(store);
-  const unread = unreadThreadCount(store);
+  // One dot on Messages for anything unread there: chats or Updates (the notifications live in Messages now – no bell).
+  const unreadIn = useMessagesUnread();
+  const unread = unreadIn.chats + unreadIn.updates;
   const headerRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const shadowRef = useRef<SVGSVGElement>(null);
@@ -178,7 +183,6 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         <div className="flex items-center gap-2.5 justify-self-end">
           {me ? (
             <>
-              <NotificationBell variant="header" />
               <AccountMenu me={me} />
             </>
           ) : (
@@ -187,6 +191,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
             </button>
           )}
           <Link href="/create" className={headerActionStyles}>
+            <Plus aria-hidden strokeWidth={2.25} />
             {tOpen("label")}
           </Link>
         </div>

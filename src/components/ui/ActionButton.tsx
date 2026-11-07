@@ -70,7 +70,7 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
   );
 }
 
-/** "Open a House" in the header: on every page, so it can't be the page's primary. Light glass, the same hover as secondary. */
+/** "Open a House" in the header: the header's one dark button (ink, white text, a plus before it), 36px; everything else in the header stays light. */
 export const headerActionStyles = cn(
-  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white/60 px-4 text-body font-semibold text-ink backdrop-blur-md transition-colors hover:-translate-y-px hover:border-ink/20 hover:bg-white",
+  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-4 text-body font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-[background-color,transform,box-shadow] duration-150 hover:-translate-y-px hover:bg-[#3A3430] hover:shadow-[0_6px_16px_rgba(0,0,0,0.18)] [&_svg]:size-4",
 );

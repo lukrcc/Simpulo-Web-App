@@ -5,7 +5,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { DevSwitcher } from "@/components/auth/DevSwitcher";
-import { InstallNudgeProvider } from "@/components/InstallNudge";
+import { InstallPromptProvider } from "@/components/InstallPrompt";
+import { NotifyBridge } from "@/components/notifications/NotifyBridge";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
 import { SITE_URL } from "@/lib/seo";
@@ -64,8 +65,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang={locale} data-app-mode={APP_MODE} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
       {/* relative + isolate: the frame for PageGlow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
-        {/* Before anything paints: the Spotlight's first showing of this session starts hidden (SpotlightCoverflow). */}
-        <script dangerouslySetInnerHTML={{ __html: `try{if(!sessionStorage.getItem(${JSON.stringify(SPOTLIGHT_INTRO_KEY)})&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-spot-intro","")}catch(e){}` }} />
+        {/* Before anything paints: the Spotlight's first showing of this session starts hidden (SpotlightCoverflow). Through next/script
+            (beforeInteractive, like the gate below): a bare <script> in a component is never run on the client, and React reports it – the
+            "1 Issue" in Next's overlay. */}
+        <Script id="spotlight-intro-gate" strategy="beforeInteractive">
+          {`try{if(!sessionStorage.getItem(${JSON.stringify(SPOTLIGHT_INTRO_KEY)})&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-spot-intro","")}catch(e){}`}
+        </Script>
         {/* Before the router: the way back from a House page is marked ahead of it (src/lib/houseTransition.ts). */}
         <Script id="house-back-gate" strategy="beforeInteractive">
           {HOUSE_BACK_GATE}
@@ -75,10 +80,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <StoreProvider>
           <ToastProvider>
             <AuthProvider>
-              <InstallNudgeProvider>
+              <InstallPromptProvider>
                 <AppShell>{children}</AppShell>
-              </InstallNudgeProvider>
+              </InstallPromptProvider>
               <DevSwitcher />
+              <NotifyBridge />
             </AuthProvider>
           </ToastProvider>
         </StoreProvider>

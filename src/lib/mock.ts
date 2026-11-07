@@ -62,7 +62,7 @@ export interface User extends Attribution {
   interests?: Vibe[];
   /** How long their latest replies took, in minutes, latest first (mock: later from the messages) */
   replyMinutes?: number[];
-  preferredCurrency?: Currency; // for approximate conversions only; unset = from the browser locale
+  preferredCurrency?: Currency; // for approximate conversions only; unset = €
   savedStayIds?: string[];  // hearted Houses ("Saved" on the Houses page)
   hostAlerts?: string[];    // host ids: notify me when they open a House ("Notify me" on profiles; no counts anywhere)
   email?: string;           // account email (mock) – shown in Settings
@@ -83,11 +83,12 @@ export interface Report {
   createdAt: string;
 }
 
-export type NotificationGroup = 'requests' | 'messages' | 'payments' | 'hostAlerts' | 'searches' | 'system';
+/** The switchable notification groups (config/notifications.ts); "bookings" is always on and has no entry here. */
+export type NotificationGroup = 'messages' | 'nearby' | 'news';
 
 export interface UserSettings {
-  /** inApp: shown under the bell (unset = on) */
-  notifications: Record<NotificationGroup, { push: boolean; email: boolean; inApp?: boolean }>;
+  /** Push and email per switchable group; in-app is always on */
+  notifications: Record<NotificationGroup, { push: boolean; email: boolean }>;
   blockedUserIds: string[];
 }
 
@@ -410,7 +411,7 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
     verified: true, socials: [{ platform: 'instagram', value: 'lukas.moves' }, { platform: 'website', value: 'https://simpulo.app' }], savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
     email: 'lukas@simpulo.app', signInMethod: 'apple',
     settings: {
-      notifications: { requests: { push: true, email: true }, messages: { push: true, email: false }, payments: { push: true, email: true }, hostAlerts: { push: false, email: true }, searches: { push: true, email: true }, system: { push: false, email: false } },
+      notifications: { messages: { push: true, email: false }, nearby: { push: true, email: true }, news: { push: false, email: false } },
       // Someone who hosts nothing: Explore shows every House to the default mock user.
       blockedUserIds: ['u17'],
     },
@@ -518,6 +519,12 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
     languages: ['Dutch', 'English', 'French'],
     bio: 'Just signed up – looking for my first shared house.',
     photos: [], verified: false, socials: [{ platform: 'instagram', value: 'noah.ghent' }],
+  },
+  // A brand-new account: nothing hosted, nothing joined (Dev menu › Your houses › New).
+  { id: 'u90', name: 'Emma', age: 24, country: 'Ireland', city: 'Dublin',
+    languages: ['English'],
+    bio: '',
+    photos: [], verified: false, socials: [],
   },
   // Streaming hosts
   { id: 'u18', name: 'Nico', age: 29, country: 'Germany', city: 'Lisbon',
@@ -969,8 +976,8 @@ const coreStays: Stay[] = [
     hostNote: 'Fiber + 2 stream rooms, I checked', acceptingRequests: true, status: 'published', featured: true, createdAt: '2026-10-21T08:00:00Z' },
   { id: 's22', slug: 'irl-house-bangkok', title: 'IRL House Bangkok', hostId: 'u19', vibe: 'creator', language: 'en',
     city: 'Ekkamai', region: 'Bangkok, Thailand', location: { city: 'Bangkok', country: 'Thailand', area: 'Ekkamai' }, lat: 13.72, lng: 100.59, mapPreviewUrl: map('ekkamai'),
-    startDate: '2026-12-06', endDate: '2026-12-20', spotsTotal: 4, spotsFilled: 2,
-    budgetPerPerson: { min: 400, max: 550 }, currency: 'EUR', accommodationStatus: 'open',
+    startDate: '2026-12-06', endDate: '2026-12-20', spotsTotal: 4, spotsFilled: 4,
+    pricePerPerson: 480, currency: 'EUR', accommodationStatus: 'locked',
     description: 'Two weeks of IRL streams across Bangkok: night markets, tuk-tuks, rooftop bars – and a house to come back to.',
     whyText: 'IRL streaming is better with company – someone to hold the second camera, someone to talk to chat with, someone to keep the battery bank charged.',
     dayText: 'Sleep in · afternoon planning · 18:00 co-stream out in the city · late street food · back home for highlights.',
@@ -1047,7 +1054,7 @@ const coreStays: Stay[] = [
   { id: 's26', slug: 'trading-house-bangkok-thonglor', title: 'Trading House Bangkok', hostId: 'u21', vibe: 'remote-work', language: 'en',
     city: 'Thonglor', region: 'Bangkok, Thailand', location: { city: 'Bangkok', country: 'Thailand', area: 'Thonglor' }, lat: 13.73, lng: 100.58, mapPreviewUrl: map('thonglor'),
     startDate: '2026-12-01', endDate: '2027-01-12', spotsTotal: 5, spotsFilled: 3,
-    budgetPerPerson: { min: 22000, max: 30000 }, currency: 'THB', accommodationStatus: 'open',
+    budgetPerPerson: { min: 570, max: 780 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Six weeks in a Thonglor condo with a proper trading room: four desks, backup power, fibre and a 5G failover.',
     whyText: 'Trading the US session from Asia is lonely – you are awake when everyone else sleeps. I want a house where the night shift is the normal shift and people actually review their trades.',
     dayText: '13:00 wake up and gym · 16:00 prep and levels · 20:30–03:00 US session in the trading room · late street food on Sukhumvit Soi 55 · sleep by 05:00.',
@@ -1069,7 +1076,7 @@ const coreStays: Stay[] = [
   { id: 's28', slug: 'trading-gym-house-dubai-marina', title: 'Trading & Gym House Dubai', hostId: 'u23', vibe: 'fitness', language: 'en',
     city: 'Dubai Marina', region: 'Dubai, United Arab Emirates', location: { city: 'Dubai', country: 'United Arab Emirates', area: 'Dubai Marina' }, lat: 25.08, lng: 55.14, mapPreviewUrl: map('dubai-marina'),
     startDate: '2026-11-15', endDate: '2026-12-13', spotsTotal: 4, spotsFilled: 2,
-    pricePerPerson: 1450, currency: 'USD', accommodationStatus: 'locked',
+    pricePerPerson: 1340, currency: 'EUR', accommodationStatus: 'locked',
     accommodationLink: 'https://www.airbnb.com/rooms/example-dubai-marina-tower',
     description: 'A four-bedroom Marina apartment with a building gym, a desk per person and the London open at 11:00 local.',
     whyText: 'Trading and training are the same discipline: routine, risk management, no ego. I want a house that lifts at 6, trades London and New York, and is asleep before the bars open.',
@@ -1327,7 +1334,7 @@ const coreStays: Stay[] = [
   { id: 's51', slug: 'gaming-bootcamp-house-seoul', title: 'Gaming Bootcamp House Seoul', hostId: 'u46', vibe: 'creator', language: 'en',
     city: 'Hongdae', region: 'Seoul, South Korea', location: { city: 'Seoul', country: 'South Korea', area: 'Hongdae' }, lat: 37.556, lng: 126.923, mapPreviewUrl: map('hongdae'),
     startDate: '2027-04-05', endDate: '2027-04-26', spotsTotal: 5, spotsFilled: 3,
-    budgetPerPerson: { min: 800, max: 1100 }, currency: 'USD', accommodationStatus: 'open',
+    budgetPerPerson: { min: 740, max: 1020 }, currency: 'EUR', accommodationStatus: 'open',
     description: 'Three weeks of scrims, VOD reviews and streams from Hongdae – gigabit internet, one room for setups, PC bangs on every corner.',
     whyText: 'Seoul is the best place in the world to grind games, but it\'s hard to break in alone. I want a house that trains like a team and streams like friends.',
     dayText: 'Late breakfast · VOD review at 13:00 · scrims 14:00–18:00 · dinner in Hongdae · streams 20:00–01:00 · Sunday off for the city.',
@@ -1434,6 +1441,12 @@ export const joinRequests: JoinRequest[] = [
   { id: 're4', stayId: 's1', userId: 'u20', message: 'Climber, but I\'ll lift if you make me.', status: 'expired', createdAt: '2026-10-13T12:00:00Z' },
   { id: 'r14', stayId: 's1', userId: 'u17', message: 'First trip like this – I train 4×/week and I\'m an early riser.', status: 'pending', createdAt: '2026-10-21T07:00:00Z' },
   { id: 'r15', stayId: 's21', userId: 'u16', message: 'I stream backend coding on Twitch at night – would love a proper stream room and raids with the house.', status: 'accepted', createdAt: '2026-10-21T09:30:00Z' },
+  // Lukas is in the IRL House: the crew is complete and the place locked – his share is due (Your houses › Needs you "Pay for …").
+  { id: 'r16l', stayId: 's22', userId: 'u1', message: 'I can hold the second camera and I know every night market in Ekkamai.', status: 'accepted', createdAt: '2026-10-21T08:00:00Z' },
+  // Noah (a guest who never hosted) waits for a spot in the full Muay Thai House.
+  // …and was invited to the Cozy Stream House – something to answer (Needs you), next to "Host your own House".
+  { id: 'ri17', stayId: 's23', userId: 'u17', message: '', status: 'invited', createdAt: '2026-11-04T18:00:00Z' },
+  { id: 'rw4', stayId: 's4', userId: 'u17', message: 'Happy to wait – I\'d love a spot if one opens.', status: 'waitlisted', createdAt: '2026-11-01T09:00:00Z' },
   { id: 'r16', stayId: 's22', userId: 'u7', message: 'Game-dev streamer, happy to carry the second camera and do a co-stream night market tour.', status: 'accepted', createdAt: '2026-10-20T20:15:00Z' },
   { id: 'r17', stayId: 's22', userId: 'u2', message: 'Filming my Asia series in December anyway – let\'s do some IRL collabs!', status: 'accepted', createdAt: '2026-10-20T21:40:00Z' },
   { id: 'r19', stayId: 's24', userId: 'u1', message: 'Dawn patrol every day before work – count me in.', status: 'accepted', createdAt: '2026-07-11T10:00:00Z' },
@@ -1585,6 +1598,9 @@ const womenOnly = (house: { who?: string; title: string; slug: string }) => hous
 {
   const MOCK_HOUR = Math.floor(Date.now() / 3_600_000) * 3_600_000;
   const AGO: Record<string, number> = { r3: 17, r4: 41, r14: 3, r5: 26, r9: 20, r18: 9 };
+  // The IRL House's payment window (48h) has 31h left.
+  const irl = coreStays.find((s) => s.id === 's22');
+  if (irl) irl.paymentDueAt = new Date(MOCK_HOUR + 31 * 3_600_000).toISOString();
   let i = 0;
   for (const request of joinRequests) {
     if (request.status !== 'pending') continue;

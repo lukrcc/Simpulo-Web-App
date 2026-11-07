@@ -27,7 +27,7 @@ export function HostAlertButton({ host }: { host: Pick<User, "id" | "name"> }) {
       requireAuth(() => {
         store.toggleHostAlert(host.id);
         showToast(on ? t("off", { name }) : t("on", { name }));
-      }, t("loginToNotify", { name })),
+      }, { reason: "login" }),
     );
   }
 

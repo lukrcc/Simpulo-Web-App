@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { Shelf } from "@/components/ui/Shelf";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { CrewLine } from "@/components/ui/CrewLine";
 import { IconButton } from "@/components/ui/IconButton";
@@ -359,7 +359,7 @@ export function HouseMore({ stay }: { stay: Stay }) {
       <Shelf>
         {more.map((s) => (
           <div key={s.id} className="w-90 shrink-0">
-            <StayCard stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} compact />
+            <HouseCard stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
           </div>
         ))}
       </Shelf>

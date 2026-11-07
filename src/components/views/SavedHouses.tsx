@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Container } from "@/components/layout/Container";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -44,7 +44,7 @@ function SavedContent() {
         <ul className={cn("mt-8", GRID)}>
           {saved.map((stay) => (
             <li key={stay.id}>
-              <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+              <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
             </li>
           ))}
         </ul>

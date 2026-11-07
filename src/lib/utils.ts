@@ -136,9 +136,11 @@ const COUNTRY_CURRENCY: Record<string, Currency> = {
   usa: "USD",
 };
 
-/** Default House currency from the host's country (plain-text country as on profiles); EUR otherwise. */
+/** Default House currency: € everywhere (the host can still pick another in Open a House). `country` stays for a later per-market default. */
 export function currencyForCountry(country: string): Currency {
-  return COUNTRY_CURRENCY[country.trim().toLowerCase()] ?? "EUR";
+  void COUNTRY_CURRENCY;
+  void country;
+  return "EUR";
 }
 
 const REGION_CURRENCY: Record<string, Currency> = { US: "USD", GB: "GBP", AU: "AUD", TH: "THB", ID: "IDR" };

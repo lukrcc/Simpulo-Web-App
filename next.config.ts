@@ -25,7 +25,21 @@ const nextConfig: NextConfig = {
       { source: "/next", destination: "/", permanent: true },
       // Your houses: /your-houses (overview), /your-houses/[id] (one House), /your-houses/[id]/edit. Older paths keep working.
       // Earnings has its own page.
-      { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/earnings", permanent: true },
+      { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/payouts", permanent: true },
+      { source: "/your-houses/earnings", destination: "/your-houses/payouts", permanent: true },
+      // The sections are tabs now (one grid).
+      { source: "/your-houses/hosting", destination: "/your-houses?tab=hosting", permanent: true },
+      { source: "/your-houses/joined", destination: "/your-houses?tab=joined", permanent: true },
+      // Short links (lib/links.ts): a House; invites and creators are placeholders for now.
+      { source: "/h/:slug", destination: "/house/:slug", permanent: false },
+      // TODO: invite codes → /invite/[token] once codes exist apart from tokens.
+      { source: "/i/:code", destination: "/", permanent: false },
+      // TODO: creator pages.
+      { source: "/c/:handle", destination: "/", permanent: false },
+      // Hosting is explained on How it works (host side) – no page of its own.
+      { source: "/host", destination: "/how-it-works?role=host", permanent: true },
+      // Notifications live in Messages › Updates.
+      { source: "/notifications", destination: "/messages?tab=updates", permanent: true },
       { source: "/houses", destination: "/your-houses", permanent: true },
       { source: "/houses/:id/manage", destination: "/your-houses/:id", permanent: true },
       // The category pages are gone: a category is a filter on Explore.

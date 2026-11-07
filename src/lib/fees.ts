@@ -1,21 +1,21 @@
 // Money rules of a locked House, in the House's currency. Mock only – no real payments.
 
-/** Guest fee: 10 % of the stay share, at least 10 and at most 50. */
-export const GUEST_FEE_RATE = 0.1;
-export const GUEST_FEE_MIN = 10;
-export const GUEST_FEE_MAX = 50;
+import { FEE_MODEL } from "@/config/policies";
 
-/** A host programme may add at most 30 % of the stay share per person. */
-export const HOST_FEE_MAX_RATE = 0.3;
-/** Simpulo keeps 10 % of the host programme; the host gets the other 90 %. */
-export const PLATFORM_COMMISSION_RATE = 0.1;
+/** The guests' service fee: FEE_MODEL.serviceFeePercent of what they pay towards the stay, shown as its own line. */
+export const GUEST_FEE_RATE = FEE_MODEL.serviceFeePercent / 100;
+
+/** The optional host fee (a setting in Open a House, off by default) is at most the stay share itself. */
+export const HOST_FEE_MAX_RATE = 1;
+/** What Simpulo keeps of a host fee: nothing (FEE_MODEL) – the host gets all of it. */
+export const PLATFORM_COMMISSION_RATE = FEE_MODEL.hostCommissionPercent / 100;
 
 export function guestFee(share: number): number {
   if (share <= 0) return 0;
-  return Math.min(Math.max(Math.round(share * GUEST_FEE_RATE), GUEST_FEE_MIN), GUEST_FEE_MAX);
+  return Math.round(share * GUEST_FEE_RATE);
 }
 
-/** The highest host programme fee a share allows. */
+/** The highest host fee a share allows. */
 export function maxHostFee(share: number): number {
   return Math.floor(share * HOST_FEE_MAX_RATE);
 }

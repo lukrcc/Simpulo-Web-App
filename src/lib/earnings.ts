@@ -1,4 +1,5 @@
-// A host's money: what each hosted House pays out, when, and the history of payouts – Your houses › Earnings.
+// A host's money: what each hosted House pays out, when, and the history of payouts – Your houses › Payouts. The crew's shares aren't
+// income: the host passes them on for the stay. Only a host experience (host fee) is the host's own.
 // Per guest the host receives the stay share + 90 % of the host programme (paymentSplit); Simpulo keeps the programme's
 // 10 % (the guests' own fee isn't the host's). The payout comes after check-in. Earlier Houses that aren't in the data
 // any more (the mock's history of hosts with a host experience) come from the data source (pastEarningsOf).
@@ -18,6 +19,8 @@ export interface EarningRow {
   guests: number;
   /** What the guests paid towards the host: shares + host programme */
   gross: number;
+  /** The host experience (host fee) the guests paid – 0 without one */
+  hostFee: number;
   /** Simpulo's commission on the host programme */
   fee: number;
   payout: number;
@@ -43,6 +46,10 @@ export interface Earnings {
   months: { month: string; amount: number }[];
   allTime: number;
   thisYear: number;
+  /** Houses paid out this year */
+  housesThisYear: number;
+  /** What the host kept from host fees this year (host fee − Simpulo's 10 %) */
+  hostFeesThisYear: number;
   pending: number;
   next: Payout | null;
   currency: Currency;
@@ -75,6 +82,7 @@ function rowOf(stay: Stay, payments: Payment[], today: string): EarningRow | nul
     endDate: stay.endDate,
     guests,
     gross: guests * (split.share + split.hostFee),
+    hostFee: guests * split.hostFee,
     fee: guests * split.commission,
     payout: guests * split.hostReceives,
     currency: stay.currency,
@@ -92,6 +100,7 @@ function pastRow(entry: PastEarning): EarningRow {
     endDate: entry.endDate,
     guests: entry.guests,
     gross: entry.guests * (split.share + split.hostFee),
+    hostFee: entry.guests * split.hostFee,
     fee: entry.guests * split.commission,
     payout: entry.guests * split.hostReceives,
     currency: entry.currency,
@@ -125,6 +134,8 @@ export function earningsFor(data: { stays: readonly Stay[]; payments: readonly P
     months,
     allTime: paid.reduce((sum, r) => sum + r.payout, 0),
     thisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + r.payout, 0),
+    housesThisYear: paid.filter((r) => r.payoutDate.startsWith(year)).length,
+    hostFeesThisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + r.hostFee - r.fee, 0),
     pending: upcoming.reduce((sum, r) => sum + r.payout, 0),
     next,
     currency: rows[0]?.currency ?? "EUR",
@@ -134,10 +145,10 @@ export function earningsFor(data: { stays: readonly Stay[]; payments: readonly P
 
 /** The table as CSV, for the tax return: one line per House. */
 export function earningsCsv(earnings: Earnings): string {
-  const head = ["House", "Start", "End", "Guests", "Gross", "Simpulo fee", "Payout", "Currency", "Status", "Payout date"];
+  const head = ["House", "Start", "End", "Guests", "Gross", "Host fee", "Simpulo fee", "Payout", "Currency", "Status", "Payout date"];
   const cell = (value: string | number) => {
     const text = String(value);
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
-  return [head, ...earnings.rows.map((r) => [r.title, r.startDate, r.endDate, r.guests, r.gross, r.fee, r.payout, r.currency, r.status, r.payoutDate])].map((line) => line.map(cell).join(",")).join("\n");
+  return [head, ...earnings.rows.map((r) => [r.title, r.startDate, r.endDate, r.guests, r.gross, r.hostFee, r.fee, r.payout, r.currency, r.status, r.payoutDate])].map((line) => line.map(cell).join(",")).join("\n");
 }

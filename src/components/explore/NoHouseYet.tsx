@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { createHrefOf } from "@/components/create/model";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { Button } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { HOUSE_GRID } from "@/config/explore";
@@ -61,7 +61,7 @@ export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Hous
           <SectionHeader eyebrow={t("nearby")} />
           <div className={cn(HOUSE_GRID, "mt-(--space-inner)")}>
             {nearby.map((stay) => (
-              <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+              <HouseCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
             ))}
           </div>
         </section>

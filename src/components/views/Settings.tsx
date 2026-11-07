@@ -18,6 +18,7 @@ import { Select } from "@/components/ui/Select";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
+import { OPTIONAL_CATEGORIES } from "@/config/notifications";
 import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
@@ -32,16 +33,14 @@ const SECTIONS = ["account", "profile", "notifications", "payments", "payouts", 
 type Section = (typeof SECTIONS)[number];
 
 /**
- * The four notification toggles – each one channel of one group. Payment and booking updates aren't here: they always
- * go out (see settingsOf).
+ * The notification switches: Push and Email of each switchable group (config/notifications.ts). Bookings & payments have no switch –
+ * they always go out, in the app, by push and by email.
  */
-type NotificationKey = "messages" | "savedSearches" | "houseUpdates" | "news";
-const NOTIFICATION_ROWS: ReadonlyArray<{ key: NotificationKey; group: NotificationGroup; channel: Exclude<NotificationChannel, "inApp"> }> = [
-  { key: "messages", group: "messages", channel: "push" },
-  { key: "savedSearches", group: "searches", channel: "push" },
-  { key: "houseUpdates", group: "requests", channel: "push" },
-  { key: "news", group: "system", channel: "email" },
-];
+type NotificationKey = `${NotificationGroup}.${NotificationChannel}`;
+const NOTIFICATION_ROWS: ReadonlyArray<{ key: NotificationKey; group: NotificationGroup; channel: NotificationChannel }> = OPTIONAL_CATEGORIES.flatMap(({ key, push, email }) => [
+  ...(push ? [{ key: `${key}.push` as const, group: key, channel: "push" as const }] : []),
+  ...(email ? [{ key: `${key}.email` as const, group: key, channel: "email" as const }] : []),
+]);
 
 /** ⚠ MOCK: saved cards and wallets (no payment provider yet). */
 const MOCK_PAYMENT_METHODS = [
@@ -107,7 +106,7 @@ function SettingsContent({ me }: { me: User }) {
   const saved = settingsOf(me).notifications;
   const savedOn = (key: NotificationKey) => {
     const row = NOTIFICATION_ROWS.find((r) => r.key === key)!;
-    return saved[row.group][row.channel] !== false;
+    return saved[row.group][row.channel];
   };
   const dirty =
     NOTIFICATION_ROWS.some(({ key }) => draft.notifications[key] !== undefined && draft.notifications[key] !== savedOn(key)) ||
@@ -256,17 +255,39 @@ function ProfileSection() {
   );
 }
 
-/** Exactly four toggles (drafts until Save); payment and booking updates always go out. */
+/** "Bookings & payments – always on", then each switchable group with its Push and Email switches (drafts until Save). */
 function NotificationsSection({ isOn, onChange }: { isOn: (key: NotificationKey) => boolean; onChange: (key: NotificationKey, on: boolean) => void }) {
   const t = useTranslations("settings.notifications");
   return (
-    <Card title={t("title")} description={t("alwaysSent")}>
-      {NOTIFICATION_ROWS.map(({ key, channel }) => (
+    <Card title={t("title")}>
+      {/* No switch: it wraps instead of being cut off like a row's subtitle. */}
+      <li className="py-2">
+        <p className="text-body text-ink">{t("alwaysOn")}</p>
+        <p className="mt-0.5 max-w-140 text-small text-muted">{t("alwaysOnText")}</p>
+      </li>
+      {OPTIONAL_CATEGORIES.map(({ key, push, email }) => (
         <li key={key}>
           <ListRow
             title={t(`rows.${key}`)}
-            subtitle={t(`channels.${channel}`)}
-            action={<Switch on={isOn(key)} label={t(`rows.${key}`)} onChange={(on) => onChange(key, on)} />}
+            subtitle={t(`notes.${key}`)}
+            action={
+              <>
+                {(["push", "email"] as const).map((channel) =>
+                  (channel === "push" ? push : email) ? (
+                    <span key={channel} className="flex items-center gap-2">
+                      <span className="text-small text-muted">{t(`channels.${channel}`)}</span>
+                      <Switch on={isOn(`${key}.${channel}`)} label={`${t(`rows.${key}`)} – ${t(`channels.${channel}`)}`} onChange={(on) => onChange(`${key}.${channel}`, on)} />
+                    </span>
+                  ) : (
+                    // No push for this group: an empty cell of the same width keeps the Email switches in one column.
+                    <span key={channel} aria-hidden className="invisible flex items-center gap-2">
+                      <span className="text-small">{t(`channels.${channel}`)}</span>
+                      <span className="size-11" />
+                    </span>
+                  ),
+                )}
+              </>
+            }
           />
         </li>
       ))}

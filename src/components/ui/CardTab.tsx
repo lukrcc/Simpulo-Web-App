@@ -10,6 +10,8 @@ interface CardTabProps {
   host: Pick<User, "id" | "name" | "photos" | "verified">;
   /** Must match what's behind the card, so the tab reads as cut out of it. */
   bg?: string;
+  /** Instead of the first name, e.g. "You" on your own House */
+  label?: string;
   /** Optional extra after the name, e.g. dates on featured cards */
   suffix?: string;
   className?: string;
@@ -35,15 +37,15 @@ const cornerBelow =
  * before hydration) it still paints the page colour plus two inverted corners – right of it along the top edge, below
  * it along the left edge – over a rounded-tl-none card; globals.css drops them once the card is `data-notch="ready"`.
  */
-export function CardTab({ host, bg = "var(--bg)", suffix, className, contentClassName, linked = false, style }: CardTabProps) {
+export function CardTab({ host, bg = "var(--bg)", label, suffix, className, contentClassName, linked = false, style }: CardTabProps) {
   const t = useTranslations("common.ui.cardTab");
   // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
     <span className={cn("flex min-w-0 items-center gap-2", contentClassName)}>
       <PersonPhoto src={host.photos[0]} alt={host.name} size={26} className="size-[26px] shrink-0" />
       <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-nav text-ink">
-        <span className="min-w-0 truncate">{firstName(host)}</span>
-        {host.verified && <VerifiedBadge size={14} className="shrink-0" />}
+        <span className="min-w-0 truncate">{label ?? firstName(host)}</span>
+        {host.verified && !label && <VerifiedBadge size={14} className="shrink-0" />}
         {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
       </span>
     </span>

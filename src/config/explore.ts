@@ -38,8 +38,6 @@ export const SPOTLIGHT_INTRO_KEY = "simpulo:spotlight-intro";
 /** The Spotlight only with at least this many Houses to choose from. */
 export const SPOTLIGHT_MIN = 5;
 
-/** A place is on the host's map only with at least this many people searching for it. */
-export const MAP_MIN_PEOPLE = 3;
 
 /** A new House belongs to the people whose search it answers this long: only they see it, and each has a token to join. */
 export const SEARCH_HEAD_START_HOURS = 48;
@@ -67,7 +65,7 @@ export const THEME_SHELF_MIN_ITEMS = 12;
 export const SHELF_MAX_ITEMS = 24;
 
 /**
- * The Spotlight's line beside the centre card (logged in), by the card's category: a short sentence, then that category's
+ * The Spotlight's line beside the centre card (logged in; visitors: SPOTLIGHT_THEME_LINES_VISITOR), by the card's category: a short sentence, then that category's
  * open Houses. Later in en.json.
  */
 export const SPOTLIGHT_THEME_LINES: Record<Vibe, string> = {
@@ -83,6 +81,21 @@ export const SPOTLIGHT_THEME_LINES: Record<Vibe, string> = {
   holiday: "Time off, in good company.",
   social: "Come for the place, stay for the people.",
   students: "Study less alone.",
+};
+/** The same line for visitors (logged out): more inviting – what living in such a House is like. */
+export const SPOTLIGHT_THEME_LINES_VISITOR: Record<Vibe, string> = {
+  fitness: "Train together. Split the villa.",
+  "surf-water": "Four strangers, one villa, one swell.",
+  "remote-work": "Work mornings. Sunsets with your crew.",
+  founder: "Build all day. Dinner with people who get it.",
+  creator: "Shoot by day. Edit together at night.",
+  wellness: "Slow mornings, one kitchen, real rest.",
+  adventure: "Strangers at the start, friends at the top.",
+  culture: "A new city, seen with new friends.",
+  party: "One villa, one crew, big nights.",
+  holiday: "Time off with people worth meeting.",
+  social: "Come for the place, stay for the people.",
+  students: "Same city, same semester, one House.",
 };
 /** A House without a category: the number is the sentence. */
 export const spotlightThemeFallback = (count: number) => `${count} ${count === 1 ? "house" : "houses"} open right now.`;

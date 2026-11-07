@@ -93,33 +93,6 @@ export function isSaved(searches: readonly SavedSearch[], draft: SearchDraft, us
   return searches.some((s) => s.notifiedAt === null && sameSearch(s, draft) && (userId ? s.userId === userId : s.id.startsWith(LOCAL_SEARCH_PREFIX)));
 }
 
-export interface PlaceDemand {
-  place: SearchPlace;
-  people: number;
-  /** Most searched first */
-  months: { month: string; people: number }[];
-}
-
-/** Open searches per place, most people first. A place's people are told when a House opens, so only those count. */
-export function demandByPlace(searches: readonly SavedSearch[]): PlaceDemand[] {
-  const byPlace = new Map<string, SavedSearch[]>();
-  for (const search of searches) {
-    if (!search.place || search.notifiedAt !== null) continue;
-    byPlace.set(search.place.id, [...(byPlace.get(search.place.id) ?? []), search]);
-  }
-  return [...byPlace.values()]
-    .map((own): PlaceDemand => {
-      const months = new Map<string, SavedSearch[]>();
-      for (const search of own) if (search.month) months.set(search.month, [...(months.get(search.month) ?? []), search]);
-      return {
-        place: own[0].place!,
-        people: peopleIn(own),
-        months: [...months].map(([month, list]) => ({ month, people: peopleIn(list) })).toSorted((a, b) => b.people - a.people || a.month.localeCompare(b.month)),
-      };
-    })
-    .toSorted((a, b) => b.people - a.people || a.place.name.localeCompare(b.place.name));
-}
-
 /**
  * An empty result's alternatives, closest to what was asked first: the place in another month, then other places nearby (the month fitting
  * first). Without a place: the same month's neighbours. The same category goes first.

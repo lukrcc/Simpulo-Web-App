@@ -95,7 +95,7 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
         />
       </div>
       {suggestions.length > 0 && (
-        <ul id={`${id}-suggestions`} role="listbox" className="mt-2 max-h-80 overflow-y-auto">
+        <ul id={`${id}-suggestions`} role="listbox" className="mt-2 max-h-80 overflow-y-auto overscroll-contain">
           {suggestions.map((place, i) => {
             const kind = placeKindOf(place.id);
             const cover = coverOf(place.id);

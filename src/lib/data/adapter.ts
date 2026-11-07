@@ -40,6 +40,8 @@ export interface DataAdapter {
   /** Who a past demo session is logged in as; null in production */
   defaultUserId: string | null;
   installedUsers: ReadonlySet<string>;
+  /** Dev menu: one person per Your houses layout – a new account, a guest who never hosted, a host; null in production */
+  devPersonas: { new: string; guest: string; host: string } | null;
   paidUsers(stayId: string): string[];
   /** Earlier Houses of a host, for Earnings (the real source: the payout records) */
   pastEarnings(userId: string): PastEarning[];

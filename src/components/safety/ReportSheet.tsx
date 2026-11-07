@@ -1,6 +1,6 @@
 "use client";
 
-import { selectedSurface } from "@/components/ui/Chip";
+import { listItemStyles } from "@/components/ui/listSelection";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formTextarea } from "@/components/form/FormLayout";
@@ -62,10 +62,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
           {REASONS.map((r) => (
             <label
               key={r}
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 text-body transition-colors",
-                reason === r ? cn(selectedSurface, "font-medium") : "bg-ink/5 hover:bg-ink/10",
-              )}
+              className={listItemStyles(reason === r, cn("flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 text-body", reason === r && "font-medium"))}
             >
               <Checkbox radio name="report-reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
               {t(`reasons.${r}`)}

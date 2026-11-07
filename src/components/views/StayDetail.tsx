@@ -12,16 +12,18 @@ import { audienceFit, didntWorkOut } from "@/lib/requests";
 import { hasOffer, waitlistOf, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { useInstallNudge } from "@/components/InstallNudge";
+import { useOfferInstall } from "@/components/installPromptContext";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
+import { HouseQrSheet } from "@/components/stay/HouseQrSheet";
+import { MoreMenu } from "@/components/ui/MoreMenu";
 import { useHouseShare } from "@/components/share/HouseShare";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
-import { HouseCard } from "@/components/stay/HouseCard";
+import { HouseGalleryCard } from "@/components/stay/HouseGalleryCard";
 import { HouseActions, HouseCrew, HouseDay, HouseFacts, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseSummary, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
@@ -86,7 +88,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
           <h2 className="mb-4 text-body-lg font-semibold">{t("others")}</h2>
           <div className="card-grid [--card-cols:3] [--card-min:280px]">
             {others.map((s) => (
-              <StayCard key={s.id} stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
+              <HouseCard key={s.id} stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
             ))}
           </div>
         </section>
@@ -106,7 +108,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const tPreview = useTranslations("common.ui.preview");
   const tCommon = useTranslations("common");
   const showToast = useToast();
-  const offerInstall = useInstallNudge();
+  const offerInstall = useOfferInstall();
   const requireAuth = useRequireAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
   /** The request sheet asks for a place on the waitlist instead of a spot */
@@ -122,10 +124,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     setSheetOpen(false);
     if (!sent) return; // closed mid-way: keep the message for next time
     setRequestKey((k) => k + 1);
-    // Only now, so the install nudge doesn't stack on top of the request sheet.
-    offerInstall(hostFirstName);
+    // Only now, so the install prompt doesn't stack on top of the request sheet.
+    offerInstall("request", { hostName: hostFirstName });
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const tInstall = useTranslations("install");
   const [paying, setPaying] = useState(false);
   // ?invite=token – read in its own boundary, like ?preview.
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -198,14 +202,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       }
       // userId is passed explicitly: right after an inline login the store doesn't know the new user yet.
       router.push(`/messages/${store.openDirectThread(stay.id, stay.hostId, userId)}`);
-    }, t("loginToMessage", { name: hostFirstName }));
+    }, { reason: "message", hostName: host?.name.split(" ")[0] });
   }
 
   function joinWithInvite() {
     requireAuth((userId) => {
       if (userId === stay.hostId) return showToast(t("ownHouse"));
       setInviteSheetOpen(true);
-    }, t("inviteLink.loginToJoin"));
+    }, { reason: "join", hostName: host?.name.split(" ")[0] });
   }
 
   function respondToInvite(accept: boolean) {
@@ -312,7 +316,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     <Container className="pb-6 pt-4 md:pb-[calc(120px-var(--space-section))]">
       {/* The large card stays under the header; everything to read moves past it. Its column is exactly as wide as the card can be in this window. Between them the page's own margin (--page-margin): left edge = gap = right edge. */}
       <div className="grid items-start gap-x-(--page-margin) gap-y-8 split:grid-cols-[minmax(0,min(40%,560px,calc((100dvh-var(--header-h)-var(--band-h)-48px)*0.75)))_minmax(0,1fr)]">
-        <HouseCard stay={stay} host={host} />
+        <HouseGalleryCard stay={stay} host={host} />
         <div className="flex min-w-0 flex-col gap-10">
           <HouseSummary
             ref={summaryRef}
@@ -338,7 +342,18 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             note={ctaNote}
             notice={audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : undefined}
             showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
-            actions={<HouseActions menu={!isHost && !previewing && <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={iconButtonStyles("sm")} />} onBack={goBack} />}
+            actions={
+              <HouseActions
+                menu={
+                  previewing ? undefined : isHost ? (
+                    <MoreMenu items={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} label={tCommon("ui.moreMenu.moreOptions")} buttonClassName={iconButtonStyles("sm")} />
+                  ) : (
+                    <SafetyMenu target={{ kind: "stay", id: stay.id }} extraItems={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} buttonClassName={iconButtonStyles("sm")} />
+                  )
+                }
+                onBack={goBack}
+              />
+            }
           />
           <div className="space-y-6 empty:hidden">
         {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
@@ -374,7 +389,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           <div className="flex items-center gap-4">
             <Camera className="size-5 shrink-0 text-muted" aria-hidden />
             <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
-            <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), t("loginToAddPhoto"))}>
+            <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), { reason: "login" })}>
               {t("addPhoto")}
             </Button>
           </div>
@@ -406,6 +421,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
       <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
+      <HouseQrSheet stay={stay} open={qrOpen} onClose={() => setQrOpen(false)} />
       {invite && <InviteJoinSheet stay={stay} invite={invite} open={inviteSheetOpen} onClose={() => setInviteSheetOpen(false)} />}
       <RequestSheet
         key={requestKey}

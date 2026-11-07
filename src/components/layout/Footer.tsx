@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import type { IconType } from "react-icons";
-import { IfHostPremium } from "@/components/host/ProHostSection";
+import { FooterInstallHint } from "@/components/InstallHint";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
 import { FooterPopular } from "./FooterPopular";
@@ -13,7 +13,7 @@ import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
  * Site footer below every page: wordmark, claim and socials (top, on the headings' baseline), four plain link columns –
  * Explore, Hosting, Simpulo, Popular – and a bottom row with the copyright and the legal links. On mobile a spacer at its
  * end keeps it clear of the bottom bar for the current mode (pill, docked or none) and of the sticky CTAs on routes
- * without the tab bar. Its own surface, one colour, full width, with a clear edge on top. Only on Explore, Host and How it
+ * without the tab bar. Its own surface, one colour, full width, with a clear edge on top. Only on Explore and How it
  * works; everywhere else SlimFooter, the same surface as one line (FooterByRoute).
  */
 const SOCIAL_ICONS: Record<SocialNetwork, IconType> = { instagram: SiInstagram, tiktok: SiTiktok, youtube: SiYoutube };
@@ -35,8 +35,7 @@ export async function Footer() {
     {
       title: t("columns.hosting"),
       links: [
-        { href: "/host", label: t("links.hostAHouse") },
-        { href: "/host#pro-hosts", label: t("links.proHosts"), premium: true },
+        { href: "/how-it-works?role=host", label: t("links.hostAHouse") },
         { href: "/safety", label: t("links.safety") },
       ],
     },
@@ -45,11 +44,7 @@ export async function Footer() {
       links: [
         { href: "/about", label: t("links.about") },
         { href: "/faq", label: t("links.faq") },
-        { href: "/impressum", label: t("links.impressum") },
-        { href: "/privacy", label: t("links.privacy") },
-        { href: "/terms", label: t("links.terms") },
         { href: "/cancellation", label: t("links.cancellation") },
-        { href: "/privacy#cookies", label: t("links.cookies") },
       ],
     },
   ];
@@ -79,22 +74,20 @@ export async function Footer() {
                 })}
               </ul>
             )}
+            {/* Desktop only: the QR code to /get (ref=footer), 96px, two lines beside it. */}
+            <FooterInstallHint id="get-the-app" className="mt-6 max-md:hidden" />
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title} className="md:col-span-2">
               <h2 className="text-eyebrow uppercase text-ink/55">{column.title}</h2>
               <ul className="mt-3">
-                {column.links.map(({ href, label, premium }) => {
-                  const item = (
-                    <li key={href}>
-                      <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-8">
-                        {label}
-                      </Link>
-                    </li>
-                  );
-                  // The pro section on /host only exists with the flag – so does its link.
-                  return premium ? <IfHostPremium key={href}>{item}</IfHostPremium> : item;
-                })}
+                {column.links.map(({ href, label }) => (
+                  <li key={href}>
+                    <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-8">
+                      {label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </nav>
           ))}

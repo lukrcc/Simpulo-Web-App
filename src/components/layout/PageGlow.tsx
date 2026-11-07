@@ -13,7 +13,7 @@ const TOP_H = 600;
 
 /** The pages with sections: a spot in every gap. Everywhere else only the top one. */
 function hasSections(pathname: string): boolean {
-  return pathname === "/" || pathname === "/explore" || pathname === "/host" || pathname.startsWith("/collections/");
+  return pathname === "/" || pathname === "/explore" || pathname.startsWith("/collections/");
 }
 
 interface Layout {

@@ -1,7 +1,6 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -9,6 +8,7 @@ import { EXPLORE_SPACING } from "@/config/explore";
 import { IconButton } from "@/components/ui/IconButton";
 import { registerShelf, revealInShelf, scrollShelfToSlide } from "@/lib/shelves";
 import { cn } from "@/lib/utils";
+import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
 
 /** Constant, like its plugins: a new object would make Embla start again. A row that fits has nothing to drag. */
 const OPTIONS: Parameters<typeof useEmblaCarousel>[0] = { align: "start", dragFree: true, containScroll: "trimSnaps", watchDrag: (api) => api.scrollSnapList().length > 1 };
@@ -23,7 +23,7 @@ const ARROW_GONE = "pointer-events-none opacity-0";
  */
 export function Shelf({ children, className }: { children: ReactNode; className?: string }) {
   const t = useTranslations("explore.collections");
-  const plugins = useMemo(() => [WheelGesturesPlugin({ forceWheelAxis: "x" })], []);
+  const plugins = useMemo(() => [PassiveWheelGestures()], []);
   const [viewportRef, api] = useEmblaCarousel(OPTIONS, plugins);
   const [ends, setEnds] = useState({ prev: false, next: false });
 

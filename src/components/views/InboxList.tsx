@@ -2,13 +2,17 @@
 
 import { ChevronRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { useMessagesUnread, useNotifications } from "@/components/notifications/useNotifications";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
@@ -17,7 +21,7 @@ import { useFormat } from "@/i18n/format";
 import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { selectedSurface } from "@/components/ui/Chip";
+import { listItemStyles } from "@/components/ui/listSelection";
 import { cn, housePhotos } from "@/lib/utils";
 
 interface ThreadRow {
@@ -46,22 +50,39 @@ export function InboxList() {
 const newestFirst = (a: ThreadRow, b: ThreadRow) =>
   (b.thread.messages.at(-1)?.createdAt ?? "").localeCompare(a.thread.messages.at(-1)?.createdAt ?? "");
 
+/** More chats than this, and the search shows (as a magnifier beside the segment). */
+const SEARCH_FROM = 16;
+/** Updates listed at once – the newest. */
+const UPDATES_LIMIT = 100;
+
+type InboxTab = "chats" | "updates";
+
+/**
+ * /messages – one place for everything that reaches you: "Chats · Updates" at the top of the list (where the search was). Chats: the
+ * House chats and direct messages as before. Updates: the notifications (there's no bell and no page of their own). A dot on each
+ * segment with something unread; the search only with more than 15 chats, behind a magnifier.
+ */
 function InboxContent() {
   const t = useTranslations("messages.inbox");
   const store = useStore();
   const me = store.currentUserId;
   const isDesktop = useIsDesktop();
-  const selectedId = useSearchParams().get("id");
+  const params = useSearchParams();
+  const router = useRouter();
+  const selectedId = params.get("id");
   const f = useFormat();
+  const unread = useMessagesUnread();
+  const [tab, setTab] = useState<InboxTab>(params.get("tab") === "updates" ? "updates" : "chats");
   const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const [pastOpen, setPastOpen] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
-  const mine = store.threads.filter((t) => me !== null && t.participantIds.includes(me));
+  // Simpulo's own "updates" chat isn't listed: what it says is under Updates.
+  const mine = store.threads.filter((t) => me !== null && t.type !== "updates" && t.participantIds.includes(me));
 
   const rows: ThreadRow[] = mine.flatMap((thread): ThreadRow[] => {
-    if (thread.type === "updates") return [{ thread, title: t("updates"), past: false }];
     const stay = store.stays.find((s) => s.id === thread.houseId);
     if (!stay) return [];
     if (thread.type === "house") {
@@ -73,7 +94,8 @@ function InboxContent() {
     return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other, past: false }];
   });
 
-  const q = query.trim().toLowerCase();
+  const canSearch = rows.length >= SEARCH_FROM;
+  const q = canSearch ? query.trim().toLowerCase() : "";
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
   const crews = rows.filter((r) => r.thread.type === "house" && !r.past && matches(r)).toSorted(newestFirst);
   const direct = rows.filter((r) => r.thread.type !== "house" && matches(r)).toSorted(newestFirst);
@@ -83,25 +105,13 @@ function InboxContent() {
   // ?id= wins (deep links, refresh); otherwise the first row.
   const activeId = rows.some((r) => r.thread.id === selectedId) ? selectedId : (ordered[0]?.thread.id ?? null);
 
-  if (rows.length === 0) {
-    return (
-      <MasterDetail
-        title={t("title")}
-        list={
-          <EmptyState
-            icon={MessageCircle}
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            action={
-              <Button href="/" variant="secondary">
-                {t("explore")}
-              </Button>
-            }
-          />
-        }
-        detail={null}
-      />
-    );
+  function choose(next: InboxTab) {
+    setTab(next);
+    const url = new URLSearchParams(params.toString());
+    if (next === "updates") url.set("tab", "updates");
+    else url.delete("tab");
+    const search = url.toString();
+    router.replace(search ? `/messages?${search}` : "/messages", { scroll: false });
   }
 
   const list = (items: ThreadRow[]) => (
@@ -123,42 +133,106 @@ function InboxContent() {
   // Folded, unless searching or one of its chats is the open one.
   const showPast = pastOpen || q !== "" || past.some((r) => r.thread.id === activeId);
 
+  const chats =
+    rows.length === 0 ? (
+      <EmptyState
+        icon={MessageCircle}
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
+        action={
+          <Button href="/" variant="secondary">
+            {t("explore")}
+          </Button>
+        }
+      />
+    ) : (
+      <>
+        {group(t("crews"), crews)}
+        {group(t("direct"), direct)}
+        {past.length > 0 && (
+          <section className="mt-5">
+            <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 px-3 text-small uppercase text-muted hover:text-ink">
+              <ChevronRight className={cn("size-4 transition-transform duration-200 motion-reduce:transition-none", showPast && "rotate-90")} aria-hidden />
+              {t("past")}
+            </button>
+            {showPast && list(past)}
+          </section>
+        )}
+        {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
+      </>
+    );
+
   return (
     <MasterDetail
       title={t("title")}
       fullHeight
       list={
         <>
-          <label className="flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-ink/5 px-4 transition-shadow focus-within:ring-2 focus-within:ring-ink/25">
-            <Search className="size-4 shrink-0 text-muted" aria-hidden />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("searchPlaceholder")}
-              aria-label={t("searchLabel")}
-              className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
+          <div className="flex shrink-0 items-center gap-2">
+            <SegmentedControl
+              label={t("segmentLabel")}
+              value={tab}
+              onChange={choose}
+              className="flex-1"
+              options={[
+                { value: "chats", label: t("segmentChats"), dot: unread.chats > 0 },
+                { value: "updates", label: t("segmentUpdates"), dot: unread.updates > 0 },
+              ]}
             />
-          </label>
-          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3">
-          {group(t("crews"), crews)}
-          {group(t("direct"), direct)}
-          {past.length > 0 && (
-            <section className="mt-5">
-              <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 px-3 text-small uppercase text-muted hover:text-ink">
-                <ChevronRight className={cn("size-4 transition-transform duration-200 motion-reduce:transition-none", showPast && "rotate-90")} aria-hidden />
-                {t("past")}
-              </button>
-              {showPast && list(past)}
-            </section>
-          )}
-          {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
+            {tab === "chats" && canSearch && (
+              <IconButton size="sm" aria-label={t("searchLabel")} aria-expanded={searching} onClick={() => setSearching((open) => !open)}>
+                <Search className="size-4" aria-hidden />
+              </IconButton>
+            )}
           </div>
+          {tab === "chats" && canSearch && searching && (
+            <label className="mt-3 flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-ink/5 px-4 transition-shadow focus-within:ring-2 focus-within:ring-ink/25">
+              <Search className="size-4 shrink-0 text-muted" aria-hidden />
+              <input
+                type="search"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                aria-label={t("searchLabel")}
+                className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
+              />
+            </label>
+          )}
+          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3">{tab === "chats" ? chats : <UpdatesList />}</div>
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
     />
+  );
+}
+
+/**
+ * Messages › Updates: the notifications as a calm list, newest first – icon, title, one line, the time, the orange dot while unread. A click
+ * opens the House (or the chat, or the action) and marks it read; "Mark all as read" small at the top right. No filters.
+ */
+function UpdatesList() {
+  const t = useTranslations("notifications");
+  const repo = useNotifications();
+  const items = repo.list({ limit: UPDATES_LIMIT }).items;
+  const unread = repo.unreadCount();
+  if (items.length === 0) return <p className="mt-10 px-3 text-center text-small text-muted">{t("empty")}</p>;
+  return (
+    <section className="mt-3">
+      <div className="flex justify-end px-1">
+        <button type="button" onClick={repo.markAllRead} disabled={unread === 0} className="rounded-full px-2 py-1 text-small font-semibold text-ink transition-colors duration-150 hover:bg-ink/6 disabled:text-muted disabled:hover:bg-transparent">
+          {t("markAll")}
+        </button>
+      </div>
+      <ul className="-mx-2">
+        {items.map((n) => (
+          <li key={n.id}>
+            <NotificationItem notification={n} onRead={repo.markRead} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -195,7 +269,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={cn("block rounded-2xl px-3 transition-colors", active ? selectedSurface : "hover:bg-(--chip-bg)")}
+      className={listItemStyles(active, "block rounded-2xl px-3")}
     >
       <span className="flex items-center gap-3 py-3">
         {cover ? (

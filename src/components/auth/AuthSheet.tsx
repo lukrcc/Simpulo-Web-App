@@ -1,19 +1,19 @@
 "use client";
 
-import { ArrowLeft, Mail, MailCheck } from "lucide-react";
+import { ArrowLeft, MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { SiApple } from "react-icons/si";
-import { formInput } from "@/components/form/FormLayout";
 import { CompleteProfileForm } from "@/components/onboarding/CompleteProfileForm";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
+import { Img } from "@/components/ui/Img";
 import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { isProfileComplete, useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { authCopy, type AuthReason } from "@/config/auth-copy";
 
 type Provider = "Apple" | "Google";
 
@@ -22,15 +22,19 @@ const MOCK_LINK_DELAY_MS = 1500;
 
 interface AuthSheetProps {
   open: boolean;
-  /** Why we ask, e.g. "Log in to send your request" */
-  context?: string;
+  /** What made it open – picks the heading and line (config/auth-copy.ts) */
+  reason: AuthReason;
+  /** The host's first name, for "join" and "message" */
+  hostName?: string;
   onClose: () => void;
   onSuccess: (userId: string) => void;
 }
 
-/** "Continue to Simpulo" – bottom sheet on mobile, centred modal on desktop (see Sheet). */
-export function AuthSheet({ open, context, onClose, onSuccess }: AuthSheetProps) {
-  const t = useTranslations("auth");
+/**
+ * Log in / sign up – bottom sheet on mobile, centred glass modal on desktop (see Sheet). The head: the app icon (40px), the heading in the
+ * display face with the logo's orange dot, a muted line – both by `reason`. Then Apple, Google, "or", email + Continue, the legal line.
+ */
+export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSheetProps) {
   const tOnboarding = useTranslations("onboarding");
   /** Logged in, but the profile still needs filling in – the sheet then titles that step instead. */
   const [completing, setCompleting] = useState(false);
@@ -41,12 +45,28 @@ export function AuthSheet({ open, context, onClose, onSuccess }: AuthSheetProps)
     if (open) setCompleting(false);
   }
 
+  const copy = authCopy(reason, hostName);
+  const dotted = copy.title.endsWith(".") ? copy.title.slice(0, -1) : copy.title;
+  if (completing) {
+    return (
+      <Sheet open={open} onClose={onClose} title={tOnboarding("title")} focusOverlay>
+        {open && <AuthOptions onSuccess={onSuccess} onCompleting={() => setCompleting(true)} />}
+      </Sheet>
+    );
+  }
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      title={completing ? tOnboarding("title") : t("title")}
-      subtitle={completing ? undefined : context}
+      title={copy.title}
+      titleNode={
+        <>
+          {dotted}
+          {dotted !== copy.title && <span className="text-accent">.</span>}
+        </>
+      }
+      subtitle={copy.subline}
+      lead={<Img src="/favicon-v2.svg" alt="" width={40} height={40} unoptimized className="size-10 rounded-[11px]" />}
       focusOverlay
     >
       {/* Remounted on every open, so it always starts at the provider buttons. */}
@@ -76,7 +96,6 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   const tc = useTranslations("common");
   const { users, login } = useStore();
   const [provider, setProvider] = useState<Provider | null>(null);
-  const [emailOpen, setEmailOpen] = useState(false);
   /** Logged in as this user, who still has to complete their profile. */
   const [completingId, setCompletingId] = useState<string | null>(null);
 
@@ -132,9 +151,15 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
       <div className="space-y-3">
         <AuthButton icon={<SiApple />} label={t("continueWithApple")} onClick={() => setProvider("Apple")} />
         <AuthButton icon={<FcGoogle />} label={t("continueWithGoogle")} onClick={() => setProvider("Google")} />
-        {emailOpen ? <EmailForm onSuccess={loggedIn} /> : <AuthButton icon={<Mail />} label={t("continueWithEmail")} onClick={() => setEmailOpen(true)} />}
       </div>
-      <p className="mt-1 text-small text-muted">
+      {/* "or" between two hairlines, 20px of air around it. */}
+      <div className="my-5 flex items-center gap-3" aria-hidden>
+        <span className="h-px flex-1 bg-ink/10" />
+        <span className="text-eyebrow font-medium text-muted">{t("or")}</span>
+        <span className="h-px flex-1 bg-ink/10" />
+      </div>
+      <EmailForm onSuccess={loggedIn} />
+      <p className="mt-6 text-center text-small text-muted">
         {t.rich("legal", {
           terms: (chunks) => (
             <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
@@ -205,24 +230,21 @@ function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
   }
 
   return (
-    <form onSubmit={sendLink} noValidate className="space-y-2">
-      <div className="flex gap-2">
-        <input
-          type="email"
-          required
-          autoFocus
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t("emailPlaceholder")}
-          aria-label={t("emailLabel")}
-          className={cn(formInput, "min-w-0 flex-1")}
-        />
-        <Button type="submit" variant="primary" size="md" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}>
-          {t("sendLink")}
-        </Button>
-      </div>
-      <label className="flex items-center gap-1.5 pl-4 text-small text-muted">
+    <form onSubmit={sendLink} noValidate className="space-y-3">
+      <input
+        type="email"
+        required
+        autoComplete="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder={t("emailPlaceholder")}
+        aria-label={t("emailLabel")}
+        className="h-11 w-full rounded-full bg-ink/5 px-5 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-(--focus-ring)"
+      />
+      <Button type="submit" variant="primary" size="md" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())} className="w-full min-w-0">
+        {t("continue")}
+      </Button>
+      <label className="flex items-center justify-center gap-1.5 text-small text-muted">
         {t("mockLoginAs")}
         <select
           value={mockUserId}

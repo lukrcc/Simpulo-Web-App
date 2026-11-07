@@ -66,3 +66,43 @@ export function guestTasks(data: TaskData, stay: Stay, now: string): HouseTask[]
   if (request.status === "accepted" && payment?.status === "pending" && stay.paymentDueAt) return [{ id: `${stay.id}-pay`, kind: "pay", stay, date: stay.paymentDueAt, href: manageHref(stay, "payment") }];
   return [];
 }
+
+/** What a card can ask of you, each with its button and its sheet. Everything else is news – the bell's. */
+export type CardTaskKind = Extract<HouseTaskKind, "requests" | "book" | "choosePlace" | "pay" | "invite" | "offer">;
+
+export interface CardTask {
+  kind: CardTaskKind;
+  count?: number;
+  date?: string;
+}
+
+/** Most pressing first, when a House asks for more than one thing. */
+const HOST_ORDER: CardTaskKind[] = ["book", "choosePlace", "requests"];
+const GUEST_ORDER: CardTaskKind[] = ["pay", "offer", "invite"];
+
+/** The one thing this House asks of the current user right now, or null. Hosts: book, choose the place, requests; guests: pay, a spot offered, an invite. */
+export function cardTaskOf(data: TaskData, stay: Stay, now: string): CardTask | null {
+  const me = data.currentUserId;
+  if (!me || stay.status === "closed") return null;
+  const tasks = stay.hostId === me ? hostTasks(data, stay) : guestTasks(data, stay, now);
+  const order = stay.hostId === me ? HOST_ORDER : GUEST_ORDER;
+  const task = tasks.filter((t) => (order as string[]).includes(t.kind)).toSorted((a, b) => order.indexOf(a.kind as CardTaskKind) - order.indexOf(b.kind as CardTaskKind))[0];
+  return task ? { kind: task.kind as CardTaskKind, count: task.count, date: task.date } : null;
+}
+
+/**
+ * Bell entries that only repeat a card's open task (pay, answer the invite, review requests, confirm the booking, take the spot): while
+ * that task is on the House's card in Your houses, the bell leaves them out.
+ */
+export const TASK_NOTIFICATIONS: Partial<Record<string, CardTaskKind>> = {
+  newRequest: "requests",
+  reminderPendingRequests: "requests",
+  waitlistRequest: "requests",
+  paymentDue: "pay",
+  reminderPayDue: "pay",
+  reminderPayToday: "pay",
+  reminderBookingUpload: "book",
+  waitlistOffer: "offer",
+  crewInvite: "invite",
+  houseInvite: "invite",
+};

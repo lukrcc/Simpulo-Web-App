@@ -288,9 +288,9 @@ export function CategoryRow({
 
   return (
     <div ref={rootRef} className="chip-row group/chips relative flex min-w-0 items-center" data-at-start={edges.atStart || undefined} data-at-end={edges.atEnd || undefined}>
-      {/* The chips keep their width (never squeezed or cut): the row scrolls sideways – also with the mouse wheel – its
+      {/* The chips keep their width (never squeezed or cut): the row scrolls sideways (trackpad, Shift + wheel) – its
           ends fading out where there's more (.chip-scroller in globals.css). */}
-      <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto py-1">
+      <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain py-1">
         <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={cn(chip(value.length === 0), "shrink-0")}>
           {allLabel}
         </button>
@@ -353,8 +353,8 @@ export function CategoryRow({
 
 /**
  * The chip row's scroller: whether it can scroll back / on (re-measured on scroll and resize), a page of 60 % of its
- * visible width per arrow click (smooth, instant with reduced motion), and the mouse wheel's vertical turn as sideways
- * scroll while there's room – at either end the page scrolls as usual.
+ * visible width per arrow click (smooth, instant with reduced motion). Sideways it scrolls natively (trackpad, Shift + wheel);
+ * a vertical wheel turn is never taken – it always scrolls the page.
  */
 function useChipScroller() {
   const ref = useRef<HTMLDivElement>(null);
@@ -367,22 +367,13 @@ function useChipScroller() {
       const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
       setEdges((e) => (e.atStart === atStart && e.atEnd === atEnd ? e : { atStart, atEnd }));
     };
-    const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      const max = el.scrollWidth - el.clientWidth;
-      if (max <= 0 || (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max)) return;
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
-    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     el.addEventListener("scroll", measure, { passive: true });
-    el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       observer.disconnect();
       el.removeEventListener("scroll", measure);
-      el.removeEventListener("wheel", onWheel);
     };
   }, []);
   return { ref, edges };

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
+import { ChevronRight, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialTiles } from "@/components/ui/SocialRow";
@@ -13,13 +13,14 @@ import { PreviewBanner, PreviewProvider, usePreviewGuard } from "@/components/Pr
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
-import { StayCard } from "@/components/StayCard";
 import { useDismiss } from "@/components/explore/Filters";
 import { Button } from "@/components/ui/ActionButton";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { listItemStyles } from "@/components/ui/listSelection";
+import { Panel } from "@/components/ui/Panel";
 import { Sheet } from "@/components/ui/Sheet";
-import { IconButton, iconButtonStyles } from "@/components/ui/IconButton";
+import { iconButtonStyles } from "@/components/ui/IconButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
@@ -32,11 +33,11 @@ import { useToast } from "@/components/ui/Toast";
 import { MoreList } from "@/components/views/MoreList";
 import { useFormat } from "@/i18n/format";
 import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
-import { findUser, getCrew, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
+import { findUser, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName } from "@/lib/utils";
+import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 
 export function MyProfile() {
   const t = useTranslations("profile");
@@ -142,10 +143,6 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const viewerId = previewing ? null : store.currentUserId;
   const view = profileViewFor(store, user, viewerId, today);
   const { photos } = user;
-  // Without an open House someone else's page has no middle: the right side takes its place. Nothing lived yet: the right side is small and the
-  // middle gets wider.
-  const offer = view.hostingNow.length > 0 || isMe;
-  const quiet = view.livedWith.length === 0 && view.livedInCount === 0 && view.toConfirm.length === 0;
 
   return (
     <Container className={cn("pb-6 pt-6 split:pb-0 split:pt-0", previewing ? "split:h-[calc(100dvh-var(--header-total)-48px-40px)]" : "split:h-[calc(100dvh-var(--header-total)-48px)]")}>
@@ -160,12 +157,12 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
       <div
         data-profile-bento
         className={cn(
-          "flex flex-col gap-5 split:grid split:h-full",
-          offer ? (quiet ? "split:grid-cols-[1fr_1.4fr_0.6fr]" : "split:grid-cols-3") : quiet ? "split:grid-cols-[1.4fr_1fr]" : "split:grid-cols-[1fr_2fr]",
+          // Three columns of the same width and height (grid items stretch), each a Panel.
+          "flex flex-col gap-5 split:grid split:h-full split:grid-cols-3 split:items-stretch",
         )}
       >
         <IdentityTile user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} onOpenPhotos={(index) => photos.length > 0 && setPhotoIndex(index)} />
-        {offer && <OfferTile houses={view.hostingNow} view={view} />}
+        <AboutTile user={user} isMe={isMe} houses={view.hostingNow} />
         <ProofTile view={view} isMe={isMe} />
       </div>
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
@@ -188,9 +185,9 @@ interface IdentityProps {
 }
 
 /**
- * Who they are, as high as the page. On top their photos, landscape, as wide as the tile (45 % of its height from 1100px, else 4:3): swipe or
- * drag, arrows on hover, dots; a click opens the lightbox. Over the photo, bottom left as on the cards: name, "34 · Spain · based in Ibiza",
- * the verified check. Under it what speaks for them; the actions stay at the bottom, and only what's above them scrolls if a window is short.
+ * Who they are, as high as the page (a Panel). On top their photos, landscape, as wide as the tile (45 % of its height from 1100px, else
+ * 4:3): swipe or drag and the dots – no arrows, no zoom; a click opens the lightbox. Over the photo, bottom left as on the cards: name,
+ * "34 · Spain · based in Ibiza", the verified check. Under it the numbers; the actions stay at the bottom.
  */
 function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }: IdentityProps) {
   const t = useTranslations("profile");
@@ -217,12 +214,12 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
       requireAuth((userId) => {
         const threadId = store.openDirectThread(stayId, user.id, userId);
         if (threadId) router.push(`/messages/${threadId}`);
-      }, t("loginToMessage", { name: firstName(user) })),
+      }, { reason: "message", hostName: firstName(user) }),
     );
   }
 
   return (
-    <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl! p-0">
+    <Panel flush className="flex min-h-0 min-w-0 flex-col overflow-hidden">
       <ProfilePhotos user={user} onOpen={onOpenPhotos} />
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-8 pt-6">
         <div className="flex min-h-0 flex-1 flex-col gap-4 split:scroll-pane">
@@ -234,9 +231,6 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
             </p>
           )}
           <TrustBand view={view} />
-          <SocialTiles user={user} />
-          {user.languages.length > 0 && <p className="text-small text-muted">{tView("speaks", { languages: user.languages.join(", ") })}</p>}
-          {user.bio && <Bio text={user.bio} />}
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -278,11 +272,9 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
         </div>
       </div>
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
-    </GlassPanel>
+    </Panel>
   );
 }
-
-const PHOTO_ARROW = "absolute top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
 
 /** The profile photos, landscape, one at a time; the name and where they're from lie on the bottom left. */
 function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) => void }) {
@@ -290,7 +282,7 @@ function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) =
   const tView = useTranslations("profile.view");
   const f = useFormat();
   const { photos } = user;
-  const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
+  const { ref, active, onScroll, scrollTo } = useSnapCarousel<HTMLDivElement>(photos.length);
   const drag = usePhotoDrag(ref, active, scrollTo, photos.length > 1);
   return (
     <div className="group relative aspect-4/3 w-full shrink-0 overflow-hidden rounded-t-3xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) split:aspect-auto split:h-[45%]">
@@ -323,16 +315,6 @@ function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) =
       </div>
       {photos.length > 1 && (
         <>
-          {active > 0 && (
-            <IconButton variant="onImage" size="sm" onClick={() => step(-1)} aria-label={tView("prevPhoto")} className={cn(PHOTO_ARROW, "left-4")}>
-              <ChevronLeft className="size-4.5" strokeWidth={2.5} aria-hidden />
-            </IconButton>
-          )}
-          {active < photos.length - 1 && (
-            <IconButton variant="onImage" size="sm" onClick={() => step(1)} aria-label={tView("nextPhoto")} className={cn(PHOTO_ARROW, "right-4")}>
-              <ChevronRight className="size-4.5" strokeWidth={2.5} aria-hidden />
-            </IconButton>
-          )}
           {/* Dots at the top: the name has the bottom. */}
           <div className="absolute inset-x-0 top-3 flex justify-center">
             {photos.map((src, i) => (
@@ -378,7 +360,7 @@ function Bio({ text }: { text: string }) {
       )}
       {open && (
         <Anchored anchor={moreRef} ref={panelRef} align="start" width={360}>
-          <GlassPanel role="dialog" aria-label={t("bioMore")} className="animate-fade-in max-h-80 w-[min(360px,calc(100vw-32px))] overflow-y-auto rounded-[20px]! p-4 text-body text-ink">
+          <GlassPanel role="dialog" aria-label={t("bioMore")} className="animate-fade-in max-h-80 w-[min(360px,calc(100vw-32px))] overflow-y-auto overscroll-contain rounded-[20px]! p-4 text-body text-ink">
             {text}
           </GlassPanel>
         </Anchored>
@@ -407,109 +389,68 @@ function TrustBand({ view }: { view: ProfileVisibility }) {
   );
 }
 
-/* ───────────────────────── What's on offer ───────────────────────── */
+/* ───────────────────────── About ───────────────────────── */
 
-/** The card fills the tile from 1100px; below that it keeps the grid's 4:5. */
-const FILL_CARD = "split:aspect-auto! split:h-full";
-
-/** Their open House as a large card, several as a stack. None: on your own page where you've lived and the way to open one. */
-function OfferTile({ houses, view }: { houses: Stay[]; view: ProfileVisibility }) {
-  const t = useTranslations("profile.view");
-  const store = useStore();
-  if (houses.length === 0) {
-    return (
-      <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col justify-end gap-4 rounded-3xl! p-8">
-        {view.livedInCount > 0 ? (
-          <div className="min-h-0 flex-1 split:scroll-pane">
-            <p className="text-h2 text-ink">{t("livedInTitle", { count: view.livedInCount })}</p>
-            <ul className="mt-3 space-y-1">
-              {view.livedInPlaces.map((place) => (
-                <li key={place} className="text-body text-muted">
-                  {place}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="flex-1 text-h2 text-ink">{t("noOpenHouse")}</p>
-        )}
-        <Button href="/create" size="md">
-          {t("openHouseAction")}
-        </Button>
-      </GlassPanel>
-    );
-  }
-  if (houses.length === 1) {
-    return (
-      <div className="mx-auto w-full min-h-0 min-w-0 max-w-130 split:max-w-none">
-        <StayCard stay={houses[0]} host={findUser(store, houses[0].hostId)} crew={getCrew(store, houses[0])} still className={FILL_CARD} />
-      </div>
-    );
-  }
-  return <HouseStack houses={houses} />;
-}
-
-/** Behind the front card: each one 12px further right and up, a little smaller and darker; at most two show. */
-const STACK_STEP = 12;
-const STACK_SCALE = [1, 0.96, 0.92];
-const STACK_DIM = [1, 0.84, 0.7];
+/** "Hosting now" shows this many rows at most. */
+const MAX_HOSTING_ROWS = 3;
 
 /**
- * Several open Houses as a stack: the front card as on the grid (its photos swipe by themselves), up to two peeking out behind it, up and to the
- * right. "‹ 1 / 2 ›" under it, or a click on a card that peeks out: the front one slides back, the next comes forward (transform, 400ms).
+ * The middle column (a Panel): About – the bio, the languages, the socials – and under it "Hosting now", only with an open House: a compact
+ * row each (picture 56px, title, dates · place, "2 spots left", an arrow), the whole row opening the House, 3 at most.
  */
-function HouseStack({ houses }: { houses: Stay[] }) {
+function AboutTile({ user, isMe, houses }: { user: User; isMe: boolean; houses: Stay[] }) {
   const t = useTranslations("profile.view");
+  const f = useFormat();
   const store = useStore();
-  const [front, setFront] = useState(0);
-  const count = houses.length;
-  const turn = (delta: number) => setFront((current) => (current + delta + count) % count);
+  const hasAbout = Boolean(user.bio) || user.languages.length > 0 || (user.socials?.length ?? 0) > 0;
   return (
-    <div className="mx-auto flex w-full min-h-0 min-w-0 max-w-130 flex-col gap-3 split:max-w-none">
-      <div className="relative min-h-0 flex-1 max-split:aspect-4/5">
-        {houses.map((stay, i) => {
-          const depth = (i - front + count) % count;
-          const shown = Math.min(depth, STACK_SCALE.length - 1);
-          return (
-            <div
-              key={stay.id}
-              className="absolute bottom-0 left-0 transition-[transform,filter,opacity] duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-              style={{
-                width: `calc(100% - ${2 * STACK_STEP}px)`,
-                height: `calc(100% - ${2 * STACK_STEP}px)`,
-                transformOrigin: "top right",
-                transform: `translate(${shown * STACK_STEP}px, ${-shown * STACK_STEP}px) scale(${STACK_SCALE[shown]})`,
-                filter: depth === 0 ? undefined : `brightness(${STACK_DIM[shown]})`,
-                opacity: depth < STACK_SCALE.length ? 1 : 0,
-                zIndex: count - depth,
-              }}
-            >
-              {/* Behind the front card only the edges show: their host tabs fade out (they'd pile up top left). */}
-              <div inert={depth !== 0} aria-hidden={depth !== 0 || undefined} className={cn("h-full [&_[data-card-tab]]:transition-opacity [&_[data-card-tab]]:duration-300", depth !== 0 && "[&_[data-card-tab]]:opacity-0")}>
-                <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} still className={FILL_CARD} />
-              </div>
-              {/* A card that peeks out brings itself forward. */}
-              {depth > 0 && depth < STACK_SCALE.length && <button type="button" onClick={() => setFront(i)} aria-label={t("bringForward", { title: stay.title })} data-no-tooltip className="absolute inset-0 z-30 cursor-pointer rounded-3xl" />}
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex shrink-0 items-center justify-center gap-2">
-        <IconButton size="xs" onClick={() => turn(-1)} aria-label={t("prevHouse")}>
-          <ChevronLeft className="size-4" aria-hidden />
-        </IconButton>
-        <span className="min-w-12 text-center text-small tabular-nums text-muted">
-          {front + 1} / {count}
-        </span>
-        <IconButton size="xs" onClick={() => turn(1)} aria-label={t("nextHouse")}>
-          <ChevronRight className="size-4" aria-hidden />
-        </IconButton>
-      </div>
-    </div>
+    <Panel className="flex min-h-0 min-w-0 flex-col gap-8">
+      <section className="flex min-h-0 flex-col gap-4 split:scroll-pane">
+        <h2 className="text-eyebrow uppercase text-ink/55">{t("about")}</h2>
+        {user.bio && <Bio text={user.bio} />}
+        {user.languages.length > 0 && <p className="text-small text-muted">{t("speaks", { languages: user.languages.join(", ") })}</p>}
+        <SocialTiles user={user} />
+        {!hasAbout && (
+          <p className="text-body text-muted">
+            {isMe ? (
+              <Link href="/profile/edit" className="font-semibold text-ink underline-offset-4 hover:underline">
+                {t("aboutAdd")}
+              </Link>
+            ) : (
+              t("aboutEmpty")
+            )}
+          </p>
+        )}
+      </section>
+      {houses.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-eyebrow uppercase text-ink/55">{t("hostingNow")}</h2>
+          <ul className="-mx-2">
+            {houses.slice(0, MAX_HOSTING_ROWS).map((stay) => {
+              const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
+              const spots = openSpots(stay);
+              return (
+                <li key={stay.id}>
+                  <Link href={`/house/${stay.slug}`} className={listItemStyles(false, "flex items-center gap-4 rounded-2xl p-2")}>
+                    <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-ink/6">{cover && <Img src={cover} alt="" fill sizes="56px" className="object-cover" />}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-body font-semibold text-ink">{stay.title}</span>
+                      <span className="block truncate text-small text-muted">
+                        {f.stayDatesLong(stay)} · {f.placeName(stay)}
+                      </span>
+                      {spots > 0 && <span className="block text-small text-ink">{t("spotsLeft", { count: spots })}</span>}
+                    </span>
+                    <ChevronRight className="size-4.5 shrink-0 text-muted" aria-hidden />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </Panel>
   );
 }
-
-/* ───────────────────────── Proof ───────────────────────── */
 
 /** One face, with their name on hover, linking to their profile. */
 function Face({ entry }: { entry: LivedWithEntry }) {
@@ -538,7 +479,7 @@ function ProofTile({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
   const rest = people.length - MAX_FACES;
   const empty = people.length === 0 && view.livedInCount === 0 && toConfirm.length === 0;
   return (
-    <GlassPanel className="card-soft flex min-h-0 min-w-0 flex-col gap-8 rounded-3xl! p-6">
+    <Panel className="flex min-h-0 min-w-0 flex-col gap-8">
       {empty ? (
         <div>
           <p className="text-body font-semibold text-ink">{t("newHere", { date: view.joinedAt ? formatter.dateTime(new Date(view.joinedAt), { month: "long", year: "numeric" }) : "" })}</p>
@@ -598,6 +539,6 @@ function ProofTile({ view, isMe }: { view: ProfileVisibility; isMe: boolean }) {
           ))}
         </ul>
       </Sheet>
-    </GlassPanel>
+    </Panel>
   );
 }

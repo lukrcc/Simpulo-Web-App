@@ -6,6 +6,7 @@ import { useEffect, useRef, type TouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { Img } from "@/components/ui/Img";
 import { cn } from "@/lib/utils";
+import { lockScroll } from "@/components/ui/ModalOverlay";
 
 interface PhotoLightboxProps {
   photos: string[];
@@ -46,11 +47,11 @@ export function PhotoLightbox({ photos, index, onIndexChange, onClose, alt }: Ph
       else if (e.key === "ArrowLeft" && current > 0) go(current - 1);
       else if (e.key === "ArrowRight" && current < photos.length - 1) go(current + 1);
     };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // The one counted lock (ModalOverlay): released on close and unmount, nested sheets can't leave it on.
+    const unlock = lockScroll();
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
   }, [open, photos.length]);

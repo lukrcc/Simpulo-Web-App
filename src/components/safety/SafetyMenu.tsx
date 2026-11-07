@@ -18,12 +18,14 @@ interface SafetyMenuProps {
   user?: User;
   /** After blocking `user` */
   onBlocked?: () => void;
+  /** More entries above "Report" (e.g. "Show QR code" on the House page) */
+  extraItems?: MoreMenuItem[];
   className?: string;
   buttonClassName?: string;
 }
 
 /** ⋯ with "Report" (and "Block …" for people). Logged out, both ask for a login first. */
-export function SafetyMenu({ target, user, onBlocked, className, buttonClassName }: SafetyMenuProps) {
+export function SafetyMenu({ target, user, onBlocked, extraItems = [], className, buttonClassName }: SafetyMenuProps) {
   const t = useTranslations("safety");
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -32,7 +34,7 @@ export function SafetyMenu({ target, user, onBlocked, className, buttonClassName
   const name = user ? firstName(user) : undefined;
   const blocked = user !== undefined && isBlocked(store, user.id);
 
-  const items: MoreMenuItem[] = [{ label: t("report"), onSelect: () => requireAuth(() => setSheet("report"), t("loginToReport")) }];
+  const items: MoreMenuItem[] = [...extraItems, { label: t("report"), onSelect: () => requireAuth(() => setSheet("report"), { reason: "login" }) }];
   if (user && name) {
     items.push(
       blocked
@@ -47,7 +49,7 @@ export function SafetyMenu({ target, user, onBlocked, className, buttonClassName
             label: t("block", { name }),
             danger: true,
             // Your own profile / House never shows this menu – but right after an inline login it might be you.
-            onSelect: () => requireAuth((userId) => userId !== user.id && setSheet("block"), t("loginToBlock", { name })),
+            onSelect: () => requireAuth((userId) => userId !== user.id && setSheet("block"), { reason: "login" }),
           },
     );
   }

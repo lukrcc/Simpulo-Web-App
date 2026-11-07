@@ -1,6 +1,5 @@
 // Cancellation rules – the one place they're decided. The texts (messages "policy") are a DRAFT: legal review still open.
 // Shown in full on /cancellation, in short in the pay sheet and on the House page; the store follows the same rules.
-import { PLATFORM_COMMISSION_RATE } from "@/lib/fees";
 import { BOOKING_WINDOW_HOURS } from "@/lib/joinFlow";
 
 export const CANCELLATION_POLICY = {
@@ -18,13 +17,30 @@ export const CANCELLATION_POLICY = {
 } as const;
 
 /**
- * What Simpulo takes from a host's payout: nothing from the stay share; 10 % of a host experience (lib/fees.ts). A House without a host
- * experience therefore pays the host the whole share – Earnings shows the fee as "Free" with that reason.
+ * The fee model – the one source for every text and number about money (lib/fees.ts computes with it, How it works and the FAQ quote it).
+ * Everyone in the crew, the host too, pays the same share of the place; guests also pay Simpulo's service fee, shown as its own line. The
+ * host receives the guests' full shares. An optional host fee exists only as a setting in Open a House (off by default) and is never
+ * advertised.
  */
+export const FEE_MODEL = {
+  serviceFeePercent: 10,
+  hostCommissionPercent: 0,
+} as const;
+
+/** What Simpulo takes from a host's payout: nothing (FEE_MODEL). Payouts shows the fee column as "Free". */
 export const HOST_FEES = {
   onStayShare: 0,
-  onHostExperience: PLATFORM_COMMISSION_RATE,
+  onHostExperience: FEE_MODEL.hostCommissionPercent / 100,
 } as const;
+
+/** How it works' one worked example: a villa, 7 nights, 4 people. */
+export const STAY_EXAMPLE = { place: "Villa", total: 1260, nights: 7, people: 4 } as const;
+
+/** The example's numbers: everyone's equal share, and the service fee a guest adds to it. */
+export function stayExample() {
+  const share = STAY_EXAMPLE.total / STAY_EXAMPLE.people;
+  return { ...STAY_EXAMPLE, share: Math.round(share), serviceFee: Math.round((share * FEE_MODEL.serviceFeePercent) / 100) };
+}
 
 /**
  * Requests: an open request expires after 48 hours; requested → accepted | declined | expired. The guest sees declined and expired the same

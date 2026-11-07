@@ -1,4 +1,4 @@
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { getCrew, getUser } from "@/lib/data/stays";
 import type { Stay } from "@/lib/types";
 import { HOUSE_GRID } from "@/config/explore";
@@ -12,7 +12,7 @@ export async function HouseGrid({ stays }: { stays: Stay[] }) {
   return (
     <div className={HOUSE_GRID}>
       {cards.map(({ stay, host, crew }) => (
-        <StayCard key={stay.id} stay={stay} host={host} crew={crew} />
+        <HouseCard key={stay.id} stay={stay} host={host} crew={crew} />
       ))}
     </div>
   );

@@ -10,7 +10,7 @@ import { Container } from "../Container";
 import { Logo } from "../Logo";
 
 /** Open a House is a focus mode: the same bar, only the logo and the way out. The draft saves itself, so leaving costs nothing. */
-export function FocusHeader() {
+export function FocusHeader({ exit = true }: { exit?: boolean }) {
   const t = useTranslations("create.focus");
   const tDraft = useTranslations("growth.draft");
   const me = getCurrentUser(useStore());
@@ -19,7 +19,7 @@ export function FocusHeader() {
     <header data-site-header className="milk-glass fixed inset-x-0 top-(--band-h) z-40 h-14 shadow-[0_1px_0_rgba(0,0,0,0.08)]">
       <Container className="flex h-full items-center justify-between">
         <Logo />
-        <Link
+        {exit && <Link
           href={me ? "/your-houses" : "/"}
           data-save-exit
           onClick={() => {
@@ -28,7 +28,7 @@ export function FocusHeader() {
           className={buttonStyles("tertiary", "md")}
         >
           {t("saveExit")}
-        </Link>
+        </Link>}
       </Container>
     </header>
   );

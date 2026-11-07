@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { use, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { Container } from "@/components/layout/Container";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { Button } from "@/components/ui/ActionButton";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
@@ -66,14 +66,14 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
         showToast(t("joinedToast", { title: stay.title }));
         router.push(`/your-houses/${stay.id}`);
       } else showToast(t("invalid"));
-    }, t("loginToAccept"));
+    }, { reason: "join", hostName: host?.name.split(" ")[0] });
   }
 
   return (
     <Container className="pb-(--space-section) pt-8 md:pt-12">
       <div className="grid items-center gap-10 split:grid-cols-[minmax(0,480px)_minmax(0,1fr)] split:gap-(--page-margin)">
         <div className="mx-auto w-full max-w-[480px]">
-          <StayCard stay={stay} host={host} crew={getCrew(store, stay)} still />
+          <HouseCard stay={stay} host={host} crew={getCrew(store, stay)} />
         </div>
         <div className="flex flex-col items-start gap-5">
           <p className="flex items-center gap-2 text-body-lg text-ink">

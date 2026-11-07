@@ -68,7 +68,8 @@ import { useSearchDemand } from "@/components/create/SearchDemandHint";
 import { useDismiss } from "@/components/explore/Filters";
 import { FormContainer, FormGrid, PreviewColumn } from "@/components/form/FormLayout";
 import { useHostShare } from "@/components/share/HostShareTools";
-import { BuildingCard, StayCard } from "@/components/StayCard";
+import { BuildingCard } from "@/components/create/BuildingCard";
+import { HouseCard } from "@/components/HouseCard";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { Button } from "@/components/ui/ActionButton";
@@ -324,7 +325,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setNotified(demand.count);
       setOpenedId(id);
       window.scrollTo({ top: 0 });
-    }, t("loginToPublish"));
+    }, { reason: "open" });
   }
 
   function next() {
@@ -379,7 +380,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const themeName = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
   // The preview of a new House builds itself up from the answers; editing shows the House as it is.
   const card = editing ? (
-    <StayCard stay={previewStay} host={me} crew={me ? [me] : []} preview photoPlaceholder={t("photoPlaceholder")} />
+    <HouseCard stay={previewStay} host={me} crew={me ? [me] : []} preview photoPlaceholder={t("photoPlaceholder")} />
   ) : (
     <BuildingCard stay={previewStay} host={me} theme={themeName || null} showTitle={form.title.trim() !== ""} showMeta={form.region.trim() !== "" || form.month !== ""} showDates={form.month !== ""} showPrice={form.budgetMin !== "" || form.budgetTbd} showCrew={form.budgetMin !== "" || form.budgetTbd} />
   );
@@ -700,7 +701,7 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
           </div>
         </section>
         <div className={PREVIEW_CARD_WIDTH}>
-          <StayCard stay={stay} host={host} crew={host ? [host] : []} preview />
+          <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
         </div>
       </div>
     </FormContainer>

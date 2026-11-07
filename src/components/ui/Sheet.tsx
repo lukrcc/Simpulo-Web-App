@@ -6,8 +6,9 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ActionButton";
 import { IconButton } from "./IconButton";
-import { ModalOverlay, modalStack as openSheets } from "./ModalOverlay";
+import { ModalOverlay, modalStack as openSheets, lockScroll } from "./ModalOverlay";
 import { PanelSheet, type PanelSheetProps } from "./PanelSheet";
+import { createPortal } from "react-dom";
 
 interface SheetProps {
   open: boolean;
@@ -19,6 +20,10 @@ interface SheetProps {
   onBack?: () => void;
   /** Blur and dim everything behind it, trap focus, lock scrolling without a jump (ModalOverlay) */
   focusOverlay?: boolean;
+  /** Above the title, top left (e.g. the app icon); the X stays top right. With it the title is large and wraps. */
+  lead?: ReactNode;
+  /** What the title shows instead of the plain text (e.g. with an orange dot); `title` stays its accessible name. */
+  titleNode?: ReactNode;
   children: ReactNode;
 }
 
@@ -48,7 +53,7 @@ export function Sheet(props: SheetProps | (PanelSheetProps & { variant: "panel" 
   return <DialogSheet {...props} />;
 }
 
-function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, children }: SheetProps) {
+function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, titleNode, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
   const titleId = `${id}-title`;
@@ -66,11 +71,11 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && openSheets.at(-1) === id) onCloseRef.current();
     };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // The one counted lock (ModalOverlay): released on close and unmount, nested sheets can't leave it on.
+    const unlock = lockScroll();
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKey);
       openSheets.splice(openSheets.indexOf(id), 1);
     };
@@ -81,7 +86,27 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   // The same for every modal: 560px, 28px radius, 32px inside, as much below as above.
   const panelClass = "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
 
-  const content = (
+  const content = lead ? (
+    <>
+      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line md:hidden" />
+      {/* The large head: the lead (app icon) top left, the X top right, the title under the lead, the line under it. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          {lead}
+          <h2 id={titleId} aria-label={title} className="mt-4 text-h2 font-bold text-ink">
+            {titleNode ?? title}
+          </h2>
+        </div>
+        <IconButton size="sm" onClick={onClose} aria-label={t("close")} className="-mr-2 -mt-1">
+          <X className={iconSize} />
+        </IconButton>
+      </div>
+      {subtitle && <p className="mt-1 text-body text-muted">{subtitle}</p>}
+      <div data-sheet-body className="mt-8">
+        {children}
+      </div>
+    </>
+  ) : (
     <>
       <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line md:hidden" />
       <div className={cn("flex items-center justify-between gap-4", !subtitle && "mb-4")}>
@@ -113,7 +138,9 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
     );
   }
 
-  return (
+  // Into <body>: a sheet opened from inside a card (backdrop-filter, transform) would otherwise be fixed to that card – cut off,
+  // with the page's scrolling locked behind it.
+  return createPortal(
     <div className="fixed inset-0 z-[75] flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button
         type="button"
@@ -122,6 +149,7 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
         className="modal-backdrop absolute inset-0"
       />
       <div className={cn("animate-sheet-in", panelClass)}>{content}</div>
-    </div>
+    </div>,
+    document.body,
   );
 }

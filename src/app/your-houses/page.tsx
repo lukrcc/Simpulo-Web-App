@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("houses"), robots: PRIVATE_ROBOTS };
 }
 
-/** Your houses: everything at a glance (?tab=earnings: the money). */
+/** Your houses: everything at a glance (the money: /your-houses/payouts). */
 export default function YourHousesPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>

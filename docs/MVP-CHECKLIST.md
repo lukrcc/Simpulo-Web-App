@@ -8,9 +8,9 @@ Status: ✅ vorhanden · 🟡 teilweise · ❌ fehlt.
 | Bereich | Routen |
 |---|---|
 | Öffentlich | `/` (Explore) · `/explore` (`?category=`) · `/house/[slug]` · `/co-living/[city]` (SEO, nur Houses) · `/collections/[slug]` · `/host` · `/how-it-works` · `/faq` · `/about` · `/safety` · `/contact` · `/u/[userId]` · `/invite/[token]` · `/cancellation` · `/impressum` · `/privacy` · `/terms` · `/claim/[token]` · `/demo-login` |
-| Eingeloggt | `/your-houses` (`?tab=earnings`) · `/your-houses/[id]` · `/your-houses/[id]/edit` · `/create` · `/messages` · `/messages/[threadId]` · `/notifications` · `/saved` · `/profile` · `/profile/edit` · `/settings` (Hash-Abschnitte) · `/settings/payouts` · `/welcome` |
+| Eingeloggt | `/your-houses` · `/your-houses/hosting` · `/your-houses/joined` · `/your-houses/payouts` · `/your-houses/[id]` · `/your-houses/[id]/edit` · `/create` · `/messages` · `/messages/[threadId]` · `/saved` · `/profile` · `/profile/edit` · `/settings` (Hash-Abschnitte) · `/settings/payouts` · `/welcome` |
 | Intern | `/admin/growth` · `/admin/houses` · `/admin/houses/new` · `/admin/support` · `/dev/stripe-onboarding` · `/dev/identity-check` · `/dev/emails` (nur dev/demo) · `/api/link-preview` |
-| Weiterleitungen | `/houses` → `/your-houses` · `/houses/[id]/manage` → `/your-houses/[id]` · `/houses/[slug]` → `/explore?category=` · `/my-stays…` → `/your-houses…` · `/inbox…` → `/messages…` · `/house/[slug]?invite=` → `/invite/[token]` · `/people` → `/profile` · `/stays/:slug` → `/house/:slug` |
+| Weiterleitungen | `/notifications` → `/messages?tab=updates` · `/your-houses/earnings` → `/your-houses/payouts` · `/houses` → `/your-houses` · `/houses/[id]/manage` → `/your-houses/[id]` · `/houses/[slug]` → `/explore?category=` · `/my-stays…` → `/your-houses…` · `/inbox…` → `/messages…` · `/house/[slug]?invite=` → `/invite/[token]` · `/people` → `/profile` · `/stays/:slug` → `/house/:slug` |
 | Fehler | `error.tsx` · `not-found.tsx` |
 
 ## Abläufe
@@ -74,7 +74,7 @@ Nebenwege: Join waitlist (Anfrage → Platz #N → Angebot 24h) · Anfrage zurü
 | Mark as booked + 48h-Frist | ✅ | |
 | Abstimmung „Decide with crew“ | ✅ | |
 | Auszahlungskonto (Stripe-Mock) | ✅ | |
-| Earnings-Dashboard | ✅ | Leere Zustände ergänzt (Phase 6) |
+| Payouts-Seite (früher Earnings) | ✅ | `/your-houses/payouts`, alte Links leiten weiter; Spalte „Host fee“ nur bei Host-Gebühren |
 
 ### Überall
 | Punkt | Status | Anmerkung |
@@ -84,7 +84,7 @@ Nebenwege: Join waitlist (Anfrage → Platz #N → Angebot 24h) · Anfrage zurü
 | Profil (fremd/eigen, Preview) | ✅ | |
 | Your houses (Übersicht + Verwaltung) | ✅ | `/your-houses`, `/your-houses/[id]` |
 | Messages (House-Chats, Direkt, Kontaktdaten-Schutz) | ✅ | `/messages`; Schutz im Browser, serverseitig siehe „Für Backend“ |
-| Benachrichtigungen (Popover + Seite) | ✅ | Popover jetzt Milchglas |
+| Benachrichtigungen | ✅ | In Messages › Updates (Segment „Chats · Updates“), keine Glocke; `/notifications` leitet auf `/messages?tab=updates` um |
 | E-Mail-Vorschauen | ✅ | Vorlagen für jedes Ereignis + Magic Link, `/dev/emails` |
 | Teilen-Vorschau (OG/X) | ✅ | `/house/[slug]`, `/co-living/[city]`, `/invite/[token]` (allgemein), `/u/[id]` |
 | Settings: Account, Profile, Notifications, Privacy, Payouts, Payments, Verification, Blocked users, Delete account | ✅ | |

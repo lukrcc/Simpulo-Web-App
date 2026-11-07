@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useId } from "react";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Shelf } from "@/components/ui/Shelf";
 import type { Collection } from "@/lib/collections";
@@ -26,7 +26,7 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
       <Shelf>
         {stays.map((stay) => (
           <div key={stay.id} className="w-90 shrink-0">
-            <StayCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} compact />
+            <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
           </div>
         ))}
       </Shelf>

@@ -1,18 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { getCurrentUser, useStore } from "./store";
 import type { Currency } from "./types";
-import { currencyForLocale } from "./utils";
-
-const noSubscribe = () => () => {};
 
 /**
- * The viewer's currency for approximate conversions: their profile setting, else their browser locale.
- * null on the server and during hydration (no "≈" line in the static HTML).
+ * The viewer's currency: their profile setting, else € – everywhere, server and browser alike (not the browser's locale: an en-GB
+ * browser used to show £, en-US $).
  */
-export function usePreferredCurrency(): Currency | null {
+export function usePreferredCurrency(): Currency {
   const me = getCurrentUser(useStore());
-  const browser = useSyncExternalStore(noSubscribe, () => currencyForLocale(navigator.language), () => null);
-  return me?.preferredCurrency ?? browser;
+  return me?.preferredCurrency ?? "EUR";
 }

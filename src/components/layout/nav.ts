@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { NAV_ICONS } from "@/config/nav";
 
 export interface NavItem {
-  href: "/" | "/host" | "/how-it-works" | "/your-houses" | "/messages" | "/profile";
+  href: "/" | "/how-it-works" | "/your-houses" | "/messages" | "/profile";
   /** Message key under nav.items */
   labelKey: "explore" | "host" | "howItWorks" | "houses" | "messages" | "profile";
   icon: LucideIcon;
@@ -16,8 +16,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", labelKey: "explore", icon: NAV_ICONS.explore, audience: "all" },
-  // The page for potential hosts.
-  { href: "/host", labelKey: "host", icon: NAV_ICONS.host, audience: "guest" },
   { href: "/how-it-works", labelKey: "howItWorks", icon: NAV_ICONS.howItWorks, audience: "guest" },
   { href: "/your-houses", labelKey: "houses", headerLabelKey: "yourHouses", icon: NAV_ICONS.houses, audience: "member" },
   { href: "/messages", labelKey: "messages", icon: NAV_ICONS.messages, audience: "member" },
@@ -65,6 +63,7 @@ export function hidesTabBar(pathname: string): boolean {
     pathname.startsWith("/house/") ||
     /^\/messages\/[^/]+/.test(pathname) ||
     pathname === "/create" ||
+    pathname === "/get" ||
     /^\/your-houses\/[^/]+\/edit$/.test(pathname) ||
     pathname === "/profile/edit"
   );

@@ -11,7 +11,6 @@ import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
 import { cn } from "@/lib/utils";
 import { useMobileChrome } from "./mobileChrome";
 import { hidesTabBar } from "./nav";
-import { NotificationBell } from "./NotificationBell";
 
 /**
  * Mobile header (< md). Logged out in the browser: wordmark · Log in · "+" (they get no tab bar). Logged in (tab bar
@@ -52,7 +51,7 @@ export function MobileHeader() {
   );
 }
 
-/** Logged in: wordmark + bell (usePathname needs its own boundary on dynamic routes). */
+/** Logged in: the wordmark (usePathname needs its own boundary on dynamic routes). Notifications are in Messages › Updates. */
 function MemberHeader() {
   const pathname = usePathname();
   if (hidesTabBar(pathname)) return null;
@@ -60,7 +59,6 @@ function MemberHeader() {
     <header className="pt-[env(safe-area-inset-top)] md:hidden">
       <div className="flex h-14 items-center justify-between gap-4 px-4">
         <Logo />
-        <NotificationBell />
       </div>
     </header>
   );

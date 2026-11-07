@@ -37,10 +37,10 @@
   --filters-capsule: rgba(255, 255, 255, 0.6);
   --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
   /* Content cards that lie on the page (.card-soft): the booking card, the Your houses tiles, the profile tiles. Warm, a breath lighter than
-     bg (≈ +3 % lightness), a light inner edge, a faint outer one, a soft warm shadow. */
-  --card-soft: rgba(255, 253, 250, 0.55);
+     bg (≈ +4 % lightness, so a Panel visibly lifts off the page and stays warm, never #FFFFFF), a light inner edge, a faint outer one, a soft warm shadow. */
+  --card-soft: rgba(255, 253, 250, 0.7);
   --card-soft-blur: blur(16px);
-  --card-soft-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(34, 30, 27, 0.05);
+  --card-soft-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(34, 30, 27, 0.06);
   --card-soft-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 32px rgba(40, 32, 26, 0.06);
   /* Header (bar + tab): .milk-glass. Solid: without backdrop-filter, and around the header's dots. */
   --header-bg: linear-gradient(rgba(247, 245, 241, 0.94) 0, rgba(242, 240, 235, 0.94) 56px);
@@ -739,37 +739,11 @@ main:has([data-explore-blocks]) {
 .shelf-track img {
   -webkit-user-drag: none;
 }
-/* A card in a shelf: only the one under the pointer moves, scale 1.03 and no lift (the grid's cards keep theirs), above its
-   neighbours, with a shadow. The card itself (.lift-card: the element that also carries the radius, or for notched cards
-   the frame around the clipped layer) takes both; no wrapper, ring or outline around it. Reduced motion: just the shadow.
-   drop-shadow instead of box-shadow, because it follows the notched shape; only while it shows, no filter at rest. Its
-   blur is the standard deviation, a box-shadow's is twice that: 20px here looks like box-shadow 0 16px 40px. */
-.shelf .lift-card {
-  position: relative;
-  transform-origin: center;
-  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1), filter 300ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-.shelf-track > *:has(.lift-card:hover),
+/* A card in a shelf: the one HouseCard with its own hover (scale 1.02 + shadow); the hovered one lies above its neighbours. */
+.shelf-track > *:has(:hover),
 .shelf-track > *:has(:focus-visible) {
+  position: relative;
   z-index: 2;
-}
-@media (hover: hover) {
-  .shelf .lift-card:hover {
-    filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.14));
-  }
-}
-.shelf .lift-card:has(:focus-visible) {
-  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.14));
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .shelf .lift-card:hover {
-    transform: scale(1.03);
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .shelf .lift-card:has(:focus-visible) {
-    transform: scale(1.03);
-  }
 }
 
 .no-scrollbar {

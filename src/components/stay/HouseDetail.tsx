@@ -4,9 +4,10 @@ import { CalendarPlus, Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { REQUEST_POLICY } from "@/config/policies";
 import { hoursLeft } from "@/lib/requests";
+import { useNow } from "@/lib/useNow";
 import { againHref } from "@/components/create/model";
 import { MyShare } from "@/components/payments/MyShare";
 import { Receipt } from "@/components/payments/Receipt";
@@ -216,12 +217,7 @@ function HouseManage({ stay }: { stay: Stay }) {
   const tabs = draft ? DRAFT_TABS : HOST_TABS;
   const [tab, setTab] = useTab(tabs);
   const [locking, setLocking] = useState(false);
-  // Verified guests first (they put their ID behind it), then whichever expires first (the oldest).
-  const verified = (userId: string) => Boolean(findUser(store, userId)?.verified);
-  const requests = store.joinRequests
-    .filter((r) => r.stayId === stay.id && r.status === "pending")
-    .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || a.createdAt.localeCompare(b.createdAt));
-  const waitlistRequests = waitlistRequestsOf(store, stay.id);
+  const { requests, waitlistRequests } = openRequestsOf(store, stay);
   const chat = getCrewThread(store, stay.id) ? `/messages/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
 
@@ -277,6 +273,22 @@ function HouseManage({ stay }: { stay: Stay }) {
       }
     />
   );
+}
+
+/** A House's open requests: verified guests first (they put their ID behind it), then whichever expires first (the oldest); the waitlist's apart. */
+function openRequestsOf(store: ReturnType<typeof useStore>, stay: Stay) {
+  const verified = (userId: string) => Boolean(findUser(store, userId)?.verified);
+  const requests = store.joinRequests
+    .filter((r) => r.stayId === stay.id && r.status === "pending")
+    .toSorted((a, b) => Number(verified(b.userId)) - Number(verified(a.userId)) || a.createdAt.localeCompare(b.createdAt));
+  return { requests, waitlistRequests: waitlistRequestsOf(store, stay.id) };
+}
+
+/** One House's open requests, exactly as on its Requests tab – for the sheet behind "Review" on Your houses. */
+export function HouseRequests({ stay }: { stay: Stay }) {
+  const store = useStore();
+  const { requests, waitlistRequests } = openRequestsOf(store, stay);
+  return <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />;
 }
 
 /** The open requests, the newest first; under "Waitlist", separately, who asked to wait for a spot (oldest first – that's their order). */
@@ -455,7 +467,7 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
   // Spots held by open invites count as taken – a full crew can't take anyone else.
   const waitlist = request.status === "waitlist_requested";
   const isFull = !waitlist && openSpots(stay) === 0;
-  const now = useNowMs();
+  const now = useNow();
   const left = !waitlist && now !== null ? hoursLeft(request, now) : null;
 
   return (
@@ -504,11 +516,6 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
 /** "Declined · Undo" stays this long. */
 const UNDO_MS = 5000;
 
-const noClock = () => () => {};
-/** Now in the browser (rounded to the minute, so it's stable within a render); null on the server. */
-function useNowMs(): number | null {
-  return useSyncExternalStore(noClock, () => Math.floor(Date.now() / 60_000) * 60_000, () => null);
-}
 
 // ─── Joined ────────────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import { isListedStay } from "@/lib/launch";
 const STATIC_UPDATED = new Date("2026-10-28");
 
 /** Static public pages (indexable). /explore is left out: it's canonicalised to the home page. */
-const STATIC_PAGES = ["/", "/how-it-works", "/host", "/safety", "/faq", "/about", "/contact", "/impressum", "/privacy", "/terms"];
+const STATIC_PAGES = ["/", "/how-it-works", "/safety", "/faq", "/about", "/contact", "/impressum", "/privacy", "/terms"];
 
 /**
  * Every indexable public page: the static ones, every public House, and the city, vibe and collection pages with enough Houses

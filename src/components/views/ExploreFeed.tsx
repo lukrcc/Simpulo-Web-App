@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, Fragment, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, Fragment, useCallback, useMemo, useRef, useState } from "react";
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { CategoryRow, ChoiceChips, FiltersButton, LanguageFilter, PanelSection, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
@@ -12,10 +12,9 @@ import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/Explor
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
 import { NoHouseYet, NotifyLine } from "@/components/explore/NoHouseYet";
 import { MonthField, PlaceField, ToggleCapsule } from "@/components/explore/SearchFields";
-import { SpotlightIntro } from "@/components/explore/SpotlightIntro";
 import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -56,7 +55,7 @@ import { X } from "lucide-react";
 import { adoptNotchToAuto } from "@/lib/notchState";
 import { onePerHost, useHeroStays } from "@/lib/heroRotation";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
-import { getCardVariant, SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
+import { SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
 import { placeById } from "@/lib/data/places";
 import { MD_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { VIBES } from "@/lib/catalog";
@@ -65,30 +64,8 @@ import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/s
 import type { Stay, Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { answersSlowly, responseRate } from "@/lib/requests";
-
-/**
- * The grid's real column count, from the browser's own layout of an empty grid with the same rules (`probe`). 0 on the
- * server, during hydration and while hidden – the grid then renders without collection rows.
- */
-function useGridColumns(probe: HTMLElement | null): number {
-  const subscribe = useCallback(
-    (onChange: () => void) => {
-      if (!probe) return () => {};
-      const observer = new ResizeObserver(onChange);
-      observer.observe(probe);
-      return () => observer.disconnect();
-    },
-    [probe],
-  );
-  return useSyncExternalStore(
-    subscribe,
-    () => {
-      const tracks = probe ? getComputedStyle(probe).gridTemplateColumns : "none";
-      return tracks === "none" ? 0 : tracks.split(" ").length;
-    },
-    () => 0,
-  );
-}
+import { useNow } from "@/lib/useNow";
+import { useGridColumns } from "@/lib/useGridColumns";
 
 /** The Spotlight loops over at most this many Houses. */
 const MAX_SPOTLIGHT = 16;
@@ -176,11 +153,13 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   const verifiedHosts = useMemo(() => new Set(store.users.filter((u) => u.verified).map((u) => u.id)), [store.users]);
   // Hosts who let many requests expire (under 70 % answered, last 90 days; internal, never shown) sit a little lower in the default order.
-  const [loadedAt] = useState(() => Date.now());
+  // The browser's clock (none during the prerender), to the day: the order doesn't move while you look at it.
+  const now = useNow();
+  const today = now === null ? null : Math.floor(now / 86_400_000) * 86_400_000;
   const slowHosts = useMemo(
-    () => new Set([...new Set(store.stays.map((s) => s.hostId))].filter((id) => answersSlowly(responseRate(store, id, loadedAt)))),
+    () => (today === null ? new Set<string>() : new Set([...new Set(store.stays.map((s) => s.hostId))].filter((id) => answersSlowly(responseRate(store, id, today))))),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only stays and requests decide it
-    [store.stays, store.joinRequests, loadedAt],
+    [store.stays, store.joinRequests, today],
   );
   const hostPremium = useFeatureFlag("hostPremium");
 
@@ -447,7 +426,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       {showSpotlight && (
         <>
           {/* Below lg the carousel is another component; the title for visitors goes above it here. */}
-          {!store.currentUserId && <SpotlightIntro className={cn("pt-6 md:pt-[38px] lg:hidden", EXPLORE_SPACING.spotlightIntroBottom)} />}
           <SpotlightHero stays={spotlightStays} />
           <SpotlightCoverflow stays={spotlightStays} countOf={openOfVibe} onPickVibe={vibeRow.onSelect} />
         </>
@@ -540,14 +518,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     const goesOn = next ? next.cards.length > 0 : rest.length > 0 || hasMore;
                     return (
                       <Fragment key={`${shelf.collection.id}-${shelf.after}`}>
-                        {part.length > 0 && <FeedGrid cards={part} spotlightIds={spotlightIds} />}
+                        {part.length > 0 && <FeedGrid cards={part} />}
                         <div className={cn(EXPLORE_SPACING.shelfTop, goesOn && EXPLORE_SPACING.shelfBottom)}>
                           <CollectionRow collection={shelf.collection} stays={shelf.stays} />
                         </div>
                       </Fragment>
                     );
                   })}
-                  {rest.length > 0 && <FeedGrid cards={rest} spotlightIds={spotlightIds} />}
+                  {rest.length > 0 && <FeedGrid cards={rest} />}
                 </>
               )}
               {/* The list's end, shelves included: here the header's tab closes again. */}
@@ -578,7 +556,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                 <X className="size-4" aria-hidden />
               </IconButton>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{panelBody}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{panelBody}</div>
             <div className="flex shrink-0 items-center justify-between gap-4 pt-1">{panelFooter(closeNotchPanel)}</div>
           </div>,
           panelSlot,
@@ -608,12 +586,12 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 }
 
 /** One stretch of the list's grid, between two shelves. */
-function FeedGrid({ cards, spotlightIds }: { cards: readonly Stay[]; spotlightIds: ReadonlySet<string> }) {
+function FeedGrid({ cards }: { cards: readonly Stay[] }) {
   const store = useStore();
   return (
     <div className={HOUSE_GRID}>
       {cards.map((stay) => (
-        <StayCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} variant={getCardVariant(stay, spotlightIds)} />
+        <HouseCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
       ))}
     </div>
   );

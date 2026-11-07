@@ -1,15 +1,14 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { SpotlightGreeting, SpotlightIntro } from "@/components/explore/SpotlightIntro";
+import { SpotlightGreeting } from "@/components/explore/SpotlightIntro";
 import { markSpotlightIntroDone } from "@/components/explore/useMarkBreath";
-import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY, SPOTLIGHT_THEME_LINES } from "@/config/explore";
+import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY, SPOTLIGHT_THEME_LINES, SPOTLIGHT_THEME_LINES_VISITOR } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { IconButton } from "@/components/ui/IconButton";
 import { StageBand } from "@/components/ui/StageBand";
 import { BAND_HEIGHT } from "@/lib/appMode";
@@ -18,6 +17,7 @@ import { rememberedSpotlight, rememberSpotlight } from "@/lib/houseTransition";
 import { findUser, getCrew, getCurrentUser, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
+import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
 
 /*
  * Spotlight sizes – do not change without explicit instruction.
@@ -132,7 +132,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
   }, [stays.length]);
   // Created once: new plugin objects would make Embla re-init. With reduced motion it never goes on by itself.
   const reducedMotion = useMemo(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
-  const plugins = useMemo(() => [WheelGesturesPlugin({ forceWheelAxis: "x" })], []);
+  const plugins = useMemo(() => [PassiveWheelGestures()], []);
   const [viewportRef, emblaApi] = useEmblaCarousel(EMBLA_OPTIONS, plugins);
   const sectionRef = useRef<HTMLElement>(null);
   const me = getCurrentUser(store);
@@ -361,7 +361,9 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
   // block and at sizes worked out from the window, so the carousel moving down can't change the answer.
   const sideTextRef = useRef<HTMLDivElement>(null);
   const [textPlace, setTextPlace] = useState<"side" | "above" | null>(null);
-  const greeting = me !== undefined;
+  // Logged in and out share the greeting layout (visitors: "Share a place." · "Find your people.").
+  const greeting = true;
+  const themeLines = me ? SPOTLIGHT_THEME_LINES : SPOTLIGHT_THEME_LINES_VISITOR;
   useLayoutEffect(() => {
     const block = sideTextRef.current;
     const section = sectionRef.current;
@@ -385,7 +387,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
         if (!probe || !theme) return 0;
         // Single letters run a little wider than the text in one piece.
         probe.style.width = `${theme.clientWidth * 0.97}px`;
-        return Math.max(...Object.values(SPOTLIGHT_THEME_LINES).map((line) => {
+        return Math.max(...Object.values(themeLines).map((line) => {
           probe!.textContent = line;
           return probe!.offsetHeight;
         }));
@@ -432,6 +434,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
       observer.disconnect();
       window.removeEventListener("resize", fit);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeLines follows `me`
   }, [greeting, me?.name]);
 
   // Without a loop the arrows go at the row's ends.
@@ -488,7 +491,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
         >
           <div className="pointer-events-auto h-full">
             <div className="h-full">
-              <StayCard stay={stay} host={host} crew={crew} spotlight />
+              <HouseCard stay={stay} host={host} crew={crew} spotlight />
             </div>
           </div>
         </div>
@@ -508,22 +511,20 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
       )}
     >
       <div data-spot-text className={cn(EXPLORE_SPACING.spotlightIntroBottom, textPlace === "side" ? "hidden" : textPlace === null && "min-[82.5rem]:hidden")}>
-        {me && themeVibe ? (
+        {themeVibe && (
           <Container>
-            <SpotlightGreeting name={firstName(me)} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
+            <SpotlightGreeting name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
           </Container>
-        ) : (
-          <SpotlightIntro />
         )}
       </div>
       <div className="relative">
         {/* Beside the carousel, not in it: the section clips its overflow, and this reaches above its top edge. */}
         {/* Out of the flow, from above the left neighbour's host tab upwards. Hidden, not gone, while it's above the carousel: it's what gets measured.
             Above the carousel's drag area, for the greeting's link; it takes the pointer alone. */}
-        <div data-spot-text className={cn("pointer-events-none absolute inset-x-0 z-2", me ? "bottom-[calc(var(--spot-h)*0.89+40px)]" : "bottom-[calc(var(--spot-h)*0.89+32px)]", textPlace === "above" ? "invisible" : textPlace === null && "max-[82.5rem]:invisible")}>
+        <div data-spot-text className={cn("pointer-events-none absolute inset-x-0 z-2", "bottom-[calc(var(--spot-h)*0.89+40px)]", textPlace === "above" ? "invisible" : textPlace === null && "max-[82.5rem]:invisible")}>
           <Container>
-            <div ref={sideTextRef} className={me ? "translate-y-[calc(var(--fit-title,var(--text-stage))*0.16)]" : TEXT_BESIDE}>
-              {me && themeVibe ? <SpotlightGreeting name={firstName(me)} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} sideClassName={TEXT_BESIDE} /> : <SpotlightIntro variant="side" />}
+            <div ref={sideTextRef} className="translate-y-[calc(var(--fit-title,var(--text-stage))*0.16)]">
+              {themeVibe && <SpotlightGreeting name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} sideClassName={TEXT_BESIDE} />}
             </div>
           </Container>
         </div>

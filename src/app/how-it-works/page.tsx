@@ -1,49 +1,31 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { pageMetadata } from "@/lib/seo";
-import { GetTheApp, StepNumber } from "@/components/GetTheApp";
+import { Suspense } from "react";
+import { HowItWorks } from "@/components/how-it-works/HowItWorks";
 import { Container } from "@/components/layout/Container";
-import { cardClass } from "@/components/ui/Card";
-import { cn } from "@/lib/utils";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("seo.pages.howItWorks");
   return pageMetadata({ title: t("title"), description: t("description"), path: "/how-it-works", type: "article" });
 }
 
-/** Step copy: keys under howItWorks.steps. */
-const STEPS = ["open", "share", "requests", "crew", "live"] as const;
-
-/** One screen on desktop (fits 1440×900 under the sticky header): two equal-height cards. */
+/**
+ * /how-it-works – the same for visitors (in their nav) and members (from the footer), and the one page about hosting (/host leads here
+ * with ?role=host): join or host, three steps, what it costs, Houses people opened, Questions (HowItWorks).
+ */
 export default async function HowItWorksPage() {
   const t = await getTranslations("howItWorks");
   return (
     <Container page>
-      <h1 className="text-h1">{t("title")}</h1>
-      <p className="mt-2 text-body-lg text-muted">
-        {t.rich("intro", { b: (chunks) => <span className="font-semibold text-ink">{chunks}</span> })}
-      </p>
-
-      {/* Grid items stretch, so both cards share the taller one's height. */}
-      <div className="mt-8 grid grid-cols-1 gap-8 split:grid-cols-12">
-        <section className={cn(cardClass, "split:col-span-7")}>
-          <h2 className="text-h3 tracking-tight text-ink">{t("stepsTitle")}</h2>
-          <ol className="mt-6 space-y-5">
-            {STEPS.map((step, i) => (
-              <li key={step} className="flex gap-4">
-                <StepNumber n={i + 1} />
-                <div className="min-w-0">
-                  {/* leading-8 centres the title on the 32px number circle */}
-                  <h3 className="text-body-lg font-semibold leading-8 text-ink">{t(`steps.${step}.title`)}</h3>
-                  <p className="text-body leading-normal text-muted">{t(`steps.${step}.text`)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <GetTheApp className="split:col-span-5" />
+      <div className="max-w-[1120px]">
+        <h1 className="text-h1 text-ink">{t("title")}</h1>
+        <p className="mt-2 text-body-lg text-muted">{t("subline")}</p>
       </div>
+      {/* The role comes from ?role= (useSearchParams), which needs its own boundary. */}
+      <Suspense fallback={null}>
+        <HowItWorks />
+      </Suspense>
     </Container>
   );
 }

@@ -14,6 +14,7 @@ export const emptyAdapter: DataAdapter = {
   getClaimableHouses: () => [],
   defaultUserId: null,
   installedUsers: new Set(),
+  devPersonas: null,
   paidUsers: () => [],
   pastEarnings: () => [],
   previewForUrl: (url, fallbackTitle) => ({ title: fallbackTitle ?? linkDomain(url), imageUrl: "", domain: linkDomain(url) }),

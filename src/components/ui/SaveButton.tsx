@@ -48,7 +48,7 @@ export function SaveButton({ stay, variant = "onImage", className }: SaveButtonP
     e.preventDefault();
     e.stopPropagation();
     pressFeedback(e.currentTarget);
-    guard(() => requireAuth(() => store.toggleSaved(stay.id), t("loginToSave")));
+    guard(() => requireAuth(() => store.toggleSaved(stay.id), { reason: "save" }));
   }
 
   return (

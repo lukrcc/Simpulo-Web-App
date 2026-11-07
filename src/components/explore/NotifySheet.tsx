@@ -58,7 +58,7 @@ function NotifySheet({ draft, onClose }: { draft: SearchDraft; onClose: () => vo
           size="md"
           onClick={() => {
             onClose();
-            requireAuth((userId) => store.saveSearch({ ...draft, userId, consent: true }), t("login"));
+            requireAuth((userId) => store.saveSearch({ ...draft, userId, consent: true }), { reason: "login" });
           }}
         >
           {t("loginInstead")}

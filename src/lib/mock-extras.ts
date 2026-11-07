@@ -49,6 +49,9 @@ export const mockPaidUsers: Record<string, string[]> = {
   s1: ["u1", "u4", "u2"],
   s3: ["u3"],
   s7: ["u7"],
+  // IRL House Bangkok: the host and Diego paid, Lukas and Mara still open (31h left). Ski Weekend: Lukas paid.
+  s22: ["u19", "u7"],
+  s49: ["u1"],
 };
 
 /**

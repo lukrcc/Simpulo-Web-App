@@ -7,7 +7,7 @@ import { use } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { StepNumber } from "@/components/GetTheApp";
 import { Container } from "@/components/layout/Container";
-import { StayCard } from "@/components/StayCard";
+import { HouseCard } from "@/components/HouseCard";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -84,14 +84,14 @@ function ClaimOffer({ stay }: { stay: Stay }) {
       store.claimStay(claim.token);
       showToast(t("claimedToast"));
       router.push(`/your-houses/${stay.id}/edit`);
-    }, t("loginContext"));
+    }, { reason: "open" });
   }
 
   return (
     <Container page className="split:grid split:grid-cols-12 split:gap-12">
       <div className="split:col-span-5">
         <div className="mx-auto max-w-[400px]">
-          <StayCard stay={stay} host={preparedFor} preview />
+          <HouseCard stay={stay} host={preparedFor} preview />
         </div>
       </div>
       <div className="mt-8 split:col-span-7 split:mt-0 split:pt-6">

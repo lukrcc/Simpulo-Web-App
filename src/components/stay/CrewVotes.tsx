@@ -22,7 +22,7 @@ export function CrewVotes({ stay, pinned = false }: { stay: Stay; pinned?: boole
   if (kinds.length === 0) return null;
   if (pinned) {
     return (
-      <div className="max-h-[40vh] shrink-0 space-y-6 overflow-y-auto bg-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+      <div className="max-h-[40vh] shrink-0 space-y-6 overflow-y-auto overscroll-contain bg-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
         {kinds.map((kind) => (
           <Vote key={kind} stay={stay} kind={kind} vote={openVote(stay, kind)!} />
         ))}

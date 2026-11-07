@@ -1,6 +1,6 @@
 import { Bone } from "./Bone";
 
-/** Same footprint as a StayCard: 4:5 photo tile with title and place lines at the bottom. */
+/** Same footprint as a HouseCard: 4:5 photo tile with title and place lines at the bottom. */
 export function CardSkeleton() {
   return (
     <div className="relative aspect-4/5 overflow-hidden rounded-3xl bg-ink/5">

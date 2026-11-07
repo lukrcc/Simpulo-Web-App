@@ -2,21 +2,49 @@
 
 import { useMemo } from "react";
 import { pageOf, type AppNotification, type NotificationRepository } from "@/lib/data/notifications";
-import { NOTIFY_GROUP, settingsOf, useStore } from "@/lib/store";
+import { cardTaskOf, TASK_NOTIFICATIONS } from "@/lib/houseTasks";
+import { useNow } from "@/lib/useNow";
+import { unreadThreadCount, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 
+/** Unread in Messages: chats (crew and direct) and Updates (the notifications) – the dot on the Messages tab and on each segment. */
+export function useMessagesUnread(): { chats: number; updates: number } {
+  const store = useStore();
+  const repo = useNotifications();
+  return { chats: unreadThreadCount(store), updates: repo.ready ? repo.unreadCount() : 0 };
+}
+
 /**
- * The current user's notifications as a NotificationRepository – over the mock store today. Only what they see
- * in-app (Settings → Notifications → In-app); logged out: nothing.
+ * The current user's notifications as a NotificationRepository – over the mock store today. In-app is always on (config/notifications.ts);
+ * logged out: nothing.
  */
 export function useNotifications(): NotificationRepository & { ready: boolean } {
   const store = useStore();
-  const { currentUserId: me, notifications, users, markNotificationRead, markAllNotificationsRead } = store;
+  const { currentUserId: me, notifications, markNotificationRead, markAllNotificationsRead } = store;
+  const now = useNow();
   const mine = useMemo(() => {
     if (!me) return [];
-    const prefs = settingsOf(users.find((u) => u.id === me)).notifications;
-    return notifications.filter((n) => n.userId === me && prefs[NOTIFY_GROUP[n.key]]?.inApp !== false);
-  }, [me, notifications, users]);
+    const at = now === null ? null : new Date(now).toISOString();
+    // A task that's already a button on its House's card (Your houses: pay, answer, review) shows here once, as a hint – the newest of
+    // its notifications (reminders included), not every one of them.
+    const taskOnCard = (n: AppNotification) => {
+      const kind = TASK_NOTIFICATIONS[n.key];
+      const stay = kind && at && n.stayId ? store.stays.find((s) => s.id === n.stayId) : undefined;
+      return stay !== undefined && at !== null && cardTaskOf(store, stay, at)?.kind === kind ? `${stay.id}:${kind}` : null;
+    };
+    const seen = new Set<string>();
+    return notifications
+      .filter((n) => n.userId === me)
+      .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .filter((n) => {
+        const task = taskOnCard(n);
+        if (!task) return true;
+        if (seen.has(task)) return false;
+        seen.add(task);
+        return true;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the store's data is what's read
+  }, [me, notifications, now, store.stays, store.joinRequests, store.payments]);
 
   return useMemo(
     () => ({

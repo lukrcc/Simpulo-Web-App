@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 export interface SegmentOption<T> {
   value: T;
   label: string;
+  /** Something new behind this option: the orange dot after the label */
+  dot?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function SegmentedControl<T extends string | number | null>({ options, va
           className={cn("relative z-1 min-w-0 flex-1 truncate rounded-full text-small transition-colors duration-150", option.value === value ? "font-semibold text-ink" : "text-muted hover:text-ink")}
         >
           {option.label}
+          {option.dot && <span aria-hidden className="ml-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-accent align-middle" />}
         </button>
       ))}
     </div>

@@ -55,6 +55,8 @@ import { bindPaymentsMock } from "./payments/mock";
 import { audienceFit, didntWorkOut, requestExpiresAt } from "./requests";
 import { earningsFor } from "./earnings";
 import { payments } from "./payments";
+import { records as inAppRecords } from "./notify/channels/inapp";
+import { DEFAULT_NOTIFICATION_PREFS, type NotificationPrefs } from "@/config/notifications";
 import { hasOffer, pendingRequestsOf, WAITLIST_OFFER_HOURS, waitlistOf, waitlistOpen, waitlistReason, waitlistRefund } from "./waitlist";
 
 export { crewThreadId };
@@ -158,6 +160,8 @@ type StoreAction =
   | { type: "saveSearch"; search: SavedSearch }
   | { type: "markNotificationRead"; id: string; at: string }
   | { type: "markAllNotificationsRead"; at: string }
+  /** notify() from outside the reducer: its in-app records */
+  | { type: "addNotifications"; records: AppNotification[] }
   | { type: "addApplication"; application: HostApplication }
   | { type: "restoreGrowth"; saved: PersistedGrowth }
   | { type: "loadDataset"; state: StoreState }
@@ -273,6 +277,8 @@ interface StoreActions {
   markNotificationRead: (id: string) => void;
   /** …or all of them */
   markAllNotificationsRead: () => void;
+  /** The in-app channel's sink: records made by notify() outside the reducer */
+  addNotifications: (records: AppNotification[]) => void;
   /** /host application form. */
   addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
@@ -384,15 +390,17 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 export const feeFor = guestFee;
 
 /** A crew member's payment record for a share: the host programme on top for guests, never for the host. */
+/** One crew member's payment: everyone pays the same share; guests add the service fee (and a host fee, if set) – the host doesn't. */
 function paymentFor(stay: Stay, userId: string, share: number, attribution: Attribution): Omit<Payment, "id" | "status"> {
-  const split = paymentSplit(share, userId === stay.hostId ? 0 : (stay.hostFeePerPerson ?? 0));
+  const host = userId === stay.hostId;
+  const split = paymentSplit(share, host ? 0 : (stay.hostFeePerPerson ?? 0));
   return {
     stayId: stay.id,
     userId,
     share,
     ...(split.hostFee > 0 && { hostFee: split.hostFee }),
-    fee: split.fee,
-    total: split.total,
+    fee: host ? 0 : split.fee,
+    total: host ? split.share : split.total,
     ...attributionOf(attribution),
   };
 }
@@ -462,7 +470,7 @@ function seedPayments(stays: Stay[], requests: JoinRequest[], users: User[]): Pa
 
 /**
  * ⚠ MOCK: about 40 notifications for the default mock user across every type and the last two months, so the bell,
- * the day groups and "Load more" on /notifications have something to show. Built from Houses and chats that exist in
+ * the bell's dropdown has something to show. Built from Houses and chats that exist in
  * the dataset – a type without a fitting House is skipped. Anything older than two days is read.
  */
 const MOCK_NOW = Date.parse("2026-10-29T08:00:00Z");
@@ -491,7 +499,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
     (i) => { const s = pick(locked, i); return s ? { key: "reminderPayDue", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const s = pick(others, i * 7); return s ? { key: "searchOpened", values: { place: s.city || s.region, title: s.title, hours: SEARCH_HEAD_START_HOURS }, stayId: s.id } : null; },
     (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
-    (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses" } : null; },
+    (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses?tab=past" } : null; },
     (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
     (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/how-it-works"] as const)[i % 3] }),
   ];
@@ -613,14 +621,20 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 2;
+const MOCK_VERSION = 6;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 
 function readPersistedMock(dataState: string): StoreState | null {
   try {
     const raw = localStorage.getItem(mockKey(dataState));
-    return raw ? (JSON.parse(raw) as StoreState) : null;
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as StoreState;
+    // A state saved before the audience guard may hold a request to an audience House the profile doesn't fit (a man in a women-only
+    // House): it's dropped, like the request could never have been sent.
+    const stayOf = (id: string) => saved.stays.find((s) => s.id === id);
+    const userOf = (id: string) => saved.users.find((u) => u.id === id);
+    return { ...saved, joinRequests: saved.joinRequests.filter((r) => { const stay = stayOf(r.stayId); return !stay || audienceFit(stay, userOf(r.userId)) !== "blocked"; }) };
   } catch {
     return null;
   }
@@ -694,7 +708,7 @@ function attributionFor(state: Pick<StoreState, "users">, userId: string, fallba
 
 /** Everyone with an alert on this host hears about their new House. */
 function notifyHostAlerts(state: StoreState, hostId: string, stay: Pick<Stay, "id" | "title">): AppNotification[] {
-  return notify(
+  return notifyInApp(
     state,
     state.users.filter((u) => u.hostAlerts?.includes(hostId)).map((u) => u.id),
     "hostOpened",
@@ -734,18 +748,12 @@ function announceToSearches(state: StoreState, stay: Stay): Pick<StoreState, "no
     savedSearches: savedSearches.map((s) => (matches.includes(s) ? { ...s, notifiedAt: createdAt } : s)),
     houseInvites: [...houseInvites, ...tokens],
     threads: withUpdateLines(threads, people, "searchHouseOpened", values, `${stay.id}-search`, createdAt),
+    // Each person's own link (their token), so one record each.
     notifications: [
       ...notifications,
-      ...tokens.map((token): AppNotification => ({
-        id: `n-${stay.id}-search-${token.invitedUserId}`,
-        userId: token.invitedUserId!,
-        eventId: `n-${stay.id}-search`,
-        key: "searchOpened",
-        values,
-        createdAt,
-        stayId: stay.id,
-        href: houseInviteUrl("", stay, token),
-      })),
+      ...tokens.flatMap((token) =>
+        inAppRecords([token.invitedUserId!], { key: "searchOpened", values, eventId: `${stay.id}-search`, stayId: stay.id, href: houseInviteUrl("", stay, token) }, createdAt),
+      ),
     ],
   };
 }
@@ -775,7 +783,11 @@ function crewIds(state: Pick<StoreState, "joinRequests">, stay: Stay): string[] 
   return [stay.hostId, ...state.joinRequests.filter((r) => r.stayId === stay.id && r.status === "accepted").map((r) => r.userId)];
 }
 
-function notify(
+/**
+ * The reducer's way into Messages › Updates: the in-app channel's records (lib/notify/channels/inapp). Push and email for them go out
+ * through notify() once they're in the store (NotifyBridge) – the reducer itself stays pure.
+ */
+function notifyInApp(
   state: StoreState,
   to: string[],
   key: NotifyEventKey,
@@ -787,23 +799,8 @@ function notify(
   threadId?: string,
   extra?: Pick<AppNotification, "href">,
 ): AppNotification[] {
-  const recipients = [...new Set(to)].filter(Boolean);
-  if (recipients.length === 0) return state.notifications;
-  const createdAt = new Date().toISOString();
-  return [
-    ...state.notifications,
-    ...recipients.map((userId) => ({
-      id: `n-${id}-${userId}`,
-      userId,
-      eventId: `n-${id}`,
-      key,
-      values,
-      createdAt,
-      ...(stayId && { stayId }),
-      ...(threadId && { threadId }),
-      ...extra,
-    })),
-  ];
+  const added = inAppRecords(to, { key, values, eventId: id, stayId, threadId, href: extra?.href });
+  return added.length === 0 ? state.notifications : [...state.notifications, ...added];
 }
 
 /** A system line in a House thread: no stored text, rendered from the event's translation (centred, muted). */
@@ -901,7 +898,7 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
     if (open.length > 0 && complete && !stay.paymentDueAt) {
       const due = new Date(Date.parse(at) + PAYMENT_WINDOW_HOURS * HOUR_MS).toISOString();
       patch({ paymentDueAt: due });
-      if (announce) next = { ...next, notifications: notify(next, open.map((p) => p.userId), "paymentDue", { title: stay.title }, `${stay.id}-due-${at}`, stay.id) };
+      if (announce) next = { ...next, notifications: notifyInApp(next, open.map((p) => p.userId), "paymentDue", { title: stay.title }, `${stay.id}-due-${at}`, stay.id) };
     } else if (stay.paymentDueAt && (open.length === 0 || !complete)) {
       patch({ paymentDueAt: undefined });
     } else if (stay.paymentDueAt && stay.paymentDueAt <= at) {
@@ -913,7 +910,7 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
           const others = crewIds(next, stay);
           const current = next.stays.find((s) => s.id === stay.id) ?? stay;
           next = withoutMember(next, current, payment.userId, systemLine({ id, createdAt: at }, crewThreadId(stay.id), "paymentLapsed", { name }));
-          next = { ...next, payments: next.payments.filter((p) => !(p.stayId === stay.id && p.userId === payment.userId && p.status === "pending")), notifications: notify(next, others, "paymentLapsed", { title: stay.title, name }, id, stay.id) };
+          next = { ...next, payments: next.payments.filter((p) => !(p.stayId === stay.id && p.userId === payment.userId && p.status === "pending")), notifications: notifyInApp(next, others, "paymentLapsed", { title: stay.title, name }, id, stay.id) };
         }
         patch({ paymentDueAt: undefined });
       }
@@ -935,7 +932,7 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
         stays: next.stays.map((s) => (s.id === stay.id ? { ...s, accommodationStatus: "open", accommodationLink: undefined, pricePerPerson: undefined, totalPrice: undefined, payByDate: undefined, lockedAt: undefined, allPaidAt: undefined, paymentDueAt: undefined } : s)),
         payments: next.payments.map((p) => (p.stayId === stay.id && p.status === "paid" ? { ...p, status: "refunded" as const } : p)),
         threads: postToHouse(next.threads, stay.id, lines),
-        notifications: notify(next, crewIds(next, stay), "bookingRefunded", { title: stay.title }, `${stay.id}-refund-${at}`, stay.id),
+        notifications: notifyInApp(next, crewIds(next, stay), "bookingRefunded", { title: stay.title }, `${stay.id}-refund-${at}`, stay.id),
       };
     }
   }
@@ -949,7 +946,7 @@ function expireRequests(state: StoreState, at: string): StoreState {
   let next: StoreState = { ...state, joinRequests: state.joinRequests.map((r) => (due.some((d) => d.id === r.id) ? { ...r, status: "expired" as const } : r)) };
   for (const r of due) {
     const stay = state.stays.find((s) => s.id === r.stayId);
-    if (stay) next = { ...next, notifications: notify(next, [r.userId], "requestExpired", { title: stay.title }, `${r.id}-expired`, stay.id, undefined, { href: "/your-houses" }) };
+    if (stay) next = { ...next, notifications: notifyInApp(next, [r.userId], "requestExpired", { title: stay.title }, `${r.id}-expired`, stay.id, undefined, { href: "/your-houses?tab=past" }) };
   }
   return next;
 }
@@ -965,7 +962,7 @@ function syncWaitlist(state: StoreState, at: string): StoreState {
     if (r.status !== "waitlisted" || !r.offerExpiresAt || hasOffer(r, at)) continue;
     const stay = state.stays.find((s) => s.id === r.stayId);
     next = { ...next, joinRequests: next.joinRequests.filter((x) => x.id !== r.id) };
-    if (stay) next = { ...next, notifications: notify(next, [r.userId, stay.hostId], "waitlistOfferExpired", { name: firstNameOf(state, r.userId), title: stay.title }, `${r.id}-expired`, stay.id) };
+    if (stay) next = { ...next, notifications: notifyInApp(next, [r.userId, stay.hostId], "waitlistOfferExpired", { name: firstNameOf(state, r.userId), title: stay.title }, `${r.id}-expired`, stay.id) };
   }
   const until = new Date(Date.parse(at) + WAITLIST_OFFER_HOURS * HOUR_MS).toISOString();
   for (const stay of next.stays) {
@@ -983,8 +980,8 @@ function syncWaitlist(state: StoreState, at: string): StoreState {
       free--;
       next = { ...next, joinRequests: next.joinRequests.map((x) => (x.id === r.id ? { ...x, offerExpiresAt: until } : x)) };
       const values = { name: firstNameOf(next, r.userId), title: stay.title };
-      next = { ...next, notifications: notify(next, [r.userId], "waitlistOffer", values, `${r.id}-offer-${at}`, stay.id) };
-      next = { ...next, notifications: notify(next, [stay.hostId], "waitlistMovedUp", values, `${r.id}-moved-${at}`, stay.id) };
+      next = { ...next, notifications: notifyInApp(next, [r.userId], "waitlistOffer", values, `${r.id}-offer-${at}`, stay.id) };
+      next = { ...next, notifications: notifyInApp(next, [stay.hostId], "waitlistMovedUp", values, `${r.id}-moved-${at}`, stay.id) };
     }
   }
   const count = new Map<string, number>();
@@ -1040,7 +1037,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       }));
       const withInvites: StoreState = {
         ...state,
-        notifications: notify(state, invited, "crewInvite", { name: firstNameOf(state, me), title: action.stay.title }, `${action.stay.id}-crew`, action.stay.id),
+        notifications: notifyInApp(state, invited, "crewInvite", { name: firstNameOf(state, me), title: action.stay.title }, `${action.stay.id}-crew`, action.stay.id),
       };
       const announced = announceToSearches({ ...withInvites, notifications: notifyHostAlerts(withInvites, me, action.stay) }, { ...action.stay, hostId: me });
       return {
@@ -1120,9 +1117,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
             : state.payments,
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled, spotsInvited } : s)),
         threads: threadsAfterJoin(state, stay, me, systemMessage, spotsFilled >= stay.spotsTotal),
-        notifications: notify(
+        notifications: notifyInApp(
           spotsFilled >= stay.spotsTotal
-            ? { ...state, notifications: notify(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
+            ? { ...state, notifications: notifyInApp(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
             : state,
           [stay.hostId],
           "inviteAccepted",
@@ -1146,7 +1143,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         // An earlier "not this time" gives way to the invite.
         joinRequests: [...state.joinRequests.filter((r) => !(r.stayId === stay.id && r.userId === action.userId)), invite],
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsInvited: (s.spotsInvited ?? 0) + 1 } : s)),
-        notifications: notify(state, [action.userId], "houseInvite", { name: firstNameOf(state, me), title: stay.title }, invite.id, stay.id),
+        notifications: notifyInApp(state, [action.userId], "houseInvite", { name: firstNameOf(state, me), title: stay.title }, invite.id, stay.id),
       };
     }
 
@@ -1221,9 +1218,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
               ]
             : state.payments,
         threads: threadsAfterJoin(joined, stay, me, systemMessage, spotsFilled >= stay.spotsTotal),
-        notifications: notify(
+        notifications: notifyInApp(
           spotsFilled >= stay.spotsTotal
-            ? { ...state, notifications: notify(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
+            ? { ...state, notifications: notifyInApp(state, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
             : state,
           [stay.hostId],
           "inviteAccepted",
@@ -1279,6 +1276,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         notifications: state.notifications.map((n) => (n.userId === me && !n.readAt ? { ...n, readAt: action.at } : n)),
       };
 
+    case "addNotifications": {
+      const fresh = action.records.filter((r) => !state.notifications.some((n) => n.id === r.id));
+      return fresh.length === 0 ? state : { ...state, notifications: [...state.notifications, ...fresh] };
+    }
+
     case "addApplication":
       return { ...state, applications: [...state.applications, action.application] };
 
@@ -1319,7 +1321,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const paid = state.payments.find((p) => p.stayId === stay.id && p.userId === me && p.status === "paid");
       const next = withoutMember(state, stay, me, systemLine(action.systemMessage, crewThreadId(stay.id), "left", { name }));
       if (next === state) return state;
-      let left: StoreState = { ...next, notifications: notify(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id, stay.id) };
+      let left: StoreState = { ...next, notifications: notifyInApp(next, [stay.hostId], "left", { name, title: stay.title }, action.systemMessage.id, stay.id) };
       // Paid, and people are waiting: the spot goes to the waitlist (syncWaitlist offers it), the refund keeps Simpulo's fee.
       // Nobody waiting: no refund (below).
       // Paid and nobody waiting: no refund (config/policies.ts) – the record says "refunded 0" so the guest sees why.
@@ -1331,7 +1333,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         left = {
           ...left,
           payments: left.payments.map((p) => (p.id === paid.id ? { ...p, refundedAmount: amount } : p)),
-          notifications: notify(left, [me], "leftRefund", { title: stay.title, amount: `${amount} ${stay.currency}` }, `${action.systemMessage.id}-refund`, stay.id),
+          notifications: notifyInApp(left, [me], "leftRefund", { title: stay.title, amount: `${amount} ${stay.currency}` }, `${action.systemMessage.id}-refund`, stay.id),
         };
       }
       return left;
@@ -1347,7 +1349,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: [...state.joinRequests, { id: action.id, stayId: stay.id, userId: me, message: action.message.trim(), status: "waitlist_requested", createdAt: action.at, ...attribution, ...(reason === "covered" && { coveredBy: pendingRequestsOf(state, stay.id).map((r) => r.id) }) }],
-        notifications: notify(state, [stay.hostId], "waitlistRequest", { name: firstNameOf(state, me), title: stay.title }, action.id, stay.id),
+        notifications: notifyInApp(state, [stay.hostId], "waitlistRequest", { name: firstNameOf(state, me), title: stay.title }, action.id, stay.id),
       };
     }
 
@@ -1375,7 +1377,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.filter((r) => r.id !== request.id),
-        notifications: notify(state, [stay.hostId], "requestWithdrawn", { name: firstNameOf(state, me), title: stay.title }, `${request.id}-withdrawn`, stay.id),
+        notifications: notifyInApp(state, [stay.hostId], "requestWithdrawn", { name: firstNameOf(state, me), title: stay.title }, `${request.id}-withdrawn`, stay.id),
       };
     }
 
@@ -1389,7 +1391,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.filter((r) => r.id !== request.id),
-        notifications: notify(state, [request.userId], "waitlistRemoved", { title: stay.title }, `${request.id}-off`, stay.id),
+        notifications: notifyInApp(state, [request.userId], "waitlistRemoved", { title: stay.title }, `${request.id}-off`, stay.id),
       };
     }
 
@@ -1411,8 +1413,8 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled, ...(share && complete && { paymentDueAt: s.paymentDueAt ?? request.offerExpiresAt }) } : s)),
         threads: threadsAfterJoin(state, stay, me, systemMessage, complete),
       };
-      next = { ...next, notifications: notify(next, [stay.hostId], "waitlistTookSpot", { name, title: stay.title }, systemMessage.id, stay.id) };
-      if (complete) next = { ...next, notifications: notify(next, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) };
+      next = { ...next, notifications: notifyInApp(next, [stay.hostId], "waitlistTookSpot", { name, title: stay.title }, systemMessage.id, stay.id) };
+      if (complete) next = { ...next, notifications: notifyInApp(next, [...crewIds(state, stay), me], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) };
       return next;
     }
 
@@ -1476,7 +1478,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
           .filter((p) => !(p.stayId === stay.id && p.status === "pending"))
           .map((p) => (p.stayId === stay.id && p.status === "paid" ? { ...p, status: "refunded" as const } : p)),
         threads: postToHouse(state.threads, stay.id, [systemMessage, ...refunds]),
-        notifications: notify(state, told, "houseCancelled", { title: stay.title }, `${action.systemMessage.id}-cancelled`, stay.id),
+        notifications: notifyInApp(state, told, "houseCancelled", { title: stay.title }, `${action.systemMessage.id}-cancelled`, stay.id),
       };
     }
 
@@ -1506,7 +1508,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: [...state.joinRequests, request],
-        notifications: notify(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id, stay.id),
+        notifications: notifyInApp(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id, stay.id),
         events,
       };
     }
@@ -1519,7 +1521,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         return {
           ...state,
           joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "waitlisted" as const } : r)),
-          notifications: notify(state, [request.userId], "waitlistAccepted", { title: stay.title }, `${request.id}-waitlisted`, stay.id),
+          notifications: notifyInApp(state, [request.userId], "waitlistAccepted", { title: stay.title }, `${request.id}-waitlisted`, stay.id),
         };
       }
       // Spots held by open invites aren't free.
@@ -1547,10 +1549,10 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled } : s)),
         // The first confirmed join creates the House thread (see threadsAfterJoin).
         threads: threadsAfterJoin(state, stay, request.userId, systemMessage, spotsFilled >= stay.spotsTotal),
-        notifications: notify(
+        notifications: notifyInApp(
           // The last spot taken: the whole crew hears it's complete.
           spotsFilled >= stay.spotsTotal
-            ? { ...state, notifications: notify(state, [...crewIds(state, stay), request.userId], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
+            ? { ...state, notifications: notifyInApp(state, [...crewIds(state, stay), request.userId], "crewFull", { title: stay.title }, `${systemMessage.id}-full`, stay.id) }
             : state,
           [request.userId],
           "accepted",
@@ -1572,7 +1574,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "declined" } : r)),
-        notifications: notify(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`, stay.id, undefined, { href: "/your-houses" }),
+        notifications: notifyInApp(state, [request.userId], "declined", { title: stay.title }, `${request.id}-declined`, stay.id, undefined, { href: "/your-houses?tab=past" }),
       };
     }
 
@@ -1591,7 +1593,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         lastReadAt: { ...state.lastReadAt, [action.threadId]: action.message.createdAt },
         // Everyone else in the chat gets a notification that leads to it.
         notifications: thread
-          ? notify(state, thread.participantIds.filter((id) => id !== me), "newMessage", { name: firstNameOf(state, me), title: stay?.title ?? "", preview }, action.message.id, stay?.id, thread.id)
+          ? notifyInApp(state, thread.participantIds.filter((id) => id !== me), "newMessage", { name: firstNameOf(state, me), title: stay?.title ?? "", preview }, action.message.id, stay?.id, thread.id)
           : state.notifications,
       };
     }
@@ -1617,7 +1619,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const { lock, message } = action;
       return {
         ...withLock(state, stay, lock, action.patch, message.id),
-        notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "locked", { title: stay.title, price: lock.perPerson, payBy: lock.payBy }, message.id, stay.id),
+        notifications: notifyInApp(state, crewIds(state, stay).filter((id) => id !== me), "locked", { title: stay.title, price: lock.perPerson, payBy: lock.payBy }, message.id, stay.id),
       };
     }
 
@@ -1681,7 +1683,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return {
         ...state,
         payments,
-        notifications: notify(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id, stay.id),
+        notifications: notifyInApp(state, crewIds(state, stay).filter((id) => id !== me), "paid", { title: stay.title, name }, message.id, stay.id),
         events: [
           ...state.events,
           event(message.id, "payment_completed", message.createdAt, {
@@ -1711,6 +1713,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
           s.id === stay.id ? { ...s, status: "booked", bookingConfirmedAt: action.message.createdAt, bookingProofUrl: action.proofUrl } : s,
         ),
         threads: postToHouse(state.threads, stay.id, lines),
+        notifications: notifyInApp(state, crewIds(state, stay).filter((id) => id !== me), "bookingConfirmed", { title: stay.title }, `${action.message.id}-booked`, stay.id),
       };
     }
 
@@ -1843,7 +1846,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "fireReminder": {
       const { reminder } = action;
       // Notification only – payment and arrival reminders stay out of the thread.
-      return { ...state, notifications: notify(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`, reminder.stayId) };
+      return { ...state, notifications: notifyInApp(state, [reminder.userId], reminder.notifyKey, reminder.values, `${reminder.id}-${action.message.id}`, reminder.stayId) };
     }
 
     case "receiveMessage":
@@ -2190,6 +2193,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const markNotificationRead = useCallback((id: string) => dispatch({ type: "markNotificationRead", id, at: new Date().toISOString() }), []);
   const markAllNotificationsRead = useCallback(() => dispatch({ type: "markAllNotificationsRead", at: new Date().toISOString() }), []);
+  const addNotifications = useCallback((records: AppNotification[]) => dispatch({ type: "addNotifications", records }), []);
   const addApplication = useCallback(
     (application: Omit<HostApplication, "id" | "createdAt" | "userId">) =>
       dispatch({
@@ -2440,6 +2444,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       saveSearch,
       markNotificationRead,
       markAllNotificationsRead,
+      addNotifications,
       addApplication,
       leaveStay,
       requestWaitlist,
@@ -2479,7 +2484,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2499,18 +2504,6 @@ export function useStore(): StoreValue {
 
 // Selectors – pure helpers over store state.
 
-const DEFAULT_SETTINGS: UserSettings = {
-  notifications: {
-    requests: { push: true, email: true },
-    messages: { push: true, email: true },
-    payments: { push: true, email: true },
-    hostAlerts: { push: true, email: true },
-    searches: { push: true, email: true },
-    // "News from Simpulo" – off until switched on.
-    system: { push: false, email: false },
-  },
-  blockedUserIds: [],
-};
 
 /** Whether the current user blocked `userId` (their Houses, profile and direct threads are hidden). */
 export function isBlocked(store: Pick<StoreState, "users" | "currentUserId">, userId: string): boolean {
@@ -2524,56 +2517,16 @@ export function isProfileComplete(user: Pick<User, "photos" | "name" | "age" | "
 
 /** A user's settings with defaults filled in (everything on, nobody blocked). */
 export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettings {
-  return {
-    // Payment and booking updates always go out – whatever a stored setting says (Settings has no toggle for them).
-    notifications: { ...DEFAULT_SETTINGS.notifications, ...user?.settings?.notifications, payments: { push: true, email: true, inApp: true } },
-    blockedUserIds: user?.settings?.blockedUserIds ?? [],
-  };
+  // Only the groups that exist now – settings saved before (requests, payments …) are dropped; those are always on.
+  const stored: Partial<NotificationPrefs> = user?.settings?.notifications ?? {};
+  const notifications = Object.fromEntries(
+    (Object.keys(DEFAULT_NOTIFICATION_PREFS) as (keyof NotificationPrefs)[]).map((key) => [key, { ...DEFAULT_NOTIFICATION_PREFS[key], ...stored[key] }]),
+  ) as NotificationPrefs;
+  return { notifications, blockedUserIds: user?.settings?.blockedUserIds ?? [] };
 }
 
-/** Which Settings group a notification belongs to (its toggles decide whether push/email go out). */
-/** In-app = under the bell; push only reaches installed apps; email always. */
-export type NotificationChannel = "inApp" | "push" | "email";
-
-export const NOTIFY_GROUP: Record<NotifyEventKey, NotificationGroup> = {
-  newRequest: "requests",
-  accepted: "requests",
-  declined: "requests",
-  reminderPendingRequests: "requests",
-  left: "messages",
-  waitlistRequest: "requests",
-  requestWithdrawn: "requests",
-  requestExpired: "requests",
-  houseCancelled: "payments",
-  waitlistAccepted: "requests",
-  waitlistRemoved: "requests",
-  waitlistOffer: "requests",
-  waitlistMovedUp: "requests",
-  waitlistOfferExpired: "requests",
-  waitlistTookSpot: "requests",
-  leftRefund: "payments",
-  locked: "payments",
-  paid: "payments",
-  paymentDue: "payments",
-  paymentLapsed: "payments",
-  bookingRefunded: "payments",
-  reminderPayDue: "payments",
-  reminderPayToday: "payments",
-  reminderBookingUpload: "payments",
-  reminderArrival: "payments",
-  reminderSavedSoon: "payments",
-  hostOpened: "hostAlerts",
-  searchOpened: "searches",
-  crewInvite: "requests",
-  houseInvite: "requests",
-  inviteAccepted: "requests",
-  doItAgain: "system",
-  crewFull: "requests",
-  newMessage: "messages",
-  systemWelcome: "system",
-  systemVerify: "system",
-  systemPhoto: "system",
-};
+/** The switchable channels of a notification group (in-app is always on). */
+export type NotificationChannel = "push" | "email";
 
 export type StoreData = Pick<StoreState, "users" | "stays" | "joinRequests" | "currentUserId">;
 
@@ -2630,8 +2583,9 @@ export function isThreadUnread(store: Pick<StoreState, "lastReadAt" | "currentUs
 export function unreadThreadCount(store: Pick<StoreState, "threads" | "lastReadAt" | "currentUserId" | "users">): number {
   const me = store.currentUserId;
   if (!me) return 0;
+  // Simpulo's own "updates" chat isn't a chat any more: what it says is in Messages › Updates (the notifications).
   return store.threads.filter(
-    (t) => t.participantIds.includes(me) && isThreadUnread(store, t) && !(t.type === "direct" && t.participantIds.some((id) => id !== me && isBlocked(store, id))),
+    (t) => t.type !== "updates" && t.participantIds.includes(me) && isThreadUnread(store, t) && !(t.type === "direct" && t.participantIds.some((id) => id !== me && isBlocked(store, id))),
   ).length;
 }
 

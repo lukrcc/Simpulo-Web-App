@@ -46,6 +46,7 @@ export type NotifyEventKey =
   | "paymentDue"
   | "paymentLapsed"
   | "bookingRefunded"
+  | "bookingConfirmed"
   | "left"
   // The waitlist (src/lib/waitlist.ts)
   | "waitlistRequest"
@@ -93,6 +94,7 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   paymentDue: "payment_due",
   paymentLapsed: "payment_due",
   bookingRefunded: "payment_due",
+  bookingConfirmed: "house_locked",
   reminderPayDue: "payment_due",
   reminderPayToday: "payment_due",
   reminderBookingUpload: "payment_due",
@@ -142,6 +144,8 @@ export interface AppNotification {
   href?: string;
   /** Seeded mock history – never "delivered" again */
   mock?: true;
+  /** Push and email went out with it already (notify() outside the store) – the bridge doesn't send them again */
+  sent?: true;
 }
 
 export const typeOf = (n: Pick<AppNotification, "key">): NotificationType => KEY_TYPE[n.key];

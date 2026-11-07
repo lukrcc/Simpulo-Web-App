@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
+import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useHideOnScroll, useMobileChrome } from "./mobileChrome";
@@ -26,6 +27,8 @@ export function BottomTabBar() {
   const hiddenRoute = hidesTabBar(pathname);
   const docked = mode === "docked";
   const scrolledAway = useHideOnScroll(pathname, docked && !hiddenRoute);
+  const unreadIn = useMessagesUnread();
+  const unread = unreadIn.chats + unreadIn.updates;
   if (hiddenRoute || mode === "header") return null;
 
   // Logged out (pill only): Explore · How it works · Log in. Logged in: Explore · Houses · Messages · Profile.
@@ -74,7 +77,10 @@ export function BottomTabBar() {
                     active ? "text-ink" : "text-muted",
                   )}
                 >
-                  <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+                  <span className="relative">
+                    <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+                    {labelKey === "messages" && unread > 0 && <span aria-hidden className="absolute -right-1 -top-0.5 size-2 rounded-full border-2 border-surface bg-accent" />}
+                  </span>
                   {/* Active marker: a 6px ink dot under the icon (space kept for inactive tabs). */}
                   <span
                     className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-ink" : "bg-transparent")}

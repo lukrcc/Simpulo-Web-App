@@ -27,6 +27,7 @@ const placeProvider: PlaceProvider = createListPlaceProvider(() => ALL_PLACES);
 export const searchPlaces = placeProvider.search;
 export const defaultUserId = adapter.defaultUserId;
 export const installedUsers = adapter.installedUsers;
+export const devPersonas = adapter.devPersonas;
 export const paidUsersOf = adapter.paidUsers;
 export const pastEarningsOf = adapter.pastEarnings;
 export type { PastEarning } from "./adapter";

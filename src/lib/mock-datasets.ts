@@ -72,6 +72,7 @@ function launchData(): AppData {
       spotsTotal: guests + 1 + open,
       spotsInvited: undefined,
       spotsReserved: undefined,
+      paymentDueAt: undefined,
       acceptingRequests: true,
       accommodationStatus: "open",
       pricePerPerson: base.pricePerPerson,

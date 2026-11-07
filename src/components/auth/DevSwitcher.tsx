@@ -4,13 +4,13 @@ import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useNotificationText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
 import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
 import { APP_MODE } from "@/lib/appMode";
-import { DATA_STATES, installedUsers, readDataState, saveDataState } from "@/lib/data";
+import { DATA_STATES, devPersonas, readDataState, saveDataState } from "@/lib/data";
 import { computeReminders, type Reminder } from "@/lib/reminders";
-import { findUser, getCrew, NOTIFY_GROUP, OPEN_AS_PARAM, resetMockData, settingsOf, useStore } from "@/lib/store";
+import { findUser, getCrew, OPEN_AS_PARAM, resetMockData, useStore } from "@/lib/store";
+import { useNotifyLog } from "@/lib/notify/log";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -60,9 +60,9 @@ function DevSwitcherInner() {
 
   const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted hover:bg-ink/5 aria-pressed:bg-ink/5 aria-pressed:text-ink";
   return (
-    // Mobile: small "D" top-right (no header there for logged-in users), opens downward – never near the bottom CTAs.
-    // Desktop: "Dev" bottom-right, the free corner next to the form columns, opens upward.
-    <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+72px)] z-50 flex flex-col-reverse items-end gap-2 md:bottom-4 md:top-auto md:flex-col">
+    // Bottom left, away from toasts, the floating join bar, the round "Open a House" and the sheets on the right; opens upward.
+    // Phones: above the tab bar.
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+96px)] left-4 z-50 flex flex-col items-start gap-2 md:bottom-4">
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
@@ -95,6 +95,7 @@ function DevSwitcherInner() {
             <FlagSwitch flag="simulatePaymentFailure" />
             <FlagSwitch flag="simulateOnboardingActionRequired" />
             <DataPreset />
+            <YourHousesPersona />
             <div className="px-4 pb-2.5">
               <button type="button" onClick={resetMockData} className="font-medium text-ink underline-offset-4 hover:underline">
                 {t("resetMock")}
@@ -192,6 +193,33 @@ function DataPreset() {
             className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
           >
             {t(`presets.${preset}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Your houses builds itself per person: New (nothing yet) · Guest (only joined) · Host. Logs in as the matching mock person. */
+function YourHousesPersona() {
+  const t = useTranslations("auth.dev");
+  const { currentUserId, login } = useStore();
+  if (!devPersonas) return null;
+  const personas = devPersonas;
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
+      <span className="font-medium text-ink">{t("yourHouses")}</span>
+      <div role="radiogroup" aria-label={t("yourHouses")} className="flex rounded-full bg-ink/5 p-0.5">
+        {(["new", "guest", "host"] as const).map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            role="radio"
+            aria-checked={personas[kind] === currentUserId}
+            onClick={() => login(personas[kind])}
+            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
+          >
+            {t(`personas.${kind}`)}
           </button>
         ))}
       </div>
@@ -298,39 +326,27 @@ function OpenAsMenu({ stay, onDone }: { stay: Stay | undefined; onDone: () => vo
 const LOG_MAX = 50;
 
 /**
- * The store's outbox as the server would send it: who gets what, by email always and push if the app is installed, by their settings.
- * Real sending is server-side; here it's a log, newest first, never a toast.
+ * What lib/notify's push and email adapters did in this tab, newest first: who got what, by which channel (the channel table and each
+ * person's switches decided it). Real sending is server-side; outside the demo never a toast.
  */
 function DeliveryLog() {
   const t = useTranslations("auth.dev");
   const tNotify = useTranslations("messages.notify");
   const tCommon = useTranslations("common");
-  const text = useNotificationText();
   const store = useStore();
-  const events = [...Map.groupBy(store.notifications.filter((n) => !n.mock), (n) => n.eventId).values()].reverse().slice(0, LOG_MAX);
-  const lines = events.flatMap((records) => {
-    const delivered = records
-      .map(({ userId: id }) => {
-        const prefs = settingsOf(findUser(store, id)).notifications[NOTIFY_GROUP[records[0].key]];
-        return { id, email: prefs.email, push: prefs.push && installedUsers.has(id) };
-      })
-      .filter((r) => r.email || r.push);
-    if (delivered.length === 0) return [];
-    const names = delivered.map(({ id }) => (id === store.currentUserId ? tCommon("you") : (findUser(store, id)?.name.split(" ")[0] ?? "")));
-    const anyPush = delivered.some((r) => r.push);
-    const anyEmail = delivered.some((r) => r.email);
-    const recipients = names.length > 3 ? tNotify("andMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 }) : names.join(", ");
-    const channels = anyEmail && anyPush ? tNotify("channelEmailPush") : anyPush ? tNotify("channelPush") : tNotify("channelEmail");
-    return [{ id: records[0].eventId, line: tNotify("delivery", { recipients, channels, text: text(records[0]) }) }];
-  });
-  if (lines.length === 0) return <p className="px-4 py-4 text-muted">{t("logEmpty")}</p>;
+  const log = useNotifyLog();
+  if (log.length === 0) return <p className="px-4 py-4 text-muted">{t("logEmpty")}</p>;
+  const LINE = { push: "logPush", email: "logEmail", emailQueued: "logEmailQueued", emailDigest: "logEmailDigest", emailWeekly: "logEmailWeekly" } as const;
   return (
     <ul className="scroll-pane max-h-80">
-      {lines.map(({ id, line }) => (
-        <li key={id} className="px-4 py-2 text-muted">
-          {line}
-        </li>
-      ))}
+      {log.slice(0, LOG_MAX).map((entry) => {
+        const name = entry.userId === store.currentUserId ? tCommon("you") : (findUser(store, entry.userId)?.name.split(" ")[0] ?? entry.userId);
+        return (
+          <li key={entry.id} className="px-4 py-2 text-muted">
+            {tNotify(LINE[entry.channel], { name, text: entry.text })}
+          </li>
+        );
+      })}
     </ul>
   );
 }

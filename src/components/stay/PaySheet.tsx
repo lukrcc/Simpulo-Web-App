@@ -12,6 +12,7 @@ import { payments, type PaymentMethodInput } from "@/lib/payments";
 import { getMyPayment, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { FEE_MODEL } from "@/config/policies";
 
 /** The test card, filled in outside production (the provider's own test number). */
 const TEST_CARD = process.env.NODE_ENV === "production" ? "" : "4242 4242 4242 4242";
@@ -121,7 +122,8 @@ export function CardPayForm({ stay, amounts, onPay, onCancel }: CardPayFormProps
       <dl className="rounded-2xl bg-ink/4 px-5 py-2">
         <Row label={amounts.hostFee ? tPremium("share") : t("share")} value={money(amounts.share)} />
         {amounts.hostFee ? <Row label={tPremium("fieldLabel")} value={money(amounts.hostFee)} /> : null}
-        <Row label={t("feeIncluded")} value={money(amounts.fee)} muted />
+        {/* Guests only – the host pays their share without a service fee. */}
+        {amounts.fee > 0 && <Row label={t("feeIncluded", { percent: FEE_MODEL.serviceFeePercent })} value={money(amounts.fee)} muted />}
         <Row label={t("total")} value={money(amounts.total)} strong />
       </dl>
       {stay.paymentDueAt && <p className="-mt-3 text-small text-muted">{t("payBy", { date: `${f.day(stay.paymentDueAt)}, ${f.time(stay.paymentDueAt)}` })}</p>}

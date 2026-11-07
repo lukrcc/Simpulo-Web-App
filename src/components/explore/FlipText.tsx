@@ -132,8 +132,14 @@ function placeFlow(root: HTMLElement) {
   root.setAttribute("data-ready", "");
 }
 
-/** A stage headline under the slowly wandering gradient. A final "?" is a part of its own, so it can breathe (useMarkBreath). */
-export function FlowText({ text, lines, lineClassName, ref, className, style }: { text: string; lines?: string[]; lineClassName?: string; ref?: RefObject<HTMLElement | null>; className?: string; style?: CSSProperties }) {
+/** The orange dot: inline, so it never waits for a stylesheet – no gradient, no wandering, only the breath. */
+const ACCENT_DOT: CSSProperties = { background: "none", color: "#F0633A", WebkitTextFillColor: "#F0633A", animation: "none" };
+
+/**
+ * A stage headline under the slowly wandering gradient. A final "?" is a part of its own, so it can breathe (useMarkBreath); with `dot`, a
+ * final "." is that part instead – in the accent orange, outside the gradient ("Find your people.").
+ */
+export function FlowText({ text, lines, lineClassName, ref, className, style, dot = false }: { text: string; lines?: string[]; lineClassName?: string; ref?: RefObject<HTMLElement | null>; className?: string; style?: CSSProperties; dot?: boolean }) {
   const own = useRef<HTMLElement>(null);
   const root = ref ?? own;
   useLayoutEffect(() => {
@@ -154,7 +160,7 @@ export function FlowText({ text, lines, lineClassName, ref, className, style }: 
     };
   }, [root, text]);
   const word = (w: string, i: number) => {
-    const mark = w.endsWith("?") ? "?" : "";
+    const mark = w.endsWith("?") ? "?" : dot && w.endsWith(".") ? "." : "";
     const body = mark ? w.slice(0, -1) : w;
     return (
       <Fragment key={i}>
@@ -164,7 +170,7 @@ export function FlowText({ text, lines, lineClassName, ref, className, style }: 
             {body}
           </span>
           {mark && (
-            <span data-flow-part data-mark className="flow-part origin-[50%_85%]">
+            <span data-flow-part data-mark className="flow-part origin-[50%_85%]" style={mark === "." ? ACCENT_DOT : undefined}>
               {mark}
             </span>
           )}
