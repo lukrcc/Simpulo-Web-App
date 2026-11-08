@@ -19,6 +19,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { OPTIONAL_CATEGORIES } from "@/config/notifications";
+import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
 import { CURRENCIES, cn } from "@/lib/utils";
@@ -456,8 +457,31 @@ function PrivacySection({ me }: { me: User }) {
     showToast(t("downloaded"));
   }
 
+  const privacy = { showOnHousePages: showsOnHousePages(me), showAge: me.privacy?.showAge ?? PRIVACY_DEFAULTS.showAge };
+  function setPrivacy(patch: Partial<typeof privacy>) {
+    store.updateCurrentUser({ privacy: { ...privacy, ...patch } });
+    showToast(t("visibilitySaved"));
+  }
+
   return (
     <>
+      {/* Who sees you (config/privacy.ts) – saved right away, like the blocked list below. */}
+      <Card title={t("visibilityTitle")}>
+        <li className="flex items-start justify-between gap-6 py-2">
+          <span className="min-w-0">
+            <span className="block text-body text-ink">{t("showOnHousePages")}</span>
+            <span className="mt-0.5 block max-w-140 text-small text-muted">{t("showOnHousePagesText")}</span>
+          </span>
+          <Switch on={privacy.showOnHousePages} label={t("showOnHousePages")} onChange={(on) => setPrivacy({ showOnHousePages: on })} />
+        </li>
+        <li className="flex items-start justify-between gap-6 py-2">
+          <span className="min-w-0">
+            <span className="block text-body text-ink">{t("showAge")}</span>
+            <span className="mt-0.5 block max-w-140 text-small text-muted">{t("showAgeText")}</span>
+          </span>
+          <Switch on={privacy.showAge} label={t("showAge")} onChange={(on) => setPrivacy({ showAge: on })} />
+        </li>
+      </Card>
       <Card title={t("blockedTitle")} description={t("description")}>
         {blocked.length === 0 ? (
           <li className="py-2 text-small text-muted">{t("noneBlocked")}</li>

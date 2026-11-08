@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { AndroidInstallButton, IosInstallSteps } from "@/components/InstallHint";
+import { Wordmark } from "@/components/layout/Logo";
 import { SimpuloQR } from "@/components/SimpuloQR";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { APP_LINKS } from "@/config/app-links";
@@ -51,7 +51,7 @@ export function GetApp() {
   return (
     <div className="page-container flex min-h-[calc(100svh-160px)] flex-col items-center pb-24 pt-6 md:justify-center md:pb-16 md:pt-10">
       <div className="flex w-full max-w-[480px] flex-col items-center text-center">
-        <Image src="/apple-touch-icon-v2.png" alt="" width={96} height={96} priority className="size-24 rounded-[22px] shadow-[0_1px_2px_rgba(0,0,0,0.05),0_12px_32px_rgba(40,32,26,0.10)]" />
+        <Wordmark size="lg" />
         <h1 className="mt-6 text-h1 text-ink">{standalone ? t("getInstalled") : t("getTitle")}</h1>
         {!standalone && <p className="mt-3 text-body-lg text-muted">{t("getLead")}</p>}
         <div className="mt-10 flex min-h-11 w-full justify-center">{body}</div>

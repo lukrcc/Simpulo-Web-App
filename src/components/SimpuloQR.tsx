@@ -1,13 +1,11 @@
 "use client";
 
 import QRCode from "qrcode";
-import { useEffect, useMemo, useRef, useState, type Ref } from "react";
+import { useMemo, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 const INK = "#221E1B";
 const CREAM = "#F4EEE7";
-/** The app icon in the middle: about 22 % of the width, on a cream border. Level H keeps the code readable with it on top. */
-const ICON_SHARE = 0.22;
 const QUIET = 2;
 
 interface SimpuloQRProps {
@@ -35,23 +33,14 @@ export function withRefParam(url: string, ref?: string): string {
 }
 
 /**
- * Simpulo's QR code, made in the browser: rounded ink modules on cream, error correction H, the app icon in the middle with a cream
- * border. The icon is inlined (a data URI), so the code can also be saved as a PNG.
+ * Simpulo's QR code, made in the browser: rounded ink modules on cream, plain – no logo in the middle (the app icon never shows inside the
+ * pages). Error correction M: nothing covers it, so the modules can stay larger.
  */
 export function SimpuloQR({ url, size, refParam, svgRef, className }: SimpuloQRProps) {
   const target = withRefParam(url, refParam);
-  const qr = useMemo(() => QRCode.create(target, { errorCorrectionLevel: "H" }), [target]);
-  const icon = useInlineIcon();
+  const qr = useMemo(() => QRCode.create(target, { errorCorrectionLevel: "M" }), [target]);
   const n = qr.modules.size;
   const total = n + QUIET * 2;
-  const iconSize = Math.ceil(total * ICON_SHARE);
-  const iconAt = (total - iconSize) / 2;
-  // Modules under the icon (and its border) aren't drawn.
-  const clear = (x: number, y: number) => {
-    const cx = x + QUIET + 0.5;
-    const cy = y + QUIET + 0.5;
-    return cx > iconAt - 0.6 && cx < iconAt + iconSize + 0.6 && cy > iconAt - 0.6 && cy < iconAt + iconSize + 0.6;
-  };
   // The three finder patterns (7×7 in three corners) are drawn whole, as rounded squares – scanners find them more reliably than dots.
   const finders = [
     [0, 0],
@@ -62,7 +51,7 @@ export function SimpuloQR({ url, size, refParam, svgRef, className }: SimpuloQRP
   const dots: string[] = [];
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
-      if (!qr.modules.get(y, x) || clear(x, y) || inFinder(x, y)) continue;
+      if (!qr.modules.get(y, x) || inFinder(x, y)) continue;
       dots.push(`M${x + QUIET + 0.1},${y + QUIET + 0.5}a0.4,0.4 0 0 1 0.4,-0.4h0a0.4,0.4 0 0 1 0.4,0.4v0a0.4,0.4 0 0 1 -0.4,0.4h0a0.4,0.4 0 0 1 -0.4,-0.4z`);
     }
   }
@@ -76,32 +65,8 @@ export function SimpuloQR({ url, size, refParam, svgRef, className }: SimpuloQRP
           <rect x={2} y={2} width={3} height={3} rx={0.9} fill={INK} />
         </g>
       ))}
-      <rect x={iconAt - 0.5} y={iconAt - 0.5} width={iconSize + 1} height={iconSize + 1} rx={(iconSize + 1) * 0.28} fill={CREAM} />
-      {icon && <image href={icon} x={iconAt} y={iconAt} width={iconSize} height={iconSize} />}
     </svg>
   );
-}
-
-let iconCache: string | null = null;
-/** The app icon as a data URI, fetched once per page. */
-function useInlineIcon(): string | null {
-  const [icon, setIcon] = useState(iconCache);
-  const live = useRef(true);
-  useEffect(() => {
-    live.current = true;
-    if (iconCache) return;
-    void fetch("/favicon-v2.svg")
-      .then((r) => r.text())
-      .then((text) => {
-        iconCache = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(text)))}`;
-        if (live.current) setIcon(iconCache);
-      })
-      .catch(() => {});
-    return () => {
-      live.current = false;
-    };
-  }, []);
-  return icon;
 }
 
 /**

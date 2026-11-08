@@ -20,8 +20,10 @@ const ARROW_GONE = "pointer-events-none opacity-0";
  * Every horizontal row: fixed-width items (each sets its own width) on one line, starting at the container's left edge
  * and running to the window's right edge. Drag, trackpad and touch through Embla, ‹ › where there's more that way.
  * Viewport, track and slides are transparent: no background, frame, shadow or filter (see .shelf in globals.css).
+ * variant="flat" (How it works): no effect that depends on position or hover – every card the same size, the same top, the same (no)
+ * shadow; the cards don't lift or zoom. Explore's rows and the Spotlight keep theirs.
  */
-export function Shelf({ children, className }: { children: ReactNode; className?: string }) {
+export function Shelf({ children, className, variant = "default" }: { children: ReactNode; className?: string; variant?: "default" | "flat" }) {
   const t = useTranslations("explore.collections");
   const plugins = useMemo(() => [PassiveWheelGestures()], []);
   const [viewportRef, api] = useEmblaCarousel(OPTIONS, plugins);
@@ -75,7 +77,7 @@ export function Shelf({ children, className }: { children: ReactNode; className?
   }
 
   return (
-    <div className={cn("shelf-frame", EXPLORE_SPACING.rowCards, className)}>
+    <div className={cn("shelf-frame", variant === "flat" && "shelf-flat", EXPLORE_SPACING.rowCards, className)}>
       <div ref={viewportRef} data-shelf className="shelf">
         <div className={cn("shelf-track", (ends.prev || ends.next) && "md:cursor-grab md:active:cursor-grabbing")}>{children}</div>
       </div>

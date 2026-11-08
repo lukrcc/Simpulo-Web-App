@@ -7,6 +7,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
 import { IconButton } from "@/components/ui/IconButton";
@@ -77,6 +78,7 @@ const PHOTO_ARROW = "photo-arrow absolute top-1/2 z-10 -translate-y-1/2 opacity-
 export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, className }: HouseCardProps) {
   // Your own cards (footer="status", Your houses): calm – no heart, no photo arrows or dots, no hover zoom.
   const calm = footer === "status";
+  const faceOf = useCrewFaceOf(stay);
   const t = useTranslations("explore");
   const tHome = useTranslations("houses.home");
   const store = useStore();
@@ -153,6 +155,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 fill
                 sizes={gallery ? "(min-width: 1100px) 600px, 520px" : spotlight ? "400px" : CARD_SIZES}
                 loading={spotlight || (gallery && i === 0) ? "eager" : undefined}
+                data-photo-zoom
                 className={cn("object-cover", !spotlight && !gallery && !calm && PHOTO_ZOOM)}
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
@@ -208,9 +211,19 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="flex shrink-0 -space-x-2">
-                  {crew.slice(0, 4).map((member) => (
-                    <PersonPhoto key={member.id} src={member.photos[0]} alt={member.name} size={24} className="size-6 border-2 border-surface" />
-                  ))}
+                  {/* As the viewer may see them (config/privacy.ts) – in their own Houses that's everyone. */}
+                  {crew
+                    .filter((member) => faceOf(member) !== "hidden")
+                    .slice(0, 4)
+                    .map((member) =>
+                      faceOf(member) === "blurred" ? (
+                        <span key={member.id} aria-hidden className="block size-6 overflow-hidden rounded-full border-2 border-surface">
+                          <PersonPhoto src={member.photos[0]} alt="" size={24} className="size-full blur-[2px]" />
+                        </span>
+                      ) : (
+                        <PersonPhoto key={member.id} src={member.photos[0]} alt={member.name} size={24} className="size-6 border-2 border-surface" />
+                      ),
+                    )}
                 </span>
                 <span className="truncate text-small text-white/85">{live ?? tHome("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>
               </span>

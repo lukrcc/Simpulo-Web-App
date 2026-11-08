@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-/** The full footer only here (Explore with its collections, Host, How it works); every other page ends with the one line. */
-const FULL_ROUTES = ["/", "/explore", "/how-it-works"];
+/** The full footer only here (Explore with its collections); every other page ends with the one line. */
+const FULL_ROUTES = ["/", "/explore"];
 
 export function FooterByRoute({ full, slim }: { full: ReactNode; slim: ReactNode }) {
   const pathname = usePathname();

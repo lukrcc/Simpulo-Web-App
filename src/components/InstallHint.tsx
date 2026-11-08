@@ -8,14 +8,14 @@ import { clearInstallPrompt, useBrowser, useInstallPrompt, useIsIpad } from "@/l
 import { appLink } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-/** The footer's QR (desktop only): 96px on its cream surface, beside it "Get Simpulo on your phone" and "Scan with your camera" → /get?ref=footer. */
-export function FooterInstallHint({ id, className }: { id?: string; className?: string }) {
+/** The footer's QR (desktop only, in its bottom row): 72px on its cream surface, beside it "Get Simpulo on your phone" and "Scan with your camera" → /get?ref=footer. */
+export function FooterInstallHint({ id, size = 72, className }: { id?: string; size?: number; className?: string }) {
   const t = useTranslations("install");
   const browser = useBrowser();
   if (browser !== "desktop") return null;
   return (
     <div id={id} className={cn("flex items-center gap-4", className)}>
-      <SimpuloQR url={appLink()} refParam="footer" size={96} className="shrink-0" />
+      <SimpuloQR url={appLink()} refParam="footer" size={size} className="shrink-0" />
       <div className="whitespace-nowrap">
         <p className="text-body text-ink">{t("footerTitle")}</p>
         <p className="mt-0.5 text-small text-muted">{t("footerScan")}</p>

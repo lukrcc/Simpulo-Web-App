@@ -3,21 +3,31 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { PublicProfile } from "@/components/views/ProfileView";
+import { publicName, showsOnHousePages } from "@/config/privacy";
 import { getUsers } from "@/lib/data";
 
-/** Shared profile links: name + bio; the image comes from ./opengraph-image.tsx. Reads the mock data directly. */
+/** Profiles are never indexed (people, not pages to find). */
+const NOINDEX: Metadata["robots"] = { index: false, follow: true };
+
+/**
+ * Shared profile links: first name + bio (a private profile: the first name only); the image comes from ./opengraph-image.tsx. Reads the
+ * mock data directly.
+ */
 export async function generateMetadata({ params }: PageProps<"/u/[userId]">): Promise<Metadata> {
   const { userId } = await params;
   const user = getUsers().find((u) => u.id === userId && !u.deletedAt);
   if (!user) {
     const t = await getTranslations("meta.pages");
-    return { title: t("profile") };
+    return { title: t("profile"), robots: NOINDEX };
   }
+  const name = publicName(user, null);
+  const description = showsOnHousePages(user) ? user.bio : undefined;
   return {
-    title: user.name,
-    description: user.bio,
-    openGraph: { title: user.name, description: user.bio },
-    twitter: { card: "summary_large_image", title: user.name, description: user.bio },
+    title: name,
+    description,
+    robots: NOINDEX,
+    openGraph: { title: name, description },
+    twitter: { card: "summary_large_image", title: name, description },
   };
 }
 

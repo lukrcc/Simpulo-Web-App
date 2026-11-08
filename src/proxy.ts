@@ -14,11 +14,14 @@ const DEMO_LOGIN = "/demo-login";
 /** The web app manifest and its icons: browsers fetch the manifest without credentials, so it must stay public. */
 const PUBLIC_PATHS = new Set([
   "/manifest.webmanifest",
-  "/favicon-v2.svg",
-  "/favicon-v2-32.png",
-  "/favicon-v2-192.png",
-  "/favicon-v2-512.png",
-  "/apple-touch-icon-v2.png",
+  "/favicon.ico",
+  "/favicon.svg",
+  "/favicon-16.png",
+  "/favicon-32.png",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-192.png",
   "/icon-maskable-512.png",
   "/robots.txt",
 ]);

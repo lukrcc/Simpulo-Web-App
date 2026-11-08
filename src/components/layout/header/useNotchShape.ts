@@ -124,9 +124,13 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
       /** The tab's depth at the whole panel */
       fullDepth: NOTCH_DEPTH + NOTCH_EXTRA,
       auto: false,
+      /** No tabs (logged out) and no grip (not Explore): the bar alone, no tab under it. */
+      bare: false,
+      hasHandle: false,
       scrimOn: false,
       dragging: false,
       depthAt(p: number) {
+        if (state.bare && !state.hasHandle && p === 0) return 0;
         const chips = NOTCH_DEPTH + NOTCH_EXTRA;
         return p <= 1 ? NOTCH_DEPTH + NOTCH_EXTRA * p : chips + (state.fullDepth - chips) * (p - 1);
       },
@@ -286,6 +290,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
       const contentLeft = outer.left - box.left + parseFloat(style.paddingLeft);
       const contentRight = outer.right - box.left - parseFloat(style.paddingRight);
       run.geometry = { width: Math.round(box.width), navLeft: inner.left - box.left, navRight: inner.right - box.left, contentLeft, contentRight };
+      run.bare = inner.width < 1;
       const slot = refs.slot.current;
       if (slot) {
         slot.style.left = `${n(contentLeft + SLOT_INSET)}px`;
@@ -318,7 +323,10 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
   }, [refs, run]);
 
   // The handle mounts with the page that offers it.
-  useLayoutEffect(() => run.paint(), [hasHandle, run]);
+  useLayoutEffect(() => {
+    run.hasHandle = hasHandle;
+    run.paint();
+  }, [hasHandle, run]);
 
   useEffect(() => {
     if (!run.dragging) run.animate(stageOf(mode));

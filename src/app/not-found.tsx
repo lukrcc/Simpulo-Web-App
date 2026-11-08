@@ -16,7 +16,7 @@ export default function NotFound() {
           <Button variant="primary" size="md" href="/">
             {t("explore")}
           </Button>
-          <Button variant="secondary" size="md" href="/how-it-works">
+          <Button variant="secondary" size="md" href="/faq">
             {t("howItWorks")}
           </Button>
         </div>

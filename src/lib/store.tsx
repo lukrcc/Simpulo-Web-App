@@ -227,6 +227,7 @@ export type ProfilePatch = Partial<
     | "socials"
     | "verified"
     | "preferredCurrency"
+    | "privacy"
   >
 >;
 
@@ -501,7 +502,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
     (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses?tab=past" } : null; },
     (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
-    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/how-it-works"] as const)[i % 3] }),
+    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/faq"] as const)[i % 3] }),
   ];
 
   return MOCK_DAYS.flatMap((days, i) => {
@@ -621,7 +622,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 6;
+const MOCK_VERSION = 7;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 

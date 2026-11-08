@@ -32,17 +32,17 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t("siteDescription"),
     // Home-screen web app: draw edge-to-edge under the iOS status bar.
     appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Simpulo" },
-    manifest: "/manifest.webmanifest",
-    // The smiley on a white circle (transparent corners): SVG first, PNG fallbacks; the Apple icon keeps a square
-    // background (iOS rounds it itself and drops transparency). "-v2" in the names, so Safari drops its cached icon.
+    // The manifest is src/app/manifest.ts – Next links it itself.
+    // The orbit (public/). Browser tab: the transparent favicon.svg (it follows a light or dark browser by prefers-color-scheme), PNG
+    // fallbacks, the .ico for old browsers. Home screen: the app icon on black, square (iOS rounds it itself). icon-1024.png: stores later.
     icons: {
       icon: [
-        { url: "/favicon-v2.svg", type: "image/svg+xml" },
-        { url: "/favicon-v2-32.png", sizes: "32x32", type: "image/png" },
-        { url: "/favicon-v2-192.png", sizes: "192x192", type: "image/png" },
-        { url: "/favicon-v2-512.png", sizes: "512x512", type: "image/png" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
       ],
-      apple: [{ url: "/apple-touch-icon-v2.png", sizes: "180x180", type: "image/png" }],
+      shortcut: "/favicon.ico",
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
     // Next emits the standard "mobile-web-app-capable"; older iOS only reads the Apple-prefixed tag.
     other: { "apple-mobile-web-app-capable": "yes" },

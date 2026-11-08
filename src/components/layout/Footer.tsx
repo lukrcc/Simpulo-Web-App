@@ -28,14 +28,13 @@ export async function Footer() {
       title: t("columns.explore"),
       links: [
         { href: "/", label: t("links.houses") },
-        { href: "/how-it-works", label: t("links.howItWorks") },
         { href: "/create", label: t("links.openHouse") },
       ],
     },
     {
       title: t("columns.hosting"),
       links: [
-        { href: "/how-it-works?role=host", label: t("links.hostAHouse") },
+        { href: "/faq?role=host", label: t("links.hostAHouse") },
         { href: "/safety", label: t("links.safety") },
       ],
     },
@@ -74,8 +73,6 @@ export async function Footer() {
                 })}
               </ul>
             )}
-            {/* Desktop only: the QR code to /get (ref=footer), 96px, two lines beside it. */}
-            <FooterInstallHint id="get-the-app" className="mt-6 max-md:hidden" />
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title} className="md:col-span-2">
@@ -94,8 +91,10 @@ export async function Footer() {
           <FooterPopular />
         </div>
 
-        {/* Bottom row across the full width. */}
-        <div className="mt-8 pt-6">
+        {/* Bottom row across the full width, under a thin line: the QR block left (desktop only), the copyright and legal links right, both
+            centred on each other. Phones: no QR, copyright and links one under the other, centred. */}
+        <div className="mt-10 flex flex-col items-center gap-6 border-t border-ink/10 pt-6 md:flex-row md:justify-between">
+          <FooterInstallHint id="get-the-app" size={72} className="max-md:hidden" />
           <FooterLegal />
         </div>
       </Container>
@@ -156,14 +155,17 @@ async function FooterLegal() {
     { href: "/terms", label: t("links.terms") },
     { href: "/privacy#cookies", label: t("links.cookies") },
   ];
+  // One line on desktop ("© 2026 Simpulo · Impressum · Privacy · Terms · Cookies"); on phones the links under the copyright, centred.
   return (
-    <div className="flex flex-col gap-3 text-small md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col items-center gap-1 text-small text-muted md:ml-auto md:flex-row md:gap-1.5">
       <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
       <nav aria-label={t("legalLabel")}>
-        <ul className="flex flex-wrap items-center gap-x-1.5">
+        <ul className="flex flex-wrap items-center justify-center gap-x-1.5">
           {legal.map(({ href, label }, i) => (
             <li key={href} className="flex items-center gap-1.5">
-              {i > 0 && <span aria-hidden>·</span>}
+              <span aria-hidden className={i === 0 ? "max-md:hidden" : undefined}>
+                ·
+              </span>
               <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
                 {label}
               </Link>

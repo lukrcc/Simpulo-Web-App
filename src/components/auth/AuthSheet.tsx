@@ -6,10 +6,10 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { SiApple } from "react-icons/si";
+import { Wordmark } from "@/components/layout/Logo";
 import { CompleteProfileForm } from "@/components/onboarding/CompleteProfileForm";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { Img } from "@/components/ui/Img";
 import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { isProfileComplete, useStore } from "@/lib/store";
@@ -66,7 +66,7 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
         </>
       }
       subtitle={copy.subline}
-      lead={<Img src="/favicon-v2.svg" alt="" width={40} height={40} unoptimized className="size-10 rounded-[11px]" />}
+      lead={<Wordmark className="block" />}
       focusOverlay
     >
       {/* Remounted on every open, so it always starts at the provider buttons. */}

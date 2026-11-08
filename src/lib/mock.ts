@@ -68,6 +68,8 @@ export interface User extends Attribution {
   email?: string;           // account email (mock) – shown in Settings
   signInMethod?: 'apple' | 'google' | 'email';
   settings?: UserSettings;  // unset = defaults (everything on, nobody blocked)
+  /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean };
   deletedAt?: string;       // mock "Delete account"
 }
 
@@ -1410,9 +1412,18 @@ function houseToStay(house: ExtraHouse): Stay {
 }
 
 /** Everyone: the original people (host fee allowed for verified hosts, as before; nobody is "Pro") plus the extra hosts. */
+/**
+ * ⚠ MOCK privacy: about two in three show their age (fixed by id); Aisha (u4, in the crew of Fitness House Canggu) is hidden on House
+ * pages, so that state is visible in the demo too.
+ */
+const mockPrivacy = (user: User): User => {
+  const n = Number(user.id.replace(/\D/g, "")) || user.id.length;
+  return { ...user, privacy: { showAge: n % 3 !== 0, ...(user.id === "u4" && { showOnHousePages: false }) } };
+};
+
 export const users: User[] = [
-  ...coreUsers.map((user) => ({ ...user, isPro: false, canChargeHostFee: user.verified })),
-  ...extraHosts.map(hostToUser),
+  ...coreUsers.map((user) => mockPrivacy({ ...user, isPro: false, canChargeHostFee: user.verified })),
+  ...extraHosts.map((host) => mockPrivacy(hostToUser(host))),
 ];
 
 export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)];

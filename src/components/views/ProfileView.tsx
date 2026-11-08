@@ -1,5 +1,6 @@
 "use client";
 
+import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
 import { ChevronRight, Lock, MessageCircle, MoreHorizontal, Pencil, SearchX, Settings, Share2, UserX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,7 +33,7 @@ import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useToast } from "@/components/ui/Toast";
 import { MoreList } from "@/components/views/MoreList";
 import { useFormat } from "@/i18n/format";
-import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
+import { profileViewFor, sharesCrew, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
 import { findUser, getCurrentUser, isBlocked, isCrewMember, useStore, type LivedWithEntry } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
@@ -143,6 +144,8 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
   const viewerId = previewing ? null : store.currentUserId;
   const view = profileViewFor(store, user, viewerId, today);
   const { photos } = user;
+  // Turned off "Show me on House pages": only people who shared a crew with them see more (config/privacy.ts) – no photos, no Houses.
+  if (!isMe && !showsOnHousePages(user) && !sharesCrew(store, user.id, viewerId)) return <PrivateProfile user={user} />;
 
   return (
     <Container className={cn("pb-6 pt-6 split:pb-0 split:pt-0", previewing ? "split:h-[calc(100dvh-var(--header-total)-48px-40px)]" : "split:h-[calc(100dvh-var(--header-total)-48px)]")}>
@@ -166,6 +169,20 @@ function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
         <ProofTile view={view} isMe={isMe} />
       </div>
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
+    </Container>
+  );
+}
+
+/** A private profile, to everyone who wasn't in a crew with them: the first name and "This profile is private" – nothing else. */
+function PrivateProfile({ user }: { user: User }) {
+  const t = useTranslations("profile.view");
+  return (
+    <Container page className="flex min-h-[calc(100dvh-var(--header-total)-var(--space-section))] flex-col items-center justify-center pb-(--space-section) text-center">
+      <span aria-hidden className="flex size-24 items-center justify-center rounded-full bg-ink/6 text-muted">
+        <Lock className="size-7" />
+      </span>
+      <h1 className="mt-6 text-h1 text-ink">{publicName(user, null)}</h1>
+      <p className="mt-2 text-body-lg text-muted">{t("private")}</p>
     </Container>
   );
 }
@@ -220,7 +237,7 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
 
   return (
     <Panel flush className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-      <ProfilePhotos user={user} onOpen={onOpenPhotos} />
+      <ProfilePhotos user={user} onOpen={onOpenPhotos} viewerId={previewing ? null : store.currentUserId} />
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-8 pt-6">
         <div className="flex min-h-0 flex-1 flex-col gap-4 split:scroll-pane">
           <ProHostLabel user={user} className="empty:hidden" />
@@ -277,7 +294,8 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, onOpenPhotos }:
 }
 
 /** The profile photos, landscape, one at a time; the name and where they're from lie on the bottom left. */
-function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) => void }) {
+function ProfilePhotos({ user, onOpen, viewerId }: { user: User; onOpen: (index: number) => void; /** Who's looking (null: logged out, or the preview) – the name and age follow config/privacy.ts */ viewerId: string | null }) {
+  const showAge = showsAge(user, viewerId);
   const t = useTranslations("profile");
   const tView = useTranslations("profile.view");
   const f = useFormat();
@@ -305,11 +323,11 @@ function ProfilePhotos({ user, onOpen }: { user: User; onOpen: (index: number) =
       <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
       <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-5 text-white", cardTextShadow)}>
         <h1 className="flex min-w-0 items-center gap-2 text-h2 text-white">
-          <span className="truncate">{user.name}</span>
+          <span className="truncate">{publicName(user, viewerId)}</span>
           {user.verified && <VerifiedBadge className="shrink-0" />}
         </h1>
         <p className="mt-1 truncate text-body text-white/85">
-          {f.ageAndCountry(user)}
+          {f.ageAndCountry(user, showAge)}
           {user.city && ` · ${t("basedIn", { city: user.city })}`}
         </p>
       </div>

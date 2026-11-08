@@ -485,9 +485,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     </>
                   }
                 />
-                {/* Logged out on mobile there's no tab bar – this is the way to "How it works" (plus the footer). */}
+                {/* Logged out on mobile there's no tab bar – this is the way to the questions (plus the footer). */}
                 {!store.currentUserId && (
-                  <Link href="/how-it-works" className={buttonStyles("tertiary", "md", "mt-1 min-h-11 md:hidden")}>
+                  <Link href="/faq" className={buttonStyles("tertiary", "md", "mt-1 min-h-11 md:hidden")}>
                     {t("howItWorksLink")}
                   </Link>
                 )}

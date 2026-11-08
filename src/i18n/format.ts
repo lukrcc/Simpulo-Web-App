@@ -106,7 +106,9 @@ export function useFormat() {
       people: (count: number) => t("people", { count }),
       links: (count: number) => t("links", { count }),
       vibe: (key: Stay["vibe"]) => t(`vibes.${key}`),
-      ageAndCountry: (user: { age: number; country: string }) => t("ageAndCountry", { age: user.age, country: user.country }),
+      /** "34 · Spain" – the age only when it may show (`showAge`: its owner released it, or it's their own; config/privacy.ts), else "Spain". */
+      ageAndCountry: (user: { age: number; country: string }, showAge: boolean) =>
+        showAge && user.age > 0 ? t("ageAndCountry", { age: user.age, country: user.country }) : user.country,
       /** "Bangkok, Thailand" – or "Bali · city open". The area stays on the House page (placeLabel). */
       placeName: (stay: Pick<Stay, "city" | "region" | "location">) =>
         isCityOpen(stay) ? t("cityOpen", { region: regionShort(stay) }) : [stay.location.city, stay.location.country].filter(Boolean).join(", "),

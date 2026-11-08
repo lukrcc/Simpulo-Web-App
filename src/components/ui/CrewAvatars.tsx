@@ -1,16 +1,21 @@
+"use client";
+
 import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CrewLine } from "./CrewLine";
 import { PersonPhoto } from "./PersonPhoto";
+import { useCrewFaceOf } from "./useCrewFaces";
 
 const MAX_MEMBERS = 3;
 
 /**
  * Card crew row: host first (thin ink ring), then accepted members (up to 3, then "+N").
  * 24px avatars, overlapping by 8px, white 2px borders, then how many are in (CrewLine).
+ * The members as the viewer may see them (config/privacy.ts): hidden ones only count in "+N", logged out every member is blurred.
  */
-export function CrewAvatars({ host, members, stay }: { host: User; members: User[]; stay: Pick<Stay, "spotsTotal" | "spotsFilled" | "spotsInvited" | "spotsReserved"> }) {
-  const shown = members.slice(0, MAX_MEMBERS);
+export function CrewAvatars({ host, members, stay }: { host: User; members: User[]; stay: Pick<Stay, "id" | "hostId" | "spotsTotal" | "spotsFilled" | "spotsInvited" | "spotsReserved"> }) {
+  const faceOf = useCrewFaceOf(stay);
+  const shown = members.filter((member) => faceOf(member) !== "hidden").slice(0, MAX_MEMBERS);
   const rest = members.length - shown.length;
   const avatar = "size-6 border-2 border-surface";
 
@@ -18,9 +23,15 @@ export function CrewAvatars({ host, members, stay }: { host: User; members: User
     <div className="flex min-w-0 items-center gap-2">
       <div className="flex shrink-0 items-center -space-x-2">
         <PersonPhoto src={host.photos[0]} alt={host.name} size={24} className={cn(avatar, "ring-[1.5px] ring-ink")} />
-        {shown.map((member) => (
-          <PersonPhoto key={member.id} src={member.photos[0]} alt={member.name} size={24} className={avatar} />
-        ))}
+        {shown.map((member) =>
+          faceOf(member) === "blurred" ? (
+            <span key={member.id} aria-hidden className={cn(avatar, "block overflow-hidden rounded-full")}>
+              <PersonPhoto src={member.photos[0]} alt="" size={24} className="size-full blur-[2px]" />
+            </span>
+          ) : (
+            <PersonPhoto key={member.id} src={member.photos[0]} alt={member.name} size={24} className={avatar} />
+          ),
+        )}
         {rest > 0 && (
           <span className="glass-dark flex size-6 items-center justify-center rounded-full border-2 border-surface text-small font-semibold">
             +{rest}

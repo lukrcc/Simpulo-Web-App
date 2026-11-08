@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { NAV_ICONS } from "@/config/nav";
 
 export interface NavItem {
-  href: "/" | "/how-it-works" | "/your-houses" | "/messages" | "/profile";
+  href: "/" | "/your-houses" | "/messages" | "/profile";
   /** Message key under nav.items */
   labelKey: "explore" | "host" | "howItWorks" | "houses" | "messages" | "profile";
   icon: LucideIcon;
@@ -16,20 +16,19 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", labelKey: "explore", icon: NAV_ICONS.explore, audience: "all" },
-  { href: "/how-it-works", labelKey: "howItWorks", icon: NAV_ICONS.howItWorks, audience: "guest" },
   { href: "/your-houses", labelKey: "houses", headerLabelKey: "yourHouses", icon: NAV_ICONS.houses, audience: "member" },
   { href: "/messages", labelKey: "messages", icon: NAV_ICONS.messages, audience: "member" },
   { href: "/profile", labelKey: "profile", icon: NAV_ICONS.profile, audience: "member", tabBarOnly: true },
 ];
 
 /**
- * Logged out: Explore · Host · How it works. Logged in – desktop header: Explore · Your houses · Messages
- * (Profile is in the avatar menu); phones' tab bar: Explore · Houses · Messages · Profile.
+ * Desktop header, logged in or out the same: Explore · Your houses · Messages (Profile is in the avatar menu; logged out the two member
+ * tabs open the auth sheet instead). Phones' tab bar: logged in Explore · Houses · Messages · Profile; the installed app's pill logged
+ * out: Explore.
  */
 export function navItemsFor(loggedIn: boolean, place: "header" | "tabBar" = "tabBar"): readonly NavItem[] {
-  return NAV_ITEMS.filter(
-    (item) => (item.audience === "all" || item.audience === (loggedIn ? "member" : "guest")) && !(place === "header" && item.tabBarOnly),
-  );
+  if (place === "header") return NAV_ITEMS.filter((item) => item.audience !== "guest" && !item.tabBarOnly);
+  return NAV_ITEMS.filter((item) => item.audience === "all" || item.audience === (loggedIn ? "member" : "guest"));
 }
 
 export function isNavActive(href: NavItem["href"], pathname: string | null): boolean {

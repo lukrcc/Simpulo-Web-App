@@ -38,7 +38,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
             {user.verified && <VerifiedBadge />}
           </h1>
           <p className="mt-0.5 text-small text-muted">
-            {f.ageAndCountry(user)}
+            {f.ageAndCountry(user, true)}
             {user.city && ` · ${t("basedIn", { city: user.city })}`}
           </p>
           {stats && <p className="mt-0.5 text-small text-muted">{stats}</p>}

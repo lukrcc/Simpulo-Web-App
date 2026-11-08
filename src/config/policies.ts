@@ -1,6 +1,13 @@
 // Cancellation rules – the one place they're decided. The texts (messages "policy") are a DRAFT: legal review still open.
 // Shown in full on /cancellation, in short in the pay sheet and on the House page; the store follows the same rules.
-import { BOOKING_WINDOW_HOURS } from "@/lib/joinFlow";
+/**
+ * The clocks of joining (lib/joinFlow.ts uses these): a member whose share is due has this many hours to pay; after everyone paid, the
+ * host confirms the booking within this many hours, otherwise everything is refunded.
+ */
+export const PAYMENT_POLICY = {
+  paymentWindowHours: 48,
+  hostBookingWindowHours: 48,
+} as const;
 
 export const CANCELLATION_POLICY = {
   /** Draft until the legal review: the page says so. */
@@ -13,7 +20,7 @@ export const CANCELLATION_POLICY = {
   afterPaymentWithoutTransfer: "no_refund",
   /** The host cancels, or doesn't confirm the booking within this many hours after everyone paid: everything back. */
   hostCancelsOrNoBooking: "full_refund",
-  bookingWindowHours: BOOKING_WINDOW_HOURS,
+  bookingWindowHours: PAYMENT_POLICY.hostBookingWindowHours,
 } as const;
 
 /**

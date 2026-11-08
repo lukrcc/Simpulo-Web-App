@@ -2,7 +2,7 @@
  * The auth sheet's heading and line, by what made it open (`reason` – every requireAuth call passes one). `{hostName}` is the host's first
  * name; the heading's final "." is drawn in the logo's orange.
  */
-export type AuthReason = "join" | "open" | "save" | "message" | "login";
+export type AuthReason = "join" | "open" | "save" | "message" | "login" | "yourHouses" | "messages";
 
 export const AUTH_COPY: Record<AuthReason, { title: string; subline: string }> = {
   join: { title: "Your spot is waiting.", subline: "Sign in to ask {hostName} if you can join." },
@@ -10,6 +10,9 @@ export const AUTH_COPY: Record<AuthReason, { title: string; subline: string }> =
   save: { title: "Keep this one.", subline: "Sign in to save Houses you like." },
   message: { title: "Say hi.", subline: "Sign in to message {hostName}." },
   login: { title: "Find your people.", subline: "Welcome back – or welcome in." },
+  // The header's Your houses and Messages, clicked logged out.
+  yourHouses: { title: "Your Houses live here.", subline: "Sign in to see the Houses you host and join." },
+  messages: { title: "Your crew chats live here.", subline: "Sign in to message hosts and your crew." },
 };
 
 /** The copy for a reason, `{hostName}` filled in (without a name: "the host"). */

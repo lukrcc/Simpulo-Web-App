@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell, X } from "lucide-react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AndroidInstallButton, IosInstallSteps } from "@/components/InstallHint";
@@ -171,7 +170,12 @@ function InstallSheet({ offer, trigger, hostName, onClose }: { offer: Offer; tri
 /** A notification as the phone would show it – iOS (a rounded glass card, time on the right) or Android (app line on top). */
 function MockNotification({ android }: { android: boolean }) {
   const t = useTranslations("install");
-  const icon = <Image src="/apple-touch-icon-v2.png" alt="" width={36} height={36} className={cn("size-9 shrink-0", android ? "rounded-full" : "rounded-[9px]")} />;
+  // No app icon inside the pages: a plain "s." with the logo's orange dot stands in.
+  const icon = (
+    <span className={cn("flex size-9 shrink-0 items-center justify-center bg-surface text-logo tracking-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]", android ? "rounded-full" : "rounded-[9px]")}>
+      s<span className="text-accent">.</span>
+    </span>
+  );
   return (
     <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-white/65 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(40,32,26,0.08)]">
       {android ? (

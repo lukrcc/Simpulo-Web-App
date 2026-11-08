@@ -1,27 +1,51 @@
-// How it works › Questions: the answers by side (join or host), written to the fee model in config/policies.ts – the numbers come from there.
-import { BOOKING_WINDOW_HOURS } from "@/lib/joinFlow";
-import { FEE_MODEL } from "./policies";
+// The FAQ (/faq) – every text here, every number and deadline from config/policies.ts. Each question has its own anchor (#payment …);
+// /faq#cancellation is where the House page's "Cancellation rules" lead.
+import { CANCELLATION_POLICY, FEE_MODEL, PAYMENT_POLICY } from "./policies";
+
+export type FaqRole = "join" | "host";
 
 export interface FaqItem {
+  /** The anchor: /faq#payment */
+  id: string;
   question: string;
   answer: string;
+  /** One link under the answer */
+  link?: { href: string; label: string };
 }
 
-const percent = `${FEE_MODEL.serviceFeePercent} %`;
+const { paymentWindowHours, hostBookingWindowHours } = PAYMENT_POLICY;
+const { serviceFeePercent } = FEE_MODEL;
 
-export const FAQ: Record<"join" | "host", readonly FaqItem[]> = {
+/** The cancellation rules in short – the same rules as CANCELLATION_POLICY, in full on /cancellation. */
+const cancellationShort = [
+  "Until the crew is complete, you can withdraw your request or leave your spot any time, for free.",
+  "After paying, you can hand your spot to the next person on the waitlist and get everything back except the service fee; if nobody takes it, there's no refund.",
+  `If the host cancels or doesn't confirm the booking within ${CANCELLATION_POLICY.bookingWindowHours}h after everyone paid, you get everything back.`,
+].join(" ");
+
+export const FAQ: Record<FaqRole, readonly FaqItem[]> = {
   join: [
-    { question: "What do I pay?", answer: `Your equal share of the place, plus a ${percent} service fee. You see the full price before you pay.` },
-    { question: "When do I pay?", answer: "Only once the crew is complete and the place is chosen. Until then, nothing is charged." },
-    { question: "Can I change my mind?", answer: "Until the crew is complete you can withdraw any time, for free. After paying, you can hand your spot to the next person on the waitlist." },
-    { question: "Who will I live with?", answer: "You see everyone who's already in – their profiles and the host – before you ask to join." },
-    { question: "What if the host doesn't book?", answer: `If the host doesn't confirm the booking within ${BOOKING_WINDOW_HOURS} hours after everyone paid, you get everything back.` },
+    { id: "payment", question: "Where does my money go?", answer: "You pay Simpulo, not the host. We hold your payment until the crew is complete and the host has booked the place." },
+    { id: "when-to-pay", question: "When do I pay?", answer: `Only after the host accepts you. You then have ${paymentWindowHours}h to pay your share.` },
+    { id: "refund", question: "What if the House doesn't fill up or the host doesn't book?", answer: "You get your money back in full." },
+    { id: "cancellation", question: "Can I cancel?", answer: cancellationShort, link: { href: "/cancellation", label: "All cancellation rules →" } },
+    { id: "fees", question: "What does Simpulo charge?", answer: `A ${serviceFeePercent} % service fee on your share, shown before you pay. Nothing else.` },
+    { id: "people", question: "Who will I live with?", answer: "You see everyone's profile before you join – who they've lived with, languages, socials. Verified members have a badge." },
+    { id: "place", question: "Is the place already booked?", answer: "Some Houses come with a set place and price. Others are planned together – you'll see a price range until the crew picks the place." },
   ],
   host: [
-    { question: "What does hosting cost?", answer: "Nothing extra. You pay your share of the place like everyone else – there are no fees for hosting." },
-    { question: "Do I pay for the place upfront?", answer: "No. The place is only booked once the House is complete and everyone has paid their share." },
-    { question: "What if my House doesn't fill up?", answer: "Nothing is booked and nobody pays. You can extend the dates or lower the spots." },
-    { question: "Who decides who joins?", answer: "You do. You see every request and accept who fits – nobody's in without your yes." },
-    { question: "What does Simpulo charge?", answer: `Guests pay a ${percent} service fee on top of their share, shown before they pay. You receive every guest's full share.` },
+    { id: "host-fees", question: "What does hosting cost?", answer: "Nothing. You pay your share like everyone else." },
+    { id: "host-money", question: "How does the money work?", answer: `Your crew pays through Simpulo. Once everyone has paid, the money is released to you and you book the place within ${hostBookingWindowHours}h.` },
+    { id: "not-full", question: "What if my House doesn't fill up?", answer: "Nobody pays until the crew is complete. If it doesn't fill by your deadline, the House closes and nobody is charged." },
+    { id: "who-joins", question: "Who decides who joins?", answer: "You. Nobody is in without your yes." },
+    { id: "place-host", question: "Do I need a place already?", answer: "No. Bring a place you've found – or just a city, dates and a budget and pick the place together with your crew." },
+    { id: "verify", question: "Do I need to verify?", answer: "Only when you receive money: setting up payouts includes an ID check by our payment partner. Hosts with payouts get the Verified badge automatically." },
   ],
 };
+
+/** Which side a question's anchor belongs to (/faq#host-fees opens Hosting). */
+export function roleOfAnchor(id: string): FaqRole | null {
+  if (FAQ.join.some((item) => item.id === id)) return "join";
+  if (FAQ.host.some((item) => item.id === id)) return "host";
+  return null;
+}

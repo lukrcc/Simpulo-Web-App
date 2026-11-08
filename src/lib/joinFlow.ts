@@ -2,10 +2,12 @@
 // chosen: 48 hours) → paid. Unpaid after 48 hours: the spot opens up again. Everyone paid: the money goes to the host, who confirms
 // the booking within 48 hours, otherwise it is all refunded. Cards are only charged at "paid": never authorised ahead of time, a
 // hold would run out after about 7 days. The clock itself: settlePayments in lib/store.tsx.
+import { PAYMENT_POLICY } from "@/config/policies";
 import type { JoinRequest, Payment, Stay } from "./types";
 
-export const PAYMENT_WINDOW_HOURS = 48;
-export const BOOKING_WINDOW_HOURS = 48;
+/** From config/policies.ts – the one place for these clocks. */
+export const PAYMENT_WINDOW_HOURS = PAYMENT_POLICY.paymentWindowHours;
+export const BOOKING_WINDOW_HOURS = PAYMENT_POLICY.hostBookingWindowHours;
 
 export type MemberStage = "requested" | "accepted" | "payment_due" | "paid";
 

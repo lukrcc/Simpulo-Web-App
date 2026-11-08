@@ -95,3 +95,10 @@ export function inCommonWith(store: StoreData & { livedWith: LivedWith[] }, pers
     livedWith: theirs.filter((e) => mine.has(e.user.id)).map((e) => e.user),
   };
 }
+
+/** Whether two people were ever in the same crew (host or accepted, any House, past ones too) – they always see each other in full. */
+export function sharesCrew(store: StoreData, userId: string, viewerId: string | null): boolean {
+  if (!viewerId) return false;
+  if (viewerId === userId) return true;
+  return store.stays.some((stay) => isCrewMember(store, stay, userId) && isCrewMember(store, stay, viewerId));
+}

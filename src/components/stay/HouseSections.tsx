@@ -1,5 +1,6 @@
 "use client";
 
+import { showsAge } from "@/config/privacy";
 import { ArrowLeft, ArrowUpRight, CalendarDays, Check, Clock, Home, Languages, Plus, Sparkles, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
@@ -7,6 +8,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref, type R
 import { Shelf } from "@/components/ui/Shelf";
 import { HouseCard } from "@/components/HouseCard";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
+import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { CrewLine } from "@/components/ui/CrewLine";
 import { IconButton } from "@/components/ui/IconButton";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -68,7 +70,7 @@ function HouseHostLine({ host }: { host: User }) {
             {host.verified && <VerifiedBadge />}
           </p>
           <p className="text-small text-muted">
-            {format.ageAndCountry(host)}
+            {format.ageAndCountry(host, showsAge(host, store.currentUserId))}
             {hosted > 0 && ` · ${t("hostedCount", { count: hosted })}`}
           </p>
           <SocialTiles user={host} className="pointer-events-auto mt-2" />
@@ -170,23 +172,48 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
   const action = onInvite ?? (canJoin ? onJoin : undefined);
   const restLabel = canJoin ? t("yourSpot") : t("openSpot");
   const spot = "flex size-18 items-center justify-center rounded-full border-2 border-dashed border-ink/15 text-ink";
+  // As the viewer may see each (config/privacy.ts): hidden ones collapse into one neutral "+N", blurred ones have no name and no link.
+  const faceOf = useCrewFaceOf(stay);
+  const hiddenCount = crew.filter((member) => faceOf(member) === "hidden").length;
   return (
     <section aria-labelledby="house-crew">
       <SectionHeader id="house-crew" eyebrow={t("crew")} />
       <ul className={cn(ROW, "flex flex-wrap gap-x-4 gap-y-5")}>
-        {crew.map((member) => (
-          <li key={member.id}>
-            <Link href={`/u/${member.id}`} className={person}>
-              <span className="relative">
-                <Avatar user={member} size="crew" />
-                {member.id === stay.hostId && (
-                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-(--select-bg) px-2 py-px text-small text-ink shadow-(--select-shadow)">{t("hostBadge")}</span>
-                )}
+        {crew.map((member) => {
+          const mode = faceOf(member);
+          if (mode === "hidden") return null;
+          if (mode === "blurred") {
+            return (
+              <li key={member.id}>
+                <div className={person}>
+                  <Avatar user={member} size="crew" mode="blurred" />
+                </div>
+              </li>
+            );
+          }
+          return (
+            <li key={member.id}>
+              <Link href={`/u/${member.id}`} className={person}>
+                <span className="relative">
+                  <Avatar user={member} size="crew" />
+                  {member.id === stay.hostId && (
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-(--select-bg) px-2 py-px text-small text-ink shadow-(--select-shadow)">{t("hostBadge")}</span>
+                  )}
+                </span>
+                <span className="mt-2.5 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</span>
+              </Link>
+            </li>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <li>
+            <div className={person} aria-label={t("crewHidden", { count: hiddenCount })}>
+              <span aria-hidden className="flex size-18 items-center justify-center rounded-full bg-ink/6 text-body font-semibold text-muted">
+                +{hiddenCount}
               </span>
-              <span className="mt-2.5 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</span>
-            </Link>
+            </div>
           </li>
-        ))}
+        )}
         {Array.from({ length: openSpots(stay) }, (_, i) => (
           <li key={i}>
             {action ? (
@@ -216,7 +243,7 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
         <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-small text-muted">
           {waitlist.length > 0 && (
             <span className="flex items-center gap-2">
-              <AvatarStack users={waitlist} size="mini" max={4} linked />
+              <AvatarStack users={waitlist} size="mini" max={4} linked faceOf={faceOf} />
               <span>{t("onWaitlist", { count: waitlist.length })}</span>
             </span>
           )}
@@ -422,6 +449,7 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
  * comes when `ref`'s block has left the window.
  */
 export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; /** Message and Invite */ secondary: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; /** A line under the actions, e.g. how the waitlist works */ note?: ReactNode; /** A calm line right above the actions, e.g. "This House is for women only." */ notice?: ReactNode; ref?: Ref<HTMLDivElement> }) {
+  const summaryFaceOf = useCrewFaceOf(stay);
   const t = useTranslations("house.page");
   const format = useFormat();
   const label = useViewerPriceLabel(stay);
@@ -451,7 +479,7 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
             {perPerson && <span className="text-small text-muted">{perPerson[2]}</span>}
           </p>
           <div className="mt-1.5 flex items-center gap-2.5">
-            <AvatarStack users={crew} size="sm" max={5} linked />
+            <AvatarStack users={crew} size="sm" max={5} linked faceOf={summaryFaceOf} />
             <CrewLine stay={stay} />
           </div>
         </div>
@@ -471,7 +499,8 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
           {showSteps && <JoinSteps stage={stage} />}
           {showSteps && (
             <p className="text-small text-muted">
-              <Link href="/cancellation" className="underline-offset-4 hover:text-ink hover:underline">
+              {/* The short answer in the FAQ (it links on to the full rules). */}
+              <Link href="/faq#cancellation" className="underline-offset-4 hover:text-ink hover:underline">
                 {tPolicy("link")}
               </Link>
             </p>

@@ -243,7 +243,7 @@
     "label": "Footer",
     "links": {
       "howItWorks": "How it works",
-      "howSimpuloWorks": "How Simpulo works",
+      "howSimpuloWorks": "Questions",
       "getTheApp": "Get the app",
       "hostWithCommunity": "Host with your community",
       "contact": "Contact",
@@ -270,7 +270,7 @@
         "intro": "Simpulo matches people, not accommodation. Share a place – and find your people.",
         "houses": "A House on Simpulo is a shared place – a villa, an apartment, a chalet – opened by one host for two to six people, from a long weekend to a few months. The host says what the House is about: training, building, creating, slowing down. You ask to join, the host says yes, and the House sorts out the rest together.",
         "people": "No hostel dorms, no strangers you never spoke to. Just people who want the same kind of trip as you.",
-        "cta": "See how it works →"
+        "cta": "Questions & answers →"
       },
       "contact": {
         "title": "Contact",
@@ -417,7 +417,7 @@
       "title": "This page doesn't exist",
       "description": "The link may be broken, or the page was removed.",
       "explore": "Explore",
-      "howItWorks": "How it works"
+      "howItWorks": "Questions"
     },
     "error": {
       "title": "Something went wrong",
@@ -556,7 +556,7 @@
     "withHost": "with {name}",
     "viewHouse": "View House",
     "untitledHouse": "Untitled House",
-    "howItWorksLink": "How Simpulo works",
+    "howItWorksLink": "Questions",
     "cards": {
       "hostedBy": "Hosted by {name}",
       "photoAlt": "{title} – photo {number}",
@@ -925,6 +925,7 @@
       "why": "Why I'm hosting",
       "crew": "The crew",
       "hostBadge": "Host",
+      "crewHidden": "{count, plural, one {# more member} other {# more members}}",
       "yourSpot": "Your spot",
       "openSpot": "Open spot",
       "onWaitlist": "{count} on the waitlist",
@@ -2155,7 +2156,7 @@
       "name": "First name",
       "birthDate": "Date of birth",
       "birthDateHelper": "Only your age is shown – never the date.",
-      "birthDateAge": "Shown as {age} on your profile.",
+      "birthDateAge": "Shown as {age} – only if “Show my age” is on in Settings › Privacy.",
       "day": "Day",
       "month": "Month",
       "year": "Year",
@@ -2228,6 +2229,7 @@
     "livedWithEmpty": "Once a House is over, the people you lived with show up here.",
     "stats": "<hostedLink><b>{hosted}</b> hosted</hostedLink> · <joinedLink><b>{joined}</b> joined</joinedLink>",
     "view": {
+      "private": "This profile is private",
       "previewAsOthers": "Preview as others see it",
       "shareProfile": "Share profile",
       "options": "Profile options",
@@ -2283,94 +2285,6 @@
     },
     "loginToMessage": "Log in to message {name}"
   },
-  "howItWorks": {
-    "title": "How it works",
-    "subline": "Simple for guests. Simple for hosts.",
-    "join1Title": "Find a House",
-    "join1Text": "Pick by place, dates and the people already in.",
-    "join2Title": "Ask to join",
-    "join2Text": "Say hi. The host sees your profile and says yes.",
-    "join3Title": "Pay your share, live together",
-    "join3Text": "You only pay once the crew is complete.",
-    "host1Title": "Open a House",
-    "host1Text": "Place, dates, vibe – a rough budget is enough.",
-    "host2Title": "Share one link",
-    "host2Text": "Your House gets its own page.",
-    "host3Title": "Pick your crew, book the stay",
-    "host3Text": "Accept who fits. Everyone pays in, you book.",
-    "costsTitle": "What it costs",
-    "costsMeta": "{place} {total} · {nights} nights · {people} people",
-    "costsFee": "+ {fee} service fee",
-    "costsBar": "{place} {total} split into {people} equal shares of {share}, plus a {fee} service fee",
-    "sceneAsk": "Hi! Can I join?",
-    "sceneAccepted": "Accepted ✓",
-    "sceneFull": "{filled} of {total} · Full",
-    "scenePaid": "Paid ✓",
-    "sceneBooked": "Booked ✓",
-    "sceneLink": "simpulo.app/h/…",
-    "faqContact": "Still unsure? Write us →",
-    "costsJoinNote": "No hidden fees. You see the full price before you pay.",
-    "costsHostNote": "You pay your share like everyone else. No fees for hosting.",
-    "housesTitle": "Houses people opened",
-    "seeAll": "See all",
-    "seeAllLabel": "See all Houses",
-    "faqTitle": "Questions",
-    "roleLabel": "Show the steps for",
-    "roleJoin": "I want to join",
-    "roleHost": "I want to host",
-    "intro": "From an idea to a shared House in <b>five steps</b>.",
-    "stepsTitle": "Five steps",
-    "steps": {
-      "open": {
-        "title": "Open a House",
-        "text": "Pick a place, dates and a vibe – a rough budget is enough to start."
-      },
-      "share": {
-        "title": "Share your link",
-        "text": "Your House gets its own page. Post it wherever your people are."
-      },
-      "requests": {
-        "title": "Get requests",
-        "text": "People ask to join with a short message and their profile."
-      },
-      "crew": {
-        "title": "Pick who joins your House",
-        "text": "Reply, accept who fits, and decide on the place together in the House chat."
-      },
-      "live": {
-        "title": "Live together",
-        "text": "Arrive, unpack, and share a house with people who wanted the same trip."
-      }
-    },
-    "app": {
-      "title": "Use Simpulo like an app",
-      "intro": "No store needed – add it to your home screen and get notified when hosts answer.",
-      "installed": "You're already using the installed app.",
-      "platform": "Platform",
-      "platforms": {
-        "iphone": "iPhone",
-        "android": "Android"
-      },
-      "steps": {
-        "share": "Tap Share in Safari's toolbar.",
-        "addToHome": "Choose “Add to Home Screen”, then Add.",
-        "menu": "In Chrome, tap the menu top right.",
-        "install": "Choose “Install app” (or “Add to Home screen”).",
-        "notify": "Open Simpulo from the icon and allow notifications."
-      },
-      "ctaIphone": "Add to iPhone",
-      "ctaAndroid": "Install on Android",
-      "toastIphone": "In Safari: tap Share, then “Add to Home Screen”",
-      "toastAndroid": "In Chrome: tap ⋮, then “Install app”",
-      "desktopHint": "On a computer? Open simpulo.app on your phone to install it."
-    },
-    "nudge": {
-      "title": "Stay in the loop",
-      "text": "Get notified when {name} answers – add Simpulo to your home screen.",
-      "later": "Later",
-      "showMe": "Show me how"
-    }
-  },
   "settings": {
     "loginTitle": "Log in to see your settings",
     "title": "Settings",
@@ -2419,6 +2333,12 @@
     },
     "privacy": {
       "title": "Privacy & safety",
+      "visibilityTitle": "Who sees you",
+      "showOnHousePages": "Show me on House pages",
+      "showOnHousePagesText": "Signed-in members can see your photo and first name in the crew. Your host and crew always see your full profile.",
+      "showAge": "Show my age",
+      "showAgeText": "Your age next to your name and on your profile. Off: nobody but you sees it.",
+      "visibilitySaved": "Saved",
       "description": "Blocked people can't see your Houses or message you.",
       "noneBlocked": "You haven't blocked anyone.",
       "unblock": "Unblock",
@@ -3001,6 +2921,13 @@
     "qrHint": "Scan to open this House",
     "qrDownload": "Download PNG"
   },
+  "faq": {
+    "title": "Questions",
+    "roleLabel": "Questions about",
+    "joining": "Joining",
+    "hosting": "Hosting",
+    "contact": "Still unsure? Write us →"
+  },
   "seo": {
     "breadcrumbs": {
       "home": "Home",
@@ -3032,10 +2959,8 @@
       "cities": "Top cities for {vibe} houses"
     },
     "faq": {
-      "title": "FAQ",
-      "description": "Answers to common questions about Simpulo: Houses, joining, hosting, payments and safety.",
-      "intro": "The questions people ask most about Houses, joining and hosting.",
-      "todo": "Draft answers – final copy and more questions follow."
+      "title": "Questions",
+      "description": "How Simpulo works: where your money goes, when you pay, cancelling, fees – for joining and for hosting a House."
     },
     "safety": {
       "title": "Safety",

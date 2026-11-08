@@ -481,7 +481,7 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
           {applicant.verified && <VerifiedBadge />}
         </p>
         <p className="text-small text-muted">
-          {f.ageAndCountry(applicant)} · {f.day(request.createdAt)}
+          {f.ageAndCountry(applicant, true)} · {f.day(request.createdAt)}
           {applicant.photos.length === 0 && ` · ${t("noPhoto")}`}
         </p>
         <SocialRow user={applicant} size="sm" className="mt-1 empty:hidden" />

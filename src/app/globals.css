@@ -115,6 +115,10 @@
   --text-logo: 20px;
   --text-logo--line-height: 1;
   --text-logo--font-weight: 700;
+  /* The wordmark large, only on /get (the app icon never shows inside the pages). */
+  --text-logo-lg: 40px;
+  --text-logo-lg--line-height: 1;
+  --text-logo-lg--font-weight: 700;
   --text-nav: 14px;
   --text-nav--line-height: 1.4;
   --text-nav--font-weight: 500;
@@ -738,6 +742,18 @@ main:has([data-explore-blocks]) {
 .shelf-track a,
 .shelf-track img {
   -webkit-user-drag: none;
+}
+/* <Shelf variant="flat"> (How it works): nothing depends on position or hover – no lift, no zoom, no shadow; every card the same size and top.
+   Explore's rows and the Spotlight keep theirs. */
+.shelf-flat [data-house-card],
+.shelf-flat [data-house-card]:hover {
+  /* scale/translate on their own (Tailwind's hover uses these properties): together with "transform: none" the CSS build merges them away. */
+  scale: 1 !important;
+  translate: 0 0 !important;
+  filter: none !important;
+}
+.shelf-flat [data-photo-zoom] {
+  scale: none !important;
 }
 /* A card in a shelf: the one HouseCard with its own hover (scale 1.02 + shadow); the hovered one lies above its neighbours. */
 .shelf-track > *:has(:hover),

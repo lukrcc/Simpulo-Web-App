@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { User } from "@/lib/types";
+import type { CrewFaceMode } from "@/config/privacy";
 import { cn } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
 
@@ -24,10 +25,20 @@ interface AvatarProps {
   size?: AvatarSize;
   /** Links to the user's public profile */
   linked?: boolean;
+  /** How the viewer may see this person (config/privacy.ts): blurred – the photo softly blurred; hidden – a neutral placeholder. Neither links. */
+  mode?: CrewFaceMode;
   className?: string;
 }
 
-export function Avatar({ user, size = "md", linked = false, className }: AvatarProps) {
+export function Avatar({ user, size = "md", linked = false, mode = "full", className }: AvatarProps) {
+  if (mode === "hidden") return <PersonPhoto src={undefined} alt="" size={sizePx[size]} className={cn("bg-line", sizeClasses[size], className)} />;
+  if (mode === "blurred") {
+    return (
+      <span aria-hidden className={cn("block shrink-0 overflow-hidden rounded-full", sizeClasses[size], className)}>
+        <PersonPhoto src={user.photos[0]} alt="" size={sizePx[size]} className={cn("bg-line blur-[3px]", sizeClasses[size])} />
+      </span>
+    );
+  }
   const image = (
     <PersonPhoto
       src={user.photos[0]}
@@ -45,19 +56,23 @@ export function Avatar({ user, size = "md", linked = false, className }: AvatarP
 }
 
 interface AvatarStackProps {
-  users: Array<Pick<User, "id" | "name" | "photos">>;
+  users: Array<Pick<User, "id" | "name" | "photos" | "privacy">>;
   max?: number;
+  /** A crew on a House: how the viewer may see each (useCrewFaceOf) */
+  faceOf?: (user: Pick<User, "id" | "privacy">) => CrewFaceMode;
   size?: Extract<AvatarSize, "xs" | "mini" | "sm" | "md">;
   linked?: boolean;
 }
 
-export function AvatarStack({ users, max = 4, size = "sm", linked = false }: AvatarStackProps) {
-  const visible = users.slice(0, max);
+export function AvatarStack({ users, max = 4, size = "sm", linked = false, faceOf }: AvatarStackProps) {
+  // Someone hidden from this viewer has no face here – they only count in "+N".
+  const shown = faceOf ? users.filter((user) => faceOf(user) !== "hidden") : users;
+  const visible = shown.slice(0, max);
   const rest = users.length - visible.length;
   return (
     <div className="flex items-center -space-x-2">
       {visible.map((user) => (
-        <Avatar key={user.id} user={user} size={size} linked={linked} className="ring-2 ring-surface" />
+        <Avatar key={user.id} user={user} size={size} linked={linked} mode={faceOf?.(user)} className="ring-2 ring-surface" />
       ))}
       {rest > 0 && (
         <span

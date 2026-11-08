@@ -1,5 +1,6 @@
 "use client";
 
+import { showsAge } from "@/config/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -61,7 +62,7 @@ export function HostPreview({ host, anchor, ...pointer }: { host: User; anchor: 
               <span className="truncate">{host.name}</span>
               {host.verified && <VerifiedBadge />}
             </p>
-            <p className="truncate text-small text-muted">{format.ageAndCountry(host)}</p>
+            <p className="truncate text-small text-muted">{format.ageAndCountry(host, showsAge(host, store.currentUserId))}</p>
           </div>
         </div>
         {numbers.length > 0 && (

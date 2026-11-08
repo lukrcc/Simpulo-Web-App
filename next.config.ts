@@ -12,10 +12,12 @@ const nextConfig: NextConfig = {
   // label). Phones on the LAN, the iPhone hotspot range and Cloudflare quick tunnels.
   allowedDevOrigins: ["*.trycloudflare.com", "192.168.178.*", "172.20.10.*", "192.168.151.196", "10.219.49.*"],
   partialPrefetching: true,
-  // The install guide lives on How it works now; old links (and bookmarks) still land there.
   async redirects() {
     return [
-      { source: "/install", destination: "/how-it-works#get-the-app", permanent: false },
+      // Getting the app: /get.
+      { source: "/install", destination: "/get", permanent: false },
+      // How it works is gone: the FAQ explains Simpulo (the query, e.g. ?role=host, goes along).
+      { source: "/how-it-works", destination: "/faq", permanent: true },
       // SEO URLs: House pages moved from /stays/… to /house/…, the imprint to /impressum – old links keep working.
       { source: "/stays/:slug", destination: "/house/:slug", permanent: true },
       { source: "/imprint", destination: "/impressum", permanent: true },
@@ -36,8 +38,8 @@ const nextConfig: NextConfig = {
       { source: "/i/:code", destination: "/", permanent: false },
       // TODO: creator pages.
       { source: "/c/:handle", destination: "/", permanent: false },
-      // Hosting is explained on How it works (host side) – no page of its own.
-      { source: "/host", destination: "/how-it-works?role=host", permanent: true },
+      // Hosting is explained in the FAQ (Hosting) – no page of its own.
+      { source: "/host", destination: "/faq?role=host", permanent: true },
       // Notifications live in Messages › Updates.
       { source: "/notifications", destination: "/messages?tab=updates", permanent: true },
       { source: "/houses", destination: "/your-houses", permanent: true },

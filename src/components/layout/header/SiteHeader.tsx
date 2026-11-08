@@ -2,7 +2,7 @@
 import { Plus } from "lucide-react";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
@@ -68,6 +68,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const tOpen = useTranslations("common.ui.openHouse");
   const store = useStore();
   const requireAuth = useRequireAuth();
+  const router = useRouter();
   const me = getCurrentUser(store);
   // One dot on Messages for anything unread there: chats or Updates (the notifications live in Messages now – no bell).
   const unreadIn = useMessagesUnread();
@@ -159,12 +160,23 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
             const { href, labelKey, headerLabelKey } = item;
             const label = t(`items.${headerLabelKey ?? labelKey}`);
             const current = isNavActive(href, pathname);
-            const showUnread = labelKey === "messages" && unread > 0;
+            // Logged out: no dot (there's nothing of yours yet).
+            const showUnread = me !== undefined && labelKey === "messages" && unread > 0;
+            // Logged out, Your houses and Messages don't navigate: the auth sheet opens, and after logging in you land there.
+            const gated = me === undefined && item.audience === "member";
             return (
               <Link
                 data-tooltip={label}
                 key={href}
                 href={href}
+                onClick={
+                  gated
+                    ? (e) => {
+                        e.preventDefault();
+                        requireAuth(() => router.push(href), { reason: labelKey === "messages" ? "messages" : "yourHouses" });
+                      }
+                    : undefined
+                }
                 aria-current={current ? "page" : undefined}
                 aria-label={showUnread ? t("itemUnread", { label, count: unread }) : undefined}
                 className={cn(

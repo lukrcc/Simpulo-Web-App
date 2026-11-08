@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
+import { publicName, showsOnHousePages } from "@/config/privacy";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { getHouses, getUsers } from "@/lib/data";
 import { COLORS } from "@/lib/colors";
@@ -40,8 +41,10 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
   const { userId } = await params;
   const t = await getTranslations({ locale: "en", namespace: "states.og" });
   const user = getUsers().find((u) => u.id === userId && !u.deletedAt);
-  const hosted = user ? getHouses().filter((s) => s.hostId === user.id && s.status !== "draft").length : 0;
-  const [photo, fonts] = await Promise.all([loadPhoto(user?.photos[0]), loadOgFonts()]);
+  // A private profile (config/privacy.ts) shares nothing but the first name: no photo, no Houses.
+  const open = user ? showsOnHousePages(user) : false;
+  const hosted = user && open ? getHouses().filter((s) => s.hostId === user.id && s.status !== "draft").length : 0;
+  const [photo, fonts] = await Promise.all([loadPhoto(open ? user?.photos[0] : undefined), loadOgFonts()]);
 
   return new ImageResponse(
     (
@@ -54,9 +57,9 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
         <div style={{ display: "flex", flexDirection: "column", width: 600, height: 630, padding: "64px 56px 48px" }}>
           <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
             <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>
-              {user?.name ?? "Simpulo"}
+              {user ? publicName(user, null) : "Simpulo"}
             </div>
-            {user && (
+            {user && open && (
               <div style={{ display: "flex", marginTop: 20, fontSize: 30, color: COLORS.muted }}>{t("hosted", { count: hosted })}</div>
             )}
           </div>
