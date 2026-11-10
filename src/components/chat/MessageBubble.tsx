@@ -219,7 +219,7 @@ export function MessageBubble(props: MessageBubbleProps) {
                   aria-label={t("reactionLabel", { emoji: reaction.emoji, count: reaction.userIds.length })}
                   className={cn(
                     "flex h-6 items-center gap-1 rounded-full px-1.5 text-small tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] transition-colors",
-                    reacted ? cn(selectedSurface, "font-medium text-ink") : "bg-surface text-muted hover:bg-bg",
+                    reacted ? cn(selectedSurface, "font-medium") : "bg-surface text-muted hover:bg-bg",
                   )}
                 >
                   <span>{reaction.emoji}</span>

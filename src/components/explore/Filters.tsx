@@ -291,7 +291,8 @@ export function CategoryRow({
       {/* The chips keep their width (never squeezed or cut): the row scrolls sideways (trackpad, Shift + wheel) – its
           ends fading out where there's more (.chip-scroller in globals.css). */}
       <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain py-1">
-        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={cn(chip(value.length === 0), "shrink-0")}>
+        {/* "All": the quiet default – no pill, bold ink while nothing is picked. */}
+        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={cn(chipStyles(value.length === 0, { variant: "plain", size: "md" }), "shrink-0")}>
           {allLabel}
         </button>
         {chips.map((o) => (

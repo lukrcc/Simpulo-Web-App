@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { TabBar } from "@/components/ui/TabBar";
 import { CONTACT_EMAIL } from "@/config/contact";
 import { FAQ, roleOfAnchor, type FaqRole } from "@/config/faq";
 
@@ -48,9 +48,9 @@ export function FaqView() {
   return (
     <div className="max-w-[720px]">
       <h1 className="text-h1 text-ink">{t("title")}</h1>
-      <div className="mt-6 max-w-sm">
-        <SegmentedControl
+      <TabBar
           label={t("roleLabel")}
+          className="mt-6"
           value={role}
           onChange={choose}
           options={[
@@ -58,7 +58,6 @@ export function FaqView() {
             { value: "host", label: t("hosting") },
           ]}
         />
-      </div>
       <div className="mt-8">
         {FAQ[role].map((item) => (
           <details

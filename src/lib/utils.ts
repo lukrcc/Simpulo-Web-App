@@ -1,4 +1,5 @@
 import { guestFee } from "./fees";
+import { CURRENCY_CODES } from "./currency";
 import { VIBES } from "./catalog";
 import type { Currency, Stay, TypicalDayStop, User } from "./types";
 
@@ -124,37 +125,9 @@ export function housePhotos(stay: Pick<Stay, "photos" | "coverImageOverride">, h
   return own.length > 0 ? own : (host?.photos.slice(0, 1) ?? []);
 }
 
-export const CURRENCIES: readonly Currency[] = ["EUR", "USD", "GBP", "AUD", "THB", "IDR"];
-
-const COUNTRY_CURRENCY: Record<string, Currency> = {
-  indonesia: "IDR",
-  thailand: "THB",
-  australia: "AUD",
-  "united kingdom": "GBP",
-  uk: "GBP",
-  "united states": "USD",
-  usa: "USD",
-};
-
-/** Default House currency: € everywhere (the host can still pick another in Open a House). `country` stays for a later per-market default. */
-export function currencyForCountry(country: string): Currency {
-  void COUNTRY_CURRENCY;
-  void country;
-  return "EUR";
-}
-
-const REGION_CURRENCY: Record<string, Currency> = { US: "USD", GB: "GBP", AU: "AUD", TH: "THB", ID: "IDR" };
-
-/** Default preferred currency from a BCP 47 locale ("en-AU" → AUD, "th" → THB); EUR otherwise. */
-export function currencyForLocale(locale: string): Currency {
-  const parts = locale.split("-");
-  const region = parts.find((p, i) => i > 0 && /^[A-Z]{2}$/i.test(p))?.toUpperCase();
-  if (region && REGION_CURRENCY[region]) return REGION_CURRENCY[region];
-  const language = parts[0]?.toLowerCase();
-  if (language === "th") return "THB";
-  if (language === "id") return "IDR";
-  return "EUR";
-}
+/** Every common currency (src/lib/currency.ts), for the pickers. */
+export const CURRENCIES: readonly Currency[] = CURRENCY_CODES;
+export { currencyForCountry, currencyForLocale } from "./currency";
 
 /**
  * The languages to pick from (profiles and Houses), most common first. Profiles store the English name ("German"),

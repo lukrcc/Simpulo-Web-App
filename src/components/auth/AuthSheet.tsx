@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { SiApple } from "react-icons/si";
-import { Wordmark } from "@/components/layout/Logo";
 import { CompleteProfileForm } from "@/components/onboarding/CompleteProfileForm";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
@@ -46,7 +45,6 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
   }
 
   const copy = authCopy(reason, hostName);
-  const dotted = copy.title.endsWith(".") ? copy.title.slice(0, -1) : copy.title;
   if (completing) {
     return (
       <Sheet open={open} onClose={onClose} title={tOnboarding("title")} focusOverlay>
@@ -59,14 +57,8 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
       open={open}
       onClose={onClose}
       title={copy.title}
-      titleNode={
-        <>
-          {dotted}
-          {dotted !== copy.title && <span className="text-accent">.</span>}
-        </>
-      }
       subtitle={copy.subline}
-      lead={<Wordmark className="block" />}
+      large
       focusOverlay
     >
       {/* Remounted on every open, so it always starts at the provider buttons. */}

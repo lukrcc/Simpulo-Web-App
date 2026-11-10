@@ -18,7 +18,7 @@ import { Img } from "@/components/ui/Img";
 import { Panel } from "@/components/ui/Panel";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { MoreMenu } from "@/components/ui/MoreMenu";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { TabBar } from "@/components/ui/TabBar";
 import { useToast } from "@/components/ui/Toast";
 import { HOUSE_GRID } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
@@ -35,7 +35,7 @@ import { waitlistPosition } from "@/lib/waitlist";
 
 /**
  * /your-houses – everything you're part of, as calm as Explore. On top "Up next": the House that starts next (hosted or joined) as one
- * Panel row as high as a HouseCard, with its one action. Under it "All · Hosting · Joined · Past" (?tab=) and ONE grid of HouseCards
+ * Panel row as high as a HouseCard, with its one action. Under it "All · Hosting · Joined · Past" (?tab=, text tabs with an underline) and ONE grid of HouseCards
  * (footer="status": crew + "N of M", one pill – the action or the status; All leaves out Up next and what didn't work out) – what asks something of you first, then by start date (Past: the
  * newest first). Drafts are cards too ("Draft" + Continue, "…" › Delete draft); the dashed "Open a House" card only under Hosting. The
  * money ("€7,510 received · View payouts →") beside the segment, for hosts. A new account: one calm empty state.
@@ -164,7 +164,7 @@ function YourHousesContent() {
     <Container className="pb-(--space-section) pt-8 md:pt-10">
       {upNext && <UpNext stay={upNext} request={upNextRequest} now={now} />}
       <div className={cn("flex flex-wrap items-center justify-between gap-x-6 gap-y-3", upNext && "mt-12")}>
-        <SegmentedControl label={t("tabsLabel")} value={tab} onChange={choose} className="w-full max-w-md" options={TABS.map((value) => ({ value, label: t(TAB_KEY[value]) }))} />
+        <TabBar label={t("tabsLabel")} value={tab} onChange={choose} options={TABS.map((value) => ({ value, label: t(TAB_KEY[value]) }))} />
         {hosts && <PayoutsLine earnings={earnings} status={payout.status} />}
       </div>
       {sorted.length === 0 && tab !== "hosting" ? (

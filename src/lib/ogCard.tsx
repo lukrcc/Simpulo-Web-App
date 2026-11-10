@@ -29,6 +29,15 @@ export async function loadOgImage(url: string | undefined, width?: number): Prom
   }
 }
 
+/** The logo in a share card: the wordmark "simpulo." with its orange dot, `size` px. */
+export function OgLogo({ size }: { size: number }) {
+  return (
+    <div style={{ display: "flex", fontSize: size, fontWeight: 700, letterSpacing: -size * 0.03, color: COLORS.ink }}>
+      simpulo<span style={{ color: COLORS.accent }}>.</span>
+    </div>
+  );
+}
+
 const money = (amount: number, currency: string) => new Intl.NumberFormat("en", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 
 /** "€480 pp", "€500–700 pp", "Price set with crew" – in the House's currency (the card has no viewer). */
@@ -49,13 +58,8 @@ export async function ogPictures(stay: Stay, crew: User[]): Promise<{ cover: str
   return { cover, faces: faces.filter((f): f is string => Boolean(f)) };
 }
 
-const Wordmark = () => (
-  <div style={{ display: "flex", fontSize: 34, fontWeight: 700, letterSpacing: -1, color: COLORS.ink }}>
-    simpulo<span style={{ color: COLORS.accent }}>.</span>
-  </div>
-);
 
-/** Cover left; eyebrow, title, a line, a strong line, the crew; the wordmark bottom right. Warm surfaces, no white. */
+/** Cover left; eyebrow, title, a line, a strong line, the crew; the logo bottom right. Warm surfaces, no white. */
 export function OgCard({ cover, eyebrow, title, line, strong, faces, crewLine }: { cover: string | null; eyebrow?: string; title: string; line?: string; strong?: string; faces?: string[]; crewLine?: string }) {
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", background: COLORS.bg, color: COLORS.ink }}>
@@ -78,7 +82,7 @@ export function OgCard({ cover, eyebrow, title, line, strong, faces, crewLine }:
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Wordmark />
+          <OgLogo size={34} />
         </div>
       </div>
     </div>

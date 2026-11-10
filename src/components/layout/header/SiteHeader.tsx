@@ -184,7 +184,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                   current ? "text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-ink" : "text-muted hover:text-ink",
                 )}
               >
-                <NavIcon item={item} active={current} />
+                {/* Icons only below 1024px (the word as tooltip); from 1024px text only. */}
+                <span className="flex nav-text:hidden">
+                  <NavIcon item={item} active={current} />
+                </span>
                 <span className="max-nav-text:sr-only">{label}</span>
                 {showUnread && <span aria-hidden className="absolute -right-2.5 top-2 size-1.5 rounded-full bg-accent" />}
               </Link>

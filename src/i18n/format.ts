@@ -47,6 +47,13 @@ function moneyRange(format: Intl.NumberFormat, min: number, max: number): string
 /** "2027-03-…" → "March 2027" */
 const monthOf = (locale: string, date: string) => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${date.slice(0, 7)}-15T00:00:00Z`));
 
+/** Open dates: "March 2027", or a run of months "January – March 2027" (Open a House lets a host pick several in a row). */
+const monthsOf = (locale: string, start: string, end: string) => {
+  if (!end || end.slice(0, 7) === start.slice(0, 7)) return monthOf(locale, start);
+  const at = (d: string) => new Date(`${d.slice(0, 7)}-15T00:00:00Z`);
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).formatRange(at(start), at(end));
+};
+
 /** Locale-aware number/date formatting – pure, usable on the server with getLocale(). */
 export function createFormatters(locale: string) {
   const currency = (code: string) => new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumFractionDigits: 0 });
@@ -98,9 +105,9 @@ export function useFormat() {
       shortRange: (start: string, end: string) => f.shortRange(start, end) ?? t("datesTbd"),
       longRange: (start: string, end: string) => f.longRange(start, end) ?? t("datesTbd"),
       /** A House's dates on one line: "Feb 12–26" – or "March 2027" while only the month is settled. */
-      stayDates: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthOf(locale, stay.startDate) : (f.shortRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
+      stayDates: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthsOf(locale, stay.startDate, stay.endDate) : (f.shortRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
       /** "Feb 12–26, 2027" – or "March 2027" */
-      stayDatesLong: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthOf(locale, stay.startDate) : (f.longRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
+      stayDatesLong: (stay: Pick<Stay, "startDate" | "endDate" | "datesOpen">) => (stay.datesOpen && stay.startDate ? monthsOf(locale, stay.startDate, stay.endDate) : (f.longRange(stay.startDate, stay.endDate) ?? t("datesTbd"))),
       nights: (count: number) => t("nights", { count }),
       spots: (count: number) => t("spots", { count }),
       people: (count: number) => t("people", { count }),
@@ -138,8 +145,10 @@ export function useFormat() {
         const same = code === stay.currency;
         const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, ...(same ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 2 }) });
         const to = (amount: number) => convertApprox(amount, stay.currency, code as Currency);
-        if (price.kind === "price") return t("pricePerPersonShort", { price: clean(money.format(to(price.amount))) });
-        return t("budgetPerPersonShort", { range: moneyRange(money, to(price.min), to(price.max)) });
+        // Another currency than the House's: converted, so "≈" in front ("≈ €480 pp"); the same one: exact, no "≈".
+        const approx = same ? "" : "≈ ";
+        if (price.kind === "price") return approx + t("pricePerPersonShort", { price: clean(money.format(to(price.amount))) });
+        return approx + t("budgetPerPersonShort", { range: moneyRange(money, to(price.min), to(price.max)) });
       },
     };
   }, [locale, t]);

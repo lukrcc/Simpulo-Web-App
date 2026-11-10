@@ -126,6 +126,8 @@ export function CardPayForm({ stay, amounts, onPay, onCancel }: CardPayFormProps
         {amounts.fee > 0 && <Row label={t("feeIncluded", { percent: FEE_MODEL.serviceFeePercent })} value={money(amounts.fee)} muted />}
         <Row label={t("total")} value={money(amounts.total)} strong />
       </dl>
+      {/* Always charged in the House's own currency. */}
+      <p className="-mt-3 text-small text-muted">{t("bankConverts", { currency: stay.currency })}</p>
       {stay.paymentDueAt && <p className="-mt-3 text-small text-muted">{t("payBy", { date: `${f.day(stay.paymentDueAt)}, ${f.time(stay.paymentDueAt)}` })}</p>}
 
       {/* The payment element (mock): wallets first, then the card. */}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { SPOTLIGHT_THEME_LINES, SPOTLIGHT_THEME_LINES_VISITOR, spotlightThemeFallback } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
 import { EMPTY_FILTERS, withFilters } from "@/lib/exploreFilters";
@@ -13,6 +13,23 @@ import { useMarkBreath } from "./useMarkBreath";
 
 /** Beside the centre card the sizes come from the fit (SpotlightCoverflow): --fit-title, logged in and out --fit-theme. */
 const SIDE_TITLE = { fontSize: "var(--fit-title, var(--text-stage))" };
+
+/**
+ * The greeting line ("Hi Sam." / "Share a place."): the stage headline's gradient as that one shows at rest – 135deg, twice as wide, from its
+ * start – but still (no wandering) and at 45 % opacity. Inline, so it never waits for a stylesheet; without background-clip: text the
+ * colour stays ink (at the same 45 %).
+ */
+const GREETING_GRADIENT: CSSProperties = {
+  color: "#221E1B",
+  backgroundImage: "linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%)",
+  backgroundSize: "200% 100%",
+  backgroundPosition: "0 0",
+  backgroundRepeat: "no-repeat",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  opacity: 0.45,
+};
 
 interface GreetingProps {
   /** Logged in: "Hi {name}." · "Where to next?"; null (visitors): "Share a place." · "Find your people." */
@@ -29,7 +46,7 @@ interface GreetingProps {
 
 /**
  * The Spotlight's text, logged in and out alike, one row with a common top edge. Left, and it stays: "Hi Sam." and "Where to next?" (the "?"
- * breathes) – for visitors "Share a place." and "Find your people." (the orange dot breathes, same rhythm). Right, following the centre card's
+ * breathes) – for visitors "Share a place." and "Find your people." (its "." an ordinary letter in the gradient – nothing breathes there). Right, following the centre card's
  * category: its name, a sentence (visitors get the more inviting one) and the way to its Houses. Only the link takes the pointer: the
  * carousel's drag area is around it.
  */
@@ -41,10 +58,12 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName }
   return (
     <div data-spotlight-greeting className="pointer-events-none flex items-start justify-between gap-6">
       <div data-spotlight-greeting-left className={cn("min-w-0", sideClassName ?? "flex-1")}>
-        {/* One colour (muted, no gradient). Optically flush with the W, and about 6px of air from its letters down to the W's top (measured at 1280–1728): the
-            big line's box has room above its capitals, the greeting's below its baseline – the margin takes both back. */}
-        <p className="-ml-px truncate text-greeting text-muted">{name === null ? tIntro("first") : t("hi", { name })}</p>
-        <FlowText ref={breath} text={name === null ? tIntro("second") : t("whereNext")} dot={name === null} style={SIDE_TITLE} className="text-stage mt-[calc(8px-0.33em)] w-fit whitespace-nowrap" />
+        {/* The headline's gradient, still and at 45 % (GREETING_GRADIENT). Optically flush with the W, and about 6px of air from its letters down to the W's
+            top (measured at 1280–1728): the big line's box has room above its capitals, the greeting's below its baseline – the margin takes both back. */}
+        <p className="-ml-px truncate text-greeting" style={GREETING_GRADIENT}>
+          {name === null ? tIntro("first") : t("hi", { name })}
+        </p>
+        <FlowText ref={breath} text={name === null ? tIntro("second") : t("whereNext")} style={SIDE_TITLE} className="text-stage mt-[calc(8px-0.33em)] w-fit whitespace-nowrap" />
       </div>
       {/* Beside the card it hangs from the common top edge: the left side alone sets the height, which puts "Where to next?" where it belongs. Its eyebrow's
           capitals level with those of "Hi …": the greeting's letters sit lower in their line, so the block comes down by that (GREETING_EYEBROW_DROP). */}

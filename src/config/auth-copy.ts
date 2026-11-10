@@ -1,6 +1,6 @@
 /**
  * The auth sheet's heading and line, by what made it open (`reason` – every requireAuth call passes one). `{hostName}` is the host's first
- * name; the heading's final "." is drawn in the logo's orange.
+ * name. The heading's final "." is the same colour as its words – the orange dot belongs to the logo alone.
  */
 export type AuthReason = "join" | "open" | "save" | "message" | "login" | "yourHouses" | "messages";
 

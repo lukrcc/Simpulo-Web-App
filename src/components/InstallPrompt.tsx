@@ -167,29 +167,24 @@ function InstallSheet({ offer, trigger, hostName, onClose }: { offer: Offer; tri
   );
 }
 
-/** A notification as the phone would show it – iOS (a rounded glass card, time on the right) or Android (app line on top). */
+/**
+ * A notification as the phone would show it – iOS (a rounded glass card, time on the right) or Android (app line on top). Without an icon:
+ * the app icon shows only as the browser's and the home screen's, never inside the pages.
+ */
 function MockNotification({ android }: { android: boolean }) {
   const t = useTranslations("install");
-  // No app icon inside the pages: a plain "s." with the logo's orange dot stands in.
-  const icon = (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center bg-surface text-logo tracking-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]", android ? "rounded-full" : "rounded-[9px]")}>
-      s<span className="text-accent">.</span>
-    </span>
-  );
   return (
     <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-white/65 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(40,32,26,0.08)]">
       {android ? (
         <div>
           <div className="flex items-center gap-1.5 text-small text-muted">
-            <span className="size-4 shrink-0 overflow-hidden rounded-full">{icon}</span>
             {t("mockApp")} · {t("mockTime")}
           </div>
           <p className="mt-1 truncate text-body text-ink">{t("mockText")}</p>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
-          {icon}
-          <div className="min-w-0 flex-1">
+        <div>
+          <div className="min-w-0">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-small font-semibold text-ink">{t("mockApp")}</span>
               <span className="text-small text-muted">{t("mockTime")}</span>

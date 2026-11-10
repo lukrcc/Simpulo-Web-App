@@ -6,6 +6,8 @@ import type { IconType } from "react-icons";
 import { FooterInstallHint } from "@/components/InstallHint";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
+import { CurrencyPicker } from "./CurrencyPicker";
+import { Logo } from "./Logo";
 import { FooterPopular } from "./FooterPopular";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
 
@@ -53,12 +55,9 @@ export async function Footer() {
     <footer className="bg-(--footer-surface)">
       <Container className="pt-16 pb-10 text-small text-muted">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 md:items-baseline md:gap-6">
-          {/* Wordmark, claim and socials at the top: the grid aligns first baselines, so the wordmark sits on the
-              column headings' baseline. Phones: first, above the links. */}
+          {/* The logo and the socials at the top. Phones: first, above the links. */}
           <div className="md:col-span-4">
-            <p className="text-body font-bold tracking-tight text-ink">
-              simpulo<span className="text-accent">.</span>
-            </p>
+            <Logo size="sm" />
             {socials.length > 0 && (
               <ul aria-label={t("social.label")} className="mt-4 flex items-center gap-4">
                 {socials.map(([network, url]) => {
@@ -117,6 +116,9 @@ export async function SlimFooter() {
     <footer className="bg-(--footer-surface)">
       <Container className="flex min-h-18 flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 text-small text-muted">
         <p className="flex flex-wrap items-center gap-x-1.5">
+          <span className="mr-3">
+            <CurrencyPicker />
+          </span>
           <span>{t("copyright", { year: COPYRIGHT_YEAR })}</span>
           {legal.map(({ href, label }) => (
             <span key={href} className="flex items-center gap-1.5">
@@ -158,6 +160,10 @@ async function FooterLegal() {
   // One line on desktop ("© 2026 Simpulo · Impressum · Privacy · Terms · Cookies"); on phones the links under the copyright, centred.
   return (
     <div className="flex flex-col items-center gap-1 text-small text-muted md:ml-auto md:flex-row md:gap-1.5">
+      {/* The viewer's currency: "€ EUR". */}
+      <span className="md:mr-3">
+        <CurrencyPicker />
+      </span>
       <p>{t("copyright", { year: COPYRIGHT_YEAR })}</p>
       <nav aria-label={t("legalLabel")}>
         <ul className="flex flex-wrap items-center justify-center gap-x-1.5">

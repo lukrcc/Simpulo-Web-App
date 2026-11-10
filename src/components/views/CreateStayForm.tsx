@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Eye, Link2, QrCode } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMessages, useTranslations } from "next-intl";
-import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import {
   AccommodationDetail,
@@ -14,15 +14,17 @@ import {
   CrewStep,
   DatesDetail,
   DetailsList,
+  ExtrasStep,
   HostDetail,
   LanguagesDetail,
   LookingForDetail,
-  OptionalList,
   PhotosDetail,
+  PlaceStep,
   ProfileNote,
   ReadySummary,
   RulesDetail,
   TemplatePicker,
+  extrasAdded,
   TitleDetail,
   VibeStep,
   WhereStep,
@@ -33,12 +35,13 @@ import {
 import {
   AGAIN_PARAM,
   EDIT_REQUIRED_STEPS,
+  EXTRAS,
+  EXTRAS_STEP,
   INVITE_PARAM,
   REQUIRED_STEPS,
   againForm,
   clearDraft,
   currencyOf,
-  detailDone,
   detailsFor,
   fieldId,
   firstOpenStep,
@@ -47,6 +50,7 @@ import {
   initialForm,
   invitesOf,
   isDetail,
+  placeShare,
   prefillOf,
   readDraft,
   readTemplates,
@@ -66,7 +70,6 @@ import {
 } from "@/components/create/model";
 import { useSearchDemand } from "@/components/create/SearchDemandHint";
 import { useDismiss } from "@/components/explore/Filters";
-import { FormContainer, FormGrid, PreviewColumn } from "@/components/form/FormLayout";
 import { useHostShare } from "@/components/share/HostShareTools";
 import { BuildingCard } from "@/components/create/BuildingCard";
 import { HouseCard } from "@/components/HouseCard";
@@ -102,11 +105,6 @@ export function EditStayForm({ stay }: { stay: Stay }) {
   return <CreateWizard restore={false} editing={stay} />;
 }
 
-/**
- * The live preview card: 400px wide at most, and narrower when the window is short, so card + "Preview" label always
- * fit in the sticky column (4:5 kept).
- */
-const PREVIEW_CARD_WIDTH = "mx-auto w-[min(100%,400px,calc((100dvh-var(--header-h)-96px)*0.8))]";
 
 /** Scrolls a field into view and focuses its first control. */
 function focusField(id: string) {
@@ -154,8 +152,6 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [form, setForm] = useState<FormState>(() => (editing ? formFromStay(editing) : draft ? draft.form : { ...initialForm, ...prefill }));
   const [step, setStep] = useState<StepKey>(() => (editing ? "details" : draft ? startFor(draft.form) : prefill ? startFor({ ...initialForm, ...prefill }) : "vibe"));
   const [templates, setTemplates] = useState<HouseTemplate[]>(() => (restore && !editing ? readTemplates() : []));
-  // "Add more details first", open by itself once a detail was opened from it.
-  const [moreOpen, setMoreOpen] = useState(false);
   // Opened: the success screen, and how many heard first.
   const [openedId, setOpenedId] = useState<string | null>(null);
   const [notified, setNotified] = useState(0);
@@ -238,7 +234,6 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     setConflict(null);
     setTouched(new Set());
     setAttempted(new Set());
-    setMoreOpen(false);
   }
 
   useEffect(() => {
@@ -259,7 +254,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   }
 
   function errorText(error: FieldError): string {
-    if (error.key === "spots") return tErrors("spots", { min: error.min, max: error.max });
+    if (error.key === "spots") return tErrors("spots", { min: error.min });
     if (error.key === "tooLong") return tErrors("tooLong", { max: error.max });
     if (error.key === "titleLength") return tErrors("titleLength", { min: error.min, max: error.max });
     if (error.key === "hostFeeTooHigh") return tErrors("hostFeeTooHigh", { max: format.price(error.max, previewStay.currency) });
@@ -334,6 +329,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setFromList(false);
       return open(home);
     }
+    // A new House: after the cover the optional "Make it stand out", then the review.
+    if (step === "cover" && !editing) return open(EXTRAS_STEP);
+    if (step === EXTRAS_STEP) return open("ready");
     open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready");
   }
 
@@ -342,7 +340,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setFromList(false);
       return open(home);
     }
-    if (step === "ready") return open("cover");
+    if (step === "ready") return open(editing ? "cover" : EXTRAS_STEP);
+    if (step === EXTRAS_STEP) return open("cover");
     open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1]);
   }
 
@@ -378,17 +377,30 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   };
   const demand = useSearchDemand({ city: form.city, region: form.region, startDate: previewStay.startDate, endDate: previewStay.endDate, vibe: form.vibe });
   const themeName = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
+  const tFlow = useTranslations("create.flow");
+  const share = placeShare(form);
+  const placeLine = form.placeMode === "set" ? (share ? tFlow("placeSet", { total: format.price(share.total, previewStay.currency) }) : tFlow("placeSetTitle")) : form.placeMode === "together" ? tFlow("placeTogether") : "";
   // The preview of a new House builds itself up from the answers; editing shows the House as it is.
   const card = editing ? (
     <HouseCard stay={previewStay} host={me} crew={me ? [me] : []} preview photoPlaceholder={t("photoPlaceholder")} />
   ) : (
-    <BuildingCard stay={previewStay} host={me} theme={themeName || null} showTitle={form.title.trim() !== ""} showMeta={form.region.trim() !== "" || form.month !== ""} showDates={form.month !== ""} showPrice={form.budgetMin !== "" || form.budgetTbd} showCrew={form.budgetMin !== "" || form.budgetTbd} />
+    <BuildingCard
+      stay={previewStay}
+      host={me}
+      theme={themeName || null}
+      showTitle={form.title.trim() !== ""}
+      showMeta={form.region.trim() !== "" || form.month !== ""}
+      showDates={form.month !== ""}
+      showPrice={form.placeMode === "set" ? share !== null : form.placeMode === "together" && (form.budgetMin !== "" || form.budgetTbd)}
+      showCrew={form.placeMode !== ""}
+      placeLabel={form.placeMode === "set" ? tFlow("cardBooked") : form.placeMode === "together" ? tFlow("cardTogether") : null}
+    />
   );
 
   const locked = editing?.accommodationStatus === "locked";
   const stepProps: StepProps = { form, patch, errorOf, touch };
   const invalid = steps.filter((key) => Object.keys(errorsOf(key)).length > 0 && (Boolean(editing) || isDetail(key)));
-  const placeAndTime = [format.placeLabel(previewStay), form.datesMode === "exact" ? format.stayDates(previewStay) : form.month && monthName(form.month)].filter(Boolean).join(" · ");
+  const placeAndTime = [format.placeLabel(previewStay), form.datesMode === "exact" || form.monthEnd ? format.stayDatesLong(previewStay) : form.month && monthName(form.month)].filter(Boolean).join(" · ");
   const required = editing
     ? [
         { step: "vibe" as const, value: form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "") },
@@ -400,6 +412,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const body = (
     <>
       {step === "vibe" && <VibeStep {...stepProps} />}
+      {step === "place" && <PlaceStep {...stepProps} />}
+      {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
       {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} />}
@@ -436,11 +450,17 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             }}
             rows={[
               { key: "theme", label: tReady("theme"), value: themeName, step: "vibe" },
+              { key: "place", label: tReady("place"), value: placeLine, step: "place" },
               { key: "where", label: tReady("where"), value: placeAndTime, step: "where" },
               { key: "crew", label: tReady("crew"), value: format.people(form.spotsTotal), step: "crew" },
-              { key: "budget", label: tReady("budget"), value: format.priceLabel(previewStay), step: "crew" },
+              { key: "price", label: tReady("price"), value: format.priceLabel(previewStay), step: "crew" },
             ]}
           />
+          {/* One line instead of a list: what's optional, how much of it is there, and the way to it. */}
+          <button type="button" onClick={() => open(EXTRAS_STEP)} className="flex w-full items-center justify-between gap-4 rounded-2xl py-2 text-left">
+            <span className="text-body text-muted">{tFlow("optionalLine", { count: extrasAdded(form), total: EXTRAS.length })}</span>
+            <span className="text-body font-semibold text-ink">{tFlow("addDetails")} →</span>
+          </button>
           {invitesRow}
         </div>
       )}
@@ -448,14 +468,13 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   );
 
   const tVerify = useTranslations("verification");
-  const openOptional = details.filter((key) => !detailDone(key, form)).length;
-  const position = REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]);
-  // Past the required steps: the count of what's left is what matters.
-  const progressLabel = position >= 0 && !editing && !fromList ? tDetails("step", { current: position + 1, total: REQUIRED_STEPS.length }) : tDetails("progress", { count: openOptional });
-
   const stepValid = Object.keys(currentErrors).length === 0;
   const canGoBack = step !== "vibe" && !(editing && step === "details");
   const onList = step === "details";
+  // A new House: the progress bar over the full width under the header (the six steps and the review).
+  const flowSteps: StepKey[] = [...REQUIRED_STEPS, EXTRAS_STEP, "ready"];
+  const flowIndex = flowSteps.indexOf(step);
+  const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
   const actions = onList ? (
     editing ? (
       isDraft ? (
@@ -478,50 +497,56 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {t("publish.button")}
     </Button>
   ) : (
-    // Looks disabled until the step is valid, but a tap still shows what's missing.
-    <Button size="md" onClick={next} aria-disabled={!stepValid || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:bg-ink/10 aria-disabled:text-muted aria-disabled:hover:bg-ink/10">
-      {isDetail(step) || fromList ? tDetails("done") : t("next")}
-    </Button>
+    <>
+      {step === EXTRAS_STEP && (
+        <Button variant="tertiary" onClick={() => open("ready")}>
+          {tFlow("skip")}
+        </Button>
+      )}
+      {/* Looks disabled until the step is valid, but a tap still shows what's missing. */}
+      <Button size="md" onClick={next} aria-disabled={!stepValid || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:bg-ink/10 aria-disabled:text-muted aria-disabled:hover:bg-ink/10">
+        {isDetail(step) || fromList ? tDetails("done") : t("next")}
+      </Button>
+    </>
   );
 
-  // No box: the question lies free on the page. Each new one fades in and rises (the key restarts it).
+  // Coming back to a draft: once, a toast with the way to start over (instead of a line over the steps).
+  const draftToast = useEffectEvent(() => showToast(tFlow("draftRestored"), undefined, undefined, { action: { label: tFlow("startOver"), onClick: () => startOver() }, ms: 6000 }));
+  useEffect(() => {
+    if (continuing !== null && !editing && !conflict) draftToast();
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // No box: the question lies free on the page. Each new one cross-fades in (200ms; the key restarts it). Back and Next always sit in one
+  // row at the bottom of the column – level with the card's bottom edge while the question is shorter than the card.
   const question = (
-    <section onKeyDown={onKeyDown}>
-      <div key={step} className="question-in">
+    <section onKeyDown={onKeyDown} className="flex flex-col split:min-h-(--create-card-h)">
+      <div key={step} className="animate-[fade-in_200ms_ease-out] motion-reduce:animate-none">
         <h1 className="text-h1 text-ink">{t(`questions.${step}`)}</h1>
         <div ref={bodyRef} className="mt-8">
           {body}
         </div>
-      </div>
-      <div className="mt-10 space-y-4">
-        {step === "ready" && <ProfileNote me={me} />}
-        {/* Voluntary: never a lock on publishing, only why it helps. */}
-        {step === "ready" && me && !me.verified && (
-          <p className="text-small text-muted">
-            {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center gap-3">
-          {canGoBack && (
-            <Button variant="tertiary" onClick={back}>
-              {t("back")}
-            </Button>
-          )}
-          <span className="flex-1" />
-          {actions}
-        </div>
         {step === "ready" && (
-          <div>
-            <Button variant="tertiary" onClick={() => setMoreOpen((on) => !on)} aria-expanded={moreOpen}>
-              {tReady("more")}
-            </Button>
-            {moreOpen && (
-              <div className="question-in mt-6">
-                <OptionalList form={form} details={details} invalid={invalid} onOpen={open} />
-              </div>
+          <div className="mt-8 space-y-3">
+            <ProfileNote me={me} />
+            {/* Voluntary: never a lock on publishing, only why it helps. */}
+            {me && !me.verified && (
+              <p className="text-small text-muted">
+                {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
+              </p>
             )}
           </div>
         )}
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-3 pt-10">
+        {canGoBack && (
+          <Button variant="tertiary" onClick={back} className="-ml-4">
+            {t("back")}
+          </Button>
+        )}
+        <span className="flex-1" />
+        {actions}
       </div>
     </section>
   );
@@ -530,60 +555,85 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   if (openedStay) return <OpenedScreen stay={openedStay} notified={notified} host={me} form={form} />;
 
   return (
-    <FormContainer wide className={editing ? undefined : "max-md:pt-20"}>
+    <>
       {restore && !editing && (
         <Suspense fallback={null}>
           <LinkParams onRead={readLinkParams} />
         </Suspense>
       )}
-      <>
-          {continuing !== null && !editing && <DraftLine savedAt={continuing} conflict={conflict} onKeep={() => setConflict(null)} onStartOver={startOver} />}
-          {/* The first line: "1 / 4", small; on phones the live preview sits behind the button beside it. */}
-          <div className="mb-3 flex items-center gap-4">
-            <p aria-live="polite" className="min-w-0 flex-1 text-small text-muted">
-              {progressLabel}
-            </p>
-            <Button variant="secondary" onClick={() => setPreviewOpen(true)} className="split:hidden">
-              <Eye />
-              {t("previewButton")}
-            </Button>
-          </div>
-          <FormGrid
-            wide
-            form={
-              <>
-                {!editing && step === "vibe" && templates.length > 0 && (
-                  <TemplatePicker
-                    className="mb-10"
-                    templates={templates}
-                    onPick={(template) => {
-                      // Everything but the dates; dates from a link stay, and so do invites.
-                      setForm((f) => ({ ...template.form, month: f.month, datesMode: f.datesMode, startDate: f.startDate, endDate: f.endDate, inviteIds: f.inviteIds, againFrom: f.againFrom }));
-                      setStep("where");
-                    }}
-                    onRemove={(id) => setTemplates(removeTemplate(id))}
-                  />
-                )}
-                {question}
-              </>
-            }
-            preview={
-              <PreviewColumn>
-                <div className={PREVIEW_CARD_WIDTH}>{card}</div>
-                {!editing && me && (me.socials ?? []).length === 0 && (
-                  <p className={cn(PREVIEW_CARD_WIDTH, "mt-3 text-small text-muted")}>
-                    {t.rich("socialsHint", { link: (chunks) => <a href="/profile/edit" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-4">{chunks}</a> })}
-                  </p>
-                )}
-              </PreviewColumn>
-            }
+      {progress !== null && (
+        <div aria-hidden className="fixed inset-x-0 top-(--header-total) z-30 h-0.5 bg-ink/8">
+          <div className="h-full bg-ink transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none" style={{ width: `${progress * 100}%` }} />
+        </div>
+      )}
+      <span className="sr-only" aria-live="polite">
+        {progress !== null ? tFlow("progress", { current: flowIndex + 1, total: flowSteps.length }) : ""}
+      </span>
+      <CreateLayout
+        aside={
+          <>
+            <div className={CARD_BOX}>{card}</div>
+            {!editing && me && (me.socials ?? []).length === 0 && (
+              <p className={cn(CARD_BOX, "mt-3 text-small text-muted")}>
+                {t.rich("socialsHint", { link: (chunks) => <a href="/profile/edit" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-4">{chunks}</a> })}
+              </p>
+            )}
+          </>
+        }
+      >
+        {/* A link with answers of its own while a draft came back: which it'll be. */}
+        {conflict && continuing !== null && !editing && <DraftLine savedAt={continuing} conflict={conflict} onKeep={() => setConflict(null)} onStartOver={startOver} />}
+        {/* Phones and narrow windows: the live preview behind a button. */}
+        <div className="mb-4 flex justify-end split:hidden">
+          <Button variant="secondary" onClick={() => setPreviewOpen(true)}>
+            <Eye />
+            {t("previewButton")}
+          </Button>
+        </div>
+        {!editing && step === "vibe" && templates.length > 0 && (
+          <TemplatePicker
+            className="mb-10"
+            templates={templates}
+            onPick={(template) => {
+              // Everything but the dates; dates from a link stay, and so do invites.
+              setForm((f) => ({ ...template.form, month: f.month, monthEnd: f.monthEnd, datesMode: f.datesMode, startDate: f.startDate, endDate: f.endDate, inviteIds: f.inviteIds, againFrom: f.againFrom }));
+              setStep("place");
+            }}
+            onRemove={(id) => setTemplates(removeTemplate(id))}
           />
-      </>
+        )}
+        {question}
+      </CreateLayout>
 
       <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title={t("livePreview")}>
         <div className="mx-auto max-w-90">{card}</div>
       </Sheet>
-    </FormContainer>
+    </>
+  );
+}
+
+/** The preview card's fixed size: 360 × 450 (4:5) – the same in every step and on the success screen. */
+const CARD_W = 360;
+const CARD_BOX = "mx-auto w-[min(100%,360px)]";
+
+/**
+ * Open a House's page: one centred container (at most 1200px, the header's margins), two columns 62 : 38 (the golden section), 64px apart,
+ * both vertically centred in the area under the header. The card is sticky at the same place in every step; only the left side changes.
+ * Under 1100px one column, the card behind "Preview".
+ */
+function CreateLayout({ aside, children }: { aside: ReactNode; children: ReactNode }) {
+  return (
+    <div
+      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
+      style={{ ["--create-card-h" as string]: `${(CARD_W * 5) / 4}px` }}
+    >
+      <div className="flex min-w-0 flex-col justify-center split:min-h-[calc(100dvh-var(--header-total)-16px)] split:py-10">{children}</div>
+      <aside className="hidden split:block">
+        <div className="sticky top-[calc(var(--header-total)+16px)] flex h-[calc(100dvh-var(--header-total)-16px)] items-center justify-center">
+          <div className="w-full">{aside}</div>
+        </div>
+      </aside>
+    </div>
   );
 }
 
@@ -666,11 +716,23 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
   const { copy, story, busy } = useHostShare(stay);
   const [saved, setSaved] = useState(false);
   return (
-    <FormContainer wide className="max-md:pt-20">
-      <div data-flow-done className="question-in grid items-start gap-10 split:grid-cols-[minmax(0,1fr)_400px]">
+    <CreateLayout
+      aside={
+        <div className={CARD_BOX}>
+          <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
+        </div>
+      }
+    >
+      {/* The same 62 : 38 page as the steps, vertically centred: the title, a sentence, the two ways to share, then the text links. */}
+      <div data-flow-done className="question-in">
         <section>
           <h1 className="text-h1 text-ink">{t("title")}</h1>
+          <p className="mt-3 max-w-[560px] text-body-lg text-muted">{t("text")}</p>
           {notified > 0 && <p className="mt-3 text-body-lg font-semibold text-ink">{t("notified", { count: notified })}</p>}
+          {/* Phones: the card under the sentence (the side column is hidden there). */}
+          <div className={cn(CARD_BOX, "mt-8 split:hidden")}>
+            <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
+          </div>
           {/* A host experience is paid to the host through Simpulo: payouts first (Stripe Connect). */}
           {(stay.hostFeePerPerson ?? 0) > 0 && <OpenedPayouts />}
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -683,7 +745,7 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
               {t("story")}
             </Button>
           </div>
-          <div className="mt-8 flex flex-wrap items-center gap-6">
+          <div className="-ml-4 mt-8 flex flex-wrap items-center gap-2">
             <Button
               variant="tertiary"
               disabled={saved}
@@ -700,11 +762,8 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
             </Button>
           </div>
         </section>
-        <div className={PREVIEW_CARD_WIDTH}>
-          <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
-        </div>
       </div>
-    </FormContainer>
+    </CreateLayout>
   );
 }
 

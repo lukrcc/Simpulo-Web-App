@@ -19,6 +19,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { OPTIONAL_CATEGORIES } from "@/config/notifications";
+import { currencyName } from "@/lib/currency";
 import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { findUser, getCurrentUser, settingsOf, useStore, type NotificationChannel } from "@/lib/store";
 import type { Currency, NotificationGroup, User } from "@/lib/types";
@@ -417,7 +418,7 @@ function PreferencesSection({ currency, onCurrencyChange }: { currency: Currency
             <option value="">{t("currencyAuto")}</option>
             {CURRENCIES.map((code) => (
               <option key={code} value={code}>
-                {code}
+                {code} – {currencyName(code)}
               </option>
             ))}
           </Select>

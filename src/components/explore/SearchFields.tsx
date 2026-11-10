@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MonthName, newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
 import { Anchored } from "@/components/ui/Anchored";
-import { Chip } from "@/components/ui/Chip";
+import { Chip, chipStyles } from "@/components/ui/Chip";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { placeById } from "@/lib/data/places";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,10 @@ function FieldPopover({ anchor, width, label, onClose, children }: { anchor: Ref
   );
 }
 
-/** A compact glass capsule; raised warm white once it holds a value, like everything chosen, with an ✕ that takes the value away. */
+/**
+ * A compact field that opens a choice: like an input – a 1px edge ink 12 %, icon and placeholder muted. Holding a value: ink with white
+ * text (the value instead of the placeholder, "Bali", "Mar 2027") and a small ✕ that takes it away (.filters-capsule in globals.css).
+ */
 function FieldCapsule({ ref, icon, label, value, open, onClick, onClear, className }: { ref: RefObject<HTMLButtonElement | null>; icon: ReactNode; label: string; value: string | null; open: boolean; onClick: () => void; onClear: () => void; className?: string }) {
   const t = useTranslations("explore.filtersUi");
   return (
@@ -42,13 +45,13 @@ function FieldCapsule({ ref, icon, label, value, open, onClick, onClear, classNa
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={value ? `${label} ${value}` : label}
-        className={cn("inline-flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-full pl-3 text-nav [&>svg]:size-4 [&>svg]:shrink-0", value ? "pr-1 font-semibold text-ink" : "pr-3 text-muted hover:text-ink")}
+        className={cn("inline-flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-full pl-3 text-nav [&>svg]:size-4 [&>svg]:shrink-0", value ? "pr-1 font-medium" : "pr-3 text-muted hover:text-ink")}
       >
         {icon}
         <span className="truncate">{value ?? label}</span>
       </button>
       {value && (
-        <button type="button" onClick={onClear} aria-label={t("remove", { label: value })} className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-ink hover:bg-white/50">
+        <button type="button" onClick={onClear} aria-label={t("remove", { label: value })} className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
           <X className="size-3.5" aria-hidden />
         </button>
       )}
@@ -56,10 +59,10 @@ function FieldCapsule({ ref, icon, label, value, open, onClick, onClear, classNa
   );
 }
 
-/** A switch beside Where? and When?, in their capsule: raised and with an ✕ while on. */
+/** A switch beside Where? and When? ("Short trips"): the chip – outlined, ink with white text and an ✕ while on. */
 export function ToggleCapsule({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onToggle} data-active={active ? "" : undefined} className={cn("filters-capsule inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav", active ? "font-semibold text-ink" : "text-muted hover:text-ink")}>
+    <button type="button" aria-pressed={active} onClick={onToggle} className={chipStyles(active, { size: "sm" })}>
       {label}
       {active && <X className="size-3.5" aria-hidden />}
     </button>

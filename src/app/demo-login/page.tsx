@@ -17,7 +17,7 @@ export default async function DemoLoginPage() {
   return (
     <div data-demo-login className="flex min-h-dvh items-center justify-center px-4">
       <div className={cn(cardClass, "w-full max-w-md")}>
-        <Logo />
+        <Logo size="sm" />
         <p className="mt-4 text-body text-muted">{t("text")}</p>
         <Suspense fallback={null}>
           <DemoLoginForm />

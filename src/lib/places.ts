@@ -1,4 +1,7 @@
 // Cities and countries for Edit profile and Open a House's suggestions. A local list; later Google Places Autocomplete, same shape.
+import { ALL_PLACES } from "./data/places";
+import { foldPlace } from "./data/destinationTypes";
+import type { SearchPlace } from "./savedSearches";
 import { worldRegionOf, type WorldRegion } from "./worldRegions";
 
 export interface Place {
@@ -40,3 +43,30 @@ export const COUNTRIES: readonly string[] = [
     "Sweden", "Switzerland", "Ukraine", "Uruguay",
   ]),
 ].toSorted((a, b) => a.localeCompare(b));
+
+// ─── Open a House › "Where": worldwide ─────────────────────────────────────────
+
+/**
+ * The place search behind Open a House's "Where" – a placeholder adapter over our own list (about 400 cities, regions and countries
+ * worldwide; src/lib/data/places.ts). Later Google Places Autocomplete or Mapbox Geocoding behind the same `search`.
+ * TODO: Google Places (New) autocomplete with a session token, or Mapbox `geocoding/v5` with types=place,region,country.
+ */
+export interface WorldPlaceSearch {
+  search(query: string, limit?: number): SearchPlace[];
+  /** Before anything is typed */
+  popular(limit?: number): SearchPlace[];
+}
+
+export const worldPlaces: WorldPlaceSearch = {
+  search(query, limit = 8) {
+    const q = foldPlace(query.trim());
+    if (!q) return [];
+    const all = ALL_PLACES.filter((p) => !p.id.startsWith("world:"));
+    const starts = all.filter((p) => foldPlace(p.name).startsWith(q));
+    const contains = all.filter((p) => !starts.includes(p) && (foldPlace(p.name).includes(q) || foldPlace(p.country).includes(q)));
+    return [...starts, ...contains].slice(0, limit);
+  },
+  popular(limit = 6) {
+    return ALL_PLACES.filter((p) => !p.id.startsWith("world:") && !p.id.startsWith("country:")).slice(0, limit);
+  },
+};

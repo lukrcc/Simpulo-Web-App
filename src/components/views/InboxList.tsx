@@ -10,7 +10,7 @@ import { MasterDetail } from "@/components/layout/MasterDetail";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { TabBar } from "@/components/ui/TabBar";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useMessagesUnread, useNotifications } from "@/components/notifications/useNotifications";
 import { Img } from "@/components/ui/Img";
@@ -168,12 +168,11 @@ function InboxContent() {
       fullHeight
       list={
         <>
-          <div className="flex shrink-0 items-center gap-2">
-            <SegmentedControl
+          <div className="flex shrink-0 items-center justify-between gap-2">
+            <TabBar
               label={t("segmentLabel")}
               value={tab}
               onChange={choose}
-              className="flex-1"
               options={[
                 { value: "chats", label: t("segmentChats"), dot: unread.chats > 0 },
                 { value: "updates", label: t("segmentUpdates"), dot: unread.updates > 0 },

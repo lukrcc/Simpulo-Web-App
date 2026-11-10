@@ -15,6 +15,7 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
+import { plainAmount } from "@/lib/currency";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SocialTiles } from "@/components/ui/SocialRow";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -27,7 +28,7 @@ import { convertApprox } from "@/lib/rates";
 import { findUser, getCrew, isBlocked, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
-import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, stayNights, typicalDayOf } from "@/lib/utils";
+import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, stayNights, stayPrice, typicalDayOf } from "@/lib/utils";
 import { AccommodationTile } from "./AccommodationTile";
 import { HostPreview, useHoverPreview } from "./HostPreview";
 import { EMBED_CAPSULE, HouseMap, mapIsEmbed } from "./HouseMap";
@@ -453,6 +454,16 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
   const t = useTranslations("house.page");
   const format = useFormat();
   const label = useViewerPriceLabel(stay);
+  const viewerCurrency = usePreferredCurrency();
+  const tPrice = useTranslations("common.ui.priceLine");
+  const own = stayPrice(stay);
+  const pricedIn =
+    viewerCurrency !== stay.currency && own.kind !== "tbd"
+      ? tPrice("pricedIn", {
+          currency: stay.currency,
+          amount: own.kind === "price" ? plainAmount(own.amount, stay.currency) : `${plainAmount(own.min, stay.currency)}–${plainAmount(own.max, stay.currency)}`,
+        })
+      : null;
   const tPolicy = useTranslations("policy");
   // "£640–810 pp": the amount large, "pp" small. "Price set with crew" stays whole.
   const perPerson = /^(.*\S)\s+(pp)$/.exec(label);
@@ -478,6 +489,8 @@ export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage,
             <span className="text-h2 text-ink">{perPerson ? perPerson[1] : label}</span>
             {perPerson && <span className="text-small text-muted">{perPerson[2]}</span>}
           </p>
+          {/* Shown converted: the House's own currency and amount, small underneath ("Priced in IDR · 8,200,000 pp"). */}
+          {pricedIn && <p className="mt-0.5 text-small text-muted">{pricedIn}</p>}
           <div className="mt-1.5 flex items-center gap-2.5">
             <AvatarStack users={crew} size="sm" max={5} linked faceOf={summaryFaceOf} />
             <CrewLine stay={stay} />

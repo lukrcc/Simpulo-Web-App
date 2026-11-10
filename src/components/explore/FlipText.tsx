@@ -132,14 +132,11 @@ function placeFlow(root: HTMLElement) {
   root.setAttribute("data-ready", "");
 }
 
-/** The orange dot: inline, so it never waits for a stylesheet – no gradient, no wandering, only the breath. */
-const ACCENT_DOT: CSSProperties = { background: "none", color: "#F0633A", WebkitTextFillColor: "#F0633A", animation: "none" };
-
 /**
- * A stage headline under the slowly wandering gradient. A final "?" is a part of its own, so it can breathe (useMarkBreath); with `dot`, a
- * final "." is that part instead – in the accent orange, outside the gradient ("Find your people.").
+ * A stage headline under the slowly wandering gradient. A final "?" is a part of its own, so it can breathe (useMarkBreath). A final "." is
+ * an ordinary letter of its word, in the same gradient – the orange dot belongs to the logo alone.
  */
-export function FlowText({ text, lines, lineClassName, ref, className, style, dot = false }: { text: string; lines?: string[]; lineClassName?: string; ref?: RefObject<HTMLElement | null>; className?: string; style?: CSSProperties; dot?: boolean }) {
+export function FlowText({ text, lines, lineClassName, ref, className, style }: { text: string; lines?: string[]; lineClassName?: string; ref?: RefObject<HTMLElement | null>; className?: string; style?: CSSProperties }) {
   const own = useRef<HTMLElement>(null);
   const root = ref ?? own;
   useLayoutEffect(() => {
@@ -160,7 +157,7 @@ export function FlowText({ text, lines, lineClassName, ref, className, style, do
     };
   }, [root, text]);
   const word = (w: string, i: number) => {
-    const mark = w.endsWith("?") ? "?" : dot && w.endsWith(".") ? "." : "";
+    const mark = w.endsWith("?") ? "?" : "";
     const body = mark ? w.slice(0, -1) : w;
     return (
       <Fragment key={i}>
@@ -170,7 +167,7 @@ export function FlowText({ text, lines, lineClassName, ref, className, style, do
             {body}
           </span>
           {mark && (
-            <span data-flow-part data-mark className="flow-part origin-[50%_85%]" style={mark === "." ? ACCENT_DOT : undefined}>
+            <span data-flow-part data-mark className="flow-part origin-[50%_85%]">
               {mark}
             </span>
           )}

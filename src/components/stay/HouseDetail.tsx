@@ -20,8 +20,7 @@ import { HostShareTools } from "@/components/share/HostShareTools";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
-import { Chip } from "@/components/ui/Chip";
-import { ChipIndicator } from "@/components/ui/ChipIndicator";
+import { TabBar } from "@/components/ui/TabBar";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { Img } from "@/components/ui/Img";
 import { MoreMenu } from "@/components/ui/MoreMenu";
@@ -120,32 +119,21 @@ function useTab<T extends Tab>(tabs: readonly T[]): [T, (tab: T) => void] {
   return [tab, select];
 }
 
-/** The tabs as text chips with the one sliding capsule: only the chosen tab has a surface (none on hover). A tab's number sits in an accent dot. */
+/** The tabs as text tabs with an underline (TabBar). A tab's number sits in an accent dot. */
 function TabRow<T extends Tab>({ tabs, value, onChange, counts }: { tabs: readonly T[]; value: T; onChange: (tab: T) => void; counts?: Partial<Record<Tab, number>> }) {
   const t = useTranslations("houses.tabs");
   const name = (tab: Tab) => t(tab);
   return (
-    <div role="tablist" aria-label={t("label")} className="relative mt-4 flex shrink-0 flex-wrap items-center gap-1 px-3">
-      <ChipIndicator />
-      {tabs.map((tab) => {
+    <TabBar
+      label={t("label")}
+      value={value}
+      onChange={onChange}
+      className="mt-4 shrink-0 flex-wrap px-3"
+      options={tabs.map((tab) => {
         const count = counts?.[tab] ?? 0;
-        return (
-          <Chip
-            key={tab}
-            variant="text"
-            role="tab"
-            aria-selected={tab === value}
-            active={tab === value}
-            hoverSurface={false}
-            onClick={() => onChange(tab)}
-            aria-label={count > 0 ? t("withCount", { label: name(tab), count }) : undefined}
-            trailing={count > 0 ? <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-small text-white">{count}</span> : undefined}
-          >
-            {name(tab)}
-          </Chip>
-        );
+        return { value: tab, label: name(tab), count, ariaLabel: count > 0 ? t("withCount", { label: name(tab), count }) : undefined };
       })}
-    </div>
+    />
   );
 }
 

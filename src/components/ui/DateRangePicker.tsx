@@ -214,7 +214,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
                           data-tap="none"
                           className={cn(
                             "mx-auto flex size-9 items-center justify-center rounded-full text-small tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-muted/60",
-                            isStart || isEnd ? cn(selectedSurface, "font-semibold text-ink") : "enabled:hover:bg-ink/10",
+                            isStart || isEnd ? cn(selectedSurface, "font-semibold") : "enabled:hover:bg-ink/10",
                           )}
                         >
                           {Number(day.slice(8))}

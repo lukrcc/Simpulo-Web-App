@@ -5,7 +5,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Anchored } from "@/components/ui/Anchored";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Chip, chipStyles, TextChipLabel } from "@/components/ui/Chip";
-import { ChipIndicator } from "@/components/ui/ChipIndicator";
 import { cn } from "@/lib/utils";
 
 export interface ChipOption {
@@ -13,8 +12,8 @@ export interface ChipOption {
   label: string;
 }
 
-/** The chips' gap (gap-1): their padding gives the air. */
-const GAP = 4;
+/** The chips' gap (gap-1.5): outlined pills need a little air between them. */
+const GAP = 6;
 /** The chosen chip's ✕: its 16px and the 4px before it. */
 const REMOVE_W = 20;
 
@@ -103,7 +102,7 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       {/* Clipped: in the page's flow its full width would otherwise widen the document. */}
       <div className="absolute inset-x-0 top-0 h-0 overflow-hidden">
         <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute left-0 top-0 flex w-max">
-          <span className={chipStyles(false, { variant: "text", size: "sm" })}>
+          <span className={chipStyles(false, { variant: "plain", size: "sm" })}>
             <TextChipLabel>{labels.all}</TextChipLabel>
           </span>
           {options.map((o) => (
@@ -118,9 +117,9 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
         </div>
       </div>
 
-      <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center gap-1", shown === null && "invisible")}>
-        <ChipIndicator />
-        <Chip variant="text" size="sm" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
+      {/* "All" is the quiet default: no pill – bold ink while nothing is picked. A picked category is the black chip. */}
+      <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center gap-1.5", shown === null && "invisible")}>
+        <Chip variant="plain" size="sm" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {labels.all}
         </Chip>
         {visible.map((o) => (

@@ -7,7 +7,6 @@ export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
 
 const INK = COLORS.ink;
-const ACCENT = COLORS.accent;
 const SIDE = 88;
 const QR_SIZE = 300;
 
@@ -50,7 +49,7 @@ function drawWordmark(ctx: CanvasRenderingContext2D, x: number, y: number, size:
   ctx.font = `700 ${size}px ${font}`;
   ctx.fillText("simpulo", x, y);
   const width = ctx.measureText("simpulo").width;
-  ctx.fillStyle = ACCENT;
+  ctx.fillStyle = COLORS.accent;
   ctx.fillText(".", x + width, y);
 }
 
@@ -104,7 +103,7 @@ export async function renderStoryImage(content: StoryContent): Promise<Blob> {
   ctx.fillStyle = shade;
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
 
-  // Wordmark, top left.
+  // The wordmark, top left.
   ctx.textBaseline = "alphabetic";
   drawWordmark(ctx, SIDE, 170, 64, font, COLORS.surface);
 

@@ -1,4 +1,5 @@
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
+import { convert } from "@/lib/currency";
 import { placeById, placeKindOf } from "@/lib/data/places";
 import { canChargeHostFee, maxHostFee } from "@/lib/fees";
 import { openVote } from "@/lib/crewVotes";
@@ -30,21 +31,30 @@ export const LOOKING_FOR_MIN = 20;
 export const LOOKING_FOR_MAX = 160;
 export const MAX_NIGHTS = 120;
 export const SPOTS_MIN = 2;
-/** Everyone in the House, the host included */
-export const SPOTS_MAX = 10;
+/** Crew size chips 2–8; "More" types any number (no upper limit). */
+export const SPOTS_CHIPS_MAX = 8;
+/** From this many people a quiet hint: a big House gets a hand setting it up (it blocks nothing). */
+export const SPOTS_BIG = 20;
+/** The together-budget's top end should stay within this many times its low end (a hint, never an error). */
+export const BUDGET_SPREAD_MAX = 2;
 /** A new House's size: a range, and the crew is complete at its top end (exact on the edit page). */
 export const SPOTS_QUICK = [4, 6, 8, 12] as const;
 export const DEFAULT_LANGUAGE = "en";
 
-/** Required: all it takes to open a House. */
-export const REQUIRED_STEPS = ["vibe", "where", "crew", "cover"] as const;
+/** Required: all it takes to open a House – then "extras" (optional, skippable) and "Ready to open?". */
+export const REQUIRED_STEPS = ["vibe", "place", "where", "crew", "cover"] as const;
+/** The new flow's optional step 6: "Make it stand out". */
+export const EXTRAS_STEP = "extras" as const;
+/** What "Make it stand out" holds – "Optional details · N of 6 added" on the review. */
+export const EXTRAS = ["description", "placePhoto", "languages", "who", "age", "rules"] as const;
+export type ExtraKey = (typeof EXTRAS)[number];
 /** Editing lists these on top: a House's cover and title are details there, and older Houses may have neither. */
 export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew"] as const;
 /** Up to this many photos on "Pick a cover"; the first is the cover. */
 export const MAX_COVER_PHOTOS = 6;
 /** Optional, one screen each, reached from the "details" list – before or after opening. */
 export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
-export const STEPS = [...REQUIRED_STEPS, "ready", "details", ...DETAIL_STEPS] as const;
+export const STEPS = [...REQUIRED_STEPS, EXTRAS_STEP, "ready", "details", ...DETAIL_STEPS] as const;
 export type StepKey = (typeof STEPS)[number];
 export type DetailKey = (typeof DETAIL_STEPS)[number];
 
@@ -79,9 +89,25 @@ export interface PlaceProposal {
   price: string;
 }
 
+/** "set": the host has a place – total price, exact share · "together": city and budget, the crew picks the place. "" = not answered. */
+export type PlaceMode = "set" | "together" | "";
+/** The crew's age (filters: 18–25 · 25–35 · 35+); "" = any */
+export type AgeKey = "" | "18-25" | "25-35" | "35+";
+export const AGE_RANGES: Record<Exclude<AgeKey, "">, { min: number; max: number }> = { "18-25": { min: 18, max: 25 }, "25-35": { min: 25, max: 35 }, "35+": { min: 35, max: 99 } };
+
 export interface FormState {
   /** "" = not picked yet */
   vibe: Vibe | "";
+  placeMode: PlaceMode;
+  /** placeMode "set": the whole place, as typed (in the House currency) */
+  totalPrice: string;
+  /** placeMode "set": optional link to the listing */
+  placeLink: string;
+  /** Several months in a row: the last one ("" = just `month`) */
+  monthEnd: string;
+  /** "mixed" (everyone) or "women" (women only) */
+  who: "mixed" | "women";
+  ageKey: AgeKey;
   /** The host's own vibe label – non-null means "+ Custom" is the pick (saved as vibe "social") */
   customVibe: string | null;
   /** "Bali, Indonesia" */
@@ -138,6 +164,12 @@ export interface FormState {
 
 export const initialForm: FormState = {
   vibe: "",
+  placeMode: "",
+  totalPrice: "",
+  placeLink: "",
+  monthEnd: "",
+  who: "mixed",
+  ageKey: "",
   customVibe: null,
   region: "",
   city: "",
@@ -179,9 +211,16 @@ export function formFromStay(stay: Stay): FormState {
   const datesVote = openVote(stay, "dates");
   const placeVote = openVote(stay, "accommodation");
   const nameOf = (code: string) => LANGUAGES.find((l) => l.code === code)?.name;
+  const ageKey = (Object.entries(AGE_RANGES).find(([, r]) => stay.ageRange && r.min === stay.ageRange.min && r.max === stay.ageRange.max)?.[0] ?? "") as AgeKey;
   return {
     ...initialForm,
+    placeMode: stay.accommodationStatus === "locked" ? "set" : "together",
+    totalPrice: stay.totalPrice ? String(stay.totalPrice) : "",
+    placeLink: stay.accommodationLink ?? "",
+    who: stay.who === "women" || stay.audience === "women" ? "women" : "mixed",
+    ageKey,
     month: stay.startDate.slice(0, 7),
+    monthEnd: stay.datesOpen && stay.endDate.slice(0, 7) !== stay.startDate.slice(0, 7) ? stay.endDate.slice(0, 7) : "",
     datesMode: datesVote ? "crew" : stay.datesOpen ? "month" : "exact",
     dateProposals: datesVote?.options.map((o) => ({ id: o.id, start: o.startDate ?? "", end: o.endDate ?? "" })) ?? [],
     datesDeadline: datesVote?.deadline ?? "",
@@ -221,6 +260,7 @@ export function againForm(source: Stay, crewIds: string[]): FormState {
   return {
     ...formFromStay(source),
     month: "",
+    monthEnd: "",
     datesMode: "month",
     startDate: "",
     endDate: "",
@@ -250,18 +290,25 @@ export function languageOf(form: FormState, me?: User): string {
   return form.languages.map(languageCode).find(Boolean) ?? me?.languages.map(languageCode).find(Boolean) ?? DEFAULT_LANGUAGE;
 }
 
-/** The House currency as it will be saved: the host's pick, else theirs (profile, then browser), else their country's. */
+/**
+ * The House currency as it will be saved: the host's pick; else the currency of the place's country ("Bali, Indonesia" → IDR); without a
+ * place yet the host's own (profile, then browser), else their country's.
+ */
 export function currencyOf(form: FormState, me?: User, preferred?: Currency | null): Currency {
-  return form.currency || preferred || currencyForCountry(me?.country ?? "");
+  if (form.currency) return form.currency;
+  const country = form.region.split(",").at(-1)?.trim() ?? "";
+  if (country) return currencyForCountry(country);
+  return preferred || currencyForCountry(me?.country ?? "");
 }
 
 /** A single http(s) link and nothing else. */
 export const isLink = (value: string) => findUrls(value)[0] === value;
 
 /** A month's first and last day, the start no earlier than tomorrow (a House still has to lie ahead). */
-export function monthBounds(month: string, today: string): { start: string; end: string } {
+export function monthBounds(month: string, today: string, monthEnd = ""): { start: string; end: string } {
   if (!month) return { start: "", end: "" };
-  const { from, to } = monthRange(month);
+  const { from } = monthRange(month);
+  const { to } = monthRange(monthEnd && monthEnd > month ? monthEnd : month);
   const earliest = earliestStart(today);
   const start = earliest && from < earliest ? earliest : from;
   return { start, end: to > start ? to : addDays(start, 1) };
@@ -277,8 +324,25 @@ function voteOf(options: Array<Omit<VoteOption, "voterIds">>, deadline: string, 
   };
 }
 
-/** Slider scale per currency: about €100–3000 per person in every currency, in round steps. */
-export const BUDGET_SCALE: Record<Currency, { min: number; max: number; step: number; start: [number, number] }> = {
+type BudgetScale = { min: number; max: number; step: number; start: [number, number] };
+
+/** A round number near `n` (two significant digits): 7_350_000 → 7_400_000. */
+const round2 = (n: number) => {
+  const magnitude = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, n))) - 1);
+  return Math.round(n / magnitude) * magnitude;
+};
+
+/** The budget's starting range in a currency: the hand-picked one, or €400–600 converted (src/lib/currency.ts) and rounded. */
+export function budgetScaleOf(currency: Currency): BudgetScale {
+  const own = BUDGET_SCALE[currency];
+  if (own) return own;
+  const eur = BUDGET_SCALE.EUR!;
+  const at = (n: number) => round2(convert(n, "EUR", currency));
+  return { min: at(eur.min), max: at(eur.max), step: Math.max(1, at(eur.step)), start: [at(eur.start[0]), at(eur.start[1])] };
+}
+
+/** Starting ranges per currency: about €100–3000 per person, in round steps (the others follow from the rates). */
+const BUDGET_SCALE: Partial<Record<Currency, BudgetScale>> = {
   EUR: { min: 100, max: 3000, step: 50, start: [400, 600] },
   USD: { min: 100, max: 3000, step: 50, start: [400, 650] },
   GBP: { min: 100, max: 2500, step: 50, start: [350, 500] },
@@ -287,9 +351,16 @@ export const BUDGET_SCALE: Record<Currency, { min: number; max: number; step: nu
   IDR: { min: 1_500_000, max: 50_000_000, step: 500_000, start: [7_000_000, 10_000_000] },
 };
 
+/** A set place: its total and the equal share (everyone in the crew, the host too). */
+export function placeShare(form: FormState): { total: number; share: number } | null {
+  const total = Math.round(Number(form.totalPrice));
+  if (form.placeMode !== "set" || !(total > 0) || form.spotsTotal < 1) return null;
+  return { total, share: Math.round(total / form.spotsTotal) };
+}
+
 /** The budget as saved: both ends set and in order, unless it's decided together. */
 function budgetOf(form: FormState): { min: number; max: number } | undefined {
-  if (form.budgetTbd) return undefined;
+  if (form.budgetTbd || form.placeMode === "set") return undefined;
   const min = Math.round(Number(form.budgetMin));
   const max = Math.round(Number(form.budgetMax));
   return min > 0 && max >= min ? { min, max } : undefined;
@@ -301,7 +372,7 @@ function budgetOf(form: FormState): { min: number; max: number } | undefined {
  */
 export function hostFeeBase(form: FormState, editing?: Stay): number | undefined {
   if (editing?.accommodationStatus === "locked" && editing.pricePerPerson) return editing.pricePerPerson;
-  return budgetOf(form)?.min;
+  return placeShare(form)?.share ?? budgetOf(form)?.min;
 }
 
 /** The host fee as saved: "With a program", a whole amount > 0, and only for hosts who may charge one. */
@@ -343,8 +414,10 @@ export function detailDone(key: DetailKey, form: FormState): boolean {
  */
 export function toInput(form: FormState, { me, editing, today = "", fallbackTitle = "", preferredCurrency }: { me?: User; editing?: Stay; today?: string; fallbackTitle?: string; preferredCurrency?: Currency | null } = {}): NewStayInput {
   const locked = editing?.accommodationStatus === "locked";
+  // A new House with its place already found: booked from the start, the share exact.
+  const set = !locked && placeShare(form);
   const exact = form.datesMode === "exact";
-  const bounds = monthBounds(form.month, today);
+  const bounds = monthBounds(form.month, today, form.monthEnd);
   const languages = form.languages.map(languageCode).filter((code): code is string => Boolean(code));
   return {
     title: form.title.trim() || fallbackTitle,
@@ -372,11 +445,15 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     languages: languages.length > 1 ? languages.slice(1) : undefined,
     photos: form.photos.length > 0 ? form.photos : editing?.photos,
     currency: locked && editing ? editing.currency : currencyOf(form, me, preferredCurrency),
-    pricePerPerson: editing?.pricePerPerson,
-    budgetPerPerson: locked ? editing?.budgetPerPerson : budgetOf(form),
-    accommodationLink: editing?.accommodationLink,
+    pricePerPerson: set ? set.share : editing?.pricePerPerson,
+    totalPrice: set ? set.total : editing?.totalPrice,
+    budgetPerPerson: locked || set ? editing?.budgetPerPerson : budgetOf(form),
+    accommodationLink: set ? form.placeLink.trim() || undefined : editing?.accommodationLink,
+    who: form.who,
+    audience: form.who === "women" ? "women" : null,
+    ageRange: form.ageKey ? AGE_RANGES[form.ageKey] : undefined,
     crewGroupUrl: normalizeGroupUrl(form.crewGroupUrl) || undefined,
-    accommodationStatus: editing?.accommodationStatus ?? "open",
+    accommodationStatus: set ? "locked" : (editing?.accommodationStatus ?? "open"),
     description: editing ? editing.description : form.whyText.trim(),
     whyText: form.whyText.trim(),
     dayText: form.dayText.trim(),
@@ -409,14 +486,15 @@ export function isValidGroupUrl(raw: string): boolean {
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
+export type FieldKey = "placeMode" | "totalPrice" | "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
   | { key: "cover" | "vibe" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "budget" | "budgetOrder" | "hostFee" | "crewGroupUrl" | "lookingForUnfinished" | "month" | "dateProposal" | "placeProposal" }
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
-  | { key: "spots"; min: number; max: number }
+  | { key: "spots"; min: number }
+  | { key: "placeMode" | "totalPrice" }
   | { key: "hostFeeTooHigh"; max: number };
 
 export type FieldErrors = Partial<Record<FieldKey, FieldError>>;
@@ -485,9 +563,17 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
       else if (!form.month) errors.month = { key: "month" };
       break;
+    case "place":
+      if (!form.placeMode) errors.placeMode = { key: "placeMode" };
+      break;
     case "crew": {
-      if (form.spotsTotal < minSpots || form.spotsTotal > SPOTS_MAX) errors.spotsTotal = { key: "spots", min: minSpots, max: SPOTS_MAX };
-      if (form.budgetTbd || editing?.accommodationStatus === "locked") break;
+      if (!(form.spotsTotal >= Math.max(SPOTS_MIN, minSpots))) errors.spotsTotal = { key: "spots", min: Math.max(SPOTS_MIN, minSpots) };
+      if (editing?.accommodationStatus === "locked") break;
+      if (form.placeMode === "set") {
+        if (!(Number(form.totalPrice) > 0)) errors.totalPrice = { key: "totalPrice" };
+        break;
+      }
+      if (form.budgetTbd) break;
       const min = Number(form.budgetMin);
       const max = Number(form.budgetMax);
       if (!(min > 0) || !(max > 0)) errors.budget = { key: "budget" };
@@ -726,4 +812,22 @@ export function prefillOf(search: string, today: string): Partial<FormState> | n
     ...(start && end && { datesMode: "exact" as const, startDate: start, endDate: end }),
     ...(vibe && { vibe }),
   };
+}
+
+/**
+ * Picking months in a row: a first click picks one; a click right after the end or before the start extends the run; a click on an end of
+ * a longer run takes that end off; on the only month picked, clears it; anywhere else starts over there. Always one run of months.
+ */
+export function nextMonthRun(clicked: string, start: string, end: string, months: readonly string[]): { month: string; monthEnd: string } {
+  const last = end || start;
+  if (!start) return { month: clicked, monthEnd: "" };
+  const i = months.indexOf(clicked);
+  const s = months.indexOf(start);
+  const e = months.indexOf(last);
+  if (clicked === start && clicked === last) return { month: "", monthEnd: "" };
+  if (i === e + 1) return { month: start, monthEnd: clicked };
+  if (i === s - 1) return { month: clicked, monthEnd: last };
+  if (clicked === last && e > s) return { month: start, monthEnd: e - 1 > s ? months[e - 1] : "" };
+  if (clicked === start && e > s) return { month: months[s + 1], monthEnd: e > s + 1 ? last : "" };
+  return { month: clicked, monthEnd: "" };
 }

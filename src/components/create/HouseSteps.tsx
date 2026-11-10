@@ -1,24 +1,23 @@
 "use client";
 
-import { ChevronRight, ImagePlus, Plus, X } from "lucide-react";
+import { ChevronRight, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
-import { PlaceCombobox } from "@/components/explore/PlaceCombobox";
+import { FEE_MODEL } from "@/config/policies";
+import { PlaceSearch } from "./PlaceSearch";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { MonthName, newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
+import { newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Chip, ChipCheck, selectedSurface } from "@/components/ui/Chip";
-import { ChipIndicator } from "@/components/ui/ChipIndicator";
+import { Chip, ChipCheck } from "@/components/ui/Chip";
 import { Combobox } from "@/components/ui/Combobox";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Img } from "@/components/ui/Img";
 import { WAITLIST_MAX_LIMIT } from "@/lib/waitlist";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
-import { RangeSlider } from "@/components/ui/RangeSlider";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
@@ -28,7 +27,7 @@ import type { Currency, User, Vibe } from "@/lib/types";
 import { CURRENCIES, VIBES, cn, nightsBetween } from "@/lib/utils";
 import { SearchDemandHint } from "./SearchDemandHint";
 import {
-  BUDGET_SCALE,
+  budgetScaleOf,
   CUSTOM_VIBE_MAX,
   HOST_NOTE_MAX,
   LOOKING_FOR_MAX,
@@ -36,7 +35,13 @@ import {
   MAX_NIGHTS,
   MAX_PROPOSALS,
   OPTIONAL_GROUPS,
-  SPOTS_MAX,
+  SPOTS_BIG,
+  SPOTS_CHIPS_MAX,
+  BUDGET_SPREAD_MAX,
+  EXTRAS,
+  nextMonthRun,
+  placeShare,
+  type ExtraKey,
   SPOTS_MIN,
   TITLE_MAX_NEW,
   detailDone,
@@ -94,8 +99,7 @@ export function VibeStep({ form, patch, errorOf }: StepProps) {
   const custom = form.customVibe !== null;
   return (
     <div id={fieldId("vibe")} className="space-y-4">
-      <div role="group" aria-label={t("vibe")} className="relative flex flex-wrap gap-1">
-        <ChipIndicator />
+      <div role="group" aria-label={t("vibe")} className="relative flex flex-wrap gap-1.5">
         {VIBES.map((v) => (
           <Chip key={v.key} variant="text" active={!custom && form.vibe === v.key} onClick={() => patch({ vibe: v.key, customVibe: null })}>
             {format.vibe(v.key)}
@@ -121,34 +125,76 @@ export function VibeStep({ form, patch, errorOf }: StepProps) {
   );
 }
 
-/* ───────────────────────── 2 · Where + when ───────────────────────── */
+/* ───────────────────────── 2 · Got a place? ───────────────────────── */
+
+/**
+ * Two large choices: "I have a place" (the host found it, the crew splits it, an exact price) or "Let's find it together" (a city and a
+ * budget, the crew picks the place). Chosen = black, like every choice of yours.
+ */
+export function PlaceStep({ form, patch, errorOf }: StepProps) {
+  const t = useTranslations("create.flow");
+  const options = [
+    { value: "set" as const, icon: KeyRound, title: t("placeSetTitle"), text: t("placeSetText") },
+    { value: "together" as const, icon: Users, title: t("placeTogetherTitle"), text: t("placeTogetherText") },
+  ];
+  return (
+    <div id={fieldId("placeMode")} className="space-y-3">
+      <div role="radiogroup" aria-label={t("placeSetTitle")} className="grid gap-3 sm:grid-cols-2">
+        {options.map(({ value, icon: Icon, title, text }) => {
+          const chosen = form.placeMode === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              onClick={() => patch({ placeMode: value, ...(value === "set" ? { budgetTbd: false } : {}) })}
+              className={cn(
+                "press flex min-h-44 flex-col items-start gap-3 rounded-3xl border p-6 text-left transition-colors duration-150",
+                chosen ? "border-transparent bg-ink text-white" : "border-ink/12 text-ink hover:bg-ink/5",
+              )}
+            >
+              <Icon className={cn("size-6", chosen ? "text-white" : "text-muted")} aria-hidden />
+              <span className="text-h3">{title}</span>
+              <span className={cn("text-body", chosen ? "text-white/75" : "text-muted")}>{text}</span>
+            </button>
+          );
+        })}
+      </div>
+      <ErrorLine text={errorOf("placeMode")} />
+    </div>
+  );
+}
+
+/* ───────────────────────── 3 · Where + when ───────────────────────── */
 
 /** The place search; once there's a place, it stands as a chip (a tap searches again). The months follow. */
 export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepProps & { /** "" before hydration */ today: string; editing: boolean }) {
   const t = useTranslations("create.house");
+  const tFlow = useTranslations("create.flow");
   const format = useFormatter();
+  const monthLong = useMonthName();
   const id = useId();
   const months = today ? upcomingMonths(new Date(`${today}T00:00:00Z`)) : [];
   const exact = form.datesMode === "exact";
-  const bounds = monthBounds(form.month, today);
+  const bounds = monthBounds(form.month, today, form.monthEnd);
   const placeName = [form.city.trim(), form.region.trim()].filter(Boolean).join(", ");
   return (
     <div className="space-y-6">
       <div id={fieldId("region")}>
         {form.region.trim() ? (
-          <Chip active size="lg" onClick={() => patch({ region: "", city: "" })} aria-label={t("changePlace", { place: placeName })}>
+          <Chip active size="lg" onClick={() => patch({ region: "", city: "" })} aria-label={tFlow("changePlace", { place: placeName })}>
             <span className="flex items-center gap-1.5">
+              <MapPin className="size-4" aria-hidden />
               {placeName}
               <X className="size-3.5" aria-hidden />
             </span>
           </Chip>
         ) : (
-          <PlaceCombobox
+          <PlaceSearch
             id={`${id}-place`}
-            label={t("where")}
-            placeholder={t("wherePlaceholder")}
-            onPick={(place) => {
-              patch(formPlaceOf(place));
+            onPick={(pick) => {
+              patch(pick.kind === "place" ? formPlaceOf(pick.place) : { region: pick.text.slice(0, 80), city: "" });
               touch("region");
             }}
           />
@@ -161,21 +207,30 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepP
           {exact ? (
             <ExactDates form={form} patch={patch} errorOf={errorOf} touch={touch} today={today} />
           ) : (
-            // Six by two; on phones three per row.
-            <div id={fieldId("month")} className="relative grid grid-cols-3 gap-1 sm:grid-cols-6">
-              <ChipIndicator />
-              {months.map((month, i) => (
-                <Chip key={month} variant="text" active={form.month === month} onClick={() => patch({ month })} className="w-full justify-center px-1!">
-                  <MonthName year={newYearOf(months, i)}>{shortMonth(format, month, false)}</MonthName>
-                </Chip>
-              ))}
+            // One row of the next 12 months (six per row on phones); the year small above the first month of a new one, never in the chip.
+            // Several months in a row can be picked; picked = black.
+            <div id={fieldId("month")} className="grid grid-cols-6 gap-x-1.5 gap-y-2 md:grid-cols-12">
+              {months.map((month, i) => {
+                const last = form.monthEnd || form.month;
+                const picked = Boolean(form.month) && month >= form.month && month <= last;
+                return (
+                  <div key={month} className="flex min-w-0 flex-col">
+                    <span aria-hidden className="block h-4 text-eyebrow text-muted">
+                      {newYearOf(months, i)}
+                    </span>
+                    <Chip active={picked} size="sm" aria-label={monthLong(month)} onClick={() => patch(nextMonthRun(month, form.month, form.monthEnd, months))} className="mt-1 w-full justify-center px-0!">
+                      {shortMonth(format, month, false)}
+                    </Chip>
+                  </div>
+                );
+              })}
             </div>
           )}
           <div className="mt-2 space-y-2">
             <ErrorLine text={errorOf("month")} />
             {form.datesMode !== "crew" && (
-              <Button variant="tertiary" onClick={() => patch({ datesMode: exact ? "month" : "exact" })}>
-                {exact ? t("justMonth") : t("exactDates")}
+              <Button variant="tertiary" className="-ml-4" onClick={() => patch({ datesMode: exact ? "month" : "exact" })}>
+                {exact ? tFlow("justMonths") : tFlow("exactDates")}
               </Button>
             )}
           </div>
@@ -234,20 +289,8 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
   const tVerify = useTranslations("verification");
   return (
     <div className="space-y-8">
-      <div id={fieldId("spotsTotal")}>
-        <Group label={t("crewSizeQuestion")}>
-          <SegmentedControl
-            label={t("crewSizeQuestion")}
-            className="max-w-130"
-            value={form.spotsTotal}
-            onChange={(spots) => patch({ spotsTotal: spots })}
-            options={Array.from({ length: SPOTS_MAX - SPOTS_MIN + 1 }, (_, i) => SPOTS_MIN + i)
-              .filter((n) => n >= minSpots)
-              .map((n) => ({ value: n, label: String(n) }))}
-          />
-        </Group>
-        {errorOf("spotsTotal") && <div className="mt-2"><ErrorLine text={errorOf("spotsTotal")} /></div>}
-      </div>
+      <CrewSize form={form} patch={patch} minSpots={minSpots} />
+      {errorOf("spotsTotal") && <ErrorLine text={errorOf("spotsTotal")} />}
       {/* The waitlist behind a full House – a detail for later, so only when editing. */}
       {editing && (
         <Group label={t("waitlistMax")}>
@@ -270,7 +313,89 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
           <Switch on={form.verifiedGuestsOnly} label={tVerify("verifiedOnly")} onChange={(verifiedGuestsOnly) => patch({ verifiedGuestsOnly })} />
         </div>
       )}
-      <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
+      {locked ? (
+        <p className="text-body text-muted">{t("lockedNote")}</p>
+      ) : form.placeMode === "set" ? (
+        <SetPrice form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />
+      ) : (
+        <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * "People, including you": chips 2–8 and "More", which opens a number field without an upper limit. From 20 people a quiet hint (it
+ * blocks nothing). Editing never goes below who's in.
+ */
+function CrewSize({ form, patch, minSpots }: { form: FormState; patch: Patch; minSpots: number }) {
+  const t = useTranslations("create.flow");
+  const chips = Array.from({ length: SPOTS_CHIPS_MAX - SPOTS_MIN + 1 }, (_, i) => SPOTS_MIN + i).filter((n) => n >= minSpots);
+  const [more, setMore] = useState(form.spotsTotal > SPOTS_CHIPS_MAX);
+  return (
+    <div id={fieldId("spotsTotal")}>
+      <Group label={t("people")}>
+        <div role="radiogroup" aria-label={t("people")} className="flex flex-wrap items-center gap-1.5">
+          {chips.map((n) => (
+            <Chip
+              key={n}
+              role="radio"
+              aria-checked={!more && form.spotsTotal === n}
+              active={!more && form.spotsTotal === n}
+              onClick={() => {
+                setMore(false);
+                patch({ spotsTotal: n });
+              }}
+              className="min-w-11 justify-center"
+            >
+              {n}
+            </Chip>
+          ))}
+          <Chip role="radio" aria-checked={more} active={more} onClick={() => setMore(true)}>
+            {t("more")}
+          </Chip>
+          {more && (
+            <input
+              autoFocus
+              inputMode="numeric"
+              aria-label={t("moreLabel")}
+              value={form.spotsTotal > 0 ? String(form.spotsTotal) : ""}
+              onChange={(e) => patch({ spotsTotal: Number(e.target.value.replace(/\D/g, "")) || 0 })}
+              className={cn(formInput, "w-24 tabular-nums")}
+            />
+          )}
+        </div>
+      </Group>
+      {form.spotsTotal >= SPOTS_BIG && <p className="mt-2 text-small text-muted">{t("bigHouse")}</p>}
+    </div>
+  );
+}
+
+/** "I have a place": the total and (optional) the listing; live under it the equal share, and what a guest adds (config/policies). */
+function SetPrice({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
+  const t = useTranslations("create.flow");
+  const format = useFormat();
+  const share = placeShare(form);
+  const fee = share ? Math.round((share.share * FEE_MODEL.serviceFeePercent) / 100) : 0;
+  return (
+    <div className="space-y-5">
+      <div id={fieldId("totalPrice")} className="grid grid-cols-[minmax(0,1fr)_128px] gap-3">
+        <FormField label={t("totalPrice")} error={errorOf("totalPrice")}>
+          <AmountInput value={form.totalPrice} onChange={(v) => patch({ totalPrice: v })} currency={currency} label={t("totalPrice")} invalid={Boolean(errorOf("totalPrice"))} onBlur={() => touch("totalPrice")} />
+        </FormField>
+        <FormField label={t("currency")}>
+          <Combobox aria-label={t("currency")} value={currency} options={CURRENCIES.map((code) => ({ value: code, label: code }))} onPick={(option) => patch({ currency: option.value as Currency })} />
+        </FormField>
+      </div>
+      {share && (
+        <div aria-live="polite">
+          <p className="text-h3 tabular-nums text-ink">{t("perPerson", { share: format.price(share.share, currency) })}</p>
+          <p className="mt-1 text-small text-muted">{t("guestFee", { percent: FEE_MODEL.serviceFeePercent, fee: format.price(fee, currency) })}</p>
+        </div>
+      )}
+      <FormField label={t("placeLink")}>
+        <input inputMode="url" value={form.placeLink} onChange={(e) => patch({ placeLink: e.target.value })} placeholder={t("placeLinkPlaceholder")} className={formInput} />
+      </FormField>
     </div>
   );
 }
@@ -298,8 +423,8 @@ function AmountInput({ id, value, onChange, currency, label, invalid, onBlur }: 
 
 function BudgetFields({ form, patch, errorOf, touch, currency, locked, allowOpen }: StepProps & { currency: Currency; locked: boolean; /** Houses opened with no budget keep that choice when edited; new ones always say a range */ allowOpen: boolean }) {
   const t = useTranslations("create.house");
-  const format = useFormat();
-  const scale = BUDGET_SCALE[currency];
+  const tFlow = useTranslations("create.flow");
+  const scale = budgetScaleOf(currency);
   const empty = !form.budgetMin && !form.budgetMax;
 
   // Fresh budget: start from the currency's typical range, so the slider and the fields agree from the first look.
@@ -310,14 +435,10 @@ function BudgetFields({ form, patch, errorOf, touch, currency, locked, allowOpen
 
   if (locked) return <p className="text-body text-muted">{t("lockedNote")}</p>;
 
-  const clamp = (n: number) => Math.min(Math.max(n, scale.min), scale.max);
-  const low = Number(form.budgetMin) || scale.start[0];
-  const high = Number(form.budgetMax) || scale.start[1];
-  const sliderValue: [number, number] = [clamp(Math.min(low, high)), clamp(Math.max(low, high))];
   const currencies = CURRENCIES.map((code) => ({ value: code, label: code }));
 
   return (
-    <Group label={t("budgetLabel")}>
+    <Group label={tFlow("budget")}>
       {allowOpen && (
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-body text-ink">{t("decideTogether")}</span>
@@ -336,19 +457,12 @@ function BudgetFields({ form, patch, errorOf, touch, currency, locked, allowOpen
               onPick={(option) => {
                 // Another currency means another scale – the range starts over at its defaults.
                 const next = option.value as Currency;
-                if (next !== currency) patch({ currency: next, budgetMin: String(BUDGET_SCALE[next].start[0]), budgetMax: String(BUDGET_SCALE[next].start[1]) });
+                if (next !== currency) patch({ currency: next, budgetMin: String(budgetScaleOf(next).start[0]), budgetMax: String(budgetScaleOf(next).start[1]) });
               }}
             />
           </div>
-          <RangeSlider
-            min={scale.min}
-            max={scale.max}
-            step={scale.step}
-            value={sliderValue}
-            onChange={([min, max]) => patch({ budgetMin: String(min), budgetMax: String(max) })}
-            labels={[t("budgetFrom"), t("budgetTo")]}
-            formatValue={(n) => format.price(n, currency)}
-          />
+          {/* No absolute top: the amounts are typed. A wide range only gets a hint, never an error. */}
+          {Number(form.budgetMin) > 0 && Number(form.budgetMax) > Number(form.budgetMin) * BUDGET_SPREAD_MAX && <p className="text-small text-muted">{tFlow("budgetSpread")}</p>}
           <ErrorLine text={errorOf("budget")} />
         </div>
       )}
@@ -356,7 +470,69 @@ function BudgetFields({ form, patch, errorOf, touch, currency, locked, allowOpen
   );
 }
 
-/* ───────────────────────── 4 · Cover + title ───────────────────────── */
+/* ───────────────────────── 6 · Make it stand out (optional) ───────────────────────── */
+
+/** How many of "Make it stand out"'s six are there – "Optional details · N of 6 added". */
+export function extrasAdded(form: FormState): number {
+  const done: Record<ExtraKey, boolean> = {
+    description: form.whyText.trim() !== "",
+    placePhoto: form.accommodationPhoto !== "",
+    languages: form.languages.length > 0,
+    who: form.who === "women",
+    age: form.ageKey !== "",
+    rules: form.rulesText.trim() !== "",
+  };
+  return EXTRAS.filter((key) => done[key]).length;
+}
+
+/** Optional, all on one screen: the description, photos of the place, languages, who, the crew's age and the house rules. */
+export function ExtrasStep({ form, patch }: StepProps) {
+  const t = useTranslations("create.flow");
+  return (
+    <div className="space-y-8">
+      <FormField label={t("description")}>
+        <AutoTextarea rows={3} value={form.whyText} onChange={(e) => patch({ whyText: e.target.value })} placeholder={t("descriptionPlaceholder")} />
+      </FormField>
+      <Group label={t("placePhoto")}>
+        <PlacePhoto value={form.accommodationPhoto} onChange={(accommodationPhoto) => patch({ accommodationPhoto })} />
+      </Group>
+      <Group label={t("languages")}>
+        <LanguageInput languages={form.languages} onChange={(languages) => patch({ languages })} />
+      </Group>
+      <div className="grid gap-8 sm:grid-cols-2">
+        <Group label={t("who")}>
+          <SegmentedControl
+            label={t("who")}
+            value={form.who === "women" ? "women" : null}
+            onChange={(who) => patch({ who: who === "women" ? "women" : "mixed" })}
+            options={[
+              { value: null, label: t("whoMixed") },
+              { value: "women", label: t("whoWomen") },
+            ]}
+          />
+        </Group>
+        <Group label={t("age")}>
+          <SegmentedControl
+            label={t("age")}
+            value={form.ageKey || null}
+            onChange={(ageKey) => patch({ ageKey: ageKey ?? "" })}
+            options={[
+              { value: null, label: t("ageAny") },
+              { value: "18-25" as const, label: "18–25" },
+              { value: "25-35" as const, label: "25–35" },
+              { value: "35+" as const, label: "35+" },
+            ]}
+          />
+        </Group>
+      </div>
+      <FormField label={t("rules")}>
+        <AutoTextarea rows={3} value={form.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} placeholder={t("rulesPlaceholder")} />
+      </FormField>
+    </div>
+  );
+}
+
+/* ───────────────────────── 5 · Cover + title ───────────────────────── */
 
 const COVER_MAX_WIDTH = 1600;
 
@@ -416,7 +592,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
               setDragging(false);
               void add(e.dataTransfer.files);
             }}
-            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150", dragging ? selectedSurface : "bg-ink/5 hover:bg-ink/8")}
+            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150", dragging ? "bg-ink/10" : "bg-ink/5 hover:bg-ink/8")}
           >
             <ImagePlus className="size-6 text-muted" aria-hidden />
             <span className="text-body font-semibold text-ink">{t("drop")}</span>

@@ -399,9 +399,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const panelActive = <ActiveFilters filters={filters} onChange={update} currency={currency} withCategory />;
   const panelFooter = (close: () => void) => (
     <>
-      <Button variant="tertiary" size="md" onClick={clearPanel} className="-ml-4" disabled={panelCount === 0 && filters.vibes.length === 0}>
-        {tf("clearAll")}
-      </Button>
+      {/* Only when something is set; otherwise the primary keeps its place on the right. */}
+      {panelCount > 0 || filters.vibes.length > 0 ? (
+        <Button variant="tertiary" size="md" onClick={clearPanel} className="-ml-4">
+          {tf("clearAll")}
+        </Button>
+      ) : (
+        <span />
+      )}
       {/* The panel's one primary: it only closes – the filters apply live. */}
       <Button variant="primary" size="md" onClick={close}>
         {/* The number rolls to each new count. */}

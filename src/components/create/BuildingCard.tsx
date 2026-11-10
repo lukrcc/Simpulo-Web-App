@@ -4,8 +4,6 @@ import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useRef } from "react";
 import { CardTab } from "@/components/ui/CardTab";
-import { CrewAvatars } from "@/components/ui/CrewAvatars";
-import { CrewLine } from "@/components/ui/CrewLine";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
 import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
 import { Img } from "@/components/ui/Img";
@@ -28,8 +26,9 @@ function Reveal({ ready, width, className, children }: { ready: boolean; width: 
  * Open a House's preview, building itself up. It starts as a soft surface with only the host's tab and a placeholder bar per line; each
  * answer takes its line's place, the cover fades in over the surface. Prices are in the House's own currency, not the viewer's.
  */
-export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean }) {
+export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates, placeLabel = null }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean; /** "Place booked" / "Picking together" under the price */ placeLabel?: string | null }) {
   const t = useTranslations("explore");
+  const tFlow = useTranslations("create.flow");
   const format = useFormat();
   const revealRef = useRef<HTMLElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
@@ -56,7 +55,11 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
             <p className="truncate text-small opacity-85">{[showDates ? format.stayDates(stay) : null, stay.region ? format.placeName(stay) : null].filter(Boolean).join(" · ")}</p>
           </Reveal>
           <Reveal ready={showPrice} width="34%" className="mt-1">
-            <p className="truncate text-body font-semibold">{format.priceLabel(stay)}</p>
+            {/* Exact with a place of your own, a range while it's picked together. */}
+            <p className="truncate text-body font-semibold">
+              {format.priceLabel(stay)}
+              {placeLabel && <span className="font-normal opacity-75"> · {placeLabel}</span>}
+            </p>
           </Reveal>
           {stay.hostNote && (
             <p className="reveal-in mt-1 flex items-center gap-1.5 text-small opacity-75">
@@ -65,15 +68,12 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
             </p>
           )}
           <div className="mt-4 flex min-h-7 items-center justify-between gap-3">
+            {/* In the draft: "1 of {crew} · You" – just you so far, no orange. */}
             <Reveal ready={showCrew} width="46%" className="min-w-0 flex-1">
-              {host && cover ? (
-                <CrewAvatars host={host} members={[]} stay={stay} />
-              ) : (
-                <span className="flex min-w-0 items-center gap-2">
-                  {host && <PersonPhoto src={host.photos[0]} alt={host.name} size={28} className="size-7 border-2 border-surface" />}
-                  <CrewLine stay={stay} className="min-w-0 truncate" />
-                </span>
-              )}
+              <span className="flex min-w-0 items-center gap-2">
+                {host && <PersonPhoto src={host.photos[0]} alt={host.name} size={24} className="size-6 border-2 border-surface" />}
+                <span className="min-w-0 truncate text-small">{tFlow("cardCrew", { total: stay.spotsTotal })}</span>
+              </span>
             </Reveal>
             {host && <HostSocialIcons host={host} className={cover ? undefined : "text-ink/60!"} />}
           </div>

@@ -20,8 +20,10 @@ interface SheetProps {
   onBack?: () => void;
   /** Blur and dim everything behind it, trap focus, lock scrolling without a jump (ModalOverlay) */
   focusOverlay?: boolean;
-  /** Above the title, top left (e.g. the app icon); the X stays top right. With it the title is large and wraps. */
+  /** Above the title, top left; the X stays top right. With it the title is large and wraps. */
   lead?: ReactNode;
+  /** The large head (h2 title that wraps) without anything above it – the auth sheet */
+  large?: boolean;
   /** What the title shows instead of the plain text (e.g. with an orange dot); `title` stays its accessible name. */
   titleNode?: ReactNode;
   children: ReactNode;
@@ -53,7 +55,7 @@ export function Sheet(props: SheetProps | (PanelSheetProps & { variant: "panel" 
   return <DialogSheet {...props} />;
 }
 
-function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, titleNode, children }: SheetProps) {
+function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, large = false, titleNode, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
   const titleId = `${id}-title`;
@@ -86,14 +88,14 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   // The same for every modal: 560px, 28px radius, 32px inside, as much below as above.
   const panelClass = "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
 
-  const content = lead ? (
+  const content = lead || large ? (
     <>
       <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line md:hidden" />
       {/* The large head: the lead (app icon) top left, the X top right, the title under the lead, the line under it. */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {lead}
-          <h2 id={titleId} aria-label={title} className="mt-4 text-h2 font-bold text-ink">
+          <h2 id={titleId} aria-label={title} className={cn("text-h2 font-bold text-ink", Boolean(lead) && "mt-4")}>
             {titleNode ?? title}
           </h2>
         </div>

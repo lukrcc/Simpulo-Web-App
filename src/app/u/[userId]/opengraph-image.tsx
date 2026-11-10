@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
+import { OgLogo } from "@/lib/ogCard";
 import { publicName, showsOnHousePages } from "@/config/privacy";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { getHouses, getUsers } from "@/lib/data";
@@ -11,7 +12,6 @@ export const contentType = "image/png";
 
 const PAGE = COLORS.bg;
 const INK = COLORS.ink;
-const ACCENT = COLORS.accent;
 
 /**
  * Photo as a data URI – null when it's missing or unreachable, so the card shows a solid block. Local files
@@ -63,8 +63,8 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
               <div style={{ display: "flex", marginTop: 20, fontSize: 30, color: COLORS.muted }}>{t("hosted", { count: hosted })}</div>
             )}
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 44, fontWeight: 700, letterSpacing: -1 }}>
-            simpulo<span style={{ color: ACCENT }}>.</span>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <OgLogo size={44} />
           </div>
         </div>
       </div>

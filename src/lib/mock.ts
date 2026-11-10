@@ -1,3 +1,4 @@
+import type { CurrencyCode } from './currency';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
@@ -13,7 +14,8 @@ export type Vibe =
   | 'students';
 export type AccommodationStatus = 'open' | 'locked';
 /** Currencies a host can price a House in. */
-export type Currency = 'EUR' | 'USD' | 'IDR' | 'GBP' | 'AUD' | 'THB';
+/** ISO 4217 – every common one (src/lib/currency.ts). */
+export type Currency = CurrencyCode;
 
 // booked = paid + booking confirmed; closed = host ended it early; draft_unclaimed = prepared by Simpulo for someone
 // who hasn't claimed it yet (no host, never listed – see Stay.claim)
