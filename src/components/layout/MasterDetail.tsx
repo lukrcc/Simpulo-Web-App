@@ -15,7 +15,7 @@ interface MasterDetailProps {
   detailFill?: boolean;
   /** Desktop: the list column is a fixed 380px and the detail takes the rest (Houses), instead of 4/12 + 8/12. */
   fixedList?: boolean;
-  /** Messages: the window's whole height under the bar, no margins, no footer; the list is 380px, the detail reaches the window's edge. The list scrolls itself. */
+  /** Messages: the window's whole height under the bar, no footer; the list 380px with 24px inside on both sides, the detail edge to edge (top, right, bottom), every corner square. The list scrolls itself. */
   fullHeight?: boolean;
 }
 
@@ -30,11 +30,15 @@ const column = "split:scroll-pane split:h-full split:min-h-0";
 export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false, fullHeight = false }: MasterDetailProps) {
   if (fullHeight) {
     return (
-      <div data-app-pane="desktop" className="split:-mt-4 split:grid split:h-[calc(100dvh-var(--header-h)-var(--band-h))] split:grid-cols-[calc(var(--list-gutter)+380px)_minmax(0,1fr)] split:overflow-hidden [--list-gutter:max(var(--page-margin),calc((100vw-1680px)/2))]">
-        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:pt-8 split:mx-0 split:flex split:h-full split:min-h-0 split:w-auto split:flex-col split:pb-4 split:pl-(--list-gutter) split:pr-3 split:pt-3">
+      // The list: 24px inside on both sides (beyond 1680px its left edge stays on the container's); the chat edge to edge – right under the
+      // header's bar, to the window's right and bottom edges – every corner square.
+      <div data-app-pane="desktop" className="split:-mt-4 split:grid split:h-[calc(100dvh-var(--header-h)-var(--band-h))] split:grid-cols-[calc(var(--list-gutter)+404px)_minmax(0,1fr)] split:overflow-hidden [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
+        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:pt-8 split:mx-0 split:flex split:h-full split:min-h-0 split:w-auto split:flex-col split:pb-4 split:pl-(--list-gutter) split:pr-6 split:pt-4">
           {list}
         </div>
-        <div className="hidden min-w-0 split:block split:h-full split:min-h-0">{detail}</div>
+        <div className="hidden min-w-0 split:block split:h-full split:min-h-0">
+          <div className="h-full min-h-0 overflow-hidden">{detail}</div>
+        </div>
       </div>
     );
   }

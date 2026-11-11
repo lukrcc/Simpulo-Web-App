@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { BAND_HEIGHT } from "@/lib/appMode";
-import { NOTCH_OPEN_TOTAL, registerNotchFilters, setNotchAuto, useNotchState } from "@/lib/notchState";
+import { NOTCH_CORNER_GAP, NOTCH_CORNER_W, NOTCH_OPEN_TOTAL, NOTCH_SLOT_INSET, registerNotchFilters, setNotchAuto, useNotchState } from "@/lib/notchState";
 import { cn } from "@/lib/utils";
 
 /*
- * Open Houses' filters, from md. In the page: a plain row under the section's heading that doesn't stick (Where? + When? + Short trips |
- * chips 32px, as many as fit whole, the last place always "More ▾"); Sort and Filters sit beside the heading. In the tab: all of it in one row.
+ * Open Houses' filters, from md – the one filter row of Explore. In the page: a plain row 24px under the grid's head that doesn't stick (Where · When +
+ * Short trips | the categories, as many as fit whole, then "More ▾" | "All filters"); the sort sits on the head's right. In the tab: all of it in one row.
  * Once it has gone under the header the header's tab takes over with the same controls and the same state, until the grid's
  * bottom edge reaches the tab. Only one of the two is ever showing.
  */
@@ -42,11 +43,17 @@ export function scrollUnderHeader(el: HTMLElement | null) {
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
 }
 
-export function ExploreFilterBar({ fields, chips, controls, gridEndRef, handle }: { /** Sort and Filters: only in the header's tab; on the page they sit beside the section's title */ /** Where? and When?, before the chips */ fields?: ReactNode; chips: ReactNode; controls: ReactNode; gridEndRef: RefObject<HTMLDivElement | null>; /** The tab's handle: Explore itself */ handle: boolean }) {
+export function ExploreFilterBar({ fields, chips, controls, corner, pageEnd, gridEndRef, handle }: { /** The page's row only: its last element ("All filters" as an ink capsule) */ pageEnd?: ReactNode; /** The tab only: its right corner filled by a block ("All filters"); the row stops 16px before it */ corner?: ReactNode; /** Sort and Filters: only in the header's tab; on the page they sit beside the section's title */ /** Where? and When?, before the chips */ fields?: ReactNode; chips: ReactNode; controls: ReactNode; gridEndRef: RefObject<HTMLDivElement | null>; /** The tab's handle: Explore itself */ handle: boolean }) {
   const startRef = useRef<HTMLDivElement>(null);
-  const { chips: tabHasChips, slot } = useNotchState();
+  const { chips: tabHasChips, slot: tabSlot, cornerSlot: tabCorner } = useNotchState();
+  // The header's tab (docking, the handle, the corner block) only on Explore itself: / and /explore. Elsewhere the row stays in the page.
+  const pathname = usePathname();
+  const docks = pathname === "/" || pathname === "/explore";
+  const slot = docks ? tabSlot : null;
+  const cornerSlot = docks ? tabCorner : null;
 
   useEffect(() => {
+    if (!docks) return;
     const start = startRef.current;
     const end = gridEndRef.current;
     if (!start || !end) return;
@@ -84,22 +91,29 @@ export function ExploreFilterBar({ fields, chips, controls, gridEndRef, handle }
       observers.forEach((observer) => observer.disconnect());
       unregister();
     };
-  }, [gridEndRef, handle]);
+  }, [gridEndRef, handle, docks]);
 
-  const row = (withControls: boolean) => (
+  const row = (inTab: boolean) => (
     <>
-      {fields && <div className="flex min-w-0 shrink-0 items-center gap-1">{fields}</div>}
+      {fields && <div className="flex min-w-0 shrink-0 items-center gap-2">{fields}</div>}
       <div className="min-w-0 flex-1">{chips}</div>
-      {withControls && <div className="flex shrink-0 items-center gap-1">{controls}</div>}
+      {inTab ? <div className="flex shrink-0 items-center gap-1">{controls}</div> : pageEnd && <div className="flex shrink-0 items-center">{pageEnd}</div>}
     </>
   );
   return (
     <>
-      <div data-explore-filter-row className={cn("mt-4 hidden h-8 items-center gap-6 md:flex", tabHasChips && "invisible")}>
+      <div data-explore-filter-row className={cn("mt-6 hidden h-11 items-center gap-6 md:flex", docks && tabHasChips && "invisible")}>
         {row(false)}
       </div>
       <div ref={startRef} aria-hidden className="h-0" />
-      {slot && createPortal(<div className="flex h-full items-center gap-6">{row(true)}</div>, slot)}
+      {slot &&
+        createPortal(
+          <div className="flex h-full items-center gap-6" style={corner ? { paddingRight: NOTCH_CORNER_W + NOTCH_CORNER_GAP - NOTCH_SLOT_INSET } : undefined}>
+            {row(true)}
+          </div>,
+          slot,
+        )}
+      {corner && cornerSlot && createPortal(corner, cornerSlot)}
     </>
   );
 }

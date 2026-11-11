@@ -2,6 +2,7 @@
 
 // The current user's payout account and identity check, kept fresh while the provider is still looking (every 1.5s).
 import { useCallback, useEffect, useState } from "react";
+import { useFeatureFlag } from "../featureFlags";
 import { getCurrentUser, useStore } from "../store";
 import { payments } from "./index";
 import type { IdentityStatus, PayoutAccountStatus } from "./types";
@@ -34,7 +35,10 @@ function usePolled<T>(read: (() => Promise<T>) | null, busy: (value: T) => boole
 /** The payout account: "none" | "pending" | "action_required" | "active" (null while it's read). */
 export function usePayoutAccount(): { status: PayoutAccountStatus | null; last4?: string; refresh: () => void } {
   const me = useStore().currentUserId;
-  const read = useCallback(() => (me ? payments.getPayoutAccountStatus(me) : Promise.resolve({ status: "none" as const })), [me]);
+  // The Dev menu's "Host without payouts" changes the answer: read again when it's switched.
+  const withoutPayouts = useFeatureFlag("simulateHostWithoutPayouts");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- withoutPayouts only re-reads
+  const read = useCallback(() => (me ? payments.getPayoutAccountStatus(me) : Promise.resolve({ status: "none" as const })), [me, withoutPayouts]);
   const [account, refresh] = usePolled(me ? read : null, (a) => a.status === "pending");
   return { status: account?.status ?? null, last4: account?.last4, refresh };
 }

@@ -1,16 +1,17 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { subscribeViewerCurrency, viewerCurrencySnapshot } from "./currency";
+import { serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot } from "./currency";
 import { getCurrentUser, useStore } from "./store";
 import type { Currency } from "./types";
 
 /**
- * The viewer's currency: their profile setting; else what they picked in this browser (the footer, Settings); on a first visit what the
- * browser's locale suggests (saved then). EUR on the server and during hydration, so the static HTML is one currency.
+ * The viewer's currency (order in src/lib/currency.ts): their own pick in this browser > the profile setting (logged in) > the country the
+ * server saw > the device's time zone > a language tag with a country > EUR. EUR on the server and during hydration, so the static HTML is
+ * one currency.
  */
 export function usePreferredCurrency(): Currency {
   const me = getCurrentUser(useStore());
-  const local = useSyncExternalStore(subscribeViewerCurrency, viewerCurrencySnapshot, () => "EUR" as Currency);
-  return me?.preferredCurrency ?? local;
+  const { manual, detected } = useSyncExternalStore(subscribeViewerCurrency, viewerCurrencySnapshot, serverViewerCurrencySnapshot);
+  return manual ?? me?.preferredCurrency ?? detected;
 }

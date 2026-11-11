@@ -1,5 +1,6 @@
 "use client";
 
+import { useFeatureFlag } from "@/lib/featureFlags";
 import { ChevronRight, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
@@ -287,6 +288,8 @@ const earliest = (today: string) => {
 export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
   const t = useTranslations("create.house");
   const tVerify = useTranslations("verification");
+  // Host fees exist only with the feature (hostPremium).
+  const hostFees = useFeatureFlag("hostPremium");
   return (
     <div className="space-y-8">
       <CrewSize form={form} patch={patch} minSpots={minSpots} />
@@ -319,6 +322,37 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
         <SetPrice form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />
       ) : (
         <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
+      )}
+      {!locked && hostFees && <HostFeeField form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />}
+    </div>
+  );
+}
+
+/**
+ * "Host fee per guest (optional)" under the price: for hosts who lead the House (coaching, a program, guiding), shown to guests as its own
+ * line. Live what the host keeps per guest after Simpulo's cut (FEE_MODEL.hostFeeCommissionPercent). Empty = no host fee.
+ */
+function HostFeeField({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
+  const t = useTranslations("create.flow");
+  const format = useFormat();
+  const fee = form.hostExperience === "program" ? Math.round(Number(form.hostFee)) || 0 : 0;
+  return (
+    <div id={fieldId("hostFee")} className="space-y-2">
+      <FormField label={t("hostFee")} error={errorOf("hostFee")}>
+        <AmountInput
+          value={form.hostExperience === "program" ? form.hostFee : ""}
+          onChange={(v) => patch({ hostFee: v, hostExperience: Number(v) > 0 ? "program" : "rent" })}
+          currency={currency}
+          label={t("hostFee")}
+          invalid={Boolean(errorOf("hostFee"))}
+          onBlur={() => touch("hostFee")}
+        />
+      </FormField>
+      <p className="text-small text-muted">{t("hostFeeHint")}</p>
+      {fee > 0 && (
+        <p className="text-body font-medium text-ink" aria-live="polite">
+          {t("hostFeeEarn", { amount: format.price(hostProgrammeEarning(fee), currency), percent: FEE_MODEL.hostFeeCommissionPercent })}
+        </p>
       )}
     </div>
   );
@@ -1078,7 +1112,7 @@ export function ProfileNote({ me }: { me?: User }) {
     <p role="alert" className="flex flex-wrap items-center gap-3 text-small text-red-600">
       <Avatar user={me} size="sm" />
       {t("hint", { items: missing.join(" & ") })}
-      <Button variant="tertiary" href="/profile/edit">
+      <Button variant="tertiary" href="/settings/profile">
         {t("edit")}
       </Button>
     </p>

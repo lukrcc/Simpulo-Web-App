@@ -21,6 +21,7 @@ export type {
   HouseInviteStatus,
   Reaction,
   Report,
+  HouseVibe,
   ReportReason,
   NotificationGroup,
   Payment,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { inputStyles, textareaStyles } from "@/components/ui/Input";
 import type { ReactNode } from "react";
 import { cardClass } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -83,14 +84,16 @@ interface FormFieldProps {
   prominent?: boolean;
   id?: string;
   children: ReactNode;
+  /** The label for screen readers only (a row whose icon already says it) */
+  srOnlyLabel?: boolean;
 }
 
-export function FormField({ label, optional = false, helper, error, group = false, aside, prominent = false, id, children }: FormFieldProps) {
+export function FormField({ label, optional = false, helper, error, group = false, aside, prominent = false, srOnlyLabel = false, id, children }: FormFieldProps) {
   const t = useTranslations("common.ui.form");
   const Wrapper = group ? "div" : "label";
   return (
     <Wrapper id={id} className="block scroll-mt-[calc(var(--header-h)+32px)]" {...(group ? { role: "group", "aria-label": label } : {})}>
-      <span className="mb-1.5 flex items-baseline justify-between gap-3">
+      <span className={cn("mb-1.5 flex items-baseline justify-between gap-3", srOnlyLabel && "sr-only")}>
         <span className={prominent ? "text-body font-medium text-ink" : "text-small text-muted"}>{label}</span>
         {aside ?? (optional && <span className="text-small text-muted">{t("optional")}</span>)}
       </span>
@@ -106,15 +109,10 @@ export function FormField({ label, optional = false, helper, error, group = fals
   );
 }
 
-/**
- * The one field style of the app: 44px, rounded-xl, a soft warm tint without a frame, accent focus ring, ink 15px
- * text (red ring when aria-invalid). For inputs, native selects and field-like triggers (Combobox, date range).
- * Numbers are typed (inputMode="numeric") – never steppers; the global CSS hides number spinners.
- */
-export const formInput =
-  "h-11 w-full rounded-xl bg-ink/5 px-4 text-body text-ink outline-none transition-shadow placeholder:text-muted focus:ring-2 focus:ring-ink/25 disabled:cursor-not-allowed disabled:text-muted aria-invalid:ring-2 aria-invalid:ring-red-300";
+/** The one field style – defined in ui/Input.tsx (inputStyles); these names stay for the forms that already use them. */
+export const formInput = inputStyles;
 /** Textarea variant: grows from `rows` (auto-grow is up to the caller). */
-export const formTextarea = cn(formInput, "h-auto resize-none py-2.5 leading-relaxed");
+export const formTextarea = textareaStyles;
 
 /**
  * Sticky footer bar inside the form column (above the safe area on phones, 16px off the bottom on desktop): Back /

@@ -1,5 +1,6 @@
 "use client";
 
+import { yourPeople } from "./yourPeople";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
 import { useFeatureFlag } from "./featureFlags";
@@ -138,6 +139,8 @@ type StoreAction =
   | { type: "updateCurrentUser"; patch: ProfilePatch }
   | {
       type: "createStay";
+      /** "Invite by link": the token of a link made with the House */
+      linkToken?: string;
       stay: Omit<Stay, "hostId">;
       attribution: Attribution;
       /** People from the host's past crews to invite (each holds a spot until they answer) */
@@ -205,6 +208,7 @@ type StoreAction =
   | { type: "setNotification"; group: NotificationGroup; channel: NotificationChannel; on: boolean }
   | { type: "unblockUser"; userId: string }
   | { type: "blockUser"; userId: string }
+  | { type: "removePerson"; userId: string }
   | { type: "report"; report: Omit<Report, "reporterId"> }
   | { type: "deleteAccount"; at: string }
   | { type: "settlePayments"; at: string }
@@ -228,6 +232,7 @@ export type ProfilePatch = Partial<
     | "verified"
     | "preferredCurrency"
     | "privacy"
+    | "houseVibe"
   >
 >;
 
@@ -242,7 +247,7 @@ interface StoreActions {
    * answer. `crew.againFrom`: the completed House this one repeats ("Do it again").
    */
   /** Returns the new House's id */
-  createStay: (input: NewStayInput, accommodationIdeas?: string[], crew?: { invite: string[]; againFrom?: string }) => string;
+  createStay: (input: NewStayInput, accommodationIdeas?: string[], crew?: { invite: string[]; againFrom?: string; link?: boolean }) => { id: string; linkToken?: string };
   /** Host only: saves the edited House (slug and crew stay as they are). */
   updateStay: (stayId: string, patch: NewStayInput) => void;
   /** Host only: a draft goes live (listed, taking requests). */
@@ -352,6 +357,8 @@ interface StoreActions {
   unblockUser: (userId: string) => void;
   /** Their Houses and profile are hidden from you, their requests to your Houses auto-declined, direct threads gone. */
   blockUser: (userId: string) => void;
+  /** Out of "Your people" – silently, nobody is told */
+  removePerson: (userId: string) => void;
   /** Mock: queued in `reports` for review. */
   report: (target: Report["target"], reason: ReportReason, text?: string) => void;
   /** Mock: marks the account deleted and logs out (nothing else is removed). */
@@ -474,7 +481,8 @@ function seedPayments(stays: Stay[], requests: JoinRequest[], users: User[]): Pa
  * the bell's dropdown has something to show. Built from Houses and chats that exist in
  * the dataset – a type without a fitting House is skipped. Anything older than two days is read.
  */
-const MOCK_NOW = Date.parse("2026-10-29T08:00:00Z");
+/** The mock inbox's "now": the start of today (UTC) when the data is built – so its newest entries are recent and none is ever in the future. */
+const MOCK_NOW = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
 const MOCK_DAYS = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 9, 10, 11, 12, 14, 15, 17, 18, 20, 21, 24, 26, 28, 31, 34, 37, 40, 43, 47, 51, 55, 60];
 
 function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], threads: Thread[]): AppNotification[] {
@@ -502,7 +510,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
     (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses?tab=past" } : null; },
     (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
-    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/profile/edit", "/faq"] as const)[i % 3] }),
+    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/settings/profile", "/faq"] as const)[i % 3] }),
   ];
 
   return MOCK_DAYS.flatMap((days, i) => {
@@ -529,7 +537,7 @@ function mockCrewInbox(stays: Stay[], requests: JoinRequest[], users: User[], cr
     const due = doItAgainDue(crew);
     if (!stay || Date.parse(due) > MOCK_NOW) return [];
     return crew.memberIds.map((userId) =>
-      seeded({ id: `n-again-${stay.id}-${userId}`, userId, key: "doItAgain", values: { title: stay.title }, createdAt: due, stayId: stay.id, href: `/your-houses/${stay.id}` }),
+      seeded({ id: `n-again-${stay.id}-${userId}`, userId, key: "doItAgain", values: { title: stay.title }, createdAt: due, stayId: stay.id, href: `/h/${stay.id}` }),
     );
   });
   const invites = requests.flatMap((r) => {
@@ -622,7 +630,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 7;
+const MOCK_VERSION = 12;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 
@@ -940,6 +948,19 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
   return next;
 }
 
+/** Invites from Open a House past their 48 hours: the held spot opens to anyone; the invite goes away (they can still ask to join). */
+function expireInvites(state: StoreState, at: string): StoreState {
+  const due = state.joinRequests.filter((r) => r.status === "invited" && r.reservedUntil && r.reservedUntil <= at);
+  if (due.length === 0) return state;
+  const freed = new Map<string, number>();
+  for (const r of due) freed.set(r.stayId, (freed.get(r.stayId) ?? 0) + 1);
+  return {
+    ...state,
+    joinRequests: state.joinRequests.filter((r) => !due.includes(r)),
+    stays: state.stays.map((s) => (freed.has(s.id) ? { ...s, spotsInvited: Math.max(0, (s.spotsInvited ?? 0) - freed.get(s.id)!) || undefined } : s)),
+  };
+}
+
 /** Open requests past their 48 hours become "expired"; the guest gets the same words as for a no. */
 function expireRequests(state: StoreState, at: string): StoreState {
   const due = state.joinRequests.filter((r) => r.status === "pending" && requestExpiresAt(r) <= at);
@@ -1003,7 +1024,7 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
   // The waitlist follows every change and every tick of the clock: offers run out, free spots are offered.
   const synced = moved || applied.joinRequests !== state.joinRequests ? syncWaitlist(settled, at) : settled;
   // Open requests expire after 48h (config/policies.ts): the guest hears it like a no – "didn't work out".
-  const next = moved ? expireRequests(synced, at) : synced;
+  const next = moved ? expireInvites(expireRequests(synced, at), at) : synced;
   if (next.stays === state.stays) return next;
   const stays = withLaunchVisibility(next.stays);
   return stays === next.stays ? next : { ...next, stays };
@@ -1025,9 +1046,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "createStay": {
       if (!me) return state;
       // No thread yet: it starts with the first confirmed join (the host's accommodation ideas open it).
-      // Only people the host lived with (LivedWith), and never more than the spots besides the host's own.
-      const livedWith = new Set(state.livedWith.filter((l) => l.userId === me).map((l) => l.otherUserId));
-      const invited = [...new Set(action.invite)].filter((id) => livedWith.has(id)).slice(0, Math.max(0, action.stay.spotsTotal - 1));
+      // Only the host's people (lived together, both confirmed – lib/yourPeople.ts), never more than the spots besides the host's own.
+      // Each holds a spot for 48h ("Reserved for Anna"); unanswered by then it's open to anyone (expireInvites).
+      const people = new Set(yourPeople(state, me).map((p) => p.user.id));
+      const invited = [...new Set(action.invite)].filter((id) => people.has(id)).slice(0, Math.max(0, action.stay.spotsTotal - 1));
+      const reservedUntil = inviteExpiry(action.stay.createdAt);
       const invites = invited.map<JoinRequest>((userId) => ({
         id: `inv-${action.stay.id}-${userId}`,
         stayId: action.stay.id,
@@ -1035,7 +1058,12 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         message: "",
         status: "invited",
         createdAt: action.stay.createdAt,
+        reservedUntil,
       }));
+      // "Invite by link": one link made with the House, holding a spot for 48h like any invite link.
+      const link: HouseInvite[] = action.linkToken && invited.length < action.stay.spotsTotal - 1
+        ? [{ token: action.linkToken, houseId: action.stay.id, createdAt: action.stay.createdAt, expiresAt: reservedUntil, status: "pending" }]
+        : [];
       const withInvites: StoreState = {
         ...state,
         notifications: notifyInApp(state, invited, "crewInvite", { name: firstNameOf(state, me), title: action.stay.title }, `${action.stay.id}-crew`, action.stay.id),
@@ -1043,11 +1071,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const announced = announceToSearches({ ...withInvites, notifications: notifyHostAlerts(withInvites, me, action.stay) }, { ...action.stay, hostId: me });
       return {
         ...state,
-        stays: [{ ...announced.stay, ...(invited.length > 0 && { spotsInvited: invited.length }) }, ...state.stays],
+        stays: withReservedSpots([{ ...announced.stay, ...(invited.length > 0 && { spotsInvited: invited.length }) }, ...state.stays], [...announced.houseInvites, ...link]),
         joinRequests: [...state.joinRequests, ...invites],
         notifications: announced.notifications,
         threads: announced.threads,
-        houseInvites: announced.houseInvites,
+        houseInvites: [...announced.houseInvites, ...link],
         savedSearches: announced.savedSearches,
         events: [
           ...state.events,
@@ -1496,7 +1524,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const unverified = stay?.verifiedGuestsOnly && !state.users.find((u) => u.id === me)?.verified;
       // An audience House the profile doesn't fit (women only, profile says otherwise): no request. Not given: the host decides.
       const wrongAudience = stay ? audienceFit(stay, state.users.find((u) => u.id === me)) === "blocked" : false;
-      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified || wrongAudience) return state;
+      // Blocked by the host (from a direct chat's "…"): no request to their House.
+      const blockedByHost = stay ? settingsOf(state.users.find((u) => u.id === stay.hostId)).blockedUserIds.includes(me) : false;
+      if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified || wrongAudience || blockedByHost) return state;
       const { id, stayId, message, status, createdAt } = action.request;
       const attribution = attributionFor(state, me, action.request);
       const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me };
@@ -1810,6 +1840,19 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
+    case "removePerson": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          const removed = settings.removedPeopleIds ?? [];
+          return removed.includes(action.userId) ? u : { ...u, settings: { ...settings, removedPeopleIds: [...removed, action.userId] } };
+        }),
+      };
+    }
+
     case "blockUser": {
       if (!me || action.userId === me) return state;
       return {
@@ -1909,7 +1952,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       payments: () => latest.current.payments,
       currencyOf: (houseId) => latest.current.stays.find((s) => s.id === houseId)?.currency ?? "EUR",
       initiallyVerified: (userId) => Boolean(latest.current.users.find((u) => u.id === userId)?.verified),
-      initiallyPaidOut: (userId) => earningsFor(latest.current, userId, new Date().toISOString().slice(0, 10)).payouts.some((p) => p.status === "paid"),
+      // The mock's hosts have their payout account set up already (paid out before, or hosting now – Lukas too); the Dev menu's "Host without
+      // payouts" shows the other state.
+      initiallyPaidOut: (userId) =>
+        earningsFor(latest.current, userId, new Date().toISOString().slice(0, 10)).payouts.some((p) => p.status === "paid") ||
+        latest.current.stays.some((s) => s.hostId === userId && (s.status === "published" || s.status === "booked" || s.status === "completed")),
     });
   }, []);
 
@@ -1936,6 +1983,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // the growth restore below, so restored claims and events land on top of it.
   const mockRestored = useRef(false);
   useEffect(() => {
+    // Once: in development effects run twice, and a second load would land after the growth restore and drop its invite links.
+    if (mockRestored.current) return;
     const dataState = readDataState();
     // What this browser saved for this data state wins over the shipped mock (it started from it).
     const saved = readPersistedMock(dataState);
@@ -1959,6 +2008,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Growth: remember where this browser came from (first touch), bring back what was saved here, clean the URL.
   useEffect(() => {
+    // Read once: in development effects run twice, and the write below has by then put the not-yet-restored state back – a second read
+    // would bring back nothing (invite links lost on every reload).
+    if (growthRestored.current) return;
     firstTouch();
     const saved = readPersistedGrowth();
     if (saved) {
@@ -2038,14 +2090,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateCurrentUser = useCallback((patch: ProfilePatch) => dispatch({ type: "updateCurrentUser", patch }), []);
 
-  const createStay = useCallback((input: NewStayInput, accommodationIdeas: string[] = [], crew: { invite: string[]; againFrom?: string } = { invite: [] }): string => {
+  const createStay = useCallback((input: NewStayInput, accommodationIdeas: string[] = [], crew: { invite: string[]; againFrom?: string; link?: boolean } = { invite: [] }): { id: string; linkToken?: string } => {
     const id = makeId("s");
+    const linkToken = crew.link ? inviteToken() : undefined;
     const now = Date.now();
     const slug = `${slugify(input.title) || "house"}-${id.slice(-4)}`;
     dispatch({
       type: "createStay",
       attribution: firstTouch(),
       invite: crew.invite,
+      linkToken,
       stay: {
         ...input,
         location: locationOf(input.city, input.region),
@@ -2067,7 +2121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         createdAt: new Date(now).toISOString(),
       },
     });
-    return id;
+    return { id, linkToken };
   }, []);
 
   // Flag off, the form never shows the host fee – an edit then keeps whatever fee the House has.
@@ -2299,6 +2353,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (stayId: string, userId: string, asUserId?: string): string => {
       const me = asUserId ?? currentUserId;
       if (!me) return "";
+      // DIRECT_MESSAGE_POLICY: only about a House – guest → its host, or the host → someone who asked or was invited.
+      const stay = stays.find((s) => s.id === stayId);
+      if (!stay) return "";
+      // Blocked either way: no chat.
+      const blocks = (a: string, b: string) => settingsOf(state.users.find((u) => u.id === a)).blockedUserIds.includes(b);
+      if (blocks(me, userId) || blocks(userId, me)) return "";
+      const toHost = userId === stay.hostId && me !== stay.hostId;
+      const fromHost = me === stay.hostId && state.joinRequests.some((r) => r.stayId === stayId && r.userId === userId);
       const existing = threads.find(
         (t) =>
           t.type === "direct" &&
@@ -2307,6 +2369,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           t.participantIds.includes(userId),
       );
       if (existing) return existing.id;
+      if (!toHost && !fromHost) return "";
       const thread: Thread = {
         id: makeId("direct"),
         type: "direct",
@@ -2317,7 +2380,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "createThread", thread });
       return thread.id;
     },
-    [threads, currentUserId],
+    [threads, stays, state.joinRequests, state.users, currentUserId],
   );
 
   const acceptRequest = useCallback(
@@ -2389,6 +2452,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const unblockUser = useCallback((userId: string) => dispatch({ type: "unblockUser", userId }), []);
   const blockUser = useCallback((userId: string) => dispatch({ type: "blockUser", userId }), []);
+  const removePerson = useCallback((userId: string) => dispatch({ type: "removePerson", userId }), []);
   const report = useCallback(
     (target: Report["target"], reason: ReportReason, text?: string) =>
       dispatch({ type: "report", report: { id: makeId("rep"), target, reason, text: text?.trim() || undefined, createdAt: new Date().toISOString() } }),
@@ -2480,12 +2544,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotification,
       unblockUser,
       blockUser,
+      removePerson,
       report,
       deleteAccount,
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2523,7 +2588,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
   const notifications = Object.fromEntries(
     (Object.keys(DEFAULT_NOTIFICATION_PREFS) as (keyof NotificationPrefs)[]).map((key) => [key, { ...DEFAULT_NOTIFICATION_PREFS[key], ...stored[key] }]),
   ) as NotificationPrefs;
-  return { notifications, blockedUserIds: user?.settings?.blockedUserIds ?? [] };
+  return { notifications, blockedUserIds: user?.settings?.blockedUserIds ?? [], removedPeopleIds: user?.settings?.removedPeopleIds ?? [] };
 }
 
 /** The switchable channels of a notification group (in-app is always on). */

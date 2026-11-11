@@ -1,8 +1,9 @@
 "use client";
 
+import { LegalLine } from "@/components/layout/LegalLine";
 import { ChevronRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
@@ -10,9 +11,6 @@ import { MasterDetail } from "@/components/layout/MasterDetail";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
-import { TabBar } from "@/components/ui/TabBar";
-import { NotificationItem } from "@/components/notifications/NotificationItem";
-import { useMessagesUnread, useNotifications } from "@/components/notifications/useNotifications";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
@@ -21,22 +19,27 @@ import { useFormat } from "@/i18n/format";
 import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { listItemStyles } from "@/components/ui/listSelection";
+import { outlineListItemStyles } from "@/components/ui/listSelection";
+import { TabBar } from "@/components/ui/TabBar";
+import { DIRECT_MESSAGE_POLICY } from "@/config/policies";
+import { shortNameOf } from "@/lib/shortName";
 import { cn, housePhotos } from "@/lib/utils";
 
 interface ThreadRow {
   thread: Thread;
   title: string;
-  /** House title for direct chats – searchable too */
+  /** Questions: "about {shortName}" – searchable too */
   subtitle?: string;
-  /** Direct chats: the other person, in a circle */
+  /** Questions: the other person, in a circle */
   avatar?: User;
-  /** House chats: the cover, in a rounded square, with the dates under the title */
+  /** House chats: the cover in a rounded square; questions: the House's small badge on the face */
   cover?: string;
   dates?: string;
-  /** A House chat whose House is over */
+  /** Houses: the House is over. Questions: no new message for DIRECT_MESSAGE_POLICY.archiveAfterDays, or the House is over. */
   past: boolean;
 }
+
+type Tab = "houses" | "questions";
 
 export function InboxList() {
   const t = useTranslations("messages.inbox");
@@ -50,17 +53,13 @@ export function InboxList() {
 const newestFirst = (a: ThreadRow, b: ThreadRow) =>
   (b.thread.messages.at(-1)?.createdAt ?? "").localeCompare(a.thread.messages.at(-1)?.createdAt ?? "");
 
-/** More chats than this, and the search shows (as a magnifier beside the segment). */
+/** More chats than this, and the search shows (as a magnifier beside the tabs). */
 const SEARCH_FROM = 16;
-/** Updates listed at once – the newest. */
-const UPDATES_LIMIT = 100;
-
-type InboxTab = "chats" | "updates";
-
+const DAY_MS = 86_400_000;
 /**
- * /messages – one place for everything that reaches you: "Chats · Updates" at the top of the list (where the search was). Chats: the
- * House chats and direct messages as before. Updates: the notifications (there's no bell and no page of their own). A dot on each
- * segment with something unread; the search only with more than 15 chats, behind a magnifier.
+ * /messages – the chats only, in two text tabs with an underline: "Houses" (the crews' chats) and "Questions" (direct chats, each about one
+ * House – DIRECT_MESSAGE_POLICY), each with the number of unread chats. "Past" folded at the end of each tab. The search only with more than
+ * 15 chats, behind a magnifier.
  */
 function InboxContent() {
   const t = useTranslations("messages.inbox");
@@ -68,54 +67,54 @@ function InboxContent() {
   const me = store.currentUserId;
   const isDesktop = useIsDesktop();
   const params = useSearchParams();
-  const router = useRouter();
   const selectedId = params.get("id");
   const f = useFormat();
-  const unread = useMessagesUnread();
-  const [tab, setTab] = useState<InboxTab>(params.get("tab") === "updates" ? "updates" : "chats");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
-
   const [pastOpen, setPastOpen] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  const [now] = useState(() => Date.now());
+  const today = new Date(now).toISOString().slice(0, 10);
 
-  // Simpulo's own "updates" chat isn't listed: what it says is under Updates.
+  // Simpulo's own "updates" chat isn't listed: what it says is under Your houses › Activity.
   const mine = store.threads.filter((t) => me !== null && t.type !== "updates" && t.participantIds.includes(me));
 
   const rows: ThreadRow[] = mine.flatMap((thread): ThreadRow[] => {
     const stay = store.stays.find((s) => s.id === thread.houseId);
     if (!stay) return [];
+    const over = stay.endDate !== "" && stay.endDate < today;
+    const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
     if (thread.type === "house") {
-      return [{ thread, title: stay.title, cover: housePhotos(stay, findUser(store, stay.hostId))[0], dates: f.shortRange(stay.startDate, stay.endDate), past: stay.endDate !== "" && stay.endDate < today }];
+      return [{ thread, title: stay.title, cover, dates: f.shortRange(stay.startDate, stay.endDate), past: over }];
     }
     const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
     // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
     if (other && isBlocked(store, other.id)) return [];
-    return [{ thread, title: other?.name ?? t("unknown"), subtitle: stay.title, avatar: other, past: false }];
+    const last = thread.messages.at(-1)?.createdAt;
+    const quiet = last !== undefined && now - Date.parse(last) > DIRECT_MESSAGE_POLICY.archiveAfterDays * DAY_MS;
+    return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, past: over || quiet }];
   });
+
+  const houseRows = rows.filter((r) => r.thread.type === "house");
+  const questionRows = rows.filter((r) => r.thread.type !== "house");
+  const unreadOf = (list: ThreadRow[]) => list.filter((r) => !r.past && isThreadUnread(store, r.thread)).length;
+  // ?id= opens the tab its chat is in; otherwise Houses.
+  const selectedRow = rows.find((r) => r.thread.id === selectedId);
+  const [tabChoice, setTab] = useState<Tab | null>(null);
+  const tab: Tab = tabChoice ?? (selectedRow && selectedRow.thread.type !== "house" ? "questions" : "houses");
 
   const canSearch = rows.length >= SEARCH_FROM;
   const q = canSearch ? query.trim().toLowerCase() : "";
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
-  const crews = rows.filter((r) => r.thread.type === "house" && !r.past && matches(r)).toSorted(newestFirst);
-  const direct = rows.filter((r) => r.thread.type !== "house" && matches(r)).toSorted(newestFirst);
-  const past = rows.filter((r) => r.past && matches(r)).toSorted(newestFirst);
-  const ordered = [...crews, ...direct, ...past];
+  const inTab = (tab === "houses" ? houseRows : questionRows).filter(matches);
+  const current = inTab.filter((r) => !r.past).toSorted(newestFirst);
+  const past = inTab.filter((r) => r.past).toSorted(newestFirst);
+  const ordered = [...current, ...past];
 
-  // ?id= wins (deep links, refresh); otherwise the first row.
+  // ?id= wins (deep links, refresh); otherwise the tab's first row.
   const activeId = rows.some((r) => r.thread.id === selectedId) ? selectedId : (ordered[0]?.thread.id ?? null);
 
-  function choose(next: InboxTab) {
-    setTab(next);
-    const url = new URLSearchParams(params.toString());
-    if (next === "updates") url.set("tab", "updates");
-    else url.delete("tab");
-    const search = url.toString();
-    router.replace(search ? `/messages?${search}` : "/messages", { scroll: false });
-  }
-
   const list = (items: ThreadRow[]) => (
-    <ul className="">
+    <ul className="flex flex-col gap-1">
       {items.map((row) => (
         <li key={row.thread.id}>
           <ThreadRowLink row={row} active={isDesktop && row.thread.id === activeId} isDesktop={isDesktop} />
@@ -123,13 +122,6 @@ function InboxContent() {
       ))}
     </ul>
   );
-  const group = (label: string, items: ThreadRow[]) =>
-    items.length > 0 && (
-      <section className="mt-5">
-        <h2 className="mb-1 px-3 text-eyebrow uppercase text-ink/55">{label}</h2>
-        {list(items)}
-      </section>
-    );
   // Folded, unless searching or one of its chats is the open one.
   const showPast = pastOpen || q !== "" || past.some((r) => r.thread.id === activeId);
 
@@ -147,18 +139,18 @@ function InboxContent() {
       />
     ) : (
       <>
-        {group(t("crews"), crews)}
-        {group(t("direct"), direct)}
+        {current.length > 0 && <div className="mt-4">{list(current)}</div>}
+        {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t(tab === "houses" ? "housesEmpty" : "questionsEmpty")}</p>}
         {past.length > 0 && (
           <section className="mt-5">
-            <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 px-3 text-small uppercase text-muted hover:text-ink">
+            <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 text-small uppercase text-muted hover:text-ink">
               <ChevronRight className={cn("size-4 transition-transform duration-200 motion-reduce:transition-none", showPast && "rotate-90")} aria-hidden />
               {t("past")}
             </button>
-            {showPast && list(past)}
+            {showPast && <div className="mt-1">{list(past)}</div>}
           </section>
         )}
-        {ordered.length === 0 && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
+        {ordered.length === 0 && q !== "" && <p className="mt-8 text-center text-small text-muted">{t("noMatch", { query: query.trim() })}</p>}
       </>
     );
 
@@ -170,21 +162,21 @@ function InboxContent() {
         <>
           <div className="flex shrink-0 items-center justify-between gap-2">
             <TabBar
-              label={t("segmentLabel")}
+              label={t("tabsLabel")}
               value={tab}
-              onChange={choose}
+              onChange={setTab}
               options={[
-                { value: "chats", label: t("segmentChats"), dot: unread.chats > 0 },
-                { value: "updates", label: t("segmentUpdates"), dot: unread.updates > 0 },
+                { value: "houses", label: t("tabHouses"), count: unreadOf(houseRows) },
+                { value: "questions", label: t("tabQuestions"), count: unreadOf(questionRows) },
               ]}
             />
-            {tab === "chats" && canSearch && (
+            {canSearch && (
               <IconButton size="sm" aria-label={t("searchLabel")} aria-expanded={searching} onClick={() => setSearching((open) => !open)}>
                 <Search className="size-4" aria-hidden />
               </IconButton>
             )}
           </div>
-          {tab === "chats" && canSearch && searching && (
+          {canSearch && searching && (
             <label className="mt-3 flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-ink/5 px-4 transition-shadow focus-within:ring-2 focus-within:ring-ink/25">
               <Search className="size-4 shrink-0 text-muted" aria-hidden />
               <input
@@ -198,40 +190,14 @@ function InboxContent() {
               />
             </label>
           )}
-          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3">{tab === "chats" ? chats : <UpdatesList />}</div>
+          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3 split:pt-1">{chats}</div>
+          {/* From 1100px Messages has no footer: the legal line at the very bottom of the list (phones keep the footer). */}
+          <LegalLine className="hidden shrink-0 pt-3 split:flex" />
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
     />
-  );
-}
-
-/**
- * Messages › Updates: the notifications as a calm list, newest first – icon, title, one line, the time, the orange dot while unread. A click
- * opens the House (or the chat, or the action) and marks it read; "Mark all as read" small at the top right. No filters.
- */
-function UpdatesList() {
-  const t = useTranslations("notifications");
-  const repo = useNotifications();
-  const items = repo.list({ limit: UPDATES_LIMIT }).items;
-  const unread = repo.unreadCount();
-  if (items.length === 0) return <p className="mt-10 px-3 text-center text-small text-muted">{t("empty")}</p>;
-  return (
-    <section className="mt-3">
-      <div className="flex justify-end px-1">
-        <button type="button" onClick={repo.markAllRead} disabled={unread === 0} className="rounded-full px-2 py-1 text-small font-semibold text-ink transition-colors duration-150 hover:bg-ink/6 disabled:text-muted disabled:hover:bg-transparent">
-          {t("markAll")}
-        </button>
-      </div>
-      <ul className="-mx-2">
-        {items.map((n) => (
-          <li key={n.id}>
-            <NotificationItem notification={n} onRead={repo.markRead} />
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -268,29 +234,34 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={listItemStyles(active, "block rounded-2xl px-3")}
+      className={outlineListItemStyles(active, "block px-6")}
     >
       <span className="flex items-center gap-3 py-3">
-        {cover ? (
-          <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-line">
+        {avatar ? (
+          // Questions: the person in a circle, the House as a small badge at the bottom right.
+          <span className="relative size-12 shrink-0">
+            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={48} className="size-12 bg-line" />
+            {cover && (
+              <span className="absolute -bottom-0.5 -right-0.5 block size-5 overflow-hidden rounded-md ring-2 ring-bg">
+                <Img src={cover} alt="" fill sizes="20px" className="object-cover" />
+              </span>
+            )}
+          </span>
+        ) : cover ? (
+          <span className="relative size-12 shrink-0 overflow-hidden rounded-2xl bg-line">
             <Img src={cover} alt="" fill sizes="48px" className="object-cover" />
           </span>
-        ) : avatar ? (
-          <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={48} className="size-12 shrink-0 bg-line" />
         ) : (
           <span className="size-12 shrink-0 rounded-full bg-bg" />
         )}
         <span className="block min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2 text-body text-ink">
-            <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>
-              {title}
-              {/* Direct chats: the House they're about, on the same line. */}
-              {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
-            </span>
+            <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>{title}</span>
             {time && <span className="shrink-0 text-small text-muted">{time}</span>}
           </span>
-          {dates && <span className="block truncate text-small text-muted">{dates}</span>}
-          <span className={cn("block truncate text-small", unread ? "text-ink" : "text-muted")}>{preview}</span>
+          {(subtitle ?? dates) && <span className="block truncate text-small text-muted">{subtitle ?? dates}</span>}
+          {/* Unread: the preview in ink semibold, and the orange dot. */}
+          <span className={cn("block truncate text-small", unread ? "font-semibold text-ink" : "text-muted")}>{preview}</span>
         </span>
         {unread && <span className="size-2 shrink-0 rounded-full bg-accent" role="img" aria-label={t("unread")} />}
       </span>

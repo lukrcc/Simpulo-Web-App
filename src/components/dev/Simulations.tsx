@@ -103,7 +103,7 @@ function IdentityForm() {
   const t = useTranslations("dev.simulation");
   const router = useRouter();
   const me = getCurrentUser(useStore());
-  const back = useReturn("/settings#verification");
+  const back = useReturn("/settings#payments");
   const [document, setDocument] = useState<string | null>(null);
   const [selfie, setSelfie] = useState(false);
   const [busy, setBusy] = useState(false);

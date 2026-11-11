@@ -116,7 +116,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
   }
 
   return (
-    <div className="glass-float rounded-3xl p-2">
+    <div className="glass-float rounded-[28px] p-2">
       {replyTo && (
         <div className="mb-2 flex items-center gap-2 rounded-2xl bg-ink/5 py-1.5 pl-3 pr-1.5">
           <Reply className="size-4 shrink-0 text-muted" aria-hidden />
@@ -186,7 +186,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label={t("attach")}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink/60 hover:bg-ink/5 hover:text-ink"
         >
           <Paperclip className="size-[18px]" />
         </button>
@@ -200,7 +200,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           onPaste={onPaste}
           placeholder={placeholder}
           aria-label={t("messageLabel")}
-          className="ml-1 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-body leading-5 outline-none placeholder:text-muted"
+          className="ml-1 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-body leading-5 outline-none placeholder:text-ink/45"
         />
         {/* The chat's one primary control: a faint tint until there's something to send, then ink with a white arrow. */}
         <button
@@ -208,8 +208,9 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            "ml-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-[background-color,color,transform] hover:bg-ink/90 active:scale-95",
-            "disabled:pointer-events-none disabled:bg-[rgba(34,30,27,0.08)] disabled:text-muted",
+            // Dark chat: a cream circle with an ink arrow; empty, cream 20 %.
+            "ml-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F4EEE7] text-[#221E1B] transition-[background-color,color,transform] hover:bg-[#F4EEE7]/90 active:scale-95",
+            "disabled:pointer-events-none disabled:bg-[#F4EEE7]/20 disabled:text-[#221E1B]/60",
           )}
         >
           <ArrowUp className="size-[18px]" strokeWidth={2.25} />

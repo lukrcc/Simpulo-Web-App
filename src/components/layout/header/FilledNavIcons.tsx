@@ -76,9 +76,13 @@ const STROKE = 1.5;
 /** The current page's icon is full, the others a step back from their word. */
 const REST_OPACITY = 0.7;
 
-/** 16px, both forms on top of each other: the current page crossfades to the filled one. Colour comes from the link's text. */
-export function NavIcon({ item, active }: { item: NavItem; active: boolean }) {
+/**
+ * 16px, both forms on top of each other: the current page crossfades to the filled one. Colour comes from the link's text. `line`: the
+ * header's tab capsule – the line icon alone, 16px, in the text's colour (the pill marks the current tab).
+ */
+export function NavIcon({ item, active, line = false }: { item: NavItem; active: boolean; line?: boolean }) {
   const Outline = item.icon;
+  if (line) return <Outline aria-hidden strokeWidth={1.75} className="block size-4 shrink-0" />;
   const Filled = FILLED[item.labelKey] ?? Outline;
   return (
     <span aria-hidden className="relative size-4 shrink-0">

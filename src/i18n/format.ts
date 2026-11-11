@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
+import { currencySymbol } from "@/lib/currency";
 import { convertApprox } from "@/lib/rates";
 import type { Currency, Stay } from "@/lib/types";
 import { isCityOpen, regionShort, stayPrice } from "@/lib/utils";
@@ -70,9 +71,8 @@ export function createFormatters(locale: string) {
     /** "A$660–990", rounded like approx */
     approxRange: (min: number, max: number, code: string) =>
       moneyRange(new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumSignificantDigits: 2 }), min, max),
-    /** "€", "A$", "฿" – for input prefixes */
-    currencySymbol: (code: string) =>
-      new Intl.NumberFormat(locale, { style: "currency", currency: code }).formatToParts(0).find((p) => p.type === "currency")?.value ?? code,
+    /** "€", "Rp", "฿" – for input prefixes; the fixed table (src/lib/currency.ts), the same on server and browser */
+    currencySymbol: (code: string) => currencySymbol(code),
     /** "€400–600" */
     priceRange: (min: number, max: number, code = "EUR") => moneyRange(currency(code), min, max),
     /** "Feb 12–26" – null without both dates */

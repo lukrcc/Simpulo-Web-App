@@ -45,6 +45,104 @@
   /* Header (bar + tab): .milk-glass. Solid: without backdrop-filter, and around the header's dots. */
   --header-bg: linear-gradient(rgba(247, 245, 241, 0.94) 0, rgba(242, 240, 235, 0.94) 56px);
   --header-solid: #F7F5F1;
+  /*
+   * The header's colours, all of them (bar, tab, grip, docked filters, the big filter panel): data-header="light" | "dark" on <html> (Dev menu
+   * "Header"). Light is the default. Painted values (useNotchShape) read the *-rgb / *-alpha ones: "r, g, b" and a number.
+   */
+  --hdr-bg: var(--header-bg);
+  --hdr-solid: var(--header-solid);
+  --hdr-fg: #221e1b;
+  --hdr-muted: rgba(34, 30, 27, 0.55);
+  --hdr-line: rgba(34, 30, 27, 0.08);
+  --hdr-pill: rgba(34, 30, 27, 0.05);
+  --hdr-grip-rgb: 34, 30, 27;
+  --hdr-avatar-ring: rgba(255, 255, 255, 0.9);
+  /* The shape's surface per stage: bar (p 0) is the CSS gradient above in light; the docked chip row (p 1); the big panel (p 2). */
+  --hdr-bar-rgb: 247, 245, 241;
+  --hdr-bar-alpha: 0.94;
+  --hdr-chips-rgb: 247, 245, 241;
+  --hdr-chips-alpha: 0.94;
+  --hdr-panel-rgb: 251, 247, 242;
+  --hdr-panel-alpha: 0.8;
+  --hdr-edge-rgb: 34, 30, 27;
+  --hdr-edge-alpha: 0.08;
+  --hdr-edge-panel-rgb: 255, 255, 255;
+  --hdr-edge-panel-alpha: 0.6;
+  /* "All filters": ink block, white words (light) – cream block, ink words (dark). */
+  --hdr-corner-bg: #221e1b;
+  --hdr-corner-fg: #ffffff;
+  --hdr-corner-hover: #3a3430;
+  --sheet-bg: rgba(251, 247, 242, 0.8);
+}
+/* The dark header (a test, Dev menu): ink bar, cream words; the docked filters dark glass .78, the big panel .82. Pages keep their colours. */
+html[data-header="dark"] {
+  --hdr-bg: linear-gradient(#221e1b, #221e1b);
+  --hdr-solid: #221e1b;
+  --hdr-fg: #f4eee7;
+  --hdr-muted: rgba(244, 238, 231, 0.6);
+  --hdr-line: rgba(244, 238, 231, 0.08);
+  --hdr-pill: rgba(244, 238, 231, 0.06);
+  --hdr-grip-rgb: 244, 238, 231;
+  --hdr-avatar-ring: rgba(244, 238, 231, 0.2);
+  --hdr-bar-rgb: 34, 30, 27;
+  --hdr-bar-alpha: 1;
+  --hdr-chips-rgb: 34, 30, 27;
+  --hdr-chips-alpha: 0.78;
+  --hdr-panel-rgb: 34, 30, 27;
+  --hdr-panel-alpha: 0.82;
+  --hdr-edge-rgb: 244, 238, 231;
+  --hdr-edge-alpha: 0.08;
+  --hdr-edge-panel-rgb: 244, 238, 231;
+  --hdr-edge-panel-alpha: 0.12;
+  --hdr-corner-bg: #f4eee7;
+  --hdr-corner-fg: #221e1b;
+  --hdr-corner-hover: #ffffff;
+  --sheet-bg: rgba(34, 30, 27, 0.82);
+}
+/* Inside the dark header the tokens turn round (like .ember-scope): ink is cream, muted cream 60 % – the tabs, the logo, "Open a House",
+   the docked filters and the big panel follow by themselves. The choice in the filters: a cream fill, ink words, the 1.5px orange edge. */
+html[data-header="dark"] [data-site-header] {
+  --ink: #f4eee7;
+  --color-ink: #f4eee7;
+  --muted: rgba(244, 238, 231, 0.6);
+  --color-muted: rgba(244, 238, 231, 0.6);
+  --chip-bg: rgba(244, 238, 231, 0.06);
+  --chip-bg-hover: rgba(244, 238, 231, 0.12);
+  --card-soft: rgba(244, 238, 231, 0.06);
+  --focus-ring: rgba(244, 238, 231, 0.4);
+  --pick-bg: #f4eee7;
+  --pick-text: #221e1b;
+  color: #f4eee7;
+  color-scheme: dark;
+}
+/* The avatar beside the tabs (and the login circle): a light ring – white 2px (light), cream 20 % 1px (dark). */
+[data-header-avatar] {
+  border-radius: 999px;
+  box-shadow: 0 0 0 var(--hdr-avatar-ring-w, 2px) var(--hdr-avatar-ring);
+}
+html[data-header="dark"] {
+  --hdr-avatar-ring-w: 1px;
+}
+html[data-header="dark"] [data-site-header] .search-capsule {
+  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.15);
+}
+html[data-header="dark"] [data-site-header] .pick-option,
+html[data-header="dark"] [data-site-header] .filters-capsule.panel-field,
+html[data-header="dark"] [data-site-header] .filters-capsule.panel-field:hover {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.15);
+  color: rgba(244, 238, 231, 0.85);
+}
+html[data-header="dark"] [data-site-header] .pick-option:hover {
+  background-color: rgba(244, 238, 231, 0.08);
+  color: #f4eee7;
+}
+html[data-header="dark"] [data-site-header] .pick-option.pick-on,
+html[data-header="dark"] [data-site-header] .pick-option.pick-on:hover,
+html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-active] {
+  background-color: var(--pick-bg);
+  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
+  color: var(--pick-text);
 }
 
 /*
@@ -81,10 +179,30 @@
   --text-nav-main: 15px;
   --text-nav-main--line-height: 1.4;
   --text-nav-main--font-weight: 500;
+  /* The House page's title in its head: 44px at 1440px. */
+  --text-hero: clamp(32px, 2.4vw + 10px, 44px);
+  --text-hero--line-height: 1.05;
+  --text-hero--font-weight: 700;
+  --text-hero--letter-spacing: -0.03em;
   --text-h1: clamp(28px, 2vw + 8px, 40px);
   --text-h1--line-height: 1.05;
   --text-h1--font-weight: 700;
   --text-h1--letter-spacing: -0.03em;
+  /* A profile's name in its head: 40px at 1440px. */
+  --text-name: clamp(30px, 2vw + 12px, 40px);
+  --text-name--line-height: 1.05;
+  --text-name--font-weight: 700;
+  --text-name--letter-spacing: -0.03em;
+  /* Your houses' row titles (and their count): 24px. */
+  --text-row: 24px;
+  --text-row--line-height: 1.2;
+  --text-row--font-weight: 600;
+  --text-row--letter-spacing: -0.02em;
+  /* Explore's section titles (Spotlight excluded): 32px from 640px, 26px on phones. */
+  --text-section: clamp(26px, 5vw, 32px);
+  --text-section--line-height: 1.1;
+  --text-section--font-weight: 700;
+  --text-section--letter-spacing: -0.025em;
   --text-h2: clamp(22px, 1.2vw + 8px, 28px);
   --text-h2--line-height: 1.15;
   --text-h2--font-weight: 600;
@@ -235,7 +353,9 @@
   --page-margin: 16px;
   --space-section: clamp(56px, 6vw, 96px);
   --space-inner: clamp(20px, 2vw, 32px);
-  --header-open-total: calc(108px + var(--band-h));
+  --header-open-total: calc(132px + var(--band-h));
+  /* The grid's card height keeps the chip row's former depth (108px), so the deeper tab doesn't shrink the cards. */
+  --header-row-total: calc(108px + var(--band-h));
   --scroll-under-tab: calc(var(--header-open-total) + 40px);
   --footer-surface: #efe9e2;
   --spot-h: clamp(440px, 100vh - var(--header-total) - 160px, 680px);
@@ -243,6 +363,28 @@
   --spot-top: clamp(96px, 100vh - var(--spot-h) - 32px, 280px);
   /* The one-line footer with its edge: Houses and Messages fit the window together with it. */
   --slim-footer-h: 73px;
+  /* Explore: content at most 1440px, a fixed column count per width (1 · 2 from 640 · 3 from 1024 · 4 from 1440), gap 16 / 24px.
+     --explore-w is the content's width, so a shelf's card is exactly one grid column wide (.explore-slide). */
+  --explore-max: 1440px;
+  --explore-cols: 1;
+  --explore-gap: 16px;
+  --explore-w: min(100vw - var(--scrollbar-w, 0px) - 2 * var(--page-margin), var(--explore-max));
+}
+@media (min-width: 40rem) {
+  :root {
+    --explore-cols: 2;
+    --explore-gap: 24px;
+  }
+}
+@media (min-width: 64rem) {
+  :root {
+    --explore-cols: 3;
+  }
+}
+@media (min-width: 90rem) {
+  :root {
+    --explore-cols: 4;
+  }
 }
 @media (min-width: 48rem) {
   :root {
@@ -294,12 +436,32 @@
   }
   .house-grid [data-house-card] {
     width: 100%;
-    max-height: calc((100vh - var(--header-open-total)) / 1.5);
+    max-height: calc((100vh - var(--header-row-total)) / 1.5);
   }
   @media (max-width: 47.99rem) {
     .house-grid {
       --card-gap: 16px;
     }
+  }
+  /* Explore's grid: the fixed columns above, no auto-fill. Same cap on the height as .house-grid, for grid and shelf alike. */
+  .explore-width {
+    max-width: var(--explore-max);
+  }
+  .explore-grid {
+    display: grid;
+    gap: var(--explore-gap);
+    grid-template-columns: repeat(var(--explore-cols), minmax(0, 1fr));
+  }
+  .explore-grid [data-house-card],
+  .explore-slide [data-house-card] {
+    width: 100%;
+    max-height: calc((100vh - var(--header-row-total)) / 1.5);
+  }
+  .explore-slide {
+    width: calc((var(--explore-w) - (var(--explore-cols) - 1) * var(--explore-gap)) / var(--explore-cols));
+  }
+  .explore-root {
+    --row-max: var(--explore-max);
   }
 }
 /* A destination card the search led to, for a moment. */
@@ -358,12 +520,45 @@
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
-/* The filter panel, on the bright glass: muted text a little stronger for contrast; its rails a little lower. */
-[data-filter-panel] {
-  --muted: rgba(34, 30, 27, 0.9);
+/*
+ * Messages' chat (the right side, and the chat page on phones): dark, a warm step lighter than ink – #2B2622 as the surface, cream #F4EEE7 as the text, side
+ * information cream 55 %. The tokens are turned round inside it (the --color-* too: Tailwind resolves those at :root), so ink/x and muted
+ * read right; what's fixed to light (own bubbles, the send button) is set where it's drawn.
+ */
+.chat-dark {
+  --ink: #F4EEE7;
+  --color-ink: #F4EEE7;
+  --muted: rgba(244, 238, 231, 0.55);
+  --color-muted: rgba(244, 238, 231, 0.55);
+  --bg: #2B2622;
+  --color-bg: #2B2622;
+  --surface: #3A332E;
+  --color-surface: #3A332E;
+  --line: rgba(244, 238, 231, 0.15);
+  --color-line: rgba(244, 238, 231, 0.15);
+  --select-bg: #3A332E;
+  --chip-bg: rgba(255, 255, 255, 0.06);
+  --chip-bg-hover: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(43, 38, 34, 0.82);
+  --focus-ring: rgba(244, 238, 231, 0.35);
+  background-color: #2B2622;
+  color: #F4EEE7;
+  color-scheme: dark;
 }
-[data-filter-panel] .segmented {
-  height: 36px;
+/* The composer: a flat dark capsule, no glass. */
+.chat-dark .glass-float {
+  background-color: #3A332E;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+/* Hover actions, the reaction picker, the emoji picker: dark glass. */
+.chat-dark .glass-panel {
+  background-color: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: #F4EEE7;
 }
 /* What lies on a photo: dark glass, white icon. Never the grey one above. */
 .on-image {
@@ -426,6 +621,182 @@
 .filters-capsule[data-active] button {
   color: #fff;
 }
+/* The filter panel's controls: on the panel's clear glass each sits on its own solid light surface (--card-soft at 96 %) with a 1px ink 12 %
+   edge, 44px, round. The SegmentedControl's rail keeps its ink 5 % – over that surface. A chosen field stays ink (data-active). */
+.filter-control:not([data-active]) {
+  background-color: rgba(255, 253, 250, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.12);
+}
+.segmented.filter-control {
+  background-color: rgba(255, 253, 250, 0.96);
+  background-image: linear-gradient(rgba(34, 30, 27, 0.05), rgba(34, 30, 27, 0.05));
+  box-shadow: none;
+}
+/* Settings' grouped lists: a thin line between rows (ink 8 %), starting where the text starts (--row-inset, set per row). */
+.settings-list > li + li > .settings-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--row-inset, 16px);
+  height: 1px;
+  background-color: rgba(34, 30, 27, 0.08);
+  pointer-events: none;
+}
+/* A choice in the filters (row, panel, their dropdowns): ink, white semibold text, a 1.5px orange edge – no orange fill. The counts stay
+   orange circles, the price range stays orange. */
+:root {
+  /* One height for every capsule and button of the header and the filter row: tab track, avatar, "Open a House", "Where · When",
+     "Short trips", "Soonest first", "All filters". */
+  --control-h: 44px;
+  /* The filter panel's surface where glass can't show. */
+  --card: #fbf9f6;
+  --pick-bg: var(--ink);
+  --pick-edge: #f0633a;
+  --pick-text: #fff;
+}
+.pick-on {
+  background-color: var(--pick-bg);
+  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
+  color: var(--pick-text);
+  font-weight: 600;
+}
+/* The filter panel's option capsules and dropdowns: 36px, on the glass a half-opaque white (55 %) with a 1px ink 8 % edge, ink 75 % text;
+   chosen the orange tone. */
+.pick-option {
+  background-color: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.08);
+  color: rgba(34, 30, 27, 0.75);
+  transition: background-color 150ms, box-shadow 150ms, color 150ms;
+}
+.pick-option:hover {
+  background-color: rgba(255, 255, 255, 0.75);
+  color: var(--ink);
+}
+.pick-option.pick-on,
+.pick-option.pick-on:hover {
+  background-color: var(--pick-bg);
+  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
+  color: var(--pick-text);
+}
+/* The filter panel's Where / When fields: 46px, radius 14px, on the glass half-opaque white (55 %) with a 1px ink 8 % edge; set, the
+   filters' choice: ink, white text, a 1.5px orange edge. */
+.filters-capsule.panel-field,
+.filters-capsule.panel-field:hover {
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.08);
+}
+.filters-capsule.panel-field[data-active],
+.filters-capsule.panel-field[data-active]:hover {
+  background-color: var(--pick-bg);
+  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
+  color: var(--pick-text);
+}
+.filters-capsule.panel-field[data-active] button {
+  color: var(--pick-text);
+}
+/* Dark menus (the filters' dropdowns, sort, More): ink, white text, the chosen entry on 12 % white with a check. */
+.menu-dark {
+  background-color: rgba(34, 30, 27, 0.88);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+/* Without backdrop-filter, or with reduced transparency asked for: solid. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .menu-dark {
+    background-color: var(--ink);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .menu-dark {
+    background-color: var(--ink);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* Ember – the one accent surface: ink with a soft orange glow from the top right (about 60 % of the surface), cream text, a fine light edge
+   on top. Only for the summary tiles (Payouts, To do); Houses stay photo cards, everything else light.
+   Hover (where it's pressable): the glow a little stronger. */
+.ember {
+  /* Fixed, not var(--ink): inside .ember-scope the token is cream. ONE Ember for every surface (Needs you, the House page's head, the
+     profile's head, Payouts): the ink ground and one orange glow, only top right – no brown wash over the surface. */
+  background-color: #221e1b;
+  background-image: var(--ember-glow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #f6f1ea;
+  transition: box-shadow 150ms, transform 150ms;
+}
+:root {
+  --ember-glow: radial-gradient(circle at 100% 0%, rgba(240, 99, 58, 0.22) 0, transparent 38%);
+}
+/* The House page's head (HouseHero) and its floating bar: on Ember the tokens turn round like in the chat – ink is cream, muted cream 55 % –
+   so the shared pieces (crew line, avatars, links) read right; the buttons there are "cream" / "creamOutline". */
+.ember-scope {
+  --ink: #F4EEE7;
+  --color-ink: #F4EEE7;
+  --muted: rgba(244, 238, 231, 0.6);
+  --color-muted: rgba(244, 238, 231, 0.6);
+  --line: rgba(244, 238, 231, 0.15);
+  --color-line: rgba(244, 238, 231, 0.15);
+  --chip-bg: rgba(244, 238, 231, 0.12);
+  --chip-bg-hover: rgba(244, 238, 231, 0.16);
+  --select-bg: #2E2925;
+  --surface: #2E2925;
+  --color-surface: #2E2925;
+  --focus-ring: rgba(244, 238, 231, 0.4);
+  color: #F4EEE7;
+  color-scheme: dark;
+}
+/* Its chips: cream 12 %. */
+.ember-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background-color: rgba(244, 238, 231, 0.12);
+  color: #F4EEE7;
+}
+
+/* Payouts' bars grow in on showing, staggered by their own animation-delay (40ms each). Only transform. */
+@keyframes bar-grow {
+  from { transform: scaleY(0); }
+}
+.bar-grow {
+  animation: bar-grow 450ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-grow { animation: none; }
+}
+/* A detail page's section the link pointed at (?focus=): a soft orange edge that fades out once. */
+@keyframes focus-flash {
+  0%, 35% { box-shadow: 0 0 0 2px rgba(240, 99, 58, 0.7); }
+  100% { box-shadow: 0 0 0 2px rgba(240, 99, 58, 0); }
+}
+[data-flash] {
+  animation: focus-flash 1600ms ease-out;
+}
+/* The filter row's search capsule: a 1px ink 12 % edge on the warm card surface. */
+.search-capsule {
+  background-color: var(--card-soft);
+  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.12);
+}
+.search-capsule[data-active] {
+  background-color: var(--pick-bg);
+  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
+}
+/* "Filters" beside the chips: filled, not outlined, so it reads as its own thing (no black – not the main action). */
+.filters-button {
+  background-color: rgba(34, 30, 27, 0.07);
+  transition: background-color 150ms;
+}
+.filters-button:hover {
+  background-color: rgba(34, 30, 27, 0.12);
+}
 /* The host's map: land and markers move together on one curve. Under a finger: no transition. */
 .map-move {
   transition: transform 450ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -483,14 +854,14 @@
  * Without backdrop-filter: solid.
  */
 .milk-glass {
-  background-image: var(--header-bg);
+  background-image: var(--hdr-bg);
   -webkit-backdrop-filter: blur(24px) saturate(1.3);
   backdrop-filter: blur(24px) saturate(1.3);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .milk-glass {
     background-image: none;
-    background-color: var(--header-solid);
+    background-color: var(--hdr-solid);
   }
 }
 /*
@@ -685,7 +1056,7 @@ main:has([data-explore-blocks]) {
    the layout stays. It leaves that room to the sections around it: only the track takes the pointer. Padded to the page
    gutter on the left, and the last card's margin brings the row's end back to the same gutter on the right. */
 .shelf-frame {
-  --row-gutter: max(var(--page-margin), calc((100vw - var(--scrollbar-w, 0px) - 1680px) / 2));
+  --row-gutter: max(var(--page-margin), calc((100vw - var(--scrollbar-w, 0px) - var(--row-max, 1680px)) / 2));
   position: relative;
   display: flow-root;
   margin-inline: calc(50% - (100vw - var(--scrollbar-w, 0px)) / 2);
@@ -707,6 +1078,10 @@ main:has([data-explore-blocks]) {
 .shelf-track > * {
   flex: none;
 }
+/* Explore's shelves: the grid's gap, so their cards line up with its columns. */
+.explore-root .shelf-track {
+  gap: var(--explore-gap);
+}
 .shelf-track > :last-child {
   margin-right: var(--row-gutter);
 }
@@ -714,8 +1089,8 @@ main:has([data-explore-blocks]) {
 .shelf-track img {
   -webkit-user-drag: none;
 }
-/* <Shelf variant="flat"> (How it works): nothing depends on position or hover – no lift, no zoom, no shadow; every card the same size and top.
-   Explore's rows and the Spotlight keep theirs. */
+/* <Shelf variant="flat"> (Explore): nothing depends on position or hover – no lift, no zoom, no shadow; every card the same size and top.
+   Explore's shelves use it; the other rows and the Spotlight keep theirs. */
 .shelf-flat [data-house-card],
 .shelf-flat [data-house-card]:hover {
   /* scale/translate on their own (Tailwind's hover uses these properties): together with "transform: none" the CSS build merges them away. */
@@ -751,6 +1126,14 @@ main:has([data-explore-blocks]) {
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+/* A loaded page's new items: a soft fade (opacity only – the cards' own transform stays theirs). */
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-page-in { animation: page-in 360ms cubic-bezier(0.32, 0.72, 0, 1) both; }
 }
 @keyframes tab-out {
   to { opacity: 0; }
@@ -986,8 +1369,12 @@ main:has([data-demo-login]) {
  */
 .text-display,
 .text-stage,
+.text-hero,
 .text-h1,
 .text-h2,
+.text-name,
+.text-row,
+.text-section,
 .text-logo,
 .text-logo-sm,
 .text-logo-lg {

@@ -64,6 +64,6 @@ export function hidesTabBar(pathname: string): boolean {
     pathname === "/create" ||
     pathname === "/get" ||
     /^\/your-houses\/[^/]+\/edit$/.test(pathname) ||
-    pathname === "/profile/edit"
+    pathname === "/settings/profile"
   );
 }

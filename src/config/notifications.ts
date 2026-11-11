@@ -53,9 +53,9 @@ export const OPTIONAL_CATEGORIES: ReadonlyArray<{ key: OptionalCategory; push: b
 
 export type NotificationPrefs = Record<OptionalCategory, { push: boolean; email: boolean }>;
 
-/** Everyone starts here: chat and nearby on, Simpulo's news off (opt-in). */
+/** Everyone starts here: chat by push only (email only if asked), nearby by push and email, Simpulo's news off (opt-in). */
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
-  messages: { push: true, email: true },
+  messages: { push: true, email: false },
   nearby: { push: true, email: true },
   news: { push: false, email: false },
 };

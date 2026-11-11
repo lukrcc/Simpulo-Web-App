@@ -64,54 +64,176 @@ export function currencyForLocale(locale: string): CurrencyCode {
   return BY_LANGUAGE[parts[0]?.toLowerCase() ?? ""] ?? "EUR";
 }
 
-// ─── The viewer's currency (browser; later the profile) ─────────────────────────
+// ─── The viewer's currency (browser; logged in also the profile) ────────────────
+//
+// Order (usePreferredCurrency): 1. the viewer's own pick, saved here – always wins · 2. the profile setting (logged in) · 3. the country
+// the server saw (cookie `viewer_country`, set by src/proxy.ts from x-vercel-ip-country) · 4. the device's time zone · 5. a region in
+// navigator.languages ("de-DE"; a bare "en" decides nothing) · 6. EUR. Only a manual pick is ever saved; 3–5 are worked out on each load.
+
+/** Time zone → ISO 3166 country. Euro-zone zones are in it too, so Europe/Berlin is clearly DE (EUR), not "unknown". */
+const TZ_COUNTRY: Record<string, string> = {
+  "Europe/London": "GB", "Europe/Belfast": "GB", "Europe/Guernsey": "GB", "Europe/Jersey": "GB", "Europe/Isle_of_Man": "GB",
+  "Europe/Dublin": "IE", "Europe/Lisbon": "PT", "Atlantic/Madeira": "PT", "Atlantic/Azores": "PT", "Europe/Madrid": "ES", "Atlantic/Canary": "ES",
+  "Europe/Paris": "FR", "Europe/Berlin": "DE", "Europe/Busingen": "DE", "Europe/Amsterdam": "NL", "Europe/Brussels": "BE", "Europe/Luxembourg": "LU",
+  "Europe/Vienna": "AT", "Europe/Rome": "IT", "Europe/Malta": "MT", "Europe/Athens": "GR", "Europe/Helsinki": "FI", "Europe/Tallinn": "EE",
+  "Europe/Riga": "LV", "Europe/Vilnius": "LT", "Europe/Bratislava": "SK", "Europe/Ljubljana": "SI", "Europe/Zagreb": "HR", "Asia/Nicosia": "CY",
+  "Europe/Monaco": "MC", "Europe/Andorra": "AD", "Europe/Podgorica": "ME",
+  "Europe/Zurich": "CH", "Europe/Vaduz": "LI", "Europe/Stockholm": "SE", "Europe/Oslo": "NO", "Europe/Copenhagen": "DK", "Atlantic/Reykjavik": "IS",
+  "Europe/Warsaw": "PL", "Europe/Prague": "CZ", "Europe/Budapest": "HU", "Europe/Bucharest": "RO", "Europe/Sofia": "BG", "Europe/Istanbul": "TR",
+  "Asia/Tbilisi": "GE",
+  "America/New_York": "US", "America/Chicago": "US", "America/Denver": "US", "America/Phoenix": "US", "America/Los_Angeles": "US",
+  "America/Anchorage": "US", "Pacific/Honolulu": "US", "America/Detroit": "US", "America/Boise": "US", "America/Indiana/Indianapolis": "US",
+  "America/Puerto_Rico": "US",
+  "America/Toronto": "CA", "America/Vancouver": "CA", "America/Edmonton": "CA", "America/Winnipeg": "CA", "America/Halifax": "CA",
+  "America/St_Johns": "CA", "America/Regina": "CA",
+  "America/Mexico_City": "MX", "America/Cancun": "MX", "America/Tijuana": "MX", "America/Monterrey": "MX", "America/Merida": "MX",
+  "America/Sao_Paulo": "BR", "America/Fortaleza": "BR", "America/Recife": "BR", "America/Manaus": "BR", "America/Bahia": "BR",
+  "America/Argentina/Buenos_Aires": "AR", "America/Buenos_Aires": "AR", "America/Santiago": "CL", "America/Bogota": "CO", "America/Lima": "PE",
+  "America/Costa_Rica": "CR",
+  "Asia/Tokyo": "JP", "Asia/Seoul": "KR", "Asia/Shanghai": "CN", "Asia/Hong_Kong": "HK", "Asia/Taipei": "TW", "Asia/Singapore": "SG",
+  "Asia/Bangkok": "TH", "Asia/Jakarta": "ID", "Asia/Makassar": "ID", "Asia/Pontianak": "ID", "Asia/Jayapura": "ID",
+  "Asia/Ho_Chi_Minh": "VN", "Asia/Saigon": "VN", "Asia/Manila": "PH", "Asia/Kuala_Lumpur": "MY", "Asia/Kuching": "MY",
+  "Asia/Kolkata": "IN", "Asia/Calcutta": "IN", "Asia/Colombo": "LK", "Asia/Kathmandu": "NP", "Asia/Dubai": "AE", "Asia/Riyadh": "SA",
+  "Asia/Qatar": "QA", "Asia/Jerusalem": "IL", "Asia/Tel_Aviv": "IL", "Asia/Amman": "JO",
+  "Africa/Casablanca": "MA", "Africa/Cairo": "EG", "Africa/Johannesburg": "ZA", "Africa/Nairobi": "KE", "Africa/Dar_es_Salaam": "TZ",
+  "Australia/Sydney": "AU", "Australia/Melbourne": "AU", "Australia/Brisbane": "AU", "Australia/Perth": "AU", "Australia/Adelaide": "AU",
+  "Australia/Hobart": "AU", "Australia/Darwin": "AU", "Pacific/Auckland": "NZ",
+};
+
+/** A country (ISO 3166 alpha-2) → its currency; null when it isn't one of ours. */
+export function currencyForRegion(region: string | null | undefined): CurrencyCode | null {
+  if (!region) return null;
+  const code = region.toUpperCase();
+  if (BY_REGION[code]) return BY_REGION[code];
+  return EURO_REGIONS.has(code) ? "EUR" : null;
+}
+const EURO_REGIONS = new Set(["AT", "BE", "HR", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV", "LT", "LU", "MT", "MC", "ME", "NL", "PT", "SK", "SI", "ES", "AD", "XK"]);
+
+/** The device's time zone → currency ("Europe/Berlin" → EUR, "Asia/Makassar" → IDR); null when unknown. */
+export function currencyForTimeZone(timeZone: string | null | undefined): CurrencyCode | null {
+  return timeZone ? currencyForRegion(TZ_COUNTRY[timeZone]) : null;
+}
+
+/**
+ * Only a language tag WITH a country decides ("de-DE" → EUR); "de" alone says nothing about where someone is. English tags never decide:
+ * "en-GB" and "en-US" are what people all over the world pick for their interface – that is how a German browser ended up showing £.
+ */
+export function currencyForLanguages(languages: readonly string[]): CurrencyCode | null {
+  for (const tag of languages) {
+    const [language, ...rest] = tag.split("-");
+    if (language.toLowerCase() === "en") continue;
+    const region = rest.find((p) => /^[A-Z]{2}$/i.test(p));
+    const currency = currencyForRegion(region);
+    if (currency) return currency;
+  }
+  return null;
+}
+
+export const VIEWER_COUNTRY_COOKIE = "viewer_country";
+
+/** The country the server saw for this request (proxy cookie); null locally and without the header. */
+export function readViewerCountry(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${VIEWER_COUNTRY_COOKIE}=([A-Za-z]{2})`));
+  return match ? match[1].toUpperCase() : null;
+}
+
+function deviceTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+function deviceLanguages(): readonly string[] {
+  if (typeof navigator === "undefined") return [];
+  return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+}
+
+/** What the device itself suggests: time zone, else a language tag with a country. */
+export function deviceCurrency(): CurrencyCode | null {
+  return currencyForTimeZone(deviceTimeZone()) ?? currencyForLanguages(deviceLanguages());
+}
+
+/** Steps 3–6 – worked out fresh each time, never saved. */
+export function detectViewerCurrency(): CurrencyCode {
+  return currencyForRegion(readViewerCountry()) ?? deviceCurrency() ?? "EUR";
+}
 
 const VIEWER_KEY = "simpulo:currency";
 const listeners = new Set<() => void>();
 
-/** The viewer's own pick, or – on the first visit – what their browser suggests (saved then). EUR on the server. */
-export function readViewerCurrency(): CurrencyCode {
+/**
+ * The viewer's own pick, saved as {"code":"GBP","manual":true}. Anything else under the key (the old plain "GBP" an earlier build saved
+ * from the browser language) is a guess, not a pick: dropped here.
+ */
+export function readManualCurrency(): CurrencyCode | null {
   try {
-    const saved = localStorage.getItem(VIEWER_KEY);
-    if (isCurrency(saved)) return saved;
-    const guess = currencyForLocale(navigator.language || "en");
-    localStorage.setItem(VIEWER_KEY, guess);
-    return guess;
+    const raw = localStorage.getItem(VIEWER_KEY);
+    if (raw === null) return null;
+    try {
+      const saved = JSON.parse(raw) as { code?: string; manual?: boolean } | null;
+      if (saved?.manual === true && isCurrency(saved.code)) return saved.code;
+    } catch {
+      // not JSON – the old format
+    }
+    localStorage.removeItem(VIEWER_KEY);
+    return null;
   } catch {
-    return typeof navigator === "undefined" ? "EUR" : currencyForLocale(navigator.language || "en");
+    return null;
   }
 }
 
-/** Changing it (the footer's picker, Settings): saved in this browser, everyone showing prices follows. */
+/** The viewer picks one (footer, filters, booking card, Settings, Dev menu): saved in this browser, everyone showing prices follows. */
 export function setViewerCurrency(code: CurrencyCode) {
   try {
-    localStorage.setItem(VIEWER_KEY, code);
+    localStorage.setItem(VIEWER_KEY, JSON.stringify({ code, manual: true }));
   } catch {
     // blocked – it holds until reload
   }
-  memo = code;
+  state = { manual: code, detected: state?.detected ?? detectViewerCurrency() };
   listeners.forEach((listener) => listener());
 }
 
-let memo: CurrencyCode | null = null;
+/** Back to automatic (Dev menu "Auto"): the pick is forgotten. */
+export function clearViewerCurrency() {
+  try {
+    localStorage.removeItem(VIEWER_KEY);
+  } catch {
+    // nothing saved
+  }
+  state = { manual: null, detected: detectViewerCurrency() };
+  listeners.forEach((listener) => listener());
+}
+
+export type ViewerCurrencyState = { manual: CurrencyCode | null; detected: CurrencyCode };
+let state: ViewerCurrencyState | null = null;
+const SERVER_STATE: ViewerCurrencyState = { manual: null, detected: "EUR" };
 export function subscribeViewerCurrency(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-export function viewerCurrencySnapshot(): CurrencyCode {
-  return (memo ??= readViewerCurrency());
+export function viewerCurrencySnapshot(): ViewerCurrencyState {
+  return (state ??= { manual: readManualCurrency(), detected: detectViewerCurrency() });
+}
+export function serverViewerCurrencySnapshot(): ViewerCurrencyState {
+  return SERVER_STATE;
 }
 
 // ─── Labels ──────────────────────────────────────────────────────────────────────
 
-/** "€", "Rp", "฿" – the narrow symbol (Intl), or the code when there's none. */
-export function currencySymbol(code: CurrencyCode, locale = "en"): string {
-  try {
-    const part = new Intl.NumberFormat(locale, { style: "currency", currency: code, currencyDisplay: "narrowSymbol" }).formatToParts(0).find((p) => p.type === "currency");
-    return part?.value ?? code;
-  } catch {
-    return code;
-  }
+/**
+ * "€", "Rp", "฿" – a fixed table, never Intl: the server's ICU and the browser's differ (Node says "SAR", Chrome the new riyal sign "⃁"),
+ * and a label rendered on both must be the same text or hydration fails. Where there's no common sign, the code itself.
+ */
+const SYMBOLS: Partial<Record<CurrencyCode, string>> = {
+  EUR: "€", USD: "$", GBP: "£", CAD: "$", AUD: "$", NZD: "$", JPY: "¥", KRW: "₩", CNY: "¥", HKD: "$", TWD: "$", SGD: "$", THB: "฿",
+  IDR: "Rp", VND: "₫", PHP: "₱", MYR: "RM", INR: "₹", LKR: "Rs", NPR: "Rs", ILS: "₪", TRY: "₺", GEL: "₾", EGP: "E£", ZAR: "R", KES: "KSh",
+  TZS: "TSh", MXN: "$", BRL: "R$", ARS: "$", CLP: "$", COP: "$", PEN: "S/", CRC: "₡", SEK: "kr", NOK: "kr", DKK: "kr", ISK: "kr", PLN: "zł",
+  CZK: "Kč", HUF: "Ft", RON: "lei", BGN: "лв",
+};
+export function currencySymbol(code: CurrencyCode | string): string {
+  return SYMBOLS[code as CurrencyCode] ?? code;
 }
 
 /** "IDR – Indonesian Rupiah" for the pickers. */

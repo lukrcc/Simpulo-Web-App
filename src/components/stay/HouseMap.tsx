@@ -56,13 +56,15 @@ interface HouseMapProps {
   hasCoordinates: boolean;
   zoom: number;
   title: string;
+  /** The soft circle's radius in metres (default 1.5 km; a booked place keeps it approximate at about 500 m) */
+  radius?: number;
 }
 
 /**
  * The calm map (no POIs, no transit, no controls), loaded when it comes near the window. Without NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, or if
  * Google refuses it, Google's embed: it takes no styles and no circle, so the open case is a still picture with a circle of the same size.
  */
-export function HouseMap({ lat, lng, pin, query, hasCoordinates, zoom, title }: HouseMapProps) {
+export function HouseMap({ lat, lng, pin, query, hasCoordinates, zoom, title, radius = AREA_RADIUS_M }: HouseMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(!API_KEY || !hasCoordinates);
   const [embedLoaded, setEmbedLoaded] = useState(false);
@@ -80,7 +82,7 @@ export function HouseMap({ lat, lng, pin, query, hasCoordinates, zoom, title }: 
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
       const live = new (Map as unknown as new (element: HTMLElement, options: object) => unknown)(canvas, { center, zoom: pin ? PIN_ZOOM : AREA_ZOOM, styles: CALM_STYLES, gestureHandling: "none", disableDefaultUI: true, fullscreenControl: false, mapTypeControl: false, cameraControl: false, rotateControl: false, scaleControl: false, streetViewControl: false, zoomControl: false, keyboardShortcuts: false, clickableIcons: false });
       if (pin) new Marker({ map: live, position: center, icon: { path: SymbolPath.CIRCLE, scale: 8, fillColor: accent, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
-      else new Circle({ map: live, center, radius: AREA_RADIUS_M, fillColor: "#221e1b", fillOpacity: 0.1, strokeWeight: 0, clickable: false });
+      else new Circle({ map: live, center, radius, fillColor: "#221e1b", fillOpacity: 0.1, strokeWeight: 0, clickable: false });
     };
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -95,12 +97,12 @@ export function HouseMap({ lat, lng, pin, query, hasCoordinates, zoom, title }: 
       cancelled = true;
       observer.disconnect();
     };
-  }, [failed, lat, lng, pin]);
+  }, [failed, lat, lng, pin, radius]);
 
   if (failed) {
     const still = hasCoordinates && !pin;
     const src = still ? `https://www.google.com/maps?ll=${lat},${lng}&z=${AREA_ZOOM}&output=embed` : `https://www.google.com/maps?q=${query}&z=${zoom}&output=embed`;
-    const circle = (2 * AREA_RADIUS_M) / ((METRES_PER_PX_AT_ZOOM_0 * Math.cos((lat * Math.PI) / 180)) / 2 ** AREA_ZOOM);
+    const circle = (2 * radius) / ((METRES_PER_PX_AT_ZOOM_0 * Math.cos((lat * Math.PI) / 180)) / 2 ** AREA_ZOOM);
     return (
       <>
         <iframe src={src} title={title} onLoad={() => setEmbedLoaded(true)} referrerPolicy="no-referrer-when-downgrade" tabIndex={-1} style={{ top: -EMBED_TOP_CROP, height: `calc(100% + ${EMBED_TOP_CROP}px)`, left: -EMBED_LEFT_CROP, width: `calc(100% + ${EMBED_LEFT_CROP}px)` }} className="pointer-events-none absolute border-0 saturate-50 brightness-[1.03] contrast-[0.95]" />

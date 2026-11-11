@@ -3,6 +3,7 @@ import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
 import type { GrowthEvent } from "../growth";
 import type { JoinRequest, Payment, Stay, Thread, User } from "../types";
+import type { Page, PageRequest } from "./paging";
 
 /** What the app starts from. */
 export interface AppData {
@@ -49,4 +50,9 @@ export interface DataAdapter {
   withAttribution(requests: JoinRequest[], stays: Stay[]): JoinRequest[];
   withChatHistory(threads: Thread[], seed: { stays: Stay[]; users: User[]; joinRequests: JoinRequest[] }): { threads: Thread[]; lastReadAt: Record<string, string> };
   growthEvents(seed: { stays: Stay[]; joinRequests: JoinRequest[]; payments: Payment[] }): GrowthEvent[];
+  /**
+   * The next page of an ordered list (Open Houses, Your houses, Updates), after the cursor. The mock pages the list it is handed, after a short
+   * delay; the real source runs the list's query with startAfter(cursor) + limit and ignores `list`.
+   */
+  loadPage<T>(list: readonly T[], keyOf: (item: T) => string, request: PageRequest): Promise<Page<T>>;
 }

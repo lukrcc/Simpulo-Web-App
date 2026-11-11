@@ -49,7 +49,7 @@ export function NotificationItem({ notification, onOpen, onRead }: { notificatio
       lead={<Icon aria-hidden />}
       title={<span className={unread ? "font-semibold" : undefined}>{t(`types.${type}`)}</span>}
       subtitle={text(notification)}
-      aside={<span className="shrink-0 text-small text-muted">{now !== null && format.relativeTime(new Date(notification.createdAt), new Date(now))}</span>}
+      aside={<span className="shrink-0 text-small text-muted">{now !== null && format.relativeTime(new Date(Math.min(Date.parse(notification.createdAt), now)), new Date(now))}</span>}
       action={unread ? <span className="size-2 rounded-full bg-accent" role="img" aria-label={t("unread")} /> : undefined}
     />
   );

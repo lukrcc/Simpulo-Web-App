@@ -13,7 +13,8 @@ import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { findUser, isBlocked, useStore } from "@/lib/store";
+import { crewThreadId, findUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
+import Link from "next/link";
 import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { useIsDesktop } from "@/lib/useIsDesktop";
@@ -153,13 +154,14 @@ function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean
     </div>
   );
   // Desktop: the right column, a little lighter than the page, nothing around it.
-  if (embedded) return <div className="h-full min-h-0 bg-white/35">{stage}</div>;
+  // Desktop: the right column, dark (.chat-dark) – head, messages and composer alike.
+  if (embedded) return <div className="chat-dark h-full min-h-0">{stage}</div>;
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
   // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
   // itself never scrolls.
   return (
-    <div data-app-pane="always" className="relative z-41 h-dvh overflow-hidden bg-bg md:h-[calc(100dvh-var(--header-total))]">
+    <div data-app-pane="always" className="chat-dark relative z-41 h-dvh overflow-hidden md:h-[calc(100dvh-var(--header-total))]">
       <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--header-h) md:pt-0">{stage}</div>
     </div>
   );
@@ -185,6 +187,10 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   const otherName = other?.name.split(" ")[0];
   // Over (or completed): the crew chat ends with "Do it again?". Read on the client only – this view never prerenders.
   const ended = !inline && thread.type === "house" && stay.status !== "closed" && (stay.status === "completed" || (stay.endDate !== "" && stay.endDate < new Date().toISOString().slice(0, 10)));
+  // A direct chat whose guest is in the House now: it points to the House chat and stays readable (DIRECT_MESSAGE_POLICY).
+  const guestId = thread.type === "direct" ? thread.participantIds.find((id) => id !== stay.hostId) : undefined;
+  const guestIn = guestId !== undefined && isCrewMember(store, stay, guestId);
+  const guestName = guestId ? findUser(store, guestId)?.name.split(" ")[0] : undefined;
 
   return (
     <ThreadFrame
@@ -201,7 +207,18 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
         thread={thread}
         emptyText={thread.type === "house" ? t("sayHiCrew") : otherName ? t("sayHiDirect", { name: otherName }) : t("sayHiDirectUnknown")}
         onReply={setReplyTo}
-        footer={ended ? <DoItAgainCard stay={stay} isHost={isHost} /> : undefined}
+        footer={
+          ended ? (
+            <DoItAgainCard stay={stay} isHost={isHost} />
+          ) : guestIn ? (
+            <div className="mx-auto mt-6 flex max-w-[480px] flex-col items-center gap-3 rounded-[20px] bg-[#3A332E] px-5 py-4 text-center">
+              <p className="text-body text-ink">{isHost ? t("theyreIn", { name: guestName ?? "" }) : t("youreIn")}</p>
+              <Link href={`/messages?id=${crewThreadId(stay.id)}`} className="press inline-flex h-9 items-center rounded-full bg-[#F4EEE7] px-4 text-nav-main font-semibold text-[#221E1B] transition-opacity hover:opacity-90">
+                {t("openHouseChat")}
+              </Link>
+            </div>
+          ) : undefined
+        }
       />
     </ThreadFrame>
   );

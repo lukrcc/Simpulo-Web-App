@@ -5,6 +5,7 @@
 // any more (the mock's history of hosts with a host experience) come from the data source (pastEarningsOf).
 import { pastEarningsOf, type PastEarning } from "./data";
 import { paymentSplit } from "./fees";
+import { convertApprox } from "./rates";
 import type { Currency, Payment, Stay } from "./types";
 
 export type EarningStatus = "paid" | "scheduled" | "pending";
@@ -23,6 +24,10 @@ export interface EarningRow {
   hostFee: number;
   /** Simpulo's commission on the host programme */
   fee: number;
+  /** The crew's shares of the place, passed on for the stay – not income */
+  rentPassed: number;
+  /** The host's own earnings: the host fee after Simpulo's commission */
+  hostEarnings: number;
   payout: number;
   currency: Currency;
   status: EarningStatus;
@@ -62,7 +67,12 @@ const ACCOUNT = "****1234";
 const DAY_MS = 86_400_000;
 const dayAfter = (date: string) => new Date(Date.parse(date) + DAY_MS).toISOString().slice(0, 10);
 
-function rowOf(stay: Stay, payments: Payment[], today: string): EarningRow | null {
+/** Dev menu "Share host": the same Houses as if none had a host fee. */
+export interface EarningsOptions {
+  withoutHostFees?: boolean;
+}
+
+function rowOf(stay: Stay, payments: Payment[], today: string, options: EarningsOptions): EarningRow | null {
   const share = stay.pricePerPerson;
   if (!share || stay.accommodationStatus !== "locked") return null;
   const mine = payments.filter((p) => p.stayId === stay.id && p.userId !== stay.hostId && p.status !== "refunded");
@@ -71,7 +81,7 @@ function rowOf(stay: Stay, payments: Payment[], today: string): EarningRow | nul
   // Past Houses in the mock have no payment records: everyone but the host paid.
   const guests = over && mine.length === 0 ? Math.max(0, stay.spotsFilled - 1) : paid.length;
   if (guests === 0) return null;
-  const split = paymentSplit(share, stay.hostFeePerPerson ?? 0);
+  const split = paymentSplit(share, options.withoutHostFees ? 0 : (stay.hostFeePerPerson ?? 0));
   const payoutDate = dayAfter(stay.startDate);
   const status: EarningStatus = payoutDate <= today ? "paid" : stay.allPaidAt || stay.bookingConfirmedAt ? "scheduled" : "pending";
   return {
@@ -84,6 +94,8 @@ function rowOf(stay: Stay, payments: Payment[], today: string): EarningRow | nul
     gross: guests * (split.share + split.hostFee),
     hostFee: guests * split.hostFee,
     fee: guests * split.commission,
+    rentPassed: guests * split.share,
+    hostEarnings: guests * (split.hostFee - split.commission),
     payout: guests * split.hostReceives,
     currency: stay.currency,
     status,
@@ -91,8 +103,8 @@ function rowOf(stay: Stay, payments: Payment[], today: string): EarningRow | nul
   };
 }
 
-function pastRow(entry: PastEarning): EarningRow {
-  const split = paymentSplit(entry.share, entry.hostFee);
+function pastRow(entry: PastEarning, options: EarningsOptions): EarningRow {
+  const split = paymentSplit(entry.share, options.withoutHostFees ? 0 : entry.hostFee);
   return {
     id: entry.id,
     title: entry.title,
@@ -102,6 +114,8 @@ function pastRow(entry: PastEarning): EarningRow {
     gross: entry.guests * (split.share + split.hostFee),
     hostFee: entry.guests * split.hostFee,
     fee: entry.guests * split.commission,
+    rentPassed: entry.guests * split.share,
+    hostEarnings: entry.guests * (split.hostFee - split.commission),
     payout: entry.guests * split.hostReceives,
     currency: entry.currency,
     status: "paid",
@@ -109,9 +123,9 @@ function pastRow(entry: PastEarning): EarningRow {
   };
 }
 
-export function earningsFor(data: { stays: readonly Stay[]; payments: readonly Payment[] }, userId: string | null, today: string): Earnings {
+export function earningsFor(data: { stays: readonly Stay[]; payments: readonly Payment[] }, userId: string | null, today: string, options: EarningsOptions = {}): Earnings {
   const hosted = userId ? data.stays.filter((s) => s.hostId === userId && s.status !== "draft" && s.status !== "closed") : [];
-  const rows = [...hosted.flatMap((s) => rowOf(s, [...data.payments], today) ?? []), ...(userId ? pastEarningsOf(userId).map(pastRow) : [])].toSorted((a, b) =>
+  const rows = [...hosted.flatMap((s) => rowOf(s, [...data.payments], today, options) ?? []), ...(userId ? pastEarningsOf(userId).map((e) => pastRow(e, options)) : [])].toSorted((a, b) =>
     b.startDate.localeCompare(a.startDate),
   );
   const payouts: Payout[] = rows
@@ -119,36 +133,40 @@ export function earningsFor(data: { stays: readonly Stay[]; payments: readonly P
     .map((r) => ({ id: `po-${r.id}`, date: r.payoutDate, amount: r.payout, currency: r.currency, account: ACCOUNT, status: r.status === "paid" ? ("paid" as const) : ("scheduled" as const) }))
     .toSorted((a, b) => b.date.localeCompare(a.date));
   const paid = rows.filter((r) => r.status === "paid");
+  // Houses are paid out in their own currencies: every sum is in EUR (≈), shown in the viewer's currency.
+  const eur = (r: EarningRow) => Math.round(convertApprox(r.payout, r.currency, "EUR"));
   const year = today.slice(0, 4);
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
     d.setUTCMonth(d.getUTCMonth() - (11 - i));
     const month = d.toISOString().slice(0, 7);
-    return { month, amount: paid.filter((r) => r.payoutDate.startsWith(month)).reduce((sum, r) => sum + r.payout, 0) };
+    return { month, amount: paid.filter((r) => r.payoutDate.startsWith(month)).reduce((sum, r) => sum + eur(r), 0) };
   });
   const upcoming = rows.filter((r) => r.status !== "paid").toSorted((a, b) => a.payoutDate.localeCompare(b.payoutDate));
-  const next = upcoming[0] ? { id: `po-${upcoming[0].id}`, date: upcoming[0].payoutDate, amount: upcoming[0].payout, currency: upcoming[0].currency, account: ACCOUNT, status: "scheduled" as const } : null;
+  // In EUR like every sum here (a House in IDR would otherwise show its rupiah with a € sign).
+  const next = upcoming[0] ? { id: `po-${upcoming[0].id}`, date: upcoming[0].payoutDate, amount: eur(upcoming[0]), currency: "EUR" as Currency, account: ACCOUNT, status: "scheduled" as const } : null;
   return {
     rows,
     payouts,
     months,
-    allTime: paid.reduce((sum, r) => sum + r.payout, 0),
-    thisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + r.payout, 0),
+    allTime: paid.reduce((sum, r) => sum + eur(r), 0),
+    thisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + eur(r), 0),
     housesThisYear: paid.filter((r) => r.payoutDate.startsWith(year)).length,
-    hostFeesThisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + r.hostFee - r.fee, 0),
-    pending: upcoming.reduce((sum, r) => sum + r.payout, 0),
+    hostFeesThisYear: paid.filter((r) => r.payoutDate.startsWith(year)).reduce((sum, r) => sum + Math.round(convertApprox(r.hostFee - r.fee, r.currency, "EUR")), 0),
+    pending: upcoming.reduce((sum, r) => sum + eur(r), 0),
     next,
-    currency: rows[0]?.currency ?? "EUR",
+    /** The sums' currency: always EUR (rows and payouts keep their own) */
+    currency: "EUR",
     any: rows.length > 0,
   };
 }
 
 /** The table as CSV, for the tax return: one line per House. */
 export function earningsCsv(earnings: Earnings): string {
-  const head = ["House", "Start", "End", "Guests", "Gross", "Host fee", "Simpulo fee", "Payout", "Currency", "Status", "Payout date"];
+  const head = ["House", "Start", "End", "Guests", "Host fee", "Simpulo fee", "Your earnings", "Rent passed on", "Payout", "Currency", "Status", "Payout date"];
   const cell = (value: string | number) => {
     const text = String(value);
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
-  return [head, ...earnings.rows.map((r) => [r.title, r.startDate, r.endDate, r.guests, r.gross, r.hostFee, r.fee, r.payout, r.currency, r.status, r.payoutDate])].map((line) => line.map(cell).join(",")).join("\n");
+  return [head, ...earnings.rows.map((r) => [r.title, r.startDate, r.endDate, r.guests, r.hostFee, r.fee, r.hostEarnings, r.rentPassed, r.payout, r.currency, r.status, r.payoutDate])].map((line) => line.map(cell).join(",")).join("\n");
 }

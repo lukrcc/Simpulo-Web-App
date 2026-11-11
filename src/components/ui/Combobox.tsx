@@ -4,7 +4,6 @@ import { Check, ChevronDown } from "lucide-react";
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { cn } from "@/lib/utils";
-import { ValueCheck } from "./ValueCheck";
 
 export interface ComboOption {
   value: string;
@@ -114,8 +113,6 @@ export function inDisplayOrder(options: ComboOption[]): ComboOption[] {
 }
 
 interface ComboboxProps {
-  /** On glass: the chip surface, no frame */
-  soft?: boolean;
   /** The list opens upwards: for a field at the bottom of a panel */
   above?: boolean;
   id?: string;
@@ -133,6 +130,8 @@ interface ComboboxProps {
   invalid?: boolean;
   onBlur?: () => void;
   className?: string;
+  /** Replaces the field's surface classes where a context sets its own (the filter panel: .filter-control, 44px, round) */
+  inputClassName?: string;
   "aria-label"?: string;
 }
 
@@ -140,7 +139,7 @@ interface ComboboxProps {
  * Searchable single-select: focus shows every option, typing filters (case and accents ignored), ↑/↓ + Enter
  * pick. With `onFreeText`, anything else typed is kept as is – suggestions, never a cage.
  */
-export function Combobox({ above, soft = false, id, value, options, onPick, onFreeText, pinned, isSelected, placeholder, empty, invalid, onBlur, className, ...aria }: ComboboxProps) {
+export function Combobox({ above, id, value, options, onPick, onFreeText, pinned, isSelected, placeholder, empty, invalid, onBlur, className, inputClassName, ...aria }: ComboboxProps) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -217,11 +216,10 @@ export function Combobox({ above, soft = false, id, value, options, onPick, onFr
         }}
         onKeyDown={onKeyDown}
         // The form field look (44px, surface, 1px line, accent ring) with room for the chevron; typing filters.
-        className={cn(formInput, "pr-10", soft && "bg-(--chip-bg)!")}
+        className={cn(formInput, "pr-10", inputClassName)}
         {...aria}
       />
       {/* A picked value (not while typing): the accent check right after it. */}
-      {query === null && value && options.some((o) => isSelected?.(o)) && <ValueCheck text={value} />}
       <ChevronDown
         className={cn("pointer-events-none absolute right-3.5 top-3.5 size-4 text-muted transition-transform", open && "rotate-180")}
         aria-hidden

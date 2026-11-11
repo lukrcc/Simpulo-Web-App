@@ -38,7 +38,7 @@ export function DayDivider({ day }: { day: string }) {
 export function SystemLine({ message }: { message: Message }) {
   const messageText = useMessageText();
   return (
-    <p className="mx-auto my-3 max-w-[80%] text-center text-small text-muted">{messageText(message)}</p>
+    <p className="mx-auto my-3 max-w-[80%] text-center text-small text-ink/45">{messageText(message)}</p>
   );
 }
 
@@ -71,7 +71,7 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
   const shown = images.slice(0, 4);
   const single = shown.length === 1;
   return (
-    <div className={cn("grid w-[320px] max-w-full gap-1 overflow-hidden rounded-xl", !single && "grid-cols-2")}>
+    <div className={cn("grid w-[320px] max-w-full gap-1 overflow-hidden rounded-[14px]", !single && "grid-cols-2")}>
       {shown.map((image, i) => (
         <button
           key={image.url}
@@ -107,15 +107,15 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
       download={file.name}
       className={cn(
         "flex w-64 max-w-full items-center gap-3 rounded-[20px] px-3 py-2.5 text-left",
-        mine ? "bg-ink text-white" : "bg-(--select-bg) text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-surface",
+        mine ? "bg-[#F4EEE7] text-[#221E1B]" : "bg-[#3A332E] text-ink hover:bg-ink/10",
       )}
     >
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-white/15" : "bg-ink/5")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-[#221E1B]/8" : "bg-ink/5")}>
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-body font-medium">{file.name ?? t("file")}</span>
-        {file.size !== undefined && <span className={cn("block text-small", mine ? "text-white/60" : "text-muted")}>{formatSize(file.size, locale)}</span>}
+        {file.size !== undefined && <span className={cn("block text-small", mine ? "text-[#221E1B]/55" : "text-muted")}>{formatSize(file.size, locale)}</span>}
       </span>
     </a>
   );
@@ -129,11 +129,11 @@ export function ChatLinkCard({ url, mine }: { url: string; mine: boolean }) {
   const t = useTranslations("house.linkPreview");
   const preview = previewForUrl(url);
   return (
-    <div className={cn("mt-2 flex items-center gap-3 rounded-2xl p-2", mine ? "bg-white/10" : "bg-ink/5")}>
+    <div className={cn("mt-2 flex items-center gap-3 rounded-2xl p-2", mine ? "bg-[#221E1B]/6" : "bg-ink/5")}>
       {preview.imageUrl && <Img src={preview.imageUrl} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl object-cover" />}
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-semibold">{preview.title}</p>
-        <p className={cn("truncate text-small", mine ? "text-white/60" : "text-muted")}>{preview.domain}</p>
+        <p className={cn("truncate text-small", mine ? "text-[#221E1B]/55" : "text-muted")}>{preview.domain}</p>
         <a href={url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-small font-semibold underline-offset-4 hover:underline">
           {t("open")}
           <ArrowUpRight className="size-3.5" aria-hidden />

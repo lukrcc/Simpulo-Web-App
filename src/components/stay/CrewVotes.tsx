@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { ChipCheck } from "@/components/ui/Chip";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { RowHead } from "@/components/ui/CardRow";
 import { useFormat } from "@/i18n/format";
 import { openVote, votesFor, voteOutcome } from "@/lib/crewVotes";
 import { linkDomain } from "@/lib/links";
@@ -62,12 +62,12 @@ function Vote({ stay, kind, vote }: { stay: Stay; kind: VoteKind; vote: CrewVote
 
   return (
     <section aria-labelledby={`house-vote-${kind}`}>
-      <SectionHeader
+      <RowHead
         id={`house-vote-${kind}`}
-        eyebrow={t(kind === "dates" ? "voteTitleDates" : "voteTitleAccommodation")}
-        action={isHost && outcome.state === "open" ? <Button variant="tertiary" onClick={() => store.closeVote(stay.id, kind)}>{t("voteClose")}</Button> : undefined}
+        title={t(kind === "dates" ? "voteTitleDates" : "voteTitleAccommodation")}
+        aside={isHost && outcome.state === "open" ? <Button variant="tertiary" onClick={() => store.closeVote(stay.id, kind)}>{t("voteClose")}</Button> : undefined}
       />
-      <ul className="mt-3 max-w-[640px] space-y-4">
+      <ul className="mt-4 max-w-[640px] space-y-4">
         {vote.options.map((option) => {
           const count = votesFor(option.voterIds, memberIds);
           const mine = member && option.voterIds.includes(currentUserId);

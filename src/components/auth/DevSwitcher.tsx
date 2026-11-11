@@ -1,9 +1,11 @@
 "use client";
 
 import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
+import { setHeaderTheme, useHeaderTheme } from "@/lib/headerTheme";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
+import { clearViewerCurrency, serverViewerCurrencySnapshot, setViewerCurrency, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { useFormat } from "@/i18n/format";
 import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
 import { APP_MODE } from "@/lib/appMode";
@@ -94,7 +96,11 @@ function DevSwitcherInner() {
             <FlagSwitch flag="hostPremium" />
             <FlagSwitch flag="simulatePaymentFailure" />
             <FlagSwitch flag="simulateOnboardingActionRequired" />
+            <FlagSwitch flag="simulateShareHost" />
+            <FlagSwitch flag="simulateHostWithoutPayouts" />
+            <HeaderThemeSwitch />
             <DataPreset />
+            <ViewerCurrencyPreset />
             <YourHousesPersona />
             <div className="px-4 pb-2.5">
               <button type="button" onClick={resetMockData} className="font-medium text-ink underline-offset-4 hover:underline">
@@ -171,6 +177,24 @@ function FlagSwitch({ flag }: { flag: FeatureFlag }) {
   );
 }
 
+/** "Header: Light / Dark" – the header's theme, a test (src/lib/headerTheme.ts), kept in this browser. */
+function HeaderThemeSwitch() {
+  const t = useTranslations("auth.dev");
+  const theme = useHeaderTheme();
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <span className="font-medium text-ink">{t("headerTheme")}</span>
+      <div role="radiogroup" aria-label={t("headerTheme")} className="flex gap-1">
+        {(["light", "dark"] as const).map((value) => (
+          <button key={value} type="button" role="radio" aria-checked={theme === value} onClick={() => setHeaderTheme(value)} className={cn("rounded-full border-[1.5px] px-2.5 py-0.5 transition-colors", theme === value ? "border-ink font-semibold text-ink" : "border-transparent text-ink/70 hover:bg-ink/5")}>
+            {t(`headerTheme_${value}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** The mock's data state: Pre-launch · Launch · Full – saved in this browser, applied with a reload. */
 function DataPreset() {
   const t = useTranslations("auth.dev");
@@ -193,6 +217,41 @@ function DataPreset() {
             className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
           >
             {t(`presets.${preset}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Test the viewer's currency: a pick (saved like the footer's) or Auto (forgets it: cookie, time zone, language, EUR). */
+const DEV_CURRENCIES: readonly CurrencyCode[] = ["EUR", "GBP", "USD", "IDR"];
+function ViewerCurrencyPreset() {
+  const t = useTranslations("auth.dev");
+  const { manual, detected } = useSyncExternalStore(subscribeViewerCurrency, viewerCurrencySnapshot, serverViewerCurrencySnapshot);
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
+      <span className="font-medium text-ink">{t("viewerCurrency")}</span>
+      <div role="radiogroup" aria-label={t("viewerCurrency")} className="flex rounded-full bg-ink/5 p-0.5">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={manual === null}
+          onClick={clearViewerCurrency}
+          className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
+        >
+          {t("currencyAuto", { code: detected })}
+        </button>
+        {DEV_CURRENCIES.map((code) => (
+          <button
+            key={code}
+            type="button"
+            role="radio"
+            aria-checked={manual === code}
+            onClick={() => setViewerCurrency(code)}
+            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
+          >
+            {code}
           </button>
         ))}
       </div>

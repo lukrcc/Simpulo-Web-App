@@ -1,5 +1,7 @@
 "use client";
 
+import { paidOverlapOf } from "@/lib/overlap";
+import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
 import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -23,8 +25,11 @@ import { HouseCard } from "@/components/HouseCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
-import { HouseGalleryCard } from "@/components/stay/HouseGalleryCard";
-import { HouseActions, HouseCrew, HouseDay, HouseFacts, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseSummary, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
+import { HouseHero } from "@/components/stay/HouseHero";
+import { LeaveSheet, MemberHero, MemberSections, useStepContent } from "@/components/stay/MemberHouse";
+import { guestJourney } from "@/config/house-steps";
+import { useHouseRole } from "@/lib/useHouseRole";
+import { HouseActions, HouseCrew, HouseDay, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { Button } from "@/components/ui/ActionButton";
@@ -34,7 +39,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, useStore, validHouseInvite, houseInviteUrl } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite, houseInviteUrl } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
 import { memberStage } from "@/lib/joinFlow";
@@ -45,7 +50,8 @@ import { inHeadStart, isListedStay } from "@/lib/launch";
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const store = useStore();
-  const stay = store.stays.find((s) => s.slug === slug);
+  // /h/[id] takes the id or the slug; /house/[slug] the slug.
+  const stay = store.stays.find((s) => s.slug === slug || s.id === slug);
 
   // Drafts (and Houses still waiting to be claimed) exist only for their host.
   if (!stay || ((stay.status === "draft" || stay.status === "draft_unclaimed") && stay.hostId !== store.currentUserId)) {
@@ -99,6 +105,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
 
 function StayDetailContent({ stay }: { stay: Stay }) {
   const t = useTranslations("house");
+  const tOverlap = useTranslations("overlap");
   const store = useStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -155,8 +162,22 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       ? validHouseInvite(store, stay.id, inviteToken)
       : undefined;
   const photos = housePhotos(stay, host);
-  const summaryRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
   const stage = previewing ? null : memberStage(store, stay, store.currentUserId);
+  // Who's looking (lib/useHouseRole.ts): a member (requested, accepted, paying, paid) gets their way through the House instead of "Request to join".
+  const { role: liveRole } = useHouseRole(stay.id);
+  const role = previewing ? "visitor" : liveRole;
+  const [leaving, setLeaving] = useState(false);
+  const journey = guestJourney(stay, myRequest, store.payments.find((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status !== "refunded"), openedAt);
+  const crewThread = getCrewThread(store, stay.id);
+  // ?focus= (Needs you, notifications): a member's "pay" opens the pay sheet; the host is sent on to the management page with it.
+  const [focusParam, setFocusParam] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusParam) return;
+    if (role === "host") router.replace(`/h/${stay.id}/manage?focus=${focusParam}`);
+  }, [focusParam, role, router, stay.id]);
+  // A member's ?focus=pay opens the pay sheet once (closing it clears the focus).
+  const payOpen = paying || (role === "member" && focusParam === "pay");
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
@@ -197,11 +218,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     if (previewing) return showToast(tPreview("noChanges"));
     requireAuth((userId) => {
       if (userId === stay.hostId) {
-        router.push(`/your-houses/${stay.id}`);
+        router.push(`/h/${stay.id}/manage`);
         return;
       }
       // userId is passed explicitly: right after an inline login the store doesn't know the new user yet.
-      router.push(`/messages/${store.openDirectThread(stay.id, stay.hostId, userId)}`);
+      const threadId = store.openDirectThread(stay.id, stay.hostId, userId);
+      if (threadId) router.push(`/messages/${threadId}`);
     }, { reason: "message", hostName: host?.name.split(" ")[0] });
   }
 
@@ -237,6 +259,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   // An audience House (women only): a calm line above the button. The profile says otherwise → the button stays, but can't be pressed;
   // the profile doesn't say (or logged out) → the same line, and the request goes through – the host decides.
   const audience = !isHost && !isMember && !myRequest ? audienceFit(stay, me) : "none";
+  // Blocked by the host (DIRECT_MESSAGE_POLICY): no request to their House – the button stays, not pressable, with a neutral line.
+  const blockedByHost = !isHost && !isMember && !myRequest && me !== undefined && settingsOf(findUser(store, stay.hostId)).blockedUserIds.includes(me.id);
   // An open request (to join or for the waitlist) can be taken back: a link under the actions, confirmed in a small popover.
   const withdrawNote =
     myRequest && !previewing && (myRequest.status === "pending" || myRequest.status === "waitlist_requested") ? (
@@ -253,8 +277,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         triggerClassName="text-small"
       />
     ) : null;
-  const ctaNote = withdrawNote ?? (verifiedOnly && spotsLeft > 0
-    ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
+  // Already in another House on these dates (paid): said calmly; the request still goes out (PARALLEL_POLICY).
+  const paidClash = !isHost ? paidOverlapOf(store, stay) : null;
+  const overlapNotice = paidClash ? tOverlap("alreadyIn", { name: shortNameOf(paidClash) }) : undefined;
+  const ctaNote = withdrawNote ?? (blockedByHost
+    ? t("page.notForYou")
+    : verifiedOnly && spotsLeft > 0
+    ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings#payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
     : offer?.offerExpiresAt
     ? t("page.offerUntil", { time: `${format.day(offer.offerExpiresAt)} ${format.time(offer.offerExpiresAt)}` })
     : canWaitlist && waitlistWhy === "covered" && canJoin
@@ -266,6 +295,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const ctaFor = (withSecondary: boolean) => (
     <StayCta
       withSecondary={withSecondary}
+      big={withSecondary}
       stay={stay}
       isHost={isHost}
       request={myRequest}
@@ -279,7 +309,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       onRespond={respondToInvite}
       waitlist={{ can: canWaitlist, onJoin: startWaitlist, position: myPosition, offer: offer ? { pay: payToTake, onTake: takeSpot } : undefined }}
       verifiedOnly={verifiedOnly}
-      audienceBlocked={audience === "blocked"}
+      audienceBlocked={audience === "blocked" || blockedByHost}
     />
   );
   const cta = ctaFor(true);
@@ -298,6 +328,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     }
   }
   const canInviteToSpot = isMember && (stay.status === "published" || stay.status === "booked");
+  const stepContent = useStepContent(stay, host, journey, { onPay: () => setPaying(true), onInvite: inviteFriends, now: openedAt });
+  // The host's line in the head: "3 of 6 in · 2 requests" (management lives at /h/[id]/manage).
+  const openRequests = store.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;
+  const hostStatus = t("page.hostStatus", { filled: stay.spotsFilled, total: stay.spotsTotal, requests: openRequests });
 
   return (
     <PreviewProvider active={previewing}>
@@ -308,96 +342,110 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     <Suspense fallback={null}>
       <InviteParam onChange={setInviteToken} />
     </Suspense>
+    <Suspense fallback={null}>
+      <FocusParam onChange={setFocusParam} />
+    </Suspense>
     {invite && (
       <Container className="pt-4 md:pt-10">
         <InviteBanner stay={stay} invite={invite} />
       </Container>
     )}
-    <Container className="pb-6 pt-4 md:pb-[calc(120px-var(--space-section))]">
-      {/* The large card stays under the header; everything to read moves past it. Its column is exactly as wide as the card can be in this window. Between them the page's own margin (--page-margin): left edge = gap = right edge. */}
-      <div className="grid items-start gap-x-(--page-margin) gap-y-8 split:grid-cols-[minmax(0,min(40%,560px,calc((100dvh-var(--header-h)-var(--band-h)-48px)*0.75)))_minmax(0,1fr)]">
-        <HouseGalleryCard stay={stay} host={host} />
-        <div className="flex min-w-0 flex-col gap-10">
-          <HouseSummary
-            ref={summaryRef}
-            stay={stay}
-            host={host}
-            crew={crew}
-            cta={cta}
-            secondary={
-              <>
-                {!isHost && (
-                  <Button variant="secondary" onClick={messageHost} data-preview-action aria-label={t("messageHost", { name: hostFirstName })}>
-                    <MessageCircle aria-hidden />
-                    {t("page.message")}
-                  </Button>
-                )}
-                <Button variant="secondary" onClick={inviteFriends}>
-                  <UserPlus aria-hidden />
-                  {t("page.invite")}
+    <Container className="pb-24 pt-4 md:pb-[calc(120px-var(--space-section))] md:pt-6">
+      {/* The head: photo a third, Ember two thirds – the same height; fits 1440 × 900. Phones: the photo on top, Ember under it. */}
+      {role === "member" ? (
+        <MemberHero ref={summaryRef} stay={stay} host={host} crew={crew} journey={journey} content={stepContent} chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} onLeave={() => setLeaving(true)} />
+      ) : (
+      <HouseHero
+          ref={summaryRef}
+          stay={stay}
+          host={host}
+          crew={crew}
+          cta={cta}
+          secondary={
+            <>
+              {!isHost && (
+                <Button variant="creamOutline" size="lg" onClick={messageHost} data-preview-action aria-label={t("messageHost", { name: hostFirstName })}>
+                  <MessageCircle aria-hidden />
+                  {t("page.messageHostShort")}
                 </Button>
-              </>
-            }
-            stage={stage}
-            note={ctaNote}
-            notice={audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : undefined}
-            showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
-            actions={
-              <HouseActions
-                menu={
-                  previewing ? undefined : isHost ? (
-                    <MoreMenu items={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} label={tCommon("ui.moreMenu.moreOptions")} buttonClassName={iconButtonStyles("sm")} />
-                  ) : (
-                    <SafetyMenu target={{ kind: "stay", id: stay.id }} extraItems={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} buttonClassName={iconButtonStyles("sm")} />
-                  )
-                }
-                onBack={goBack}
-              />
-            }
-          />
-          <div className="space-y-6 empty:hidden">
-        {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
-        {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
+              )}
+              <Button variant="creamOutline" size="lg" onClick={inviteFriends}>
+                <UserPlus aria-hidden />
+                {t("page.invite")}
+              </Button>
+            </>
+          }
+          stage={stage}
+          note={ctaNote}
+          notice={isHost ? hostStatus : audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : overlapNotice}
+          showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
+          actions={
+            <HouseActions
+              menu={
+                previewing ? undefined : isHost ? (
+                  <MoreMenu items={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} label={tCommon("ui.moreMenu.moreOptions")} buttonClassName={iconButtonStyles("sm")} />
+                ) : (
+                  <SafetyMenu target={{ kind: "stay", id: stay.id }} extraItems={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} buttonClassName={iconButtonStyles("sm")} />
+                )
+              }
+              onBack={goBack}
+            />
+          }
+        />
+      )}
 
-        {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
-        {myRequest?.status === "invited" && (
-          <div className="flex items-start gap-4">
-            <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
-            <div className="min-w-0 text-body">
-              <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
-              <p className="mt-0.5 text-muted">{t("invite.text")}</p>
+      {/* Under the head: the sections in one order, 64px apart, each headed like Explore. Text reads at most 760px wide. */}
+      <div className="mt-10 flex flex-col gap-10">
+        {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
+        {role === "member" && <MemberSections stay={stay} crew={crew} onInvite={inviteFriends} />}
+        <div className="flex max-w-[760px] flex-col gap-6 empty:hidden">
+          {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
+          {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
+
+          {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
+          {myRequest?.status === "invited" && (
+            <div className="flex items-start gap-4">
+              <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+              <div className="min-w-0 text-body">
+                <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
+                <p className="mt-0.5 text-muted">{t("invite.text")}</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* The host, right after opening it: who sees it so far. */}
-        {isHost && stay.visibility === "unlisted" && <p className="text-body text-muted">{t("unlistedHint")}</p>}
-        {isHost && stay.visibility !== "unlisted" && inHeadStart(stay) && <p className="text-body text-muted">{t("headStartHint", { hours: SEARCH_HEAD_START_HOURS })}</p>}
+          {/* The host, right after opening it: who sees it so far. */}
+          {isHost && stay.visibility === "unlisted" && <p className="text-body text-muted">{t("unlistedHint")}</p>}
+          {isHost && stay.visibility !== "unlisted" && inHeadStart(stay) && <p className="text-body text-muted">{t("headStartHint", { hours: SEARCH_HEAD_START_HOURS })}</p>}
 
-        {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
-        {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
-          <Button variant="secondary" href={stay.crewGroupUrl} external>
-            <ExternalLink aria-hidden />
-            {t("openCrewGroup")}
-          </Button>
-        )}
-
-        {/* Your own share, once paid. While it's due, the head's main action is paying. */}
-        {stage === "paid" && <MyShare stay={stay} />}
-
-        {askForPhoto && (
-          <div className="flex items-center gap-4">
-            <Camera className="size-5 shrink-0 text-muted" aria-hidden />
-            <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
-            <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), { reason: "login" })}>
-              {t("addPhoto")}
+          {/* The crew's own WhatsApp / Telegram group: confirmed members only, once the crew is complete. */}
+          {isMember && stay.crewGroupUrl && stay.spotsFilled >= stay.spotsTotal && (
+            <Button variant="secondary" href={stay.crewGroupUrl} external className="self-start">
+              <ExternalLink aria-hidden />
+              {t("openCrewGroup")}
             </Button>
-          </div>
-        )}
-      </div>
+          )}
 
-          <HouseFacts stay={stay} host={host} />
+          {/* Your own share, once paid. While it's due, the head's main action is paying. */}
+          {stage === "paid" && <MyShare stay={stay} />}
+
+          {askForPhoto && (
+            <div className="flex items-center gap-4">
+              <Camera className="size-5 shrink-0 text-muted" aria-hidden />
+              <p className="min-w-0 flex-1 text-body text-ink">{t("photoPrompt", { name: hostFirstName })}</p>
+              <Button variant="secondary" onClick={() => requireAuth(() => setPhotoSheetOpen(true), { reason: "login" })}>
+                {t("addPhoto")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Why I'm hosting → The crew → (host experience) → A typical day → Who I'm looking for | House rules → Where you'll be. */}
+        <div className="max-w-[760px] empty:hidden">
           <HouseWhy stay={stay} />
+        </div>
+        {/* A member has the crew (and the vote on the place) above already. */}
+        {role !== "member" && (
+        <div className="flex flex-col gap-8">
           <HouseCrew
             stay={stay}
             crew={crew}
@@ -408,18 +456,56 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             onInvite={canInviteToSpot ? () => void inviteToSpot() : undefined}
           />
           <CrewVotes stay={stay} />
-          <HouseOffer stay={stay} />
-          <HouseDay stay={stay} />
-          <HouseFit stay={stay} />
-          <HouseWhere stay={stay} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
         </div>
+        )}
+        <div className="empty:hidden">
+          <HouseOffer stay={stay} />
+        </div>
+        <div className="max-w-[760px] empty:hidden">
+          <HouseDay stay={stay} />
+        </div>
+        <div className="empty:hidden">
+          <HouseFit stay={stay} />
+        </div>
+        <HouseWhere stay={stay} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
       </div>
 
       <HouseMore stay={stay} />
 
-      <HouseJoinBar stay={stay} photo={photos[0]} joinCardRef={summaryRef} cta={ctaFor(false)} />
+      {/* The floating bar: a member sees the current step and its action instead of "Request to join". */}
+      <HouseJoinBar
+        stay={stay}
+        photo={photos[0]}
+        joinCardRef={summaryRef}
+        line={role === "member" ? stepContent.title : undefined}
+        cta={
+          role === "member" ? (
+            stepContent.action ? (
+              stepContent.action.href ? (
+                <Button size="md" href={stepContent.action.href} external={stepContent.action.external}>
+                  {stepContent.action.label}
+                </Button>
+              ) : (
+                <Button size="md" onClick={stepContent.action.onClick}>
+                  {stepContent.action.label}
+                </Button>
+              )
+            ) : null
+          ) : (
+            ctaFor(false)
+          )
+        }
+      />
+      <LeaveSheet stay={stay} open={leaving} onClose={() => setLeaving(false)} />
 
-      <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
+      <PaySheet
+        stay={stay}
+        open={payOpen}
+        onClose={() => {
+          setPaying(false);
+          setFocusParam(null);
+        }}
+      />
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       <HouseQrSheet stay={stay} open={qrOpen} onClose={() => setQrOpen(false)} />
       {invite && <InviteJoinSheet stay={stay} invite={invite} open={inviteSheetOpen} onClose={() => setInviteSheetOpen(false)} />}
@@ -457,6 +543,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 function PreviewParam({ onChange }: { onChange: (preview: boolean) => void }) {
   const preview = useSearchParams().get("preview") === "guest";
   useEffect(() => onChange(preview), [preview, onChange]);
+  return null;
+}
+
+/** ?focus= on the House page (from Needs you and notifications) – in its own boundary, like ?preview. */
+function FocusParam({ onChange }: { onChange: (focus: string | null) => void }) {
+  const focus = useSearchParams().get("focus");
+  useEffect(() => onChange(focus), [focus, onChange]);
   return null;
 }
 
@@ -514,19 +607,23 @@ interface StayCtaProps {
   verifiedOnly: boolean;
   /** Women-only House, and the profile says otherwise */
   audienceBlocked?: boolean;
+  /** The head's large buttons (48px); the floating bar keeps 44px */
+  big?: boolean;
 }
 
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly, audienceBlocked }: StayCtaProps) {
+function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly, audienceBlocked, big = false }: StayCtaProps) {
   const t = useTranslations("request.cta");
   const tVerifyCta = useTranslations("verification");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
-  // Exactly one primary on the page: whichever state the CTA is in replaces "Request to join" (the default below).
-  const variant = "primary";
-  const size = "md";
+  // Exactly one main action on the page: whichever state the CTA is in replaces "Request to join" (the default below). In the head (Ember) it's
+  // cream with ink words, a second choice beside it a cream outline; in the floating glass bar ink, the usual primary.
+  const variant = big ? "cream" : "primary";
+  const outline = big ? "creamOutline" : "secondary";
+  const size = big ? "lg" : "md";
   // Over, and you were in it (host or crew): the same House again, with the same people.
   if (stay.status === "completed" && (isHost || request?.status === "accepted")) {
     return (
@@ -538,7 +635,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   }
   if (isHost) {
     return (
-      <Button variant={variant} size={size} href={`/your-houses/${stay.id}`}>
+      <Button variant={variant} size={size} href={`/h/${stay.id}/manage`}>
         {t("manage")}
       </Button>
     );
@@ -587,7 +684,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
         <Button variant={variant} size={size} onClick={() => onRespond(true)}>
           {t("acceptInvite")}
         </Button>
-        <Button variant="secondary" size={size} onClick={() => onRespond(false)}>
+        <Button variant={outline} size={size} onClick={() => onRespond(false)}>
           {t("declineInvite")}
         </Button>
       </div>
@@ -680,7 +777,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
     return (
       <>
         {join}
-        <Button variant="secondary" size={size} onClick={waitlist.onJoin} data-preview-action>
+        <Button variant={outline} size={size} onClick={waitlist.onJoin} data-preview-action>
           {t("waitlist")}
         </Button>
       </>

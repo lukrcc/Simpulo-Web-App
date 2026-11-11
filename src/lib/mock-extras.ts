@@ -59,7 +59,10 @@ export const mockPaidUsers: Record<string, string[]> = {
  * training Houses, Mara films with her creators, Aisha runs mobility sessions.
  */
 export const mockPastEarnings: Record<string, PastEarning[]> = {
+  // Lukas is a pro host: he coaches his Fitness Houses (a host fee) – last year two, this year more, so the trend points up.
   u1: [
+    { id: "pe-u1-0a", title: "Fitness House Ericeira", startDate: "2025-05-04", endDate: "2025-05-14", guests: 3, share: 380, hostFee: 80, currency: "EUR" },
+    { id: "pe-u1-0b", title: "Fitness House Lisbon", startDate: "2025-09-07", endDate: "2025-09-19", guests: 4, share: 410, hostFee: 90, currency: "EUR" },
     { id: "pe-u1-1", title: "Fitness House Lisbon", startDate: "2026-01-10", endDate: "2026-01-24", guests: 4, share: 420, hostFee: 90, currency: "EUR" },
     { id: "pe-u1-2", title: "Fitness House Tarifa", startDate: "2026-04-06", endDate: "2026-04-16", guests: 3, share: 360, hostFee: 90, currency: "EUR" },
     { id: "pe-u1-3", title: "Fitness House Canggu", startDate: "2026-07-01", endDate: "2026-07-15", guests: 4, share: 450, hostFee: 100, currency: "EUR" },

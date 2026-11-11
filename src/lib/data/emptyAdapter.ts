@@ -1,5 +1,6 @@
 import { linkDomain } from "../links";
 import type { DataAdapter } from "./adapter";
+import { pageOfList } from "./paging";
 
 /**
  * Production's data source for now: the real thing with nothing in it yet. Same contract as the mock, so the app runs and
@@ -21,4 +22,7 @@ export const emptyAdapter: DataAdapter = {
   withAttribution: (requests) => requests,
   withChatHistory: (threads) => ({ threads, lastReadAt: {} }),
   growthEvents: () => [],
+  // TODO(firestore): run the list's query – orderBy(…), startAfter(the cursor's document), limit(request.limit) – and the total from
+  // getCountFromServer. Until then the list the app already holds.
+  loadPage: (list, keyOf, request) => Promise.resolve(pageOfList(list, keyOf, request)),
 };

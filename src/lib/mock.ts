@@ -1,4 +1,5 @@
-import type { CurrencyCode } from './currency';
+import { convert, currencyForCountry, type CurrencyCode } from './currency';
+import { shortNameOf } from './shortName';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
@@ -64,6 +65,8 @@ export interface User extends Attribution {
   interests?: Vibe[];
   /** How long their latest replies took, in minutes, latest first (mock: later from the messages) */
   replyMinutes?: number[];
+  /** How they live in a House, each from 1 to 3 (config/houseVibe.ts): early bird ↔ night owl, quiet ↔ social, active ↔ chill, tidy ↔ relaxed */
+  houseVibe?: HouseVibe;
   preferredCurrency?: Currency; // for approximate conversions only; unset = €
   savedStayIds?: string[];  // hearted Houses ("Saved" on the Houses page)
   hostAlerts?: string[];    // host ids: notify me when they open a House ("Notify me" on profiles; no counts anywhere)
@@ -73,6 +76,14 @@ export interface User extends Attribution {
   /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
   privacy?: { showOnHousePages?: boolean; showAge?: boolean };
   deletedAt?: string;       // mock "Delete account"
+}
+
+/** 1 = the left word, 2 = in between, 3 = the right word (config/houseVibe.ts). */
+export interface HouseVibe {
+  rhythm: 1 | 2 | 3;
+  social: 1 | 2 | 3;
+  energy: 1 | 2 | 3;
+  tidy: 1 | 2 | 3;
 }
 
 export type ReportReason = 'spam' | 'harassment' | 'fake' | 'unsafe' | 'other';
@@ -94,6 +105,8 @@ export interface UserSettings {
   /** Push and email per switchable group; in-app is always on */
   notifications: Record<NotificationGroup, { push: boolean; email: boolean }>;
   blockedUserIds: string[];
+  /** Taken out of "Your people" – silently, nobody is told (lib/yourPeople.ts) */
+  removedPeopleIds?: string[];
 }
 
 /** The platforms a profile can link to. */
@@ -147,6 +160,8 @@ export interface Stay {
   priorityUntil?: string;
   slug: string;
   title: string;
+  /** Short name for small places, at most 14 characters ("Surf Bali"); without it, shortNameOf derives one */
+  shortName?: string;
   hostId: string;
   vibe: Vibe;
   language: string;         // ISO 639-1 code the House runs in ('en', 'de', 'ja') – one of the host's languages
@@ -332,6 +347,8 @@ export interface JoinRequest extends Attribution {
   offerExpiresAt?: string;
   /** Joined the waitlist while every free spot had an open request: those requests (ids) – they go first */
   coveredBy?: string[];
+  /** An invite from Open a House: its spot is held until then (48h, "Reserved for Anna"), then it's open to anyone */
+  reservedUntil?: string;
 }
 
 export type MessageType = 'text' | 'image' | 'link' | 'system';
@@ -722,7 +739,7 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
 
 const coreStays: Stay[] = [
   {
-    id: 's1', slug: 'fitness-house-canggu-feb', title: 'Fitness House Canggu', hostId: 'u1', vibe: 'fitness', language: 'en',
+    id: 's1', hostFeePerPerson: 100, slug: 'fitness-house-canggu-feb', title: 'Fitness House Canggu', hostId: 'u1', vibe: 'fitness', language: 'en',
     city: 'Canggu', region: 'Bali, Indonesia', location: { city: 'Bali', country: 'Indonesia', area: 'Canggu' }, lat: -8.65, lng: 115.14, mapPreviewUrl: map('canggu'),
     startDate: '2027-02-12', endDate: '2027-02-26', spotsTotal: 5, spotsFilled: 5,
     pricePerPerson: 480, currency: 'EUR', accommodationStatus: 'locked',
@@ -1028,7 +1045,7 @@ const coreStays: Stay[] = [
     acceptingRequests: false, status: 'completed', featured: false, createdAt: '2026-08-15T09:00:00Z',
     lockedAt: '2026-08-25T10:00:00Z', totalPrice: 1550, payByDate: '2026-09-05', bookingConfirmedAt: '2026-09-06T08:00:00Z' },
   // Hosted by the default mock user and over since three days – "Do it again" with a crew to invite.
-  { id: 's54', slug: 'training-week-barcelona-october', title: 'Training Week Barcelona', hostId: 'u1', vibe: 'fitness', language: 'en',
+  { id: 's54', hostFeePerPerson: 90, slug: 'training-week-barcelona-october', title: 'Training Week Barcelona', hostId: 'u1', vibe: 'fitness', language: 'en',
     city: 'Barceloneta', region: 'Barcelona, Spain', location: { city: 'Barcelona', country: 'Spain', area: 'Barceloneta' }, lat: 41.38, lng: 2.19, mapPreviewUrl: map('barceloneta-october'),
     startDate: '2026-10-16', endDate: '2026-10-26', spotsTotal: 5, spotsFilled: 5,
     pricePerPerson: 480, currency: 'EUR', accommodationStatus: 'locked',
@@ -1428,14 +1445,35 @@ export const users: User[] = [
   ...extraHosts.map((host) => mockPrivacy(hostToUser(host))),
 ];
 
-export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)];
+/** Mock prices are written in EUR; a House stores its own country's currency (Bali IDR, London GBP, Dubai AED), rounded to two figures. */
+const roundLocal = (n: number) => { if (n <= 0) return n; const step = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 1); return Math.round(n / step) * step; };
+function inLocalCurrency(stay: Stay): Stay {
+  const to = currencyForCountry(stay.location.country);
+  if (stay.currency !== 'EUR' || to === 'EUR') return stay;
+  const c = (n: number | undefined) => (n === undefined ? undefined : roundLocal(convert(n, 'EUR', to)));
+  const vote = stay.accommodationVote && { ...stay.accommodationVote, options: stay.accommodationVote.options.map((o) => ({ ...o, pricePerPerson: c(o.pricePerPerson) })) };
+  return {
+    ...stay, currency: to,
+    pricePerPerson: c(stay.pricePerPerson),
+    budgetPerPerson: stay.budgetPerPerson && { min: c(stay.budgetPerPerson.min)!, max: c(stay.budgetPerPerson.max)! },
+    totalPrice: c(stay.totalPrice),
+    hostFeePerPerson: c(stay.hostFeePerPerson),
+    ...(vote ? { accommodationVote: vote } : {}),
+  };
+}
+
+// Every mock House gets its short name ("IRL Bangkok", "Fitness Canggu"), from shortNameOf's rules.
+export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)].map(inLocalCurrency).map((stay) => ({ ...stay, shortName: stay.shortName ?? shortNameOf(stay) }));
 
 export const joinRequests: JoinRequest[] = [
   { id: 'r1', stayId: 's1', userId: 'u4', message: 'Physio, train 6×/week, can cook for five. In if you\'ll have me.', status: 'accepted', createdAt: '2026-10-18T12:00:00Z' },
   { id: 'r2', stayId: 's1', userId: 'u8', message: 'Just started lifting, would love a house that keeps me honest. Also I bake.', status: 'accepted', createdAt: '2026-10-18T14:10:00Z' },
   { id: 'r3', stayId: 's1', userId: 'u5', message: 'Hey Lukas! Motion designer, morning training is my thing. Fine with early nights.', status: 'pending', createdAt: '2026-10-19T20:30:00Z' },
   { id: 'r4', stayId: 's1', userId: 'u7', message: 'Can I stream one session from the gym? Otherwise totally your rules.', status: 'pending', createdAt: '2026-10-20T03:15:00Z' },
-  { id: 'r5', stayId: 's2', userId: 'u1', message: 'Not a creator but I can hold a camera and I train. Any chance?', status: 'pending', createdAt: '2026-10-19T10:00:00Z' },
+  // Two acceptances, both unpaid, that overlap (Dec 6–16 with IRL Bangkok, s22): Needs you asks to pick one (PARALLEL_POLICY).
+  { id: 'r5', stayId: 's2', userId: 'u1', message: 'Not a creator but I can hold a camera and I train. Any chance?', status: 'accepted', createdAt: '2026-10-19T10:00:00Z' },
+  // A request overlapping a paid House (Ski Zillertal, s49, Feb 18–22): the House page says so; paying would be blocked.
+  { id: 'rov1', stayId: 's29', userId: 'u1', message: 'Learning Spanish properly this time – happy to trade German lessons.', status: 'pending', createdAt: '2026-11-08T10:00:00Z' },
   { id: 'r6', stayId: 's3', userId: 'u1', message: 'Building a co-living app, 3 weeks in. Would love the Friday demos.', status: 'accepted', createdAt: '2026-10-16T09:00:00Z' },
   { id: 'r7', stayId: 's7', userId: 'u5', message: 'Design + motion, happy to be on stream.', status: 'accepted', createdAt: '2026-10-18T08:00:00Z' },
   { id: 'r8', stayId: 's6', userId: 'u8', message: 'I\'m 24, is that okay? I promise I\'m calm.', status: 'declined', createdAt: '2026-10-17T19:00:00Z' },
@@ -1721,4 +1759,7 @@ for (const user of users) {
   user.interests ??= [...new Set([...own, VIBES[seed % VIBES.length].key, VIBES[(seed * 3 + 5) % VIBES.length].key])];
   const pace = 20 + (seed % 12) * 15;
   user.replyMinutes ??= [1, 0.6, 1.4, 0.8, 2].map((factor) => Math.round(pace * factor));
+  // How they live in a House (Profile › Vibe), fixed per id.
+  const step = (n: number) => ((n % 3) + 1) as 1 | 2 | 3;
+  user.houseVibe ??= { rhythm: step(seed), social: step(Math.floor(seed / 3)), energy: step(Math.floor(seed / 9)), tidy: step(Math.floor(seed / 27)) };
 }

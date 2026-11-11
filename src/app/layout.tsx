@@ -1,4 +1,5 @@
 import { SPOTLIGHT_INTRO_KEY } from "@/config/explore";
+import { HEADER_THEME_SCRIPT } from "@/lib/headerTheme";
 import type { Metadata, Viewport } from "next";
 import { Inter, Inter_Tight } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
@@ -7,6 +8,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { DevSwitcher } from "@/components/auth/DevSwitcher";
 import { InstallPromptProvider } from "@/components/InstallPrompt";
 import { NotifyBridge } from "@/components/notifications/NotifyBridge";
+import { CurrencyHint } from "@/components/layout/CurrencyHint";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
 import { SITE_URL } from "@/lib/seo";
@@ -71,6 +73,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="spotlight-intro-gate" strategy="beforeInteractive">
           {`try{if(!sessionStorage.getItem(${JSON.stringify(SPOTLIGHT_INTRO_KEY)})&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-spot-intro","")}catch(e){}`}
         </Script>
+        {/* Before anything paints: the header's theme (Dev menu "Header": light / dark), so it never flashes the other one. */}
+        <Script id="header-theme" strategy="beforeInteractive">
+          {HEADER_THEME_SCRIPT}
+        </Script>
         {/* Before the router: the way back from a House page is marked ahead of it (src/lib/houseTransition.ts). */}
         <Script id="house-back-gate" strategy="beforeInteractive">
           {HOUSE_BACK_GATE}
@@ -85,6 +91,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               </InstallPromptProvider>
               <DevSwitcher />
               <NotifyBridge />
+              <CurrencyHint />
             </AuthProvider>
           </ToastProvider>
         </StoreProvider>

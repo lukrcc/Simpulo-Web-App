@@ -30,10 +30,9 @@ const nextConfig: NextConfig = {
       { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/payouts", permanent: true },
       { source: "/your-houses/earnings", destination: "/your-houses/payouts", permanent: true },
       // The sections are tabs now (one grid).
-      { source: "/your-houses/hosting", destination: "/your-houses?tab=hosting", permanent: true },
-      { source: "/your-houses/joined", destination: "/your-houses?tab=joined", permanent: true },
-      // Short links (lib/links.ts): a House; invites and creators are placeholders for now.
-      { source: "/h/:slug", destination: "/house/:slug", permanent: false },
+      { source: "/your-houses/hosting", destination: "/your-houses/all/hosting", permanent: true },
+      { source: "/your-houses/joined", destination: "/your-houses/all/going", permanent: true },
+      // Short links (lib/links.ts): /h/[id] is a page of its own (the House by role); invites and creators are placeholders for now.
       // TODO: invite codes → /invite/[token] once codes exist apart from tokens.
       { source: "/i/:code", destination: "/", permanent: false },
       // TODO: creator pages.
@@ -41,7 +40,13 @@ const nextConfig: NextConfig = {
       // Hosting is explained in the FAQ (Hosting) – no page of its own.
       { source: "/host", destination: "/faq?role=host", permanent: true },
       // Notifications live in Messages › Updates.
-      { source: "/notifications", destination: "/messages?tab=updates", permanent: true },
+      { source: "/notifications", destination: "/your-houses", permanent: true },
+      // The own profile, short: /me.
+      { source: "/me", destination: "/profile", permanent: false },
+      // Edit profile moved into Settings.
+      { source: "/profile/edit", destination: "/settings/profile", permanent: true },
+      // Messages was "Chats · Updates": the updates are Your houses' Activity now.
+      { source: "/messages", has: [{ type: "query", key: "tab", value: "updates" }], destination: "/your-houses", permanent: true },
       { source: "/houses", destination: "/your-houses", permanent: true },
       { source: "/houses/:id/manage", destination: "/your-houses/:id", permanent: true },
       // The category pages are gone: a category is a filter on Explore.

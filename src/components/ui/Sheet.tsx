@@ -26,6 +26,8 @@ interface SheetProps {
   large?: boolean;
   /** What the title shows instead of the plain text (e.g. with an orange dot); `title` stays its accessible name. */
   titleNode?: ReactNode;
+  /** Two columns' room (the pay sheet): 820px from md, 28px inside; on phones the full height */
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -55,7 +57,7 @@ export function Sheet(props: SheetProps | (PanelSheetProps & { variant: "panel" 
   return <DialogSheet {...props} />;
 }
 
-function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, large = false, titleNode, children }: SheetProps) {
+function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, large = false, titleNode, wide = false, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
   const titleId = `${id}-title`;
@@ -86,7 +88,9 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   if (!open) return null;
   const iconSize = "size-5";
   // The same for every modal: 560px, 28px radius, 32px inside, as much below as above.
-  const panelClass = "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
+  const panelClass = wide
+    ? "glass-panel scroll-pane relative h-dvh max-h-dvh w-full rounded-b-none p-7 pb-[max(1.75rem,env(safe-area-inset-bottom))] md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
+    : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
 
   const content = lead || large ? (
     <>

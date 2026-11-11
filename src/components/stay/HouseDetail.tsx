@@ -1,10 +1,11 @@
 "use client";
 
-import { CalendarPlus, Check, RotateCcw } from "lucide-react";
+import { knownThrough } from "@/lib/yourPeople";
+import { Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { REQUEST_POLICY } from "@/config/policies";
 import { hoursLeft } from "@/lib/requests";
 import { useNow } from "@/lib/useNow";
@@ -12,21 +13,21 @@ import { againHref } from "@/components/create/model";
 import { MyShare } from "@/components/payments/MyShare";
 import { Receipt } from "@/components/payments/Receipt";
 import { HelpButton, helpAvailable } from "@/components/help/HelpSheet";
-import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
-import { downloadIcs } from "@/lib/ics";
 import { RefundNotice } from "@/components/payments/Refund";
 import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { HostShareTools } from "@/components/share/HostShareTools";
-import { Button } from "@/components/ui/ActionButton";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { ALL_PLACES } from "@/lib/data/places";
+import { linkDomain } from "@/lib/links";
+import { hostOverlapOf } from "@/lib/overlap";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
-import { TabBar } from "@/components/ui/TabBar";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { Img } from "@/components/ui/Img";
 import { MoreMenu } from "@/components/ui/MoreMenu";
+import { Sheet } from "@/components/ui/Sheet";
 import { SocialRow } from "@/components/ui/SocialRow";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { StayThumb } from "@/components/ui/StayThumb";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -34,26 +35,47 @@ import { crewThreadId, findUser, getCrew, getCrewThread, getInvited, getMyPaymen
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { CrewMenu } from "./CrewMenu";
-import { DetailSection, ListRow } from "./DetailSection";
+import { ListRow } from "./DetailSection";
 import { GuestProgress, HostProgress } from "./HouseProgress";
 import { hasOffer, waitlistOf, waitlistRequestsOf } from "@/lib/waitlist";
 import { HostInvitesSection } from "./HouseInvites";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 
-type HostTab = "requests" | "crew" | "payments" | "share";
-type GuestTab = "crew" | "payment";
-type Tab = HostTab | GuestTab;
-
 /** A row that does something: only it gets a surface, and only on hover. */
 const ROW_HOVER = "rounded-2xl transition-colors duration-150 hover:bg-(--chip-bg)";
-/** Under the fixed head, inside the scrolling part: the rows' hover surfaces reach past the text without being cut off. */
-const TAB_PANEL = "col-start-1 row-start-1 min-w-0 px-3";
-const TAB_FADE_MS = 200;
+/** An outline button ("View page", "Do it again"): no fill, a 1.5px ink edge. */
+const OUTLINE = (size: "sm" | "md") => cn(buttonStyles("secondary", size), "border-[1.5px] border-ink bg-transparent shadow-none");
+
+/** What's behind the capsules under the step's card. */
+type SheetKey = "requests" | "crew" | "chat" | "details";
+
+/** Where a link pointed the page (?focus=, see manageHref): pay opens the pay sheet; the rest open the sheet that holds it. */
+type Focus = "pay" | "requests" | "invite" | "booking" | "chat";
+const FOCI: readonly Focus[] = ["pay", "requests", "invite", "booking", "chat"];
+const sheetOfFocus: Record<Exclude<Focus, "pay">, SheetKey | null> = { requests: "requests", invite: null, booking: "details", chat: "chat" };
+
+/** Reads ?focus= once the page is there and acts on it: `onPay` for "pay", else opens the sheet that holds it ("invite" is the step's card). */
+function useHouseFocus(openSheet: (sheet: SheetKey) => void, onPay?: () => void) {
+  const param = useSearchParams().get("focus");
+  const focus = FOCI.find((f) => f === param) ?? null;
+  useEffect(() => {
+    if (!focus) return;
+    if (focus === "pay") {
+      onPay?.();
+      return;
+    }
+    const sheet = sheetOfFocus[focus];
+    if (sheet) openSheet(sheet);
+    // Once per focus in the URL – a later change of the callbacks mustn't open anything again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus]);
+}
 
 /**
- * Your houses › one House (/your-houses/[id]). No card and no white: everything lies on the page. The head, then where it stands as a
- * stepper with the next task, then the tabs (?tab=). The page scrolls as a whole. A House that's over has no tabs.
+ * Your houses › one House (/your-houses/[id]) – functional, not decorative (host and guest alike). A compact head (72px: the photo 56px,
+ * title, dates · place; right the status, "View page" and "…"), the stepper on one line, ONE card for the current step, and under it the
+ * capsules "Crew · Chat · Details" (the host's with "Requests" first) – everything else lives in their sheets. One narrow column (720px).
  */
 export function HouseDetail({ stay }: { stay: Stay }) {
   const store = useStore();
@@ -61,29 +83,165 @@ export function HouseDetail({ stay }: { stay: Stay }) {
   return stay.hostId === store.currentUserId ? <HouseManage stay={stay} /> : <JoinedHouse stay={stay} />;
 }
 
-/** The fixed head, on one centre line: thumbnail, title, "dates · place" with the status as a small capsule; right the page's actions with one primary. */
-function HouseHead({ stay, badges, actions, menu }: { stay: Stay; badges?: ReactNode; actions?: ReactNode; menu?: ReactNode }) {
+/** The head: the square photo (56px, radius 12px), title (20px semibold) and "Dec 6–20 · Bangkok" muted; right the status, "View page", "…". */
+function HouseHead({ stay, status, actions, eyebrow }: { stay: Stay; status?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   const f = useFormat();
-  const photo = housePhotos(stay)[0];
+  const store = useStore();
+  const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
   return (
-    <header className="flex flex-wrap items-center gap-x-6 gap-y-3 px-3">
-      <div className="flex min-w-0 flex-1 basis-80 items-center gap-4">
-        {photo ? <Img src={photo} alt="" width={56} height={56} className="size-14 shrink-0 rounded-[14px] object-cover" /> : <StayThumb stay={stay} size={56} className="size-14 rounded-[14px]" />}
-        <div className="min-w-0">
-          <h2 className="truncate text-h2 text-ink">{stay.title}</h2>
-          <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-body text-muted [&>span:not(:first-child)]:bg-ink/6">
-            <span className="truncate">
-              {f.stayDatesLong(stay)} · {f.placeName(stay)}
-            </span>
-            {badges}
-          </div>
-        </div>
+    <header className="flex min-h-18 items-center gap-4">
+      <span className="relative block size-14 shrink-0 overflow-hidden rounded-xl bg-ink/6">{photo && <Img src={photo} alt="" fill sizes="56px" priority className="object-cover" />}</span>
+      <div className="min-w-0 flex-1">
+        {eyebrow && <p className="text-eyebrow uppercase text-ink/55">{eyebrow}</p>}
+        <h1 className="truncate text-h3 text-ink">{stay.title}</h1>
+        <p className="truncate text-body text-muted">
+          {f.stayDates(stay)} · {stay.location?.city ?? stay.city}
+        </p>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
+        {status}
         {actions}
-        {menu}
       </div>
     </header>
+  );
+}
+
+/** "View page": an outline button. */
+function ViewPageLink({ href }: { href: string }) {
+  const t = useTranslations("houses.view");
+  return (
+    <Link href={href} className={OUTLINE("sm")}>
+      {t("viewPage")}
+    </Link>
+  );
+}
+
+/** One capsule under the step's card: its word and a number; an unread count as a small orange circle. */
+function Capsule({ label, count, unread, onClick }: { label: string; count?: number; unread?: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="press inline-flex h-10 items-center gap-2 rounded-full border border-ink/12 px-4 text-nav-main text-ink/80 transition-colors duration-150 hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)"
+    >
+      {label}
+      {count !== undefined && <span className="tabular-nums text-muted">{count}</span>}
+      {unread !== undefined && unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-eyebrow leading-none tracking-normal text-white tabular-nums">{unread}</span>}
+    </button>
+  );
+}
+
+/** The page's frame: the head, a note (overlapping Houses), the stepper and its card, the capsules – one column of 720px. */
+function HouseFrame({ head, note, children, capsules }: { head: ReactNode; note?: ReactNode; children: ReactNode; capsules?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-6">
+      {head}
+      {note && <p className="-mt-3 text-small text-muted">{note}</p>}
+      {children}
+      {capsules && <div className="flex flex-wrap gap-2">{capsules}</div>}
+    </div>
+  );
+}
+
+/** Unread messages in the crew's chat. */
+function useChatUnread(stay: Stay): number {
+  const store = useStore();
+  const thread = getCrewThread(store, stay.id);
+  if (!thread || !store.currentUserId) return 0;
+  const readAt = store.lastReadAt[thread.id];
+  return thread.messages.filter((m) => m.senderId !== store.currentUserId && m.senderId !== "system" && (!readAt || m.createdAt > readAt)).length;
+}
+
+/** The crew's chat in a sheet: its last messages and "Open chat". */
+function ChatBody({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.view");
+  const f = useFormat();
+  const store = useStore();
+  const thread = getCrewThread(store, stay.id);
+  const last = (thread?.messages ?? []).filter((m) => m.senderId !== "system" && m.text.trim() !== "").slice(-8);
+  return (
+    <div className="flex flex-col gap-6">
+      {last.length === 0 ? (
+        <p className="text-body text-muted">{t("chatEmpty")}</p>
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {last.map((message) => {
+            const sender = findUser(store, message.senderId);
+            return (
+              <li key={message.id} className="flex items-start gap-3">
+                {sender && <Avatar user={sender} size="sm" />}
+                <p className="min-w-0 flex-1 text-body text-ink">
+                  <span className="font-semibold">{sender?.name.split(" ")[0]}</span> <span className="text-small text-muted">{f.time(message.createdAt)}</span>
+                  <span className="block">{message.text}</span>
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {thread && (
+        <div>
+          <Button size="md" href={`/messages/${crewThreadId(stay.id)}`}>
+            {t("openChat")}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A heading inside a sheet. */
+function SheetPart({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h3 className="text-eyebrow uppercase text-ink/55">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/** Details: the place (or "decided with the crew"), the address once booked, the House rules. */
+function DetailsBody({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.view");
+  const f = useFormat();
+  const rows: { label: string; value: ReactNode }[] = [
+    {
+      label: t("accommodation"),
+      value:
+        stay.accommodationStatus === "locked" && stay.accommodationLink ? (
+          <a href={stay.accommodationLink} target="_blank" rel="noopener" className="font-semibold text-ink underline-offset-4 hover:underline">
+            {linkDomain(stay.accommodationLink)} ↗
+          </a>
+        ) : (
+          t("accommodationOpen")
+        ),
+    },
+    { label: t("address"), value: stay.bookingConfirmedAt ? f.placeName(stay) : t("addressAfter") },
+  ];
+  return (
+    <SheetPart title={t("details")}>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-body">
+        {rows.map((row) => (
+          <Fragment key={row.label}>
+            <dt className="text-small leading-[22px] text-muted">{row.label}</dt>
+            <dd className="text-ink">{row.value}</dd>
+          </Fragment>
+        ))}
+      </dl>
+      {stay.houseRules.length > 0 && (
+        <>
+          <p className="mt-2 text-small text-muted">{t("rules")}</p>
+          <ul className="flex flex-col gap-1.5">
+            {stay.houseRules.map((rule) => (
+              <li key={rule} className="flex items-start gap-2 text-body text-ink">
+                <Check aria-hidden className="mt-1 size-4 shrink-0 text-muted" />
+                {rule}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </SheetPart>
   );
 }
 
@@ -105,161 +263,87 @@ export function StatusLine({ stay, className }: { stay: Stay; className?: string
   return <Badge className={className}>{t(key)}</Badge>;
 }
 
-/** ?tab=, without a trip to the server. Anything this role doesn't have is the first tab. */
-function useTab<T extends Tab>(tabs: readonly T[]): [T, (tab: T) => void] {
-  const param = useSearchParams().get("tab");
-  const tab = tabs.find((t) => t === param) ?? tabs[0];
-  const select = (next: T) => {
-    const url = new URL(window.location.href);
-    if (next === tabs[0]) url.searchParams.delete("tab");
-    else url.searchParams.set("tab", next);
-    // Without state of its own: only then does Next take the change over into useSearchParams.
-    window.history.replaceState(null, "", url.pathname + url.search);
-  };
-  return [tab, select];
-}
-
-/** The tabs as text tabs with an underline (TabBar). A tab's number sits in an accent dot. */
-function TabRow<T extends Tab>({ tabs, value, onChange, counts }: { tabs: readonly T[]; value: T; onChange: (tab: T) => void; counts?: Partial<Record<Tab, number>> }) {
-  const t = useTranslations("houses.tabs");
-  const name = (tab: Tab) => t(tab);
+/** The capsules' sheets: one at a time, from the right with a mouse, from below on touch. */
+function DetailSheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <TabBar
-      label={t("label")}
-      value={value}
-      onChange={onChange}
-      className="mt-4 shrink-0 flex-wrap px-3"
-      options={tabs.map((tab) => {
-        const count = counts?.[tab] ?? 0;
-        return { value: tab, label: name(tab), count, ariaLabel: count > 0 ? t("withCount", { label: name(tab), count }) : undefined };
-      })}
-    />
-  );
-}
-
-/** What's under the tabs. The old tab fades out while the new one fades in, 200ms. */
-function TabPanels<T extends Tab>({ tab, render }: { tab: T; render: (tab: T) => ReactNode }) {
-  const [current, setCurrent] = useState(tab);
-  const [leaving, setLeaving] = useState<T | null>(null);
-  if (tab !== current) {
-    setLeaving(current);
-    setCurrent(tab);
-  }
-  useEffect(() => {
-    if (leaving === null) return;
-    const timer = window.setTimeout(() => setLeaving(null), TAB_FADE_MS);
-    return () => window.clearTimeout(timer);
-  }, [current, leaving]);
-  return (
-    <div className="mt-5 grid grid-cols-1">
-      {(leaving === null ? [current] : [leaving, current]).map((panel) => (
-        <div key={panel} role="tabpanel" inert={panel !== current} className={cn(TAB_PANEL, leaving !== null && (panel === current ? "animate-tab-in" : "animate-tab-out"))}>
-          {render(panel)}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Head, the stepper (with --space-section around it), then the tabs. */
-function TabbedHouse({ head, progress, tabs }: { head: ReactNode; progress?: ReactNode; tabs: ReactNode }) {
-  return (
-    <div className="flex flex-col">
-      {head}
-      {progress && <div className="mt-12 px-3">{progress}</div>}
-      <div className={progress ? "mt-14" : "mt-8"}>{tabs}</div>
-    </div>
-  );
-}
-
-/**
- * In the head, when it's time: "Add to calendar" once the booking is confirmed (.ics), "Something went wrong" from three days before arrival
- * until the day after it ends.
- */
-function StayExtras({ stay }: { stay: Stay }) {
-  const t = useTranslations("calendar");
-  const [now] = useState(() => Date.now());
-  return (
-    <>
-      {stay.bookingConfirmedAt && (
-        <Button variant="tertiary" size="sm" onClick={() => downloadIcs(stay)}>
-          <CalendarPlus aria-hidden />
-          {t("add")}
-        </Button>
-      )}
-      {helpAvailable(stay, now) && <HelpButton stay={stay} />}
-    </>
+    <Sheet variant="panel" open={open} onClose={onClose} title={title}>
+      {/* The panel's body has no padding of its own: the content keeps the head's 24px. */}
+      <div className="flex flex-col gap-8 px-6 pb-6 pt-1">{children}</div>
+    </Sheet>
   );
 }
 
 // ─── Hosted ────────────────────────────────────────────────────────────────────
 
-const HOST_TABS: readonly HostTab[] = ["requests", "crew", "payments", "share"];
-const DRAFT_TABS: readonly HostTab[] = ["requests", "crew", "payments"];
-
 function HouseManage({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses.detail");
+  const t = useTranslations("houses.view");
+  const tOverlap = useTranslations("overlap");
   const store = useStore();
   const draft = stay.status === "draft";
   const open = stay.status === "published" || stay.status === "booked";
-  const tabs = draft ? DRAFT_TABS : HOST_TABS;
-  const [tab, setTab] = useTab(tabs);
   const [locking, setLocking] = useState(false);
+  const [sheet, setSheet] = useState<SheetKey | null>(null);
   const { requests, waitlistRequests } = openRequestsOf(store, stay);
   const chat = getCrewThread(store, stay.id) ? `/messages/${crewThreadId(stay.id)}` : null;
   const full = stay.spotsFilled >= stay.spotsTotal;
-
-  const primary = draft ? <Button size="sm" href={`/your-houses/${stay.id}/edit`}>{t("next.finish")}</Button> : chat && stay.status !== "closed" ? <Button size="sm" href={chat}>{t("next.openCrewChat")}</Button> : null;
+  const twoAtOnce = hostOverlapOf(store, stay);
+  const unread = useChatUnread(stay);
+  const [now] = useState(() => Date.now());
+  useHouseFocus(setSheet);
+  const close = () => setSheet(null);
 
   return (
-    <TabbedHouse
+    <HouseFrame
       head={
         <HouseHead
           stay={stay}
-          badges={<StatusLine stay={stay} />}
-          menu={<CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal />}
+          status={<StatusLine stay={stay} />}
           actions={
             <>
-              {/* The host sees the public page as a guest would (preview banner, nothing changes data). */}
-              {!draft && (
-                <Button variant="tertiary" size="sm" href={`/house/${stay.slug}?preview=guest`}>
-                  {t("viewPage")}
-                </Button>
-              )}
-              {!draft && (
-                <Button variant="secondary" size="sm" href={`/your-houses/${stay.id}/edit`}>
-                  {t("edit")}
-                </Button>
-              )}
-              <StayExtras stay={stay} />
-              {primary}
+              {!draft && <ViewPageLink href={`/house/${stay.slug}?preview=guest`} />}
+              <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal extraItems={[{ label: t("edit"), href: `/your-houses/${stay.id}/edit` }]} />
             </>
           }
         />
       }
-      progress={<HostProgress stay={stay} requests={requests} chat={chat} onTab={setTab} onLock={() => setLocking(true)} />}
-      tabs={
+      note={twoAtOnce ? tOverlap("hostTwo") : undefined}
+      capsules={
         <>
-          <TabRow tabs={tabs} value={tab} onChange={setTab} counts={{ requests: requests.length + waitlistRequests.length }} />
-          <TabPanels
-            tab={tab}
-            render={(panel) => {
-              if (panel === "requests") return <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />;
-              if (panel === "crew") return (
-                <>
-                  <CrewRows stay={stay} manage />
-                  <WaitlistRows stay={stay} />
-                  {open && <HostInvitesSection stay={stay} />}
-                </>
-              );
-              if (panel === "payments") return <PaymentsSection stay={stay} onLock={open && full ? () => setLocking(true) : undefined} />;
-              return <div className="mx-auto w-full max-w-md"><HostShareTools stay={stay} /></div>;
-            }}
-          />
-          {locking && <LockSheet stay={stay} onClose={() => setLocking(false)} />}
+          <Capsule label={t("requests")} count={requests.length + waitlistRequests.length} onClick={() => setSheet("requests")} />
+          <Capsule label={t("crew")} count={stay.spotsFilled} onClick={() => setSheet("crew")} />
+          {chat && <Capsule label={t("chat")} unread={unread} onClick={() => setSheet("chat")} />}
+          <Capsule label={t("details")} onClick={() => setSheet("details")} />
         </>
       }
-    />
+    >
+      <HostProgress stay={stay} requests={requests} chat={chat} onSheet={setSheet} onLock={() => setLocking(true)} />
+      <DetailSheet open={sheet === "requests"} title={t("requests")} onClose={close}>
+        <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
+      </DetailSheet>
+      <DetailSheet open={sheet === "crew"} title={t("crew")} onClose={close}>
+        <div>
+          <CrewRows stay={stay} manage />
+          <WaitlistRows stay={stay} />
+        </div>
+      </DetailSheet>
+      <DetailSheet open={sheet === "chat"} title={t("chat")} onClose={close}>
+        <ChatBody stay={stay} />
+      </DetailSheet>
+      <DetailSheet open={sheet === "details"} title={t("details")} onClose={close}>
+        <SheetPart title={t("payments")}>
+          <PaymentsSection stay={stay} onLock={open && full ? () => setLocking(true) : undefined} />
+        </SheetPart>
+        {!draft && (
+          <SheetPart title={t("share")}>
+            {open && <HostInvitesSection stay={stay} />}
+            <HostShareTools stay={stay} />
+          </SheetPart>
+        )}
+        <DetailsBody stay={stay} />
+        {helpAvailable(stay, now) && <HelpButton stay={stay} />}
+      </DetailSheet>
+      {locking && <LockSheet stay={stay} onClose={() => setLocking(false)} />}
+    </HouseFrame>
   );
 }
 
@@ -374,6 +458,7 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
   const store = useStore();
   const showToast = useToast();
   const [removing, setRemoving] = useState<User | null>(null);
+  const router = useRouter();
   const crew = getCrew(store, stay);
   const invited = getInvited(store, stay.id);
   const locked = stay.accommodationStatus === "locked" && stay.pricePerPerson !== undefined;
@@ -420,6 +505,8 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
               }
               subtitle={t("invitedNote")}
               aside={<StatusBadge status="invited" />}
+              // The host may write to someone they invited (DIRECT_MESSAGE_POLICY).
+              action={manage && <MoreMenu label={t("messageLabel", { name: person.name })} items={[{ label: t("message"), onSelect: () => router.push(`/messages?id=${store.openDirectThread(stay.id, person.id)}`) }]} />}
             />
           </li>
         ))}
@@ -446,12 +533,16 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
  * A request: the person, their socials and message, how long it still waits ("Expires in 31h", ink under 12h); two buttons: Accept (primary)
  * and "Not a fit" (tertiary) – no reason, no confirmation, a toast "Declined · Undo" for 5s instead. Waitlist requests don't expire.
  */
-function RequestRow({ request, applicant, stay }: { request: JoinRequest; applicant: User; stay: Stay }) {
+export function RequestRow({ request, applicant, stay }: { request: JoinRequest; applicant: User; stay: Stay }) {
   const t = useTranslations("houses.requests");
   const f = useFormat();
-  const { acceptRequest, declineRequest, undoDecline } = useStore();
+  const store = useStore();
+  const { acceptRequest, declineRequest, undoDecline } = store;
   const showToast = useToast();
   const firstName = applicant.name.split(" ")[0];
+  // Mutual people: someone the host lived with whom the guest lived with too (lib/yourPeople.ts).
+  const known = knownThrough(store, stay.hostId, applicant.id);
+  const router = useRouter();
   // Spots held by open invites count as taken – a full crew can't take anyone else.
   const waitlist = request.status === "waitlist_requested";
   const isFull = !waitlist && openSpots(stay) === 0;
@@ -473,6 +564,12 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
           {applicant.photos.length === 0 && ` · ${t("noPhoto")}`}
         </p>
         <SocialRow user={applicant} size="sm" className="mt-1 empty:hidden" />
+        {known.length > 0 && (
+          <p className="mt-2 flex items-center gap-2 text-small font-semibold text-ink">
+            <Avatar user={known[0]} size="xs" />
+            {t("knownThrough", { name: known[0].name.split(" ")[0], others: known.length - 1 })}
+          </p>
+        )}
         {request.message.trim() && <p className="mt-2 max-w-[640px] text-body text-ink">{request.message}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           {!isFull && (
@@ -485,6 +582,10 @@ function RequestRow({ request, applicant, stay }: { request: JoinRequest; applic
               {t("accept")}
             </Button>
           )}
+          {/* The host may write to someone who asked (DIRECT_MESSAGE_POLICY): a direct chat about this House. */}
+          <Button variant="secondary" onClick={() => router.push(`/messages?id=${store.openDirectThread(stay.id, applicant.id)}`)}>
+            {t("message")}
+          </Button>
           <Button
             variant="tertiary"
             onClick={() => {
@@ -507,163 +608,150 @@ const UNDO_MS = 5000;
 
 // ─── Joined ────────────────────────────────────────────────────────────────────
 
-const GUEST_TABS: readonly GuestTab[] = ["crew", "payment"];
-
 function JoinedHouse({ stay }: { stay: Stay }) {
   const t = useTranslations("houses");
+  const tView = useTranslations("houses.view");
   const tWithdraw = useTranslations("withdraw");
   const tSection = useTranslations("houses.detail.sections");
-  const tNext = useTranslations("houses.detail.next");
   const store = useStore();
   const host = findUser(store, stay.hostId);
   const showToast = useToast();
-  const [tab, setTab] = useTab(GUEST_TABS);
   const [paying, setPaying] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [sheet, setSheet] = useState<SheetKey | null>(null);
+  const [now] = useState(() => Date.now());
   const request = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId);
   const accepted = request?.status === "accepted";
-  const invited = request?.status === "invited";
-  const hostName = host?.name.split(" ")[0] ?? "";
   const payment = getMyPayment(store, stay.id);
   // Refunded (the booking wasn't confirmed, the spot went to the waitlist, or left): "Refund of €410 on its way · 5–10 days".
   const refunded = !payment ? store.payments.findLast((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status === "refunded") : undefined;
   const owes = accepted && stay.accommodationStatus === "locked" && payment?.status === "pending" && Boolean(stay.paymentDueAt);
   const chat = accepted ? `/messages/${crewThreadId(stay.id)}` : null;
+  const waiting = request?.status === "pending" || request?.status === "waitlist_requested";
+  const unread = useChatUnread(stay);
+  useHouseFocus(setSheet, owes ? () => setPaying(true) : undefined);
+  const close = () => setSheet(null);
 
   function respond(accept: boolean) {
     store.respondToInvite(stay.id, accept);
     showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
   }
 
-  // One primary – the next step: answer the invite, pay the share, else the crew chat.
-  const next = invited ? (
-    <>
-      <Button variant="secondary" size="sm" onClick={() => respond(false)}>
-        {t("invite.decline")}
-      </Button>
-      <Button size="sm" onClick={() => respond(true)}>{t("invite.accept")}</Button>
-    </>
-  ) : owes ? (
-    <Button size="sm" onClick={() => setPaying(true)}>{tNext("payNow")}</Button>
-  ) : chat ? (
-    <Button size="sm" href={chat}>{tNext("openCrewChat")}</Button>
-  ) : null;
+  const refundReason = refunded ? (refunded.refundedAmount !== undefined ? "spot_transferred" : stay.status === "closed" ? "host_cancelled" : stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled") : null;
 
   return (
-    <TabbedHouse
+    <HouseFrame
       head={
         <HouseHead
           stay={stay}
-          menu={accepted && <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal />}
-          badges={
-            <>
-              {request && <StatusBadge status={request.status} />}
-              <StatusLine stay={stay} />
-            </>
-          }
+          status={request ? <StatusBadge status={request.status} /> : <StatusLine stay={stay} />}
           actions={
             <>
-              <Button variant="tertiary" size="sm" href={`/house/${stay.slug}`}>
-                {t("detail.viewPage")}
-              </Button>
-              {(request?.status === "pending" || request?.status === "waitlist_requested") && (
-                <ConfirmPopover
-                  trigger={tWithdraw(request.status === "pending" ? "action" : "waitlistAction")}
-                  title={tWithdraw(request.status === "pending" ? "title" : "waitlistTitle")}
-                  text={tWithdraw("text")}
-                  confirmLabel={tWithdraw("confirm")}
-                  cancelLabel={tWithdraw("keep")}
-                  onConfirm={() => {
-                    store.withdrawRequest(stay.id);
-                    showToast(tWithdraw("toast"));
-                  }}
-                  triggerClassName="px-2 text-body"
-                />
-              )}
-              {accepted && <StayExtras stay={stay} />}
-              {next}
+              <ViewPageLink href={`/house/${stay.slug}`} />
+              {accepted ? (
+                <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal />
+              ) : waiting ? (
+                <MoreMenu label={tView("withdraw")} items={[{ label: tWithdraw(request?.status === "pending" ? "action" : "waitlistAction"), danger: true, onSelect: () => setWithdrawing(true) }]} />
+              ) : null}
             </>
           }
         />
       }
-      progress={<GuestProgress stay={stay} request={request} hostName={hostName} onPay={owes ? () => setPaying(true) : undefined} chat={chat} />}
-      tabs={
+      capsules={
         <>
-          <TabRow tabs={GUEST_TABS} value={tab} onChange={setTab} />
-          <TabPanels
-            tab={tab}
-            render={(panel) => {
-              if (panel === "crew") return <CrewRows stay={stay} />;
-              return (
-                  <div className="max-w-[640px]">
-                    {refunded ? (
-                      <RefundNotice payment={refunded} currency={stay.currency} reason={refunded.refundedAmount !== undefined ? "spot_transferred" : stay.status === "closed" ? "host_cancelled" : stay.accommodationStatus !== "locked" ? "booking_not_confirmed" : "cancelled"} />
-                    ) : stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? (
-                      <div className="flex flex-col gap-6">
-                        <MyShare stay={stay} variant="panel" />
-                        {payment?.status === "paid" && <Receipt stay={stay} payment={payment} />}
-                      </div>
-                    ) : (
-                      <p className="text-body text-muted">{tSection("notLockedGuest")}</p>
-                    )}
-                    <p className="mt-4 text-small text-muted">{tSection("refundNote")}</p>
-                  </div>
-                );
-            }}
-          />
-          <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
+          <Capsule label={tView("crew")} count={stay.spotsFilled} onClick={() => setSheet("crew")} />
+          {chat && <Capsule label={tView("chat")} unread={unread} onClick={() => setSheet("chat")} />}
+          <Capsule label={tView("details")} onClick={() => setSheet("details")} />
         </>
       }
-    />
+    >
+      <GuestProgress
+        stay={stay}
+        request={request}
+        host={host}
+        onPay={owes ? () => setPaying(true) : undefined}
+        onRespond={respond}
+        onWithdraw={waiting ? () => setWithdrawing(true) : undefined}
+        chat={chat}
+        extra={refunded && refundReason ? <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} /> : undefined}
+      />
+      <DetailSheet open={sheet === "crew"} title={tView("crew")} onClose={close}>
+        <CrewRows stay={stay} />
+      </DetailSheet>
+      <DetailSheet open={sheet === "chat"} title={tView("chat")} onClose={close}>
+        <ChatBody stay={stay} />
+      </DetailSheet>
+      <DetailSheet open={sheet === "details"} title={tView("details")} onClose={close}>
+        <DetailsBody stay={stay} />
+        <SheetPart title={tView("payment")}>
+          {refunded && refundReason ? (
+            <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} />
+          ) : stay.accommodationStatus === "locked" && (owes || payment?.status === "paid") ? (
+            <div className="flex flex-col gap-6">
+              <MyShare stay={stay} variant="panel" />
+              {payment?.status === "paid" && <Receipt stay={stay} payment={payment} />}
+            </div>
+          ) : (
+            <p className="text-body text-muted">{tSection("notLockedGuest")}</p>
+          )}
+          <p className="text-small text-muted">{tSection("refundNote")}</p>
+        </SheetPart>
+        {accepted && helpAvailable(stay, now) && <HelpButton stay={stay} />}
+      </DetailSheet>
+      <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
+      <ConfirmSheet
+        open={withdrawing}
+        title={tWithdraw(request?.status === "pending" ? "title" : "waitlistTitle")}
+        description={tWithdraw("text")}
+        confirmLabel={tWithdraw("confirm")}
+        onClose={() => setWithdrawing(false)}
+        onConfirm={() => {
+          setWithdrawing(false);
+          store.withdrawRequest(stay.id);
+          showToast(tWithdraw("toast"));
+        }}
+      />
+    </HouseFrame>
   );
 }
 
 // ─── Past ──────────────────────────────────────────────────────────────────────
 
-/** A completed House, for everyone who lived in it (host included): Crew → Open again with this crew → Summary. */
+/**
+ * A House that's over, for everyone who lived in it: no stepper, no payment. The compact head with "Lived in · March 2027", one card with the
+ * crew ("Lived with") and the two ways on: "Do it again" (outline) and "Houses like this".
+ */
 function PastHouse({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses.past");
-  const tSection = useTranslations("houses.detail.sections");
-  const f = useFormat();
+  const t = useTranslations("houses.view");
+  const format = useFormatter();
   const store = useStore();
-  const payment = getMyPayment(store, stay.id);
-  const paid = payment?.status === "paid" ? f.price(payment.total, stay.currency) : tSection("summaryNothing");
-
+  const me = store.currentUserId;
+  const host = findUser(store, stay.hostId);
+  const people = [...(host ? [host] : []), ...getCrew(store, stay).filter((u) => u.id !== stay.hostId)].filter((u) => u.id !== me);
+  const month = format.dateTime(new Date(`${stay.startDate.slice(0, 7)}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" });
+  const place = ALL_PLACES.find((p) => p.name.split(",")[0].trim().toLowerCase() === stay.location.city.toLowerCase());
   return (
-    <TabbedHouse
-      head={<HouseHead
-        stay={stay}
-        badges={<Badge icon={<Check aria-hidden />}>{t("badge")}</Badge>}
-        actions={
-          <Button variant="secondary" href={`/house/${stay.slug}`}>
-            {t("viewPage")}
-          </Button>
-        }
-      />}
-      tabs={<div className="px-3">
-        <CrewRows stay={stay} />
-        {/* Same place, vibe and spots – the crew invited as the House is opened (see againHref / createStay). */}
-        <DetailSection
-          title={tSection("openAgain")}
-          action={
-            <Button variant="secondary" href={againHref(stay.id)}>
-              <RotateCcw aria-hidden />
-              {tSection("openAgainAction")}
-            </Button>
-          }
-        >
-          <p className="text-body text-muted">{tSection("openAgainText")}</p>
-        </DetailSection>
-        <DetailSection title={tSection("summary")}>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-body">
-            <dt className="text-small leading-[22px] text-muted">{tSection("summaryDates")}</dt>
-            <dd className="text-ink">{f.stayDatesLong(stay)}</dd>
-            <dt className="text-small leading-[22px] text-muted">{tSection("summaryPlace")}</dt>
-            <dd className="text-ink">{f.placeName(stay)}</dd>
-            <dt className="text-small leading-[22px] text-muted">{tSection("summaryPaid")}</dt>
-            <dd className="tabular-nums text-ink">{paid}</dd>
-          </dl>
-        </DetailSection>
-      </div>}
-    />
+    <HouseFrame head={<HouseHead stay={stay} eyebrow={t("livedIn", { date: month })} actions={<ViewPageLink href={`/house/${stay.slug}`} />} />}>
+      <section className="flex max-w-[640px] flex-col gap-5 rounded-[20px] bg-(--card) p-6">
+        <h2 className="text-eyebrow uppercase text-ink/55">{t("crew")}</h2>
+        <ul className="flex flex-wrap gap-4">
+          {people.map((person) => (
+            <li key={person.id} className="flex w-20 flex-col items-center gap-2 text-center">
+              <Avatar user={person} size="lg" linked />
+              <span className="w-full truncate text-body font-semibold text-ink">{person.name.split(" ")[0]}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap gap-2">
+          <Link href={againHref(stay.id)} className={OUTLINE("md")}>
+            <RotateCcw aria-hidden />
+            {t("doItAgain")}
+          </Link>
+          <Link href={`/explore?vibe=${stay.vibe}${place ? `&place=${place.id}` : ""}`} className={buttonStyles("tertiary", "md")}>
+            {t("housesLike")}
+          </Link>
+        </div>
+      </section>
+    </HouseFrame>
   );
 }

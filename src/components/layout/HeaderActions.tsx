@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Heart, LogOut, Settings, type LucideIcon } from "lucide-react";
+import { Download, Heart, LogOut, Settings, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -17,12 +17,11 @@ const MENU_GLASS = { backgroundColor: "rgba(250, 248, 244, 0.92)" };
 
 /**
  * The avatar's menu, 260px of glass (8px inside): the head – avatar 40px, the name, "View profile" – is one link to the own profile; a
- * hairline; Saved houses · Settings · Get the app (not when installed already); a hairline; Log out; 12px below, "Impressum · Privacy ·
+ * hairline; Saved houses · Your people · Settings · Get the app (not when installed already); a hairline; Log out; 12px below, "Impressum · Privacy ·
  * Terms" in one small line. Rows 40px, text 15px, icons 18px muted, hover a soft rounded surface over the full width.
  */
-export function AccountMenu({ me }: { me: User }) {
+export function AccountMenu({ me, avatarSize = "sm" }: { me: User; /** base: 36px with a 2px light ring, beside the header's tab capsule (as high as its pill) */ avatarSize?: "sm" | "base" }) {
   const t = useTranslations("nav");
-  const tFooter = useTranslations("footer");
   const { logout } = useStore();
   const router = useRouter();
   const standalone = useIsStandalone();
@@ -39,16 +38,12 @@ export function AccountMenu({ me }: { me: User }) {
   const close = () => setOpen(false);
   const items: ReadonlyArray<{ href: string; label: string; icon: LucideIcon }> = [
     { href: "/saved", label: t("menu.saved"), icon: Heart },
+    { href: "/people", label: t("menu.people"), icon: Users },
     { href: "/settings", label: t("menu.settings"), icon: Settings },
     ...(standalone ? [] : [{ href: GET_THE_APP_HREF, label: t("menu.getTheApp"), icon: Download }]),
   ];
   const row = "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-body text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:bg-ink/5 focus-visible:outline-none";
   const separator = <div role="separator" className="mx-3 my-2 h-px bg-ink/8" />;
-  const legal = [
-    { href: "/impressum", label: tFooter("links.impressum") },
-    { href: "/privacy", label: tFooter("links.privacy") },
-    { href: "/terms", label: tFooter("links.terms") },
-  ];
 
   return (
     <div className="relative">
@@ -60,9 +55,9 @@ export function AccountMenu({ me }: { me: User }) {
         data-tooltip={t("yourProfile")}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ink/25 focus-visible:ring-offset-2"
+        data-header-avatar={avatarSize === "base" || undefined} className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ink/25 focus-visible:ring-offset-2"
       >
-        <Avatar user={me} size="sm" />
+        <Avatar user={me} size={avatarSize} className={avatarSize === "base" ? "max-w-none" : undefined} />
       </button>
       {open && (
         // In a portal: the site header clips its overflow. The backdrop closes it; it sits under the menu.
@@ -98,17 +93,6 @@ export function AccountMenu({ me }: { me: User }) {
               <LogOut className="size-4.5 shrink-0 text-muted" aria-hidden />
               {t("menu.logOut")}
             </button>
-            {/* 12px below: the legal links in one small line. */}
-            <p className="mt-3 px-3 pb-1 text-eyebrow font-normal normal-case tracking-normal text-muted">
-              {legal.map(({ href, label }, i) => (
-                <span key={href}>
-                  {i > 0 && <span aria-hidden> · </span>}
-                  <Link href={href} role="menuitem" onClick={close} className="transition-colors duration-150 hover:text-ink">
-                    {label}
-                  </Link>
-                </span>
-              ))}
-            </p>
           </div>
         </Anchored>
       )}

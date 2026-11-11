@@ -64,7 +64,7 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
       setBusy(false);
       if (result === "joined") {
         showToast(t("joinedToast", { title: stay.title }));
-        router.push(`/your-houses/${stay.id}`);
+        router.push(`/h/${stay.id}`);
       } else showToast(t("invalid"));
     }, { reason: "join", hostName: host?.name.split(" ")[0] });
   }

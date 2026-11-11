@@ -46,7 +46,7 @@ export function ClaimView({ params }: { params: Promise<{ token: string }> }) {
           title={mine ? t("mineTitle") : t("claimedTitle")}
           description={mine ? t("mineText") : t("claimedText")}
           action={
-            <Button href={mine ? `/your-houses/${stay.id}` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
+            <Button href={mine ? `/h/${stay.id}/manage` : "/"}>{mine ? t("openDraft") : t("explore")}</Button>
           }
         />
       </Container>

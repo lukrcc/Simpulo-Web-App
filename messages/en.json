@@ -32,6 +32,13 @@
     }
   },
   "common": {
+    "loadMore": {
+      "showing": "Showing {shown} of {total} {kind, select, updates {updates} other {houses}}",
+      "more": "Show {count} more",
+      "loading": "Loading more",
+      "all": "That's all {total} {kind, select, updates {updates} other {houses}}",
+      "openOwn": "Open your own"
+    },
     "datesTbd": "Dates TBD",
     "budgetTbd": "Price set with crew",
     "pricePerPersonShort": "{price} pp",
@@ -137,6 +144,14 @@
         "approx": "≈ {amount} · approximate, you pay in {currency}",
         "pricedIn": "Priced in {currency} · {amount} pp"
       },
+      "currency": {
+        "sheetTitle": "Currency",
+        "sheetSubtitle": "Prices are shown in it. You always pay in the House's own currency.",
+        "shownIn": "Shown in {currency}",
+        "change": "Change",
+        "hint": "Prices in {current}",
+        "hintSwitch": "Switch to {other}"
+      },
       "socialRow": {
         "onNetwork": "{name} on {network}",
         "handleOn": "{handle} on {network}",
@@ -206,6 +221,9 @@
         "partial": "{filled} of {total} in",
         "oneLeft": "1 spot left",
         "complete": "Crew complete"
+      },
+      "rows": {
+        "seeAll": "See all"
       }
     }
   },
@@ -230,7 +248,8 @@
       "settings": "Settings",
       "getTheApp": "Get the app",
       "logOut": "Log out",
-      "close": "Close menu"
+      "close": "Close menu",
+      "people": "Your people"
     },
     "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}",
     "compactLabel": "Main",
@@ -448,7 +467,11 @@
     "logIn": "Log in",
     "dev": {
       "yourHouses": "Your houses",
-      "personas": { "new": "New", "guest": "Guest", "host": "Host" },
+      "personas": {
+        "new": "New",
+        "guest": "Guest",
+        "host": "Host"
+      },
       "label": "Dev",
       "labelShort": "D",
       "mockUser": "Mock user",
@@ -499,7 +522,14 @@
         "launch": "Launch",
         "full": "Full"
       },
-      "complete": "Mark as completed (writes the House)"
+      "complete": "Mark as completed (writes the House)",
+      "viewerCurrency": "Viewer currency",
+      "currencyAuto": "Auto ({code})",
+      "simulateShareHost": "Payouts as a share host",
+      "simulateHostWithoutPayouts": "Host without payouts",
+      "headerTheme": "Header",
+      "headerTheme_light": "Light",
+      "headerTheme_dark": "Dark"
     }
   },
   "onboarding": {
@@ -523,6 +553,7 @@
   },
   "explore": {
     "title": "Open Houses",
+    "allEyebrow": "All houses",
     "summary": "{houses} · {countries}",
     "startDate": "Start date",
     "sort": "Sort",
@@ -618,10 +649,20 @@
       "text": "Try another vibe, place or date – or clear the filters.",
       "clear": "Clear filters"
     },
-    "showMore": "Show {count} more",
     "filterByCollection": "Filter by collection",
     "filtersUi": {
       "clearAll": "Clear all",
+      "allFilters": "All filters",
+      "whereWhen": "Where · When",
+      "whereWhenRow": "Where & when",
+      "moreRow": "More",
+      "moreCount": "+ {count} more",
+      "searchPlaceholder": "Search",
+      "searchIn": "Search {label}",
+      "noMatch": "Nothing found",
+      "verifiedChip": "Verified hosts",
+      "languagesCount": "{count} languages",
+      "sectionActive": "Filter set",
       "clear": "Clear",
       "clearSection": "Clear {section}",
       "hostExperience": "Host experience",
@@ -714,8 +755,15 @@
       "titlePlace": "No House in {place} yet.",
       "titleMonth": "No House in {month} yet.",
       "titleNone": "No House here yet.",
-      "openFirst": "Open the first House",
-      "notifyMe": "Notify me when one opens",
+      "openFirst": "Open this House",
+      "notifyMe": "Save this search",
+      "clearFilters": "Clear filters",
+      "openHere": "Open a House here",
+      "openHereIn": "Be the first in {place}",
+      "openHereText": "Start the one you're looking for",
+      "nearbyEyebrow": "Nearby",
+      "nearbyTitle": "Nearby",
+      "nearbySubline": "A similar place or time",
       "saved": "Done. You'll be the first to know – 48h before everyone else.",
       "nearby": "Houses nearby or in other months",
       "notQuite": "Not quite it? Notify me about new Houses in {place} →",
@@ -840,7 +888,11 @@
       "receipt": "Receipt",
       "receiptPaid": "Paid {date}",
       "receiptMethod": "{brand} ****{last4}",
-      "downloadReceipt": "Download receipt"
+      "downloadReceipt": "Download receipt",
+      "freeCancel": "Free cancellation until the crew is complete",
+      "rules": "Rules",
+      "orCardShort": "or card",
+      "bankConvertsShort": "Charged in {currency}. Your bank converts."
     },
     "banner": {
       "yourShare": "Your share: <b>{amount}</b> · due {date}",
@@ -958,9 +1010,95 @@
       "voteFor": "Vote for {option}",
       "voteOpenLink": "Open",
       "accommodationOpen": "House decides together – link follows in the chat",
-      "more": "More houses like this"
+      "more": "More houses like this",
+      "reservedFor": "Reserved for {name}",
+      "reserved": "Reserved",
+      "notForYou": "This House isn't taking your request.",
+      "hero": {
+        "placeBooked": "Place booked",
+        "pickingTogether": "Picking together",
+        "stayIncluded": "Stay included",
+        "stayAndHost": "Stay + host experience",
+        "womenOnly": "Women only",
+        "housesHosted": "{count, plural, one {# House} other {# Houses}} hosted",
+        "viewProfile": "View profile",
+        "wayIn": "Free to request · Pay only after the host says yes",
+        "hostLabel": "Host",
+        "fromYourPeople": "From your people",
+        "respondsFast": "Responds fast",
+        "inCommonLabel": "In common",
+        "crewLabel": "Crew",
+        "spotsLeftOf": "{open} of {total} spots left",
+        "crewComplete": "Crew complete"
+      },
+      "where2": {
+        "around": "Around {area}",
+        "exactAfter": "Exact address after booking.",
+        "shortlist": "Shortlist",
+        "perPerson": "{price} pp",
+        "option": "Option {index}",
+        "howTitle": "How the place is picked",
+        "howSteps": {
+          "join": "Crew joins",
+          "suggest": "Everyone suggests places",
+          "vote": "Vote, host books"
+        }
+      },
+      "messageHostShort": "Message host",
+      "hostStatus": "{filled} of {total} in · {requests, plural, =0 {no requests} one {# request} other {# requests}}"
     },
-    "headStartHint": "Your House is live. For the first {hours}h only the people who searched for this see it, then it's on Explore."
+    "headStartHint": "Your House is live. For the first {hours}h only the people who searched for this see it, then it's on Explore.",
+    "steps": {
+      "label": "Your way in",
+      "requested": "Requested",
+      "accepted": "Accepted",
+      "crew": "Crew {filled}/{total}",
+      "pay": "Pay",
+      "arrival": "Arrival",
+      "crewAndPlace": "Crew & place",
+      "bookedCheck": "Booked ✓",
+      "openChat": "Open chat",
+      "leave": "Leave House",
+      "leaveTitle": "Leave this House?",
+      "leaveText": "Your spot opens up again. Nothing has been charged unless you paid already.",
+      "leftToast": "You left the House",
+      "now": {
+        "waitingHost": "Waiting for {name}",
+        "waitingHostLine": "They answer within {hours}h – you'll hear in Messages.",
+        "waitingHostLineNoTime": "You'll hear in Messages.",
+        "waitingMore": "Waiting for {count} more",
+        "waitingMoreLine": "You pay once the crew is complete – nothing is charged before.",
+        "inviteFriend": "Invite a friend",
+        "pickingPlace": "Picking the place",
+        "pickingPlaceLine": "The crew votes on the shortlist.",
+        "vote": "Vote",
+        "payShare": "Pay your share · {hours}h",
+        "payShareNoTime": "Pay your share",
+        "payShareLine": "{amount} – your spot is held until then.",
+        "payNow": "Pay now",
+        "hostBooks": "{name} books the place",
+        "hostBooksLine": "Within 48h – then the address is yours.",
+        "inDays": "{count, plural, one {In # day} other {In # days}}",
+        "today": "Happening now",
+        "bookedLine": "Booked ✓ · {dates}",
+        "directions": "Get directions",
+        "livedIn": "Lived in",
+        "livedInLine": "Thanks for being part of it."
+      },
+      "sections": {
+        "crew": "Crew {filled} · {open, plural, =0 {complete} one {# spot open} other {# spots open}}",
+        "invite": "Invite",
+        "place": "Place",
+        "placeLater": "The shortlist comes once the crew suggests places.",
+        "practical": "Practical",
+        "address": "Address",
+        "addressLater": "Shared after booking",
+        "checkInOut": "Check-in – check-out",
+        "cancellation": "Cancellation",
+        "cancellationLine": "Free until the crew is complete · Rules",
+        "included": "Included"
+      }
+    }
   },
   "request": {
     "cta": {
@@ -1361,7 +1499,9 @@
       "lookingFor": "Who are you looking for?",
       "rules": "House rules",
       "languages": "Languages in the House",
-      "crewGroup": "House group link"
+      "crewGroup": "House group link",
+      "invite": "Invite your people",
+      "inviteAgain": "Invite your crew"
     },
     "resume": {
       "untitled": "An unfinished House",
@@ -1458,7 +1598,10 @@
       "cardBooked": "Place booked",
       "cardTogether": "Picking together",
       "cardCrew": "1 of {total} · You",
-      "progress": "Step {current} of {total}"
+      "progress": "Step {current} of {total}",
+      "hostFee": "Host fee per guest (optional)",
+      "hostFeeHint": "For hosts who lead the House – coaching, program, guiding. Shown separately to guests.",
+      "hostFeeEarn": "You earn {amount} per guest after Simpulo's {percent} %"
     },
     "opened": {
       "title": "Your House is open.",
@@ -1468,7 +1611,9 @@
       "notified": "{count, plural, one {# person was notified – they get 48h first} other {# people were notified – they get 48h first}}",
       "saveTemplate": "Save as template",
       "templateSaved": "Saved as a template",
-      "yourHouses": "Go to Your houses"
+      "yourHouses": "Go to Your houses",
+      "copyInvite": "Copy invite link",
+      "inviteCopied": "Invite link copied – the spot is held for 48h"
     },
     "socialsHint": "<link>Add your socials in your profile</link> – houses with socials get more requests",
     "templates": {
@@ -1537,14 +1682,182 @@
       "add": "Add a proposal",
       "remove": "Remove proposal {number}",
       "deadline": "Voting ends"
+    },
+    "invite": {
+      "count": "{max, plural, =0 {No spots left to invite to} other {{count} of {max} spots held for 48h once it opens}}",
+      "livedIn": "Lived together in {place}",
+      "addFrom": "Add from Your people",
+      "search": "Search your people",
+      "noMatch": "Nobody by that name",
+      "add": "Add",
+      "byLink": "Invite by link",
+      "byLinkHint": "You get a link right after opening – it holds a spot for 48h"
     }
   },
   "houses": {
     "title": "Your houses",
+    "view": {
+      "crew": "Crew",
+      "requests": "Requests",
+      "chat": "Chat",
+      "payment": "Payment",
+      "payments": "Payments",
+      "details": "Details",
+      "share": "Share",
+      "chatEmpty": "No messages yet.",
+      "openChat": "Open chat",
+      "accommodation": "Place",
+      "accommodationOpen": "Decided with the crew",
+      "address": "Address",
+      "addressAfter": "Shared once the booking is confirmed",
+      "rules": "House rules",
+      "viewPage": "View page",
+      "edit": "Edit",
+      "withdraw": "Withdraw request",
+      "livedIn": "Lived in · {date}",
+      "livedWith": "Lived with",
+      "photos": "Photos",
+      "doItAgain": "Do it again",
+      "housesLike": "Houses like this"
+    },
     "home": {
-      "tabsLabel": "Your houses",
-      "tabs": { "houses": "Houses", "earnings": "Payouts" },
-      "stats": { "earnedYear": "Received this year", "nextPayout": "Next payout", "requests": "Requests waiting", "active": "Active Houses" },
+      "unreadNews": "Unread news",
+      "dash": {
+        "upNextIn": "Up next · in {days, plural, one {# day} other {# days}}",
+        "upNextToday": "Up next · today",
+        "todoTitle": "To do",
+        "todoCount": "To do · {count}",
+        "allDone": "All done",
+        "moreTasks": "+ {count} more",
+        "fewer": "Show less",
+        "openThisHouse": "Open House",
+        "yourHousesCount": "Your houses · {count}",
+        "livedInCount": "Lived in · {count}",
+        "filterLabel": "Show",
+        "filter": {
+          "all": "All",
+          "hosting": "Hosting",
+          "joined": "Joined"
+        },
+        "group": {
+          "pay": "Pay",
+          "reply": "Reply",
+          "setup": "Set up"
+        },
+        "groupDone": "{name}: nothing to do",
+        "groupOpen": "{name}: {count} open",
+        "showHouse": "House {index} of {count}",
+        "pageOf": "{index} / {count}",
+        "needsTitle": "Needs you",
+        "needsCount": "Needs you · {count}",
+        "setupWhere": "Your account",
+        "need": {
+          "pay": "Pay {amount}",
+          "offer": "Take spot",
+          "requests": "{count, plural, one {Review # request} other {Review # requests}}",
+          "book": "Confirm booking",
+          "choosePlace": "Choose place",
+          "invite": "Invited",
+          "payouts": "Set up payouts",
+          "overlap": "{count, plural, one {Pick one} other {Sort # overlaps}}",
+          "verify": "Verify your ID",
+          "profile": "Finish profile"
+        },
+        "whatsNew": "What's new",
+        "what": {
+          "joined": "{name} joined",
+          "youreIn": "You're in",
+          "messages": "{count, plural, one {# message} other {# messages}}",
+          "paid": "Paid",
+          "payDue": "Pay due",
+          "full": "Full",
+          "booked": "Booked",
+          "newRequest": "New request",
+          "requests": "Requests waiting",
+          "opened": "Opened",
+          "invited": "Invited",
+          "again": "Again?",
+          "declined": "Didn't work out",
+          "update": "Update"
+        },
+        "plusMore": "+{count}",
+        "thisYear": "this year",
+        "due": "due {date}",
+        "dueNow": "due now",
+        "hoursLeft": "{count}h left",
+        "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+        "profileText": "Photos and a few words – hosts say yes more often.",
+        "todo": {
+          "pay": "Pay your share",
+          "offer": "Take your spot",
+          "requests": "{count, plural, one {Review # request} other {Review # requests}}",
+          "book": "Confirm the booking",
+          "choosePlace": "Choose the place",
+          "invite": "Answer the invite",
+          "payouts": "Set up payouts",
+          "overlap": "{count, plural, one {Pick one} other {Sort # overlaps}}",
+          "verify": "Verify your ID",
+          "profile": "Complete your profile"
+        },
+        "payoutsTitle": "Payouts",
+        "receivedYear": "received this year",
+        "nextPayout": "Next payout: {date}",
+        "viewPayouts": "View payouts",
+        "setUpPayouts": "Set up payouts",
+        "setUpText": "Get the crew's shares paid to your bank.",
+        "hostOwnTitle": "Host your own House",
+        "hostOwnText": "Open a place and find your crew.",
+        "openHouse": "Open a House",
+        "activityTitle": "Activity",
+        "seeAll": "See all",
+        "activityEmpty": "Nothing yet.",
+        "livedWith": "Lived with {names}",
+        "livedWithMore": "Lived with {names} +{count}",
+        "doItAgain": "Do it again",
+        "housesLikeThis": "Houses like this",
+        "nearSearches": "Near your searches",
+        "hostYouFollow": "From a host you follow",
+        "nextTripTitle": "For your next trip",
+        "nextTripSub": "Open Houses that fit what you like.",
+        "livedWithMonth": "Lived with · {month}",
+        "newMessages": "{count, plural, one {# new message} other {# new messages}}",
+        "moreCount": "+{count} more",
+        "nextPayoutChip": "Next payout · {date}",
+        "hostOwnAction": "Open a House",
+        "strip": {
+          "earned": "earned this year",
+          "paidOut": "paid out this year",
+          "hosting": "{count, plural, one {House} other {Houses}} hosting",
+          "full": "full"
+        },
+        "payoutsSetupSub": "Bank account + ID check, 5 min",
+        "optional": "Optional",
+        "payoutsNotSetUp": "Payouts not set up",
+        "rows": {
+          "hosting": "Hosting",
+          "going": "Going",
+          "waiting": "Waiting",
+          "livedIn": "Lived in",
+          "nextTrip": "For your next trip",
+          "back": "Your houses"
+        },
+        "filterAll": "All",
+        "allSet": "You're all set",
+        "allSetHint": "We'll tell you when something needs you.",
+        "groupEmpty": "Nothing here right now.",
+        "openForRequests": "Open for requests"
+      },
+      "tabsLabel": "Show",
+      "tabs": {
+        "houses": "Houses",
+        "earnings": "Payouts"
+      },
+      "stats": {
+        "earnedYear": "Received this year",
+        "nextPayout": "Next payout",
+        "requests": "Requests waiting",
+        "active": "Active Houses"
+      },
       "needsYou": "Needs you",
       "allCaughtUp": "All caught up",
       "hostingCount": "Hosting · {count}",
@@ -1552,12 +1865,39 @@
       "draftsCount": "Drafts · {count}",
       "openHouseText": "Your crew chips in for the stay",
       "task": {
-        "requests": { "chip": "{count, plural, one {# request} other {# requests}}", "action": "Review {count}", "sheetTitle": "Requests · {house}", "slow": "Guests are waiting – answer within 48h, a quick yes or “Not a fit” helps them plan." },
-        "book": { "chip": "Confirm booking", "action": "Confirm booking", "sheetTitle": "Confirm the booking", "sheetText": "Everyone paid. Book the place and upload the confirmation within 48h – then the money is released to you." },
-        "choosePlace": { "chip": "Choose the place", "action": "Choose place" },
-        "pay": { "chip": "Pay by {date}", "action": "Pay · {hours}h left" },
-        "invite": { "chip": "Invited", "action": "Answer invite", "sheetTitle": "{name} invited you", "sheetText": "Your spot is held – join the crew or let it go." },
-        "offer": { "chip": "Spot open · {hours}h", "action": "Take spot", "sheetTitle": "Take your spot in {house}?", "sheetText": "A spot opened up and it's held for you for 24 hours.", "toast": "You're in {house} 🎉" }
+        "requests": {
+          "chip": "{count, plural, one {# request} other {# requests}}",
+          "action": "Review {count, plural, one {# request} other {# requests}}",
+          "sheetTitle": "Requests · {house}",
+          "slow": "Guests are waiting – answer within 48h, a quick yes or “Not a fit” helps them plan."
+        },
+        "book": {
+          "chip": "Confirm booking",
+          "action": "Confirm booking",
+          "sheetTitle": "Confirm the booking",
+          "sheetText": "Everyone paid. Book the place and upload the confirmation within 48h – then the money is released to you."
+        },
+        "choosePlace": {
+          "chip": "Choose the place",
+          "action": "Choose place"
+        },
+        "pay": {
+          "chip": "Pay by {date}",
+          "action": "Pay · {hours}h"
+        },
+        "invite": {
+          "chip": "Invited",
+          "action": "Answer invite",
+          "sheetTitle": "{name} invited you",
+          "sheetText": "Your spot is held – join the crew or let it go."
+        },
+        "offer": {
+          "chip": "Spot open · {hours}h",
+          "action": "Take spot",
+          "sheetTitle": "Take your spot in {house}?",
+          "sheetText": "A spot opened up and it's held for you for 24 hours.",
+          "toast": "You're in {house} 🎉"
+        }
       },
       "new": {
         "title": "Your Houses live here.",
@@ -1579,20 +1919,75 @@
         "hostText": "Your crew chips in for the stay",
         "hostAction": "Open a House"
       },
-      "host": { "requests": "{count, plural, one {# request} other {# requests}}", "full": "Full", "taking": "Taking requests", "notTaking": "Not taking requests", "cancelled": "Cancelled" },
+      "host": {
+        "requests": "{count, plural, one {# request} other {# requests}}",
+        "full": "Full",
+        "taking": "Taking requests",
+        "notTaking": "Not taking requests",
+        "cancelled": "Cancelled",
+        "complete": "Crew complete"
+      },
       "needs": {
-        "payouts": { "title": "Set up payouts", "sub": "Needed to receive your crew's payments", "action": "Set up" },
-        "payoutsAction": { "title": "Stripe needs one more thing", "sub": "Finish it to receive your crew's payments", "action": "Continue" },
-        "pay": { "title": "Pay for {house}", "sub": "{hours}h left · due {date}", "action": "Pay" },
-        "offer": { "title": "A spot opened in {house}", "sub": "Take it within {hours}h", "action": "Take spot" },
-        "book": { "title": "Confirm the booking", "sub": "{house} · within 48h", "action": "Mark as booked" },
-        "paymentsOpen": { "title": "{count, plural, one {# payment open} other {# payments open}}", "sub": "{house} · due {date}", "action": "View" },
-        "requests": { "title": "Review {count, plural, one {# request} other {# requests}}", "sub": "{hours, plural, =0 {{house}} other {{house} · the first expires in #h}}", "subSlow": "{house} · guests are waiting – answer within 48h", "action": "Review" },
-        "responseRate": { "title": "Answer requests within 48h", "sub": "Guests are waiting – a quick yes or “Not a fit” helps them plan" },
-        "invite": { "title": "You're invited", "sub": "{house}", "action": "Answer" },
-        "choosePlace": { "title": "Choose the place", "sub": "{house} · the crew is complete", "action": "Choose" },
-        "voting": { "title": "The crew is voting on the place", "sub": "{house}", "action": "Open" },
-        "finish": { "title": "Finish your draft", "sub": "{house}", "action": "Finish" }
+        "payouts": {
+          "title": "Set up payouts",
+          "sub": "Needed to receive your crew's payments",
+          "action": "Set up"
+        },
+        "payoutsAction": {
+          "title": "Stripe needs one more thing",
+          "sub": "Finish it to receive your crew's payments",
+          "action": "Continue"
+        },
+        "pay": {
+          "title": "Pay for {house}",
+          "sub": "{hours}h left · due {date}",
+          "action": "Pay"
+        },
+        "offer": {
+          "title": "A spot opened in {house}",
+          "sub": "Take it within {hours}h",
+          "action": "Take spot"
+        },
+        "book": {
+          "title": "Confirm the booking",
+          "sub": "{house} · within 48h",
+          "action": "Mark as booked"
+        },
+        "paymentsOpen": {
+          "title": "{count, plural, one {# payment open} other {# payments open}}",
+          "sub": "{house} · due {date}",
+          "action": "View"
+        },
+        "requests": {
+          "title": "Review {count, plural, one {# request} other {# requests}}",
+          "sub": "{hours, plural, =0 {{house}} other {{house} · the first expires in #h}}",
+          "subSlow": "{house} · guests are waiting – answer within 48h",
+          "action": "Review"
+        },
+        "responseRate": {
+          "title": "Answer requests within 48h",
+          "sub": "Guests are waiting – a quick yes or “Not a fit” helps them plan"
+        },
+        "invite": {
+          "title": "You're invited",
+          "sub": "{house}",
+          "action": "Answer"
+        },
+        "choosePlace": {
+          "title": "Choose the place",
+          "sub": "{house} · the crew is complete",
+          "action": "Choose"
+        },
+        "voting": {
+          "title": "The crew is voting on the place",
+          "sub": "{house}",
+          "action": "Open"
+        },
+        "finish": {
+          "title": "Finish your draft",
+          "sub": "{house}",
+          "action": "Finish"
+        }
       },
       "needsYouDot": "Something needs you",
       "allSet": "All set.",
@@ -1610,7 +2005,6 @@
       "crewStatus": "{filled} of {total} · {status}",
       "continueDraft": "Continue draft",
       "openChat": "Open chat",
-      "tabsLabel": "Show",
       "tabAll": "All",
       "tabHosting": "Hosting",
       "tabJoined": "Joined",
@@ -1645,7 +2039,15 @@
         "invite": "You're invited – answer the host",
         "pay": "Pay your share – due {date}",
         "offer": "A spot opened for you – take it by {date}",
-        "actions": { "finish": "Finish", "review": "Review", "choose": "Choose", "markBooked": "Mark as booked", "answer": "Answer", "pay": "Pay your share", "takeSpot": "Take spot" }
+        "actions": {
+          "finish": "Finish",
+          "review": "Review",
+          "choose": "Choose",
+          "markBooked": "Mark as booked",
+          "answer": "Answer",
+          "pay": "Pay your share",
+          "takeSpot": "Take spot"
+        }
       },
       "deleteDraft": "Delete draft",
       "deleteDraftTitle": "Delete this draft?",
@@ -1665,7 +2067,9 @@
         "payBy": "Pay by {date}",
         "paid": "Paid",
         "booked": "Booked",
-        "didntWorkOut": "Didn't work out"
+        "didntWorkOut": "Didn't work out",
+        "waitingForHost": "Waiting for host",
+        "youreIn": "You're in"
       }
     },
     "earnings": {
@@ -1685,13 +2089,68 @@
       "perMonth": "Payouts per month",
       "perHouse": "Per House",
       "payouts": "Payouts",
-      "columns": { "house": "House", "dates": "Dates", "guests": "Guests", "gross": "Gross", "hostFee": "Host fee", "fee": "Fee", "payout": "Payout", "paidOn": "Paid on", "status": "Status" },
-      "status": { "paid": "Paid", "scheduled": "Scheduled", "pending": "Pending" },
+      "columns": {
+        "house": "House",
+        "dates": "Dates",
+        "guests": "Guests",
+        "hostFee": "Host fee",
+        "simpuloFee": "Simpulo fee",
+        "yourEarnings": "Your earnings",
+        "rentPassed": "Rent passed on",
+        "paidOn": "Paid on",
+        "status": "Status"
+      },
+      "status": {
+        "paid": "Paid",
+        "scheduled": "Scheduled",
+        "pending": "Pending"
+      },
       "account": "to {account}",
       "export": "Export CSV",
       "taxNote": "Simpulo doesn't give tax advice.",
       "noPayouts": "No payouts yet – the first one comes the day after your first House's check-in.",
-      "noMonths": "Nothing paid out in the last 12 months yet."
+      "noMonths": "Nothing paid out in the last 12 months yet.",
+      "nextLine": "Next payout {amount} · {date}",
+      "bank": "Bank ••{last4}",
+      "again": "Do it again",
+      "againText": "Open {name} again – with the same crew",
+      "pro": {
+        "earningsThisYear": "Earnings this year",
+        "perGuest": "{amount} per guest · {guests} guests",
+        "comingUp": "Coming up",
+        "fillRate": "Fill rate",
+        "bestHouse": "Best House",
+        "repeatGuests": "Repeat guests",
+        "rentPassed": "Rent passed to stays this year: {amount}",
+        "rentPassedInfo": "Your crew's share of the place – not income."
+      },
+      "share": {
+        "title": "Your Houses",
+        "line": "{houses, plural, one {# House} other {# Houses}} · {people, plural, one {# person} other {# people}} brought together · {full} % full",
+        "leadTitle": "Lead your next House?",
+        "leadText": "Coaching, a program, a guided trip – add a host fee.",
+        "leadAction": "Add a host fee"
+      },
+      "topHost": {
+        "title": "Top Host",
+        "dots": "{done} of {goal} full Houses this year",
+        "missing": "{count, plural, one {# more full House to Top Host} other {# more full Houses to Top Host}}",
+        "answerRate": "Answer {percent} % of requests to become Top Host",
+        "reached": "You're a Top Host this year"
+      },
+      "insights": {
+        "daysToFill": "Your Houses fill in {days, plural, one {# day} other {# days}} on average",
+        "twice": "{count, plural, one {# person joined you twice} other {# people joined you twice}}"
+      },
+      "chart": {
+        "title": "Per month",
+        "series": "Show",
+        "earnings": "Earnings",
+        "rent": "Rent passed on",
+        "range": "Period",
+        "year": "12 months",
+        "all": "All time"
+      }
     },
     "loginTitle": "Log in to see your houses",
     "loginDescription": "Houses you host or joined show up here.",
@@ -1744,9 +2203,25 @@
       "price": "Price per person",
       "payout": "Payout",
       "progress": "Progress",
-      "steps": { "open": "Open", "crew": "Crew complete", "paid": "Everyone paid", "booked": "Booked", "arrival": "Arrival" },
-      "guestSteps": { "requested": "Requested", "accepted": "Accepted", "paid": "Paid", "booked": "Booked", "arrival": "Arrival" },
-      "state": { "done": "done", "now": "now", "later": "to come" },
+      "steps": {
+        "open": "Open",
+        "crew": "Crew complete",
+        "paid": "Everyone paid",
+        "booked": "Booked",
+        "arrival": "Arrival"
+      },
+      "guestSteps": {
+        "requested": "Requested",
+        "accepted": "Accepted",
+        "paid": "Paid",
+        "booked": "Booked",
+        "arrival": "Arrival"
+      },
+      "state": {
+        "done": "done",
+        "now": "now",
+        "later": "to come"
+      },
       "next": {
         "finish": "Finish your House to open it",
         "finishAction": "Finish",
@@ -1766,6 +2241,12 @@
         "ready": "All set – see you there",
         "waiting": "Waiting for {name} to answer",
         "yourShare": "Your share is open – due {date}",
+        "payLabel": "Pay your share · {amount} · {left}",
+        "leftHours": "{count}h left",
+        "leftDays": "{count, plural, one {# day left} other {# days left}}",
+        "invited": "{name} invited you – your spot is held.",
+        "acceptInvite": "Accept invite",
+        "declineInvite": "Decline",
         "payNow": "Pay your share"
       },
       "requestsTitle": "Requests",
@@ -1783,7 +2264,33 @@
       "arrivalTitle": "Arrival",
       "days": "{count, plural, one {day} other {days}}",
       "daysCount": "{count, plural, one {# day} other {# days}}",
-      "payoutAfter": "Payout {amount} after check‑in"
+      "payoutAfter": "Payout {amount} after check‑in",
+      "guestFlow": {
+        "requested": "Requested",
+        "invited": "Accept invite",
+        "accepted": "Accepted",
+        "pay": "Pay",
+        "paid": "Paid",
+        "booking": "Booking",
+        "booked": "Booked",
+        "arrival": "Arrival",
+        "arrived": "Arrived"
+      },
+      "card": {
+        "today": "Today",
+        "startsIn": "{count, plural, one {Starts tomorrow} other {Starts in # days}}",
+        "directions": "Directions",
+        "openChat": "Open chat",
+        "onWaitlist": "You're on the waitlist",
+        "withdraw": "Withdraw request",
+        "payLater": "{filled} of {total} in – you pay once the crew is complete and the place is chosen.",
+        "waitBooking": "Everyone paid – {name} books the place within 48h.",
+        "paidOf": "{paid} of {total} paid",
+        "booked": "{name} booked the place",
+        "place": "The place",
+        "checkIn": "Check-in {date}",
+        "addToCalendar": "Add to calendar"
+      }
     },
     "detail": {
       "closed": "Closed",
@@ -1861,7 +2368,9 @@
       "waitlist": "Waitlist",
       "accept": "Accept",
       "decline": "Decline",
-      "reply": "Reply"
+      "reply": "Reply",
+      "knownThrough": "{others, plural, =0 {Lived with {name}, who you know} other {Lived with {name} and # more you know}}",
+      "message": "Message"
     },
     "crew": {
       "title": "In this House",
@@ -1883,7 +2392,9 @@
       "removeConfirm": "Remove",
       "removedToast": "{name} is no longer in the House",
       "invitedNote": "Invited · holds a spot",
-      "removeLabel": "Remove {name} from the House"
+      "removeLabel": "Remove {name} from the House",
+      "message": "Message",
+      "messageLabel": "Options for {name}"
     },
     "accommodation": {
       "title": "Accommodation",
@@ -2136,7 +2647,13 @@
       "file": "📎 {name}",
       "attachment": "File",
       "past": "Past",
-      "updates": "Simpulo"
+      "updates": "Simpulo",
+      "tabHouses": "Houses",
+      "tabQuestions": "Questions",
+      "tabsLabel": "Chats",
+      "about": "about {name}",
+      "questionsEmpty": "No questions yet. They start from a House: “Message host” on its page.",
+      "housesEmpty": "No House chats yet."
     },
     "thread": {
       "loginTitle": "Log in to see this chat",
@@ -2180,7 +2697,10 @@
       "you": "You",
       "crewMeta": "{dates} · {filled} of {total} in",
       "openGroupChat": "Open group chat",
-      "contactsHidden": "Contact details are shared once the crew is complete."
+      "contactsHidden": "Contact details are shared once the crew is complete.",
+      "youreIn": "You're in – continue in the House chat",
+      "theyreIn": "{name} is in – continue in the House chat",
+      "openHouseChat": "Open House chat"
     }
   },
   "profile": {
@@ -2246,6 +2766,15 @@
       "linksHelper": "Up to {max} – type your handle, or the full address for a website. Contact happens in Messages.",
       "addLink": "Add link",
       "removeLink": "Remove {platform}",
+      "viewProfile": "View profile",
+      "statusSaved": "Saved",
+      "statusSaving": "Saving…",
+      "statusInvalid": "Not saved – check the marked field",
+      "languagesAndBio": "Languages & bio",
+      "shownAs": "Shown as {line}",
+      "basedInLine": "based in {city}",
+      "previewProfile": "Profile",
+      "previewHouse": "On a House",
       "howOthersSeeYou": "How others see you",
       "photoOnHouses": "This photo appears on your Houses.",
       "previewButton": "Preview",
@@ -2259,7 +2788,58 @@
       "countryPlaceholder": "Start typing a country",
       "basedInPlaceholder": "Start typing a city",
       "noCountry": "No country matches – check the spelling.",
-      "noPlace": "Not in the list – it's kept as you type it."
+      "noPlace": "Not in the list – it's kept as you type it.",
+      "vibe": "Your vibe",
+      "vibeHelper": "How you live in a House – shown on your profile.",
+      "sections": {
+        "photos": {
+          "title": "Photos",
+          "summary": "{count, plural, one {# photo} other {# photos}}",
+          "empty": "Add a face photo"
+        },
+        "basics": {
+          "title": "Basics",
+          "empty": "Name, birthday, country"
+        },
+        "vibe": {
+          "title": "Vibe",
+          "summary": "Set",
+          "empty": "How you live in a House"
+        },
+        "about": {
+          "title": "About",
+          "empty": "A few words and your languages"
+        },
+        "links": {
+          "title": "Links",
+          "empty": "No links yet"
+        },
+        "verify": {
+          "title": "Verify ID",
+          "done": "Verified",
+          "empty": "Not verified"
+        }
+      },
+      "progressOf": "{done} of {total}",
+      "progressHint": "Hosts see this first",
+      "progressComplete": "Profile complete",
+      "statusComplete": "Done",
+      "statusMissing": "Required",
+      "statusOptional": "Optional",
+      "done": "Done",
+      "next": "Next",
+      "seeProfile": "See your profile",
+      "shownAsAge": "Shown as {age}",
+      "birthPlaceholder": "DD / MM / YYYY",
+      "verifyDone": "Verified",
+      "verifyChecking": "Checking your ID …",
+      "verifyNot": "Not verified yet",
+      "verifyHost": "Required before payouts.",
+      "verifyGuest": "Optional – hosts accept verified guests more often.",
+      "verifyAction": "Verify",
+      "previewInCrew": "In a crew",
+      "previewInRequests": "In a host's requests",
+      "previewRequestMessage": "Hi! This House sounds great – I'd love to join."
     },
     "settings": "Settings",
     "crews": {
@@ -2317,7 +2897,6 @@
       "toConfirm": "Did you live with them? They appear on your profile once you've both confirmed.",
       "confirm": "Confirm",
       "waitingForThem": "{count, plural, one {# person hasn't} other {# people haven't}} confirmed yet",
-      "photos": "Photos",
       "upcoming": "Upcoming",
       "upcomingOwnHint": "Only you and your crews can see this",
       "upcomingCrewHint": "Only people in the same crew can see this",
@@ -2342,11 +2921,131 @@
       "showPhoto": "Photo {number} of {count}",
       "prevHouse": "Previous House",
       "nextHouse": "Next House",
-      "bringForward": "Show {title}"
+      "bringForward": "Show {title}",
+      "chipHouses": "{count, plural, one {# House} other {# Houses}}",
+      "chipLivedWith": "{count} lived with",
+      "chipFast": "Responds fast",
+      "chipSince": "Since {year}",
+      "inCommon": "In common",
+      "mutual": "{name} lived with you both",
+      "speaksOne": "Speaks {language}",
+      "bothInto": "Both into {interest}",
+      "seeHouse": "See {name}",
+      "inviteToHouse": "Invite to your House",
+      "invitedToast": "{name} is invited to {house} – the spot is held for 48h",
+      "rowVibe": "Vibe",
+      "rowHostingNow": "Hosting now",
+      "rowGoingTo": "Going to",
+      "rowLivedWith": "Lived with",
+      "rowPlaces": "Places",
+      "vibeAdd": "Add your vibe",
+      "notVerified": "ID not verified",
+      "linksAdd": "Add your links",
+      "languagesAdd": "Add your languages"
     },
-    "loginToMessage": "Log in to message {name}"
+    "loginToMessage": "Log in to message {name}",
+    "vibe": {
+      "rhythm": {
+        "scale": "Early bird ↔ Night owl",
+        "1": "Early bird",
+        "2": "Flexible hours",
+        "3": "Night owl"
+      },
+      "social": {
+        "scale": "Quiet ↔ Social",
+        "1": "Quiet",
+        "2": "Balanced",
+        "3": "Social"
+      },
+      "energy": {
+        "scale": "Active ↔ Chill",
+        "1": "Active",
+        "2": "In between",
+        "3": "Chill"
+      },
+      "tidy": {
+        "scale": "Tidy ↔ Relaxed",
+        "1": "Tidy",
+        "2": "Fairly tidy",
+        "3": "Relaxed"
+      }
+    }
   },
   "settings": {
+    "ui": {
+      "sidebarTitle": "Settings",
+      "profileSub": "Profile & photos",
+      "back": "Settings",
+      "saved": "Saved",
+      "nav": {
+        "account": "Account",
+        "payments": "Payments & payouts",
+        "notifications": "Notifications",
+        "privacy": "Privacy & safety",
+        "general": "General"
+      },
+      "account": {
+        "groupSignIn": "Sign-in",
+        "groupDevices": "Devices",
+        "thisDeviceSub": "You're logged in here"
+      },
+      "payments": {
+        "groupPaying": "Paying",
+        "groupGettingPaid": "Getting paid",
+        "groupHistory": "History",
+        "card": "{brand} •••• {last4}",
+        "default": "Default",
+        "applePay": "Apple Pay",
+        "add": "Add payment method",
+        "payoutAccount": "Payout account",
+        "payoutSub": "Stripe Connect",
+        "bank": "Bank ••{last4}",
+        "setUp": "Set up",
+        "payoutPending": "Being checked",
+        "payoutAction": "Needs one more thing",
+        "identity": "Identity",
+        "identitySub": "Optional – verified hosts get more requests. Simpulo never sees your ID.",
+        "verified": "Verified",
+        "verify": "Verify",
+        "checking": "Checking…",
+        "payoutHistory": "Payout history",
+        "paymentHistory": "Payment history",
+        "backTo": "Payments & payouts"
+      },
+      "notifications": {
+        "alwaysTitle": "Bookings & payments",
+        "alwaysSub": "Always on – app, push and email.",
+        "alwaysLocked": "Always on",
+        "choices": {
+          "both": "Push & email",
+          "push": "Push only",
+          "email": "Email only",
+          "off": "Off",
+          "emailOnly": "Email"
+        },
+        "notes": {
+          "messages": "Email only if unread after an hour",
+          "nearby": "Email as weekly summary",
+          "news": "Always in the app"
+        }
+      },
+      "privacy": {
+        "nobody": "Nobody blocked",
+        "download": "Download your data"
+      },
+      "general": {
+        "currency": "Currency",
+        "automaticValue": "Automatic · {label}",
+        "automatic": "Automatic",
+        "automaticSub": "From where you are – now {label}",
+        "search": "Search currencies",
+        "noMatch": "No currency found.",
+        "language": "Language",
+        "english": "English",
+        "languageSoon": "More languages soon.",
+        "backTo": "General"
+      }
+    },
     "loginTitle": "Log in to see your settings",
     "title": "Settings",
     "account": {
@@ -2362,7 +3061,11 @@
       "logOut": "Log out",
       "change": "Change",
       "changeSoon": "Changing your email comes with the real login – soon.",
-      "session": "This device"
+      "session": "This device",
+      "passkey": "Passkey",
+      "passkeyAdd": "Add",
+      "passkeyOn": "On",
+      "comesSoon": "This comes with the real login – soon."
     },
     "notifications": {
       "title": "Notifications",
@@ -2538,10 +3241,22 @@
     "short": "Cancellation: free until the crew is complete. After paying, only by handing your spot to the waitlist (everything back but the Simpulo fee). Full refund if the host cancels or doesn't confirm the booking in 48h.",
     "link": "Cancellation rules",
     "rules": {
-      "beforeComplete": { "title": "Before the crew is complete", "body": "Withdraw your request or leave your spot any time, for free. Nothing is paid before the crew is complete and the place is chosen." },
-      "afterPayment": { "title": "After you paid", "body": "You can leave by handing your spot to the next person on the waitlist. Once they take it, you get everything back except the Simpulo fee." },
-      "withoutTransfer": { "title": "Nobody on the waitlist", "body": "If you leave after paying and nobody takes your spot, there's no refund – the crew has booked the place counting on you." },
-      "hostCancels": { "title": "The host cancels or doesn't book", "body": "If the host cancels the House, or doesn't confirm the booking within {hours} hours after everyone paid, you get your whole share back." }
+      "beforeComplete": {
+        "title": "Before the crew is complete",
+        "body": "Withdraw your request or leave your spot any time, for free. Nothing is paid before the crew is complete and the place is chosen."
+      },
+      "afterPayment": {
+        "title": "After you paid",
+        "body": "You can leave by handing your spot to the next person on the waitlist. Once they take it, you get everything back except the Simpulo fee."
+      },
+      "withoutTransfer": {
+        "title": "Nobody on the waitlist",
+        "body": "If you leave after paying and nobody takes your spot, there's no refund – the crew has booked the place counting on you."
+      },
+      "hostCancels": {
+        "title": "The host cancels or doesn't book",
+        "body": "If the host cancels the House, or doesn't confirm the booking within {hours} hours after everyone paid, you get your whole share back."
+      }
     }
   },
   "invitePage": {
@@ -2566,7 +3281,13 @@
     "title": "Something went wrong?",
     "intro": "Tell us what's up with {title} – we answer quickly, usually within an hour.",
     "categoryLabel": "What is it about?",
-    "categories": { "place": "Place not as described", "host": "Host unreachable", "safety": "Safety", "payment": "Payment", "other": "Other" },
+    "categories": {
+      "place": "Place not as described",
+      "host": "Host unreachable",
+      "safety": "Safety",
+      "payment": "Payment",
+      "other": "Other"
+    },
     "safetyNote": "In danger? Call the local emergency number first (112 in the EU).",
     "textLabel": "What happened",
     "placeholder": "What happened, and since when?",
@@ -3113,34 +3834,29 @@
     }
   },
   "people": {
-    "title": "People",
-    "subtitle": "{count, plural, one {# person} other {# people}} you've lived with or booked a House with",
-    "loginTitle": "Log in to see your people",
-    "search": "Search by name",
-    "noMatch": "Nobody called “{query}”",
-    "togetherIn": "Together in:",
-    "message": "Message",
-    "messageLabel": "Message {name}",
-    "invite": "Invite to a House",
-    "inviteLabel": "Invite {name} to a House",
-    "viewProfile": "View profile",
-    "emptyTitle": "You'll see people here after your first House.",
-    "emptyAction": "Find a House",
-    "housesTitle": "{count, plural, one {# House} other {# Houses}} together",
-    "completed": "Completed",
-    "locked": "Booked",
-    "sheet": {
-      "title": "Invite {name} to a House",
-      "subtitle": "Your open Houses – the invite holds a spot until they answer.",
-      "invite": "Invite",
-      "invited": "Invited",
-      "member": "In the House",
-      "asked": "Asked to join",
-      "full": "Full",
-      "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
-      "sentToast": "Invite sent to {name} – {title}",
-      "openNew": "Open a new House",
-      "openNewText": "{name} is picked on the “Invite your House” step"
+    "page": {
+      "title": "Your people",
+      "description": "Everyone you lived with in a House – once you both confirmed it.",
+      "search": "Search by name or House",
+      "livedIn": "Lived together in {place}",
+      "remove": "Remove",
+      "removed": "{name} is no longer in Your people",
+      "noMatch": "Nobody by that name.",
+      "emptyTitle": "Your people live here.",
+      "emptyDescription": "After a House, everyone you both confirmed living with shows up here.",
+      "explore": "Find a House",
+      "loginTitle": "Your people",
+      "loginDescription": "Log in to see the people you lived with."
+    },
+    "going": {
+      "eyebrow": "Your people",
+      "title": "Your people are going",
+      "subline": "Houses someone you lived with hosts or is in",
+      "seeAll": "See all"
+    },
+    "signal": {
+      "isIn": "{others, plural, =0 {{name} is in} other {{name} and # more of yours are in}}",
+      "hostedBy": "Hosted by {name} from your people"
     }
   },
   "demo": {
@@ -3155,5 +3871,17 @@
       "link": "Open your real House"
     },
     "toast": "This is a preview – open your real House on simpulo.com"
+  },
+  "overlap": {
+    "alreadyIn": "You're already in {name} on these dates.",
+    "cancelFirst": "Cancel {name} first",
+    "cancelFirstText": "You've paid for {name}, and it overlaps these dates – one House per night. Leave {name} first, then pay here.",
+    "openOther": "Open {name}",
+    "pickOne": "Pick one",
+    "pickTitle": "Two Houses, the same nights",
+    "pickText": "You're in both and neither is paid yet. Keep one – the other spot goes to the next person.",
+    "keep": "Keep {name}",
+    "kept": "You kept {name}",
+    "hostTwo": "You're hosting two Houses at the same time."
   }
 }

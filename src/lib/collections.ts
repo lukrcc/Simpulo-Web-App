@@ -1,7 +1,6 @@
-// The shelves in Open Houses take turns without end: by a House's state (Starting soon, Last spot, Just opened, Short trips), then the theme
-// shelves once there are enough Houses for them (src/config/explore.ts). No House shows in two shelves or in a shelf after the grid loaded
-// before it, and a shelf never shows the same photo twice. Each collection also has its own page. Titles and sublines live in messages (explore.collections.{id}).
-import { JUST_OPENED_DAYS, SHELF_CLEAR_ROWS_BELOW, SHELF_EARLY_COUNT, SHELF_EVERY_EARLY, SHELF_EVERY_LATE, SHELF_MAX_ITEMS, STARTING_SOON_DAYS, STATE_SHELF_MIN, THEME_SHELF_MIN_ITEMS, THEME_SHELVES_MIN_TOTAL } from "@/config/explore";
+// The collections: by a House's state (Starting soon, Last spot, Just opened, Short trips) and by theme. Explore shows at most one of them, by
+// state, under the Spotlight (topStateShelf); a shelf never shows the same photo twice. Each collection also has its own page. Titles and sublines live in messages (explore.collections.{id}).
+import { JUST_OPENED_DAYS, SHELF_MAX_ITEMS, STARTING_SOON_DAYS, TOP_SHELF_MIN } from "@/config/explore";
 import type { Stay } from "./types";
 import { housePhotos, openSpots, stayNights } from "./utils";
 
@@ -54,50 +53,15 @@ function shelfOf(stays: readonly Stay[]): Stay[] {
     .slice(0, SHELF_MAX_ITEMS);
 }
 
-/** Where a shelf goes into the list: after this many Houses. */
-export type ShelfSlot = { after: number } & Shelf;
-
-/** How many Houses are loaded once the list has reached `after`: "Show 24 more" pages on from full rows. */
-function loadedAt(after: number, cols: number, pageSize: number): number {
-  const fullRows = (n: number) => Math.ceil(n / cols) * cols;
-  let loaded = fullRows(pageSize);
-  while (loaded < after) loaded = fullRows(loaded + pageSize);
-  return loaded;
-}
-
-/**
- * The shelves for the list down to `loaded` Houses. The turns go round for as long as there are Houses for them: at each place the next one
- * in the fixed order with enough Houses of its own, the others keep their turn order but are passed over. A shelf only has Houses that
- * `seenHouseIds` doesn't: the grid loaded by then, the rows just below it, and every shelf before it. Those only grow, so once a whole round
- * finds nothing the list has no more shelves. The same pages always give the same shelves: loading more never changes one above.
- * `stays`: all Houses in the shelves' order. `grid`: the list.
- */
-export function planShelves({ stays, grid, cols, total, loaded, pageSize }: { stays: readonly Stay[]; grid: readonly Stay[]; cols: number; total: number; loaded: number; pageSize: number }): ShelfSlot[] {
-  const themed = total >= THEME_SHELVES_MIN_TOTAL;
-  const turns = themed ? COLLECTIONS : STATE_COLLECTIONS;
-  const slots: ShelfSlot[] = [];
-  const seenHouseIds = new Set<string>();
-  let shown = 0;
-  let turn = 0;
-  let rows = 0;
-  for (;;) {
-    rows += slots.length < SHELF_EARLY_COUNT ? SHELF_EVERY_EARLY : SHELF_EVERY_LATE;
-    const after = rows * cols;
-    if (after > Math.min(loaded, grid.length)) return slots;
-    const reach = Math.max(loadedAt(after, cols, pageSize), after + SHELF_CLEAR_ROWS_BELOW * cols);
-    for (; shown < reach && shown < grid.length; shown++) seenHouseIds.add(grid[shown].id);
-    let placed = false;
-    for (let tries = 0; tries < turns.length && !placed; tries++) {
-      const collection = turns[turn % turns.length];
-      turn++;
-      const shelf = shelfOf(stays.filter((s) => collection.filter(s) && !seenHouseIds.has(s.id)));
-      if (shelf.length < (THEME_COLLECTIONS.includes(collection) ? THEME_SHELF_MIN_ITEMS : STATE_SHELF_MIN)) continue;
-      shelf.forEach((s) => seenHouseIds.add(s.id));
-      slots.push({ after, collection, stays: shelf });
-      placed = true;
-    }
-    if (!placed) return slots;
+/** Explore's one shelf by state, under the Spotlight: Just opened, else Starting soon, else Short trips – the first with at least TOP_SHELF_MIN
+ *  Houses that `exclude` (the shelf above it) doesn't have. */
+export function topStateShelf(stays: readonly Stay[], exclude: ReadonlySet<string> = new Set()): Shelf | null {
+  for (const id of ["justOpened", "startingSoon", "shortTrips"] as const) {
+    const collection = STATE_COLLECTIONS.find((c) => c.id === id)!;
+    const shelf = shelfOf(stays.filter((s) => collection.filter(s) && !exclude.has(s.id)));
+    if (shelf.length >= TOP_SHELF_MIN) return { collection, stays: shelf };
   }
+  return null;
 }
 
 export function collectionBySlug(slug: string | null | undefined): Collection | undefined {

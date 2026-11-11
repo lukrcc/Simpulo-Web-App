@@ -1,13 +1,15 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { createHrefOf } from "@/components/create/model";
 import { HouseCard } from "@/components/HouseCard";
 import { Button } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { HOUSE_GRID } from "@/config/explore";
+import { Shelf } from "@/components/ui/Shelf";
+import { EXPLORE_GRID, EXPLORE_SPACING } from "@/config/explore";
 import { housesNearby, type SearchDraft } from "@/lib/savedSearches";
 import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
@@ -28,10 +30,11 @@ function SavedLine({ className }: { className?: string }) {
 }
 
 /**
- * Nothing for this place and month: instead of a grid, the two ways on. Open the first House, or hear first when someone does; below it what's closest.
- * Also Explore before the launch, there without anything nearby.
+ * No result: instead of a grid the two ways on – "Open this House" (Open a House with place, month and category filled in) and "Save this
+ * search" (hear first when one opens); below it what's closest. Also Explore before the launch, there without anything nearby. `title`: the
+ * heading when it isn't a place or month that found nothing (filters alone); `onClear` adds "Clear filters".
  */
-export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Houses to suggest from */ stays?: readonly Stay[] }) {
+export function NoHouseYet({ draft, stays = [], title: own, onClear }: { draft: SearchDraft; /** Houses to suggest from */ stays?: readonly Stay[]; title?: string; onClear?: () => void }) {
   const t = useTranslations("explore.search");
   const store = useStore();
   const monthName = useMonthName();
@@ -39,7 +42,7 @@ export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Hous
   const place = placeNameOf(draft);
   const month = draft.month && monthName(draft.month);
   const nearby = useMemo(() => housesNearby(stays, draft), [stays, draft]);
-  const title = place && month ? t("titlePlaceMonth", { place, month }) : place ? t("titlePlace", { place }) : month ? t("titleMonth", { month }) : t("titleNone");
+  const title = place && month ? t("titlePlaceMonth", { place, month }) : place ? t("titlePlace", { place }) : month ? t("titleMonth", { month }) : (own ?? t("titleNone"));
 
   return (
     <div>
@@ -55,11 +58,16 @@ export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Hous
             {t("notifyMe")}
           </Button>
         )}
+        {onClear && (
+          <button type="button" onClick={onClear} className="mt-2 text-small font-semibold text-muted underline underline-offset-4 transition-colors duration-150 hover:text-ink">
+            {t("clearFilters")}
+          </button>
+        )}
       </div>
       {nearby.length > 0 && (
         <section className="mt-(--space-section)">
           <SectionHeader eyebrow={t("nearby")} />
-          <div className={cn(HOUSE_GRID, "mt-(--space-inner)")}>
+          <div className={cn(EXPLORE_GRID, "mt-(--space-inner)")}>
             {nearby.map((stay) => (
               <HouseCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
             ))}
@@ -68,6 +76,53 @@ export function NoHouseYet({ draft, stays = [] }: { draft: SearchDraft; /** Hous
       )}
       {sheet}
     </div>
+  );
+}
+
+/** Exactly a HouseCard's size (4:5, the grid's height cap), a dashed edge: "Open a House here" with this search filled in. */
+export function OpenHereTile({ draft }: { draft: SearchDraft }) {
+  const t = useTranslations("explore.search");
+  const place = placeNameOf(draft);
+  return (
+    <Link
+      href={createHrefOf(draft)}
+      data-house-card="open"
+      data-preview-action
+      className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-[1.5px] border-dashed border-ink/15 p-6 text-center transition-colors duration-150 hover:border-ink/30 hover:bg-ink/3"
+    >
+      <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
+        <Plus className="size-5" aria-hidden />
+      </span>
+      <span className="text-body font-semibold text-ink">{t("openHere")}</span>
+      <span className="text-small text-muted">{place ? t("openHereIn", { place }) : t("openHereText")}</span>
+    </Link>
+  );
+}
+
+/** Fewer results than the grid has columns: under them a shelf "Nearby" – a similar place or time, without the results themselves. */
+export function NearbyShelf({ draft, stays, results }: { draft: SearchDraft; stays: readonly Stay[]; results: readonly Stay[] }) {
+  const t = useTranslations("explore.search");
+  const store = useStore();
+  const nearby = useMemo(() => {
+    const shown = new Set(results.map((s) => s.id));
+    return housesNearby(
+      stays.filter((s) => !shown.has(s.id)),
+      draft,
+      12,
+    );
+  }, [stays, draft, results]);
+  if (nearby.length === 0) return null;
+  return (
+    <section className={EXPLORE_SPACING.between}>
+      <SectionHeader variant="explore" eyebrow={t("nearbyEyebrow")} title={t("nearbyTitle")} subline={t("nearbySubline")} />
+      <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
+        {nearby.map((stay) => (
+          <div key={stay.id} className="explore-slide shrink-0">
+            <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+          </div>
+        ))}
+      </Shelf>
+    </section>
   );
 }
 

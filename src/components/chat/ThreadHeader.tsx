@@ -19,7 +19,7 @@ import { WhosInSheet } from "./WhosInSheet";
 
 /** One 64px row – the desktop panel and the mobile page alike. The glass is the frame's: messages scroll under it. */
 function headerClass(embedded: boolean) {
-  return cn("relative flex h-16 shrink-0 items-center gap-2", embedded ? "px-4" : "px-2 sm:px-4");
+  return cn("relative flex h-16 shrink-0 items-center gap-2 border-b border-[#F4EEE7]/8", embedded ? "px-4" : "px-2 sm:px-4");
 }
 
 function BackToInbox({ embedded }: { embedded: boolean }) {
@@ -91,11 +91,13 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
   );
 }
 
-/** A 1:1 thread: the other person, and the House it's about – title and dates. */
+/** A 1:1 thread: the other person, and the House it's about (every direct chat has one) – its photo, title and dates, linked. */
 export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: User; embedded: boolean }) {
   const t = useTranslations("messages.thread");
   const f = useFormat();
   const router = useRouter();
+  const store = useStore();
+  const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
   return (
     <header className={headerClass(embedded)}>
       <BackToInbox embedded={embedded} />
@@ -112,6 +114,11 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
           {t("about", { title: stay.title, dates: f.stayDates(stay) })}
         </Link>
       </div>
+      {cover && (
+        <Link href={`/house/${stay.slug}`} aria-label={stay.title} className="relative block size-10 shrink-0 overflow-hidden rounded-xl bg-line">
+          <Img src={cover} alt="" fill sizes="40px" className="object-cover" />
+        </Link>
+      )}
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
       {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} className="shrink-0" />}
     </header>

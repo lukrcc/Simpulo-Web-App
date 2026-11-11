@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { APP_MODE } from "@/lib/appMode";
 import { DEMO_COOKIE, sameSecret, validDemoCookie } from "@/lib/demoAuth";
+import { VIEWER_COUNTRY_COOKIE } from "@/lib/currency";
 
 /*
  * Private test deployments: when SITE_PASSWORD is set, every request needs HTTP Basic Auth (user "simpulo").
@@ -64,5 +65,16 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next();
   // The password only exists at runtime, so prerendered pages can't carry it in their meta tags – this header can.
   if (password || APP_MODE === "demo") response.headers.set("X-Robots-Tag", NOINDEX);
+  rememberViewerCountry(request, response);
   return response;
+}
+
+/**
+ * The viewer's country for their first currency (src/lib/currency.ts): only the ISO code Vercel derives from the IP, nothing personal, no IP.
+ * Readable by the page (not httpOnly). Locally there is no header: no cookie, the browser falls back to its time zone.
+ */
+function rememberViewerCountry(request: NextRequest, response: NextResponse) {
+  const country = request.headers.get("x-vercel-ip-country")?.toUpperCase();
+  if (!country || !/^[A-Z]{2}$/.test(country) || request.cookies.get(VIEWER_COUNTRY_COOKIE)?.value === country) return;
+  response.cookies.set(VIEWER_COUNTRY_COOKIE, country, { path: "/", maxAge: 60 * 60 * 24 * 30, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
 }

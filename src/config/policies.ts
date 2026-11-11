@@ -31,13 +31,26 @@ export const CANCELLATION_POLICY = {
  */
 export const FEE_MODEL = {
   serviceFeePercent: 10,
+  /** On the rent (the crew's shares the host passes on): nothing – the host receives the guests' full shares */
   hostCommissionPercent: 0,
+  /** On a host fee (coaching, a program, guiding – the host's real income): Simpulo keeps this much */
+  hostFeeCommissionPercent: 10,
 } as const;
 
-/** What Simpulo takes from a host's payout: nothing (FEE_MODEL). Payouts shows the fee column as "Free". */
+/** What Simpulo takes from a host's payout: nothing on the rent, FEE_MODEL.hostFeeCommissionPercent of a host fee. */
 export const HOST_FEES = {
-  onStayShare: 0,
-  onHostExperience: FEE_MODEL.hostCommissionPercent / 100,
+  onStayShare: FEE_MODEL.hostCommissionPercent / 100,
+  onHostExperience: FEE_MODEL.hostFeeCommissionPercent / 100,
+} as const;
+
+/**
+ * Host types (Payouts): a pro host has at least one House with a host fee (hostFeePerPerson > 0) – their earnings are the host fees after
+ * Simpulo's cut; everyone else is a share host, who only passes the crew's rent on. Top Host: this many full Houses hosted in a calendar
+ * year and answering at least this share of requests (lib/requests.ts responseRate).
+ */
+export const HOST_POLICY = {
+  topHostFullHouses: 5,
+  topHostResponseRate: 0.9,
 } as const;
 
 /** How it works' one worked example: a villa, 7 nights, 4 people. */
@@ -64,3 +77,30 @@ export const REQUEST_POLICY = {
 
 /** Rule keys in reading order (messages policy.rules.*). */
 export const POLICY_RULES = ["beforeComplete", "afterPayment", "withoutTransfer", "hostCancels"] as const;
+
+/**
+ * Several Houses at once. Allowed: any number of requests at the same time (overlapping too), any number of Houses one after another, and
+ * several hosted Houses. A guest can be in only one House per night: a request overlapping a paid House shows a calm note ("You're already
+ * in Surf Bali on these dates") and still goes out; paying for the second is blocked ("Cancel Surf Bali first"). Two acceptances, both
+ * unpaid, that overlap: a task "Pick one" – keeping one gives the other spot up (to the waitlist, or open again). A host may host
+ * overlapping Houses (a note says so).
+ */
+export const PARALLEL_POLICY = {
+  maxOpenRequests: Number.POSITIVE_INFINITY,
+  maxHostedHouses: Number.POSITIVE_INFINITY,
+  /** Paying for a House that overlaps one already paid for */
+  payOverlappingPaid: false,
+  /** Hosting Houses whose dates overlap */
+  hostOverlapping: true,
+} as const;
+
+
+/**
+ * Direct messages: a direct chat only ever starts from a House – a guest's "Message host" on the public House page, or the host from a
+ * request or an invite. Never from a profile, no search for people. Every direct chat belongs to one House (houseId). Once the person is in
+ * the House, the chat points to the House chat (it stays readable). Blocking closes it, and the blocked person can't request the House.
+ * Without a new message for this many days a direct chat goes to "Past".
+ */
+export const DIRECT_MESSAGE_POLICY = {
+  archiveAfterDays: 30,
+} as const;

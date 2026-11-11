@@ -1,4 +1,32 @@
+import { BadgeCheck, Armchair, CalendarDays, Camera, Dumbbell, GraduationCap, House, Landmark, Laptop, Leaf, MessageCircle, Mountain, PartyPopper, Rocket, Star, Sun, User, Users, WavesHorizontal, type LucideIcon } from "lucide-react";
 import type { Vibe } from "@/lib/types";
+
+/** One line icon (16px) per category: before the words in the filter row and in the panel's category capsules. */
+export const VIBE_ICONS: Record<Vibe, LucideIcon> = {
+  fitness: Dumbbell,
+  "surf-water": WavesHorizontal,
+  "remote-work": Laptop,
+  founder: Rocket,
+  creator: Camera,
+  wellness: Leaf,
+  adventure: Mountain,
+  culture: Landmark,
+  party: PartyPopper,
+  holiday: Sun,
+  social: Users,
+  students: GraduationCap,
+};
+
+/** The panel's "More" dropdowns, each with its icon before the words. */
+export const FILTER_ICONS = {
+  who: User,
+  age: CalendarDays,
+  accommodation: House,
+  spots: Armchair,
+  language: MessageCircle,
+  hostExperience: Star,
+  verified: BadgeCheck,
+} satisfies Record<string, LucideIcon>;
 
 // Explore filter UI – the knobs that decide what the header's filter row shows. The side panel ("Filters") always has
 // everything; these only add shortcuts to the row once there are enough Houses for them to pay off.
@@ -9,8 +37,6 @@ import type { Vibe } from "@/lib/types";
  */
 export const VISIBLE_CHIPS = 8;
 
-/** From this many Houses (in the feed's scope) on, the row gets its own sort capsule next to Filters. */
-export const SORT_INLINE_THRESHOLD = 50;
 
 
 /** The "More" categories popover (a 3-column grid): at most this wide (px). */
@@ -19,13 +45,15 @@ export const MORE_POPOVER_MAX_WIDTH = 420;
 /** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */
 export const HOUSE_GRID = "card-grid house-grid [--card-min:260px] [--card-cols:6]";
 
-/** The first SHELF_EARLY_COUNT shelves go into Open Houses after this many full rows of the grid each ... */
-export const SHELF_EVERY_EARLY = 3;
-/** ... every later one after this many. */
-export const SHELF_EVERY_LATE = 5;
-export const SHELF_EARLY_COUNT = 2;
-/** A shelf leaves out what the grid shows in this many rows right below it, even when they aren't loaded yet. */
-export const SHELF_CLEAR_ROWS_BELOW = 3;
+/** Explore's grid (and its pages): fixed columns per width – 1 · 2 from 640px · 3 from 1024px · 4 from 1440px – gap 16 / 24px, no auto-fill
+ *  (globals.css .explore-grid). Shelves there use .explore-slide: exactly one column wide. */
+export const EXPLORE_GRID = "explore-grid";
+
+/** Under the Spotlight, before the grid: at most this many shelves – "Your people are going", then one by state. */
+export const TOP_SHELVES_MAX = 2;
+/** The shelf by state (Just opened, else Starting soon, else Short trips) only with at least this many Houses. "Your people" from one. */
+export const TOP_SHELF_MIN = 4;
+
 
 /** Below this many published Houses Explore shows its pre-launch view, and Houses are only reachable by link (src/lib/launch.ts). */
 export const LAUNCH_MIN_HOUSES = 10;
@@ -42,12 +70,6 @@ export const SPOTLIGHT_MIN = 5;
 /** A new House belongs to the people whose search it answers this long: only they see it, and each has a token to join. */
 export const SEARCH_HEAD_START_HOURS = 48;
 
-/*
- * The shelves' thresholds. To see the theme shelves in dev: lower THEME_SHELVES_MIN_TOTAL and THEME_SHELF_MIN_ITEMS here
- * (the Full data state has 100 Houses, with 5 to 24 per theme).
- */
-/** A state shelf (Starting soon, Last spot, Just opened, Short trips) only with at least this many Houses of its own. */
-export const STATE_SHELF_MIN = 6;
 
 /** Starting soon: starts within this many days. */
 export const STARTING_SOON_DAYS = 30;
@@ -55,11 +77,6 @@ export const STARTING_SOON_DAYS = 30;
 /** Just opened: at most this many days old, and only the host in it. */
 export const JUST_OPENED_DAYS = 7;
 
-/** Theme shelves (Party houses, Train together, …) join the rotation from this many Houses overall. */
-export const THEME_SHELVES_MIN_TOTAL = 300;
-
-/** A theme shelf only with at least this many Houses of its own. */
-export const THEME_SHELF_MIN_ITEMS = 12;
 
 /** Cards in one shelf at most; "See all" has the rest. */
 export const SHELF_MAX_ITEMS = 24;
@@ -100,6 +117,9 @@ export const SPOTLIGHT_THEME_LINES_VISITOR: Record<Vibe, string> = {
 /** A House without a category: the number is the sentence. */
 export const spotlightThemeFallback = (count: number) => `${count} ${count === 1 ? "house" : "houses"} open right now.`;
 
+/** Open Houses loads page by page, only on a click ("Show 24 more"; never on scroll): this many per page, rounded up to full rows. */
+export const pageSize = 24;
+
 /**
  * Explore's vertical spacing, the one place for it (Tailwind classes, so they end up in the CSS). --space-section between
  * all sections, from the bottom of the cards or the button to the next eyebrow; --space-inner inside one (globals.css).
@@ -113,14 +133,17 @@ export const EXPLORE_SPACING = {
   spotlightIntroBottom: "mb-(--space-inner)",
   /** Every section after the first. */
   section: "pt-(--space-section)",
+  /** Explore: between two sections (shelves, Open Houses) 72px, a section's head to its content 24px. */
+  between: "mt-18",
+  headContent: "mt-6",
   /** Open Houses under the hero, from its lowest card, where the Spotlight ends: always 96px. */
   underHero: "pt-24",
   /** A scoped feed's first section (collection pages): no hero above it. */
   scopedTop: "pt-(--space-inner)",
   /** The last section to the footer. */
   feedEnd: "pb-(--space-section)",
-  /** "Show 24 more" under the grid. */
-  showMore: "mt-(--space-inner)",
+  /** "Show 24 more" under the grid: 48px (src/components/ui/LoadMore.tsx). */
+  showMore: "mt-12",
   /** A shelf inside the list: above it, and below it when the list goes on. */
   shelfTop: "pt-(--space-section)",
   shelfBottom: "pb-(--space-section)",

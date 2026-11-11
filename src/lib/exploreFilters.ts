@@ -18,9 +18,9 @@ export const LENGTH_KEYS: readonly LengthKey[] = ["weekend", "weeks", "long"];
 export type SpotsMin = 1 | 3;
 export const SPOTS_MINS: readonly SpotsMin[] = [1, 3];
 
-/** The crew's size: 3–4 · 5–6 · 7 and up. */
-export type CrewSizeKey = "3-4" | "5-6" | "7-10";
-export const CREW_SIZE_KEYS: readonly CrewSizeKey[] = ["3-4", "5-6", "7-10"];
+/** The crew's size (spotsTotal, the host included): up to 4 · 5–6 · 7–10 · 10 and more. */
+export type CrewSizeKey = "3-4" | "5-6" | "7-10" | "10+";
+export const CREW_SIZE_KEYS: readonly CrewSizeKey[] = ["3-4", "5-6", "7-10", "10+"];
 export type WhoKey = "mixed" | "women";
 export const WHO_KEYS: readonly WhoKey[] = ["mixed", "women"];
 export type AgeKey = "18-25" | "25-35" | "35+";
@@ -43,11 +43,12 @@ export interface ExploreFilters {
   languages: string[];
   /** Per person in EUR (≈ for Houses priced in other currencies) */
   budget: { min: number; max: number } | null;
-  /** How long the House runs (null: any length) */
-  length: LengthKey | null;
+  /** How long the House runs – one or more ([] = any length) */
+  lengths: LengthKey[];
   /** At least this many open spots (null: any) */
   spots: SpotsMin | null;
-  crewSize: CrewSizeKey | null;
+  /** One or more ([] = any size) */
+  crewSizes: CrewSizeKey[];
   who: WhoKey | null;
   age: AgeKey | null;
   accommodation: AccommodationKey | null;
@@ -57,7 +58,7 @@ export interface ExploreFilters {
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, length: null, spots: null, crewSize: null, who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, sort: "soonest" };
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, lengths: [], spots: null, crewSizes: [], who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, sort: "soonest" };
 
 /** "Bali, Indonesia" → "Indonesia" */
 export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").at(-1)?.trim() ?? stay.region;
@@ -74,9 +75,9 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     month: list(params.get("month")).find((m) => MONTH.test(m)) ?? null,
     languages: list(params.get("lang")).map((l) => l.toLowerCase()),
     budget: Number.isFinite(min) && Number.isFinite(max) && max >= min && max > 0 ? { min, max } : null,
-    length: LENGTH_KEYS.find((key) => key === params.get("len")) ?? null,
+    lengths: LENGTH_KEYS.filter((key) => list(params.get("len")).includes(key)),
     spots: SPOTS_MINS.find((n) => String(n) === params.get("spots")) ?? null,
-    crewSize: CREW_SIZE_KEYS.find((key) => key === params.get("crew")) ?? null,
+    crewSizes: CREW_SIZE_KEYS.filter((key) => list(params.get("crew")).includes(key)),
     who: WHO_KEYS.find((key) => key === params.get("who")) ?? null,
     age: AGE_KEYS.find((key) => key === params.get("age")) ?? null,
     accommodation: ACCOMMODATION_KEYS.find((key) => key === params.get("stay")) ?? null,
@@ -95,9 +96,9 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
   set("lang", filters.languages);
   set("vibe", filters.vibes);
   set("budget", filters.budget ? [`${filters.budget.min}-${filters.budget.max}`] : []);
-  set("len", filters.length ? [filters.length] : []);
+  set("len", filters.lengths);
   set("spots", filters.spots ? [String(filters.spots)] : []);
-  set("crew", filters.crewSize ? [filters.crewSize] : []);
+  set("crew", filters.crewSizes);
   set("who", filters.who ? [filters.who] : []);
   set("age", filters.age ? [filters.age] : []);
   set("stay", filters.accommodation ? [filters.accommodation] : []);
@@ -116,9 +117,9 @@ export function activeCount(filters: ExploreFilters): number {
     (filters.month ? 1 : 0) +
     filters.languages.length +
     (filters.budget ? 1 : 0) +
-    (filters.length ? 1 : 0) +
+    filters.lengths.length +
     (filters.spots ? 1 : 0) +
-    (filters.crewSize ? 1 : 0) +
+    filters.crewSizes.length +
     (filters.who ? 1 : 0) +
     (filters.age ? 1 : 0) +
     (filters.accommodation ? 1 : 0) +
@@ -129,7 +130,7 @@ export function activeCount(filters: ExploreFilters): number {
 
 /** The filter panel's filters that are on – one each, however many values (not the category chips, not sort). */
 export function panelFilterCount(filters: ExploreFilters): number {
-  return [filters.place !== null, filters.month !== null, filters.length !== null, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSize !== null, filters.who !== null, filters.age !== null, filters.accommodation !== null, filters.hostExperience !== null, filters.verifiedOnly].filter(Boolean).length;
+  return [filters.place !== null, filters.month !== null, filters.lengths.length > 0, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSizes.length > 0, filters.who !== null, filters.age !== null, filters.accommodation !== null, filters.hostExperience !== null, filters.verifiedOnly].filter(Boolean).length;
 }
 
 const DAY_MS = 86_400_000;
@@ -160,7 +161,8 @@ export function eurRange(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" |
 function hasCrewSize(stay: Pick<Stay, "spotsTotal">, size: CrewSizeKey): boolean {
   if (size === "3-4") return stay.spotsTotal <= 4;
   if (size === "5-6") return stay.spotsTotal === 5 || stay.spotsTotal === 6;
-  return stay.spotsTotal >= 7;
+  if (size === "7-10") return stay.spotsTotal >= 7 && stay.spotsTotal <= 10;
+  return stay.spotsTotal >= 10;
 }
 
 /** A House that names no ages is open to all of them. */
@@ -187,9 +189,9 @@ export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: Fil
     const range = eurRange(stay);
     if (!range || range.max < filters.budget.min || range.min > filters.budget.max) return false;
   }
-  if (except !== "length" && filters.length && !hasLength(stay, filters.length)) return false;
+  if (except !== "lengths" && filters.lengths.length > 0 && !filters.lengths.some((length) => hasLength(stay, length))) return false;
   if (except !== "spots" && filters.spots && openSpots(stay) < filters.spots) return false;
-  if (except !== "crewSize" && filters.crewSize && !hasCrewSize(stay, filters.crewSize)) return false;
+  if (except !== "crewSizes" && filters.crewSizes.length > 0 && !filters.crewSizes.some((size) => hasCrewSize(stay, size))) return false;
   // A House that doesn't say otherwise is mixed.
   if (except !== "who" && filters.who && (stay.who ?? "mixed") !== filters.who) return false;
   if (except !== "age" && filters.age && !hasAge(stay, filters.age)) return false;

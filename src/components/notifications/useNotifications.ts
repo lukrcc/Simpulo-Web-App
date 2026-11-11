@@ -34,7 +34,8 @@ export function useNotifications(): NotificationRepository & { ready: boolean } 
     };
     const seen = new Set<string>();
     return notifications
-      .filter((n) => n.userId === me)
+      // Mock entries dated after now (a "Do it again" after a House that hasn't ended, an invite of a future request) haven't happened yet.
+      .filter((n) => n.userId === me && (at === null || n.createdAt <= at))
       .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
       .filter((n) => {
         const task = taskOnCard(n);
@@ -65,6 +66,6 @@ export function hrefOf(n: AppNotification, stays: readonly Stay[], me: string | 
   const stay = n.stayId ? stays.find((s) => s.id === n.stayId) : undefined;
   if (!stay) return null;
   // "Want to do it again?" leads everyone in the crew to the past House (crew, chat, "Do it again").
-  if (n.key === "doItAgain") return `/your-houses/${stay.id}`;
-  return stay.hostId === me ? `/your-houses/${stay.id}` : `/house/${stay.slug}`;
+  if (n.key === "doItAgain") return `/h/${stay.id}`;
+  return stay.hostId === me ? `/h/${stay.id}/manage` : `/h/${stay.id}`;
 }

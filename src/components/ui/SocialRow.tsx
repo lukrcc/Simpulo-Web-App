@@ -97,3 +97,33 @@ export function SocialTiles({ user, className }: { user: Pick<User, "name" | "so
     </div>
   );
 }
+
+/**
+ * The links as quiet icon buttons in the text's colour (on Ember: cream) – 36px circles, a 12 % surface, hover a little stronger; each opens in a
+ * new tab, the tooltip "@handle on Platform". Nothing without links.
+ */
+export function SocialIcons({ user, className }: { user: Pick<User, "name" | "socials">; className?: string }) {
+  const t = useTranslations("common.ui.socialRow");
+  const links = (user.socials ?? []).slice(0, MAX_SOCIAL_LINKS);
+  if (links.length === 0) return null;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {links.map((link) => {
+        const { icon: Icon, brand } = SOCIAL_ICONS[link.platform];
+        return (
+          <a
+            key={`${link.platform}-${link.value}`}
+            href={socialUrl(link)}
+            target="_blank"
+            rel="noopener"
+            onClick={stop}
+            aria-label={t("handleOn", { handle: socialHandle(link), network: brand ?? t("website") })}
+            className="press flex size-9 shrink-0 items-center justify-center rounded-full bg-(--chip-bg) text-ink transition-colors duration-150 hover:bg-(--chip-bg-hover)"
+          >
+            <Icon className="size-4" color="currentColor" />
+          </a>
+        );
+      })}
+    </div>
+  );
+}

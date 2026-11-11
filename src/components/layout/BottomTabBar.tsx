@@ -28,7 +28,8 @@ export function BottomTabBar() {
   const docked = mode === "docked";
   const scrolledAway = useHideOnScroll(pathname, docked && !hiddenRoute);
   const unreadIn = useMessagesUnread();
-  const unread = unreadIn.chats + unreadIn.updates;
+  // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
+  const unread = unreadIn.chats;
   if (hiddenRoute || mode === "header") return null;
 
   // Logged out (pill only): Explore · How it works · Log in. Logged in: Explore · Houses · Messages · Profile.

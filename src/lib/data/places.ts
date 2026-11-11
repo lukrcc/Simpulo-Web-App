@@ -50,6 +50,10 @@ export const areaRadiusKm = (id: string) => radii.get(id);
 const cityPoints = new Map(CITIES.map((c) => [foldPlace(c.name.split(",")[0]), { lat: c.lat, lng: c.lng }]));
 export const cityPoint = (name: string) => cityPoints.get(foldPlace(name.trim()));
 
+/** A city's place id by its name ("Lisbon" → its id), for a link to Explore filtered on it; null when the search doesn't know it. */
+const cityIds = new Map(CITIES.map((c) => [foldPlace(c.name.split(",")[0]), c.id]));
+export const cityPlaceIdOf = (name: string) => cityIds.get(foldPlace(name.trim())) ?? null;
+
 /** The photo of a curated city, for the search's list. */
 const covers = new Map(CURATED_DESTINATIONS.flatMap((d) => (d.coverImage ? [[d.id, d.coverImage] as const] : [])));
 export const coverOf = (placeId: string) => covers.get(placeId);

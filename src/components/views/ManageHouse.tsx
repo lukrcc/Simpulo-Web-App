@@ -11,9 +11,8 @@ import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useStore } from "@/lib/store";
-import { didntWorkOut } from "@/lib/requests";
 
-/** /your-houses/[id] – one House you host or joined: "← Your houses", the head, where it stands, the tabs. The page scrolls; no footer. */
+/** /h/[id]/manage – one House you host: "← Your houses", the head, where it stands, the tabs. The page scrolls; no footer. */
 export function ManageHouse({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const t = useTranslations("houses.manage");
@@ -29,13 +28,11 @@ function ManageHouseGate({ id }: { id: string }) {
   const store = useStore();
   const router = useRouter();
   const stay = store.stays.find((s) => s.id === id);
-  // Host, or someone on the way in (request, invite, waitlist) – everyone else gets the public page.
-  const involved =
-    stay !== undefined &&
-    (stay.hostId === store.currentUserId || store.joinRequests.some((r) => r.stayId === stay.id && r.userId === store.currentUserId && !didntWorkOut(r)));
+  // Only the host manages here; guests have their way through the House on /h/[id] (members see it there, everyone else the public page).
+  const involved = stay !== undefined && stay.hostId === store.currentUserId;
 
   useEffect(() => {
-    if (stay && !involved) router.replace(`/house/${stay.slug}`);
+    if (stay && !involved) router.replace(`/h/${stay.id}`);
   }, [stay, involved, router]);
 
   if (!stay) {
@@ -49,11 +46,14 @@ function ManageHouseGate({ id }: { id: string }) {
 
   return (
     <Container className="pb-(--space-section) pt-6 md:pt-8">
-      <Button href="/your-houses" variant="tertiary" size="sm" className="-ml-4 mb-4">
-        <ArrowLeft aria-hidden />
-        {t("title")}
-      </Button>
-      <HouseDetail stay={stay} />
+      {/* One narrow column, centred under the header: on 1440 × 900 the whole page fits without scrolling. */}
+      <div className="mx-auto w-full max-w-[720px]">
+        <Button href="/your-houses" variant="tertiary" size="sm" className="-ml-4 mb-2">
+          <ArrowLeft aria-hidden />
+          {t("title")}
+        </Button>
+        <HouseDetail stay={stay} />
+      </div>
     </Container>
   );
 }

@@ -1,4 +1,4 @@
-import { HOUSE_GRID } from "@/config/explore";
+import { EXPLORE_GRID } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
 import { StageBand } from "@/components/ui/StageBand";
 import { Bone, SkeletonRoot } from "./Bone";
@@ -26,12 +26,12 @@ export function ExploreSkeleton() {
           <div className="h-[60dvh] min-h-110 rounded-3xl bg-ink/5 md:h-160 md:min-h-0" />
         </div>
       </StageBand>
-      <Container>
+      <Container className="explore-width">
         <div className="mt-12 space-y-2">
           <Bone className="h-9 w-48 rounded-xl" />
           <Bone className="h-4 w-40" />
         </div>
-        <div className={`mt-6 ${HOUSE_GRID}`}>
+        <div className={`mt-6 ${EXPLORE_GRID}`}>
           {Array.from({ length: CARDS }, (_, i) => (
             <CardSkeleton key={i} />
           ))}

@@ -4,10 +4,10 @@ import type { CrewFaceMode } from "@/config/privacy";
 import { cn } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
 
-/** xs 24 · mini 28 (the waitlist) · sm 32 · base 36 (the site header) · md 40 · lg 56 · crew 72 (the House page) · xl 96 */
-type AvatarSize = "xs" | "mini" | "sm" | "base" | "md" | "lg" | "crew" | "xl";
+/** xs 24 · mini 28 (the waitlist) · sm 32 · base 36 (the site header's avatar) · md 40 · row 44 (Settings' profile card) · lg 56 · crew 72 (the House page) · xl 96 */
+type AvatarSize = "xs" | "mini" | "sm" | "base" | "md" | "row" | "lg" | "crew" | "xl";
 
-const sizePx: Record<AvatarSize, number> = { xs: 24, mini: 28, sm: 32, base: 36, md: 40, lg: 56, crew: 72, xl: 96 };
+const sizePx: Record<AvatarSize, number> = { xs: 24, mini: 28, sm: 32, base: 36, md: 40, row: 44, lg: 56, crew: 72, xl: 96 };
 
 const sizeClasses: Record<AvatarSize, string> = {
   xs: "size-6",
@@ -15,6 +15,7 @@ const sizeClasses: Record<AvatarSize, string> = {
   sm: "size-8",
   base: "size-9",
   md: "size-10",
+  row: "size-11",
   lg: "size-14",
   crew: "size-18",
   xl: "size-24",

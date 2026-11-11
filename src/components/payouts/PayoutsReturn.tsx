@@ -13,7 +13,7 @@ export function PayoutsReturn() {
   return (
     <RequireLogin title={t("returnTitle")}>
       <Container page width="narrow" className="pb-(--space-section)">
-        <Button href="/settings#payouts" variant="tertiary" size="sm" className="-ml-4 mb-6">
+        <Button href="/settings#payments" variant="tertiary" size="sm" className="-ml-4 mb-6">
           <ArrowLeft aria-hidden />
           {t("returnBack")}
         </Button>

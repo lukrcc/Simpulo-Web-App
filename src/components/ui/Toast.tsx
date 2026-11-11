@@ -13,6 +13,7 @@ interface ToastState {
   /** The message is a link to here */
   href?: string;
   action?: ToastAction;
+  placement: "top" | "bottom";
 }
 
 /** A small text button after the message, e.g. "Undo"; pressing it closes the toast. */
@@ -21,8 +22,11 @@ interface ToastAction {
   onClick: () => void;
 }
 
-/** `href`: the message links there. `options.action`: "Declined · Undo"; `options.ms`: how long it stays (default 4s). */
-type ShowToast = (message: string, tone?: ToastTone, href?: string, options?: { action?: ToastAction; ms?: number }) => void;
+/**
+ * `href`: the message links there. `options.action`: "Declined · Undo"; `options.ms`: how long it stays (default 4s); `options.placement`:
+ * "bottom" – centred at the bottom, for a quiet confirmation (Settings' "Saved").
+ */
+type ShowToast = (message: string, tone?: ToastTone, href?: string, options?: { action?: ToastAction; ms?: number; placement?: "top" | "bottom" }) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
 
@@ -39,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback<ShowToast>((message, tone = "done", href, options) => {
     nextId.current += 1;
-    setToast({ id: nextId.current, message, tone, href, action: options?.action });
+    setToast({ id: nextId.current, message, tone, href, action: options?.action, placement: options?.placement ?? "top" });
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), options?.ms ?? TOAST_MS);
   }, []);
@@ -49,7 +53,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={showToast}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed right-(--page-margin) top-[calc(var(--header-total)+8px)] z-[80] w-[min(380px,calc(100vw-2*var(--page-margin)))]">
+      <div
+        aria-live="polite"
+        className={
+          toast?.placement === "bottom"
+            ? "pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+24px)] left-1/2 z-[80] flex w-[min(380px,calc(100vw-2*var(--page-margin)))] -translate-x-1/2 justify-center"
+            : "pointer-events-none fixed right-(--page-margin) top-[calc(var(--header-total)+8px)] z-[80] w-[min(380px,calc(100vw-2*var(--page-margin)))]"
+        }
+      >
         {toast && (
           <GlassPanel key={toast.id} className="animate-toast-in flex items-start gap-2 rounded-[20px]! px-4 py-3 text-body font-medium text-ink">
             {toast.tone === "notify" ? <Bell className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden /> : <CircleCheck className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />}

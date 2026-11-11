@@ -37,6 +37,9 @@ export const stayLinkPreview = (stay: Pick<Stay, "accommodationLink" | "title">)
 export const withAttribution = adapter.withAttribution;
 export const withChatHistory = adapter.withChatHistory;
 export const growthEventsFor = adapter.growthEvents;
+/** The next page of a list after a cursor (src/lib/data/paging.ts). */
+export const loadPage = adapter.loadPage;
+export type { Page, PageRequest } from "./paging";
 
 const STATE_KEY = "simpulo:dataset";
 const DEFAULT_STATE: DataState = "full";

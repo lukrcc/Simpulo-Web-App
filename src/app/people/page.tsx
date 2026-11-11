@@ -1,6 +1,13 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import { YourPeople } from "@/components/views/YourPeople";
 
-/** The People list moved to your own profile ("Lived with"). */
-export default function People() {
-  redirect("/profile");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("people.page");
+  return { title: t("title") };
+}
+
+/** Your people: everyone you lived with, both confirmed (avatar menu). Never indexed (layout). */
+export default function PeoplePage() {
+  return <YourPeople />;
 }

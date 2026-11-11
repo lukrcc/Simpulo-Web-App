@@ -1,25 +1,26 @@
 "use client";
 
-import { ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronsDown, SlidersHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { ListRow } from "@/components/ui/ListRow";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { Chip, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
-import { GlassPanel } from "@/components/ui/GlassPanel";
-import { Combobox } from "@/components/ui/Combobox";
+import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
 
 /**
- * "Filters", everywhere: ink, text and icon surface, 36px, 14px/600. Active: the number of active filters in an 18px accent
- * circle at the right. The Sort capsule beside it stays surface.
+ * "Filters". "strong": the filter row's (and the header tab's) strongest element at its right end – "All filters" in words (no icon), filled
+ * like the active Explore tab: ink, white semibold text, no gradient; --control-h, 15px, padding 0 18px; active filters as their number in a
+ * small white capsule inside ("All filters · 3"). "capsule": the phones' row – a filled capsule (ink 7 %, hover 12 %), the count a small
+ * orange circle at its corner. "secondary": beside a section's title. "corner": the header tab's chip row – a block filling the row's right
+ * corner (the tab cuts it to its corners and its own concave curves), ink, hover ink 88 %, "All filters" white semibold 15px, centred, the
+ * count beside it in a small white capsule.
  */
 export function FiltersButton({
   count,
@@ -29,8 +30,7 @@ export function FiltersButton({
   variant = "capsule",
   className,
 }: {
-  /** "capsule": the glass capsule of the filter rows · "secondary": the button beside a section's title */
-  variant?: "capsule" | "secondary";
+  variant?: "corner" | "strong" | "capsule" | "secondary";
   count: number;
   onClick: () => void;
   expanded?: boolean;
@@ -47,18 +47,38 @@ export function FiltersButton({
       aria-expanded={expanded}
       aria-haspopup="dialog"
       aria-controls={controls}
-      aria-label={count > 0 ? tf("filtersCount", { count }) : t("filters")}
-      className={variant === "secondary" ? buttonStyles("secondary", "sm", className) : cn("filters-capsule inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav text-ink [&>svg]:size-4", className)}
+      aria-label={count > 0 ? tf("filtersCount", { count }) : variant === "strong" || variant === "corner" ? tf("allFilters") : t("filters")}
+      className={
+        variant === "corner"
+          ? cn("corner-filters flex size-full items-center justify-center gap-2 whitespace-nowrap bg-(--hdr-corner-bg) pr-3 text-nav-main font-semibold text-(--hdr-corner-fg) transition-colors duration-150 hover:bg-(--hdr-corner-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50", className)
+          : variant === "secondary"
+          ? buttonStyles("secondary", "sm", className)
+          : variant === "strong"
+            ? cn("press relative inline-flex h-(--control-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4.5 text-nav-main font-semibold text-white transition-colors duration-150 hover:bg-ink/85", className)
+            : cn("filters-button relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav font-semibold text-ink [&>svg]:size-4", className)
+      }
     >
       {/* Gives the button its text's baseline (an icon first would give the icon's bottom edge): it lines up with a title beside it. */}
-      <span aria-hidden className="-ml-2 w-0 overflow-hidden">{"\u200b"}</span>
-      <SlidersHorizontal aria-hidden />
-      {t("filters")}
-      {count > 0 && (
-        <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
-          {count}
-        </span>
-      )}
+      {variant !== "corner" && <span aria-hidden className="-ml-2 w-0 overflow-hidden">{"\u200b"}</span>}
+      {/* The row's strongest element is words alone: "All filters" (no icon). The others keep the icon and "Filters". */}
+      {variant !== "strong" && variant !== "corner" && <SlidersHorizontal aria-hidden />}
+      {variant === "strong" || variant === "corner" ? tf("allFilters") : t("filters")}
+      {count > 0 &&
+        (variant === "strong" || variant === "corner" ? (
+          <span aria-hidden className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-eyebrow leading-none tracking-normal tabular-nums", variant === "corner" ? "bg-(--hdr-corner-fg) text-(--hdr-corner-bg)" : "bg-white text-ink")}>
+            {count}
+          </span>
+        ) : variant === "secondary" ? (
+          <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+            {count}
+          </span>
+        ) : (
+          <span aria-hidden className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+            {count}
+          </span>
+        ))}
+      {/* The corner block: two stacked chevrons after the words, still. */}
+      {variant === "corner" && <ChevronsDown aria-hidden className="size-4 shrink-0" strokeWidth={2} />}
     </button>
   );
 }
@@ -71,64 +91,12 @@ export interface CheckOption {
   group?: string;
 }
 
-/** One section of the filter panel: a 13px/600 muted title (and an optional note at its right). Tight: the panel fits without scrolling from 800px. */
-export function PanelSection({ title, note, onClear, children }: { title: string; note?: ReactNode; /** A value is set here: "Clear" beside the title */ onClear?: () => void; children: ReactNode }) {
-  const t = useTranslations("explore.filtersUi");
-  return (
-    <section className="pb-2.5">
-      <div className="mb-1 flex min-h-5 items-baseline justify-between gap-3">
-        <h3 className="text-small font-semibold text-ink">{title}</h3>
-        {note && <span className="text-small tabular-nums text-muted">{note}</span>}
-        {onClear && (
-          <button type="button" onClick={onClear} aria-label={t("clearSection", { section: title })} className="text-small text-ink underline-offset-4 hover:underline">
-            {t("clear")}
-          </button>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/** Chips in an even grid (32px) – single choice; the first option ("Any") clears and carries no check. */
-export function ChoiceChips<T extends string | number>({
-  options,
-  value,
-  onChange,
-  label,
-  clearable = false,
-}: {
-  options: ReadonlyArray<{ value: T | null; label: string }>;
-  value: T | null;
-  onChange: (value: T | null) => void;
-  label: string;
-  /** Picking the chosen one again clears it (a list without its own "All") */
-  clearable?: boolean;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-x-1 gap-y-1.5">
-      {options.map((o) => (
-        <Chip
-          key={String(o.value)}
-          role="radio"
-          aria-checked={value === o.value}
-          active={value === o.value}
-          size="sm"
-          onClick={() => onChange(clearable && value === o.value ? null : o.value)}
-          className="px-2.5!"
-        >
-          {o.label}
-        </Chip>
-      ))}
-    </div>
-  );
-}
-
 const HISTOGRAM_BARS = 24;
 
 /**
  * Price per person: a mini histogram of the Houses' prices over the range (bars in the chosen range ink, the rest
- * line), the two-handle slider (the chosen range soft accent) and Min / Max fields – shown in the viewer's currency, kept in EUR (the URL's unit; ≈ for other currencies).
+ * line), the two-handle slider and the range as text ("€50 – €2,100", each number editable on a click) – shown in the viewer's currency, kept
+ * in EUR (the URL's unit; ≈ for other currencies).
  */
 export function PriceFilter({
   bounds,
@@ -164,61 +132,56 @@ export function PriceFilter({
   const tallest = Math.max(1, ...bars);
 
   return (
-    <div>
-      {/* Over the slider's track (12px in from either side, like the track). */}
-      <div aria-hidden className="mx-3 flex h-8 items-end gap-px">
-        {bars.map((count, i) => {
-          const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
-          const inRange = at >= current.min && at <= current.max;
-          return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink/55" : "bg-ink/18")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
-        })}
+    // The histogram (40px) over the slider, the range as text on the right – each number can be clicked and typed.
+    <div className="flex items-center gap-6">
+      <div className="min-w-0 flex-1">
+        {/* Over the slider's track (12px in from either side, like the track). */}
+        <div aria-hidden className="mx-3 flex h-10 items-end gap-px">
+          {bars.map((count, i) => {
+            const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
+            const inRange = at >= current.min && at <= current.max;
+            return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-accent/60" : "bg-ink/14")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+          })}
+        </div>
+        <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} tone="accent" />
       </div>
-      <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <PriceField key={`min-${current.min}`} label={t("min")} amount={toUser(current.min)} currency={currency} onCommit={(amount) => set(toEur(amount), current.max)} />
-        <PriceField key={`max-${current.max}`} label={t("max")} amount={toUser(current.max)} currency={currency} onCommit={(amount) => set(current.min, toEur(amount))} />
-      </div>
+      <p className="shrink-0 whitespace-nowrap text-body font-semibold text-ink tabular-nums">
+        <EditableAmount key={`min-${current.min}`} label={t("min")} text={money(current.min)} amount={toUser(current.min)} onCommit={(amount) => set(toEur(amount), current.max)} />
+        <span className="text-muted"> – </span>
+        <EditableAmount key={`max-${current.max}`} label={t("max")} text={money(current.max)} amount={toUser(current.max)} onCommit={(amount) => set(current.min, toEur(amount))} />
+      </p>
     </div>
   );
 }
 
-/** A 40px amount field with its label inside; committed on Enter and on leaving it (re-keyed when the value moves). */
-function PriceField({ label, amount, currency, onCommit }: { label: string; amount: number; currency: Currency; onCommit: (amount: number) => void }) {
-  const [draft, setDraft] = useState(String(amount));
+/** "€50": a number that becomes a small field on a click; Enter or leaving it commits, Escape keeps the old one. */
+function EditableAmount({ label, text, amount, onCommit }: { label: string; text: string; amount: number; onCommit: (amount: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
   const commit = () => {
-    const n = Number(draft.replace(/[^\d]/g, ""));
-    if (draft.trim() !== "" && Number.isFinite(n) && n !== amount) onCommit(n);
-    else setDraft(String(amount));
+    const n = Number((draft ?? "").replace(/[^\d]/g, ""));
+    if (draft !== null && draft.trim() !== "" && Number.isFinite(n) && n !== amount) onCommit(n);
+    setDraft(null);
   };
+  if (draft === null) {
+    return (
+      <button type="button" onClick={() => setDraft(String(amount))} aria-label={`${label}: ${text}`} className="rounded-md px-1 underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink">
+        {text}
+      </button>
+    );
+  }
   return (
-    <label className="flex h-10 items-center gap-2 rounded-xl bg-(--chip-bg) px-3 focus-within:ring-2 focus-within:ring-ink/25">
-      <span className="text-small text-muted">{label}</span>
-      <input
-        inputMode="numeric"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-        className="min-w-0 flex-1 bg-transparent text-right text-body tabular-nums text-ink outline-none"
-      />
-      <span className="text-small text-muted">{currency}</span>
-    </label>
-  );
-}
-
-/** Languages: one searchable field, several picks (each pick toggles; the field lists what's picked). */
-export function LanguageFilter({ options, value, onChange, label, placeholder }: { options: ReadonlyArray<{ value: string; label: string; count: number }>; value: readonly string[]; onChange: (value: string[]) => void; label: string; placeholder: string }) {
-  const picked = options.filter((o) => value.includes(o.value)).map((o) => o.label);
-  return (
-    <Combobox
-      above
-      soft
+    <input
+      autoFocus
+      inputMode="numeric"
       aria-label={label}
-      value={picked.join(", ")}
-      placeholder={placeholder}
-      options={options.map((o) => ({ value: o.value, label: o.label, hint: String(o.count) }))}
-      isSelected={(o) => value.includes(o.value)}
-      onPick={(o) => onChange(value.includes(o.value) ? value.filter((v) => v !== o.value) : [...value, o.value])}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") setDraft(null);
+      }}
+      className="filter-control h-8 w-20 rounded-full px-3 text-right text-body tabular-nums text-ink outline-none focus:ring-2 focus:ring-ink/25"
     />
   );
 }
@@ -280,7 +243,6 @@ export function CategoryRow({
     };
   }, [open]);
 
-  const chip = (active: boolean) => chipStyles(active, { size: "md" });
   const { ref: scrollerRef, edges } = useChipScroller();
   // A click on the only active chip goes back to All; any other click makes that chip the one.
   const pick = (option: string) => onSelect(value.length === 1 && value[0] === option ? null : option);
@@ -290,18 +252,19 @@ export function CategoryRow({
     <div ref={rootRef} className="chip-row group/chips relative flex min-w-0 items-center" data-at-start={edges.atStart || undefined} data-at-end={edges.atEnd || undefined}>
       {/* The chips keep their width (never squeezed or cut): the row scrolls sideways (trackpad, Shift + wheel) – its
           ends fading out where there's more (.chip-scroller in globals.css). */}
-      <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain py-1">
-        {/* "All": the quiet default – no pill, bold ink while nothing is picked. */}
-        <button type="button" role="radio" aria-checked={value.length === 0} onClick={() => onSelect(null)} className={cn(chipStyles(value.length === 0, { variant: "plain", size: "md" }), "shrink-0")}>
+      <div ref={scrollerRef} role="radiogroup" aria-label={label} className="chip-scroller no-scrollbar -my-1 flex min-w-0 flex-1 gap-0.5 overflow-x-auto overscroll-x-contain py-1">
+        {/* "All": the quiet default – no pill, bold ink while nothing is picked. The categories are text; the chosen one the black capsule. */}
+        <Chip variant="plain" size="lg" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {allLabel}
-        </button>
+        </Chip>
         {chips.map((o) => (
           <Chip
             key={o.value}
             role="radio"
             aria-checked={value.includes(o.value)}
             active={value.includes(o.value)}
-            size="md"
+            variant="bare"
+            size="lg"
             title={o.label}
             onClick={() => pick(o.value)}
           >
@@ -315,9 +278,9 @@ export function CategoryRow({
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-haspopup="true"
-            className={chip(moreActive)}
+            data-more-active={moreActive || undefined}
+            className={chipStyles(false, { variant: "bare", size: "lg" })}
           >
-            
             {moreLabel}
             <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
@@ -408,21 +371,20 @@ export function useDismiss(open: boolean, close: () => void, root: React.RefObje
 
 /** The sort choices as radio rows – the capsule's popover and the panel's Sort section. */
 export function SortList<T extends string = SortKey>({ options, value, onChange }: { options: ReadonlyArray<{ value: T; label: string }>; value: T; onChange: (sort: T) => void }) {
-  // Its own radio group name: the list can be on the page more than once (header, compact header, panel).
-  const name = useId();
+  // Rows of the dark menu: the chosen one on 12 % white with its check.
   return (
-    <div role="radiogroup" className="">
+    <div role="radiogroup">
       {options.map((o) => (
-        <label key={o.value} className="block cursor-pointer px-2">
-          <ListRow title={o.label} action={<Checkbox radio name={name} checked={value === o.value} onChange={() => onChange(o.value)} />} />
-        </label>
+        <DarkMenuItem key={o.value} role="radio" aria-checked={value === o.value} selected={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </DarkMenuItem>
       ))}
     </div>
   );
 }
 
 /**
- * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): a 36px text chip with the current order
+ * The row's sort shortcut (only with enough Houses – see SORT_INLINE_THRESHOLD): plain text with its arrow, 40px, with the current order
  * that opens the same choices as the panel's Sort section, right under it.
  */
 export function SortCapsule({ label, name, variant = "chip", children }: { label: string; /** What it chooses, for screen readers: "Sort" unless it says */ name?: string; /** "chip": a text chip in the filter rows · "tertiary": the text button beside a section's title */ variant?: "chip" | "tertiary"; children: ReactNode }) {
@@ -442,7 +404,7 @@ export function SortCapsule({ label, name, variant = "chip", children }: { label
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${name ?? t("sort")}: ${label}`}
-        className={variant === "tertiary" ? buttonStyles("tertiary", "sm") : chipStyles(false, { variant: "text", size: "sm" })}
+        className={variant === "tertiary" ? buttonStyles("tertiary", "sm") : "press inline-flex h-(--control-h) shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4.5 text-nav-main text-ink/80 transition-colors duration-150 hover:bg-ink/5 hover:text-ink [&_svg]:size-4"}
       >
         <ArrowUpDown className="sm:hidden" aria-hidden />
         <span className="max-sm:sr-only">{label}</span>
@@ -451,15 +413,10 @@ export function SortCapsule({ label, name, variant = "chip", children }: { label
       {open && (
         // In a portal: the site header clips its overflow.
         <Anchored anchor={buttonRef} ref={panelRef} align="end">
-          <GlassPanel
-            id={id}
-            role="dialog"
-            aria-label={name ?? t("sort")}
-            onChange={() => setOpen(false)}
-            className="animate-fade-in w-60 rounded-[20px] p-2"
-          >
+          {/* A pick closes it. */}
+          <div id={id} role="dialog" aria-label={name ?? t("sort")} onClick={(e) => (e.target as Element).closest('[role="radio"]') && setOpen(false)} className={cn(darkMenuClass, darkMenuScroll, "w-60")}>
             {children}
-          </GlassPanel>
+          </div>
         </Anchored>
       )}
     </div>

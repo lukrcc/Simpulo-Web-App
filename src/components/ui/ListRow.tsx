@@ -25,7 +25,7 @@ export function ListRow({ lead, title, subtitle, aside, action, onClick, disable
   // Spans only, so the row is valid inside a <button> too.
   const content = (
     <>
-      {lead !== undefined && <span className="flex w-10 shrink-0 items-center justify-center text-muted [&>svg]:size-5">{lead}</span>}
+      {lead !== undefined && <span className="flex min-w-10 shrink-0 items-center justify-center text-muted [&>svg]:size-5">{lead}</span>}
       <span className="block min-w-0 flex-1">
         <span className="block truncate text-body text-ink">{title}</span>
         {subtitle && <span className="block truncate text-small text-muted">{subtitle}</span>}

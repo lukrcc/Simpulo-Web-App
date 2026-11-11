@@ -101,23 +101,23 @@ export function MessageBubble(props: MessageBubbleProps) {
       onClick={() => props.onJumpTo(replyTo.message.id)}
       className={cn(
         "mb-1 block w-full min-w-0 border-l-2 py-0.5 pl-2 text-left",
-        mine ? "border-white/30" : "border-ink/20",
+        mine ? "border-[#221E1B]/25" : "border-ink/20",
       )}
     >
       {replyTo.blocked ? (
-        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-white/60" : "text-muted")}>{tSafety("blockedMessage")}</span>
+        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-[#221E1B]/50" : "text-muted")}>{tSafety("blockedMessage")}</span>
       ) : (
         <>
-          <span className={cn("block truncate text-small font-semibold", mine ? "text-white" : "text-ink")}>
+          <span className={cn("block truncate text-small font-semibold", mine ? "text-[#221E1B]" : "text-ink")}>
             {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
           </span>
-          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-white/70" : "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-[#221E1B]/60" : "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
         </>
       )}
     </button>
   );
 
-  const timeStamp = (onBubble = true) => <span className={cn("text-small leading-none tabular-nums", onBubble && mine ? "text-white/60" : "text-muted")}>{time}</span>;
+  const timeStamp = (onBubble = true) => <span className={cn("text-small leading-none tabular-nums", onBubble && mine ? "text-[#221E1B]/50" : "text-ink/50")}>{time}</span>;
   const hasBubble = !bigEmoji && Boolean(text || quote);
   const reactions = message.reactions ?? [];
 
@@ -159,7 +159,8 @@ export function MessageBubble(props: MessageBubbleProps) {
               className={cn(
                 "relative max-w-full rounded-[20px] px-3.5 py-2 text-left text-body leading-5 wrap-break-word",
                 hasCard && "w-full",
-                mine ? "bg-ink text-white" : "bg-(--select-bg) text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+                // Dark chat (.chat-dark): own messages cream with ink text, the others' #3A332E with cream text.
+                mine ? "bg-[#F4EEE7] text-[#221E1B]" : "bg-[#3A332E] text-ink",
               )}
             >
               {quote}
@@ -246,7 +247,7 @@ export function MessageBubble(props: MessageBubbleProps) {
               onClick={props.onReply}
               aria-label={t("reply")}
               title={t("reply")}
-              className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-(--chip-bg-hover)"
+              className="flex size-7 items-center justify-center rounded-full text-ink/80 hover:bg-(--chip-bg-hover)"
             >
               <Reply className="size-4" />
             </button>
@@ -256,7 +257,7 @@ export function MessageBubble(props: MessageBubbleProps) {
               aria-label={t("react")}
               title={t("react")}
               aria-expanded={picking}
-              className={cn("flex size-7 items-center justify-center rounded-full text-muted hover:bg-(--chip-bg-hover)", picking && "bg-(--chip-bg-hover)")}
+              className={cn("flex size-7 items-center justify-center rounded-full text-ink/80 hover:bg-(--chip-bg-hover)", picking && "bg-(--chip-bg-hover)")}
             >
               <SmilePlus className="size-4" />
             </button>
@@ -266,7 +267,7 @@ export function MessageBubble(props: MessageBubbleProps) {
                 onClick={props.onReport}
                 aria-label={tSafety("report")}
                 title={tSafety("report")}
-                className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-(--chip-bg-hover)"
+                className="flex size-7 items-center justify-center rounded-full text-ink/80 hover:bg-(--chip-bg-hover)"
               >
                 <Flag className="size-4" />
               </button>

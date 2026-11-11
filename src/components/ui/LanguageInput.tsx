@@ -12,8 +12,6 @@ interface LanguageInputProps {
   /** English names as stored on profiles ("German") */
   languages: string[];
   onChange: (languages: string[]) => void;
-  /** @deprecated No-op: every language field has the form field look (surface, 1px line, accent focus ring). */
-  soft?: boolean;
 }
 
 /** Language chips plus a searchable list to add more – picked from the list, never typed free. */
@@ -48,17 +46,17 @@ export function LanguageInput({ languages, onChange }: LanguageInputProps) {
     <div className="relative">
       <div
         onClick={() => inputRef.current?.focus()}
-        // The form field look (formInput) around chips + a typed search: grows past 44px as chips wrap.
-        className="flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-2 py-1.5 transition-shadow focus-within:ring-2 focus-within:ring-ink/25"
+        // The one field look (ui/Input.tsx) around the chips and a typed search with suggestions: grows past 48px as chips wrap.
+        className="flex min-h-12 cursor-text flex-wrap items-center gap-1.5 rounded-xl border border-ink/10 px-2 py-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-ink/40 focus-within:ring-3 focus-within:ring-[rgba(240,99,58,0.15)]"
       >
         {languages.map((language) => (
-          <span key={language} className="inline-flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1.5 text-body">
+          <span key={language} className="inline-flex h-8 items-center gap-1 rounded-full border border-ink/10 pl-3 pr-1.5 text-body text-ink">
             {language}
             <button
               type="button"
               onClick={() => onChange(languages.filter((l) => l !== language))}
               aria-label={t("removeLanguage", { language })}
-              className="rounded-full p-0.5 text-muted hover:bg-line hover:text-ink"
+              className="rounded-full p-0.5 text-muted hover:bg-ink/6 hover:text-ink"
             >
               <X className="size-3.5" />
             </button>

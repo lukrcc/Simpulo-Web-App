@@ -1,7 +1,8 @@
 "use client";
 
+import { LegalLine } from "@/components/layout/LegalLine";
 import Link from "next/link";
-import { Eye, Link2, QrCode } from "lucide-react";
+import { Eye, Link2, QrCode, UserPlus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMessages, useTranslations } from "next-intl";
 import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
@@ -37,6 +38,7 @@ import {
   EDIT_REQUIRED_STEPS,
   EXTRAS,
   EXTRAS_STEP,
+  INVITE_STEP,
   INVITE_PARAM,
   REQUIRED_STEPS,
   againForm,
@@ -81,9 +83,10 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { canChargeHostFee } from "@/lib/fees";
 import { useFormat } from "@/i18n/format";
-import { getCrew, getCurrentUser, isBlocked, isCrewMember, livedWithFor, useStore, type PersonEntry } from "@/lib/store";
+import { getCrew, getCurrentUser, houseInviteUrl, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
+import { yourPeople } from "@/lib/yourPeople";
+import { InviteStep } from "@/components/create/InviteStep";
 import { locationOf } from "@/lib/catalog";
 import { coversFromHouses } from "@/lib/coverSuggestions";
 import type { Stay, User } from "@/lib/types";
@@ -156,6 +159,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [openedId, setOpenedId] = useState<string | null>(null);
   const [notified, setNotified] = useState(0);
   const [inviteOn, setInviteOn] = useState(true);
+  // "Invite by link": the token of the link made with the House – copied from the success screen.
+  const [linkToken, setLinkToken] = useState<string | null>(null);
   // A required answer opened from the list (editing): its button leads back to the list.
   const [fromList, setFromList] = useState(false);
   // "Open again" (/create?again=<House>): applied once the user and that House are known (the user is restored
@@ -165,9 +170,16 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "Invite to a House" from People (/create?invite=<user>): that person is invited on publish, once they're known.
   const [inviteId, setInviteId] = useState<string | null>(null);
   const [inviteApplied, setInviteApplied] = useState(false);
+  // A field to focus once the step it is on has rendered (set from event handlers).
+  const pendingFocus = useRef<string | null>(null);
   function readLinkParams(params: URLSearchParams) {
     setAgainId(params.get(AGAIN_PARAM));
     setInviteId(params.get(INVITE_PARAM));
+    // "Add a host fee" (Payouts, share hosts): straight to "Crew and price", the host fee field focused.
+    if (params.get("step") === "price" && !editing) {
+      pendingFocus.current = fieldId("hostFee");
+      setStep("crew");
+    }
     const linked = prefillOf(params.toString(), todayString());
     if (linked && !prefillApplied) {
       setPrefillApplied(true);
@@ -180,8 +192,6 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // Errors show once a field was left (touched) or moving on was tried on its step.
   const [touched, setTouched] = useState<ReadonlySet<FieldKey>>(() => new Set());
   const [attempted, setAttempted] = useState<ReadonlySet<StepKey>>(() => new Set());
-  // A field to focus once the step it is on has rendered (set from event handlers).
-  const pendingFocus = useRef<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const shownStep = useRef(step);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -191,13 +201,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // The House being repeated: from the link, or from a restored draft that started as one.
   const againSourceId = againId ?? (form.againFrom || null);
   const againSource = againSourceId && me ? store.stays.find((s) => s.id === againSourceId && isCrewMember(store, s, me.id)) : undefined;
-  // Who can be invited on publish: the people the host lived with (completed Houses) who aren't blocked.
-  const invitePeople: PersonEntry[] =
-    !me || editing
-      ? []
-      : livedWithFor(store, me.id)
-          .filter((entry) => !isBlocked(store, entry.user.id))
-          .map((entry) => ({ user: entry.user, houses: [entry.house] }));
+  // Who can be invited on publish: the host's people (lived together, both confirmed; not removed or blocked – lib/yourPeople.ts).
+  const yours = useMemo(() => (!me || editing ? [] : yourPeople(store, me.id)), [store, me, editing]);
+  const invitePeople: PersonEntry[] = yours.map((p) => ({ user: p.user, houses: [p.house] }));
+  // The optional "Invite your crew / your people" step: only with someone to invite.
+  const hasInviteStep = !editing && yours.length > 0;
+  const againCrewIds = againSource ? getCrew(store, againSource).map((u) => u.id).filter((id) => id !== me?.id && yours.some((p) => p.user.id === id)) : [];
   if (againId && againSource && !againApplied) {
     setAgainApplied(true);
     const crewIds = getCrew(store, againSource).map((u) => u.id).filter((id) => invitePeople.some((p) => p.user.id === id));
@@ -237,9 +246,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   }
 
   useEffect(() => {
-    if (pendingFocus.current) {
+    // A field to focus waits until its step has rendered (a link can ask for one before the step changed).
+    if (pendingFocus.current && document.getElementById(pendingFocus.current)) {
       focusField(pendingFocus.current);
       pendingFocus.current = null;
+    } else if (pendingFocus.current) {
+      // Not there yet: the next render.
     } else if (shownStep.current !== step) {
       // A new question: its first text field is ready to type into.
       bodyRef.current?.querySelector<HTMLElement>("input:not([type=checkbox]):not([type=date]), textarea")?.focus({ preventScroll: true });
@@ -300,7 +312,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!editing || (!isDraft && !validateAll())) return;
     store.updateStay(editing.id, input());
     showToast(isDraft ? tDraft("savedToast") : t("saved"));
-    router.push(`/your-houses/${editing.id}`);
+    router.push(`/h/${editing.id}/manage`);
   }
 
   function publishDraft() {
@@ -315,7 +327,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!profileReady || !validateAll()) return;
     // Logged out: log in first, then publish – the draft is still in state, nothing is lost.
     requireAuth(() => {
-      const id = store.createStay(input(), [], { invite: invites, againFrom: form.againFrom || undefined });
+      const { id, linkToken } = store.createStay(input(), [], { invite: invites, againFrom: form.againFrom || undefined, link: form.inviteLink });
+      setLinkToken(linkToken ?? null);
       clearDraft();
       setNotified(demand.count);
       setOpenedId(id);
@@ -331,7 +344,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     }
     // A new House: after the cover the optional "Make it stand out", then the review.
     if (step === "cover" && !editing) return open(EXTRAS_STEP);
-    if (step === EXTRAS_STEP) return open("ready");
+    if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
+    if (step === INVITE_STEP) return open("ready");
     open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready");
   }
 
@@ -340,7 +354,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setFromList(false);
       return open(home);
     }
-    if (step === "ready") return open(editing ? "cover" : EXTRAS_STEP);
+    if (step === "ready") return open(editing ? "cover" : hasInviteStep ? INVITE_STEP : EXTRAS_STEP);
+    if (step === INVITE_STEP) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open("cover");
     open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1]);
   }
@@ -414,6 +429,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {step === "vibe" && <VibeStep {...stepProps} />}
       {step === "place" && <PlaceStep {...stepProps} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
+      {step === INVITE_STEP && <InviteStep form={form} patch={patch} people={yours} againCrewIds={againCrewIds} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
       {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} />}
@@ -422,7 +438,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {step === "why" && <WhyDetail {...stepProps} />}
       {step === "dates" && <DatesDetail {...stepProps} today={today} />}
       {step === "accommodation" && <AccommodationDetail {...stepProps} currency={previewStay.currency} locked={locked} today={today} />}
-      {step === "host" && <HostDetail {...stepProps} currency={previewStay.currency} allowed={canChargeHostFee(me)} />}
+      {step === "host" && <HostDetail {...stepProps} currency={previewStay.currency} allowed />}
       {step === "lookingFor" && <LookingForDetail {...stepProps} />}
       {step === "rules" && <RulesDetail {...stepProps} />}
       {step === "languages" && <LanguagesDetail {...stepProps} />}
@@ -472,7 +488,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const canGoBack = step !== "vibe" && !(editing && step === "details");
   const onList = step === "details";
   // A new House: the progress bar over the full width under the header (the six steps and the review).
-  const flowSteps: StepKey[] = [...REQUIRED_STEPS, EXTRAS_STEP, "ready"];
+  const flowSteps: StepKey[] = [...REQUIRED_STEPS, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
   const flowIndex = flowSteps.indexOf(step);
   const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
   const actions = onList ? (
@@ -498,8 +514,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     </Button>
   ) : (
     <>
-      {step === EXTRAS_STEP && (
-        <Button variant="tertiary" onClick={() => open("ready")}>
+      {(step === EXTRAS_STEP || step === INVITE_STEP) && (
+        <Button variant="tertiary" onClick={() => (step === EXTRAS_STEP && hasInviteStep ? open(INVITE_STEP) : open("ready"))}>
           {tFlow("skip")}
         </Button>
       )}
@@ -523,7 +539,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const question = (
     <section onKeyDown={onKeyDown} className="flex flex-col split:min-h-(--create-card-h)">
       <div key={step} className="animate-[fade-in_200ms_ease-out] motion-reduce:animate-none">
-        <h1 className="text-h1 text-ink">{t(`questions.${step}`)}</h1>
+        <h1 className="text-h1 text-ink">{step === INVITE_STEP && form.againFrom ? t("questions.inviteAgain") : t(`questions.${step}`)}</h1>
         <div ref={bodyRef} className="mt-8">
           {body}
         </div>
@@ -533,7 +549,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             {/* Voluntary: never a lock on publishing, only why it helps. */}
             {me && !me.verified && (
               <p className="text-small text-muted">
-                {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#verification" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
+                {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
               </p>
             )}
           </div>
@@ -548,11 +564,13 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         <span className="flex-1" />
         {actions}
       </div>
+      {/* No footer in the focus mode: the legal line under Back/Next. */}
+      <LegalLine className="mt-6" />
     </section>
   );
 
   const openedStay = openedId ? store.stays.find((s) => s.id === openedId) : undefined;
-  if (openedStay) return <OpenedScreen stay={openedStay} notified={notified} host={me} form={form} />;
+  if (openedStay) return <OpenedScreen stay={openedStay} notified={notified} host={me} form={form} linkToken={linkToken} />;
 
   return (
     <>
@@ -575,7 +593,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             <div className={CARD_BOX}>{card}</div>
             {!editing && me && (me.socials ?? []).length === 0 && (
               <p className={cn(CARD_BOX, "mt-3 text-small text-muted")}>
-                {t.rich("socialsHint", { link: (chunks) => <a href="/profile/edit" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-4">{chunks}</a> })}
+                {t.rich("socialsHint", { link: (chunks) => <a href="/settings/profile" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-4">{chunks}</a> })}
               </p>
             )}
           </>
@@ -710,9 +728,20 @@ function OpenedPayouts() {
   );
 }
 
-function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: number; host?: User; form: FormState }) {
+function OpenedScreen({ stay, notified, host, form, linkToken }: { stay: Stay; notified: number; host?: User; form: FormState; /** "Invite by link" */ linkToken: string | null }) {
   const t = useTranslations("create.opened");
   const showToast = useToast();
+  const store = useStore();
+  const invite = linkToken ? store.houseInvites.find((i) => i.token === linkToken) : undefined;
+  async function copyInvite() {
+    if (!invite) return;
+    try {
+      await navigator.clipboard.writeText(houseInviteUrl(window.location.origin, stay, invite));
+      showToast(t("inviteCopied"));
+    } catch {
+      // The clipboard can be refused; nothing else to do.
+    }
+  }
   const { copy, story, busy } = useHostShare(stay);
   const [saved, setSaved] = useState(false);
   return (
@@ -744,6 +773,12 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
               <QrCode aria-hidden />
               {t("story")}
             </Button>
+            {invite && (
+              <Button variant="secondary" size="md" onClick={copyInvite}>
+                <UserPlus aria-hidden />
+                {t("copyInvite")}
+              </Button>
+            )}
           </div>
           <div className="-ml-4 mt-8 flex flex-wrap items-center gap-2">
             <Button
@@ -757,10 +792,11 @@ function OpenedScreen({ stay, notified, host, form }: { stay: Stay; notified: nu
             >
               {t("saveTemplate")}
             </Button>
-            <Button variant="tertiary" href={`/your-houses/${stay.id}`}>
+            <Button variant="tertiary" href={`/h/${stay.id}/manage`}>
               {t("yourHouses")}
             </Button>
           </div>
+          <LegalLine className="mt-6" />
         </section>
       </div>
     </CreateLayout>

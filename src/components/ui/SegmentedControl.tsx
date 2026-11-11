@@ -12,14 +12,15 @@ export interface SegmentOption<T> {
 /**
  * One choice out of a few, always visible (the filters' Crew size, Who, Length …, Open a House's crew size). A rail of ink 5 %. Black means
  * "chosen by you": a chosen value gets the knob in ink with white text, gliding between values (transform, 220ms). The quiet default
- * (the option whose value is null, "Any") has no knob – just its label in bold. Equal widths, so the knob only ever moves.
+ * (the option whose value is null, "Any") has no knob and stays in its normal weight. Equal widths, so the knob only ever moves.
+ * `size`: md 40px · lg 44px (the filter panel, where every control is 44px on the solid light surface: .filter-control).
  * Page tabs aren't this: they're <TabBar>.
  */
-export function SegmentedControl<T extends string | number | null>({ options, value, onChange, label, className }: { options: ReadonlyArray<SegmentOption<T>>; value: T; onChange: (value: T) => void; label: string; className?: string }) {
+export function SegmentedControl<T extends string | number | null>({ options, value, onChange, label, size = "md", className }: { options: ReadonlyArray<SegmentOption<T>>; value: T; onChange: (value: T) => void; label: string; size?: "md" | "lg"; className?: string }) {
   const index = Math.max(0, options.findIndex((o) => o.value === value));
   const quiet = value === null;
   return (
-    <div role="radiogroup" aria-label={label} className={cn("segmented relative flex h-10 rounded-full bg-ink/5 p-1", className)}>
+    <div role="radiogroup" aria-label={label} className={cn("segmented relative flex rounded-full bg-ink/5 p-1", size === "lg" ? "filter-control h-11" : "h-10", className)}>
       <span
         aria-hidden
         className={cn(
@@ -39,7 +40,7 @@ export function SegmentedControl<T extends string | number | null>({ options, va
             onClick={() => onChange(option.value)}
             className={cn(
               "relative z-1 grid min-w-0 flex-1 rounded-full text-small transition-colors duration-150",
-              chosen ? (quiet ? "font-semibold text-ink" : "font-semibold text-white") : "text-ink/80 hover:text-ink",
+              chosen ? (quiet ? "text-ink" : "font-semibold text-white") : "text-ink/80 hover:text-ink",
             )}
           >
             {/* As wide as in bold, so choosing moves nothing. */}

@@ -24,6 +24,11 @@ export interface ProfileView {
   livedInCount: number;
   /** Those Houses' cities: no date, no title */
   livedInPlaces: string[];
+  /** Places, one per city (the latest House there): for the Places row – the city, its photo, the month. The month only for themselves
+   *  and people who shared a crew with them; for anyone else `month` is null (no dates of past Houses in public). */
+  places: { city: string; country: string; stay: Stay; month: string | null }[];
+  /** Houses they hosted or lived in, as anyone may count them */
+  housesCount: number;
   /** The year of the first thing they did here; null without any. There's no sign-up date in the data yet. */
   memberSince: number | null;
   /** The date (ISO) of the first thing they did here – "joined March 2026"; null without any */
@@ -59,6 +64,10 @@ export function profileViewFor(store: StoreData & { livedWith: LivedWith[] }, us
     hostedCount: hosted.filter((s) => (s.status === "published" || s.status === "booked" || s.status === "completed") && s.visibility !== "unlisted").length,
     livedInCount: livedIn.length,
     livedInPlaces: [...new Set(livedIn.map((s) => s.location?.city ?? s.city))],
+    places: [...new Map(livedIn.toSorted((a, b) => a.startDate.localeCompare(b.startDate)).map((s) => [s.location?.city ?? s.city, s])).entries()]
+      .toReversed()
+      .map(([city, stay]) => ({ city, country: stay.location?.country ?? "", stay, month: own || sharesCrew(store, user.id, viewerId) ? stay.startDate.slice(0, 7) : null })),
+    housesCount: new Set([...hosted.filter((s) => (s.status === "published" || s.status === "booked" || s.status === "completed") && s.visibility !== "unlisted"), ...livedIn].map((s) => s.id)).size,
     memberSince: firstYear,
     joinedAt: firstDates[0] ?? null,
     livedWith: entries.filter((e) => confirmedByUser(e) && confirmedByThem(e)),

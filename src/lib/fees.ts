@@ -7,8 +7,8 @@ export const GUEST_FEE_RATE = FEE_MODEL.serviceFeePercent / 100;
 
 /** The optional host fee (a setting in Open a House, off by default) is at most the stay share itself. */
 export const HOST_FEE_MAX_RATE = 1;
-/** What Simpulo keeps of a host fee: nothing (FEE_MODEL) – the host gets all of it. */
-export const PLATFORM_COMMISSION_RATE = FEE_MODEL.hostCommissionPercent / 100;
+/** What Simpulo keeps of a host fee (FEE_MODEL.hostFeeCommissionPercent, 10 %); the rent shares pass on in full. */
+export const PLATFORM_COMMISSION_RATE = FEE_MODEL.hostFeeCommissionPercent / 100;
 
 export function guestFee(share: number): number {
   if (share <= 0) return 0;

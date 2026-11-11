@@ -1,21 +1,33 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Anchored } from "@/components/ui/Anchored";
-import { GlassPanel } from "@/components/ui/GlassPanel";
+import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { Chip, chipStyles, TextChipLabel } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 
 export interface ChipOption {
   value: string;
   label: string;
+  /** Its line icon, 16px before the words (ink 60 %; picked #F0633A) */
+  icon?: LucideIcon;
 }
 
-/** The chips' gap (gap-1.5): outlined pills need a little air between them. */
-const GAP = 6;
-/** The chosen chip's ✕: its 16px and the 4px before it. */
-const REMOVE_W = 20;
+/** A category's icon in the row: 16px, ink 60 %; on the picked (black) capsule #F0633A. */
+function ChipIcon({ icon: Icon, on }: { icon?: LucideIcon; on: boolean }) {
+  if (!Icon) return null;
+  return (
+    <span aria-hidden className={cn("mr-1 flex shrink-0 transition-colors duration-150", on ? "text-accent" : "text-ink/60")}>
+      <Icon className="size-4" strokeWidth={1.75} />
+    </span>
+  );
+}
+
+/** No gap between the text chips: their 12px padding each side puts the words 24px apart. */
+const GAP = 0;
+/** A chosen category carries no ✕ any more. */
+const REMOVE_W = 0;
 
 interface FitChipsProps {
   /** The categories, in order: those that fit are shown, all of them are under More */
@@ -28,7 +40,9 @@ interface FitChipsProps {
 }
 
 /**
- * Open Houses' categories as text chips (32px, 14px/500) with one sliding peach capsule: All, as many categories as fit whole, and always "More ▾" last – no scrolling, no arrows. The row measures its width (ResizeObserver) against the chips' widths,
+ * Open Houses' categories as text (40px, 15px, 24px between the words; the picked one the black capsule): All, as many categories as fit
+ * whole up to the sort, and always "More ⌄" right after them – no scrolling, no arrows, no big gap. The row measures its width (ResizeObserver)
+ * against the chips' widths,
  * taken from an invisible copy of every chip. A picked category that doesn't fit takes the last visible chip's place.
  * More opens all categories as capsule chips in a 3-column grid (single choice; picking closes it).
  */
@@ -102,62 +116,57 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
       {/* Clipped: in the page's flow its full width would otherwise widen the document. */}
       <div className="absolute inset-x-0 top-0 h-0 overflow-hidden">
         <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute left-0 top-0 flex w-max">
-          <span className={chipStyles(false, { variant: "plain", size: "sm" })}>
+          <span className={chipStyles(false, { variant: "plain", size: "lg" })}>
             <TextChipLabel>{labels.all}</TextChipLabel>
           </span>
           {options.map((o) => (
-            <span key={o.value} className={chipStyles(false, { variant: "text", size: "sm" })}>
+            <span key={o.value} className={chipStyles(false, { variant: "bare", size: "lg" })}>
+              <ChipIcon icon={o.icon} on={false} />
               <TextChipLabel>{o.label}</TextChipLabel>
             </span>
           ))}
-          <span className={chipStyles(false, { variant: "text", size: "sm" })}>
+          <span className={chipStyles(false, { variant: "bare", size: "lg" })}>
             <TextChipLabel>{labels.more}</TextChipLabel>
             <ChevronDown aria-hidden />
           </span>
         </div>
       </div>
 
-      {/* "All" is the quiet default: no pill – bold ink while nothing is picked. A picked category is the black chip. */}
-      <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center gap-1.5", shown === null && "invisible")}>
-        <Chip variant="plain" size="sm" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
+      {/* "All" is the quiet default: no pill – bold ink while nothing is picked. The categories are text (15px, ink 70 %); a picked one is the
+          black capsule with white text. 40px, the row's height. */}
+      <div role="radiogroup" aria-label={labels.row} className={cn("relative flex items-center", shown === null && "invisible")}>
+        <Chip variant="plain" size="lg" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {labels.all}
         </Chip>
         {visible.map((o) => (
-          <Chip key={o.value} variant="text" size="sm" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} onClick={() => pick(o.value)} trailing={value.includes(o.value) ? <X aria-hidden /> : undefined}>
+          <Chip key={o.value} variant="bare" size="lg" role="radio" aria-checked={value.includes(o.value)} active={value.includes(o.value)} title={o.label} icon={<ChipIcon icon={o.icon} on={value.includes(o.value)} />} onClick={() => pick(o.value)}>
             {o.label}
           </Chip>
         ))}
-                  <Chip ref={moreRef} variant="text" size="sm" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
+                  <Chip ref={moreRef} variant="bare" size="lg" active={moreActive} onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-haspopup="true" trailing={<ChevronDown className={cn("transition-transform", moreOpen && "rotate-180")} aria-hidden />}>
             {labels.more}
           </Chip>
       </div>
 
       {moreOpen && (
         <Anchored anchor={moreRef} ref={popoverRef} align="end">
-          {/* Every category, three per row. */}
-          <GlassPanel
-            role="radiogroup"
-            aria-label={labels.more}
-            className="animate-fade-in grid w-[min(420px,calc(100vw-32px))] grid-cols-3 gap-2 p-3"
-          >
+          {/* Every category, two per row, in the dark menu: the chosen one on 12 % white with its check. */}
+          <div role="radiogroup" aria-label={labels.more} className={cn(darkMenuClass, darkMenuScroll, "grid w-[min(400px,calc(100vw-32px))] grid-cols-2 gap-0.5")}>
             {options.map((o) => (
-              <Chip
+              <DarkMenuItem
                 key={o.value}
                 role="radio"
                 aria-checked={value.includes(o.value)}
-                active={value.includes(o.value)}
-                size="sm"
-                title={o.label}
+                selected={value.includes(o.value)}
                 onClick={() => {
                   pick(o.value);
                   setMoreOpen(false);
                 }}
-                className="w-full shrink"
               >
                 {o.label}
-              </Chip>
+              </DarkMenuItem>
             ))}
-          </GlassPanel>
+          </div>
         </Anchored>
       )}
     </div>

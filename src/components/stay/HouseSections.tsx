@@ -1,151 +1,36 @@
 "use client";
 
-import { showsAge } from "@/config/privacy";
-import { ArrowLeft, ArrowUpRight, CalendarDays, Check, Clock, Home, Languages, Plus, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Lightbulb, Plus, UserPlus, Vote } from "lucide-react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
+import { useTranslations } from "next-intl";
+import { Fragment, useEffect, useState, type ReactNode, type RefObject } from "react";
 import { Shelf } from "@/components/ui/Shelf";
 import { HouseCard } from "@/components/HouseCard";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
-import { CrewLine } from "@/components/ui/CrewLine";
 import { IconButton } from "@/components/ui/IconButton";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Img } from "@/components/ui/Img";
-import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { useViewerPriceLabel } from "@/components/ui/PriceLine";
-import { plainAmount } from "@/lib/currency";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { SocialTiles } from "@/components/ui/SocialRow";
-import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { useViewerAmount, useViewerPriceLabel } from "@/components/ui/PriceLine";
+import { RowHead } from "@/components/ui/CardRow";
 import { useFormat } from "@/i18n/format";
-import { openVote } from "@/lib/crewVotes";
-import type { MemberStage } from "@/lib/joinFlow";
 import { isListedStay } from "@/lib/launch";
-import { inCommonWith, medianReplyMinutes, profileViewFor } from "@/lib/profilePrivacy";
 import { convertApprox } from "@/lib/rates";
-import { findUser, getCrew, isBlocked, useStore } from "@/lib/store";
+import { findUser, getCrew, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
-import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, stayNights, stayPrice, typicalDayOf } from "@/lib/utils";
+import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, typicalDayOf } from "@/lib/utils";
+import { previewForUrl } from "@/lib/data";
+import { platformOf } from "@/lib/platforms";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { AccommodationTile } from "./AccommodationTile";
-import { HostPreview, useHoverPreview } from "./HostPreview";
 import { EMBED_CAPSULE, HouseMap, mapIsEmbed } from "./HouseMap";
 
-const SECTION = "mt-(--space-section)";
+/** Every section 40px under the one before (More houses like this comes after the column). */
+const SECTION = "mt-10";
 /** Under a section's eyebrow in the page's left column. */
-const ROW = "mt-3";
+const ROW = "mt-4";
 const MAX_MORE_HOUSES = 12;
 
-
-function Fact({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
-      <div className="min-w-0">
-        <dt className="text-small text-muted">{label}</dt>
-        <dd className="mt-0.5 text-body font-semibold text-ink">{children}</dd>
-      </div>
-    </div>
-  );
-}
-
-/** Who's hosting, left, and what you share with them, right. All of the left leads to their profile, except the social links, which are their own. */
-function HouseHostLine({ host }: { host: User }) {
-  const t = useTranslations("house.page");
-  const tCard = useTranslations("house.hostCard");
-  const format = useFormat();
-  const store = useStore();
-  const hosted = store.stays.filter((s) => s.hostId === host.id && s.visibility !== "unlisted" && (s.status === "published" || s.status === "booked" || s.status === "completed")).length;
-  const blockRef = useRef<HTMLDivElement>(null);
-  const preview = useHoverPreview();
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-      <div ref={blockRef} className="relative -mx-2 flex min-w-60 flex-1 items-start gap-3 p-2">
-        <Link {...preview.anchorProps} href={`/u/${host.id}`} aria-label={tCard("profile", { name: host.name })} className="absolute inset-0 rounded-[14px] transition-colors duration-150 hover:bg-(--chip-bg-hover)" />
-        <PersonPhoto src={host.photos[0]} alt="" size={48} className="pointer-events-none relative size-12 shrink-0" />
-        <div className="pointer-events-none relative min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1 text-body font-semibold text-ink">
-            <span className="truncate">{t("hostedByShort", { name: firstName(host) })}</span>
-            {host.verified && <VerifiedBadge />}
-          </p>
-          <p className="text-small text-muted">
-            {format.ageAndCountry(host, showsAge(host, store.currentUserId))}
-            {hosted > 0 && ` · ${t("hostedCount", { count: hosted })}`}
-          </p>
-          <SocialTiles user={host} className="pointer-events-auto mt-2" />
-        </div>
-      </div>
-      <HostFit host={host} />
-      {preview.open && <HostPreview host={host} anchor={blockRef} {...preview.previewProps} />}
-    </div>
-  );
-}
-
-/** Beside the host: what you have in common, three lines at most. Logged out or with nothing shared: how they reply and whom they lived with. */
-function HostFit({ host }: { host: User }) {
-  const t = useTranslations("house.page.hostFit");
-  const format = useFormat();
-  const store = useStore();
-  const locale = useLocale();
-  const today = new Date().toISOString().slice(0, 10);
-  const shared = inCommonWith(store, host, store.currentUserId, today);
-  const list = (items: string[]) => new Intl.ListFormat(locale, { type: "conjunction" }).format(items.slice(0, 2));
-  const icon = "size-3.5 shrink-0 text-muted";
-  const lines: { key: string; lead: ReactNode; text: string }[] = [];
-  if (shared.languages.length > 0) lines.push({ key: "language", lead: <Languages className={icon} aria-hidden />, text: t("languages", { languages: list(shared.languages) }) });
-  if (shared.interests.length > 0) lines.push({ key: "interest", lead: <Sparkles className={icon} aria-hidden />, text: t("interests", { interests: list(shared.interests.map(format.vibe)) }) });
-  if (shared.livedWith.length > 0) {
-    const person = shared.livedWith[0];
-    lines.push({ key: "lived", lead: <PersonPhoto src={person.photos[0]} alt="" size={20} className="size-5 shrink-0" />, text: t("livedWith", { name: firstName(person) }) });
-  }
-  const common = lines.length > 0;
-  if (!common) {
-    const minutes = medianReplyMinutes(host);
-    const count = profileViewFor(store, host, store.currentUserId, today).livedWith.length;
-    if (minutes !== null) lines.push({ key: "reply", lead: <Clock className={icon} aria-hidden />, text: t("replies", { time: minutes < 60 ? t("minutes", { count: minutes }) : t("hours", { count: Math.round(minutes / 60) }) }) });
-    if (count > 0) lines.push({ key: "people", lead: <Users className={icon} aria-hidden />, text: t("people", { count, name: firstName(host) }) });
-  }
-  if (lines.length === 0) return null;
-  return (
-    <div data-host-fit className="ml-auto flex min-w-0 max-w-full flex-col items-end gap-1 pt-2 text-right">
-      <p className="text-eyebrow uppercase text-ink/55">{t(common ? "inCommon" : "host")}</p>
-      {lines.map((line) => (
-        <p key={line.key} className="flex min-w-0 max-w-full items-center justify-end gap-1.5 text-small text-ink">
-          {line.lead}
-          <span className="truncate">{line.text}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/** The four facts, two by two: no frames, an icon, the label over the value. */
-export function HouseFacts({ stay, host }: { stay: Stay; host?: User }) {
-  const t = useTranslations("house.page");
-  const tFacts = useTranslations("house.facts");
-  const format = useFormat();
-  const languages = [...new Set([stay.language, ...(stay.languages ?? [])].map(format.language).concat(host?.languages ?? []))];
-  const held = [stay.spotsInvited ? tFacts("invited", { count: stay.spotsInvited }) : null, stay.spotsReserved ? tFacts("reserved", { count: stay.spotsReserved }) : null].filter(Boolean).join(" · ");
-  return (
-    <dl className="grid grid-cols-2 gap-x-8 gap-y-6">
-      <Fact icon={CalendarDays} label={t("factDates")}>
-        {format.stayDatesLong(stay)}
-      </Fact>
-      <Fact icon={Users} label={t("factCrew")}>
-        {t("factCrewValue", { total: stay.spotsTotal, open: openSpots(stay) })}
-        {held && <span className="block text-small font-medium text-muted">{held}</span>}
-      </Fact>
-      <Fact icon={Home} label={t("factIncluded")}>
-        {stay.hostFeePerPerson ? t("includedWithHost") : t("includedStay")}
-      </Fact>
-      <Fact icon={Languages} label={t("factLanguages")}>
-        {languages.join(", ")}
-      </Fact>
-    </dl>
-  );
-}
 
 /** Why I'm hosting: the host's own words. */
 export function HouseWhy({ stay }: { stay: Stay }) {
@@ -154,7 +39,7 @@ export function HouseWhy({ stay }: { stay: Stay }) {
   if (!quote) return null;
   return (
     <section aria-labelledby="house-why">
-      <SectionHeader id="house-why" eyebrow={t("why")} />
+      <RowHead id="house-why" title={t("why")} />
       <blockquote className={cn(ROW, "max-w-[640px] whitespace-pre-line text-quote text-ink")}>{quote}</blockquote>
     </section>
   );
@@ -176,9 +61,12 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
   // As the viewer may see each (config/privacy.ts): hidden ones collapse into one neutral "+N", blurred ones have no name and no link.
   const faceOf = useCrewFaceOf(stay);
   const hiddenCount = crew.filter((member) => faceOf(member) === "hidden").length;
+  // Spots held by an invite from Open a House (48h): "Reserved for Anna" – the name only for the host and the crew, else "Reserved".
+  const reserved = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "invited");
+  const insider = store.currentUserId !== null && isCrewMember(store, stay, store.currentUserId);
   return (
     <section aria-labelledby="house-crew">
-      <SectionHeader id="house-crew" eyebrow={t("crew")} />
+      <RowHead id="house-crew" title={t("crew")} />
       <ul className={cn(ROW, "flex flex-wrap gap-x-4 gap-y-5")}>
         {crew.map((member) => {
           const mode = faceOf(member);
@@ -215,6 +103,19 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
             </div>
           </li>
         )}
+        {reserved.map((r) => {
+          const guest = insider ? findUser(store, r.userId) : undefined;
+          return (
+            <li key={r.id}>
+              <div className={person} aria-label={guest ? t("reservedFor", { name: firstName(guest) }) : t("reserved")}>
+                <span aria-hidden className={cn(spot, "overflow-hidden p-1")}>
+                  {guest && <Avatar user={guest} size="lg" className="opacity-55" />}
+                </span>
+                <span className="mt-2.5 line-clamp-2 max-w-full text-small text-muted">{guest ? t("reservedFor", { name: firstName(guest) }) : t("reserved")}</span>
+              </div>
+            </li>
+          );
+        })}
         {Array.from({ length: openSpots(stay) }, (_, i) => (
           <li key={i}>
             {action ? (
@@ -266,7 +167,7 @@ export function HouseDay({ stay }: { stay: Stay }) {
   if (stops.length === 0) return null;
   return (
     <section aria-labelledby="house-day">
-      <SectionHeader id="house-day" eyebrow={t("day")} />
+      <RowHead id="house-day" title={t("day")} />
       <dl className={cn(ROW, "grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-2")}>
         {stops.map((stop) => (
           <Fragment key={`${stop.time}-${stop.label}`}>
@@ -287,17 +188,17 @@ export function HouseFit({ stay }: { stay: Stay }) {
   if (!looking && !stay.ageRange && stay.houseRules.length === 0) return null;
   return (
     // Side by side, one alone takes the width.
-    <div className="grid gap-x-8 gap-y-(--space-section) sm:grid-cols-2 sm:[&>:only-child]:col-span-2">
+    <div className="grid gap-x-12 gap-y-10 sm:grid-cols-2 sm:[&>:only-child]:col-span-2">
       {(looking || stay.ageRange) && (
         <section aria-labelledby="house-looking">
-          <SectionHeader id="house-looking" eyebrow={t("lookingFor")} />
+          <RowHead id="house-looking" title={t("lookingFor")} />
           {looking && <p className={cn(ROW, "whitespace-pre-line text-body text-ink")}>{looking}</p>}
           {stay.ageRange && <p className="mt-3 text-small text-muted">{tFacts("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
         </section>
       )}
       {stay.houseRules.length > 0 && (
         <section aria-labelledby="house-rules">
-          <SectionHeader id="house-rules" eyebrow={t("rules")} />
+          <RowHead id="house-rules" title={t("rules")} />
           <ul className={cn(ROW, "space-y-2")}>
             {stay.houseRules.map((rule) => (
               <li key={rule} className="flex gap-2 text-body text-ink">
@@ -321,7 +222,7 @@ export function HouseOffer({ stay }: { stay: Stay }) {
   const fee = format.price(convertApprox(stay.hostFeePerPerson, stay.currency, currency), currency);
   return (
     <section aria-labelledby="house-offer">
-      <SectionHeader id="house-offer" eyebrow={t("offerTitle")} action={<span className="text-small text-muted">{fee} {t("perPerson")}</span>} />
+      <RowHead id="house-offer" title={t("offerTitle")} aside={<span className="text-small text-muted">{`${fee} ${t("perPerson")}`}</span>} />
       <ul className={cn(ROW, "grid gap-x-6 gap-y-2 md:grid-cols-2")}>
         {stay.hostOffer.map((item) => (
           <li key={item} className="flex gap-2 text-body text-ink">
@@ -335,39 +236,112 @@ export function HouseOffer({ stay }: { stay: Stay }) {
 }
 
 /**
- * Where: one row, 300px, map 70 % | place 30 %. The map is a picture, not a tool: the whole of it opens Google Maps, zoomed out so the city or
- * region reads; booked with a pin, not yet a soft circle over the neighbourhood. Beside it the place (AccommodationTile).
+ * Where you'll be: map 60 % | place 40 %, the same height side by side. The map is a picture, not a tool – the whole of it opens Google Maps.
+ * A place booked ("set"): no exact pin, a circle of about 500m over the area, the listing beside it (photo, title, source, "€5,340 total · 28
+ * nights", "View listing ↗") and "Exact address after booking." Picking together: the area (its label says the crew decides), beside it the
+ * shortlist – 2–3 candidates from the crew's vote (photo, title, price per person, link) – or, before any, "How the place is picked".
  */
 export function HouseWhere({ stay, canOpenChat }: { stay: Stay; canOpenChat: boolean }) {
   const t = useTranslations("house.page");
+  const tWhere = useTranslations("house.page.where2");
   const tMap = useTranslations("house.map");
   const format = useFormat();
   const { query, zoom } = mapQuery(stay);
-  const locked = stay.accommodationStatus === "locked" && Boolean(stay.accommodationLink);
+  const booked = stay.accommodationStatus === "locked" && Boolean(stay.accommodationLink);
   const hasCoordinates = !isCityOpen(stay) && Boolean(stay.lat || stay.lng);
   const embed = mapIsEmbed(hasCoordinates);
   const area = stay.location.area ?? stay.location.city ?? stay.region;
+  const candidates = (stay.accommodationVote?.options ?? []).filter((o) => o.link).slice(0, 3);
   return (
     <section aria-labelledby="house-where">
-      <SectionHeader id="house-where" eyebrow={t("where")} />
-      <div className={cn(ROW, "grid gap-4 sm:h-75 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]")}>
-        <div className="relative h-75 overflow-hidden rounded-3xl bg-line sm:h-full">
-          <HouseMap lat={stay.lat} lng={stay.lng} pin={locked} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - 3, 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
+      <RowHead id="house-where" title={t("where")} />
+      <div className={cn(ROW, "grid gap-4 sm:h-80 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]")}>
+        <div className="relative h-80 overflow-hidden rounded-3xl bg-line sm:h-full">
+          <HouseMap lat={stay.lat} lng={stay.lng} pin={false} radius={booked ? BOOKED_RADIUS_M : undefined} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - (booked ? 1 : 3), 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
           <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" aria-label={tMap("openInMaps")} className="group absolute inset-0 z-10 cursor-pointer bg-black/0 transition-colors duration-150 hover:bg-black/6">
-            {!locked && <span className="glass-panel absolute left-4 top-4 max-w-[calc(100%-32px)] rounded-2xl! px-3 py-2 text-small text-ink">{t("aroundArea", { area })}</span>}
+            <span className="glass-panel absolute left-4 top-4 max-w-[calc(100%-32px)] rounded-2xl! px-3 py-2 text-small text-ink">{booked ? tWhere("around", { area }) : t("aroundArea", { area })}</span>
             {/* Over the embed (no key) it covers the embed's own camera button exactly; Google's attribution below stays free. */}
-          <span
-            className={cn("glass-panel absolute inline-flex items-center gap-1.5 rounded-full! px-4 text-small font-semibold text-ink transition-[translate,box-shadow] duration-150 group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_16px_rgba(0,0,0,0.16)]", !embed && "bottom-4 right-4 h-9")}
-            style={embed ? EMBED_CAPSULE : undefined}
-          >
+            <span
+              className={cn("glass-panel absolute inline-flex items-center gap-1.5 rounded-full! px-4 text-small font-semibold text-ink transition-[translate,box-shadow] duration-150 group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_16px_rgba(0,0,0,0.16)]", !embed && "bottom-4 right-4 h-9")}
+              style={embed ? EMBED_CAPSULE : undefined}
+            >
               {tMap("openInMaps")}
               <ArrowUpRight className="size-4" aria-hidden />
             </span>
           </a>
         </div>
-        <AccommodationTile stay={stay} canOpenChat={canOpenChat} />
+        {booked ? <AccommodationTile stay={stay} canOpenChat={canOpenChat} /> : candidates.length > 0 ? <Shortlist stay={stay} options={candidates} /> : <HowPicked />}
       </div>
+      {/* Picking together, the map's own label says it already ("… exact place decided with the crew"): no second line. */}
+      {booked && <p className="mt-3 text-small text-muted">{tWhere("exactAfter")}</p>}
     </section>
+  );
+}
+
+/** Picking together, before any candidates: how it goes, in three short steps – never an empty box. Top-aligned, as high as the map. */
+function HowPicked() {
+  const tWhere = useTranslations("house.page.where2");
+  const steps = [
+    { key: "join", icon: UserPlus },
+    { key: "suggest", icon: Lightbulb },
+    { key: "vote", icon: Vote },
+  ] as const;
+  return (
+    <div className="card-soft flex h-full flex-col rounded-3xl p-6">
+      <p className="text-body font-semibold text-ink">{tWhere("howTitle")}</p>
+      <ol className="mt-4 flex flex-col gap-3">
+        {steps.map(({ key, icon: Icon }) => (
+          <li key={key} className="flex items-center gap-3 text-body text-ink">
+            <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink/70">
+              <Icon className="size-4" />
+            </span>
+            {tWhere(`howSteps.${key}`)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** A booked place's circle: about 500m – the area, never the address. */
+const BOOKED_RADIUS_M = 500;
+
+/** Picking together: the candidates so far, each a row – photo, title, price per person, the listing in a new tab. */
+function Shortlist({ stay, options }: { stay: Stay; options: { id: string; link?: string; pricePerPerson?: number }[] }) {
+  const tWhere = useTranslations("house.page.where2");
+  return (
+    <div className="card-soft flex h-full min-h-80 flex-col rounded-3xl p-4 sm:min-h-0">
+      <p className="px-2 pb-2 pt-1 text-eyebrow uppercase text-ink/55">{tWhere("shortlist")}</p>
+      <ul className="flex min-h-0 flex-1 flex-col justify-between gap-2">
+        {options.map((option, i) => (
+          <li key={option.id}>
+            <ShortlistRow stay={stay} link={option.link!} price={option.pricePerPerson} index={i + 1} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ShortlistRow({ stay, link, price, index }: { stay: Stay; link: string; price?: number; index: number }) {
+  const tWhere = useTranslations("house.page.where2");
+  const amount = useViewerAmount();
+  const preview = previewForUrl(link, tWhere("option", { index }));
+  const platform = platformOf(link);
+  return (
+    <a href={link} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 rounded-2xl p-2 transition-colors duration-150 hover:bg-(--chip-bg-hover)">
+      <span className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-ink/6">
+        {preview.imageUrl && <Img src={preview.imageUrl} alt="" fill sizes="64px" className="object-cover" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body font-semibold text-ink">{preview.title}</span>
+        <span className="block truncate text-small text-muted">
+          {platform.name}
+          {price ? ` · ${tWhere("perPerson", { price: amount(price, stay.currency) })}` : ""}
+        </span>
+      </span>
+      <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted transition-colors group-hover:text-ink" />
+    </a>
   );
 }
 
@@ -383,7 +357,7 @@ export function HouseMore({ stay }: { stay: Stay }) {
   if (more.length === 0) return null;
   return (
     <section aria-labelledby="house-more" className={SECTION}>
-      <SectionHeader id="house-more" eyebrow={t("more")} />
+      <RowHead id="house-more" title={t("more")} />
       <Shelf>
         {more.map((s) => (
           <div key={s.id} className="w-90 shrink-0">
@@ -408,24 +382,6 @@ export function HouseActions({ menu, onBack }: { menu?: ReactNode; /** Phones: t
   );
 }
 
-/** The way in, one small line: 1 Request · 2 Host accepts · 3 Pay when complete. Once you've asked, where you are stands out. */
-function JoinSteps({ stage }: { stage: MemberStage | null }) {
-  const t = useTranslations("house.page.steps");
-  const current = stage === "requested" ? 1 : stage === "accepted" || stage === "payment_due" ? 2 : -1;
-  return (
-    <ol aria-label={t("label")} className="flex flex-wrap items-center gap-x-1.5 text-small text-muted">
-      {(["request", "accepts", "pay"] as const).map((step, i) => (
-        <li key={step} aria-current={i === current ? "step" : undefined} className={cn("whitespace-nowrap", i === current && "font-semibold text-ink")}>
-          {i > 0 && <span aria-hidden className="mr-1.5 font-medium text-muted">·</span>}
-          {i + 1} {t(step)}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-const lineDate = (chunks: ReactNode) => <span className="font-semibold text-ink">{chunks}</span>;
-
 /** At the top of the request: what you're asking to join, in one glance. */
 export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) {
   const format = useFormat();
@@ -446,89 +402,13 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
 }
 
 /**
- * The booking card, the page's one container: what it is, the host, what it costs with the way in, how joining goes. The floating capsule
- * comes when `ref`'s block has left the window.
+ * The floating Join capsule – light glass (rgba(251,247,242,0.72) + blur 20px, a 1px ink 8 % edge, a soft shadow), centred, at most 720px,
+ * 16px above the bottom: from md once the whole head has left the window (IntersectionObserver), out of the footer's way, gone again when the
+ * head comes back; on phones always. Photo 40px, title ink, price muted, the main action ink.
  */
-export function HouseSummary({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref }: { stay: Stay; host?: User; crew: User[]; cta: ReactNode; /** Message and Invite */ secondary: ReactNode; actions: ReactNode; stage: MemberStage | null; showSteps: boolean; /** A line under the actions, e.g. how the waitlist works */ note?: ReactNode; /** A calm line right above the actions, e.g. "This House is for women only." */ notice?: ReactNode; ref?: Ref<HTMLDivElement> }) {
-  const summaryFaceOf = useCrewFaceOf(stay);
-  const t = useTranslations("house.page");
-  const format = useFormat();
-  const label = useViewerPriceLabel(stay);
-  const viewerCurrency = usePreferredCurrency();
-  const tPrice = useTranslations("common.ui.priceLine");
-  const own = stayPrice(stay);
-  const pricedIn =
-    viewerCurrency !== stay.currency && own.kind !== "tbd"
-      ? tPrice("pricedIn", {
-          currency: stay.currency,
-          amount: own.kind === "price" ? plainAmount(own.amount, stay.currency) : `${plainAmount(own.min, stay.currency)}–${plainAmount(own.max, stay.currency)}`,
-        })
-      : null;
-  const tPolicy = useTranslations("policy");
-  // "£640–810 pp": the amount large, "pp" small. "Price set with crew" stays whole.
-  const perPerson = /^(.*\S)\s+(pp)$/.exec(label);
-  const payBy = stage === "payment_due" && stay.paymentDueAt;
-  return (
-    <GlassPanel className="card-soft flex flex-col gap-5 rounded-3xl! p-10">
-      <div>
-        <div className="flex min-h-9 items-center justify-between gap-4">
-          <p className="min-w-0 truncate text-eyebrow uppercase text-ink/55">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
-          {actions}
-        </div>
-        <h1 className="mt-1 text-h1 text-ink">{stay.title}</h1>
-        <p className="mt-2 text-body-lg text-muted">
-          {stay.datesOpen
-            ? t.rich("lineOpen", { dates: format.stayDatesLong(stay), place: format.placeLabel(stay), date: lineDate })
-            : t.rich("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: format.placeLabel(stay), date: lineDate })}
-        </p>
-      </div>
-      {host && <HouseHostLine host={host} />}
-      <div ref={ref} className="flex flex-col gap-4">
-        <div className="min-w-0">
-          <p className="flex items-baseline gap-1.5">
-            <span className="text-h2 text-ink">{perPerson ? perPerson[1] : label}</span>
-            {perPerson && <span className="text-small text-muted">{perPerson[2]}</span>}
-          </p>
-          {/* Shown converted: the House's own currency and amount, small underneath ("Priced in IDR · 8,200,000 pp"). */}
-          {pricedIn && <p className="mt-0.5 text-small text-muted">{pricedIn}</p>}
-          <div className="mt-1.5 flex items-center gap-2.5">
-            <AvatarStack users={crew} size="sm" max={5} linked faceOf={summaryFaceOf} />
-            <CrewLine stay={stay} />
-          </div>
-        </div>
-        {notice && <p className="text-body text-muted">{notice}</p>}
-        {/* One row from the left, each as wide as its words; on a narrow card it wraps. */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>
-          {secondary}
-        </div>
-      </div>
-      {(payBy || note || openVote(stay, "accommodation") || openVote(stay, "dates") || showSteps) && (
-        <div className="flex flex-col gap-1.5">
-          {note && <p className="text-small text-muted">{note}</p>}
-          {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
-          {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
-          {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
-          {showSteps && <JoinSteps stage={stage} />}
-          {showSteps && (
-            <p className="text-small text-muted">
-              {/* The short answer in the FAQ (it links on to the full rules). */}
-              <Link href="/faq#cancellation" className="underline-offset-4 hover:text-ink hover:underline">
-                {tPolicy("link")}
-              </Link>
-            </p>
-          )}
-        </div>
-      )}
-    </GlassPanel>
-  );
-}
-
-/**
- * The floating Join capsule, at every size: once the block with the price and the buttons has left the window, and out of the footer's way. Thumbnail,
- * title, price and the main action.
- */
-export function HouseJoinBar({ stay, photo, joinCardRef, cta }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode }) {
+export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode; /** Instead of the price: a member's current step */ line?: string }) {
+  // Phones: always there (the head's actions scroll away at once); from md once the head's actions have left the window.
+  const phone = useMediaQuery("(max-width: 47.99rem)");
   const price = useViewerPriceLabel(stay);
   const [cardGone, setCardGone] = useState(false);
   const [atFooter, setAtFooter] = useState(false);
@@ -545,23 +425,24 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta }: { stay: Stay; ph
     if (footer) observer.observe(footer);
     return () => observer.disconnect();
   }, [joinCardRef]);
-  const shown = cardGone && !atFooter;
+  const shown = phone || (cardGone && !atFooter);
   return (
     <div
+      data-join-bar
       inert={!shown}
       className={cn(
-        "glass-float fixed bottom-6 left-1/2 z-30 flex h-16 w-[min(100%-32px,640px)] -translate-x-1/2 items-center gap-3 rounded-full py-2 pl-2 pr-3 transition-[translate,opacity] duration-300 motion-reduce:transition-none",
+        "fixed bottom-4 left-1/2 z-30 flex h-16 w-[min(100%-32px,720px)] -translate-x-1/2 items-center gap-3 rounded-full border border-ink/8 bg-[rgba(251,247,242,0.72)] py-2 pl-3 pr-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[20px] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
       )}
     >
       {photo && (
-        <span className="relative size-12 shrink-0 overflow-hidden rounded-full bg-line ring-1 ring-white/60">
-          <Img src={photo} alt="" fill sizes="48px" className="object-cover" />
+        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-line ring-1 ring-white/60">
+          <Img src={photo} alt="" fill sizes="40px" className="object-cover" />
         </span>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-semibold text-ink">{stay.title}</p>
-        <p className="truncate text-small text-ink/70">{price}</p>
+        <p className="truncate text-small text-muted">{line ?? price}</p>
       </div>
       {cta}
     </div>

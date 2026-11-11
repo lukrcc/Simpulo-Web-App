@@ -12,10 +12,14 @@ interface RangeSliderProps {
   labels: [string, string];
   /** Muted look (e.g. while "skip" is on) – still draggable, dragging is how you opt back in */
   muted?: boolean;
+  /** "accent": the filter panel's price – the chosen part #F0633A, white handles with a 2px orange edge */
+  tone?: "ink" | "accent";
   formatValue?: (value: number) => string;
 }
 
 // Both inputs span the whole track; only their thumbs take pointer events, so either handle can be grabbed.
+const accentThumb =
+  "[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-solid [&::-webkit-slider-thumb]:border-accent [&::-moz-range-thumb]:border-2! [&::-moz-range-thumb]:border-solid [&::-moz-range-thumb]:border-accent";
 const thumb =
   "pointer-events-none absolute inset-0 h-full w-full appearance-none bg-transparent outline-none " +
   "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md active:[&::-webkit-slider-thumb]:cursor-grabbing " +
@@ -26,14 +30,14 @@ const thumb =
  * Two-handle slider (native range inputs, so keyboard, touch and screen readers work as usual): white handles with a soft shadow,
  * the range between them ink.
  */
-export function RangeSlider({ min, max, step, value, onChange, labels, muted = false, formatValue }: RangeSliderProps) {
+export function RangeSlider({ min, max, step, value, onChange, labels, muted = false, tone = "ink", formatValue }: RangeSliderProps) {
   const [low, high] = value;
   const percent = (n: number) => ((n - min) / (max - min)) * 100;
   return (
     <div className={cn("relative h-8 transition-opacity", muted && "opacity-45")}>
       {/* The chosen range. */}
       <div className="absolute inset-x-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-ink/10">
-        <div className="absolute inset-y-0 rounded-full bg-ink" style={{ left: `${percent(low)}%`, right: `${100 - percent(high)}%` }} />
+        <div className={cn("absolute inset-y-0 rounded-full", tone === "accent" ? "bg-accent" : "bg-ink")} style={{ left: `${percent(low)}%`, right: `${100 - percent(high)}%` }} />
       </div>
       <input
         type="range"
@@ -45,7 +49,7 @@ export function RangeSlider({ min, max, step, value, onChange, labels, muted = f
         aria-valuetext={formatValue?.(low)}
         onChange={(e) => onChange([Math.min(Number(e.target.value), high - step), high])}
         // The lower handle sits on top only near the right end, so it can still be pulled back from there.
-        className={cn(thumb, percent(low) > 90 && "z-10")}
+        className={cn(thumb, tone === "accent" && accentThumb, percent(low) > 90 && "z-10")}
       />
       <input
         type="range"
@@ -56,7 +60,7 @@ export function RangeSlider({ min, max, step, value, onChange, labels, muted = f
         aria-label={labels[1]}
         aria-valuetext={formatValue?.(high)}
         onChange={(e) => onChange([low, Math.max(Number(e.target.value), low + step)])}
-        className={thumb}
+        className={cn(thumb, tone === "accent" && accentThumb)}
       />
     </div>
   );

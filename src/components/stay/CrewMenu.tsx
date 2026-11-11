@@ -17,10 +17,14 @@ interface CrewMenuProps {
   afterLeaveHref: string;
   /** Leave out "View House" etc. where the page already links there */
   minimal?: boolean;
+  /** More entries first (the detail page puts "Edit" here) */
+  extraItems?: MoreMenuItem[];
+  /** The trigger's look (on the detail page's photo banner: onImage) */
+  buttonClassName?: string;
 }
 
 /** ⋯ menu for a crew: members can leave; the host can't – they edit or close the House instead. */
-export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProps) {
+export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [], buttonClassName }: CrewMenuProps) {
   const t = useTranslations("houses");
   const store = useStore();
   const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = store;
@@ -47,9 +51,9 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
     showToast(t("detail.closedToast"));
   }
 
-  const items: MoreMenuItem[] = isHost
+  const items: MoreMenuItem[] = [...extraItems, ...(isHost
     ? [
-        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/your-houses/${stay.id}` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/h/${stay.id}/manage` }]),
         ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/your-houses/${stay.id}/edit` }]),
         // Taking requests is a setting, not a status to show – it lives here.
         ...(stay.status === "published" || stay.status === "booked"
@@ -65,11 +69,11 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false }: CrewMenuProp
     : [
         ...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }]),
         { label: t("crewMenu.leave"), onSelect: () => setConfirm("leave"), danger: true },
-      ];
+      ])];
 
   return (
     <>
-      <MoreMenu items={items} />
+      <MoreMenu items={items} buttonClassName={buttonClassName} />
       <ConfirmSheet
         open={confirm === "leave"}
         title={t("crewMenu.leaveTitle")}

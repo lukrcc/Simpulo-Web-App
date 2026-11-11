@@ -15,7 +15,7 @@ interface PhotoUploaderProps {
   onChange: (photos: string[]) => void;
   /** Number of slots (3 in the create stepper, 5 on Edit profile) */
   slots?: number;
-  /** "profile": "Face" under the first slot, "Add photo" on empty ones, all slots in one row. "house": "Add photo" on empty ones, none required */
+  /** "profile": "Face" as a glass chip on the first photo, "Add photo" on empty (dashed) ones, all slots in one row. "house": "Add photo" on empty ones, none required */
   labels?: "stepper" | "profile" | "house";
 }
 
@@ -75,7 +75,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
 
   return (
     <div>
-      <div className={cn("grid gap-3", profile ? (slots === 1 ? "grid-cols-1" : "grid-cols-5") : cn("grid-cols-3", slots > 3 && "sm:grid-cols-5"))}>
+      <div className={cn("grid gap-3", profile ? (slots === 1 ? "grid-cols-1" : "grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))] items-end") : cn("grid-cols-3", slots > 3 && "sm:grid-cols-5"))}>
         {Array.from({ length: slots }, (_, slot) => {
           const src = photos[slot];
           return (
@@ -92,7 +92,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                 className={cn(
                   "group relative aspect-4/5 overflow-hidden rounded-2xl",
                   src ? "cursor-grab bg-line active:cursor-grabbing" : "border-2 border-dashed",
-                  !src && (house ? "border-ink/15" : slot === 0 ? "border-line bg-bg" : "border-line bg-surface"),
+                  !src && (house || profile ? "border-ink/15" : slot === 0 ? "border-line bg-bg" : "border-line bg-surface"),
                   dragFrom === slot && "opacity-50",
                 )}
               >
@@ -109,10 +109,12 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                       type="button"
                       onClick={() => remove(slot)}
                       aria-label={t("remove", { index: slot + 1 })}
-                      className="on-image absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full"
+                      className="on-image absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full"
                     >
                       <X className="size-3.5" />
                     </button>
+                    {/* Profile: "Face" as a small glass chip on the first photo. */}
+                    {profile && slot === 0 && <span className="on-image pointer-events-none absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-small text-white">{t("face")}</span>}
                   </>
                 ) : (
                   <button
@@ -126,7 +128,6 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                   </button>
                 )}
               </div>
-              {profile && slot === 0 && <p className="mt-1.5 text-center text-small font-medium text-muted">{t("face")}</p>}
             </div>
           );
         })}

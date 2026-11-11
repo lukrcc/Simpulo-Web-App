@@ -143,8 +143,11 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
             return (
-              <div key={row.key} ref={unreadRef} className="my-4 text-center text-small font-semibold text-muted">
+              // A thin cream line, the words in orange.
+              <div key={row.key} ref={unreadRef} className="my-4 flex items-center gap-3 text-small font-semibold text-accent">
+                <span aria-hidden className="h-px flex-1 bg-ink/15" />
                 {t("newMessages")}
+                <span aria-hidden className="h-px flex-1 bg-ink/15" />
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;

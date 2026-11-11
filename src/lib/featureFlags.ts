@@ -10,6 +10,10 @@ export interface FeatureFlags {
   simulatePaymentFailure: boolean;
   /** Dev menu (payments mock): the payout onboarding comes back "action required" */
   simulateOnboardingActionRequired: boolean;
+  /** Dev menu: Payouts as a share host – the same Houses as if none had a host fee */
+  simulateShareHost: boolean;
+  /** Dev menu (payments mock): the current user hosts but has no payout account yet – "Set up payouts" in Needs you, "Payouts not set up" */
+  simulateHostWithoutPayouts: boolean;
 }
 
 export type FeatureFlag = keyof FeatureFlags;
@@ -18,6 +22,8 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   hostPremium: process.env.NEXT_PUBLIC_FLAG_HOST_PREMIUM !== "false",
   simulatePaymentFailure: false,
   simulateOnboardingActionRequired: false,
+  simulateShareHost: false,
+  simulateHostWithoutPayouts: false,
 };
 
 const FLAGS_KEY = "simpulo:flags";

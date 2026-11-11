@@ -62,7 +62,7 @@ export function ReportSheet({ open, onClose, target, name }: ReportSheetProps) {
           {REASONS.map((r) => (
             <label
               key={r}
-              className={listItemStyles(reason === r, cn("flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 text-body", reason === r && "font-medium"))}
+              className={listItemStyles(reason === r, cn("flex cursor-pointer items-center gap-3 px-5 py-3 text-body", reason === r && "font-medium"))}
             >
               <Checkbox radio name="report-reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
               {t(`reasons.${r}`)}

@@ -5,6 +5,7 @@ import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mo
 import { withMockHistory } from "../mock-chat";
 import { MOCK_SEARCHES, MOCK_SEARCHES_FULL } from "../mock-saved-searches";
 import type { DataAdapter } from "./adapter";
+import { delayedPageOfList } from "./paging";
 
 /** Dev and demo: the mock data. */
 export const mockAdapter: DataAdapter = {
@@ -24,4 +25,5 @@ export const mockAdapter: DataAdapter = {
   withAttribution: withMockAttribution,
   withChatHistory: withMockHistory,
   growthEvents: mockGrowthEvents,
+  loadPage: (list, keyOf, request) => delayedPageOfList(list, keyOf, request),
 };

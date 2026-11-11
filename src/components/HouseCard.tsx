@@ -1,5 +1,6 @@
 "use client";
 
+import { usePeopleSignal } from "@/lib/useYourPeople";
 import { Camera, ChevronLeft, ChevronRight, MessageCircle, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -30,7 +31,8 @@ import { cn, firstName, housePhotos } from "@/lib/utils";
  * dates · place (one line) and a footer; the host's tab in the notch top left. Radius, shadow, hover and type are the same everywhere.
  *
  * The two variants:
- * - `notch`: "host" (default) – the host's avatar, name and Verified; "you" – your own House: "You" with your avatar.
+ * - `notch`: "host" (default) – the host's avatar, name and Verified; "you" – your own House: "You" with your avatar; "none" – no tab (the
+ *   House page's head, where the host has their own column).
  * - `footer`: "explore" (default) – price, host note, crew and the host's socials; "status" (Your houses) – the crew and the one live
  *   line (`live`) on the left, `status` on the right (a dark glass chip, or a light glass button when something needs doing – it opens
  *   its action, not the card). Status cards are calm: no heart, no photo arrows, no hover zoom; `menu` sits top right.
@@ -43,9 +45,12 @@ interface HouseCardProps {
   host?: User;
   /** Host first, then accepted guests */
   crew?: User[];
-  notch?: "host" | "you";
-  footer?: "explore" | "status";
+  notch?: "host" | "you" | "none";
+  /** "memory": a past House in Your houses – no price or spots: who you lived with (avatars + `live`: "Lived with · Nov 2026") left, `status` (its action, "Do it again") right */
+  footer?: "explore" | "status" | "memory";
   /** footer="status": the right side – <CardStatusChip> or <CardStatusAction> */
+  /** An orange dot before the `live` line: unread news */
+  liveDot?: boolean;
   status?: ReactNode;
   /** footer="status": the one live line beside the crew ("Pay within 30h", "2 spots left", "Starts in 12 days") – else "N of M" */
   live?: string;
@@ -75,9 +80,9 @@ const PHOTO_ZOOM = cn("scale-100 transition-[scale] md:motion-safe:group-hover:s
 /** The photo arrows: 16px from the card's edge, in the middle, while the pointer is over the card (or on keyboard focus). Touch swipes. */
 const PHOTO_ARROW = "photo-arrow absolute top-1/2 z-10 -translate-y-1/2 opacity-0 before:absolute before:-inset-1 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
 
-export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, className }: HouseCardProps) {
+export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, className }: HouseCardProps) {
   // Your own cards (footer="status", Your houses): calm – no heart, no photo arrows or dots, no hover zoom.
-  const calm = footer === "status";
+  const calm = footer !== "explore";
   const faceOf = useCrewFaceOf(stay);
   const t = useTranslations("explore");
   const tHome = useTranslations("houses.home");
@@ -86,6 +91,10 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const invited = isInvitedTo(store, stay.id);
   const format = useFormat();
   const priceLabel = useViewerPriceLabel(stay);
+  // Your people in this House (not in the Spotlight, which shows every card the same).
+  const peopleHint = usePeopleSignal(stay);
+  const signal = spotlight || preview ? null : peopleHint;
+  const tPeople = useTranslations("people.signal");
   // The cover first, then the rest of the House's world (the host's portrait belongs in the tab). The Spotlight shows one photo.
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : spotlight ? 1 : MAX_PHOTOS) : spotlight ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
@@ -110,7 +119,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const target = href ?? `/house/${stay.slug}`;
   const guests = crew.filter((u) => u.id !== stay.hostId);
   // "you": the viewer; logged out (How it works shows how a host sees it) the person given as host stands in.
-  const tabPerson = notch === "you" ? (me ?? host) : host;
+  // "none": no tab at all (the House page names its host beside the photo).
+  const tabPerson = notch === "none" ? undefined : notch === "you" ? (me ?? host) : host;
   const arrowSize = gallery || spotlight ? "md" : "sm";
 
   return (
@@ -121,7 +131,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       data-house-card={stay.id}
       className={cn(
         "notch-frame group relative isolate",
-        gallery ? "aspect-3/4" : spotlight ? "h-full" : calm ? "aspect-4/5" : "aspect-4/5 transition-[opacity,translate,scale,filter] md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
+        gallery ? "aspect-4/5" : spotlight ? "h-full" : calm ? "aspect-4/5" : "aspect-4/5 transition-[opacity,translate,scale,filter] md:hover:scale-[1.02] md:hover:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)] md:has-focus-visible:scale-[1.02] md:has-focus-visible:drop-shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
         !spotlight && !gallery && !calm && HOVER_MOTION,
         // Mobile only: fade/slide in once when scrolled into view.
         !revealed && "max-md:motion-safe:translate-y-3 max-md:motion-safe:opacity-0",
@@ -198,16 +208,16 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         )}
         {calm && menu && <div className="absolute right-3 top-3 z-10 flex">{menu}</div>}
 
-        {/* Bottom: title (one line), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
+        {/* Bottom: title (up to two lines, then an ellipsis), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
         <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-white", cardTextShadow)}>
           {invited && footer === "explore" && <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>}
-          <h3 className={cn("truncate text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           <p className="mt-1 truncate text-small text-white/85">
             {format.stayDates(stay)}
             {stay.region && ` · ${format.placeName(stay)}`}
           </p>
-          {footer === "status" ? (
-            // Your houses: the crew and "N of M" left, the status (or its action) right.
+          {footer !== "explore" ? (
+            // Your houses: the crew and "N of M" left, the status (or its action) right. A memory: "Lived with · Nov 2026" left, "Do it again" right.
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="flex shrink-0 -space-x-2">
@@ -225,15 +235,22 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                       ),
                     )}
                 </span>
+                {liveDot && <span role="img" aria-label={tHome("unreadNews")} className="size-2 shrink-0 rounded-full bg-accent" />}
                 <span className="truncate text-small text-white/85">{live ?? tHome("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>
               </span>
-              {status && <span className="pointer-events-auto shrink-0 [text-shadow:none]">{status}</span>}
+              {status && <span className="pointer-events-auto flex shrink-0 items-center gap-2 [text-shadow:none]">{status}</span>}
             </div>
           ) : (
             <>
               {/* After the title the most important line. Every card has it: without a price, "Price set with crew". */}
               <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
-              {stay.hostNote && (
+              {/* One of your people is in it: that before the host's note – "Anna is in" / "Hosted by Tom from your people". */}
+              {signal ? (
+                <p className="mt-1 flex items-center gap-1.5 text-small font-semibold text-white">
+                  <PersonPhoto src={signal.user.photos[0]} alt="" size={16} className="size-4 shrink-0 border border-white/60" />
+                  <span className="truncate">{signal.role === "host" ? tPeople("hostedBy", { name: firstName(signal.user) }) : tPeople("isIn", { name: firstName(signal.user), others: signal.count - 1 })}</span>
+                </p>
+              ) : stay.hostNote && (
                 <p className="mt-1 flex items-center gap-1.5 text-small text-white/75">
                   <MessageCircle className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{stay.hostNote}</span>
@@ -284,7 +301,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
 /** footer="status", nothing to do: a chip in dark glass (like IconButton onImage), white text; `attention` adds the orange dot. */
 export function CardStatusChip({ children, attention = false }: { children: ReactNode; attention?: boolean }) {
   return (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[rgba(20,18,16,0.28)] px-2.5 text-small font-medium text-white backdrop-blur-md backdrop-saturate-[1.4]">
+    <span className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(20,18,16,0.28)] px-2.5 text-small font-medium text-white backdrop-blur-md backdrop-saturate-[1.4]">
       {attention && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
       {children}
     </span>
@@ -301,7 +318,7 @@ export function CardStatusAction({ children, onClick }: { children: ReactNode; o
         e.stopPropagation();
         onClick();
       }}
-      className="press inline-flex h-8 items-center gap-1.5 rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
+      className="press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
     >
       <span aria-hidden className="size-1.5 rounded-full bg-accent" />
       {children}

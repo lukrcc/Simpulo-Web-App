@@ -1,7 +1,7 @@
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
 import { convert } from "@/lib/currency";
 import { placeById, placeKindOf } from "@/lib/data/places";
-import { canChargeHostFee, maxHostFee } from "@/lib/fees";
+import { maxHostFee } from "@/lib/fees";
 import { openVote } from "@/lib/crewVotes";
 import type { SearchPlace } from "@/lib/savedSearches";
 import type { PersonEntry } from "@/lib/store";
@@ -45,6 +45,8 @@ export const DEFAULT_LANGUAGE = "en";
 export const REQUIRED_STEPS = ["vibe", "place", "where", "crew", "cover"] as const;
 /** The new flow's optional step 6: "Make it stand out". */
 export const EXTRAS_STEP = "extras" as const;
+/** Before the review, only with people to invite: "Invite your crew" (Do it again) / "Invite your people". Optional. */
+export const INVITE_STEP = "invite" as const;
 /** What "Make it stand out" holds – "Optional details · N of 6 added" on the review. */
 export const EXTRAS = ["description", "placePhoto", "languages", "who", "age", "rules"] as const;
 export type ExtraKey = (typeof EXTRAS)[number];
@@ -54,7 +56,7 @@ export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew"] as const;
 export const MAX_COVER_PHOTOS = 6;
 /** Optional, one screen each, reached from the "details" list – before or after opening. */
 export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
-export const STEPS = [...REQUIRED_STEPS, EXTRAS_STEP, "ready", "details", ...DETAIL_STEPS] as const;
+export const STEPS = [...REQUIRED_STEPS, EXTRAS_STEP, INVITE_STEP, "ready", "details", ...DETAIL_STEPS] as const;
 export type StepKey = (typeof STEPS)[number];
 export type DetailKey = (typeof DETAIL_STEPS)[number];
 
@@ -158,6 +160,8 @@ export interface FormState {
   languages: string[];
   /** People the host lived with, invited on publish ("Open again", "Invite to a House") */
   inviteIds: string[];
+  /** "Invite by link": a link that holds a spot for 48h, made with the House and copied on the success screen */
+  inviteLink: boolean;
   /** "Open again": the completed House this one repeats ("" = a new one) */
   againFrom: string;
 }
@@ -202,6 +206,7 @@ export const initialForm: FormState = {
   crewGroupUrl: "",
   languages: [],
   inviteIds: [],
+  inviteLink: false,
   againFrom: "",
 };
 
@@ -255,10 +260,21 @@ export function formFromStay(stay: Stay): FormState {
   };
 }
 
-/** "Open again": every field of the House that ended, new dates, and its crew (minus the host) to invite. */
+/**
+ * "Do it again": the House that ended as the start – category, place, crew size, cover, the title as "{Title} again" – with dates and
+ * price left empty, and its crew (minus the host) chosen to invite.
+ */
 export function againForm(source: Stay, crewIds: string[]): FormState {
   return {
     ...formFromStay(source),
+    // "{Title} again", shortened so it still fits a new House's title.
+    title: `${source.title.slice(0, TITLE_MAX_NEW - 6).trimEnd()} again`,
+    totalPrice: "",
+    placeLink: "",
+    budgetMin: "",
+    budgetMax: "",
+    budgetTbd: false,
+    hostFee: "",
     month: "",
     monthEnd: "",
     datesMode: "month",
@@ -375,10 +391,10 @@ export function hostFeeBase(form: FormState, editing?: Stay): number | undefined
   return placeShare(form)?.share ?? budgetOf(form)?.min;
 }
 
-/** The host fee as saved: "With a program", a whole amount > 0, and only for hosts who may charge one. */
-function hostFeeOf(form: FormState, me?: User): number | undefined {
+/** The host fee as saved: "With a program", a whole amount > 0. Any host may add one (step "Crew and price"). */
+function hostFeeOf(form: FormState): number | undefined {
   const fee = Math.round(Number(form.hostFee));
-  return form.hostExperience === "program" && canChargeHostFee(me) && fee > 0 ? fee : undefined;
+  return form.hostExperience === "program" && fee > 0 ? fee : undefined;
 }
 
 /** Whether an optional detail has been added – its check in the list. */
@@ -459,7 +475,7 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     dayText: form.dayText.trim(),
     lookingForText: form.lookingForText.trim(),
     hostNote: form.hostNote.trim() || undefined,
-    hostFeePerPerson: hostFeeOf(form, me),
+    hostFeePerPerson: hostFeeOf(form),
     interests: editing?.interests ?? [],
     houseRules: form.rulesText.split("\n").map((rule) => rule.trim()).filter(Boolean),
   };
@@ -552,7 +568,7 @@ function datesErrors({ form, today, editing }: ValidationContext): FieldErrors {
 
 /** What blocks leaving a step, per field. Details never block – unless what's typed is wrong. */
 export function stepErrors(step: StepKey, context: ValidationContext): FieldErrors {
-  const { form, me, minSpots, today, editing, starters = [] } = context;
+  const { form, minSpots, today, editing, starters = [] } = context;
   const errors: FieldErrors = {};
   switch (step) {
     case "vibe":
@@ -568,6 +584,10 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       break;
     case "crew": {
       if (!(form.spotsTotal >= Math.max(SPOTS_MIN, minSpots))) errors.spotsTotal = { key: "spots", min: Math.max(SPOTS_MIN, minSpots) };
+      // The optional host fee: at most the share itself.
+      const hostFee = Math.round(Number(form.hostFee));
+      const feeBase = hostFeeBase(form, editing);
+      if (form.hostExperience === "program" && hostFee > 0 && feeBase !== undefined && hostFee > maxHostFee(feeBase)) errors.hostFee = { key: "hostFeeTooHigh", max: maxHostFee(feeBase) };
       if (editing?.accommodationStatus === "locked") break;
       if (form.placeMode === "set") {
         if (!(Number(form.totalPrice) > 0)) errors.totalPrice = { key: "totalPrice" };
@@ -610,7 +630,7 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       if (form.lookingForText.trim() && ownWords(form.lookingForText, starters).length < 3) errors.lookingForText = { key: "lookingForUnfinished" };
       break;
     case "host": {
-      if (form.hostExperience !== "program" || !canChargeHostFee(me)) break;
+      if (form.hostExperience !== "program") break;
       const fee = Math.round(Number(form.hostFee));
       const base = hostFeeBase(form, editing);
       if (!(fee > 0)) errors.hostFee = { key: "hostFee" };
@@ -695,7 +715,7 @@ export interface HouseTemplate {
   form: FormState;
 }
 
-const withoutDates = (form: FormState): FormState => ({ ...form, month: "", datesMode: "month", startDate: "", endDate: "", dateProposals: [], datesDeadline: "", photos: [], inviteIds: [], againFrom: "" });
+const withoutDates = (form: FormState): FormState => ({ ...form, month: "", datesMode: "month", startDate: "", endDate: "", dateProposals: [], datesDeadline: "", photos: [], inviteIds: [], inviteLink: false, againFrom: "" });
 
 export function readTemplates(): HouseTemplate[] {
   try {
