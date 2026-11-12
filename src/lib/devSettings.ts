@@ -13,9 +13,11 @@ export interface DevSettings {
   houseRole: HouseRoleOverride;
   /** "Simulate installed app": is-standalone on <html>, safe areas 47px / 34px, no install hints (lib/install.ts) */
   installedApp: boolean;
+  /** "Admin role": off = the admin (Lukas) is treated as a user – /admin is a 404 (lib/admin/access.ts) */
+  adminRole: boolean;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 

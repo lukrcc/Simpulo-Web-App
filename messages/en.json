@@ -543,7 +543,8 @@
         "prelaunch": "Pre-launch",
         "beta": "Beta",
         "live": "Live"
-      }
+      },
+      "adminRole": "Admin role"
     },
     "welcome": {
       "title": "Welcome back.",
@@ -3089,7 +3090,9 @@
         "on": "On",
         "off": "Off",
         "peopleEmpty": "After a House, everyone you both confirmed living with shows up here.",
-        "peopleAll": "Open Your people"
+        "peopleAll": "Open Your people",
+        "admin": "Admin",
+        "adminSub": "Dashboard"
       }
     },
     "loginToMessage": "Log in to message {name}",
@@ -3194,7 +3197,8 @@
         "languageSoon": "More languages soon.",
         "backTo": "General",
         "yourPeople": "Your people",
-        "getApp": "Get the app"
+        "getApp": "Get the app",
+        "admin": "Admin"
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -4151,6 +4155,225 @@
     },
     "founding": {
       "capsule": "Founding House"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "nav": {
+      "cockpit": "Cockpit",
+      "overview": "Overview",
+      "houses": "Houses",
+      "applications": "Applications",
+      "waitlist": "Waitlist",
+      "topics": "Topics",
+      "algorithm": "Algorithm",
+      "traffic": "Traffic",
+      "platform": "Platform",
+      "log": "Log",
+      "more": "More",
+      "growth": "Growth",
+      "prepared": "Prepared Houses",
+      "support": "Support"
+    },
+    "demoData": "Demo data",
+    "mockData": "Mock data",
+    "empty": "Nothing here yet.",
+    "overview": {
+      "intro": "Where Simpulo stands on the way to the launch.",
+      "realHouses": "Real Houses",
+      "reservedShare": "With 2+ reservations",
+      "waitlist": "Waitlist",
+      "openApplications": "Open applications",
+      "launch": "Launch criteria",
+      "criteria": {
+        "houses": "Real Houses",
+        "hubs": "Hubs with {min}+ Houses",
+        "reservedShare": "Houses with {min}+ reservations",
+        "waitlist": "Waitlist sign-ups"
+      },
+      "ofTarget": "{value} of {target}",
+      "ofTargetPercent": "{value} of {target} %",
+      "hubsTarget": "{value} of {min}–{max}",
+      "move": "Full Houses per month",
+      "moveSub": "Target {target} a month – this month {current}",
+      "target": "Target"
+    },
+    "houses": {
+      "intro": "Every House with its fill rate and reservations.",
+      "filter": "Show",
+      "all": "All",
+      "kind": {
+        "real": "Real",
+        "founding": "Founding",
+        "example": "Example"
+      },
+      "col": {
+        "house": "House",
+        "kind": "Type",
+        "category": "Category",
+        "hub": "Hub",
+        "dates": "Dates",
+        "fill": "Fill rate",
+        "reservations": "Reservations"
+      },
+      "count": "{count, plural, one {# House} other {# Houses}}",
+      "preparedLink": "Prepared Houses →"
+    },
+    "applications": {
+      "intro": "Founding host applications. Yes makes the person a founding host.",
+      "filter": "Status",
+      "status": {
+        "new": "New",
+        "yes": "Yes",
+        "maybe": "Maybe",
+        "no": "No"
+      },
+      "yes": "Yes",
+      "maybe": "Maybe",
+      "no": "No",
+      "hostType": {
+        "share": "Share host",
+        "pro": "Pro host"
+      },
+      "noLinks": "No links",
+      "foundingHost": "Founding host",
+      "applied": "Applied {date}",
+      "keys": "Keys: → Yes · ↓ Maybe · ← No (the first open card)"
+    },
+    "waitlist": {
+      "intro": "Who's waiting, where they came from and what they're into.",
+      "total": "On the waitlist",
+      "lastWeek": "Last 7 days",
+      "wantsToHost": "Want to host",
+      "referred": "Referred",
+      "overTime": "Sign-ups over time",
+      "sources": "Sources (?src)",
+      "interests": "Interests by category",
+      "latest": "Latest sign-ups",
+      "direct": "direct",
+      "anywhere": "Anywhere",
+      "anytime": "Any time",
+      "hostTag": "Wants to host"
+    },
+    "topics": {
+      "intro": "A score per category from reservations, applications, waitlist interest and the share of Houses with a host fee.",
+      "weights": "Weights: reservations {reservations} · applications {applications} · waitlist {waitlist} · host fee {hostFee}",
+      "col": {
+        "topic": "Topic",
+        "score": "Score",
+        "reservations": "Reservations",
+        "applications": "Applications",
+        "waitlist": "Waitlist",
+        "hostFee": "Host fee"
+      }
+    },
+    "algorithm": {
+      "intro": "How the network grows: people who lived together, who comes back, how fast Houses fill.",
+      "mutual": "Mutual Your people",
+      "mutualSub": "{mutual} of {all} pairs confirmed both ways · {people} people",
+      "repeat": "Repeat rate",
+      "repeatSub": "{repeat} of {guests} guests joined 2+ Houses",
+      "toFull": "Days until full",
+      "toFullSub": "Median over {count} full Houses",
+      "toFullChart": "Time until a House is full (days)",
+      "houses": "Houses",
+      "none": "–"
+    },
+    "traffic": {
+      "intro": "Visitors, countries, sources and the way to the sign-up.",
+      "note": "Demo data – real numbers come from Google Analytics in phase 4.",
+      "visitors": "Visitors this week",
+      "visitorsChart": "Visitors per week",
+      "countries": "Countries",
+      "sources": "Sources",
+      "funnel": "Way to the sign-up",
+      "step": {
+        "visit": "Visited",
+        "house": "Opened a House",
+        "joinTapped": "Tapped Join the waitlist",
+        "signedUp": "Signed up"
+      },
+      "ofPrevious": "{percent} % of the step before",
+      "unavailable": "No traffic source connected yet."
+    },
+    "platform": {
+      "intro": "The platform's phase – the same switch as the Dev menu's.",
+      "phase": "Phase",
+      "current": "Now: {phase}",
+      "phases": {
+        "prelaunch": "Pre-launch",
+        "beta": "Beta",
+        "live": "Live"
+      },
+      "confirmTitle": "Switch to {phase}?",
+      "confirmText": "Everyone sees what {phase} allows. The page reloads with that phase's data. This goes into the log.",
+      "confirm": "Switch to {phase}",
+      "values": "Values (config/platform.ts)",
+      "hideCategory": "Examples leave a category at",
+      "removeAll": "All examples leave at",
+      "realHouses": "{count} real Houses",
+      "launchLabel": "Launch label",
+      "launchMonth": "Launch month",
+      "rules": "What each phase allows",
+      "rule": {
+        "request": "Request to join",
+        "reserve": "Reserve a spot",
+        "pay": "Pay",
+        "openHouse": "Open a House",
+        "applyAsHost": "Apply as a host"
+      },
+      "on": "Yes",
+      "off": "–"
+    },
+    "log": {
+      "intro": "Every admin action, newest first.",
+      "action": {
+        "phase_changed": "Phase changed",
+        "application_decided": "Application decided",
+        "founding_host_added": "Founding host added"
+      },
+      "by": "by {name}"
+    },
+    "status": {
+      "good": "On target",
+      "warning": "Close",
+      "critical": "Below target",
+      "none": "No target"
+    },
+    "cockpit": {
+      "intro": "The move target first, then supply, demand, quality and money – each against its target.",
+      "move": "Full houses per month",
+      "moveTarget": "of {target}",
+      "streak": "Months in a row above target: {streak} / {of}",
+      "group": {
+        "supply": "Supply",
+        "demand": "Demand",
+        "quality": "Quality",
+        "money": "Money"
+      },
+      "metric": {
+        "realHouses": "Real Houses",
+        "examplesLeft": "Examples left",
+        "openApplications": "Open applications",
+        "waitlist": "Waitlist",
+        "reservedShare": "With 2+ reservations",
+        "bestSource": "Best source",
+        "mutualShare": "Mutual Your people",
+        "repeatRate": "Repeat rate",
+        "daysToFull": "Days until full",
+        "profit": "Profit this month",
+        "perHouse": "Per full House",
+        "revenueTotal": "Revenue in all"
+      },
+      "profitTarget": "of {target}",
+      "vsLastWeek": "{delta} vs last week",
+      "noChange": "no change",
+      "weeks": "Last 8 weeks",
+      "open": "Open {area}",
+      "launch": "Launch criteria",
+      "topics": "Top 5 topics",
+      "allTopics": "All topics →",
+      "signups": "{count} sign-ups"
     }
   }
 }

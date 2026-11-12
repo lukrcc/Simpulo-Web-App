@@ -76,6 +76,11 @@ export interface User extends Attribution {
   /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
   privacy?: { showOnHousePages?: boolean; showAge?: boolean };
   deletedAt?: string;       // mock "Delete account"
+  /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
+   *  Security Rules and a check in every Function – this field only decides what the UI shows. */
+  role?: 'user' | 'admin';
+  /** A founding host of the beta (admin › Applications "Yes") */
+  foundingHost?: boolean;
 }
 
 /** 1 = the left word, 2 = in between, 3 = the right word (config/houseVibe.ts). */
@@ -441,7 +446,7 @@ export const CURRENT_USER_ID = 'u1';
 /** The original people; isPro / canChargeHostFee are filled in below (see `users`). */
 const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
   {
-    id: 'u1', name: 'Lukas', age: 30, birthDate: '1996-05-14', country: 'Germany', city: 'Osaka',
+    id: 'u1', role: 'admin', name: 'Lukas', age: 30, birthDate: '1996-05-14', country: 'Germany', city: 'Osaka',
     languages: ['German', 'English'],
     bio: 'Remote app-dev teacher. Train every morning, work German hours, free before 3 pm.',
     photos: [userFace('u1')],

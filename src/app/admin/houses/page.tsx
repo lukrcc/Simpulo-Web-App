@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { AdminHouses } from "@/components/admin/AdminHouses";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { ADMIN_ENABLED } from "@/lib/growth";
+import { AdminHouseList } from "@/components/admin/AdminAreas";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta.pages");
-  return { title: t("adminHouses"), robots: { index: false, follow: false } };
-}
+export const metadata: Metadata = { title: "Admin · Houses" };
 
-/** Dev only (or NEXT_PUBLIC_ADMIN=true): Houses prepared on someone's behalf, claimed or not. */
-export default function AdminHousesPage() {
-  if (!ADMIN_ENABLED) notFound();
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <AdminHouses />
-    </Suspense>
-  );
+/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
+export const instant = false;
+
+/** Admins only (app/admin/layout.tsx). */
+export default function Page() {
+  return <AdminHouseList />;
 }

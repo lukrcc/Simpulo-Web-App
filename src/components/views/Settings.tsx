@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Check, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -14,9 +14,9 @@ import { LegalLine } from "@/components/layout/LegalLine";
 import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/PayoutSetup";
 import { RefundLine } from "@/components/payments/Refund";
 import { IconTile, RowSelect, SettingsGroup, SettingsRow } from "@/components/settings/SettingsList";
+import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { listItemStyles } from "@/components/ui/listSelection";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
@@ -25,6 +25,7 @@ import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { useIsStandalone } from "@/lib/install";
+import { useIsAdmin } from "@/lib/admin/access";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
@@ -113,6 +114,7 @@ function SettingsContent({ me }: { me: User }) {
   const t = useTranslations("settings");
   const tu = useTranslations("settings.ui");
   const { section, subpage } = useRoute();
+  const isAdmin = useIsAdmin() === true;
   const shown: Section = section ?? "account";
 
   return (
@@ -120,42 +122,27 @@ function SettingsContent({ me }: { me: User }) {
       <h1 className="sr-only">{t("title")}</h1>
       <div className="lg:mx-auto lg:grid lg:max-w-[1000px] lg:grid-cols-[260px_minmax(0,680px)] lg:items-start lg:gap-14">
         {/* The side list – on the phone the first view, gone once an area is open. */}
-        <nav aria-label={t("title")} className={cn("lg:sticky lg:top-[calc(var(--header-h)+64px)]", section !== null && "max-lg:hidden")}>
-          {/* The profile as its own light card: avatar 56px, name, "Profile & photos", the chevron – to Edit profile. */}
-          <Link href="/settings/profile" className="flex min-h-20 items-center gap-3 rounded-2xl bg-(--surface) p-3 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--surface)_80%,white)]">
-            <Avatar user={me} size="lg" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-semibold text-ink">{me.name}</span>
-              <span className="block truncate text-small text-muted">{tu("profileSub")}</span>
-            </span>
-            <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/40" />
-          </Link>
-          <ul className="mt-4 flex flex-col gap-1">
-            {SECTIONS.map((key) => {
-              const selected = shown === key;
-              const Icon = SECTION_ICONS[key];
-              return (
-                <li key={key}>
-                  <a
-                    href={`#${key}`}
-                    aria-current={section === key ? "page" : undefined}
-                    className={cn(
-                      listItemStyles(selected),
-                      "flex h-11 items-center gap-3 px-4 text-body",
-                      selected ? "font-semibold text-ink" : "text-ink/70",
-                      // The phone's list marks nothing: nothing is open yet.
-                      section === null && "max-lg:border-transparent max-lg:font-normal max-lg:text-ink/70",
-                    )}
-                  >
-                    <Icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
-                    <span className="min-w-0 flex-1 truncate">{tu(`nav.${key}`)}</span>
-                    <ChevronLeft aria-hidden className="size-4 rotate-180 text-ink/30 lg:hidden" />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <div className={cn("lg:sticky lg:top-[calc(var(--header-h)+64px)]", section !== null && "max-lg:hidden")}>
+          <SideNav
+            label={t("title")}
+            hash
+            plain={section === null}
+            items={SECTIONS.map((key) => ({ key, href: `#${key}`, label: tu(`nav.${key}`), icon: SECTION_ICONS[key], selected: shown === key, current: section === key }))}
+            top={
+              // The profile as its own light card: avatar 56px, name, "Profile & photos", the chevron – to Edit profile.
+              <Link href="/settings/profile" className="flex min-h-20 items-center gap-3 rounded-2xl bg-(--surface) p-3 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--surface)_80%,white)]">
+                <Avatar user={me} size="lg" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-body font-semibold text-ink">{me.name}</span>
+                  <span className="block truncate text-small text-muted">{tu("profileSub")}</span>
+                </span>
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/40" />
+              </Link>
+            }
+          />
+          {/* Admins only (lib/admin/access.ts): set apart at the very bottom – the way to /admin; there is no avatar menu. */}
+          {isAdmin && <SideNav label={tu("general.admin")} className="mt-8" items={[{ key: "admin", href: "/admin", label: tu("general.admin"), icon: LayoutDashboard, selected: false }]} />}
+        </div>
 
         <div className={cn("min-w-0", section === null && "max-lg:hidden")}>
           {/* The phone: back to the list, like iOS. */}

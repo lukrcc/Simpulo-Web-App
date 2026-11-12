@@ -2,7 +2,7 @@
 import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
 import type { GrowthEvent } from "../growth";
-import type { JoinRequest, Payment, PlatformPhase, Stay, Thread, User } from "../types";
+import type { AdminLogEntry, HostApplication, JoinRequest, Payment, PlatformPhase, Stay, Thread, User, WaitlistEntry } from "../types";
 import type { Page, PageRequest } from "./paging";
 
 /** A photo's lower third: the darkening's colour (its hue and saturation at 12 % lightness) and its mean lightness 0–1. */
@@ -29,6 +29,32 @@ export interface PastEarning {
   share: number;
   hostFee: number;
   currency: "EUR" | "USD" | "GBP";
+}
+
+/** The admin collections (/admin): the waitlist and host application write to these; every admin action goes into the log. */
+export interface AdminData {
+  waitlist: WaitlistEntry[];
+  applications: HostApplication[];
+  log: AdminLogEntry[];
+}
+
+/** Admin › Traffic – demo data until Google Analytics reports it (phase 4). */
+export interface TrafficReport {
+  visitorsPerWeek: readonly { week: string; visitors: number }[];
+  countries: readonly { country: string; share: number }[];
+  sources: readonly { source: string; share: number }[];
+  /** The way to the sign-up, in order */
+  funnel: readonly { step: "visit" | "house" | "joinTapped" | "signedUp"; count: number }[];
+}
+
+/** History the admin Cockpit draws (lib/admin/metrics.ts): per month, and the weekly trend shapes of its sparklines. */
+export interface MetricsHistory {
+  /** Oldest first; 0 = this month so far */
+  fullHousesPerMonth: readonly { monthsAgo: number; full: number }[];
+  /** What Simpulo kept per month, EUR */
+  profitPerMonth: readonly { monthsAgo: number; profit: number }[];
+  /** The last 8 weeks as factors of today's value (the last is 1) */
+  weekly: { rising: readonly number[]; steady: readonly number[]; falling: readonly number[] };
 }
 
 /** The platform phases in order (config/platform.ts); in dev the Dev menu's "Phase" picks one and the mock data set that goes with it. */
@@ -62,4 +88,10 @@ export interface DataAdapter {
   loadPage<T>(list: readonly T[], keyOf: (item: T) => string, request: PageRequest): Promise<Page<T>>;
   /** A photo's lower third, measured once (scripts/image-meta.mjs; later on upload): its dark tint and mean lightness – null when unknown */
   getPhotoMeta(src: string): PhotoMeta | null;
+  /** The admin collections a data state starts with (the browser keeps its own changes, lib/admin/store.ts) */
+  getAdminData(): AdminData;
+  /** Admin › Traffic: demo numbers in the mock, null until the analytics source exists */
+  getTrafficReport(): TrafficReport | null;
+  /** Admin: the history behind the Cockpit – mock months and weekly trends; null where the real source computes it from its records */
+  getMetricsHistory(): MetricsHistory | null;
 }

@@ -31,7 +31,6 @@ Stand: 11. Nov 2026. Erstellt durch eine reine Lese-Analyse, ohne Änderungen am
 | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_LINK_BASE_URL`, `NEXT_PUBLIC_PRODUCTION_URL` | Basis-URLs |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google-Karte auf der House-Seite |
 | `NEXT_PUBLIC_FLAG_HOST_PREMIUM` | Schaltet die Host-Gebühr frei |
-| `NEXT_PUBLIC_ADMIN` | Schaltet `/admin` außerhalb von dev frei |
 
 ---
 
@@ -102,7 +101,7 @@ Muster: `app/**/page.tsx` ist eine **Server-Komponente**. Sie erzeugt `generateM
 | `/faq` | `faq/FaqView` | Joining/Hosting-Akkordeon + FAQPage-JSON-LD |
 | `/get` | `get/GetApp` | App installieren / QR |
 | `/about` `/contact` `/safety` `/cancellation` `/impressum` `/privacy` `/terms` | `layout/ContentPage` | Statische Textseiten (echtes Server-Rendering) |
-| `/admin/{growth,houses,houses/new,support}` | `components/admin/*` | Mock-Admin. Ohne `ADMIN_ENABLED` 404. *growth/houses fehlen in CLAUDE.md.* |
+| `/admin`, `/admin/{houses,applications,waitlist,topics,algorithm,traffic,platform,log,growth,houses/prepared,houses/new,support}` | `components/admin/*` | Admin-Dashboard, nur für Admins (`useIsAdmin`, sonst 404); siehe CLAUDE.md „Admin“. |
 | `/dev/{emails,stripe-onboarding,identity-check}` | `dev/*` | E-Mail-Vorschau, Provider-Simulationen. In production 404. |
 | `/demo-login` | `DemoLoginForm` + Server-Action `enterDemo` | Nur im Demo-Modus |
 | `/api/link-preview` | Route Handler (GET) | og:title/og:image/Preis einer Unterkunfts-URL |

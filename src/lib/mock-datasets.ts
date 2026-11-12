@@ -3,7 +3,11 @@
 // counts, never to the state's name. Theme shelves: lower their thresholds in src/config/explore.ts to see them.
 import type { AppData } from "./data/adapter";
 import type { PlatformPhase } from "./types";
-import { joinRequests, stays, threads, users, type JoinRequest, type Stay } from "./mock";
+import { joinRequests, stays, threads, users as mockUsers, type JoinRequest, type Stay } from "./mock";
+import { MOCK_FOUNDING_HOST_IDS } from "./mock-admin";
+
+/** The founding hosts the admin said "Yes" to (mock-admin.ts) – in every phase, like their accounts. */
+const users = mockUsers.map((u) => (MOCK_FOUNDING_HOST_IDS.includes(u.id) ? { ...u, foundingHost: true } : u));
 
 const published = stays.filter((s) => s.status === "published");
 

@@ -2,7 +2,7 @@
 
 import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
-import { Bell, Bookmark, Eye, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon } from "lucide-react";
+import { Bell, Bookmark, Eye, Languages, LayoutDashboard, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { use, useMemo, useState, type ReactNode } from "react";
@@ -42,6 +42,7 @@ import { cn, firstName, housePhotos, languageCode } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
 import { useYourPeople } from "@/lib/useYourPeople";
 import { useIsStandalone } from "@/lib/install";
+import { useIsAdmin } from "@/lib/admin/access";
 
 export function MyProfile() {
   const t = useTranslations("profile");
@@ -400,6 +401,7 @@ function QuickTiles({ user }: { user: User }) {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const notificationsOn = Object.values(settingsOf(user).notifications).some((p) => p.push);
   const saved = user.savedStayIds?.length ?? 0;
+  const isAdmin = useIsAdmin() === true;
   const tile = "flex h-22 min-w-0 flex-col justify-between rounded-[20px] bg-surface p-3.5 text-left transition-colors duration-150 hover:bg-surface-2";
   const body = (Icon: LucideIcon, title: string, sub?: string) => (
     <>
@@ -412,7 +414,9 @@ function QuickTiles({ user }: { user: User }) {
   );
   return (
     // Four in a row where the head is wide enough (from 1440px); narrower 2 × 2, so no title is cut.
-    <div className="mt-6 grid grid-cols-2 gap-3 min-[90rem]:grid-cols-4">
+    // An admin gets a fifth tile (Admin · Dashboard): from 1440px three in a row (five would cut the titles), below it the 2 × 2 and the Admin
+    // tile across the last row.
+    <div className={cn("mt-6 grid grid-cols-2 gap-3", isAdmin ? "min-[90rem]:grid-cols-3" : "min-[90rem]:grid-cols-4")}>
       <Link href="/your-houses#row-saved" className={tile}>
         {body(Bookmark, tq("saved"), tq("savedCount", { count: saved }))}
       </Link>
@@ -429,6 +433,12 @@ function QuickTiles({ user }: { user: User }) {
       ) : (
         <Link href="/get" className={tile}>
           {body(Smartphone, tq("getApp"), tq("getAppSub"))}
+        </Link>
+      )}
+      {/* Admins only (lib/admin/access.ts) – the way to /admin; there is no avatar menu. */}
+      {isAdmin && (
+        <Link href="/admin" className={cn(tile, "max-[89.99rem]:col-span-2")}>
+          {body(LayoutDashboard, tq("admin"), tq("adminSub"))}
         </Link>
       )}
       <Sheet variant="panel" open={peopleOpen} onClose={() => setPeopleOpen(false)} title={tp("title")}>

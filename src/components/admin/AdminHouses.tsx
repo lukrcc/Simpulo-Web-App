@@ -195,7 +195,7 @@ export function AdminNewHouse() {
             >
               {t("another")}
             </button>
-            <Link href="/admin/houses" className={buttonStyles("tertiary", "md")}>
+            <Link href="/admin/houses/prepared" className={buttonStyles("tertiary", "md")}>
               {t("viewAll")}
             </Link>
           </div>

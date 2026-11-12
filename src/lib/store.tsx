@@ -17,7 +17,7 @@ import {
   type DemandAlert,
   type GrowthEvent,
   type GrowthEventName,
-  type HostApplication,
+  type CommunityApplication as HostApplication,
   type ShareChannel,
 } from "./growth";
 import { VOTE_FIELD, paymentWaitsForCrew, voteOutcome } from "./crewVotes";
@@ -74,6 +74,8 @@ interface StoreState {
   threads: Thread[];
   /** null = logged out (mock auth) */
   currentUserId: string | null;
+  /** The mock login was looked up in this browser (true right after mount) – until then nobody knows who is logged in (lib/admin/access.ts) */
+  sessionRestored: boolean;
   /** threadId → ISO timestamp of the newest message the current user has seen */
   lastReadAt: Record<string, string>;
   /** One record per crew member and locked stay (mock payments – no Stripe yet). */
@@ -142,6 +144,7 @@ export type { AppNotification, NotifyEventKey } from "./data/notifications";
 // processes them. So an action dispatched right after login() in the same click already acts as the new user.
 type StoreAction =
   | { type: "login"; userId: string }
+  | { type: "sessionRestored" }
   | { type: "logout" }
   | { type: "updateCurrentUser"; patch: ProfilePatch }
   | {
@@ -226,7 +229,8 @@ type StoreAction =
   | { type: "settlePayments"; at: string }
   | { type: "lapsePaymentWindow"; stayId: string; at: string }
   | { type: "fireReminder"; reminder: Reminder; message: Pick<Message, "id" | "createdAt"> }
-  | { type: "setAcceptingRequests"; stayId: string; accepting: boolean };
+  | { type: "setAcceptingRequests"; stayId: string; accepting: boolean }
+  | { type: "setFoundingHost"; userId: string; on: boolean };
 
 /** The profile bits Edit profile, the Create flow's "About you" step and the photo sheet can change. */
 export type ProfilePatch = Partial<
@@ -367,6 +371,8 @@ interface StoreActions {
   reloadData: () => void;
   /** Host's "Taking requests" switch. Nothing else ever changes it. */
   setAcceptingRequests: (stayId: string, accepting: boolean) => void;
+  /** Admin › Applications: "Yes" makes the applicant a founding host (and taking it back undoes it). */
+  setFoundingHost: (userId: string, on: boolean) => void;
   /** Heart: adds the House to the current user's saved list, or removes it. */
   toggleSaved: (stayId: string) => void;
   /** "Yes, I lived with them": shown on both profiles once they have said the same. */
@@ -619,6 +625,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     joinRequests,
     threads: chat.threads,
     currentUserId: null,
+    sessionRestored: false,
     lastReadAt: chat.lastReadAt,
     payments,
     typing: {},
@@ -659,7 +666,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 18;
+const MOCK_VERSION = 19;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (phase: PlatformPhase) => `${MOCK_PREFIX}v${MOCK_VERSION}:${phase}`;
 /** Saved before the phases, under the data state's old name (launch → beta, full → live): moved over once. */
@@ -1392,7 +1399,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, applications: [...state.applications, action.application] };
 
     case "loadDataset":
-      return { ...action.state, currentUserId: state.currentUserId };
+      return { ...action.state, currentUserId: state.currentUserId, sessionRestored: state.sessionRestored };
 
     case "restoreGrowth": {
       const { saved } = action;
@@ -1730,6 +1737,10 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, lastReadAt: { ...state.lastReadAt, [action.threadId]: action.at } };
     }
 
+    case "sessionRestored":
+      return state.sessionRestored ? state : { ...state, sessionRestored: true };
+    case "setFoundingHost":
+      return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, foundingHost: action.on || undefined } : u)) };
     case "setAcceptingRequests":
       return {
         ...state,
@@ -2090,7 +2101,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!mockRestored.current) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(mockKey(readPlatformPhase()), JSON.stringify({ ...state, currentUserId: null, typing: {} }));
+        localStorage.setItem(mockKey(readPlatformPhase()), JSON.stringify({ ...state, currentUserId: null, sessionRestored: false, typing: {} }));
       } catch {
         // storage full or unavailable – it holds for this visit
       }
@@ -2153,6 +2164,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch {
       // storage unavailable – stay logged out
     }
+    dispatch({ type: "sessionRestored" });
   }, []);
 
   const login = useCallback((userId: string) => {
@@ -2511,6 +2523,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [threads],
   );
+  const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
   const setAcceptingRequests = useCallback(
     (stayId: string, accepting: boolean) => dispatch({ type: "setAcceptingRequests", stayId, accepting }),
     [],
@@ -2668,6 +2681,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetPayments,
       reloadData,
       setAcceptingRequests,
+      setFoundingHost,
       toggleSaved,
       confirmLivedWith,
       toggleHostAlert,
@@ -2684,7 +2698,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

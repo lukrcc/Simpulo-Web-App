@@ -1,5 +1,6 @@
 import { CURRENT_USER_ID, joinRequests, stays, users } from "../mock";
 import { getMockDataset } from "../mock-datasets";
+import { MOCK_METRICS_HISTORY, MOCK_TRAFFIC, mockAdminData } from "../mock-admin";
 import { mockInstalledUsers, mockPaidUsers, mockPastEarnings, mockPreviewForUrl } from "../mock-extras";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
@@ -31,4 +32,7 @@ export const mockAdapter: DataAdapter = {
   loadPage: (list, keyOf, request) => delayedPageOfList(list, keyOf, request),
   // The mock photos' measures (data/image-meta.json from scripts/image-meta.mjs).
   getPhotoMeta: (src) => PHOTO_META[src] ?? null,
+  getAdminData: mockAdminData,
+  getTrafficReport: () => MOCK_TRAFFIC,
+  getMetricsHistory: () => MOCK_METRICS_HISTORY,
 };

@@ -27,4 +27,10 @@ export const emptyAdapter: DataAdapter = {
   loadPage: (list, keyOf, request) => Promise.resolve(pageOfList(list, keyOf, request)),
   // TODO(backend): the { tint, lum } stored with each photo on upload (a Cloud Function running scripts/image-meta.mjs's measure).
   getPhotoMeta: () => null,
+  // TODO(firestore): the waitlist, hostApplications and adminLog collections.
+  getAdminData: () => ({ waitlist: [], applications: [], log: [] }),
+  // TODO(phase 4): the Google Analytics Data API, on the server.
+  getTrafficReport: () => null,
+  // TODO(backend): monthly aggregates (full Houses, fees kept) and weekly snapshots of the Cockpit numbers, from a scheduled Function.
+  getMetricsHistory: () => null,
 };

@@ -147,8 +147,8 @@ export interface DemandAlert {
 export const AUDIENCE_SIZES = ["under1k", "1k", "10k", "100k"] as const;
 export type AudienceSize = (typeof AUDIENCE_SIZES)[number];
 
-/** /host "Host with your community" application. */
-export interface HostApplication {
+/** /host "Host with your community" application (the old page; admin › Applications uses HostApplication in lib/types.ts). */
+export interface CommunityApplication {
   id: string;
   name: string;
   email: string;
@@ -162,8 +162,6 @@ export interface HostApplication {
   createdAt: string;
 }
 
-/** The admin pages (/admin/…): always in development; in a deployment only with NEXT_PUBLIC_ADMIN=true. */
-export const ADMIN_ENABLED = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ADMIN === "true";
 
 /** Random URL-safe token for claim links. */
 export function claimToken(): string {

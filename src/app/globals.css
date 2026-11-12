@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/admin-tokens.css";
 
 /* One screen without scrolling (the profile): wide enough for the desktop layout (1100px) and at least 760px high; below either, it scrolls. */
 @custom-variant fit (@media (min-width: 68.75rem) and (min-height: 47.5rem));
@@ -269,6 +270,18 @@
   --color-chat: var(--chat-bg);
   --color-bubble-own: var(--bubble-own);
   --color-bubble-other: var(--bubble-other);
+  /* Admin only (styles/admin-tokens.css, set inside .admin-scope – empty everywhere else) */
+  --color-adm-good: var(--adm-good);
+  --color-adm-warning: var(--adm-warning);
+  --color-adm-critical: var(--adm-critical);
+  --color-adm-neutral: var(--adm-neutral);
+  --color-adm-chart-1: var(--adm-chart-1);
+  --color-adm-chart-2: var(--adm-chart-2);
+  --color-adm-chart-3: var(--adm-chart-3);
+  --color-adm-good-soft: var(--adm-good-soft);
+  --color-adm-warning-soft: var(--adm-warning-soft);
+  --color-adm-critical-soft: var(--adm-critical-soft);
+  --color-adm-chart-1-soft: var(--adm-chart-1-soft);
 }
 
 /* static: also emit variables that are only read via var(). */

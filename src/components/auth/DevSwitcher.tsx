@@ -68,6 +68,7 @@ function DevSwitcherInner() {
   const paymentFails = useFeatureFlag("simulatePaymentFailure");
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
+  const adminRole = useDevSetting("adminRole");
   const phase = usePlatformPhase();
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
@@ -123,6 +124,10 @@ function DevSwitcherInner() {
                     </button>
                   </DevRow>
                 )}
+                {/* The admin's role (Lukas): off = treated as a user, /admin is a 404. */}
+                <DevRow label={t("adminRole")}>
+                  <DevSwitch label={t("adminRole")} on={adminRole} onChange={(on) => setDevSetting("adminRole", on)} />
+                </DevRow>
               </DevSection>
               <DevSection title={t("sectionScenario")}>
                 {devPersonas && (
