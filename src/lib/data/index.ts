@@ -3,9 +3,10 @@ import { APP_MODE } from "../appMode";
 import { ALL_PLACES } from "./places";
 import { createListPlaceProvider, type PlaceProvider } from "./placeProvider";
 import type { Stay } from "../types";
-import { DATA_STATES, type DataAdapter, type DataState } from "./adapter";
+import { PLATFORM_PHASES, type DataAdapter } from "./adapter";
+import type { PlatformPhase } from "../types";
 
-export { DATA_STATES, type AppData, type DataState, type PhotoMeta } from "./adapter";
+export { PLATFORM_PHASES, type AppData, type PhotoMeta } from "./adapter";
 import type { PhotoMeta } from "./adapter";
 
 // Written out, so a production build drops the mock from its bundle: these two are decided while bundling.
@@ -44,25 +45,37 @@ export const loadPage = adapter.loadPage;
 export const photoMetaOf = (src: string): PhotoMeta => adapter.getPhotoMeta(src) ?? { tint: "#1a1614", lum: 0.5 };
 export type { Page, PageRequest } from "./paging";
 
-const STATE_KEY = "simpulo:dataset";
-const DEFAULT_STATE: DataState = "full";
+const PHASE_KEY = "simpulo:phase";
+/** Before the phases: the Dev menu's data state, under its own key – read once and moved over (launch → beta, full → live). */
+const LEGACY_KEY = "simpulo:dataset";
+const LEGACY_PHASE: Record<string, PlatformPhase> = { prelaunch: "prelaunch", launch: "beta", full: "live" };
+const DEFAULT_PHASE: PlatformPhase = "live";
 
-/** The data state chosen in the Dev menu, only in dev. */
-export function readDataState(): DataState {
-  if (APP_MODE !== "dev") return DEFAULT_STATE;
+/**
+ * The platform phase. In dev the Dev menu's choice (localStorage); in demo and production "live" – the real launch switch comes later. Read
+ * it through config/platform.ts (usePlatformPhase and its helpers), never on its own.
+ */
+export function readPlatformPhase(): PlatformPhase {
+  if (APP_MODE !== "dev") return DEFAULT_PHASE;
   try {
-    const saved = localStorage.getItem(STATE_KEY);
-    return DATA_STATES.find((s) => s === saved) ?? DEFAULT_STATE;
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy !== null) {
+      localStorage.removeItem(LEGACY_KEY);
+      const moved = LEGACY_PHASE[legacy];
+      if (moved && moved !== DEFAULT_PHASE) localStorage.setItem(PHASE_KEY, moved);
+    }
+    const saved = localStorage.getItem(PHASE_KEY);
+    return PLATFORM_PHASES.find((p) => p === saved) ?? DEFAULT_PHASE;
   } catch {
-    return DEFAULT_STATE;
+    return DEFAULT_PHASE;
   }
 }
 
-export function saveDataState(state: DataState) {
+export function savePlatformPhase(phase: PlatformPhase) {
   try {
-    if (state === DEFAULT_STATE) localStorage.removeItem(STATE_KEY);
-    else localStorage.setItem(STATE_KEY, state);
+    if (phase === DEFAULT_PHASE) localStorage.removeItem(PHASE_KEY);
+    else localStorage.setItem(PHASE_KEY, phase);
   } catch {
-    // not saved – the next load uses the full data
+    // not saved – the next load is live
   }
 }

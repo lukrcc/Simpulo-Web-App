@@ -2,6 +2,7 @@
 
 import { usePeopleSignal, useYourPeople } from "@/lib/useYourPeople";
 import { useTodayIso } from "@/lib/birthDate";
+import { canPay, usePlatformPhase } from "@/config/platform";
 import { Camera, ChevronLeft, ChevronRight, MessageCircle, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -114,7 +115,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const priceLabel = useViewerPriceLabel(stay);
   // Your people in this House (not in the Spotlight, which shows every card the same).
   const peopleHint = usePeopleSignal(stay);
-  const signal = spotlight || preview ? null : peopleHint;
+  const signal = spotlight || preview || stay.isExample ? null : peopleHint;
   const tCrew = useTranslations("common.ui.crewLine");
   // The cover first, then the rest of the House's world (the host's portrait belongs in the tab). The Spotlight shows one photo.
   // In a shelf (variant "shelf") only the first photo: no photo arrows, no dots – a sideways swipe moves the row, never the photos.
@@ -124,9 +125,17 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const today = useTodayIso();
   const tHighlight = useTranslations("explore.cards.highlight");
   const startsIn = today ? Math.round((Date.parse(`${stay.startDate.slice(0, 10)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) : null;
-  const urgency = context !== "spotlight" ? undefined : openSpots(stay) === 1 ? tHighlight("lastSpot") : startsIn !== null && startsIn >= 0 && startsIn <= 7 ? tHighlight("startsIn", { days: startsIn }) : undefined;
-  const capsule = highlight ?? urgency;
-  const lastSpot = openSpots(stay) === 1;
+  // Before the launch and in the beta nothing is paid, so nothing is urgent either (config/platform.ts): no "Last spot", "Starts in 5 days",
+  // "1 spot left" or pay hints on cards.
+  const phase = usePlatformPhase();
+  const urgent = canPay(phase);
+  const urgency = context !== "spotlight" || !urgent ? undefined : openSpots(stay) === 1 ? tHighlight("lastSpot") : startsIn !== null && startsIn >= 0 && startsIn <= 7 ? tHighlight("startsIn", { days: startsIn }) : undefined;
+  // An example House (pre-launch, beta): "Example" top left, no faces, no urgency; a founding House (beta): "Founding House".
+  const example = Boolean(stay.isExample);
+  const tPlatform = useTranslations("platform");
+  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : urgent ? (highlight ?? urgency) : undefined;
+  const capsuleDot = !example && !stay.isFounding;
+  const lastSpot = urgent && !example && openSpots(stay) === 1;
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const drag = usePhotoDrag(ref, active, scrollTo, gallery && photos.length > 1);
@@ -227,7 +236,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 href={target}
                 onNavigate={rememberOrigin}
                 className={slideClass}
-                aria-label={i === 0 ? (host ? t("houseWithHost", { title: stay.title, host: firstName(host) }) : stay.title) : undefined}
+                aria-label={i === 0 ? (host && !example ? t("houseWithHost", { title: stay.title, host: firstName(host) }) : stay.title) : undefined}
                 aria-hidden={i > 0 || undefined}
                 tabIndex={i > 0 ? -1 : undefined}
               >
@@ -244,7 +253,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {/* Readability, on every card (grid, bands, the Spotlight): in each slide the stepped blur of the lower ~40 % and the darkening in the
             photo's own colour (above). The same on hover. */}
 
-        {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention>{capsule}</CardStatusChip></span>}
+        {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention={capsuleDot}>{capsule}</CardStatusChip></span>}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
         {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-shade opacity-0" />}
@@ -296,9 +305,11 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
               )}
               {/* Grid: the compact crew, 12px under the note. Shelf: a footer only for a personal link (or an action like "Join them").
                   Spotlight: no footer, no socials. */}
-              {context === "grid" && host && (
+              {/* An example: no faces – quietly how many it's for. */}
+              {context === "grid" && example && <p className="mt-3 text-small text-on-image/75">{tPlatform("example.upTo", { count: stay.spotsTotal })}</p>}
+              {context === "grid" && host && !example && (
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <CompactCrew stay={stay} crew={crew} />
+                  <CompactCrew stay={stay} crew={crew} urgent={urgent} />
                   {status && <span className="pointer-events-auto flex shrink-0 items-center [text-shadow:none]">{status}</span>}
                 </div>
               )}
@@ -345,7 +356,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       </div>
       </div>
       {/* The heart's 40px hit area top right takes 48px; the tab stops 16px short of it. */}
-      {tabPerson && <CardTab host={tabPerson} label={notch === "you" ? tHome("you") : undefined} className="max-w-[calc(100%-64px)]" />}
+      {tabPerson && <CardTab host={tabPerson} label={example ? tPlatform("example.house") : notch === "you" ? tHome("you") : undefined} anonymous={example} className="max-w-[calc(100%-64px)]" />}
       {/* The light on the ground under the card, on hover (behind the card, 8px under its edge). */}
       {!spotlight && !gallery && !calm && <div aria-hidden className="card-floor pointer-events-none" />}
     </article>
@@ -435,16 +446,16 @@ function CrewFaces({ stay, crew }: { stay: Stay; crew: User[] }) {
 }
 
 /** The grid's crew line: the faces, then 15px "2 of 4 in" · "1 spot left" (orange, semibold) · "Just opened · 3 spots" · "Crew complete". */
-function CompactCrew({ stay, crew }: { stay: Stay; crew: User[] }) {
+function CompactCrew({ stay, crew, urgent }: { stay: Stay; crew: User[]; /** false before the launch and in the beta: no orange "1 spot left" */ urgent: boolean }) {
   const t = useTranslations("common.ui.crewLine");
   const store = useStore();
   const filled = Math.max(crewInOf(store, stay), 1);
   const open = openSpots(stay);
-  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 ? t("oneLeft") : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
+  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 && urgent ? t("oneLeft") : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
   return (
     <span className="flex min-w-0 items-center gap-2">
       <CrewFaces stay={stay} crew={crew} />
-      <span className={cn("whitespace-nowrap text-body", open === 1 && filled < stay.spotsTotal ? "font-semibold text-accent" : "text-on-image/90")}>{text}</span>
+      <span className={cn("whitespace-nowrap text-body", open === 1 && urgent && filled < stay.spotsTotal ? "font-semibold text-accent" : "text-on-image/90")}>{text}</span>
     </span>
   );
 }

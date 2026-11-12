@@ -4,8 +4,8 @@
 //   BASE_URL=http://localhost:3000 node scripts/screenshots.mjs
 //
 // Uses a dev server that is already running on BASE_URL (default http://localhost:3000). If none answers, it starts `next dev` on port 3123
-// itself (NEXT_PUBLIC_APP_MODE=dev) and stops it again at the end. Headless Chromium, desktop width 1440px, the mock data state "full"
-// (localStorage simpulo:dataset). Logged-in views use the mock users via ?as=<id> (tab-scoped login): u1 Lukas (host and guest), u17 Noah
+// itself (NEXT_PUBLIC_APP_MODE=dev) and stops it again at the end. Headless Chromium, desktop width 1440px, the platform phase "live" (the full mock data)
+// (localStorage simpulo:phase; "live" is the default). Logged-in views use the mock users via ?as=<id> (tab-scoped login): u1 Lukas (host and guest), u17 Noah
 // (guest). Every step runs on its own: a step that fails is noted in INDEX.md and the run goes on.
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -77,7 +77,8 @@ async function newPage(browser) {
   const context = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1, locale: "en-US" });
   await context.addInitScript(() => {
     try {
-      localStorage.setItem("simpulo:dataset", "full");
+      // The phase "live" (the full data) is the default: no stored phase.
+      localStorage.removeItem("simpulo:phase");
       // The one-time hints (currency) would cover the pages.
       localStorage.setItem("simpulo:currency-hint", "1");
     } catch {}
@@ -353,7 +354,7 @@ async function run() {
   const lines = [
     "# Screenshots",
     "",
-    `Taken ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC from ${base} · desktop ${WIDTH}px · mock data “full” · \`node scripts/screenshots.mjs\``,
+    `Taken ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC from ${base} · desktop ${WIDTH}px · phase “live” (full mock data) · \`node scripts/screenshots.mjs\``,
     "",
     "| # | File | Route | What you see |",
     "|---|---|---|---|",

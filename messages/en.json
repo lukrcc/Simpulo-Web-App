@@ -514,12 +514,6 @@
         "doItAgain": "Want to do it again?"
       },
       "resetMock": "Reset mock data",
-      "data": "Data",
-      "presets": {
-        "prelaunch": "Pre-launch",
-        "launch": "Launch",
-        "full": "Full"
-      },
       "complete": "Mark as completed (writes the House)",
       "devLabel": "DEV",
       "sectionAccount": "Account",
@@ -543,7 +537,13 @@
       "resetYes": "Reset",
       "cancel": "Cancel",
       "remindersCount": "Reminders · {count}",
-      "thisHouse": "This House"
+      "thisHouse": "This House",
+      "phase": "Phase",
+      "phases": {
+        "prelaunch": "Pre-launch",
+        "beta": "Beta",
+        "live": "Live"
+      }
     },
     "welcome": {
       "title": "Welcome back.",
@@ -1095,6 +1095,11 @@
         "viewListing": "View listing",
         "openMaps": "Open in Maps",
         "profile": "{name}'s profile"
+      },
+      "phase": {
+        "noPaymentUntilLaunch": "No payment until launch",
+        "waitlistToast": "You're on the list – we'll let you know when Simpulo opens.",
+        "reservedToast": "Spot reserved – no payment until launch."
       }
     },
     "headStartHint": "Your House is live. For the first {hours}h only the people who searched for this see it, then it's on Explore.",
@@ -1169,7 +1174,10 @@
       "ended": "This House has ended",
       "again": "Do it again",
       "acceptInvite": "Accept",
-      "declineInvite": "Decline"
+      "declineInvite": "Decline",
+      "phaseWaitlist": "Join the waitlist",
+      "reserve": "Reserve a spot",
+      "reserved": "Spot reserved"
     },
     "steps": {
       "message": "Request to join",
@@ -2133,7 +2141,8 @@
         "booked": "Booked",
         "didntWorkOut": "Didn't work out",
         "waitingForHost": "Waiting for host",
-        "youreIn": "You're in"
+        "youreIn": "You're in",
+        "reserved": "Reserved"
       },
       "crewChipsIn": "Your crew chips in",
       "tileInDays": "{days, plural, =0 {Today} one {Tomorrow} other {in # days}}",
@@ -4110,5 +4119,38 @@
     "hint": "{count, plural, one {# person is} other {# people are}} in for {place} in {month}",
     "hintNoMonth": "{count, plural, one {# person is} other {# people are}} in for {place}",
     "invitePeopleIn": "Invite people who are in"
+  },
+  "platform": {
+    "apply": {
+      "eyebrow": "Before we open",
+      "title": "Apply as a host",
+      "text": "Simpulo opens soon. We're picking the first hosts by hand – applications open here shortly.",
+      "back": "Back to Explore",
+      "plus": "Apply as a host"
+    },
+    "waitlist": {
+      "join": "Join the waitlist",
+      "toast": "You're on the list – we'll let you know when Simpulo opens."
+    },
+    "hero": {
+      "title": "Find your people.",
+      "sub": "Come for the place, stay for the people.",
+      "becomeHost": "Become a Founding Host"
+    },
+    "empty": {
+      "title": "Be the first here",
+      "hostHere": "Host here"
+    },
+    "example": {
+      "capsule": "Example",
+      "house": "Example House",
+      "upTo": "Up to {count} people",
+      "note": "This is an example. Real Houses open in {month}.",
+      "hostLike": "Host one like this",
+      "noProfile": "A sample House – no real host yet"
+    },
+    "founding": {
+      "capsule": "Founding House"
+    }
   }
 }

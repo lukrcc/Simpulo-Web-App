@@ -66,4 +66,4 @@ const moreSpots = Array.from({ length: FULL_PLACES - curatedSpots }, (_, n): [st
   return [place.id, FULL_MONTHS[(n * 5) % FULL_MONTHS.length], 3 + ((n * 7) % 18)];
 });
 
-export const MOCK_SEARCHES_FULL: readonly SavedSearch[] = [...MOCK_SEARCHES, ...searchesOf(moreSpots, "mock-search-full")];
+export const MOCK_SEARCHES_LIVE: readonly SavedSearch[] = [...MOCK_SEARCHES, ...searchesOf(moreSpots, "mock-search-live")];

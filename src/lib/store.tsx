@@ -4,9 +4,10 @@ import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
 import { mockInFor } from "./mock-inFor";
 import { INVITE_POLICY } from "@/config/policies";
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
-import { useFeatureFlag } from "./featureFlags";
+import { DEFAULT_FLAGS, useFeatureFlag } from "./featureFlags";
+import { useHydrated } from "./useHydrated";
 import { guestFee, paymentSplit } from "./fees";
 import {
   attributionOf,
@@ -22,7 +23,8 @@ import {
 import { VOTE_FIELD, paymentWaitsForCrew, voteOutcome } from "./crewVotes";
 import { BOOKING_WINDOW_HOURS, PAYMENT_WINDOW_HOURS } from "./joinFlow";
 import { locationOf } from "./catalog";
-import { defaultUserId, type DataState, getClaimableHouses, getData, getSavedSearches, growthEventsFor, paidUsersOf, previewForUrl, readDataState, withAttribution, withChatHistory, type AppData } from "./data";
+import type { PlatformPhase } from "./types";
+import { defaultUserId, getClaimableHouses, getData, getSavedSearches, growthEventsFor, paidUsersOf, previewForUrl, readPlatformPhase, withAttribution, withChatHistory, type AppData } from "./data";
 import { contactsAllowed, maskContacts } from "./contactFilter";
 import { withLaunchVisibility } from "./launch";
 import { crewThreadId } from "./links";
@@ -189,6 +191,7 @@ type StoreAction =
   | { type: "unlockAccommodation"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "closeStay"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "requestToJoin"; request: Omit<JoinRequest, "userId">; at: string }
+  | { type: "reserveSpot"; stayId: string; id: string; at: string }
   | { type: "acceptRequest"; requestId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "declineRequest"; requestId: string }
   | { type: "sendMessage"; threadId: string; message: Omit<Message, "senderId" | "threadId"> }
@@ -330,6 +333,8 @@ interface StoreActions {
   unlockAccommodation: (stayId: string) => Promise<void>;
   /** `withFriend`: asks for two spots (the friend confirms through a link); `pairedWith`: the friend's own request, by that link. */
   requestToJoin: (stayId: string, message: string, extra?: { withFriend?: boolean; pairedWith?: string }) => string;
+  /** Beta (config/platform.ts canReserve): hold a spot without paying – the House shows "Spot reserved", Your houses "Reserved" under Going */
+  reserveSpot: (stayId: string) => void;
   acceptRequest: (requestId: string) => void;
   declineRequest: (requestId: string) => void;
   /** Sends as the current user. Images in `attachments` make it an image message; a URL makes it a link message. */
@@ -601,7 +606,7 @@ function crewRecord(stay: Stay, requests: JoinRequest[], endedAt: string): Crew 
 const MOCK_PREVIEWS = ["Who's bringing the speaker?", "Landing at 14:20, anyone around?", "Booked my flight 🎉", "Can we push dinner to 8?", "Found a great coworking spot nearby"];
 
 /** The store's starting state for the data source's data (in dev: the Dev menu's data state). */
-function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData, dataState: DataState = "full"): StoreState {
+function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData, phase: PlatformPhase = "live"): StoreState {
   const joinRequests = withAttribution(rawRequests, rawStays);
   const stays = seedLockedStays(rawStays);
   const payments = seedPayments(stays, joinRequests, users);
@@ -621,7 +626,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     events: growthEventsFor({ stays, joinRequests, payments }),
     alerts: [],
     applications: [],
-    savedSearches: [...getSavedSearches(dataState)],
+    savedSearches: [...getSavedSearches(phase)],
     crews,
     livedWith: withMockConfirmations(crews.flatMap(livedWithOf)),
     houseInvites: [],
@@ -632,7 +637,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
 }
 
 /** Server render and hydration always start from the full data; another preset is swapped in right after. */
-const initialState: StoreState = buildInitialState(getData("full"));
+const initialState: StoreState = buildInitialState(getData("live"));
 
 /** The growth bits kept in this browser across reloads (mock – no backend). Seeded events are left out. */
 interface PersistedGrowth {
@@ -654,13 +659,21 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 17;
+const MOCK_VERSION = 18;
 const MOCK_PREFIX = "simpulo:mock:";
-const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
+const mockKey = (phase: PlatformPhase) => `${MOCK_PREFIX}v${MOCK_VERSION}:${phase}`;
+/** Saved before the phases, under the data state's old name (launch → beta, full → live): moved over once. */
+const LEGACY_MOCK_NAME: Partial<Record<PlatformPhase, string>> = { beta: "launch", live: "full" };
 
-function readPersistedMock(dataState: string): StoreState | null {
+function readPersistedMock(phase: PlatformPhase): StoreState | null {
   try {
-    const raw = localStorage.getItem(mockKey(dataState));
+    const legacyName = LEGACY_MOCK_NAME[phase];
+    const legacyKey = legacyName && `${MOCK_PREFIX}v${MOCK_VERSION}:${legacyName}`;
+    if (legacyKey && localStorage.getItem(legacyKey) !== null) {
+      if (localStorage.getItem(mockKey(phase)) === null) localStorage.setItem(mockKey(phase), localStorage.getItem(legacyKey)!);
+      localStorage.removeItem(legacyKey);
+    }
+    const raw = localStorage.getItem(mockKey(phase));
     if (!raw) return null;
     const saved = JSON.parse(raw) as StoreState;
     // A state saved before the audience guard may hold a request to an audience House the profile doesn't fit (a man in a women-only
@@ -1609,6 +1622,20 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
+    case "reserveSpot": {
+      // Beta: a spot held without payment – like an accepted request (it takes a spot, it's under Going), but no payment and no chat yet.
+      if (!me) return state;
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      const already = state.joinRequests.some((r) => r.stayId === action.stayId && r.userId === me && r.status !== "declined" && r.status !== "expired");
+      if (!stay || stay.hostId === me || already || openSpots(stay) === 0) return state;
+      const request: JoinRequest = { id: action.id, stayId: stay.id, userId: me, message: "", status: "accepted", createdAt: action.at, reserved: true };
+      return {
+        ...state,
+        joinRequests: [...state.joinRequests, request],
+        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled: s.spotsFilled + 1 } : s)),
+      };
+    }
+
     case "acceptRequest": {
       const request = state.joinRequests.find((r) => r.id === action.requestId);
       const stay = request && state.stays.find((s) => s.id === request.stayId);
@@ -2044,17 +2071,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /** Growth data is written back only after it was read, so the first render can't overwrite it. */
   const growthRestored = useRef(false);
 
-  // Mock data volume (DevSwitcher "Data"): another preset than "full" is swapped in right after hydration. Runs before
+  // The phase's mock data (Dev menu "Phase"): another phase than "live" is swapped in right after hydration. Runs before
   // the growth restore below, so restored claims and events land on top of it.
   const mockRestored = useRef(false);
   useEffect(() => {
     // Once: in development effects run twice, and a second load would land after the growth restore and drop its invite links.
     if (mockRestored.current) return;
-    const dataState = readDataState();
-    // What this browser saved for this data state wins over the shipped mock (it started from it).
-    const saved = readPersistedMock(dataState);
+    const phase = readPlatformPhase();
+    // What this browser saved for this phase wins over the shipped mock (it started from it).
+    const saved = readPersistedMock(phase);
     if (saved) dispatch({ type: "loadDataset", state: { ...saved, typing: {} } });
-    else if (dataState !== "full") dispatch({ type: "loadDataset", state: buildInitialState(getData(dataState), dataState) });
+    else if (phase !== "live") dispatch({ type: "loadDataset", state: buildInitialState(getData(phase), phase) });
     mockRestored.current = true;
   }, []);
 
@@ -2063,7 +2090,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!mockRestored.current) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(mockKey(readDataState()), JSON.stringify({ ...state, currentUserId: null, typing: {} }));
+        localStorage.setItem(mockKey(readPlatformPhase()), JSON.stringify({ ...state, currentUserId: null, typing: {} }));
       } catch {
         // storage full or unavailable – it holds for this visit
       }
@@ -2528,10 +2555,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
   const resetPayments = useCallback((stayId: string) => dispatch({ type: "resetPayments", stayId }), []);
   const reloadData = useCallback(() => {
-    const saved = readPersistedMock(readDataState());
+    const saved = readPersistedMock(readPlatformPhase());
     if (saved) dispatch({ type: "loadDataset", state: { ...saved, typing: {} } });
   }, []);
   const toggleSaved = useCallback((stayId: string) => dispatch({ type: "toggleSaved", stayId }), []);
+  const reserveSpot = useCallback((stayId: string) => dispatch({ type: "reserveSpot", stayId, id: makeId("r"), at: new Date().toISOString() }), []);
   const confirmLivedWith = useCallback((otherUserId: string) => dispatch({ type: "confirmLivedWith", otherUserId, at: new Date().toISOString() }), []);
   const toggleHostAlert = useCallback((hostId: string) => dispatch({ type: "toggleHostAlert", hostId }), []);
   const setNotification = useCallback(
@@ -2623,6 +2651,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeMember,
       unlockAccommodation,
       requestToJoin,
+      reserveSpot,
       castVote,
       closeVote,
       decideVote,
@@ -2655,23 +2684,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
-const noSubscribe = () => () => {};
 
 export function useStore(): StoreValue {
   const store = useContext(StoreContext);
-  // While a component hydrates it must render what the server did – logged out. The mock user is restored from
-  // localStorage in an effect, which can run before late Suspense boundaries (nav, dynamic routes) hydrate.
-  // getServerSnapshot (false) is used during hydration; React re-renders with the real user right after.
-  const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
+  // While a component hydrates it must render what the server did: the live data, logged out. The phase's mock data and the mock user come
+  // from localStorage in effects, which can run before late Suspense boundaries (footer, nav, dynamic routes) hydrate – those would otherwise
+  // render the browser's data against the server's HTML (a hydration error, e.g. the footer's "Popular" column with fewer cities). During
+  // hydration useHydrated is false; React renders again with the real data right after.
+  const hydrated = useHydrated();
   if (!store) throw new Error("useStore must be used inside <StoreProvider>");
-  return hydrated || store.currentUserId === null ? store : { ...store, currentUserId: null };
+  if (hydrated) return store;
+  return store.currentUserId === null && store.stays === initialState.stays ? store : { ...store, ...serverData, currentUserId: null };
 }
+
+/** What the server renders: the initial (live) data, before any browser state is applied – with the server's flags (host premium off by its
+ *  env default: the same view without host fees as the provider renders there). */
+const serverData: Partial<StoreState> = {
+  ...initialState,
+  ...(DEFAULT_FLAGS.hostPremium ? null : withoutHostPremium({ stays: initialState.stays, payments: initialState.payments, users: initialState.users })),
+  currentUserId: null,
+};
 
 // Selectors – pure helpers over store state.
 

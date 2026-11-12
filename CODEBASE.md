@@ -208,7 +208,7 @@ Daneben laufen `DevSwitcher`, `NotifyBridge` (Store → Push/E-Mail) und `Curren
 | `simpulo:growth` | Growth-Daten (Claims, Invites, SavedSearches …) |
 | `simpulo:payments` | Zustand des Zahlungs-Mocks |
 | `simpulo:mock-user` / sessionStorage `simpulo:tab-user` | eingeloggter Mock-Nutzer (pro Tab über `?as=`) |
-| `simpulo:dataset` | gewählter Datenzustand |
+| `simpulo:phase` | gewählte Plattform-Phase (nur dev; ohne Eintrag „live“; alter Schlüssel `simpulo:dataset` wird beim Lesen übernommen) |
 | weitere | `simpulo:flags`, `simpulo:currency`, `simpulo:currency-hint`, `simpulo:house-templates`, `simpulo:viewed:{id}`, Install-/Push-Zähler |
 
 ---

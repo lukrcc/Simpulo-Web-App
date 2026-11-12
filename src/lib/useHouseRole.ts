@@ -22,6 +22,9 @@ function realRole(store: ReturnType<typeof useStore>, id: string): { role: House
   const stay = store.stays.find((s) => s.id === id || s.slug === id);
   if (!stay || !store.currentUserId) return { role: "visitor", stage: null };
   if (stay.hostId === store.currentUserId) return { role: "host", stage: null };
+  // A spot reserved in the beta (no payment, no steps yet): the visitor's page, its action "Spot reserved".
+  const reserved = store.joinRequests.some((r) => r.stayId === stay.id && r.userId === store.currentUserId && r.reserved && r.status === "accepted");
+  if (reserved) return { role: "visitor", stage: null };
   const stage = memberStage(store, stay, store.currentUserId);
   return { role: stage ? "member" : "visitor", stage };
 }

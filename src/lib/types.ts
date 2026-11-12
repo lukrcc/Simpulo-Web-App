@@ -39,6 +39,10 @@ export type {
   Vibe,
 } from "./mock";
 
+/** The platform's phase (config/platform.ts): before the launch, the founding hosts' beta, live. In dev the Dev menu's "Phase" picks it
+ *  (and the mock data set that goes with it). */
+export type PlatformPhase = "prelaunch" | "beta" | "live";
+
 export type PaymentStatus = "paid" | "pending";
 
 export type ThreadType = Thread["type"];

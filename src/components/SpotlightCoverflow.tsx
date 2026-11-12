@@ -4,7 +4,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { SpotlightGreeting } from "@/components/explore/SpotlightIntro";
+import { SpotlightGreeting, type LaunchHero } from "@/components/explore/SpotlightIntro";
 import { markSpotlightIntroDone } from "@/components/explore/useMarkBreath";
 import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY, SPOTLIGHT_THEME_LINES, SPOTLIGHT_THEME_LINES_VISITOR } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
@@ -111,7 +111,7 @@ const roundsFor = (houses: number, windowWidth: number, windowHeight: number) =>
  * Explore's Spotlight from lg up. A click on a side card brings it to the centre, a click on the centre card opens the
  * House. Arrows, ← →, trackpad swipe and drag. Phones and tablets still have SpotlightHero.
  */
-export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay[]; /** Open Houses of a category */ countOf: (vibe: Vibe) => number; onPickVibe: (vibe: Vibe) => void }) {
+export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: { stays: Stay[]; /** Open Houses of a category */ countOf: (vibe: Vibe) => number; onPickVibe: (vibe: Vibe) => void; /** Before the launch and in the beta: the launch hero instead of the greeting (components/explore/SpotlightIntro) */ launchHero?: LaunchHero }) {
   const t = useTranslations("explore");
   const tc = useTranslations("common.ui.carousel");
   const store = useStore();
@@ -513,7 +513,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
       <div data-spot-text className={cn(EXPLORE_SPACING.spotlightIntroBottom, textPlace === "side" ? "hidden" : textPlace === null && "min-[82.5rem]:hidden")}>
         {themeVibe && (
           <Container>
-            <SpotlightGreeting name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
+            <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
           </Container>
         )}
       </div>
@@ -524,7 +524,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
         <div data-spot-text className={cn("pointer-events-none absolute inset-x-0 z-2", "bottom-[calc(var(--spot-h)*0.89+40px)]", textPlace === "above" ? "invisible" : textPlace === null && "max-[82.5rem]:invisible")}>
           <Container>
             <div ref={sideTextRef} className="translate-y-[calc(var(--fit-title,var(--text-stage))*0.16)]">
-              {themeVibe && <SpotlightGreeting name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} sideClassName={TEXT_BESIDE} />}
+              {themeVibe && <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} sideClassName={TEXT_BESIDE} />}
             </div>
           </Container>
         </div>

@@ -25,6 +25,8 @@ import { activitySummary, isDiscovery, type ActivitySummary } from "@/config/act
 import { useNotifications } from "@/components/notifications/useNotifications";
 import { Sheet } from "@/components/ui/Sheet";
 import { DarkBand } from "@/components/ui/DarkBand";
+import { canPay, usePlatformPhase } from "@/config/platform";
+import { getVisibleHouses } from "@/lib/data/visibleHouses";
 import { CardRow, RowHead } from "@/components/ui/CardRow";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { convertApprox } from "@/lib/rates";
@@ -103,7 +105,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const ownLocalDraft = localDraft && (!localDraft.ownerId || localDraft.ownerId === me) ? localDraft : null;
 
   const over = (s: Stay) => s.status === "completed" || s.endDate < today;
-  const hosting = store.stays.filter((s) => s.hostId === me && (s.status === "published" || s.status === "booked" || s.status === "closed") && !over(s));
+  // Example Houses (pre-launch, beta) belong to nobody: never yours, never "Lived in" (only the real ones count here).
+  const hosting = store.stays.filter((s) => !s.isExample && s.hostId === me && (s.status === "published" || s.status === "booked" || s.status === "closed") && !over(s));
   const drafts = store.stays.filter((s) => s.hostId === me && s.status === "draft");
   const joined = store.joinRequests
     .filter((r) => r.userId === me && ["accepted", "pending", "invited", "waitlist_requested", "waitlisted"].includes(r.status))
@@ -111,7 +114,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
       const stay = store.stays.find((s) => s.id === r.stayId);
       return stay && !over(stay) ? [{ request: r, stay }] : [];
     });
-  const past = store.stays.filter((s) => over(s) && (s.hostId === me || isCrewMember(store, s, me)));
+  const past = store.stays.filter((s) => !s.isExample && over(s) && (s.hostId === me || isCrewMember(store, s, me)));
   // Declined or expired – for the guest the same: it didn't work out. With the past ones.
   const didntWork = store.joinRequests
     .filter((r) => r.userId === me && didntWorkOut(r))
@@ -122,7 +125,10 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const hosts = hosting.length > 0 || drafts.length > 0 || Boolean(ownLocalDraft);
   const hasHosted = hosts || earnings.any || past.some((s) => s.hostId === me);
 
-  const waits = (s: Stay) => cardTaskOf(store, s, now) !== null;
+  const taskOf = useCardTask();
+  // Before the launch and in the beta nothing is paid (config/platform.ts): no Pay column, no Payouts strip.
+  const payOk = canPay(usePlatformPhase());
+  const waits = (s: Stay) => taskOf(s, now) !== null;
   const localStay: Stay | null = ownLocalDraft
     ? {
         ...toInput(ownLocalDraft.form, { me: meUser, today, preferredCurrency: "EUR" }),
@@ -188,14 +194,14 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     );
   // Every open task across your Houses, the payout account and the profile to set up (ordered in TodoTile, config/todo.ts).
   // No payout account yet (or Stripe still needs something): then, and only then, "Set up payouts".
-  const payoutSetup = hasHosted && (payout.status === "none" || payout.status === "action_required");
+  const payoutSetup = payOk && hasHosted && (payout.status === "none" || payout.status === "action_required");
   const profileSetup = meUser !== undefined && (!meUser.bio.trim() || meUser.photos.length < 2);
   const overlaps = acceptedOverlaps(store);
   const todo: TodoEntry[] = [
     ...items
       .filter((item) => item.kind === "hosting" || item.kind === "joined")
       .flatMap((item): TodoEntry[] => {
-        const task = cardTaskOf(store, item.stay, now);
+        const task = taskOf(item.stay, now);
         if (!task) return [];
         // Pay: the own share in the viewer's currency ("Pay €315", ≈ when the House's currency differs).
         const share = task.kind === "pay" ? (getMyPayment(store, item.stay.id)?.total ?? item.stay.pricePerPerson ?? 0) : 0;
@@ -304,9 +310,9 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         aria-labelledby="todo"
         // Right of the photo: the band tone (#EAE4DD, like the House page's head); Coming up sits right on the dark Payouts strip (no padding under it).
         bodyClassName="split:pb-0"
-        footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} openRequests={store.joinRequests.filter((r) => r.status === "pending" && store.stays.some((s) => s.id === r.stayId && s.hostId === me)).length} />}
+        footer={payOk && <PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} openRequests={store.joinRequests.filter((r) => r.status === "pending" && store.stays.some((s) => s.id === r.stayId && s.hostId === me)).length} />}
         media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
-        <TodoTile entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
+        <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
       </HeroBand>
     <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
@@ -355,6 +361,19 @@ function YourRow({ id, title, cards, extra, cols }: { id: YourRowKey; title: str
  * The card pill's text when nothing is asked of you – short, so it never needs an ellipsis: "Cancelled", "Didn't work out", "Waiting for host",
  * "Waitlist #2", "Happening now", "Booked", "You're in", "2 spots left", "Crew complete".
  */
+/**
+ * A House's open task for its card and Needs you (lib/houseTasks cardTaskOf) – before the launch and in the beta without the paying ones
+ * (config/platform.ts canPay): no "Pay · 48h" anywhere then.
+ */
+function useCardTask() {
+  const store = useStore();
+  const payOk = canPay(usePlatformPhase());
+  return (stay: Stay, now: string) => {
+    const task = cardTaskOf(store, stay, now);
+    return task && task.kind === "pay" && !payOk ? null : task;
+  };
+}
+
 function useStatusText() {
   const t = useTranslations("houses.home");
   const store = useStore();
@@ -364,6 +383,8 @@ function useStatusText() {
     if (request && didntWorkOut(request)) return t("guest.didntWorkOut");
     if (request?.status === "pending" || request?.status === "waitlist_requested") return t("guest.waitingForHost");
     if (request?.status === "waitlisted") return t("guest.waitlisted", { position: waitlistPosition(store, stay.id, request.userId) ?? 1 });
+    // A spot reserved in the beta (no payment until launch).
+    if (request?.reserved && request.status === "accepted") return t("guest.reserved");
     if (stay.startDate <= today) return t("liveNow");
     if (stay.bookingConfirmedAt) return t("guest.booked");
     // A guest who's in (accepted, paid or not): "You're in". The host: the spots still open, else the crew is complete.
@@ -387,7 +408,8 @@ function YourHouseCard({ stay, now, request, unread = false, onRead }: { stay: S
   const store = useStore();
   const statusText = useStatusText();
   const failed = request ? didntWorkOut(request) : false;
-  const task = failed ? null : cardTaskOf(store, stay, now);
+  const taskOf = useCardTask();
+  const task = failed ? null : taskOf(stay, now);
   const hosting = stay.hostId === store.currentUserId;
   const today = now.slice(0, 10);
   const days = stay.startDate ? Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000) : null;
@@ -511,6 +533,7 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
   const format = useFormat();
   const store = useStore();
   const router = useRouter();
+  const taskOf = useCardTask();
   if (!stay) {
     return (
       <div className="absolute inset-0">
@@ -536,7 +559,7 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
   const today = now.slice(0, 10);
   const days = Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000);
   const capsule = stay.startDate <= today ? t("liveNow") : days === 0 ? td("upNextToday") : td("upNextIn", { days });
-  const task = cardTaskOf(store, stay, now);
+  const task = taskOf(stay, now);
   const newMessages = news?.unread ? news.messages : 0;
   void request;
   return (
@@ -611,7 +634,7 @@ const byDeadline = (a: TodoEntry, b: TodoEntry) => (a.due ?? "9999").localeCompa
  * the last row "+N more →", which opens a sheet "{Column} · {n}" with all of them. An entry leads to its House (/h/[id]?step=…). Under the
  * columns one line "COMING UP" (56px). Phones: the columns under each other, three entries each at most.
  */
-function TodoTile({ entries, now, timeline }: { entries: TodoEntry[]; now: string; timeline: TimelineEvent[] }) {
+function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }: { /** The columns shown (before the launch and in the beta without Pay) */ groups?: readonly TodoGroup[]; entries: TodoEntry[]; now: string; timeline: TimelineEvent[] }) {
   const td = useTranslations("houses.home.dash");
   const [sheet, setSheet] = useState<TodoGroup | null>(null);
   const colsRef = useRef<HTMLDivElement>(null);
@@ -619,7 +642,7 @@ function TodoTile({ entries, now, timeline }: { entries: TodoEntry[]; now: strin
   // Only from 1100px the card has its fixed height (--hero-h): there the columns are measured; below, three entries each.
   const fixed = useMediaQuery("(min-width: 68.75rem)");
   const total = entries.length;
-  const groups = TODO_GROUPS.map((group) => ({ group, items: entries.filter((e) => TODO_GROUP[e.kind] === group).toSorted(byDeadline) }));
+  const groups = shownGroups.map((group) => ({ group, items: entries.filter((e) => TODO_GROUP[e.kind] === group).toSorted(byDeadline) }));
 
   // The columns' height (the card minus its head, Coming up and the footer), measured.
   useLayoutEffect(() => {
@@ -642,7 +665,7 @@ function TodoTile({ entries, now, timeline }: { entries: TodoEntry[]; now: strin
           {total > 0 ? td("needsCount", { count: total }) : td("needsTitle")}
         </h2>
         {/* Three equal columns across the whole Ember width, 1px cream 8 % between them, 32px inside each; heads all 32px high. */}
-        <div ref={colsRef} className="grid min-h-0 flex-1 gap-y-6 overflow-hidden sm:grid-cols-3 sm:gap-y-0 sm:divide-x sm:divide-ink/8">
+        <div ref={colsRef} className={cn("grid min-h-0 flex-1 gap-y-6 overflow-hidden sm:gap-y-0 sm:divide-x sm:divide-ink/8", groups.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
           {groups.map(({ group, items }) => {
             const Icon = GROUP_ICONS[group];
             const overflow = items.length > fit;
@@ -910,15 +933,17 @@ const NEXT_TRIP_MAX = 12;
  */
 function useNextTripPicks(): Stay[] {
   const store = useStore();
+  const phase = usePlatformPhase();
   const me = store.currentUserId;
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const repo = useNotifications();
-  const mine = store.stays.filter((s) => involvedIn(store, s));
+  const mine = store.stays.filter((s) => !s.isExample && involvedIn(store, s));
   const reasons = new Set<string>();
   for (const n of repo.list({ limit: Number.MAX_SAFE_INTEGER }).items) if (n.stayId && isDiscovery(n)) reasons.add(n.stayId);
   const vibes = new Set(mine.map((s) => s.vibe));
   const cities = new Set(mine.map((s) => s.location.city));
-  const open = store.stays.filter((s) => s.status === "published" && s.acceptingRequests && s.startDate >= today && s.hostId !== me && !mine.includes(s) && openSpots(s) > 0);
+  // The Houses anyone may see in this phase (lib/data/visibleHouses.ts) – before the launch the examples.
+  const open = getVisibleHouses(store.stays, phase).filter((s) => s.status === "published" && s.acceptingRequests && s.startDate >= today && s.hostId !== me && !mine.includes(s) && openSpots(s) > 0);
   const score = (s: Stay) => (reasons.has(s.id) ? 10 : 0) + Number(vibes.has(s.vibe)) + Number(cities.has(s.location.city));
   return open.toSorted((a, b) => score(b) - score(a) || a.startDate.localeCompare(b.startDate)).slice(0, NEXT_TRIP_MAX);
 }

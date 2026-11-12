@@ -124,7 +124,8 @@ function pastRow(entry: PastEarning, options: EarningsOptions): EarningRow {
 }
 
 export function earningsFor(data: { stays: readonly Stay[]; payments: readonly Payment[] }, userId: string | null, today: string, options: EarningsOptions = {}): Earnings {
-  const hosted = userId ? data.stays.filter((s) => s.hostId === userId && s.status !== "draft" && s.status !== "closed") : [];
+  // Example Houses (pre-launch, beta) earn nothing.
+  const hosted = userId ? data.stays.filter((s) => !s.isExample && s.hostId === userId && s.status !== "draft" && s.status !== "closed") : [];
   const rows = [...hosted.flatMap((s) => rowOf(s, [...data.payments], today, options) ?? []), ...(userId ? pastEarningsOf(userId).map((e) => pastRow(e, options)) : [])].toSorted((a, b) =>
     b.startDate.localeCompare(a.startDate),
   );

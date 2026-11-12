@@ -1,5 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
+import { canOpenHouse, usePlatformPhase } from "@/config/platform";
 import { setHeaderSlot } from "@/lib/headerSlot";
 import { Plus, Search, UserRound } from "lucide-react";
 
@@ -47,6 +48,9 @@ function SiteHeaderByRoute() {
 
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const t = useTranslations("nav");
+  const tPlatform = useTranslations("platform.apply");
+  // Before the launch the "+" is "Apply as a host" (config/platform.ts).
+  const phase = usePlatformPhase();
   const tOpen = useTranslations("common.ui.openHouse");
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -142,7 +146,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
               );
             })}
           {/* "Open a House": the round "+", the same surface as the others (Tooltip "Open a House"). */}
-          <Link href="/create" aria-label={tOpen("label")} className={cn(round, "bg-(--hdr-corner-bg) hover:bg-(--hdr-corner-hover)")}>
+          <Link href="/create" aria-label={canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")} className={cn(round, "bg-(--hdr-corner-bg) hover:bg-(--hdr-corner-hover)")}>
             <Plus aria-hidden className="size-4" strokeWidth={2.25} />
           </Link>
         </nav>

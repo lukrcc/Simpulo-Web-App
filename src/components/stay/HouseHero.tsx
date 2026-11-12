@@ -155,8 +155,9 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
       {/* The facts as a bento, 24px under the chips (no line): three equal tiles, gap 12, radius 20, the same height (~168px), 20px inside,
           no edge or shadow – Host, Crew, Place. Phones: one under the other. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        {host && <HostTile host={host} stay={stay} />}
-        <CrewTile stay={stay} crew={crew} onRequestWithFriend={onRequestWithFriend} />
+        {/* An example House (pre-launch, beta): no host and no crew – a neutral host tile, empty circles. */}
+        {stay.isExample ? <ExampleHostTile /> : host && <HostTile host={host} stay={stay} />}
+        {stay.isExample ? <ExampleCrewTile stay={stay} /> : <CrewTile stay={stay} crew={crew} onRequestWithFriend={onRequestWithFriend} />}
         <PlaceTile stay={stay} />
       </div>
     </HeroBand>
@@ -274,6 +275,37 @@ function HostTile({ host, stay }: { host: User; stay: Stay }) {
         <InCommon host={host} stay={stay} />
       </span>
     </Link>
+  );
+}
+
+/** An example's host tile: "Example House", no face, no name, no link. */
+function ExampleHostTile() {
+  const t = useTranslations("platform.example");
+  return (
+    <div className={cn(TILE, "bg-(--tile-host)")}>
+      <span className="flex items-center gap-3">
+        <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-ink/25 text-ink/40">
+          <Home className="size-5" strokeWidth={1.75} />
+        </span>
+        <span className="text-h3 text-ink">{t("house")}</span>
+      </span>
+      <span className="mt-auto text-small text-muted">{t("noProfile")}</span>
+    </div>
+  );
+}
+
+/** An example's crew tile: "Up to 5 people", the circles all empty. */
+function ExampleCrewTile({ stay }: { stay: Stay }) {
+  const t = useTranslations("platform.example");
+  return (
+    <div className={cn(TILE, "bg-(--tile-crew)")}>
+      <p className="text-h2 text-ink">{t("upTo", { count: stay.spotsTotal })}</p>
+      <ul aria-hidden className="mt-auto flex -space-x-1">
+        {Array.from({ length: Math.min(stay.spotsTotal, 8) }, (_, i) => (
+          <li key={i} className="size-8 rounded-full border-[1.5px] border-dashed border-ink/25 bg-(--tile-crew)" />
+        ))}
+      </ul>
+    </div>
   );
 }
 

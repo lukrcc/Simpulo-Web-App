@@ -3,6 +3,7 @@
 import { Check, MapPin, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
 import { useMemo, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { InForSheet } from "@/components/InFor";
@@ -78,6 +79,34 @@ export function NoHouseYet({ draft, stays = [], title: own, onClear }: { draft: 
         </section>
       )}
       {sheet}
+    </div>
+  );
+}
+
+/**
+ * Before the launch and in the beta, when a search finds nothing: "Be the first here" – "Join the waitlist" (primary) and "Host here" (the
+ * host application); "Clear filters" when filters did it. No "No House here yet", no suggestions.
+ */
+export function BeFirstHere({ onClear }: { /** The search that found nothing (kept for the later "notify me here") */ draft: SearchDraft; onClear?: () => void }) {
+  const t = useTranslations("platform");
+  const tSearch = useTranslations("explore.search");
+  const joinWaitlist = useJoinWaitlist();
+  return (
+    <div className="flex flex-col items-center py-(--space-inner) text-center">
+      <h2 className="max-w-160 text-h2 text-ink">{t("empty.title")}</h2>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <Button variant="primary" size="md" onClick={joinWaitlist}>
+          {t("waitlist.join")}
+        </Button>
+        <Button variant="secondary" size="md" href={HOST_APPLY_HREF}>
+          {t("empty.hostHere")}
+        </Button>
+      </div>
+      {onClear && (
+        <button type="button" onClick={onClear} className="mt-4 text-small font-semibold text-muted underline underline-offset-4 transition-colors duration-150 hover:text-ink">
+          {tSearch("clearFilters")}
+        </button>
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "react";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { AvatarStack } from "@/components/ui/Avatar";
+import { CardStatusChip } from "@/components/HouseCard";
 import { CardTab } from "@/components/ui/CardTab";
 import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
@@ -299,6 +300,7 @@ function stopLink(e: MouseEvent) {
 
 function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, count, phoneHidden, onSelect, photo, onPhoto }: SlideProps) {
   const t = useTranslations("explore");
+  const tPlatform = useTranslations("platform");
   // The cover first, the House's world after it; the host's portrait belongs in their avatar.
   const photos = housePhotos(stay, host);
   const tc = useTranslations("common.ui.carousel");
@@ -355,7 +357,13 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
           <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/45 to-transparent to-30% md:from-ink/35" />
 
-          <Link href={href} onNavigate={rememberOrigin} aria-label={t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
+          {/* An example House: "Example" top left, under the tab (no dot). */}
+          {stay.isExample && (
+            <span className="pointer-events-none absolute left-4 top-14 z-10">
+              <CardStatusChip>{tPlatform("example.capsule")}</CardStatusChip>
+            </span>
+          )}
+          <Link href={href} onNavigate={rememberOrigin} aria-label={stay.isExample ? stay.title : t("viewHouseWithHost", { title: stay.title, host: host.name })} className="absolute inset-0 cursor-pointer" />
 
 
           {/* Top-right (md+): host photo thumbnails */}
@@ -391,9 +399,10 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                 <h2 className="line-clamp-2 text-h2 text-on-image md:text-h1">{stay.title}</h2>
               </Link>
               {/* Only where the card has no host tab (phones have one). */}
+              {/* An example House (pre-launch, beta): no host – "Example". */}
               <p className="mt-2 hidden items-center gap-1 text-small text-on-image/85 md:flex">
-                {t("withHost", { name: firstName(host) })}
-                {host.verified && <VerifiedBadge onDark />}
+                {stay.isExample ? tPlatform("example.house") : t("withHost", { name: firstName(host) })}
+                {host.verified && !stay.isExample && <VerifiedBadge onDark />}
               </p>
               <p className="mt-2 text-small text-on-image/85">
                 <span className="inline-flex max-w-full items-center gap-1.5">
@@ -409,12 +418,16 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               )}
             </div>
             <div className="flex flex-col items-center gap-2 md:items-start md:gap-4">
-              <div className="md:hidden">
-                <AvatarStack users={[host, ...guests]} />
-              </div>
-              <div className="hidden md:block">
-                <CrewAvatars host={host} members={guests} stay={stay} />
-              </div>
+              {!stay.isExample && (
+                <>
+                  <div className="md:hidden">
+                    <AvatarStack users={[host, ...guests]} />
+                  </div>
+                  <div className="hidden md:block">
+                    <CrewAvatars host={host} members={guests} stay={stay} />
+                  </div>
+                </>
+              )}
               {/* Phones: glass pill over the photo; md+: a secondary button (visual only there – the whole slide is the link). */}
               <Link
                 href={href}
@@ -459,7 +472,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           <div ref={dimRef} aria-hidden className="pointer-events-none absolute inset-0 z-[5] bg-ink/25 opacity-0 md:hidden" />
         </div>
         {/* Phones: the notched host tab in the top-left corner, on the page. */}
-        <CardTab host={host} linked className="md:hidden" />
+        <CardTab host={host} linked label={stay.isExample ? tPlatform("example.house") : undefined} anonymous={Boolean(stay.isExample)} className="md:hidden" />
       </div>
     </article>
   );

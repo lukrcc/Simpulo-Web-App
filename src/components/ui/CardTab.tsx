@@ -21,6 +21,8 @@ interface CardTabProps {
   linked?: boolean;
   /** On the House page: its name in the transition from the card */
   style?: CSSProperties;
+  /** An example House: the label alone – no face, no name, no check, no link */
+  anonymous?: boolean;
 }
 
 // Inverted corners: page colour everywhere except a 20px quarter circle at the bottom-right, which lets the
@@ -37,15 +39,16 @@ const cornerBelow =
  * before hydration) it still paints the page colour plus two inverted corners – right of it along the top edge, below
  * it along the left edge – over a rounded-tl-none card; globals.css drops them once the card is `data-notch="ready"`.
  */
-export function CardTab({ host, bg = "var(--bg)", label, suffix, className, contentClassName, linked = false, style }: CardTabProps) {
+export function CardTab({ host, bg = "var(--bg)", label, suffix, className, contentClassName, linked: linkedProp = false, style, anonymous = false }: CardTabProps) {
+  const linked = linkedProp && !anonymous;
   const t = useTranslations("common.ui.cardTab");
   // A long name truncates – the tab stays clear of the card's buttons.
   const content = (
     <span className={cn("flex min-w-0 items-center gap-2", contentClassName)}>
-      <PersonPhoto src={host.photos[0]} alt={host.name} size={26} className="size-[26px] shrink-0" />
+      {!anonymous && <PersonPhoto src={host.photos[0]} alt={host.name} size={26} className="size-[26px] shrink-0" />}
       <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-nav text-ink">
         <span className="min-w-0 truncate">{label ?? firstName(host)}</span>
-        {host.verified && !label && <VerifiedBadge size={14} className="shrink-0" />}
+        {host.verified && !label && !anonymous && <VerifiedBadge size={14} className="shrink-0" />}
         {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
       </span>
     </span>

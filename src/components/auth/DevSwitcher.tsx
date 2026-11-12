@@ -10,7 +10,8 @@ import { HOUSE_ROLE_OVERRIDES, setDevSetting, useDevSetting } from "@/lib/devSet
 import { useFormat } from "@/i18n/format";
 import { setFeatureFlag, setHostTypeSim, setPayoutsSim, useFeatureFlag, useHostTypeSim, usePayoutsSim, type HostTypeSim, type PayoutsSim } from "@/lib/featureFlags";
 import { APP_MODE } from "@/lib/appMode";
-import { DATA_STATES, devPersonas, readDataState, saveDataState } from "@/lib/data";
+import { devPersonas } from "@/lib/data";
+import { PLATFORM_PHASES, setPlatformPhase, usePlatformPhase } from "@/config/platform";
 import { computeReminders, type Reminder } from "@/lib/reminders";
 import { findUser, getCrew, OPEN_AS_PARAM, resetMockData, useStore } from "@/lib/store";
 import { useNotifyLog } from "@/lib/notify/log";
@@ -67,7 +68,7 @@ function DevSwitcherInner() {
   const paymentFails = useFeatureFlag("simulatePaymentFailure");
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
-  const [dataState] = useState(readDataState);
+  const phase = usePlatformPhase();
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
   const reminders = currentUserId ? computeReminders(store, currentUserId) : [];
@@ -149,17 +150,19 @@ function DevSwitcherInner() {
                 </DevRow>
               </DevSection>
               <DevSection title={t("sectionData")}>
-                <DevRow label={t("data")}>
+                {/* The platform phase (config/platform.ts) – with it the mock data set: Pre-launch 3 Houses, Beta 15, Live the full data. A
+                    separate "Data" row with more volume steps comes back later. */}
+                <DevRow label={t("phase")}>
                   <CapsuleGroup
                     size="sm"
-                    label={t("data")}
-                    value={dataState}
-                    onChange={(preset) => {
-                      if (preset === dataState) return;
-                      saveDataState(preset);
+                    label={t("phase")}
+                    value={phase}
+                    onChange={(next) => {
+                      if (next === phase) return;
+                      setPlatformPhase(next);
                       window.location.reload();
                     }}
-                    options={DATA_STATES.map((value) => ({ value, content: t(`presets.${value}`) }))}
+                    options={PLATFORM_PHASES.map((value) => ({ value, content: t(`phases.${value}`) }))}
                   />
                 </DevRow>
                 <DevRow label={t("installedApp")}>

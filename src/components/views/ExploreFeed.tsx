@@ -19,7 +19,11 @@ import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, exploreBlockSize, explor
 import { Container } from "@/components/layout/Container";
 import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
-import { InForTile, NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
+import { BeFirstHere, InForTile, NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
+import { getVisibleHouses } from "@/lib/data/visibleHouses";
+import { launch, showsExamples, showsPersonalRows, usePlatformPhase } from "@/config/platform";
+import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
+import { LaunchIntro } from "@/components/explore/SpotlightIntro";
 import { MonthField, PlaceField, SearchField, ShortTripsToggle, useMonthName } from "@/components/explore/SearchFields";
 import { FilterDropdown, FilterRow, OverflowPickOptions, PickOptions, ToggleChip } from "@/components/explore/FilterPanel";
 import { FitChips } from "@/components/explore/FitChips";
@@ -136,7 +140,11 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   // Houses of people you blocked never show up.
   const blocked = settingsOf(getCurrentUser(store)).blockedUserIds;
-  const listed = useMemo(() => store.stays.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId)), [store.stays, store.houseInvites, store.currentUserId, blocked]);
+  // The Houses anyone may see in this phase (lib/data/visibleHouses.ts – the one source: real ones, and before the launch / in the beta the
+  // example Houses), then listing, head start and blocking.
+  const phase = usePlatformPhase();
+  const visible = useMemo(() => getVisibleHouses(store.stays, phase), [store.stays, phase]);
+  const listed = useMemo(() => visible.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId)), [visible, store.houseInvites, store.currentUserId, blocked]);
   const base = useMemo(() => listed.filter((s) => inScope(s, scope)), [listed, scope]);
   // The hero (bento / carousel): open Houses with a free spot that haven't started, in the session's weighted order.
   const candidates = useHeroStays(listed, (s) => findUser(store, s.hostId));
@@ -198,7 +206,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     .filter((s) => matchesFilters(s, filters, undefined, verifiedHosts))
     .toSorted(
       (a, b) =>
-        // Houses that aren't taking requests go after the open ones, each group in the chosen order.
+        // Real Houses before the examples (the beta's founding Houses first; live has no examples), then the ones not taking requests after
+        // the open ones, each group in the chosen order.
+        Number(Boolean(a.isExample)) - Number(Boolean(b.isExample)) ||
         Number(!a.acceptingRequests) - Number(!b.acceptingRequests) ||
         compareBy(filters.sort, a, b, slowHosts),
     );
@@ -233,7 +243,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const peopleGoing = usePeopleGoing();
   // Not during the prerender (the shelves read the clock): only once the browser's clock is there.
   const browsing = !scoped && !filtered && !headless && today !== null;
-  const showPeople = browsing && peopleGoing.length > 0;
+  const showPeople = browsing && peopleGoing.length > 0 && showsPersonalRows(phase);
+  const joinWaitlist = useJoinWaitlist();
+  const launchHero = showsExamples(phase) ? { label: launch.targetLabel, onJoin: joinWaitlist, hostHref: HOST_APPLY_HREF } : undefined;
   // The bands between the grid's rows (browsing only): Just opened, then Short trips – never the same House in two of them.
   // The bands of the rhythm (EXPLORE_RHYTHM): in their order, empty ones skipped, never the same House in two of them.
   const bands = useMemo((): Band[] => {
@@ -518,8 +530,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       {showSpotlight && (
         <>
           {/* Below lg the carousel is another component; the title for visitors goes above it here. */}
+          {/* Before the launch and in the beta: the launch hero ("Opening March 2027", "Find your people.", the waitlist and the founding host). */}
+          {launchHero && <LaunchIntro launch={launchHero} className="lg:hidden" />}
           <SpotlightHero stays={spotlightStays} />
-          <SpotlightCoverflow stays={spotlightStays} countOf={openOfVibe} onPickVibe={vibeRow.onSelect} />
+          <SpotlightCoverflow stays={spotlightStays} countOf={openOfVibe} onPickVibe={vibeRow.onSelect} launchHero={launchHero} />
         </>
       )}
 
@@ -595,7 +609,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />
               {results.length === 0 ? (
                 // Nothing: open this House, or save the search – and what's closest.
-                <NoHouseYet draft={draft} stays={base} title={searched ? undefined : t("noResults.title")} onClear={filtered ? clearFilters : undefined} />
+                // Before the launch and in the beta: "Be the first here" (the waitlist, host here) instead of "No House here yet".
+                showsExamples(phase) ? <BeFirstHere draft={draft} onClear={filtered ? clearFilters : undefined} /> : <NoHouseYet draft={draft} stays={base} title={searched ? undefined : t("noResults.title")} onClear={filtered ? clearFilters : undefined} />
               ) : (
                 <>
                   <FeedGrid cards={chunks[0]} fresh={paging.fresh} highlight={highlightOn ? { block: 0, cols } : undefined} after={

@@ -2,7 +2,7 @@
 import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
 import type { GrowthEvent } from "../growth";
-import type { JoinRequest, Payment, Stay, Thread, User } from "../types";
+import type { JoinRequest, Payment, PlatformPhase, Stay, Thread, User } from "../types";
 import type { Page, PageRequest } from "./paging";
 
 /** A photo's lower third: the darkening's colour (its hue and saturation at 12 % lightness) and its mean lightness 0–1. */
@@ -31,17 +31,16 @@ export interface PastEarning {
   currency: "EUR" | "USD" | "GBP";
 }
 
-/** The mock's data states, chosen in the Dev menu; "full" everywhere else. */
-export const DATA_STATES = ["prelaunch", "launch", "full"] as const;
-export type DataState = (typeof DATA_STATES)[number];
+/** The platform phases in order (config/platform.ts); in dev the Dev menu's "Phase" picks one and the mock data set that goes with it. */
+export const PLATFORM_PHASES = ["prelaunch", "beta", "live"] as const satisfies readonly PlatformPhase[];
 
 export interface DataAdapter {
-  getData(state: DataState): AppData;
+  getData(phase: PlatformPhase): AppData;
   getHouses(): Stay[];
   getUsers(): User[];
   getJoinRequests(): JoinRequest[];
   /** The saved searches a data state starts with */
-  getSavedSearches(state: DataState): readonly SavedSearch[];
+  getSavedSearches(phase: PlatformPhase): readonly SavedSearch[];
   /** Houses from outside waiting for their host */
   getClaimableHouses(): Stay[];
   /** Who a past demo session is logged in as; null in production */

@@ -8,6 +8,7 @@ import { useFormat } from "@/i18n/format";
 import { EMPTY_FILTERS, withFilters } from "@/lib/exploreFilters";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/ActionButton";
 import { changeLetters, FlipText, FlowText } from "./FlipText";
 import { useMarkBreath } from "./useMarkBreath";
 
@@ -42,6 +43,16 @@ interface GreetingProps {
   onPick: (vibe: Vibe) => void;
   /** Each half's width beside the centre card; none: half the row, above the carousel */
   sideClassName?: string;
+  /** Before the launch and in the beta (config/platform.ts): the launch line above "Find your people.", and on the right "Come for the place,
+   *  stay for the people." with "Join the waitlist" and "Become a Founding Host" instead of the category sentence */
+  launch?: LaunchHero;
+}
+
+export interface LaunchHero {
+  /** "Opening March 2027" */
+  label: string;
+  onJoin: () => void;
+  hostHref: string;
 }
 
 /**
@@ -50,7 +61,7 @@ interface GreetingProps {
  * category: its name, a sentence (visitors get the more inviting one) and the way to its Houses. Only the link takes the pointer: the
  * carousel's drag area is around it.
  */
-export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName }: GreetingProps) {
+export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, launch }: GreetingProps) {
   const t = useTranslations("explore.spotlightGreeting");
   const tIntro = useTranslations("explore.spotlightIntro");
   const breath = useMarkBreath();
@@ -61,14 +72,14 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName }
         {/* The headline's gradient, still and at 45 % (GREETING_GRADIENT). Optically flush with the W, and about 6px of air from its letters down to the W's
             top (measured at 1280–1728): the big line's box has room above its capitals, the greeting's below its baseline – the margin takes both back. */}
         <p className="-ml-px truncate text-greeting" style={GREETING_GRADIENT}>
-          {name === null ? tIntro("first") : t("hi", { name })}
+          {launch ? launch.label : name === null ? tIntro("first") : t("hi", { name })}
         </p>
-        <FlowText ref={breath} text={name === null ? tIntro("second") : t("whereNext")} style={SIDE_TITLE} className="text-stage mt-[calc(8px-0.33em)] w-fit whitespace-nowrap" />
+        <FlowText ref={breath} text={launch || name === null ? tIntro("second") : t("whereNext")} style={SIDE_TITLE} className="text-stage mt-[calc(8px-0.33em)] w-fit whitespace-nowrap" />
       </div>
       {/* Beside the card it hangs from the common top edge: the left side alone sets the height, which puts "Where to next?" where it belongs. Its eyebrow's
           capitals level with those of "Hi …": the greeting's letters sit lower in their line, so the block comes down by that (GREETING_EYEBROW_DROP). */}
       <div data-spotlight-greeting-right className={cn("flex min-w-0 justify-end pt-[calc(var(--text-greeting)*0.15-1.5px)]", sideClassName ? cn(sideClassName, "h-0") : "flex-1")}>
-        <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} />
+        {launch ? <LaunchBlock launch={launch} /> : <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} />}
       </div>
     </div>
   );
@@ -114,6 +125,49 @@ function ThemeBlock({ vibe, countOf, onPick, lines }: Pick<GreetingProps, "vibe"
       {fade(from !== null && <p className="text-eyebrow uppercase text-ink/55">{format.vibe(from)}</p>, <p className="text-eyebrow uppercase text-ink/55">{format.vibe(vibe)}</p>)}
       <ThemeSentence text={sentenceOf(vibe)} />
       <div className="mt-2.5">{fade(from !== null && link(from), link(vibe))}</div>
+    </div>
+  );
+}
+
+/** Before the launch and in the beta: the place of the category sentence – "Come for the place, stay for the people." and the two actions. */
+function LaunchBlock({ launch }: { launch: LaunchHero }) {
+  const t = useTranslations("platform");
+  return (
+    // As high as the category block it replaces (two lines of sentence and one row of actions): the Spotlight's fit stays the same.
+    <div className="w-full max-w-[400px] min-h-[calc(16px+6px+2*1.15*var(--fit-theme,28px)+10px+23px)] text-right">
+      <p className="text-h2 ml-auto w-fit max-w-full text-ink" style={THEME_SIZE}>
+        {t("hero.sub")}
+      </p>
+      <LaunchActions launch={launch} oneRow className="mt-3 justify-end" />
+    </div>
+  );
+}
+
+/** "Join the waitlist" (primary) and "Become a Founding Host" (a thin outline button, to the host application). */
+export function LaunchActions({ launch, className, oneRow = false }: { launch: LaunchHero; className?: string; /** Beside the Spotlight: never wrapping (the block keeps the category block's height) */ oneRow?: boolean }) {
+  const t = useTranslations("platform");
+  return (
+    <div className={cn("pointer-events-auto flex gap-2", oneRow ? "flex-nowrap" : "flex-wrap", className)}>
+      <Button variant="primary" size="sm" onClick={launch.onJoin}>
+        {t("waitlist.join")}
+      </Button>
+      <Button variant="secondary" size="sm" href={launch.hostHref}>
+        {t("hero.becomeHost")}
+      </Button>
+    </div>
+  );
+}
+
+/** Phones (below lg, above the carousel): the same launch hero – the launch line, "Find your people.", the sentence and the two actions. */
+export function LaunchIntro({ launch, className }: { launch: LaunchHero; className?: string }) {
+  const t = useTranslations("platform");
+  const tIntro = useTranslations("explore.spotlightIntro");
+  return (
+    <div className={cn("page-container pb-6 pt-6", className)}>
+      <p className="text-eyebrow uppercase text-muted">{launch.label}</p>
+      <h1 className="mt-2 text-h1 text-ink">{tIntro("second")}</h1>
+      <p className="mt-2 text-body-lg text-muted">{t("hero.sub")}</p>
+      <LaunchActions launch={launch} className="mt-5" />
     </div>
   );
 }

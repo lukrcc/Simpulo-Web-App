@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { CreateStayForm } from "@/components/views/CreateStayForm";
+import { CreateEntry } from "@/components/create/CreateEntry";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta.pages");
@@ -8,5 +8,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function CreatePage() {
-  return <CreateStayForm />;
+  // Open a House – before the launch "Apply as a host" (config/platform.ts).
+  return <CreateEntry />;
 }

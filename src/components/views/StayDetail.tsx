@@ -12,6 +12,8 @@ import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 import { ageOn, MIN_AGE } from "@/lib/birthDate";
 import { audienceFit, didntWorkOut } from "@/lib/requests";
+import { canApplyAsHost, canPay, canRequest, canReserve, launch, usePlatformPhase } from "@/config/platform";
+import { HOST_APPLY_HREF } from "@/components/platform/useJoinWaitlist";
 import { hasOffer, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
@@ -108,6 +110,7 @@ function StayUnavailable({ reason, exceptId }: { reason: keyof typeof UNAVAILABL
 
 function StayDetailContent({ stay }: { stay: Stay }) {
   const t = useTranslations("house");
+  const tPlatform = useTranslations("platform");
   const tOverlap = useTranslations("overlap");
   const store = useStore();
   const router = useRouter();
@@ -355,14 +358,22 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       ? t("page.waitlistMoveUp")
       : undefined);
 
+  // The platform phase (config/platform.ts): before the launch nobody asks to join (the waitlist, for now a toast); in the beta a spot is
+  // reserved, no payment until launch.
+  const phase = usePlatformPhase();
+  const requestsOpen = canRequest(phase);
+  // An example House (pre-launch, beta): never bookable – "Join the waitlist", and "Host one like this" beside it.
+  const example = Boolean(stay.isExample);
+  const phaseAction = example ? { kind: "waitlist" as const, onClick: () => showToast(t("page.phase.waitlistToast")) } : isHost || isMember || myRequest ? undefined : canApplyAsHost(phase) ? { kind: "waitlist" as const, onClick: () => showToast(t("page.phase.waitlistToast")) } : canReserve(phase) ? { kind: "reserve" as const, onClick: () => requireAuth(() => { store.reserveSpot(stay.id); showToast(t("page.phase.reservedToast")); }, { reason: "join", hostName: hostFirstName }) } : undefined;
   const ctaFor = (withSecondary: boolean) => (
     <StayCta
+      phaseAction={phaseAction}
       withSecondary={withSecondary}
       big={withSecondary}
       stay={stay}
       isHost={isHost}
       request={myRequest}
-      paymentDue={stage === "payment_due" && !isHost}
+      paymentDue={stage === "payment_due" && !isHost && canPay(phase)}
       onPay={() => setPaying(true)}
       spotsLeft={spotsLeft}
       invited={invite !== undefined}
@@ -433,12 +444,17 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           crew={crew}
           cta={cta}
           // Several spots open and the visitor can still ask: the crew column offers asking together too.
-          onRequestWithFriend={!isHost && canJoin && !myRequest ? startRequestWithFriend : undefined}
+          onRequestWithFriend={!isHost && canJoin && !myRequest && requestsOpen && !example ? startRequestWithFriend : undefined}
           secondary={
+            example ? (
+              <Button variant="creamOutline" size="lg" href={HOST_APPLY_HREF}>
+                {tPlatform("example.hostLike")}
+              </Button>
+            ) : (
             <>
               {/* One row for visitors: "Request to join" (cream) · "Request with a friend" (outline) · Message host as a round 48px icon.
                   The host and crew invite through the crew's "+" circles (components/CrewRow); sharing sits top right beside "…". */}
-              {!isHost && canJoin && !myRequest && (
+              {!isHost && canJoin && !myRequest && requestsOpen && (
                 <Button variant="creamOutline" size="lg" onClick={startRequestWithFriend} data-preview-action>
                   <UserPlus aria-hidden />
                   {tInvite("requestWithFriend")}
@@ -450,11 +466,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
                 </Button>
               )}
             </>
+            )
           }
           stage={stage}
-          note={ctaNote}
-          notice={isHost ? hostStatus : audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : overlapNotice}
-          showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
+          // The beta: a reserved spot isn't paid for – said once, under the actions.
+          note={example ? tPlatform("example.note", { month: launch.targetMonth }) : (ctaNote ?? (phaseAction?.kind === "reserve" || myRequest?.reserved ? t("page.phase.noPaymentUntilLaunch") : undefined))}
+          notice={example ? undefined : isHost ? hostStatus : audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : overlapNotice}
+          showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin) && requestsOpen && !example}
           actions={
             <HouseActions
               share={
@@ -740,12 +758,14 @@ interface StayCtaProps {
   audienceBlocked?: boolean;
   /** The head's large buttons (48px); the floating bar keeps 44px */
   big?: boolean;
+  /** The platform phase's main action instead of "Request to join" (config/platform.ts): prelaunch "Join the waitlist", beta "Reserve a spot" */
+  phaseAction?: { kind: "waitlist" | "reserve"; onClick: () => void };
 }
 
 const noSubscribe = () => () => {};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly, audienceBlocked, big = false }: StayCtaProps) {
+function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited, onJoinInvite, onRequest, onMessageHost, onRespond, waitlist, withSecondary, verifiedOnly, audienceBlocked, big = false, phaseAction }: StayCtaProps) {
   const t = useTranslations("request.cta");
   const tVerifyCta = useTranslations("verification");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
@@ -755,6 +775,14 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   const variant = big ? "cream" : "primary";
   const outline = big ? "creamOutline" : "secondary";
   const size = big ? "lg" : "md";
+  // An example House: always the waitlist – it can't be over, full or asked for.
+  if (stay.isExample && phaseAction) {
+    return (
+      <Button variant={variant} size={size} onClick={phaseAction.onClick} data-preview-action>
+        {t("phaseWaitlist")}
+      </Button>
+    );
+  }
   // Over, and you were in it (host or crew): the same House again, with the same people.
   if (stay.status === "completed" && (isHost || request?.status === "accepted")) {
     return (
@@ -775,6 +803,15 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
     return (
       <Button variant={variant} size={size} onClick={onPay} data-preview-action>
         {t("pay")}
+      </Button>
+    );
+  }
+  // A spot reserved in the beta: held, nothing to do until launch.
+  if (request?.reserved && request.status === "accepted") {
+    return (
+      <Button variant={variant} size={size} disabled>
+        <Check aria-hidden />
+        {t("reserved")}
       </Button>
     );
   }
@@ -857,6 +894,21 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
     return (
       <Button variant={variant} size={size} disabled>
         {t("declined")}
+      </Button>
+    );
+  }
+  // Before the launch (prelaunch): "Join the waitlist" instead of any request. The beta: "Reserve a spot" while one is free.
+  if (phaseAction?.kind === "waitlist") {
+    return (
+      <Button variant={variant} size={size} onClick={phaseAction.onClick} data-preview-action>
+        {t("phaseWaitlist")}
+      </Button>
+    );
+  }
+  if (phaseAction?.kind === "reserve" && spotsLeft > 0 && stay.acceptingRequests) {
+    return (
+      <Button variant={variant} size={size} onClick={phaseAction.onClick} data-preview-action>
+        {t("reserve")}
       </Button>
     );
   }

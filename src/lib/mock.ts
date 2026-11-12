@@ -208,6 +208,10 @@ export interface Stay {
   status: StayStatus;
   acceptingRequests: boolean; // host's "Taking requests" switch – never flipped automatically
   featured: boolean;        // shown in Spotlight (later: boosted)
+  /** Pre-launch and beta (config/platform.ts): a sample House that shows what Simpulo looks like – no host, no crew, not bookable. Absent: false. */
+  isExample?: boolean;
+  /** Beta: a real House of a founding host. Absent: false. */
+  isFounding?: boolean;
   /** Reserved: a manual Spotlight pick. No effect yet – the hero rotation picks by its own rules (src/lib/heroRotation.ts). */
   spotlight?: boolean;
   hostNote?: string;        // short personal line from the host, max 60 chars (shown on cards)
@@ -357,6 +361,8 @@ export interface JoinRequest extends Attribution {
   invitedBy?: string;
   /** "Request with a friend": asks for two spots; the friend confirms through a link (their own request, pairedWith this one) */
   withFriend?: true;
+  /** Beta (config/platform.ts): a spot reserved without payment – accepted, "Reserved" in Your houses, no pay step until launch */
+  reserved?: true;
   /** A friend's request: the request (id) that brought them along */
   pairedWith?: string;
 }
