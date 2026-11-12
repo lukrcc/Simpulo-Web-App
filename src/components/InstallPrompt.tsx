@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
@@ -67,9 +68,10 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
   const offerInstall = useCallback<OfferInstall>((trigger, options) => {
     if (device.current.open) return;
     let next: Open | null = null;
-    if (isStandalone()) {
-      if (mayAskForPush()) next = { sheet: "push", trigger };
-    } else {
+    // Push where it's allowed (the installed app; Android and desktop browsers too); an iPhone's Safari tab can't be notified – there the
+    // install sheet with "Install to get notified".
+    if (mayAskForPush()) next = { sheet: "push", trigger };
+    else if (!isStandalone()) {
       const offer = offerFor(device.current.browser, device.current.hasPrompt);
       if (offer && mayShowInstallPrompt()) next = { sheet: "install", offer, trigger, hostName: options?.hostName };
     }
@@ -150,7 +152,18 @@ function InstallSheet({ offer, trigger, hostName, onClose }: { offer: Offer; tri
   const benefit = trigger === "request" ? t("requestBenefit") : trigger === "accepted" ? t("acceptedBenefit") : t("paymentBenefit");
   return (
     <Sheet open onClose={() => onClose(true)} title={title} subtitle={benefit} lead={<MockNotification android={offer === "android"} />}>
-      {offer === "ios" && <IosInstallSteps />}
+      {offer === "ios" && (
+        <>
+          {/* iOS notifies only an app on the home screen: say so, with the way there. */}
+          <p className="mb-4 text-body text-ink">
+            {t("installToNotify")}{" "}
+            <Link href="/get?ref=notify" className="font-semibold underline-offset-4 hover:underline">
+              {t("installHowLink")}
+            </Link>
+          </p>
+          <IosInstallSteps />
+        </>
+      )}
       {offer === "desktop" && (
         <div className="flex items-center gap-5">
           <SimpuloQR url={appLink()} refParam={`prompt-${trigger}`} size={120} className="shrink-0" />
@@ -174,7 +187,7 @@ function InstallSheet({ offer, trigger, hostName, onClose }: { offer: Offer; tri
 function MockNotification({ android }: { android: boolean }) {
   const t = useTranslations("install");
   return (
-    <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-white/65 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(40,32,26,0.08)]">
+    <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-surface/65 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(40,32,26,0.08)]">
       {android ? (
         <div>
           <div className="flex items-center gap-1.5 text-small text-muted">
@@ -225,10 +238,10 @@ function InAppBrowserHint() {
   const inApp = useInAppBrowser();
   const browser = useBrowser();
   const [dismissed, setDismissed] = useState(false);
-  if (!inApp || dismissed || inAppHintDismissed()) return null;
+  if (!inApp || dismissed || inAppHintDismissed() || isStandalone()) return null;
   const ios = browser.startsWith("ios");
   return (
-    <div role="note" data-in-app-hint className="glass-panel fixed inset-x-3 top-[calc(env(safe-area-inset-top)+8px)] z-[65] flex items-center gap-3 rounded-[20px] py-2.5 pl-4 pr-2">
+    <div role="note" data-in-app-hint className="glass-panel fixed inset-x-3 top-[calc(var(--safe-top)+8px)] z-[65] flex items-center gap-3 rounded-[20px] py-2.5 pl-4 pr-2">
       <div className="min-w-0 flex-1">
         <p className="text-small font-semibold text-ink">{ios ? t("inAppSafari") : t("inAppChrome")}</p>
         <p className="text-small text-muted">{t("inAppHow")}</p>

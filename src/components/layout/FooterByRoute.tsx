@@ -23,6 +23,7 @@ export function FooterByRoute({ full, slim }: { full: ReactNode; slim: ReactNode
     );
   }
   // Messages is one screen from 1100px too: the legal line sits at the bottom of its chat list (InboxList).
-  if (pathname.startsWith("/messages")) return <div className="split:hidden">{slim}</div>;
+  // Messages is the one dark page: no footer at all (nothing light under it).
+  if (pathname.startsWith("/messages")) return null;
   return FULL_ROUTES.includes(pathname) || pathname.startsWith("/collections/") ? full : slim;
 }

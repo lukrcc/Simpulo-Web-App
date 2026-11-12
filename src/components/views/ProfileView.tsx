@@ -1,48 +1,44 @@
 "use client";
 
+import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
-import { Bookmark, CalendarDays, Home, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Sparkles, UserPlus, UserX, Users, Zap } from "lucide-react";
+import { Bookmark, Eye, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Sparkles, UserPlus, UserX, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
-import { use, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { use, useMemo, useState, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
-import { HouseCard } from "@/components/HouseCard";
+import { useInForLine } from "@/components/InFor";
+import { HeroBand, HeroPhotos } from "@/components/HeroBand";
 import { InviteSheet } from "@/components/InviteSheet";
-import { useMonthName } from "@/components/explore/SearchFields";
-import { activeInForOf, inForPlaceName, type InFor } from "@/lib/inFor";
-import { canInvite } from "@/lib/invites";
 import { Container } from "@/components/layout/Container";
-import { PreviewBanner, PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
+import { PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { ShareSheet } from "@/components/share/ShareSheet";
+import { SocialLinks } from "@/components/SocialLinks";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { CardRow, RowHead } from "@/components/ui/CardRow";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { iconButtonStyles } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { ProHostLabel } from "@/components/ui/ProHostLabel";
+import { ProHostBadge } from "@/components/ui/ProHostLabel";
 import { Sheet } from "@/components/ui/Sheet";
-import { Shelf } from "@/components/ui/Shelf";
-import { SocialLinks } from "@/components/SocialLinks";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { MoreList } from "@/components/views/MoreList";
-import { EXPLORE_GRID } from "@/config/explore";
-import { HOUSE_VIBE_SCALES, HOUSE_VIBE_STEPS } from "@/config/houseVibe";
+import { HOUSE_VIBE_SCALES } from "@/config/houseVibe";
+import { PROFILE_SECTIONS, sectionDone } from "@/config/profile-sections";
 import { useFormat } from "@/i18n/format";
-import { cityPlaceIdOf, coverOf } from "@/lib/data/places";
+import { cityPlaceIdOf } from "@/lib/data/places";
+import { placeImageOf } from "@/config/place-images";
+import { activeInForOf, inForPlaceName } from "@/lib/inFor";
+import { canInvite } from "@/lib/invites";
 import { inCommonWith, medianReplyMinutes, profileViewFor, sharesCrew, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
 import { shortNameOf } from "@/lib/shortName";
-import { findUser, getCrew, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib/store";
+import { findUser, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
-import { useGridColumns } from "@/lib/useGridColumns";
-import { usePhotoDrag } from "@/lib/usePhotoDrag";
-import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
+import { cn, firstName, housePhotos, languageCode } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
 
 export function MyProfile() {
@@ -116,19 +112,17 @@ function BlockedProfile({ user }: { user: User }) {
 }
 
 /**
- * A person's page, one screen from 1100px: who they are, what they offer, what speaks for them. A tile with nothing in it isn't there, and the
- * others take its room. What's in them: src/lib/profilePrivacy.ts.
- * Own profile: "Preview" renders the stranger's page, under a band, and nothing in it changes data.
+ * A person's page as one bento grid on one screen (from 1100px: 12 columns, 2 rows, 16px apart, as high as the window allows – 640 to 820px –
+ * no scrolling). Row 1: Photo (3) · Identity, Ember (6) · Now (3). Row 2: About (3) · Vibe (3) · Find me (3) · People & places (3). The tiles
+ * lie right on the page (two levels at most, no tile in a tile). What's in them: src/lib/profilePrivacy.ts.
+ * Own profile: "Preview" renders the stranger's page, a slim line above the grid says so.
  */
 function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
-  const tPreview = useTranslations("common.ui.preview");
   const [preview, setPreview] = useState(false);
   const previewing = isMe && preview;
-
   return (
     <PreviewProvider active={previewing}>
-      {previewing && <PreviewBanner message={tPreview("profile")} onExit={() => setPreview(false)} />}
-      <ProfileBody user={user} isMe={isMe && !previewing} previewing={previewing} onPreview={isMe ? () => setPreview(true) : undefined} />
+      <ProfileBody user={user} isMe={isMe && !previewing} previewing={previewing} onPreview={isMe ? () => setPreview(true) : undefined} onExitPreview={() => setPreview(false)} />
     </PreviewProvider>
   );
 }
@@ -139,89 +133,136 @@ interface ProfileBodyProps {
   /** Rendering as a stranger: no viewer, nothing private */
   previewing: boolean;
   onPreview?: () => void;
+  onExitPreview: () => void;
 }
 
-function ProfileBody({ user, isMe, previewing, onPreview }: ProfileBodyProps) {
+function ProfileBody({ user, isMe, previewing, onPreview, onExitPreview }: ProfileBodyProps) {
   const t = useTranslations("profile");
-  const tv = useTranslations("profile.view");
+  const tPreview = useTranslations("common.ui.preview");
   const store = useStore();
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const viewerId = previewing ? null : store.currentUserId;
   const view = profileViewFor(store, user, viewerId, today);
   const { photos } = user;
-  // How many cards a row shows at once – the grid's real column count.
-  const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
-  const cols = useGridColumns(columnProbe) || 4;
   // Turned off "Show me on House pages": only people who shared a crew with them see more (config/privacy.ts) – no photos, no Houses.
   if (!isMe && !showsOnHousePages(user) && !sharesCrew(store, user.id, viewerId)) return <PrivateProfile user={user} />;
 
-  const cardOf = (stay: Stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> });
-  // Hosting now: their open or upcoming Houses (others: the public ones). Going to: where they're a guest – only as the privacy rules allow.
-  const hosting = view.hostingNow.filter((s) => s.status !== "draft");
   return (
-    <Container className="explore-width explore-root pb-16 pt-6 md:pt-8">
-      <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />
-      {/* Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header). */}
-      {isMe && (
-        <div className="-mt-2 mb-2 flex justify-end md:hidden">
-          <Link href="/settings" aria-label={t("settings")} className={iconButtonStyles("lg")}>
-            <Settings className="size-5" />
-          </Link>
-        </div>
+    <>
+      {/* The preview: one slim line above the band – not sticky, not over the content. */}
+      {previewing && (
+        <p role="status" className="flex h-10 items-center justify-center gap-3 bg-ink/6 px-4 text-small text-ink md:-mt-4 md:mb-4">
+          <Eye aria-hidden className="size-4 shrink-0 text-muted" />
+          <span className="truncate">{tPreview("profile")}</span>
+          <button type="button" onClick={onExitPreview} className="shrink-0 font-semibold underline underline-offset-2 hover:text-muted">
+            {tPreview("exit")}
+          </button>
+        </p>
       )}
-      <ProfileHead user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} viewerId={viewerId} onOpenPhoto={(index) => photos.length > 0 && setPhotoIndex(index)} />
-
-      {/* The rows, like Your houses: 48px under the head, 40px apart, each headed by its title (24px) and how many. */}
-      <div className="mt-12 flex flex-col gap-10">
-        <VibeRow user={user} isMe={isMe} />
-        {hosting.length > 0 && <CardRow id="hosting-now" title={tv("rowHostingNow")} cards={hosting.map(cardOf)} cols={cols} />}
-        {view.upcoming.length > 0 && <CardRow id="going-to" title={tv("rowGoingTo")} cards={view.upcoming.map(cardOf)} cols={cols} />}
-        <LivedWithRow view={view} isMe={isMe} viewerId={viewerId} />
-        {view.places.length > 0 && <PlacesRow places={view.places} />}
-      </div>
+      <ProfileBento
+        user={user}
+        isMe={isMe}
+        previewing={previewing}
+        onPreview={onPreview}
+        view={view}
+        viewerId={viewerId}
+        today={today}
+        onOpenPhoto={(index) => photos.length > 0 && setPhotoIndex(index)}
+        settings={
+          isMe && (
+            // Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header).
+            <div className="mb-2 flex justify-end md:hidden">
+              <Link href="/settings" aria-label={t("settings")} className={iconButtonStyles("lg")}>
+                <Settings className="size-5" />
+              </Link>
+            </div>
+          )
+        }
+      />
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
-    </Container>
+    </>
   );
 }
 
-/** A private profile, to everyone who wasn't in a crew with them: the first name and "This profile is private" – nothing else. */
-function PrivateProfile({ user }: { user: User }) {
-  const t = useTranslations("profile.view");
-  return (
-    <Container page className="flex min-h-[calc(100dvh-var(--header-total)-var(--space-section))] flex-col items-center justify-center pb-(--space-section) text-center">
-      <span aria-hidden className="flex size-24 items-center justify-center rounded-full bg-ink/6 text-muted">
-        <Lock className="size-7" />
-      </span>
-      <h1 className="mt-6 text-h1 text-ink">{publicName(user, null)}</h1>
-      <p className="mt-2 text-body-lg text-muted">{t("private")}</p>
-    </Container>
-  );
-}
+/** A column under the band: right on the page's background, its label like every eyebrow. */
+const COLUMN_LABEL = "text-eyebrow uppercase text-ink/55";
 
-/* ───────────────────────── Head ───────────────────────── */
-
-interface HeadProps {
-  /** Edit profile's live preview: no actions, quiet placeholders for what's empty, each part marked (data-preview-part) */
-  preview?: boolean;
-  /** Edit profile: no date of birth set yet – no age at all */
-  hideAge?: boolean;
+interface BentoProps {
   user: User;
   isMe: boolean;
   previewing: boolean;
   onPreview?: () => void;
   view: ProfileVisibility;
   viewerId: string | null;
+  today: string;
   onOpenPhoto: (index: number) => void;
+  /** Edit profile's live preview: no actions, quiet placeholders, every part marked (data-preview-part); a fixed height */
+  preview?: boolean;
+  /** Edit profile: no date of birth yet – no age */
+  hideAge?: boolean;
+  /** Your own, on phones: the gear to Settings, above the columns */
+  settings?: ReactNode;
 }
 
 /**
- * The head, one row of about 480px in the header's container: left a third, the photos as a 4:5 card (swipe, dots; no name on it); right two
- * thirds Ember – the name (display 40px) with the orange check and the muted "29 · Ireland · based in Lisbon", share and "…" (your own: "Edit
- * profile"); the trust chips; what you have in common (people you both lived with first); the socials; at the bottom the actions. No free
- * "Message" (direct chats start from a House). Phones: one column, the photo on top.
+ * A person's page on one screen (from 1100px wide and 760px high – the `fit` variant): exactly 100vh minus the header (and the 32px legal
+ * line under it), no scrolling. The person as a band right under the header (components/HeroBand), clamp(380px, 54vh, 540px) high: the photos
+ * (clamp(320px, 28 %, 560px) wide, cut to the face), Ember with the identity, and "Hosting & going" in its right column. Below it, 32px down,
+ * four columns right on the page's background, 1px lines ink 8 % between them, exactly as high as what's left: About · Vibe · Find me ·
+ * People & places – what doesn't fit is cut, with "more" for the rest; empty ones are left out. Smaller or lower windows: the same order,
+ * scrolling allowed. Phones: one under the other.
  */
-function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpenPhoto, preview = false, hideAge = false }: HeadProps) {
+function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today, onOpenPhoto, preview = false, hideAge = false, settings }: BentoProps) {
+  const store = useStore();
+  const links = (user.socials?.length ?? 0) > 0;
+  const inFor = activeInForOf(store.inFor, user.id, today);
+  const columns = [
+    (user.bio || user.languages.length > 0 || isMe || preview) && { key: "about", node: <AboutColumn user={user} isMe={isMe} preview={preview} /> },
+    (user.houseVibe || isMe || preview) && { key: "vibe", node: <VibeTile user={user} isMe={isMe} preview={preview} /> },
+    (links || inFor.length > 0 || preview) && { key: "find", node: <FindColumn user={user} today={today} preview={preview} /> },
+    (view.livedWith.length > 0 || view.places.length > 0 || (isMe && view.toConfirm.length > 0)) && { key: "people", node: <PeoplePlacesTile view={view} isMe={isMe} viewerId={viewerId} /> },
+  ].filter((c) => c !== false && c !== "") as { key: string; node: ReactNode }[];
+  return (
+    <div data-profile-bento className={cn(!preview && "md:-mt-4", !preview && "fit:flex fit:h-[calc(100dvh-var(--header-h)-var(--band-h)-32px)] fit:flex-col fit:overflow-hidden")}>
+      <HeroBand
+        aria-labelledby="profile-name"
+        flush
+        height="split:h-[clamp(380px,54vh,540px)] fit:shrink-0"
+        mediaWidth="split:w-[clamp(320px,28%,560px)]"
+        media={
+          <div data-preview-part="photos" className="absolute inset-0">
+            <HeroPhotos photos={user.photos} onOpen={onOpenPhoto} />
+          </div>
+        }
+        rightColumn={<HostingGoing user={user} isMe={isMe} view={view} today={today} preview={preview} />}
+      >
+        <IdentityTile user={user} isMe={isMe} previewing={previewing} onPreview={onPreview} view={view} viewerId={viewerId} today={today} preview={preview} hideAge={hideAge} />
+      </HeroBand>
+      <Container className={cn("explore-width explore-root fit:min-h-0 fit:flex-1", preview ? "pb-8" : "pb-12 fit:pb-6")}>
+        <div className="mt-8 fit:h-[calc(100%-32px)]">
+          {settings}
+          <div className="flex flex-col divide-y divide-ink/8 split:flex-row split:divide-x split:divide-y-0 fit:h-full">
+            {columns.map((column) => (
+              <div key={column.key} className="min-w-0 flex-1 py-6 first:pt-0 split:px-8 split:py-0 split:first:pl-0 split:last:pr-0 fit:min-h-0 fit:overflow-hidden">
+                {column.node}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Container>
+    </div>
+  );
+}
+
+/**
+ * Identity (the global Ember): the name 40px + Verified, beside it the Pro host badge and muted "29 · Norway · Lisbon"; top right Share ·
+ * Save · "…". In the middle three numbers, large (32px), each its label under it – Houses · lived with · since – no capsules. Then ONE line
+ * with icons: "Responds fast · You both speak English · Both into Party" (at most 3). At the bottom "Invite to your House" when that's
+ * possible. Your own: Share, then at the bottom "Edit profile" (outline) with the progress ring "4 of 6" (gone at 6/6), no in-common line.
+ */
+function IdentityTile({ user, isMe, previewing, onPreview, view, viewerId, today, preview, hideAge }: Omit<BentoProps, "onOpenPhoto">) {
+  const tBack = useTranslations("common");
   const t = useTranslations("profile");
   const tv = useTranslations("profile.view");
   const f = useFormat();
@@ -230,340 +271,442 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
   const showToast = useToast();
   const [sharing, setSharing] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
-  const monthName = useMonthName();
   const minutes = medianReplyMinutes(user);
-  // "I'm in for …" (lib/inFor.ts): their running signals as chips – "In for Lisbon · Mar".
-  const inFor = activeInForOf(store.inFor, user.id, today);
-  const inForText = (s: InFor) =>
-    tv("inForChip", { place: inForPlaceName(s), months: s.monthFrom === s.monthTo ? monthName(s.monthFrom, "bare") : `${monthName(s.monthFrom, "bare")}–${monthName(s.monthTo, "bare")}` });
-  // "Save" (private, nobody is told): Your houses › Saved people, first in the invite sheet.
   const saved = !isMe && viewerId ? (settingsOf(store.users.find((u) => u.id === viewerId)).savedPeopleIds ?? []).includes(user.id) : false;
   const toggleSave = () =>
     guard(() => {
       store.toggleSavedPerson(user.id);
       showToast(saved ? tv("unsavedToast", { name: firstName(user) }) : tv("savedToast", { name: firstName(user) }));
     });
-  // The compact House line under the socials: hosting now, else going (only what profilePrivacy shows).
-  const houseLine = view.hostingNow.find((s) => s.status === "published" || s.status === "booked") ?? view.upcoming[0];
-  const trust = [
-    view.housesCount > 0 && { key: "houses", icon: Home, text: tv("chipHouses", { count: view.housesCount }) },
-    view.livedWith.length > 0 && { key: "people", icon: Users, text: tv("chipLivedWith", { count: view.livedWith.length }) },
-    minutes !== null && minutes <= FAST_REPLY_MINUTES && { key: "fast", icon: Zap, text: tv("chipFast") },
-    view.memberSince !== null && { key: "since", icon: CalendarDays, text: tv("chipSince", { year: view.memberSince }) },
-  ].filter((item) => item !== false);
   const common = isMe ? null : inCommonWith(store, user, viewerId, today);
-  // Their open House (the soonest), and yours to invite them to.
-  const theirOpen = view.hostingNow.find((s) => s.status === "published" && s.acceptingRequests && openSpots(s) > 0);
-  // Your open Houses with a free spot they aren't in or asking for yet – "Invite to your House" opens the invite sheet with them picked
-  // (several Houses: pick one first).
+  // One line: replies fast, a language you share, something you're both into – at most three, the rest left out.
+  const line = [
+    minutes !== null && minutes <= FAST_REPLY_MINUTES && { key: "fast", icon: Zap, text: tv("chipFast") },
+    common?.languages[0] && { key: "lang", icon: Languages, text: tv("bothSpeak", { language: common.languages[0] }) },
+    common?.interests[0] && { key: "into", icon: Sparkles, text: tv("bothInto", { interest: f.vibe(common.interests[0]) }) },
+  ]
+    .filter((item) => item !== false && item !== undefined && item !== "")
+    .slice(0, 3) as { key: string; icon: LucideIcon; text: string }[];
+  // Your Houses with a free spot they aren't in or asking for yet: "Invite to your House" (several: the sheet asks which first).
   const mineOpen = !isMe && viewerId
     ? store.stays
         .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
         .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
     : [];
-  const mine = mineOpen[0];
-  const invite = () => guard(() => setInviting(true));
-  const seeTheirs = theirOpen && (
-    <Button key="see" variant="cream" size="lg" href={`/house/${theirOpen.slug}`}>
-      {tv("seeHouse", { name: shortNameOf(theirOpen) })}
-    </Button>
-  );
-  const inviteButton = (primary: boolean) =>
-    mine ? (
-      <Button key="invite" variant={primary ? "cream" : "creamOutline"} size="lg" onClick={invite} data-preview-action>
-        <UserPlus aria-hidden />
-        {tv("inviteToHouse")}
-      </Button>
-    ) : null;
-  const actions = seeTheirs ? [seeTheirs, inviteButton(false)] : [inviteButton(true)];
+  // Nobody lived with yet: no "0" – a sparkle where the number would be, and "New on Simpulo" as its label.
+  const numbers: { key: string; value: ReactNode; label: string }[] = [
+    { key: "houses", value: String(view.housesCount), label: tv("numHouses", { count: view.housesCount }) },
+    view.livedWith.length > 0
+      ? { key: "people", value: String(view.livedWith.length), label: tv("numLivedWith") }
+      : { key: "people", value: <Sparkles aria-hidden className="size-8" strokeWidth={1.75} />, label: tv("newOnSimpulo") },
+    { key: "since", value: view.memberSince !== null ? String(view.memberSince) : "–", label: tv("numSince") },
+  ];
+  // Your own: how far the profile is ("4 of 6", the sections counted in Edit profile).
+  const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
+  const done = counted.filter((s) => sectionDone(s.key, user, today)).length;
 
   return (
-    <section aria-labelledby="profile-name" className="grid gap-4 split:grid-cols-[minmax(0,min(33.333%,384px))_minmax(0,1fr)] split:gap-5">
-      <div data-preview-part="photos" className="min-w-0">
-        <ProfilePhotoCard user={user} onOpen={onOpenPhoto} />
-      </div>
-      {/* With a House line the Ember fills the photo's height; without one it's as tall as its content, top-aligned (the photo keeps 4:5). */}
-      <div className={cn("ember ember-scope flex min-w-0 flex-col gap-5 rounded-3xl p-6 sm:p-8 split:p-10", !houseLine && "split:self-start")}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div data-preview-part="basics" className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h1 id="profile-name" className="flex min-w-0 items-center gap-2 text-name text-ink">
-                <span className="truncate">{publicName(user, viewerId)}</span>
-                <span data-preview-part="verify" className="inline-flex shrink-0 items-center">
-                  {user.verified ? <VerifiedBadge className="shrink-0" /> : preview && <span className="ember-chip text-small font-medium text-ink/60">{tv("notVerified")}</span>}
-                </span>
-              </h1>
-              <p className="text-body-lg text-muted">
-                {hideAge ? user.country : f.ageAndCountry(user, showsAge(user, viewerId))}
-                {user.city && ` · ${t("basedIn", { city: user.city })}`}
-              </p>
-            </div>
-            <ProHostLabel user={user} className="mt-2 empty:hidden" />
-          </div>
-          <div className={cn("flex shrink-0 items-center gap-2", preview && "hidden")}>
-            <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={iconButtonStyles()}>
-              <Share2 className="size-4" aria-hidden />
+    // Stacked from the top – name and meta · 24px · the numbers · 16px · the in-common line · 24px · the action; what's left stays free below.
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex items-start justify-between gap-4">
+        {/* The way back: phones and the installed app. */}
+        <BackButton fallback="/" label={tBack("back")} className="mt-1" />
+        <div data-preview-part="basics" className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 id="profile-name" className="flex min-w-0 items-center gap-2 text-name text-ink">
+            <span className="truncate">{publicName(user, viewerId)}</span>
+            <span data-preview-part="verify" className="inline-flex shrink-0 items-center">
+              {user.verified ? <VerifiedBadge className="shrink-0" /> : preview && <span className="ember-chip text-small font-medium text-ink/60">{tv("notVerified")}</span>}
+            </span>
+          </h1>
+          <ProHostBadge user={user} />
+          <p className="text-body-lg text-muted">
+            {hideAge ? user.country : f.ageAndCountry(user, showsAge(user, viewerId))}
+            {user.city && ` · ${user.city}`}
+          </p>
+        </div>
+        <div className={cn("flex shrink-0 items-center gap-1", preview && "hidden")}>
+          <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={iconButtonStyles("sm")}>
+            <Share2 className="size-4" aria-hidden />
+          </button>
+          {!isMe && viewerId && (
+            <button type="button" onClick={toggleSave} aria-pressed={saved} aria-label={saved ? tv("unsave") : tv("save")} className={iconButtonStyles("sm")}>
+              <Bookmark className={cn("size-4", saved && "fill-current")} aria-hidden />
             </button>
-            {!isMe && viewerId && (
-              <button type="button" onClick={toggleSave} aria-pressed={saved} aria-label={saved ? tv("unsave") : tv("save")} className={iconButtonStyles()}>
-                <Bookmark className={cn("size-4", saved && "fill-current")} aria-hidden />
-              </button>
-            )}
-            {isMe ? (
-              <Button variant="creamOutline" size="sm" href="/settings/profile">
-                <Pencil aria-hidden />
-                {t("editProfile")}
-              </Button>
-            ) : previewing ? (
-              <button type="button" onClick={() => guard(() => undefined)} aria-label={tv("options")} className={iconButtonStyles()}>
+          )}
+          {!isMe &&
+            (previewing ? (
+              <button type="button" onClick={() => guard(() => undefined)} aria-label={tv("options")} className={iconButtonStyles("sm")}>
                 <MoreHorizontal className="size-5" aria-hidden />
               </button>
             ) : (
-              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} extraItems={viewerId ? [{ label: saved ? tv("unsave") : tv("save"), onSelect: toggleSave }] : []} buttonClassName={iconButtonStyles()} />
-            )}
-          </div>
+              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} extraItems={viewerId ? [{ label: saved ? tv("unsave") : tv("save"), onSelect: toggleSave }] : []} buttonClassName={iconButtonStyles("sm")} />
+            ))}
         </div>
+      </div>
 
-        {(trust.length > 0 || inFor.length > 0) && (
-          <ul className="flex flex-wrap gap-2 text-small font-medium">
-            {trust.map(({ key, icon: Icon, text }) => (
-              <li key={key} className="ember-chip">
-                <Icon aria-hidden className="size-3.5" />
-                {text}
-              </li>
-            ))}
-            {inFor.map((s) => (
-              <li key={s.id} className="ember-chip">
-                <MapPin aria-hidden className="size-3.5" />
-                {inForText(s)}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {common && (common.livedWith.length > 0 || common.languages.length > 0 || common.interests.length > 0) && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-eyebrow uppercase text-ink/60">{tv("inCommon")}</span>
-            {/* People you both lived with first, then a language, then what you're both into. */}
-            {common.livedWith.slice(0, 2).map((person) => (
-              <span key={person.id} className="ember-chip text-small">
-                <PersonPhoto src={person.photos[0]} alt="" size={20} className="size-5" />
-                {tv("mutual", { name: firstName(person) })}
-              </span>
-            ))}
-            {common.languages.slice(0, 1).map((language) => (
-              <span key={language} className="ember-chip text-small">
-                <Languages aria-hidden className="size-3.5" />
-                {tv("speaksOne", { language })}
-              </span>
-            ))}
-            {common.interests.slice(0, 1).map((interest) => (
-              <span key={interest} className="ember-chip text-small">
-                <Sparkles aria-hidden className="size-3.5" />
-                {tv("bothInto", { interest: f.vibe(interest) })}
-              </span>
-            ))}
+      <dl className="mt-6 grid grid-cols-3 gap-4">
+        {numbers.map((n) => (
+          <div key={n.key} className="min-w-0">
+            <dd className="flex h-10 items-end text-section tabular-nums text-ink">{n.value}</dd>
+            <dt className="mt-1 truncate text-small text-muted">{n.label}</dt>
           </div>
-        )}
+        ))}
+      </dl>
 
-        <div data-preview-part="links" className="self-start">
-          {(user.socials?.length ?? 0) > 0 ? <SocialLinks user={user} variant="full" tone="dark" /> : preview && <span className="ember-chip text-small font-medium text-ink/60">{tv("linksAdd")}</span>}
-        </div>
+      {line.length > 0 && (
+        <p className="mt-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink">
+          {line.map(({ key, icon: Icon, text }, i) => (
+            <span key={key} className="inline-flex items-center gap-1.5">
+              {i > 0 && <span aria-hidden className="mr-1.5 text-muted">·</span>}
+              <Icon aria-hidden className="size-3.5 text-ink/70" />
+              {text}
+            </span>
+          ))}
+        </p>
+      )}
 
-        {houseLine && !preview && <HouseLine stay={houseLine} label={view.hostingNow.includes(houseLine) ? tv("hostingNow") : tv("going")} />}
-
-        {isMe && !user.verified && (
-          <p className="text-small text-muted">
-            <VerifyHint />
-          </p>
-        )}
-
-        <div className={cn("mt-auto flex flex-wrap items-center justify-between gap-3", preview && "hidden")}>
-          <div className="flex flex-wrap gap-2">{actions}</div>
+      {!preview && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          {isMe ? (
+            <span className="flex items-center gap-3">
+              <Button variant="creamOutline" size="md" href="/settings/profile">
+                <Pencil aria-hidden />
+                {t("editProfile")}
+              </Button>
+              {done < counted.length && <ProgressRing done={done} total={counted.length} />}
+            </span>
+          ) : (
+            mineOpen.length > 0 && (
+              <Button variant="cream" size="lg" onClick={() => guard(() => setInviting(true))} data-preview-action>
+                <UserPlus aria-hidden />
+                {tv("inviteToHouse")}
+              </Button>
+            )
+          )}
           {isMe && onPreview && (
             <button type="button" onClick={onPreview} className="text-small font-semibold text-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
               {tv("previewAsOthers")}
             </button>
           )}
         </div>
-      </div>
+      )}
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
       {mineOpen.length > 0 && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+    </div>
+  );
+}
+
+/** "4 of 6": a small orange ring and the count. */
+function ProgressRing({ done, total }: { done: number; total: number }) {
+  const tv = useTranslations("profile.view");
+  const r = 10;
+  const c = 2 * Math.PI * r;
+  return (
+    <span className="inline-flex items-center gap-2 text-small text-muted">
+      <svg viewBox="0 0 24 24" className="size-6 -rotate-90" aria-hidden>
+        <circle cx="12" cy="12" r={r} fill="none" stroke="currentColor" strokeOpacity={0.2} strokeWidth={2.5} />
+        <circle cx="12" cy="12" r={r} fill="none" className="stroke-accent" strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${(done / total) * c} ${c}`} />
+      </svg>
+      {tv("progress", { done, total })}
+    </span>
+  );
+}
+
+/** Days from today to a date (0: today). */
+const daysFrom = (today: string, date: string) => Math.max(0, Math.round((Date.parse(date) - Date.parse(today)) / 86_400_000));
+
+/** At most this many Houses in the band's list, then "+N more". */
+const HOUSES_SHOWN = 3;
+
+/**
+ * "HOSTING & GOING", the band's right column: at most three rows of 64px – photo 48px (rounded square), the title (one line), right the state
+ * muted ("Day 3 of 14" · "Next · in 78 days" · "Hosting · Mar 20" · "Going · Jan 17"), by date; a row opens the House (/h/[id]). More: "+N
+ * more" → a sheet with all. Nothing to swipe. Empty: a large place icon + "In for Lisbon · Mar", or "Open to Houses". Your own: "Manage in
+ * Your houses →" under it.
+ */
+function HostingGoing({ user, isMe, view, today, preview }: { user: User; isMe: boolean; view: ProfileVisibility; today: string; preview: boolean }) {
+  const tv = useTranslations("profile.view");
+  const f = useFormat();
+  const store = useStore();
+  const lineOf = useInForLine();
+  const [all, setAll] = useState(false);
+  const houses = preview
+    ? []
+    : [...new Set([...view.hostingNow.filter((s) => s.status === "published" || s.status === "booked"), ...view.upcoming])]
+        .filter((s) => s.endDate >= today)
+        .toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+  const inFor = activeInForOf(store.inFor, user.id, today);
+  const firstUpcoming = houses.find((s) => s.startDate > today);
+  const stateOf = (stay: Stay) => {
+    if (stay.startDate <= today) return tv("dayOf", { day: daysFrom(stay.startDate, today) + 1, days: daysFrom(stay.startDate, stay.endDate) });
+    if (isMe && stay === firstUpcoming) return tv("nextShort", { in: tv("inDays", { count: daysFrom(today, stay.startDate) }) });
+    return stay.hostId === user.id ? tv("hostingOn", { date: f.day(stay.startDate) }) : tv("goingOn", { date: f.day(stay.startDate) });
+  };
+  const row = (stay: Stay, dark: boolean) => {
+    const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
+    return (
+      <Link href={`/h/${stay.id}`} className={cn("-mx-2 flex h-16 items-center gap-3 rounded-xl px-2 transition-colors duration-150", dark ? "hover:bg-ink/6" : "hover:bg-ink/5")}>
+        <span className={cn("relative size-12 shrink-0 overflow-hidden rounded-xl", dark ? "bg-ink/10" : "bg-ink/6")}>{photo && <Img src={photo} alt="" fill sizes="48px" className="object-cover" />}</span>
+        <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{stay.title}</span>
+        <span className="shrink-0 text-small text-muted">{stateOf(stay)}</span>
+      </Link>
+    );
+  };
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <h2 className="mb-2 text-eyebrow uppercase text-ink/60">{tv("hostingGoing")}</h2>
+      {houses.length > 0 ? (
+        <ul>
+          {houses.slice(0, HOUSES_SHOWN).map((stay) => (
+            <li key={stay.id}>{row(stay, true)}</li>
+          ))}
+          {houses.length > HOUSES_SHOWN && (
+            <li>
+              <button type="button" onClick={() => setAll(true)} className="mt-1 text-small font-semibold text-ink underline-offset-4 hover:underline">
+                {tv("moreHouses", { count: houses.length - HOUSES_SHOWN })}
+              </button>
+            </li>
+          )}
+        </ul>
+      ) : inFor.length > 0 ? (
+        <div className="flex flex-1 flex-col items-start justify-center gap-4">
+          <span className="flex size-14 items-center justify-center rounded-full bg-ink/10 text-ink">
+            <MapPin aria-hidden className="size-6" />
+          </span>
+          <p className="text-h3 text-ink">{tv("inForChip", { place: inForPlaceName(inFor[0]), months: lineOf(inFor[0]).split(" · ").slice(1).join(" · ") })}</p>
+        </div>
+      ) : (
+        <p className="flex flex-1 items-center text-body text-muted">{tv("openToHouses")}</p>
+      )}
+      {isMe && !preview && (
+        <Link href="/your-houses" className="mt-auto pt-4 text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {tv("manageInYourHouses")}
+        </Link>
+      )}
+      <Sheet open={all} onClose={() => setAll(false)} title={tv("hostingGoing")}>
+        <ul className="-mx-2">
+          {houses.map((stay) => (
+            <li key={stay.id} className="px-2">
+              {row(stay, false)}
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+    </div>
+  );
+}
+
+/** About: the bio (five lines at most, else "more" opens it whole) and the languages as short codes with an icon ("NO · EN"). */
+function AboutColumn({ user, isMe, preview }: { user: User; isMe: boolean; preview: boolean }) {
+  const tv = useTranslations("profile.view");
+  const [open, setOpen] = useState(false);
+  const codes = user.languages.map((name) => (languageCode(name) ?? name.slice(0, 2)).toUpperCase());
+  const long = user.bio.length > 190;
+  return (
+    <section aria-labelledby="col-about" data-preview-part="about" className="flex h-full min-w-0 flex-col gap-3">
+      <h2 id="col-about" className={COLUMN_LABEL}>
+        {tv("about")}
+      </h2>
+      {user.bio ? (
+        <>
+          <p className="line-clamp-4 text-body text-ink">{user.bio}</p>
+          {long && (
+            <button type="button" onClick={() => setOpen(true)} className="self-start text-small font-semibold text-ink underline-offset-4 hover:underline">
+              {tv("readMore")}
+            </button>
+          )}
+        </>
+      ) : isMe && !preview ? (
+        <Link href="/settings/profile" className="text-body font-semibold text-ink underline-offset-4 hover:underline">
+          {tv("aboutAdd")}
+        </Link>
+      ) : (
+        <p className="text-body text-muted">{preview ? tv("aboutAdd") : tv("aboutEmpty")}</p>
+      )}
+      {codes.length > 0 && (
+        <p className="mt-auto flex items-center gap-1.5 pt-2 text-small font-semibold text-ink" aria-label={user.languages.join(", ")}>
+          <Languages aria-hidden className="size-3.5 text-ink/60" />
+          {codes.join(" · ")}
+        </p>
+      )}
+      <Sheet open={open} onClose={() => setOpen(false)} title={tv("about")}>
+        <p className="whitespace-pre-line text-body text-ink">{user.bio}</p>
+      </Sheet>
     </section>
   );
 }
 
-/** "Hosting now" / "Going": one compact House line in the Ember – photo 48px, title, "date · short name"; the whole line opens the House. */
-function HouseLine({ stay, label }: { stay: Stay; label: string }) {
-  const f = useFormat();
-  const store = useStore();
-  const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
-  return (
-    <div>
-      <p className="mb-2 text-eyebrow uppercase text-ink/60">{label}</p>
-      <Link href={`/h/${stay.id}`} className="group -mx-2 flex max-w-[480px] items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors duration-150 hover:bg-[#F4EEE7]/6">
-        <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-[#F4EEE7]/10">{photo && <Img src={photo} alt="" fill sizes="48px" className="object-cover" />}</span>
-        <span className="min-w-0">
-          <span className="block truncate text-body font-semibold text-ink">{stay.title}</span>
-          <span className="block truncate text-small text-muted">
-            {f.stayDates(stay)} · {shortNameOf(stay)}
-          </span>
-        </span>
-      </Link>
-    </div>
-  );
-}
-
-/** Your own profile without the check: one quiet line, with its link. */
-function VerifyHint() {
-  const tVerify = useTranslations("verification");
-  return <>{tVerify.rich("profileHint", { link: (chunks) => <Link href="/settings#payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}</>;
-}
-
-/** The photos as a 4:5 card: swipe or drag, the dots at the bottom; a click opens the lightbox. No name on it – that's in the Ember part. */
-function ProfilePhotoCard({ user, onOpen }: { user: User; onOpen: (index: number) => void }) {
-  const t = useTranslations("profile");
+/** Find me: the links as rows (each mark in its own colour in a white circle, the handle, ↗); without links what they're in for. */
+function FindColumn({ user, today, preview }: { user: User; today: string; preview: boolean }) {
   const tv = useTranslations("profile.view");
-  const { photos } = user;
-  const { ref, active, onScroll, scrollTo } = useSnapCarousel<HTMLDivElement>(photos.length);
-  const drag = usePhotoDrag(ref, active, scrollTo, photos.length > 1);
+  const store = useStore();
+  const line = useInForLine();
+  const links = (user.socials?.length ?? 0) > 0;
+  const inFor = links ? [] : activeInForOf(store.inFor, user.id, today);
   return (
-    <div className="relative mx-auto w-full max-w-130 split:max-w-none">
-      <div className="group relative aspect-4/5 w-full overflow-hidden rounded-3xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to)">
-        <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto", drag.className)}>
-          {photos.map((src, i) => (
-            <button
-              key={src}
-              type="button"
-              onClick={() => !drag.dragged() && onOpen(i)}
-              aria-label={t("openPhoto", { index: i + 1 })}
-              aria-hidden={i !== active || undefined}
-              tabIndex={i === active ? 0 : -1}
-              data-no-tooltip
-              className="relative block h-full w-full shrink-0 snap-center snap-always outline-none"
-            >
-              <Img src={src} alt="" fill sizes="(min-width: 1100px) 384px, 100vw" loading={i === 0 ? "eager" : undefined} className="object-cover object-[center_30%]" />
-            </button>
+    <section aria-labelledby="col-find" data-preview-part="links" className="min-w-0">
+      <h2 id="col-find" className={COLUMN_LABEL}>
+        {links || preview ? tv("findMe") : tv("inForLabel")}
+      </h2>
+      {links ? (
+        <SocialLinks user={user} variant="rows" className="mt-2" />
+      ) : inFor.length > 0 ? (
+        <ul className="mt-2 flex flex-col">
+          {inFor.map((s) => (
+            <li key={s.id} className="flex h-12 items-center gap-3 text-body text-ink">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-ink/6 bg-plate">
+                <MapPin aria-hidden className="size-5 text-accent" />
+              </span>
+              <span className="truncate">{line(s)}</span>
+            </li>
           ))}
-        </div>
-        {photos.length > 1 && (
-          <div className="absolute inset-x-0 bottom-3 flex justify-center">
-            {photos.map((src, i) => (
-              <button key={src} type="button" onClick={() => scrollTo(i)} aria-label={tv("showPhoto", { number: i + 1, count: photos.length })} aria-current={i === active || undefined} data-no-tooltip className="flex h-5 items-center px-0.5">
-                <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-white" : "w-1 bg-white/60")} />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+        </ul>
+      ) : (
+        <p className="mt-3 text-body text-muted">{tv("linksAdd")}</p>
+      )}
+    </section>
   );
 }
 
-/* ───────────────────────── Rows ───────────────────────── */
-
-/** A reply this fast (median, minutes) earns "Responds fast". */
-const FAST_REPLY_MINUTES = 120;
+/** Scales shown from this end on the left (Chill ↔ Active, Relaxed ↔ Tidy); the others from step 1 (Early bird ↔ Night owl, Quiet ↔ Social). */
+const FLIPPED: ReadonlySet<string> = new Set(["energy", "tidy"]);
 
 /**
- * "Vibe": how they live in a House – four scales (config/houseVibe.ts), each its icon, where they lean in a word, and three dots with theirs
- * filled orange; beside it the bio (three lines at most) and the languages as chips. Your own without any of it: the way to Edit profile.
+ * Vibe: the four scales with both ends' words (Early bird ↔ Night owl, Quiet ↔ Social, Chill ↔ Active, Relaxed ↔ Tidy), a line ink 10 % and
+ * an orange dot where they are (three steps). Without: "No vibe yet" muted (your own: "Add your vibe").
  */
-function VibeRow({ user, isMe, preview = false }: { user: User; isMe: boolean; /** Edit profile's preview: quiet placeholders instead of gaps, the parts marked */ preview?: boolean }) {
+function VibeTile({ user, isMe, preview }: { user: User; isMe: boolean; preview: boolean }) {
   const tv = useTranslations("profile.view");
   const tVibe = useTranslations("profile.vibe");
   const vibe = user.houseVibe;
-  if (!vibe && !user.bio && user.languages.length === 0 && !isMe && !preview) return null;
-  const placeholder = (text: string) => <p className="text-body text-muted">{text}</p>;
   return (
-    <section aria-labelledby="row-vibe">
-      <RowHead id="row-vibe" title={tv("rowVibe")} />
-      <div className="mt-4 grid gap-x-12 gap-y-6 split:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        {vibe ? (
-          <ul data-preview-part="vibe" className="flex flex-col gap-3">
-            {HOUSE_VIBE_SCALES.map(({ key, icon: Icon }) => (
-              <li key={key} className="flex items-center justify-between gap-4" aria-label={`${tVibe(`${key}.scale`)}: ${tVibe(`${key}.${vibe[key]}`)}`}>
-                <span className="flex min-w-0 items-center gap-2.5 text-body text-ink">
-                  <Icon aria-hidden className="size-4 shrink-0 text-ink/60" />
-                  <span className="truncate">{tVibe(`${key}.${vibe[key]}`)}</span>
+    <section aria-labelledby="tile-vibe" data-preview-part="vibe" className="min-w-0">
+      <h2 id="tile-vibe" className={COLUMN_LABEL}>
+        {tv("vibeLabel")}
+      </h2>
+      {vibe ? (
+        <ul className="mt-3 flex flex-col">
+          {HOUSE_VIBE_SCALES.map(({ key }) => {
+            const flip = FLIPPED.has(key);
+            const left = tVibe(`${key}.${flip ? 3 : 1}`);
+            const right = tVibe(`${key}.${flip ? 1 : 3}`);
+            const position = ((flip ? 4 - vibe[key] : vibe[key]) - 1) / 2;
+            return (
+              <li key={key} aria-label={`${tVibe(`${key}.scale`)}: ${tVibe(`${key}.${vibe[key]}`)}`} className="flex h-10 flex-col justify-center">
+                <span aria-hidden className="flex justify-between gap-2 text-small text-muted">
+                  <span className={cn("truncate", position < 0.5 && "font-semibold text-ink")}>{left}</span>
+                  <span className={cn("truncate text-right", position > 0.5 && "font-semibold text-ink")}>{right}</span>
                 </span>
-                <span aria-hidden className="flex shrink-0 items-center gap-1.5">
-                  {HOUSE_VIBE_STEPS.map((step) => (
-                    <span key={step} className={cn("size-2.5 rounded-full", step === vibe[key] ? "bg-accent" : "bg-ink/12")} />
-                  ))}
+                {/* The line 4px ink 8 %, filled from the left to the dot (the signal at 45 % → the signal), the dot 14px orange with a 2px white edge. */}
+                <span aria-hidden className="relative mt-1.5 block h-1 rounded-full bg-ink/8">
+                  <span className="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(to_right,color-mix(in_srgb,var(--signal)_45%,var(--plate)),var(--signal))]" style={{ width: `${position * 100}%` }} />
+                  <span className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-plate bg-accent shadow-[0_1px_2px_rgba(0,0,0,0.12)]" style={{ left: `${position * 100}%` }} />
                 </span>
               </li>
-            ))}
-          </ul>
-        ) : preview ? (
-          <div data-preview-part="vibe">{placeholder(tv("vibeAdd"))}</div>
-        ) : (
-          isMe && (
-            <Link href="/settings/profile" className="text-body font-semibold text-ink underline-offset-4 hover:underline">
-              {tv("vibeAdd")}
-            </Link>
-          )
-        )}
-        <div data-preview-part="about" className="flex min-w-0 flex-col gap-3">
-          {user.bio ? <p className="line-clamp-3 max-w-[640px] text-body text-ink">{user.bio}</p> : preview ? placeholder(tv("aboutAdd")) : isMe ? <Link href="/settings/profile" className="text-body font-semibold text-ink underline-offset-4 hover:underline">{tv("aboutAdd")}</Link> : null}
-          {preview && user.languages.length === 0 && placeholder(tv("languagesAdd"))}
-          {user.languages.length > 0 && (
-            <ul className="flex flex-wrap gap-2">
-              {user.languages.map((language) => (
-                <li key={language} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-ink/6 px-3 text-small font-medium text-ink">
-                  <Languages aria-hidden className="size-3.5 text-ink/60" />
-                  {language}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+            );
+          })}
+        </ul>
+      ) : isMe && !preview ? (
+        <Link href="/settings/profile" className="mt-4 text-body font-semibold text-ink underline-offset-4 hover:underline">
+          {tv("vibeAdd")}
+        </Link>
+      ) : (
+        <p className="mt-4 text-body text-muted">{preview ? tv("vibeAdd") : tv("noVibe")}</p>
+      )}
     </section>
   );
 }
 
+/** At most this many faces in the stack, then "+N". */
+const PEOPLE_FACES = 5;
+/** At most this many places by name, then "+N". */
+const PLACES_SHOWN = 3;
+
 /**
- * "Lived with · 5": faces 56px in one row, under each the first name and the short name of the House they shared. People from the viewer's
- * Your people first, with a small orange ring. Only people who confirmed it from both sides. Your own: who waits for your confirmation.
+ * People & places: "LIVED WITH {n}" – a stack of faces (six at most + "+N"); a click opens the sheet with each name and the House you shared
+ * (only confirmed both ways; your own: who waits for your confirmation). Under it "PLACES" as a text list (three at most, "+N"), no photos;
+ * each place opens Explore filtered on it.
  */
-function LivedWithRow({ view, isMe, viewerId }: { view: ProfileVisibility; isMe: boolean; viewerId: string | null }) {
+function PeoplePlacesTile({ view, isMe, viewerId }: { view: ProfileVisibility; isMe: boolean; viewerId: string | null }) {
   const tv = useTranslations("profile.view");
   const store = useStore();
-  const [confirming, setConfirming] = useState(false);
+  const [sheet, setSheet] = useState<"people" | "confirm" | null>(null);
   const yours = useMemo(() => new Set(viewerId && !isMe ? yourPeople(store, viewerId).map((p) => p.user.id) : []), [store, viewerId, isMe]);
   const people = view.livedWith.filter((e) => !isBlocked(store, e.user.id)).toSorted((a, b) => Number(yours.has(b.user.id)) - Number(yours.has(a.user.id)));
-  const toConfirm = view.toConfirm.filter((e) => !isBlocked(store, e.user.id));
-  if (people.length === 0 && toConfirm.length === 0) return null;
+  const toConfirm = isMe ? view.toConfirm.filter((e) => !isBlocked(store, e.user.id)) : [];
+  const places = view.places;
   return (
-    <section aria-labelledby="row-lived-with">
-      <RowHead
-        id="row-lived-with"
-        title={tv("rowLivedWith")}
-        count={people.length}
-        aside={
-          toConfirm.length > 0 && (
-            <button type="button" onClick={() => setConfirming(true)} className="text-body font-semibold text-ink underline-offset-4 hover:underline">
-              {tv("confirmLink", { count: toConfirm.length })}
-            </button>
-          )
-        }
-      />
-      {people.length > 0 && (
-        <ul className="no-scrollbar -mx-2 mt-4 flex gap-4 overflow-x-auto px-2 py-1">
+    <section aria-labelledby="tile-people" className="flex min-w-0 flex-col gap-6">
+      <div>
+        <h2 id="tile-people" className={COLUMN_LABEL}>
+          {tv("livedWithLabel", { count: people.length })}
+        </h2>
+        {people.length > 0 ? (
+          <button type="button" onClick={() => setSheet("people")} className="mt-3 flex items-center rounded-full" aria-label={tv("livedWithLabel", { count: people.length })} data-no-tooltip>
+            <span className="flex -space-x-2">
+              {people.slice(0, PEOPLE_FACES).map((entry) => (
+                <PersonPhoto key={entry.user.id} src={entry.user.photos[0]} alt="" size={40} className={cn("size-10 ring-2 ring-(--surface)", yours.has(entry.user.id) && "ring-accent")} />
+              ))}
+            </span>
+            {people.length > PEOPLE_FACES && <span className="ml-2 text-small font-semibold text-ink">+{people.length - PEOPLE_FACES}</span>}
+          </button>
+        ) : (
+          <p className="mt-3 text-body text-muted">{tv("peopleEmpty")}</p>
+        )}
+        {toConfirm.length > 0 && (
+          <button type="button" onClick={() => setSheet("confirm")} className="mt-2 block text-small font-semibold text-ink underline-offset-4 hover:underline">
+            {tv("confirmLink", { count: toConfirm.length })}
+          </button>
+        )}
+      </div>
+      {places.length > 0 && (
+        <div className="min-h-0">
+          <h3 className={COLUMN_LABEL}>{tv("placesLabel")}</h3>
+          {/* Up to three places: a small photo 56px (only from config/place-images.ts, else the place icon) with the name under it. */}
+          <ul className="mt-3 flex items-start gap-3">
+            {places.slice(0, PLACES_SHOWN).map(({ city }) => {
+              const placeId = cityPlaceIdOf(city);
+              const photo = placeId ? placeImageOf(placeId) : null;
+              const body = (
+                <>
+                  <span className="relative flex size-14 items-center justify-center overflow-hidden rounded-2xl bg-ink/6 text-ink/60">
+                    {photo ? <Img src={photo} alt="" fill sizes="56px" className="object-cover" /> : <MapPin aria-hidden className="size-5" />}
+                  </span>
+                  <span className="mt-1.5 block max-w-14 truncate text-small text-ink">{city}</span>
+                </>
+              );
+              return (
+                <li key={city} className="w-14">
+                  {placeId ? (
+                    <Link href={`/explore?place=${encodeURIComponent(placeId)}`} className="block">
+                      {body}
+                    </Link>
+                  ) : (
+                    body
+                  )}
+                </li>
+              );
+            })}
+            {places.length > PLACES_SHOWN && <li className="flex h-14 items-center text-small font-semibold text-muted">+{places.length - PLACES_SHOWN}</li>}
+          </ul>
+        </div>
+      )}
+      <Sheet open={sheet === "people"} onClose={() => setSheet(null)} title={tv("livedWithLabel", { count: people.length })}>
+        <ul className="space-y-2">
           {people.map((entry) => (
-            <li key={entry.user.id} className="w-20 shrink-0">
-              <Link href={`/u/${entry.user.id}`} className="flex flex-col items-center text-center">
-                <PersonPhoto src={entry.user.photos[0]} alt={entry.user.name} size={56} className={cn("size-14", yours.has(entry.user.id) && "ring-2 ring-accent ring-offset-2 ring-offset-(--bg)")} />
-                <span className="mt-2 max-w-full truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
-                <span className="max-w-full truncate text-small text-muted">{shortNameOf(entry.house)}</span>
+            <li key={entry.user.id}>
+              <Link href={`/u/${entry.user.id}`} className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
+                <Avatar user={entry.user} size="md" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
+                  <span className="block truncate text-small text-muted">{shortNameOf(entry.house)}</span>
+                </span>
               </Link>
             </li>
           ))}
         </ul>
-      )}
-      <Sheet open={confirming} onClose={() => setConfirming(false)} title={tv("confirmTitle")}>
+      </Sheet>
+      <Sheet open={sheet === "confirm"} onClose={() => setSheet(null)} title={tv("confirmTitle")}>
         <p className="text-small text-muted">{tv("toConfirm")}</p>
         <ul className="mt-4 space-y-3">
           {toConfirm.map((entry) => (
@@ -581,64 +724,33 @@ function LivedWithRow({ view, isMe, viewerId }: { view: ProfileVisibility; isMe:
   );
 }
 
-/**
- * "Places": a tile per city they lived in – the city's photo (the curated one, else the House's own), its name, the month and year (only for
- * themselves and their crews; the public sees the place alone). A click: Explore filtered on that place.
- */
-function PlacesRow({ places }: { places: ProfileVisibility["places"] }) {
-  const tv = useTranslations("profile.view");
-  const formatter = useFormatter();
-  const store = useStore();
+/** A reply this fast (median, minutes) earns "Responds fast". */
+const FAST_REPLY_MINUTES = 120;
+
+/** A private profile, to everyone who wasn't in a crew with them: the first name and "This profile is private" – nothing else. */
+function PrivateProfile({ user }: { user: User }) {
+  const t = useTranslations("profile.view");
   return (
-    <section aria-labelledby="row-places">
-      <RowHead id="row-places" title={tv("rowPlaces")} count={places.length} />
-      <Shelf variant="flat" top="mt-4">
-        {places.map(({ city, country, stay, month }) => {
-          const placeId = cityPlaceIdOf(city);
-          const photo = (placeId && coverOf(placeId)) || housePhotos(stay, findUser(store, stay.hostId))[0];
-          const body = (
-            <>
-              {photo && <Img src={photo} alt="" fill sizes="320px" className="object-cover transition-transform duration-300 group-hover:scale-[1.04]" />}
-              <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
-              <span className={cn("absolute inset-x-0 bottom-0 p-5 text-white", cardTextShadow)}>
-                <span className="block truncate text-card-title">{city}</span>
-                <span className="block truncate text-small text-white/85">{month ? formatter.dateTime(new Date(`${month}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" }) : country}</span>
-              </span>
-            </>
-          );
-          const tile = "group relative block aspect-4/3 w-full overflow-hidden rounded-3xl bg-ink/6";
-          return (
-            <div key={city} className="explore-slide shrink-0">
-              {placeId ? (
-                <Link href={`/explore?place=${encodeURIComponent(placeId)}`} className={tile}>
-                  {body}
-                </Link>
-              ) : (
-                <div className={tile}>{body}</div>
-              )}
-            </div>
-          );
-        })}
-      </Shelf>
-    </section>
+    <Container page className="flex min-h-[calc(100dvh-var(--header-total)-var(--space-section))] flex-col items-center justify-center pb-(--space-section) text-center">
+      <span aria-hidden className="flex size-24 items-center justify-center rounded-full bg-ink/6 text-muted">
+        <Lock className="size-7" />
+      </span>
+      <h1 className="mt-6 text-h1 text-ink">{publicName(user, null)}</h1>
+      <p className="mt-2 text-body-lg text-muted">{t("private")}</p>
+    </Container>
   );
 }
 
 /* ───────────────────────── Edit profile's preview ───────────────────────── */
 
 /**
- * The public profile's own head and Vibe row, as others (logged out) see them, for Edit profile's live preview: no actions, quiet
- * placeholders for what's empty, every part marked `data-preview-part` (photos, basics, vibe, about, links, verify) so the open section can be
- * ringed. Not clickable – the caller makes it inert.
+ * The public profile's bento, as others (logged out) see it, for Edit profile's live preview: no actions, quiet placeholders for what's empty,
+ * every part marked `data-preview-part` (photos, basics, vibe, about, links, verify) so the open section can be ringed; a fixed height of
+ * 640px. Not clickable – the caller makes it inert.
  */
 export function ProfilePreviewBody({ user, hideAge }: { user: User; hideAge: boolean }) {
   const store = useStore();
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const view = profileViewFor(store, user, null, today);
-  return (
-    <div className="flex flex-col gap-10">
-      <ProfileHead user={user} isMe={false} previewing view={view} viewerId={null} onOpenPhoto={() => undefined} preview hideAge={hideAge} />
-      <VibeRow user={user} isMe={false} preview />
-    </div>
-  );
+  return <ProfileBento user={user} isMe={false} previewing view={view} viewerId={null} today={today} onOpenPhoto={() => undefined} preview hideAge={hideAge} />;
 }

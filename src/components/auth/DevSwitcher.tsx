@@ -1,13 +1,15 @@
 "use client";
 
 import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
-import { setHeaderTheme, useHeaderTheme } from "@/lib/headerTheme";
+import { COLOR_MODES, setColorMode, useColorMode } from "@/lib/colorMode";
+import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useState, useSyncExternalStore } from "react";
-import { clearViewerCurrency, serverViewerCurrencySnapshot, setViewerCurrency, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
+import { Suspense, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Button } from "@/components/ui/ActionButton";
+import { HOUSE_ROLE_OVERRIDES, setDevSetting, useDevSetting } from "@/lib/devSettings";
 import { useFormat } from "@/i18n/format";
-import { setFeatureFlag, useFeatureFlag, type FeatureFlag } from "@/lib/featureFlags";
+import { setFeatureFlag, setHostTypeSim, setPayoutsSim, useFeatureFlag, useHostTypeSim, usePayoutsSim, type HostTypeSim, type PayoutsSim } from "@/lib/featureFlags";
 import { APP_MODE } from "@/lib/appMode";
 import { DATA_STATES, devPersonas, readDataState, saveDataState } from "@/lib/data";
 import { computeReminders, type Reminder } from "@/lib/reminders";
@@ -29,21 +31,30 @@ export function DevSwitcher() {
   );
 }
 
-/** The House the current route is about: House page, Houses detail/edit, or a chat. */
+/** The House the current route is about: /h/[id] (and its manage page), /house/[slug], or the open chat in Messages. */
 function useRouteStay(): Stay | undefined {
   const store = useStore();
   const pathname = usePathname();
   const id = useSearchParams().get("id");
   const [, section, param] = pathname.split("/");
+  if (section === "h" && param) return store.stays.find((s) => s.id === param || s.slug === param);
   if (section === "house" && param) return store.stays.find((s) => s.slug === param);
-  if (section === "my-stays") return store.stays.find((s) => s.id === (param ?? id));
-  if (section === "inbox") {
+  if (section === "messages") {
     const thread = store.threads.find((t) => t.id === (param ?? id));
     return thread && store.stays.find((s) => s.id === thread.houseId);
   }
   return undefined;
 }
 
+const HOST_TYPES: readonly HostTypeSim[] = ["share", "pro"];
+const PAYOUTS: readonly PayoutsSim[] = ["ready", "missing", "action"];
+
+/**
+ * The Dev panel (dev only, never for users): a light surface 380px, radius 20, scrolling when taller than the window. Head "DEV" and the
+ * window's size live; then three sections – Account · Scenario · Data & look – in rows of 44px (label 15px left, the control right), every
+ * choice the same small capsule group, on/off as a switch. At the foot "Reset mock data" (confirmed right here), "Reminders · n" and "Log"
+ * (on a House's routes also "Open as…"). Everything is kept in this browser.
+ */
 function DevSwitcherInner() {
   const t = useTranslations("auth.dev");
   const store = useStore();
@@ -51,6 +62,14 @@ function DevSwitcherInner() {
   const stay = useRouteStay();
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<"menu" | "scheduled" | "log" | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const hostType = useHostTypeSim();
+  const payoutsSim = usePayoutsSim();
+  const paymentFails = useFeatureFlag("simulatePaymentFailure");
+  const houseRole = useDevSetting("houseRole");
+  const installedApp = useDevSetting("installedApp");
+  const mode = useColorMode();
+  const [dataState] = useState(readDataState);
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
   const reminders = currentUserId ? computeReminders(store, currentUserId) : [];
@@ -58,91 +77,137 @@ function DevSwitcherInner() {
   function close() {
     setOpen(false);
     setPanel(null);
+    setConfirmReset(false);
   }
+  const toggle = (next: "menu" | "scheduled" | "log") => setPanel((p) => (p === next ? null : next));
+  const footAction = "flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-nav font-medium text-ink/70 hover:bg-ink/5 hover:text-ink aria-pressed:bg-ink/5 aria-pressed:text-ink";
 
-  const action = "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted hover:bg-ink/5 aria-pressed:bg-ink/5 aria-pressed:text-ink";
   return (
-    // Bottom left, away from toasts, the floating join bar, the round "Open a House" and the sheets on the right; opens upward.
-    // Phones: above the tab bar.
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+96px)] left-4 z-50 flex flex-col items-start gap-2 md:bottom-4">
+    // Bottom left, away from toasts, the floating join bar and the sheets on the right; opens upward. Phones: above the tab bar.
+    <div className="fixed bottom-[calc(var(--safe-bottom)+96px)] left-4 z-50 flex flex-col items-start gap-2 md:bottom-4">
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
           <div
             id="dev-switcher-panel"
-            className="animate-fade-in relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-surface text-small shadow-xl"
+            className="animate-fade-in relative flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[20px] bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.16)] md:max-h-[calc(100dvh-5rem)]"
           >
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <select
-                value={currentUserId ?? ""}
-                onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
-                className="min-w-0 flex-1 cursor-pointer bg-transparent font-medium text-ink outline-none"
-                aria-label={t("mockUser")}
-              >
-                <option value="">{t("loggedOut")}</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-              {/* Whose perspective this page shows – only on routes about one House. */}
-              {role && (
-                <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium", ROLE_STYLES[role])}>
-                  {t(`role.${role}`)}
-                </span>
+            <div className="flex h-11 shrink-0 items-center justify-between px-4">
+              <span className="text-eyebrow uppercase text-ink/45">{t("devLabel")}</span>
+              <WindowSize />
+            </div>
+            <div className="scroll-pane min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <DevSection title={t("sectionAccount")}>
+                <DevRow label={t("mockUser")}>
+                  {/* Whose perspective this page shows – only on routes about one House. */}
+                  {role && <span className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-small font-medium", ROLE_STYLES[role])}>{t(`role.${role}`)}</span>}
+                  <select
+                    value={currentUserId ?? ""}
+                    onChange={(e) => (e.target.value ? login(e.target.value) : logout())}
+                    className="min-w-0 max-w-44 cursor-pointer truncate rounded-full bg-ink/5 px-3 py-1.5 text-nav font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)"
+                    aria-label={t("mockUser")}
+                  >
+                    <option value="">{t("loggedOut")}</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </DevRow>
+                {/* On a House's routes: tabs as its host or a member, and the clock's actions (48 hours, completed). */}
+                {stay && (
+                  <DevRow label={t("thisHouse")}>
+                    <button type="button" onClick={() => toggle("menu")} aria-pressed={panel === "menu"} title={t("more")} className={footAction}>
+                      <MoreHorizontal className="size-4" aria-hidden />
+                      {t("openAs")}
+                    </button>
+                  </DevRow>
+                )}
+              </DevSection>
+              <DevSection title={t("sectionScenario")}>
+                {devPersonas && (
+                  <DevRow label={t("yourHouses")}>
+                    <CapsuleGroup
+                      size="sm"
+                      label={t("yourHouses")}
+                      value={(["new", "guest", "host"] as const).find((kind) => devPersonas?.[kind] === currentUserId) ?? null}
+                      onChange={(kind) => devPersonas && login(devPersonas[kind])}
+                      options={(["new", "guest", "host"] as const).map((value) => ({ value, content: t(`personas.${value}`) }))}
+                    />
+                  </DevRow>
+                )}
+                <DevRow label={t("hostType")}>
+                  <CapsuleGroup size="sm" label={t("hostType")} value={hostType} onChange={setHostTypeSim} options={HOST_TYPES.map((value) => ({ value, content: t(`hostType_${value}`) }))} />
+                </DevRow>
+                <DevRow label={t("payouts")}>
+                  <CapsuleGroup size="sm" label={t("payouts")} value={payoutsSim} onChange={setPayoutsSim} options={PAYOUTS.map((value) => ({ value, content: t(`payouts_${value}`) }))} />
+                </DevRow>
+                <DevRow label={t("houseRole")}>
+                  <CapsuleGroup size="sm" label={t("houseRole")} value={houseRole} onChange={(value) => setDevSetting("houseRole", value)} options={HOUSE_ROLE_OVERRIDES.map((value) => ({ value, content: t(`houseRole_${value}`) }))} />
+                </DevRow>
+                <DevRow label={t("paymentFails")}>
+                  <DevSwitch label={t("paymentFails")} on={paymentFails} onChange={(on) => setFeatureFlag("simulatePaymentFailure", on)} />
+                </DevRow>
+              </DevSection>
+              <DevSection title={t("sectionData")}>
+                <DevRow label={t("data")}>
+                  <CapsuleGroup
+                    size="sm"
+                    label={t("data")}
+                    value={dataState}
+                    onChange={(preset) => {
+                      if (preset === dataState) return;
+                      saveDataState(preset);
+                      window.location.reload();
+                    }}
+                    options={DATA_STATES.map((value) => ({ value, content: t(`presets.${value}`) }))}
+                  />
+                </DevRow>
+                <DevRow label={t("colorMode")}>
+                  <CapsuleGroup size="sm" label={t("colorMode")} value={mode} onChange={setColorMode} options={COLOR_MODES.map((value) => ({ value, content: t(`colorMode_${value}`) }))} />
+                </DevRow>
+                <DevRow label={t("installedApp")}>
+                  <DevSwitch label={t("installedApp")} on={installedApp} onChange={(on) => setDevSetting("installedApp", on)} />
+                </DevRow>
+              </DevSection>
+              {panel && (
+                <div className="border-t border-ink/8">
+                  {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : panel === "log" ? <DeliveryLog /> : <ScheduledPanel reminders={reminders} />}
+                </div>
               )}
             </div>
-            <FlagSwitch flag="hostPremium" />
-            <FlagSwitch flag="simulatePaymentFailure" />
-            <FlagSwitch flag="simulateOnboardingActionRequired" />
-            <FlagSwitch flag="simulateShareHost" />
-            <FlagSwitch flag="simulateHostWithoutPayouts" />
-            <HeaderThemeSwitch />
-            <DataPreset />
-            <ViewerCurrencyPreset />
-            <YourHousesPersona />
-            <div className="px-4 pb-2.5">
-              <button type="button" onClick={resetMockData} className="font-medium text-ink underline-offset-4 hover:underline">
-                {t("resetMock")}
-              </button>
+            <div className="flex min-h-15 shrink-0 items-center gap-1 border-t border-ink/8 px-4 py-3">
+              {confirmReset ? (
+                // The confirmation right here – no browser dialog.
+                <>
+                  <span className="min-w-0 flex-1 text-nav font-medium text-ink">{t("resetConfirm")}</span>
+                  <Button variant="tertiary" size="sm" onClick={() => setConfirmReset(false)}>
+                    {t("cancel")}
+                  </Button>
+                  <Button size="sm" onClick={resetMockData}>
+                    {t("resetYes")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="creamOutline" size="sm" onClick={() => setConfirmReset(true)}>
+                    {t("resetMock")}
+                  </Button>
+                  <span className="flex-1" />
+                  {currentUserId && (
+                    <button type="button" onClick={() => toggle("scheduled")} aria-pressed={panel === "scheduled"} className={footAction}>
+                      <Bell className="size-3.5" aria-hidden />
+                      {t("remindersCount", { count: reminders.length })}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => toggle("log")} aria-pressed={panel === "log"} className={footAction}>
+                    <ScrollText className="size-3.5" aria-hidden />
+                    {t("log")}
+                  </button>
+                </>
+              )}
             </div>
-            {(currentUserId || stay) && (
-              <div className="flex items-center gap-1 px-2 py-1.5">
-                {currentUserId && (
-                  <button
-                    type="button"
-                    onClick={() => setPanel((p) => (p === "scheduled" ? null : "scheduled"))}
-                    aria-pressed={panel === "scheduled"}
-                    className={action}
-                  >
-                    <Bell className="size-3.5" />
-                    {t("scheduled")} · {reminders.length}
-                  </button>
-                )}
-                <button type="button" onClick={() => setPanel((p) => (p === "log" ? null : "log"))} aria-pressed={panel === "log"} className={action}>
-                  <ScrollText className="size-3.5" />
-                  {t("log")}
-                </button>
-                {stay && (
-                  <button
-                    type="button"
-                    onClick={() => setPanel((p) => (p === "menu" ? null : "menu"))}
-                    aria-pressed={panel === "menu"}
-                    title={t("more")}
-                    className={action}
-                  >
-                    <MoreHorizontal className="size-4" />
-                    {t("openAs")}
-                  </button>
-                )}
-              </div>
-            )}
-            {panel && (
-              <div className="">
-                {panel === "menu" ? <OpenAsMenu stay={stay} onDone={close} /> : panel === "log" ? <DeliveryLog /> : <ScheduledPanel reminders={reminders} />}
-              </div>
-            )}
           </div>
         </>
       )}
@@ -161,135 +226,56 @@ function DevSwitcherInner() {
   );
 }
 
-/** A feature flag as a switch: hostPremium (host fee, what it includes, "Pro host"). */
-function FlagSwitch({ flag }: { flag: FeatureFlag }) {
-  const t = useTranslations("auth.dev");
-  const on = useFeatureFlag(flag);
+/** A section: a small label (uppercase, ink 45 %) and a 1px line above it. */
+function DevSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5">
-      <span className="font-medium text-ink">{t(flag)}</span>
-      <input type="checkbox" checked={on} onChange={(e) => setFeatureFlag(flag, e.target.checked)} className="peer sr-only" />
-      <span
-        aria-hidden
-        className="relative h-5 w-8 shrink-0 rounded-full bg-ink/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-3 peer-focus-visible:ring-2 peer-focus-visible:ring-ink/25"
-      />
-    </label>
+    <section className="border-t border-ink/8 pb-2 pt-3">
+      <h3 className="px-4 pb-1 text-eyebrow uppercase text-ink/45">{title}</h3>
+      {children}
+    </section>
   );
 }
 
-/** "Header: Light / Dark" – the header's theme, a test (src/lib/headerTheme.ts), kept in this browser. */
-function HeaderThemeSwitch() {
-  const t = useTranslations("auth.dev");
-  const theme = useHeaderTheme();
+/** One row: 44px, the label 15px left, the control right-aligned. */
+function DevRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-      <span className="font-medium text-ink">{t("headerTheme")}</span>
-      <div role="radiogroup" aria-label={t("headerTheme")} className="flex gap-1">
-        {(["light", "dark"] as const).map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={theme === value} onClick={() => setHeaderTheme(value)} className={cn("rounded-full border-[1.5px] px-2.5 py-0.5 transition-colors", theme === value ? "border-ink font-semibold text-ink" : "border-transparent text-ink/70 hover:bg-ink/5")}>
-            {t(`headerTheme_${value}`)}
-          </button>
-        ))}
-      </div>
+    <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-1">
+      <span className="shrink-0 text-body text-ink">{label}</span>
+      <span className="flex min-w-0 items-center justify-end gap-2">{children}</span>
     </div>
   );
 }
 
-/** The mock's data state: Pre-launch · Launch · Full – saved in this browser, applied with a reload. */
-function DataPreset() {
-  const t = useTranslations("auth.dev");
-  const [current] = useState(readDataState);
+/** On/off: on ink, off ink 12 %. */
+function DevSwitch({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
-      <span className="font-medium text-ink">{t("data")}</span>
-      <div role="radiogroup" aria-label={t("data")} className="flex rounded-full bg-ink/5 p-0.5">
-        {DATA_STATES.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            role="radio"
-            aria-checked={preset === current}
-            onClick={() => {
-              if (preset === current) return;
-              saveDataState(preset);
-              window.location.reload();
-            }}
-            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
-          >
-            {t(`presets.${preset}`)}
-          </button>
-        ))}
-      </div>
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)", on ? "bg-ink" : "bg-ink/12")}
+    >
+      <span aria-hidden className={cn("absolute left-0.5 top-0.5 size-5 rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-150 motion-reduce:transition-none", on && "translate-x-4")} />
+    </button>
   );
 }
 
-/** Test the viewer's currency: a pick (saved like the footer's) or Auto (forgets it: cookie, time zone, language, EUR). */
-const DEV_CURRENCIES: readonly CurrencyCode[] = ["EUR", "GBP", "USD", "IDR"];
-function ViewerCurrencyPreset() {
-  const t = useTranslations("auth.dev");
-  const { manual, detected } = useSyncExternalStore(subscribeViewerCurrency, viewerCurrencySnapshot, serverViewerCurrencySnapshot);
-  return (
-    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
-      <span className="font-medium text-ink">{t("viewerCurrency")}</span>
-      <div role="radiogroup" aria-label={t("viewerCurrency")} className="flex rounded-full bg-ink/5 p-0.5">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={manual === null}
-          onClick={clearViewerCurrency}
-          className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
-        >
-          {t("currencyAuto", { code: detected })}
-        </button>
-        {DEV_CURRENCIES.map((code) => (
-          <button
-            key={code}
-            type="button"
-            role="radio"
-            aria-checked={manual === code}
-            onClick={() => setViewerCurrency(code)}
-            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
-          >
-            {code}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+/** The window's size, live: "1440 × 900". */
+function subscribeResize(onChange: () => void) {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
 }
-
-/** Your houses builds itself per person: New (nothing yet) · Guest (only joined) · Host. Logs in as the matching mock person. */
-function YourHousesPersona() {
-  const t = useTranslations("auth.dev");
-  const { currentUserId, login } = useStore();
-  if (!devPersonas) return null;
-  const personas = devPersonas;
-  return (
-    <div className="flex items-center justify-between gap-3 px-4 pb-2.5">
-      <span className="font-medium text-ink">{t("yourHouses")}</span>
-      <div role="radiogroup" aria-label={t("yourHouses")} className="flex rounded-full bg-ink/5 p-0.5">
-        {(["new", "guest", "host"] as const).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            role="radio"
-            aria-checked={personas[kind] === currentUserId}
-            onClick={() => login(personas[kind])}
-            className="rounded-full px-2 py-1 font-medium text-muted aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm"
-          >
-            {t(`personas.${kind}`)}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+function WindowSize() {
+  const size = useSyncExternalStore(subscribeResize, () => `${window.innerWidth} × ${window.innerHeight}`, () => "");
+  return <span className="text-small tabular-nums text-ink/45">{size}</span>;
 }
 
 const ROLE_STYLES: Record<Role, string> = {
   host: "bg-bg text-ink",
-  crew: "bg-emerald-50 text-emerald-700",
-  pending: "bg-amber-50 text-amber-700",
+  crew: "bg-success/10 text-success",
+  pending: "bg-(--warn-bg) text-(--warn-text)",
   none: "bg-ink/5 text-muted",
 };
 
@@ -436,7 +422,7 @@ function ScheduledPanel({ reminders }: { reminders: Reminder[] }) {
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-medium text-ink">{t(`types.${reminder.type}`)}</span>
-                    <span className={cn("shrink-0 tabular-nums", overdue ? "text-red-600" : "text-muted")}>
+                    <span className={cn("shrink-0 tabular-nums", overdue ? "text-danger" : "text-muted")}>
                       {overdue ? t("overdue") : `${f.day(reminder.due)} ${f.time(reminder.due)}`}
                     </span>
                   </span>

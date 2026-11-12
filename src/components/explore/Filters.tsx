@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUpDown, ChevronDown, ChevronsDown, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronRight, ChevronsDown, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ChipIcon } from "@/components/explore/FitChips";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { MORE_POPOVER_MAX_WIDTH } from "@/config/explore";
@@ -20,7 +21,8 @@ import type { SortKey } from "@/lib/exploreFilters";
  * small white capsule inside ("All filters · 3"). "capsule": the phones' row – a filled capsule (ink 7 %, hover 12 %), the count a small
  * orange circle at its corner. "secondary": beside a section's title. "corner": the header tab's chip row – a block filling the row's right
  * corner (the tab cuts it to its corners and its own concave curves), ink, hover ink 88 %, "All filters" white semibold 15px, centred, the
- * count beside it in a small white capsule.
+ * count beside it in a small white capsule. "compact": Explore's compact bar – a cream block 36px, radius 10, "All filters" and the count.
+ * "icon": the compact bar on phones – the filter icon alone in a 36px circle, the count an orange dot-number at its corner.
  */
 export function FiltersButton({
   count,
@@ -30,7 +32,7 @@ export function FiltersButton({
   variant = "capsule",
   className,
 }: {
-  variant?: "corner" | "strong" | "capsule" | "secondary";
+  variant?: "corner" | "strong" | "capsule" | "secondary" | "compact" | "icon";
   count: number;
   onClick: () => void;
   expanded?: boolean;
@@ -47,33 +49,38 @@ export function FiltersButton({
       aria-expanded={expanded}
       aria-haspopup="dialog"
       aria-controls={controls}
-      aria-label={count > 0 ? tf("filtersCount", { count }) : variant === "strong" || variant === "corner" ? tf("allFilters") : t("filters")}
+      aria-label={count > 0 ? tf("filtersCount", { count }) : variant === "strong" || variant === "corner" || variant === "compact" ? tf("allFilters") : t("filters")}
+      data-tooltip={variant === "icon" ? t("filters") : undefined}
       className={
         variant === "corner"
-          ? cn("corner-filters flex size-full items-center justify-center gap-2 whitespace-nowrap bg-(--hdr-corner-bg) pr-3 text-nav-main font-semibold text-(--hdr-corner-fg) transition-colors duration-150 hover:bg-(--hdr-corner-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50", className)
+          ? cn("corner-filters flex size-full items-center justify-center gap-2 whitespace-nowrap bg-(--hdr-corner-bg) pr-3 text-nav-main font-semibold text-(--hdr-corner-fg) transition-colors duration-150 hover:bg-(--hdr-corner-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-inverse/50", className)
           : variant === "secondary"
           ? buttonStyles("secondary", "sm", className)
+          : variant === "compact"
+            ? cn("press relative inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] bg-ink px-3.5 text-nav-main font-semibold text-inverse transition-colors duration-150 hover:bg-ink/85", className)
+          : variant === "icon"
+            ? cn("press relative inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-ink/8 text-ink transition-colors duration-150 hover:bg-ink/12 [&>svg]:size-4", className)
           : variant === "strong"
-            ? cn("press relative inline-flex h-(--control-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4.5 text-nav-main font-semibold text-white transition-colors duration-150 hover:bg-ink/85", className)
+            ? cn("press relative inline-flex h-(--control-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4.5 text-nav-main font-semibold text-inverse transition-colors duration-150 hover:bg-ink/85", className)
             : cn("filters-button relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav font-semibold text-ink [&>svg]:size-4", className)
       }
     >
       {/* Gives the button its text's baseline (an icon first would give the icon's bottom edge): it lines up with a title beside it. */}
-      {variant !== "corner" && <span aria-hidden className="-ml-2 w-0 overflow-hidden">{"\u200b"}</span>}
+      {variant !== "corner" && variant !== "icon" && <span aria-hidden className="-ml-2 w-0 overflow-hidden">{"\u200b"}</span>}
       {/* The row's strongest element is words alone: "All filters" (no icon). The others keep the icon and "Filters". */}
-      {variant !== "strong" && variant !== "corner" && <SlidersHorizontal aria-hidden />}
-      {variant === "strong" || variant === "corner" ? tf("allFilters") : t("filters")}
+      {variant !== "strong" && variant !== "corner" && variant !== "compact" && <SlidersHorizontal aria-hidden />}
+      {variant === "icon" ? null : variant === "strong" || variant === "corner" || variant === "compact" ? tf("allFilters") : t("filters")}
       {count > 0 &&
-        (variant === "strong" || variant === "corner" ? (
-          <span aria-hidden className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-eyebrow leading-none tracking-normal tabular-nums", variant === "corner" ? "bg-(--hdr-corner-fg) text-(--hdr-corner-bg)" : "bg-white text-ink")}>
+        (variant === "strong" || variant === "corner" || variant === "compact" ? (
+          <span aria-hidden className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-eyebrow leading-none tracking-normal tabular-nums", variant === "corner" ? "bg-(--hdr-corner-fg) text-(--hdr-corner-bg)" : "bg-inverse text-ink")}>
             {count}
           </span>
         ) : variant === "secondary" ? (
-          <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+          <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
             {count}
           </span>
         ) : (
-          <span aria-hidden className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+          <span aria-hidden className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
             {count}
           </span>
         ))}
@@ -186,7 +193,7 @@ function EditableAmount({ label, text, amount, onCommit }: { label: string; text
   );
 }
 
-type ChipOption = { value: string; label: string };
+type ChipOption = { value: string; label: string; icon?: LucideIcon };
 
 /**
  * The header row's category chips – single choice, like radio buttons: "All" (on while no category is picked), the
@@ -205,10 +212,16 @@ export function CategoryRow({
   more,
   value,
   onSelect,
+  icons = false,
+  arrow = false,
 }: {
   label: string;
   allLabel: string;
   moreLabel: string;
+  /** Each category with its line icon before the words (Explore's compact bar) */
+  icons?: boolean;
+  /** A round arrow at the right end while there's more to scroll to (Explore's compact bar) */
+  arrow?: boolean;
   /** The visible category chips, in order (the last one is the changing slot) */
   chips: ReadonlyArray<ChipOption>;
   /** Everything else, for the More popover */
@@ -266,6 +279,7 @@ export function CategoryRow({
             variant="bare"
             size="lg"
             title={o.label}
+            icon={icons ? <ChipIcon icon={o.icon} on={value.includes(o.value)} /> : undefined}
             onClick={() => pick(o.value)}
           >
             {o.label}
@@ -286,13 +300,30 @@ export function CategoryRow({
           </button>
         )}
       </div>
+      {/* On to the right: 60 % of the visible width per click; only while there's more (the fade is on that side too). */}
+      {arrow && !edges.atEnd && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden
+          onClick={() => {
+            const el = scrollerRef.current;
+            if (!el) return;
+            const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            el.scrollBy({ left: el.clientWidth * 0.6, behavior: reduce ? "auto" : "smooth" });
+          }}
+          className="press ml-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-ink/10 text-ink transition-colors duration-150 hover:bg-ink/16"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      )}
       {open && (
         <div
           ref={popoverRef}
           role="group"
           aria-label={moreLabel}
           style={{ width: `min(${MORE_POPOVER_MAX_WIDTH}px, calc(100vw - 32px))` }}
-          className="chip-more-popover animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--ink)_10%,transparent)]"
+          className="chip-more-popover animate-fade-in absolute right-0 top-full z-40 mt-2 grid grid-cols-3 gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--text)_10%,transparent)]"
         >
           {more.map((o) => (
             <Chip

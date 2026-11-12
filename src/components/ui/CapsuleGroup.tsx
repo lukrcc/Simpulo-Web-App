@@ -5,11 +5,12 @@ import type { MouseEvent, ReactNode, Ref } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The capsule group – the standard for tabs and for filters with few options (the header's tabs, Your houses › Needs you): a track 44px, fully
- * round, 4px inside, its segments 36px. The chosen one is an outline capsule (1.5px, the text's colour), its words at full strength and
- * semibold; the others muted, hover full. Variants: "light" (on the page or the light header: the track ink 5 %, or the header's --hdr-pill)
- * and "on-dark" (Ember and dark surfaces: the track cream 6 %, cream words). `equal`: segments of one width, the outline glides between them
- * (300ms spring; none with reduced motion); otherwise each as wide as its content. A segment is a link (`href`) or a button.
+ * The capsule group – the standard for tabs and for filters with few options (the header's tabs, Messages' All · Unread, the Dev menu's Mode):
+ * a track 44px, fully round, 4px inside, its segments 36px. Its colours come from the ground (src/styles/tokens.css): the track the words'
+ * colour at 5 %; the chosen one on a light ground an outline capsule (1.5px ink), on a dark ground (stage, header, Messages) a filled cream 12 %
+ * capsule without an edge – --sel-bg / --sel-border; its words at full strength and semibold, the others muted, hover a 6 % fill. `equal`:
+ * segments of one width, the chosen capsule glides between them (300ms spring; none with reduced motion); otherwise each as wide as its
+ * content. A segment is a link (`href`) or a button. `size="sm"` (the Dev menu): 36px, 14px words, the others at 60 %.
  */
 export interface CapsuleOption<T extends string> {
   value: T;
@@ -19,7 +20,7 @@ export interface CapsuleOption<T extends string> {
   onClick?: (e: MouseEvent) => void;
   ariaLabel?: string;
   tooltip?: string;
-  /** Quiet: something that's done (cream 50 % on dark) */
+  /** Quiet: something that's done (the words at 50 %) */
   quiet?: boolean;
 }
 
@@ -28,8 +29,8 @@ export function CapsuleGroup<T extends string>({
   value,
   onChange,
   label,
-  variant = "light",
   equal = false,
+  size = "md",
   as = "group",
   className,
   ref,
@@ -39,7 +40,7 @@ export function CapsuleGroup<T extends string>({
   value: T | null;
   onChange?: (value: T) => void;
   label: string;
-  variant?: "light" | "on-dark";
+  size?: "md" | "sm";
   equal?: boolean;
   /** "nav": a <nav> of links (aria-current); "group": a radiogroup of buttons */
   as?: "nav" | "group";
@@ -47,7 +48,6 @@ export function CapsuleGroup<T extends string>({
   ref?: Ref<HTMLElement>;
 }) {
   const index = options.findIndex((o) => o.value === value);
-  const dark = variant === "on-dark";
   const Root = as === "nav" ? "nav" : "div";
   return (
     <Root
@@ -55,30 +55,28 @@ export function CapsuleGroup<T extends string>({
       aria-label={label}
       role={as === "group" ? "radiogroup" : undefined}
       className={cn(
-        "relative flex h-11 items-center rounded-full p-1",
-        dark ? "bg-[rgba(244,238,231,0.06)] text-[#F4EEE7]" : "bg-(--hdr-pill) shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] backdrop-blur-md",
+        "relative flex items-center rounded-full bg-ink/5",
+        size === "sm" ? "h-9 p-0.5" : "h-11 p-1",
         className,
       )}
     >
       <div className={cn("relative h-full items-stretch", equal ? "grid auto-cols-fr grid-flow-col" : "flex gap-0.5")}>
-        {/* Equal segments: one outline that glides; otherwise each chosen segment draws its own. */}
+        {/* Equal segments: one capsule that glides; otherwise each chosen segment draws its own. */}
         {equal && (
           <span
             aria-hidden
-            className={cn("absolute inset-y-0 left-0 rounded-full shadow-[inset_0_0_0_1.5px_currentColor] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.36,0.64,1)] motion-reduce:transition-none", dark ? "text-[#F4EEE7]" : "text-ink", index < 0 && "opacity-0")}
+            className={cn("absolute inset-y-0 left-0 rounded-full bg-(--sel-bg) shadow-[inset_0_0_0_1.5px_var(--sel-border)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.36,0.64,1)] motion-reduce:transition-none", index < 0 && "opacity-0")}
             style={{ width: `calc(100% / ${options.length})`, transform: `translateX(${Math.max(0, index) * 100}%)` }}
           />
         )}
         {options.map((option) => {
           const current = option.value === value;
           const segment = cn(
-            "relative z-1 flex items-center justify-center whitespace-nowrap rounded-full px-4 text-nav-main transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2",
-            dark ? "focus-visible:ring-[#F4EEE7]/40" : "focus-visible:ring-(--focus-ring)",
+            "relative z-1 flex items-center justify-center whitespace-nowrap rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)",
+            size === "sm" ? "px-3 text-nav" : "px-4 text-nav-main",
             current
-              ? cn("font-semibold", dark ? "text-[#F4EEE7]" : "text-ink", !equal && "shadow-[inset_0_0_0_1.5px_currentColor]")
-              : dark
-                ? cn(option.quiet ? "text-[#F4EEE7]/50" : "text-[#F4EEE7]/75", "hover:bg-[#F4EEE7]/6 hover:text-[#F4EEE7]")
-                : "text-(--hdr-muted) hover:text-ink",
+              ? cn("font-semibold text-ink", !equal && "bg-(--sel-bg) shadow-[inset_0_0_0_1.5px_var(--sel-border)]")
+              : cn(option.quiet ? "text-ink/50" : size === "sm" ? "text-ink/60" : "text-muted", "hover:bg-ink/6 hover:text-ink"),
           );
           if (option.href) {
             return (

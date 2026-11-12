@@ -32,8 +32,10 @@ export function MasterDetail({ title, list, detail, detailFill = false, fixedLis
     return (
       // The list: 24px inside on both sides (beyond 1680px its left edge stays on the container's); the chat edge to edge – right under the
       // header's bar, to the window's right and bottom edges – every corner square.
-      <div data-app-pane="desktop" className="split:-mt-4 split:grid split:h-[calc(100dvh-var(--header-h)-var(--band-h))] split:grid-cols-[calc(var(--list-gutter)+404px)_minmax(0,1fr)] split:overflow-hidden [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
-        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:pt-8 split:mx-0 split:flex split:h-full split:min-h-0 split:w-auto split:flex-col split:pb-4 split:pl-(--list-gutter) split:pr-6 split:pt-4">
+      // Messages – the one dark page, ONE surface: list and chat both --chat-bg (#262320), a 1px line cream 6 % between them. The list
+      // clamp(320px, 24vw, 400px) wide, fixed; the chat fills the rest.
+      <div data-app-pane="desktop" data-messages-page className="messages-dark min-h-[calc(100dvh-var(--header-total))] md:-mt-4 split:grid split:h-[calc(100dvh-var(--header-h)-var(--band-h))] split:min-h-0 split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)] split:overflow-hidden [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
+        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:pt-8 split:mx-0 split:flex split:h-full split:min-h-0 split:w-auto split:flex-col split:border-r split:border-ink/6 split:pb-4 split:pl-(--list-gutter) split:pr-6 split:pt-4">
           {list}
         </div>
         <div className="hidden min-w-0 split:block split:h-full split:min-h-0">

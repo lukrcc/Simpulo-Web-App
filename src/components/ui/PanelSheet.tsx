@@ -157,7 +157,7 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
   if (!mounted) return null;
   return createPortal(
     <div className="fixed inset-0 z-[70]">
-      <div ref={overlayRef} aria-hidden onClick={onClose} style={{ opacity: 0 }} className="absolute inset-0 bg-[rgba(34,30,27,0.18)] backdrop-blur-[16px]" />
+      <div ref={overlayRef} aria-hidden onClick={onClose} style={{ opacity: 0 }} className="absolute inset-0 bg-(--scrim) backdrop-blur-[16px]" />
       <GlassPanel
         ref={panelRef}
         role="dialog"
@@ -208,7 +208,7 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
           {hero}
           {children}
         </div>
-        {footer && <div className="flex shrink-0 items-center justify-between gap-4 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">{footer}</div>}
+        {footer && <div className="flex shrink-0 items-center justify-between gap-4 px-6 pb-[max(1.25rem,var(--safe-bottom))] pt-3">{footer}</div>}
       </GlassPanel>
     </div>,
     document.body,

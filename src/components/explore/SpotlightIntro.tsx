@@ -20,8 +20,8 @@ const SIDE_TITLE = { fontSize: "var(--fit-title, var(--text-stage))" };
  * colour stays ink (at the same 45 %).
  */
 const GREETING_GRADIENT: CSSProperties = {
-  color: "#221E1B",
-  backgroundImage: "linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%)",
+  color: "var(--text)",
+  backgroundImage: "var(--headline-gradient)",
   backgroundSize: "200% 100%",
   backgroundPosition: "0 0",
   backgroundRepeat: "no-repeat",

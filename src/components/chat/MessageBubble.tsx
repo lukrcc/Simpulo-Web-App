@@ -1,7 +1,6 @@
 "use client";
 
-import { selectedSurface } from "@/components/ui/Chip";
-import { Flag, Reply, SmilePlus } from "lucide-react";
+import { Check, CheckCheck, Flag, Reply, SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,6 +21,8 @@ interface MessageBubbleProps {
   last: boolean;
   /** Crew chats name the sender above their group */
   showName: boolean;
+  /** Your own message: someone wrote after it (✓✓, cream), else only sent (✓) */
+  read?: boolean;
   /** The message this one replies to, if it's still in the thread */
   replyTo?: { message: Message; author?: User; /** Quoted message is from someone you blocked – show no name or text */ blocked?: boolean };
   /** Action bar shown (long-press on touch devices); the emoji row open */
@@ -100,33 +101,42 @@ export function MessageBubble(props: MessageBubbleProps) {
       type="button"
       onClick={() => props.onJumpTo(replyTo.message.id)}
       className={cn(
-        "mb-1 block w-full min-w-0 border-l-2 py-0.5 pl-2 text-left",
-        mine ? "border-[#221E1B]/25" : "border-ink/20",
+        // The quote: a 3px bar (yours cream 40 %, theirs cream 25 % – no orange in bubbles) on black 15 %.
+        "mb-1.5 block w-full min-w-0 rounded-lg border-l-[3px] bg-shade/15 py-1 pl-2 pr-2 text-left",
+        mine ? "border-ink/40" : "border-ink/25",
       )}
     >
       {replyTo.blocked ? (
-        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-[#221E1B]/50" : "text-muted")}>{tSafety("blockedMessage")}</span>
+        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-ink/60" : "text-muted")}>{tSafety("blockedMessage")}</span>
       ) : (
         <>
-          <span className={cn("block truncate text-small font-semibold", mine ? "text-[#221E1B]" : "text-ink")}>
+          <span className={cn("block truncate text-small font-semibold", mine ? "text-ink" : "text-ink")}>
             {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
           </span>
-          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-[#221E1B]/60" : "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-ink/70" : "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
         </>
       )}
     </button>
   );
 
-  const timeStamp = (onBubble = true) => <span className={cn("text-small leading-none tabular-nums", onBubble && mine ? "text-[#221E1B]/50" : "text-ink/50")}>{time}</span>;
+  // The time bottom right: yours cream 55 % with ✓ (sent) or ✓✓ (read, cream 90 %); theirs cream 45 %.
+  const ticks = mine && (props.read ? <CheckCheck aria-label={t("read")} className="size-3.5 text-ink/90" strokeWidth={2.25} /> : <Check aria-label={t("sent")} className="size-3.5" strokeWidth={2.25} />);
+  const timeStamp = (onBubble = true) => (
+    <span className={cn("inline-flex items-center gap-1 text-small leading-none tabular-nums", onBubble && mine ? "text-ink/55" : mine ? "text-ink/55" : "text-ink/45")}>
+      {time}
+      {ticks}
+    </span>
+  );
   const hasBubble = !bigEmoji && Boolean(text || quote);
   const reactions = message.reactions ?? [];
 
   return (
     <div
       id={`msg-${message.id}`}
-      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-1", reactions.length > 0 && "mb-2")}
+      // One run of the same sender: 2px apart; a new run 12px down. The avatar only at a run's last message, the name only at its first.
+      className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5", reactions.length > 0 && "mb-2")}
     >
-      {!mine && <div className="w-8 shrink-0 self-start">{first && author && <Avatar user={author} size="sm" linked />}</div>}
+      {!mine && <div className="w-8 shrink-0 self-end">{props.last && author && <Avatar user={author} size="sm" linked />}</div>}
 
       <div
         onPointerDown={onPointerDown}
@@ -135,7 +145,7 @@ export function MessageBubble(props: MessageBubbleProps) {
         onPointerCancel={cancelPress}
         // No native "copy / look up" menu on long-press – ours opens instead.
         onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
-        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)]" : "max-w-[min(560px,75%)]")}
+        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)]" : "max-w-[min(560px,65%)]")}
       >
         {first && showName && author && <p className="mb-1 px-1 text-small font-semibold text-ink">{author.name.split(" ")[0]}</p>}
 
@@ -157,10 +167,12 @@ export function MessageBubble(props: MessageBubbleProps) {
           {hasBubble && (
             <div
               className={cn(
-                "relative max-w-full rounded-[20px] px-3.5 py-2 text-left text-body leading-5 wrap-break-word",
+                "relative max-w-full rounded-[18px] px-3.5 py-2 text-left text-body leading-5 wrap-break-word",
                 hasCard && "w-full",
-                // Dark chat (.chat-dark): own messages cream with ink text, the others' #3A332E with cream text.
-                mine ? "bg-[#F4EEE7] text-[#221E1B]" : "bg-[#3A332E] text-ink",
+                // Your own: graphite --bubble-own (#4A4541), light text; the others': --bubble-other (#33302D), cream. The last of a run: a small corner (the tail)
+                // on the sender's side, at the bottom.
+                mine ? "bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink",
+                props.last && (mine ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
               )}
             >
               {quote}
@@ -178,7 +190,7 @@ export function MessageBubble(props: MessageBubbleProps) {
                 <>
                   {/* WhatsApp-style time: an invisible copy reserves room at the end of the last line (or wraps to its own),
                       the visible one sits in the bottom-right corner. */}
-                  <span className="invisible ml-2 inline-block text-small leading-none" aria-hidden>
+                  <span className={cn("invisible ml-2 inline-block text-small leading-none", mine && "pr-5")} aria-hidden>
                     {time}
                   </span>
                   <span className="absolute bottom-2 right-3.5">{timeStamp()}</span>
@@ -219,8 +231,9 @@ export function MessageBubble(props: MessageBubbleProps) {
                   aria-pressed={reacted}
                   aria-label={t("reactionLabel", { emoji: reaction.emoji, count: reaction.userIds.length })}
                   className={cn(
-                    "flex h-6 items-center gap-1 rounded-full px-1.5 text-small tabular-nums shadow-[0_1px_2px_color-mix(in_srgb,var(--ink)_12%,transparent)] transition-colors",
-                    reacted ? cn(selectedSurface, "font-medium") : "bg-surface text-muted hover:bg-bg",
+                    // A small capsule --bubble-other with a 1px --chat-bg edge, overlapping the bubble's bottom.
+                    "flex h-6 items-center gap-1 rounded-full border border-(--chat-bg) bg-(--bubble-other) px-1.5 text-small tabular-nums transition-colors hover:bg-surface-2",
+                    reacted ? "font-semibold text-ink" : "text-ink/70",
                   )}
                 >
                   <span>{reaction.emoji}</span>

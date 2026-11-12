@@ -1,5 +1,6 @@
 "use client";
 
+import { DEV_SETTINGS_KEY, readDevSetting, subscribeDevSettings } from "./devSettings";
 import { useSyncExternalStore } from "react";
 import { track } from "./analytics";
 
@@ -132,16 +133,30 @@ export function usePlatform(): Platform {
 
 const standaloneQuery = "(display-mode: standalone)";
 
-/** True when Simpulo runs as an installed app (home screen), not in a browser tab. */
+/**
+ * True when Simpulo runs as an installed app (home screen), not in a browser tab: display-mode standalone, iOS's navigator.standalone – or the
+ * Dev menu's "Simulate installed app". <html> carries the class is-standalone then (STANDALONE_SCRIPT, before the first paint).
+ */
 export function isStandalone(): boolean {
   const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return iosStandalone || window.matchMedia(standaloneQuery).matches;
+  return iosStandalone || window.matchMedia(standaloneQuery).matches || readDevSetting("installedApp");
 }
+
+/** For the inline script in app/layout.tsx: is-standalone (and, simulated in dev, sim-standalone) on <html> before anything paints. */
+export const STANDALONE_SCRIPT = `try{var h=document.documentElement,s=matchMedia(${JSON.stringify(standaloneQuery)}).matches||navigator.standalone===true,d=false;if(h.getAttribute("data-app-mode")==="dev"){try{d=!!(JSON.parse(localStorage.getItem(${JSON.stringify(DEV_SETTINGS_KEY)})||"{}").installedApp)}catch(e){}}if(s||d)h.classList.add("is-standalone");if(d)h.classList.add("sim-standalone")}catch(e){}`;
 
 function subscribeStandalone(onChange: () => void) {
   const media = window.matchMedia(standaloneQuery);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
+  const sync = () => {
+    document.documentElement.classList.toggle("is-standalone", isStandalone());
+    onChange();
+  };
+  media.addEventListener("change", sync);
+  const off = subscribeDevSettings(sync);
+  return () => {
+    media.removeEventListener("change", sync);
+    off();
+  };
 }
 
 export function useIsStandalone(): boolean {
@@ -225,10 +240,18 @@ export function noteInstallPromptDismissed(trigger: InstallTrigger) {
 
 const PUSH_KEY = "simpulo:push-asked";
 
-/** Installed, the browser can notify, nothing decided yet, and our own short sheet wasn't shown in the last 3 days (at most twice). */
+/**
+ * Where push may be offered: the installed app on every device; in a browser tab only on Android and desktop – iOS can only notify an app on
+ * the home screen, so a Safari tab gets "Install to get notified" (→ /get) instead.
+ */
+export function pushAllowedHere(): boolean {
+  return "Notification" in window && (isStandalone() || detectPlatform() !== "ios");
+}
+
+/** Push is allowed here, nothing decided yet, and our own short sheet wasn't shown in the last 3 days (at most twice). */
 export function mayAskForPush(now = Date.now()): boolean {
   try {
-    if (!isStandalone() || !("Notification" in window) || Notification.permission !== "default") return false;
+    if (!pushAllowedHere() || Notification.permission !== "default") return false;
     const asked = JSON.parse(localStorage.getItem(PUSH_KEY) ?? "null") as { count: number; at: string } | null;
     if (!asked) return true;
     return asked.count < 2 && now - Date.parse(asked.at) >= INSTALL_PROMPT_RULES.minDaysBetween * 86_400_000;

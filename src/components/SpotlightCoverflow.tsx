@@ -505,7 +505,8 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
     <StageBand
       from="lg"
       className={cn(
-        "hidden lg:block",
+        // The band ends 48px under the cards, on a hard edge (hybrid, dark); the floor starts there.
+        "hidden pb-12 lg:block",
         // Until it's measured (server render): by the window's width.
         textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-56px)]"),
       )}

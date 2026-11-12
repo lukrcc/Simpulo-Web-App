@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/ui/BackButton";
 import { ArrowLeft, ArrowRight, CalendarClock, Download, Gauge, Info, Repeat, Sparkles, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
@@ -30,7 +31,7 @@ import { cn, housePhotos } from "@/lib/utils";
 
 const SECTION_TITLE = "text-eyebrow uppercase text-ink/55";
 /** Every surface on this page: the one light card (rule 8). */
-const CARD = "rounded-[20px] bg-(--card) p-6";
+const CARD = "rounded-[20px] bg-(--surface) p-6";
 const CHART_HEIGHT = 200;
 const COUNT_MS = 800;
 
@@ -98,10 +99,10 @@ function PayoutsContent() {
   return (
     <Container className="pb-(--space-section) pt-6 md:pt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/your-houses" className={buttonStyles("tertiary", "sm", "-ml-4")}>
+        <BackLink href="/your-houses" className={buttonStyles("tertiary", "sm", "-ml-4")}>
           <ArrowLeft aria-hidden />
           {tHouses("title")}
-        </Link>
+        </BackLink>
         <AccountLine earnings={earnings} />
       </div>
       <h1 className="sr-only">{t("title")}</h1>
@@ -169,13 +170,13 @@ function ProHead({ stats, earnings, today }: { stats: HostStats; earnings: Earni
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-5 lg:grid-cols-2">
-        <section aria-labelledby="earnings-year" className="ember flex flex-col rounded-[20px] p-6 text-white">
+        <section aria-labelledby="earnings-year" className="ember flex flex-col rounded-[20px] p-6 text-ink">
           <div className="flex items-start justify-between gap-3">
-            <h2 id="earnings-year" className="text-eyebrow uppercase text-white/70">
+            <h2 id="earnings-year" className="text-eyebrow uppercase text-ink/70">
               {t("earningsThisYear")}
             </h2>
             {trend !== null && (
-              <span className="rounded-full bg-white/12 px-2.5 py-1 text-small font-semibold tabular-nums text-white">
+              <span className="rounded-full bg-ink/12 px-2.5 py-1 text-small font-semibold tabular-nums text-ink">
                 {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)} %
               </span>
             )}
@@ -183,7 +184,7 @@ function ProHead({ stats, earnings, today }: { stats: HostStats; earnings: Earni
           <p className="mt-3 text-display tabular-nums">{money.eur(Math.round(value))}</p>
           <Sparkline values={spark.map((m) => m.amount)} />
           {/* The guests line sits at the card's foot when the tiles beside it make the card taller. */}
-          {stats.feeGuestsThisYear > 0 && <p className="mt-auto pt-3 text-small text-white/75">{t("perGuest", { amount: money.eur(stats.perGuest), guests: stats.feeGuestsThisYear })}</p>}
+          {stats.feeGuestsThisYear > 0 && <p className="mt-auto pt-3 text-small text-ink/75">{t("perGuest", { amount: money.eur(stats.perGuest), guests: stats.feeGuestsThisYear })}</p>}
         </section>
         <div className="grid grid-cols-2 gap-5">
           <StatTile icon={CalendarClock} label={t("comingUp")} value={stats.comingUp} format={money.eur} />
@@ -211,8 +212,8 @@ export function Sparkline({ values, className = "mt-4 h-12 w-full" }: { values: 
   const line = points.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   return (
     <svg aria-hidden viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={className}>
-      <path d={`${line} L${w},${h} L0,${h} Z`} fill="rgba(240, 99, 58, 0.2)" />
-      <path d={line} fill="none" stroke="rgba(255, 248, 240, 0.9)" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={`${line} L${w},${h} L0,${h} Z`} className="fill-accent/20" />
+      <path d={line} fill="none" className="stroke-ink/90" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
@@ -257,8 +258,8 @@ function ShareHead({ stats }: { stats: HostStats }) {
   const full = useCountUp(Math.round(stats.fullShare * 100));
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <section aria-labelledby="your-houses-stats" className="ember flex flex-col justify-between gap-6 rounded-[20px] p-6 text-white">
-        <h2 id="your-houses-stats" className="text-eyebrow uppercase text-white/70">
+      <section aria-labelledby="your-houses-stats" className="ember flex flex-col justify-between gap-6 rounded-[20px] p-6 text-ink">
+        <h2 id="your-houses-stats" className="text-eyebrow uppercase text-ink/70">
           {t("title")}
         </h2>
         <p className="text-h2 tabular-nums">
@@ -400,11 +401,11 @@ function ChartCard({ earnings, today, pro }: { earnings: Earnings; today: string
                     animationDelay: `${i * 40}ms`,
                     background: orange
                       ? current
-                        ? "#F0633A"
-                        : "linear-gradient(to bottom, #F0633A, rgba(240, 99, 58, 0.55))"
+                        ? "var(--signal)"
+                        : "linear-gradient(to bottom, var(--signal), color-mix(in srgb, var(--signal) 55%, transparent))"
                       : current
-                        ? "var(--color-ink, #221E1B)"
-                        : "rgba(34, 30, 27, 0.2)",
+                        ? "var(--text)"
+                        : "color-mix(in srgb, var(--text) 20%, transparent)",
                   }}
                 />
               ) : (
@@ -436,7 +437,7 @@ function StatusChip({ status }: { status: EarningRow["status"] }) {
     <span
       className={cn(
         "inline-flex h-7 items-center rounded-full px-3 text-small",
-        status === "paid" ? "bg-ink font-semibold text-white" : status === "pending" ? "text-ink shadow-[inset_0_0_0_1.5px_#F0633A]" : "bg-ink/6 text-ink",
+        status === "paid" ? "bg-ink font-semibold text-inverse" : status === "pending" ? "text-ink shadow-[inset_0_0_0_1.5px_var(--signal)]" : "bg-ink/6 text-ink",
       )}
     >
       {t(status)}

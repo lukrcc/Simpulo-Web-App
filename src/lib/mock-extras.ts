@@ -33,7 +33,8 @@ export function mockPreviewForUrl(url: string, fallbackTitle?: string): LinkPrev
   const site = domain.split(".").at(-2) ?? domain;
   return {
     title: mockLinkPreviewTitles[url] ?? fallbackTitle ?? `${site.charAt(0).toUpperCase()}${site.slice(1)} listing`,
-    imageUrl: `https://picsum.photos/seed/place-${hashOf(url)}/1200/800`,
+    // A local place photo (public/mock/houses) – never an outside image host that may not answer.
+    imageUrl: `/mock/houses/s${(hashOf(url) % 53) + 1}/2.webp`,
     domain,
   };
 }

@@ -99,7 +99,7 @@ export function FormField({ label, optional = false, helper, error, group = fals
       </span>
       {children}
       {error ? (
-        <span role="alert" className="mt-1.5 block text-small text-red-600">
+        <span role="alert" className="mt-1.5 block text-small text-danger">
           {error}
         </span>
       ) : (
@@ -122,7 +122,7 @@ export function StickyFormBar({ children, slideIn = false }: { children: ReactNo
   return (
     <div
       className={cn(
-        "sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mt-4 flex items-center gap-3 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
+        "sticky bottom-[max(0.75rem,var(--safe-bottom))] z-20 mt-4 flex items-center gap-3 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
         slideIn && "animate-slide-up",
       )}
     >

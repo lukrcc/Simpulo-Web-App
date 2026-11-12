@@ -13,7 +13,7 @@ import type { User } from "@/lib/types";
 import { GET_THE_APP_HREF } from "./secondaryLinks";
 
 /** The menu's glass, as the other menus, but nearly opaque (92 %) – no photo shows through behind its text. */
-const MENU_GLASS = { backgroundColor: "rgba(250, 248, 244, 0.92)" };
+const MENU_GLASS = { backgroundColor: "color-mix(in srgb, var(--glass-solid) 92%, transparent)" };
 
 /**
  * The avatar's menu, 260px of glass (8px inside): the head – avatar 40px, the name, "View profile" – is one link to the own profile; a

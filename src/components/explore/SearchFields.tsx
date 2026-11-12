@@ -52,7 +52,7 @@ function FieldCapsule({ ref, icon, label, value, open, onClick, onClear, size = 
         <span className="truncate">{value ?? label}</span>
       </button>
       {value && (
-        <button type="button" onClick={onClear} aria-label={t("remove", { label: value })} className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
+        <button type="button" onClick={onClear} aria-label={t("remove", { label: value })} className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-inverse/15">
           <X className="size-3.5" aria-hidden />
         </button>
       )}
@@ -71,7 +71,7 @@ export function ShortTripsToggle({ label, active, onToggle }: { label: string; a
         // Set apart from the rest: an orange edge and bolt. Off: transparent, ink semibold, hover a breath of orange. On: ink, white text,
         // the bolt and edge still orange – the filters' chosen style.
         "press inline-flex h-(--control-h) shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-accent px-4.5 text-nav-main font-semibold transition-colors duration-150 [&_svg]:size-4 [&_svg]:text-accent",
-        active ? "bg-(--pick-bg) text-(--pick-text)" : "bg-transparent text-ink hover:bg-[rgba(240,99,58,0.08)]",
+        active ? "bg-(--pick-bg) text-(--pick-text)" : "bg-transparent text-ink hover:bg-accent/8",
       )}
     >
       <Zap aria-hidden />
@@ -129,7 +129,7 @@ export function SearchField({
               onChange({ place: null, month: null });
             }}
             aria-label={tf("remove", { label: value })}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-(--pick-text) transition-colors duration-150 hover:bg-white/15"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-(--pick-text) transition-colors duration-150 hover:bg-inverse/15"
           >
             <X className="size-3.5" aria-hidden />
           </button>
@@ -140,7 +140,7 @@ export function SearchField({
           <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
           <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} onPick={(p) => onChange({ place: p.id })} />
           {place && (
-            <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-white/50 hover:text-ink">
+            <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
               {t("anywhere")}
             </button>
           )}
@@ -176,7 +176,7 @@ export function PlaceField({ value, onChange, size, className }: { value: string
         <FieldPopover anchor={anchor} width={360} label={t("where")} onClose={() => setOpen(false)}>
           <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} onPick={(p) => pick(p.id)} />
           {place && (
-            <button type="button" onClick={() => pick(null)} className="mt-2 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-white/50 hover:text-ink">
+            <button type="button" onClick={() => pick(null)} className="mt-2 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
               {t("anywhere")}
             </button>
           )}

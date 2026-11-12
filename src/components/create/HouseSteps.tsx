@@ -73,7 +73,7 @@ export interface StepProps {
 /** A field's error line under a group of chips (FormField shows it for single fields). */
 function ErrorLine({ text }: { text: string | null }) {
   return text ? (
-    <p role="alert" className="text-small text-red-600">
+    <p role="alert" className="text-small text-danger">
       {text}
     </p>
   ) : null;
@@ -152,12 +152,12 @@ export function PlaceStep({ form, patch, errorOf }: StepProps) {
               onClick={() => patch({ placeMode: value, ...(value === "set" ? { budgetTbd: false } : {}) })}
               className={cn(
                 "press flex min-h-44 flex-col items-start gap-3 rounded-3xl border p-6 text-left transition-colors duration-150",
-                chosen ? "border-transparent bg-ink text-white" : "border-ink/12 text-ink hover:bg-ink/5",
+                chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5",
               )}
             >
-              <Icon className={cn("size-6", chosen ? "text-white" : "text-muted")} aria-hidden />
+              <Icon className={cn("size-6", chosen ? "text-inverse" : "text-muted")} aria-hidden />
               <span className="text-h3">{title}</span>
-              <span className={cn("text-body", chosen ? "text-white/75" : "text-muted")}>{text}</span>
+              <span className={cn("text-body", chosen ? "text-inverse/75" : "text-muted")}>{text}</span>
             </button>
           );
         })}
@@ -671,7 +671,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
               <li key={src} className="relative">
                 <button type="button" disabled={i === 0} onClick={() => patch({ photos: [src, ...form.photos.filter((photo) => photo !== src)] })} aria-label={i === 0 ? t("isCover") : t("makeCover")} className="relative block h-20 w-15 overflow-hidden rounded-xl bg-ink/5">
                   <Img src={src} alt="" fill sizes="60px" className="object-cover" />
-                  {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-black/45 py-0.5 text-center text-small text-white">{t("cover")}</span>}
+                  {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-shade/45 py-0.5 text-center text-small text-on-image">{t("cover")}</span>}
                 </button>
                 <button type="button" onClick={() => patch({ photos: form.photos.filter((photo) => photo !== src) })} aria-label={t("remove")} className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
                   <X className="size-3" aria-hidden />
@@ -739,7 +739,7 @@ export function OptionalList({ form, details, invalid, onOpen }: { form: FormSta
                         {t(`rows.${key}`)}
                         {value && <span className="text-muted"> · {value}</span>}
                       </span>
-                      {invalid.includes(key) ? <span className="shrink-0 text-small text-red-600">{t("fix")}</span> : !done && <span className="shrink-0 text-small font-semibold text-ink">{tReady("add")}</span>}
+                      {invalid.includes(key) ? <span className="shrink-0 text-small text-danger">{t("fix")}</span> : !done && <span className="shrink-0 text-small font-semibold text-ink">{tReady("add")}</span>}
                     </button>
                   </li>
                 );
@@ -1067,7 +1067,7 @@ function DetailRow({ title, value, done, invalid, onOpen }: { title: string; val
         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", done ? "bg-(--select-bg)" : "bg-ink/5")}>{done && <ChipCheck />}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-body font-medium text-ink">{title}</span>
-          {invalid ? <span className="block text-small text-red-600">{t("fix")}</span> : value && <span className="block truncate text-small text-muted">{value}</span>}
+          {invalid ? <span className="block text-small text-danger">{t("fix")}</span> : value && <span className="block truncate text-small text-muted">{value}</span>}
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
       </button>
@@ -1110,7 +1110,7 @@ export function ProfileNote({ me }: { me?: User }) {
   const missing = [!me.photos[0] && t("photo"), !me.name.trim() && t("name")].filter((item): item is string => Boolean(item));
   if (missing.length === 0) return null;
   return (
-    <p role="alert" className="flex flex-wrap items-center gap-3 text-small text-red-600">
+    <p role="alert" className="flex flex-wrap items-center gap-3 text-small text-danger">
       <Avatar user={me} size="sm" />
       {t("hint", { items: missing.join(" & ") })}
       <Button variant="tertiary" href="/settings/profile">

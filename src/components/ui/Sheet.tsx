@@ -89,8 +89,8 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   const iconSize = "size-5";
   // The same for every modal: 560px, 28px radius, 32px inside, as much below as above.
   const panelClass = wide
-    ? "glass-panel scroll-pane relative h-dvh max-h-dvh w-full rounded-b-none p-7 pb-[max(1.75rem,env(safe-area-inset-bottom))] md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
-    : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
+    ? "glass-panel scroll-pane relative h-dvh max-h-dvh w-full rounded-b-none p-7 pb-[max(1.75rem,var(--safe-bottom))] md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
+    : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
 
   const content = lead || large ? (
     <>

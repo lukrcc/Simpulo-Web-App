@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const ON_DARK = { filter: "drop-shadow(0 0 2px color-mix(in srgb, var(--ink) 45%, transparent))" };
+const ON_DARK = { filter: "drop-shadow(0 0 2px color-mix(in srgb, var(--text) 45%, transparent))" };
 
 /**
  * The one "ID verified" mark: lucide's scalloped BadgeCheck seal as an orange outline (16px; 14px in the notched

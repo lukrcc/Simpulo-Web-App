@@ -3,4 +3,4 @@
  * (−2px from the padding box – the circles have a 1px border), with 2px of the header's colour around it. Never a number;
  * that waits for the page or the dropdown. Your houses (new requests), Messages (unread), the bell (new notifications).
  */
-export const headerDot = "pointer-events-none absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-(--header-solid)";
+export const headerDot = "pointer-events-none absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-(--hdr-solid)";

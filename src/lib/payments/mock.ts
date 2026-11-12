@@ -70,6 +70,8 @@ class MockPaymentsAdapter implements PaymentsAdapter {
   async getPayoutAccountStatus(userId: string) {
     // Dev menu "Host without payouts": no account, whatever the mock says.
     if (readFeatureFlag("simulateHostWithoutPayouts")) return { status: "none" as const };
+    // Dev menu "Payouts: Action needed": Stripe needs one more thing, right away.
+    if (readFeatureFlag("simulateOnboardingActionRequired")) return { status: "action_required" as const, last4: "1234" };
     const state = load();
     const account = state.accounts[userId];
     if (!account) return source?.initiallyPaidOut(userId) ? { status: "active" as const, last4: "1234" } : { status: "none" as const };

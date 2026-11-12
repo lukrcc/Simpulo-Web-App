@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * rgba(240,99,58,0.15). Invalid (aria-invalid): a red edge. Numbers are typed (inputMode="numeric"), never steppers.
  */
 export const inputStyles =
-  "h-12 w-full rounded-xl border border-ink/10 bg-transparent px-4 text-body text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-ink/40 focus:ring-3 focus:ring-[rgba(240,99,58,0.15)] disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-red-400";
+  "h-12 w-full rounded-xl border border-ink/10 bg-transparent px-4 text-body text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-ink/40 focus:ring-3 focus:ring-accent/15 disabled:cursor-not-allowed disabled:text-muted aria-invalid:border-danger";
 
 /** The textarea: the same field, growing from `rows`. */
 export const textareaStyles = cn(inputStyles, "h-auto resize-none py-3 leading-relaxed");

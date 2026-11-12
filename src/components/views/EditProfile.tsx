@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/ui/BackButton";
 import { ArrowUpRight, Check, ChevronDown, ChevronLeft, Eye, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -215,7 +216,7 @@ function EditProfileForm({ me }: { me: User }) {
   const errorText = (key: FormError) => (touched && problem === key ? t(`errors.${key}`) : null);
 
   const statusLine = (
-    <span aria-live="polite" className={cn("inline-flex items-center gap-1 text-small", status === "invalid" ? "text-red-600" : "text-muted")}>
+    <span aria-live="polite" className={cn("inline-flex items-center gap-1 text-small", status === "invalid" ? "text-danger" : "text-muted")}>
       {status === "saved" && (
         <>
           {t("statusSaved")}
@@ -233,7 +234,7 @@ function EditProfileForm({ me }: { me: User }) {
         return (
           <>
             <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos)} slots={MAX_PHOTOS} labels="profile" />
-            <p className={cn("text-small", errorText("photo") ? "text-red-600" : "text-muted")}>{errorText("photo") ?? t("photosHint", { max: MAX_PHOTOS })}</p>
+            <p className={cn("text-small", errorText("photo") ? "text-danger" : "text-muted")}>{errorText("photo") ?? t("photosHint", { max: MAX_PHOTOS })}</p>
           </>
         );
       case "basics":
@@ -261,7 +262,7 @@ function EditProfileForm({ me }: { me: User }) {
   const list = (
     <div className="flex flex-col gap-4">
       <Progress done={doneCount} total={counted.length} />
-      <ul className="overflow-hidden rounded-[20px] bg-(--card)">
+      <ul className="overflow-hidden rounded-[20px] bg-(--surface)">
         {PROFILE_SECTIONS.map(({ key, icon: Icon }, i) => {
           const isOpen = open === key;
           const isLast = i === PROFILE_SECTIONS.length - 1;
@@ -320,10 +321,10 @@ function EditProfileForm({ me }: { me: User }) {
     <Container className="pb-28 pt-6 md:pt-8 lg:pb-(--space-section)">
       <div className="lg:mx-auto lg:max-w-[1200px]">
         {/* The head over both columns: the way back, the title; right the save state and "View profile ↗". */}
-        <Link href="/settings" className="-ml-1 inline-flex items-center gap-0.5 text-small text-muted transition-colors hover:text-ink">
+        <BackLink href="/settings" className="-ml-1 inline-flex items-center gap-0.5 text-small text-muted transition-colors hover:text-ink">
           <ChevronLeft aria-hidden className="size-4" />
           {tSettings("back")}
-        </Link>
+        </BackLink>
         <div className="mb-8 mt-1 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <h1 className="text-h1 text-ink">{t("title")}</h1>
           <div className="flex items-center gap-5">
@@ -373,8 +374,8 @@ function Progress({ done, total }: { done: number; total: number }) {
   return (
     <p className="flex items-center gap-3 text-body text-ink">
       <svg aria-hidden viewBox="0 0 40 40" className="size-10 shrink-0 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="rgba(34,30,27,0.1)" strokeWidth="4" />
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#F0633A" strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - done / total)} className="transition-[stroke-dashoffset] duration-300 motion-reduce:transition-none" />
+        <circle cx="20" cy="20" r={r} fill="none" className="stroke-ink/10" strokeWidth="4" />
+        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - done / total)} className="stroke-accent transition-[stroke-dashoffset] duration-300 motion-reduce:transition-none" />
       </svg>
       <span>
         <span className="font-semibold">{t("progressOf", { done, total })}</span>
@@ -524,7 +525,7 @@ function VerifySection({ me }: { me: User }) {
         <p className="text-small text-muted">{hosts ? t("verifyHost") : t("verifyGuest")}</p>
       </div>
       {!verified && status !== "processing" && (
-        <Button variant="tertiary" size="sm" onClick={() => setOpen(true)} className="shadow-[inset_0_0_0_1.5px_var(--ink)]">
+        <Button variant="tertiary" size="sm" onClick={() => setOpen(true)} className="shadow-[inset_0_0_0_1.5px_var(--text)]">
           {t("verifyAction")}
         </Button>
       )}
@@ -628,7 +629,7 @@ function HousePreview({ user }: { user: User }) {
   const house = store.stays.find((s) => s.status === "published" && s.hostId !== user.id);
   const request: JoinRequest | null = house ? { id: "preview-request", stayId: house.id, userId: user.id, status: "pending", message: t("previewRequestMessage"), createdAt: now } as JoinRequest : null;
   return (
-    <div inert className="flex flex-col gap-8 rounded-3xl bg-(--card) p-6">
+    <div inert className="flex flex-col gap-8 rounded-3xl bg-(--surface) p-6">
       <section data-preview-part="photos">
         <p className="mb-3 text-eyebrow uppercase text-ink/55">{t("previewInCrew")}</p>
         <div className="flex w-[88px] flex-col items-center text-center">
@@ -668,7 +669,7 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
         const name = nameOf(link.platform);
         return (
           <FormField key={link.platform} label={name} srOnlyLabel error={problem ? t(`errors.${problem}`) : null}>
-            <span className={cn(inputStyles, "flex items-center gap-2 focus-within:border-ink/40 focus-within:ring-3 focus-within:ring-[rgba(240,99,58,0.15)]")}>
+            <span className={cn(inputStyles, "flex items-center gap-2 focus-within:border-ink/40 focus-within:ring-3 focus-within:ring-accent/15")}>
               <Icon className="size-4 shrink-0 text-ink" aria-hidden />
               {link.platform !== "website" && <span className="shrink-0 text-body text-muted">{HANDLE_PREFIX[link.platform]}</span>}
               <input

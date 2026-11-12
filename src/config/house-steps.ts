@@ -34,10 +34,10 @@ const ORDER: readonly GuestStepKey[] = ["requested", "accepted", "crew", "pay", 
 const DAY_MS = 86_400_000;
 const REQUEST_HOURS = 48;
 
-export function guestJourney(stay: Stay, request: JoinRequest | undefined, payment: Payment | undefined, now: string): GuestJourney {
+export function guestJourney(stay: Stay, request: JoinRequest | undefined, payment: Payment | undefined, now: string, /** Who's in, host included (crewInOf) */ inCrew = stay.spotsFilled): GuestJourney {
   const together = stay.accommodationStatus !== "locked" && !stay.accommodationLink;
   const placePicked = stay.accommodationStatus === "locked";
-  const filled = stay.spotsFilled;
+  const filled = Math.max(stay.spotsFilled, inCrew, 1);
   const total = stay.spotsTotal;
   const crewDone = filled >= total && placePicked;
   const accepted = request?.status === "accepted";

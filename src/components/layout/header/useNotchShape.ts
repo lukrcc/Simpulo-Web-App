@@ -52,11 +52,9 @@ const PANEL_BOTTOM = 24;
  * fading out over about 40 % of it). Without backdrop-filter, or with reduced transparency asked for, it is solid --card (#FBF9F6).
  */
 /**
- * The shape's colours come from CSS variables (globals.css, --hdr-*: light or dark, data-header on <html>), read once and again whenever the
- * header's theme changes – never per frame.
+ * The shape's colours come from CSS variables (globals.css, --hdr-*: always graphite), read once on mount – never per frame.
  */
 interface HeaderPalette {
-  dark: boolean;
   bar: [number, number, number, number];
   chips: [number, number, number, number];
   panel: [number, number, number, number];
@@ -71,7 +69,6 @@ function readPalette(): HeaderPalette {
     return [r, g, b, Number(css.getPropertyValue(`--hdr-${name}-alpha`).trim()) || 0];
   };
   return {
-    dark: document.documentElement.dataset.header === "dark",
     bar: rgba("bar"),
     chips: rgba("chips"),
     panel: rgba("panel"),
@@ -82,8 +79,6 @@ function readPalette(): HeaderPalette {
 }
 const mix = (a: readonly number[], b: readonly number[], p: number) => a.map((v, i) => lerp(v, b[i], p));
 const rgbaOf = ([r, g, b, a]: readonly number[]) => `rgba(${n(r)}, ${n(g)}, ${n(b)}, ${n(a)})`;
-const PANEL_SATURATE = 1.4;
-const PANEL_GLOW_ALPHA = 0.1;
 /** Behind the open panel: a light blur and a slight dimming, so the page stays recognisable. */
 const PANEL_SCRIM_BLUR = 10;
 const PANEL_SCRIM_ALPHA = 0.06;
@@ -221,7 +216,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
       scrimOn: false,
       dragging: false,
       /** The theme's colours (CSS variables), read on mount and when data-header changes */
-      palette: { dark: false, bar: [247, 245, 241, 0.94], chips: [247, 245, 241, 0.94], panel: [251, 247, 242, 0.8], edge: [34, 30, 27, 0.08], edgePanel: [255, 255, 255, 0.6], grip: "34, 30, 27" } as HeaderPalette,
+      palette: { bar: [72, 66, 62, 0.94], chips: [72, 66, 62, 0.94], panel: [72, 66, 62, 0.92], edge: [251, 247, 242, 0.08], edgePanel: [251, 247, 242, 0.12], grip: "244, 238, 231" } as HeaderPalette,
       depthAt(p: number) {
         const chips = NOTCH_DEPTH + NOTCH_EXTRA;
         // Not Explore (or no tabs): closed, the bar is straight – the tab grows from nothing, so no value of p near 0 can leave a 6px tab.
@@ -302,30 +297,15 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         const palette = state.palette;
         const glass = refs.glass.current;
         if (glass) {
-          if (to === 0 && (!palette.dark || wide === 0)) {
-            glass.style.backgroundImage = "";
-            glass.style.backdropFilter = "";
-            glass.style.setProperty("-webkit-backdrop-filter", "");
-          } else if (to === 0) {
-            // Dark: the solid ink bar becomes the docked row's dark glass (.78, blur 20px) as the tab opens.
-            const tint = rgbaOf(mix(palette.bar, palette.chips, wide));
-            const blur = `blur(${n(lerp(0, 20, wide))}px)`;
-            glass.style.backgroundImage = `linear-gradient(${tint}, ${tint})`;
-            glass.style.backdropFilter = blur;
-            glass.style.setProperty("-webkit-backdrop-filter", blur);
-          } else {
-            // To the panel's glass (or, where glass can't show, solid).
-            const panel: [number, number, number, number] = canGlass() ? palette.panel : [...palette.panel.slice(0, 3), 1] as [number, number, number, number];
-            const tint = rgbaOf(mix(palette.chips, panel, to));
-            const blur = palette.dark ? `blur(${n(lerp(20, 24, to))}px)` : `blur(${n(lerp(24, 40, to))}px) saturate(${n(lerp(1.3, PANEL_SATURATE, to))})`;
-            // The light from the panel's top left corner: an ellipse over about 40 % of it.
-            const { panelLeft, panelRight } = state.geometry;
-            const depth = state.depthAt(state.open);
-            const glow = `radial-gradient(${n((panelRight - panelLeft) * 0.6)}px ${n(depth * 0.8)}px at ${n(panelLeft)}px ${BAR_H}px, rgba(240, 99, 58, ${n(PANEL_GLOW_ALPHA * to)}), rgba(240, 99, 58, 0))`;
-            glass.style.backgroundImage = `${glow}, linear-gradient(${tint}, ${tint})`;
-            glass.style.backdropFilter = blur;
-            glass.style.setProperty("-webkit-backdrop-filter", blur);
-          }
+          // Graphite, always: the bar, the tab and the docked row one tone (.94 over blur 20px – reads solid, only a hint of what scrolls
+          // under it); towards the big filter sheet .92, the same blur. No orange glow.
+          const panel: [number, number, number, number] = canGlass() ? palette.panel : [...palette.panel.slice(0, 3), 1] as [number, number, number, number];
+          const bar: [number, number, number, number] = canGlass() ? palette.bar : [...palette.bar.slice(0, 3), 1] as [number, number, number, number];
+          const chips: [number, number, number, number] = canGlass() ? palette.chips : [...palette.chips.slice(0, 3), 1] as [number, number, number, number];
+          const tint = rgbaOf(to === 0 ? mix(bar, chips, wide) : mix(chips, panel, to));
+          glass.style.backgroundImage = `linear-gradient(${tint}, ${tint})`;
+          glass.style.backdropFilter = "blur(20px)";
+          glass.style.setProperty("-webkit-backdrop-filter", "blur(20px)");
         }
         const shadow = refs.shadow.current;
         if (shadow) {
@@ -348,7 +328,7 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
         // Behind the panel: a light blur (10px) and a slight dimming (6 %), growing with p.
         const toPanel = Math.min(1, Math.max(0, state.open - 1));
         const blur = `blur(${n(lerp(6, PANEL_SCRIM_BLUR, toPanel))}px)`;
-        scrim.style.backgroundColor = `rgba(34, 30, 27, ${n(lerp(0.12, PANEL_SCRIM_ALPHA, toPanel))})`;
+        scrim.style.backgroundColor = `color-mix(in srgb, var(--stage-bg) ${n(lerp(12, PANEL_SCRIM_ALPHA * 100, toPanel))}%, transparent)`;
         scrim.style.backdropFilter = blur;
         scrim.style.setProperty("-webkit-backdrop-filter", blur);
         scrim.style.opacity = on ? strength.toFixed(3) : "0";
@@ -505,16 +485,10 @@ export function useNotchShape(refs: NotchRefs, mode: NotchMode, source: "auto" |
     };
   }, [refs, run]);
 
-  // The colours: read now, and again whenever the header's theme (data-header on <html>) changes.
+  // The colours: read once (the header is graphite in every mode).
   useLayoutEffect(() => {
-    const read = () => {
-      run.palette = readPalette();
-      run.paint();
-    };
-    read();
-    const observer = new MutationObserver(read);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-header"] });
-    return () => observer.disconnect();
+    run.palette = readPalette();
+    run.paint();
   }, [run]);
 
   // The handle mounts with the page that offers it.

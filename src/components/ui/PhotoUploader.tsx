@@ -114,7 +114,7 @@ export function PhotoUploader({ photos, onChange, slots = DEFAULT_SLOTS, labels 
                       <X className="size-3.5" />
                     </button>
                     {/* Profile: "Face" as a small glass chip on the first photo. */}
-                    {profile && slot === 0 && <span className="on-image pointer-events-none absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-small text-white">{t("face")}</span>}
+                    {profile && slot === 0 && <span className="on-image pointer-events-none absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-small text-on-image">{t("face")}</span>}
                   </>
                 ) : (
                   <button

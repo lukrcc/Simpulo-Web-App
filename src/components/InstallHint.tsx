@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, CircleCheck, Download, Share, SquarePlus } from "lu
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/ActionButton";
 import { SimpuloQR } from "@/components/SimpuloQR";
-import { clearInstallPrompt, useBrowser, useInstallPrompt, useIsIpad } from "@/lib/install";
+import { clearInstallPrompt, useBrowser, useInstallPrompt, useIsIpad, useIsStandalone } from "@/lib/install";
 import { appLink } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,9 @@ import { cn } from "@/lib/utils";
 export function FooterInstallHint({ id, size = 72, className }: { id?: string; size?: number; className?: string }) {
   const t = useTranslations("install");
   const browser = useBrowser();
-  if (browser !== "desktop") return null;
+  // Installed already: no hint to install.
+  const standalone = useIsStandalone();
+  if (browser !== "desktop" || standalone) return null;
   return (
     <div id={id} className={cn("flex items-center gap-4", className)}>
       <SimpuloQR url={appLink()} refParam="footer" size={size} className="shrink-0" />
@@ -54,8 +56,8 @@ export function IosInstallSteps({ className, arrow = true }: { className?: strin
           aria-hidden
           data-ios-arrow
           className={cn(
-            "pointer-events-none fixed z-[80] flex size-10 items-center justify-center rounded-full bg-ink/85 text-white shadow-[0_6px_16px_rgba(0,0,0,0.18)] motion-safe:animate-bounce",
-            ipad ? "right-24 top-3" : "bottom-[calc(env(safe-area-inset-bottom)+12px)] left-[calc(50%-20px)]",
+            "pointer-events-none fixed z-[80] flex size-10 items-center justify-center rounded-full bg-ink/85 text-inverse shadow-[0_6px_16px_rgba(0,0,0,0.18)] motion-safe:animate-bounce",
+            ipad ? "right-24 top-3" : "bottom-[calc(var(--safe-bottom)+12px)] left-[calc(50%-20px)]",
           )}
         >
           <Arrow className="size-5" />

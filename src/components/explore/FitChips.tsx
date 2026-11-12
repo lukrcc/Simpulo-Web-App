@@ -15,7 +15,7 @@ export interface ChipOption {
 }
 
 /** A category's icon in the row: 16px, ink 60 %; on the picked (black) capsule #F0633A. */
-function ChipIcon({ icon: Icon, on }: { icon?: LucideIcon; on: boolean }) {
+export function ChipIcon({ icon: Icon, on }: { icon?: LucideIcon; on: boolean }) {
   if (!Icon) return null;
   return (
     <span aria-hidden className={cn("mr-1 flex shrink-0 transition-colors duration-150", on ? "text-accent" : "text-ink/60")}>

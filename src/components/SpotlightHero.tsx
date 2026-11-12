@@ -206,7 +206,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
     // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1680px] pt-[calc(12px+env(safe-area-inset-top))] md:pt-8 lg:hidden"
+      className="mx-auto max-w-[1680px] pt-[calc(12px+var(--safe-top))] md:pt-8 lg:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
@@ -373,7 +373,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                   }}
                   className={cn(
                     "relative size-14 overflow-hidden rounded-xl shadow-md transition-transform hover:scale-105",
-                    i === photo ? "border-2 border-surface" : "border border-white/40",
+                    i === photo ? "border-2 border-on-image" : "border border-on-image/40",
                   )}
                 >
                   <Img src={src} alt={t("showHostPhoto", { index: i + 1, name: host.name })} fill sizes="56px" className="object-cover" />
@@ -385,24 +385,24 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           {/* Bottom: identity, place and crew, then the CTA. Phones: centred and tight (8px), stacked above the dots;
               from md left-aligned at the bottom. Only the title and the CTA take taps (mouse/touch duplicates of the
               slide link – hidden from assistive tech, which uses the full-size link). */}
-          <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-white md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
+          <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-on-image md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
             <div className="flex flex-col items-center md:block">
               <Link href={href} onNavigate={rememberOrigin} tabIndex={-1} aria-hidden className="pointer-events-auto">
-                <h2 className="line-clamp-2 text-h2 text-white md:text-h1">{stay.title}</h2>
+                <h2 className="line-clamp-2 text-h2 text-on-image md:text-h1">{stay.title}</h2>
               </Link>
               {/* Only where the card has no host tab (phones have one). */}
-              <p className="mt-2 hidden items-center gap-1 text-small text-white/85 md:flex">
+              <p className="mt-2 hidden items-center gap-1 text-small text-on-image/85 md:flex">
                 {t("withHost", { name: firstName(host) })}
                 {host.verified && <VerifiedBadge onDark />}
               </p>
-              <p className="mt-2 text-small text-white/85">
+              <p className="mt-2 text-small text-on-image/85">
                 <span className="inline-flex max-w-full items-center gap-1.5">
                   {format.stayDates(stay)} · <PlaceText>{format.placeName(stay)}</PlaceText>
                 </span>
               </p>
-              <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
+              <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
               {stay.hostNote && (
-                <p className="mt-1 flex max-w-full items-center gap-1.5 text-small text-white/75">
+                <p className="mt-1 flex max-w-full items-center gap-1.5 text-small text-on-image/75">
                   <MessageCircle className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{stay.hostNote}</span>
                 </p>
@@ -449,7 +449,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                   data-tap="none"
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-250 motion-reduce:transition-none",
-                    i === index ? "w-[18px] bg-surface" : "w-1.5 bg-white/50",
+                    i === index ? "w-[18px] bg-on-image" : "w-1.5 bg-on-image/50",
                   )}
                 />
               ))}

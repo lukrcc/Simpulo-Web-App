@@ -121,7 +121,7 @@ function SettingsContent({ me }: { me: User }) {
         {/* The side list – on the phone the first view, gone once an area is open. */}
         <nav aria-label={t("title")} className={cn("lg:sticky lg:top-[calc(var(--header-h)+64px)]", section !== null && "max-lg:hidden")}>
           {/* The profile as its own light card: avatar 56px, name, "Profile & photos", the chevron – to Edit profile. */}
-          <Link href="/settings/profile" className="flex min-h-20 items-center gap-3 rounded-2xl bg-(--card) p-3 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--card)_80%,white)]">
+          <Link href="/settings/profile" className="flex min-h-20 items-center gap-3 rounded-2xl bg-(--surface) p-3 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--surface)_80%,white)]">
             <Avatar user={me} size="lg" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-body font-semibold text-ink">{me.name}</span>
@@ -233,7 +233,7 @@ function AccountArea({ me }: { me: User }) {
             <Button
               variant="tertiary"
               size="sm"
-              className="shadow-[inset_0_0_0_1.5px_var(--ink)]"
+              className="shadow-[inset_0_0_0_1.5px_var(--text)]"
               onClick={() => {
                 store.logout();
                 router.push("/");
@@ -555,7 +555,7 @@ function CurrencyPage({ me }: { me: User }) {
       <label className="relative block">
         <span className="sr-only">{tu("search")}</span>
         <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-        <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tu("search")} className="bg-(--card) pl-10" />
+        <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tu("search")} className="bg-(--surface) pl-10" />
       </label>
       {!q && (
         <SettingsGroup>

@@ -47,7 +47,7 @@ export function LanguageInput({ languages, onChange }: LanguageInputProps) {
       <div
         onClick={() => inputRef.current?.focus()}
         // The one field look (ui/Input.tsx) around the chips and a typed search with suggestions: grows past 48px as chips wrap.
-        className="flex min-h-12 cursor-text flex-wrap items-center gap-1.5 rounded-xl border border-ink/10 px-2 py-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-ink/40 focus-within:ring-3 focus-within:ring-[rgba(240,99,58,0.15)]"
+        className="flex min-h-12 cursor-text flex-wrap items-center gap-1.5 rounded-xl border border-ink/10 px-2 py-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-ink/40 focus-within:ring-3 focus-within:ring-accent/15"
       >
         {languages.map((language) => (
           <span key={language} className="inline-flex h-8 items-center gap-1 rounded-full border border-ink/10 pl-3 pr-1.5 text-body text-ink">

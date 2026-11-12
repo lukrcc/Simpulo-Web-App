@@ -12,7 +12,8 @@ const EDGE = 8;
 const MAX_SIZE = 56;
 
 /** What gets a tooltip: anything that asks for one, and every button or link that shows only an icon (its aria-label is the text). */
-const CANDIDATE = "[data-tooltip], button[aria-label], a[aria-label], [role=button][aria-label]";
+/** `data-tooltip-info`: an explanation on a badge that shows text ("Pro host" → "Earns a host fee …") – the one case with visible text. */
+const CANDIDATE = "[data-tooltip-info], [data-tooltip], button[aria-label], a[aria-label], [role=button][aria-label]";
 
 function hasVisibleText(el: Element): boolean {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -32,6 +33,8 @@ function hasVisibleText(el: Element): boolean {
 /** The tooltip's text for this element, or null: never on a control that shows text, an overlay or something large. */
 function textFor(el: HTMLElement): string | null {
   if (el.hasAttribute("data-no-tooltip") || el.getAttribute("tabindex") === "-1" || el.getAttribute("aria-hidden") === "true") return null;
+  const info = el.getAttribute("data-tooltip-info");
+  if (info) return info;
   const explicit = el.getAttribute("data-tooltip");
   if (!explicit) {
     const box = el.getBoundingClientRect();
@@ -143,7 +146,7 @@ export function Tooltip() {
       role="tooltip"
       data-tooltip-box
       style={{ left: place?.left ?? -9999, top: place?.top ?? -9999 }}
-      className="pointer-events-none fixed z-[90] max-w-[calc(100vw-16px)] truncate whitespace-nowrap rounded-lg bg-[rgba(34,30,27,0.85)] px-2.5 py-1.5 text-small text-white backdrop-blur-[8px]"
+      className="pointer-events-none fixed z-[90] max-w-[calc(100vw-16px)] truncate whitespace-nowrap rounded-lg bg-(--tooltip-bg) px-2.5 py-1.5 text-small text-stage-text backdrop-blur-[8px]"
     >
       {tip.text}
     </div>,

@@ -13,7 +13,8 @@ import { formatSize } from "./chatUtils";
 import { EmojiPicker } from "./EmojiPicker";
 
 /** Textarea grows to 6 lines (20px each) plus its 8px top/bottom padding, then scrolls. */
-const MAX_HEIGHT = 6 * 20 + 16;
+/** Up to five lines (16px type, 22px lines) and the field's inner padding. */
+const MAX_HEIGHT = 5 * 22 + 16;
 
 interface PendingFile {
   file: File;
@@ -116,7 +117,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
   }
 
   return (
-    <div className="glass-float rounded-[28px] p-2">
+    <div>
       {replyTo && (
         <div className="mb-2 flex items-center gap-2 rounded-2xl bg-ink/5 py-1.5 pl-3 pr-1.5">
           <Reply className="size-4 shrink-0 text-muted" aria-hidden />
@@ -179,14 +180,15 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           e.preventDefault();
           send();
         }}
-        className="flex items-end gap-1"
+        // The field: #3A3633 (--chat-input), a 1px cream 10 % edge (focus 22 %), fully round, 52px – it grows to five lines.
+        className="flex min-h-13 items-end gap-1 rounded-[26px] border border-ink/10 bg-(--chat-input) p-[5px] transition-colors duration-150 focus-within:border-ink/22"
       >
         <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onFiles} />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label={t("attach")}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink/60 hover:bg-ink/5 hover:text-ink"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink/60 hover:bg-ink/5 hover:text-ink"
         >
           <Paperclip className="size-[18px]" />
         </button>
@@ -200,17 +202,17 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           onPaste={onPaste}
           placeholder={placeholder}
           aria-label={t("messageLabel")}
-          className="ml-1 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-body leading-5 outline-none placeholder:text-ink/45"
+          className="ml-1 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-input text-ink outline-none placeholder:text-ink/45"
         />
-        {/* The chat's one primary control: a faint tint until there's something to send, then ink with a white arrow. */}
+        {/* The chat's one main action, 40px: empty cream 8 % with a cream 40 % arrow; with something to send cream with an ink arrow. Enter sends,
+            Shift+Enter a new line. */}
         <button
           type="submit"
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            // Dark chat: a cream circle with an ink arrow; empty, cream 20 %.
-            "ml-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F4EEE7] text-[#221E1B] transition-[background-color,color,transform] hover:bg-[#F4EEE7]/90 active:scale-95",
-            "disabled:pointer-events-none disabled:bg-[#F4EEE7]/20 disabled:text-[#221E1B]/60",
+            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse transition-[background-color,color,transform] hover:bg-(--action-hover) active:scale-95",
+            "disabled:pointer-events-none disabled:bg-ink/8 disabled:text-ink/40",
           )}
         >
           <ArrowUp className="size-[18px]" strokeWidth={2.25} />

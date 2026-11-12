@@ -1,14 +1,21 @@
 "use client";
 
-import { ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
+import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
+import { BackLink } from "@/components/ui/BackButton";
+import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { clearDraft, readDraft, toInput } from "@/components/create/model";
-import { CardStatusAction, CardStatusChip, HouseCard } from "@/components/HouseCard";
+import { CardStatusChip, HouseCard } from "@/components/HouseCard";
 import { Container } from "@/components/layout/Container";
+import { HeroBand } from "@/components/HeroBand";
+import { MyHouseStatus, MyHouseTile } from "@/components/MyHouseTile";
+import { CrewRow } from "@/components/CrewRow";
+import { UP_NEXT_EMPTY_IMAGE, upNextOf } from "@/config/upnext";
+import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
 import { CardTaskAction, cardTaskOf } from "@/components/stay/CardTask";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
@@ -28,21 +35,19 @@ import { MoreMenu } from "@/components/ui/MoreMenu";
 import { useToast } from "@/components/ui/Toast";
 import { EXPLORE_GRID } from "@/config/explore";
 import type { YourRowKey } from "@/config/yourHouses";
-import { useSnapCarousel } from "@/lib/useSnapCarousel";
-import { shortNameOf } from "@/lib/shortName";
+import { placeShortOf, shortNameOf } from "@/lib/shortName";
 import { useFormat } from "@/i18n/format";
 import { locationOf } from "@/lib/catalog";
 import { earningsFor, type Earnings } from "@/lib/earnings";
 import { hostStatsFor } from "@/lib/hostStats";
-import { focusOfTask, manageHref, needsFill } from "@/lib/houseTasks";
+import { focusOfTask, manageHref, needsFill, stepHref } from "@/lib/houseTasks";
 import { daysUntil, timelineFor, type TimelineEvent } from "@/lib/timeline";
-import { InviteSheet } from "@/components/InviteSheet";
 import { Avatar } from "@/components/ui/Avatar";
-import { acceptedOverlaps, runningNow } from "@/lib/overlap";
+import { acceptedOverlaps } from "@/lib/overlap";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
+import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { waitlistPosition } from "@/lib/waitlist";
@@ -55,6 +60,8 @@ import { waitlistPosition } from "@/lib/waitlist";
  * money ("€7,510 received · View payouts →") beside the segment, for hosts. A new account: one calm empty state.
  */
 export function YourHouses({ group }: { /** "See all": only this row, as a grid */ group?: YourRowKey } = {}) {
+  // The installed app coming back to the front: read again (no pull-to-refresh there).
+  useReloadOnReturn();
   const t = useTranslations("houses");
   return (
     <RequireLogin title={t("loginTitle")} description={t("loginDescription")}>
@@ -88,8 +95,6 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const viewer = usePreferredCurrency();
   const [payoutSheet, setPayoutSheet] = useState(false);
   const [picking, setPicking] = useState<[Stay, Stay][] | null>(null);
-  /** "Fill 3 spots": the House whose invite sheet is open */
-  const [filling, setFilling] = useState<Stay | null>(null);
   const repo = useNotifications();
 
   // The Open a House flow's own draft (this browser), shown with the draft Houses.
@@ -145,11 +150,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     ...hosting.map((stay) => ({ key: stay.id, stay, waits: waits(stay), kind: "hosting" as const, node: <YourHouseCard stay={stay} now={now} /> })),
     ...joined.map(({ request, stay }) => ({ key: stay.id, stay, waits: waits(stay), kind: "joined" as const, node: <YourHouseCard stay={stay} now={now} request={request} /> })),
   ];
-  // Up next: the House you're in (hosting or joined) that starts next – or is on now.
-  const upNext = [...hosting.filter((s) => s.status !== "closed"), ...joined.filter((j) => j.request.status === "accepted").map((j) => j.stay)].toSorted((a, b) => a.startDate.localeCompare(b.startDate))[0];
-  const upNextRequest = upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined;
-  // Two (or more) Houses on right now: Up next swipes through them.
-  const running = runningNow(store, today);
+  // Up next: exactly one House (config/upnext.ts) – on right now, else the next to start; no carousel.
+  const upNext = upNextOf([...hosting, ...joined.filter((j) => j.request.status === "accepted").map((j) => j.stay)], today);
   // Each House's news of the last days (config/activity.ts): for its card's line, dot and ring – and the order.
   const notifications = repo.list({ limit: Number.MAX_SAFE_INTEGER }).items;
   const activity = new Map(items.map((item) => [item.stay.id, activitySummary(notifications.filter((n) => n.stayId === item.stay.id), now)]));
@@ -161,6 +163,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   // How many cards a row shows at once: the grid's real column count (4 at 1440px) – "See all" only with more.
   const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
   const cols = useGridColumns(columnProbe) || 4;
+  // Your own Houses' rows: 5 a row from 1440px, 4 from 1100, 3 from 768, else 2 (globals.css --my-cols) – for "See all".
+  const xlUp = useMediaQuery("(min-width: 90rem)");
+  const lgUp = useMediaQuery("(min-width: 68.75rem)");
+  const smUp = useMediaQuery("(min-width: 48rem)");
+  const myCols = xlUp ? 5 : lgUp ? 4 : smUp ? 3 : 2;
   const probe = <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />;
   const nextTripCards = nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
 
@@ -199,7 +206,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             short: shortNameOf(item.stay),
             due: task.date,
             photo: housePhotos(item.stay, findUser(store, item.stay.hostId))[0],
-            href: manageHref(item.stay, focusOfTask(task.kind)),
+            href: stepHref(item.stay, focusOfTask(task.kind)),
           },
         ];
       }),
@@ -230,7 +237,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         what: tDash("need.fill", { count: openSpots(stay), amount: "" }),
         short: shortNameOf(stay),
         photo: housePhotos(stay, findUser(store, stay.hostId))[0],
-        onClick: () => setFilling(stay),
+        href: stepHref(stay, "invite"),
       })),
     // Payouts only while no payout account is set up; the ID check is part of it ("Bank account + ID check, 5 min").
     ...(payoutSetup ? [{ key: "payouts", kind: "payouts" as const, title: tDash("todo.payouts"), sub: tDash("setUpText"), what: tDash("need.payouts", { count: 0, amount: "" }), short: tDash("payoutsSetupSub"), icon: <Wallet aria-hidden />, onClick: () => setPayoutSheet(true) }] : []),
@@ -249,12 +256,12 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     { key: "waiting" as const, items: items.filter((item) => item.kind === "joined" && requestOf(item.stay)?.status !== "accepted").toSorted(order) },
   ];
   const card = (item: Item) => (item.kind === "draft" ? item.node : <YourHouseCard stay={item.stay} now={now} request={requestOf(item.stay)} unread={unread(item)} onRead={() => activity.get(item.stay.id)?.events.forEach((e) => !e.readAt && repo.markRead(e.id))} />);
-  const upNextNews = upNext ? activity.get(upNext.id) : undefined;
 
   // The rows, in their order: Hosting (ending with the dashed "Open a House") · Going · Waiting · Lived in (with "Do it again") · For your next trip.
   const groupCards = (key: "hosting" | "going" | "waiting") => groups.find((g) => g.key === key)!.items.map((item) => ({ key: item.key, node: card(item) }));
   const rows: { key: YourRowKey; cards: { key: string; node: ReactNode }[]; extra?: ReactNode }[] = [
-    { key: "hosting", cards: groupCards("hosting"), extra: <OpenHouseTile /> },
+    // The dashed "Open a House" only while you host fewer than two.
+    { key: "hosting", cards: groupCards("hosting"), extra: hosting.length < 2 ? <OpenHouseTile /> : undefined },
     { key: "going", cards: groupCards("going") },
     { key: "waiting", cards: groupCards("waiting") },
     { key: "livedIn", cards: livedIn.map((stay) => ({ key: stay.id, node: <LivedInCard stay={stay} /> })) },
@@ -268,12 +275,13 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     const row = rows.find((r) => r.key === group)!;
     return (
       <Container className="explore-width explore-root pb-16 pt-8 md:pt-10">
-        <Link href="/your-houses" className="inline-flex items-center gap-1 text-small font-semibold text-muted transition-colors hover:text-ink">
+        <BackLink href="/your-houses" className="inline-flex items-center gap-1 text-small font-semibold text-muted transition-colors hover:text-ink">
           <ChevronLeft aria-hidden className="size-4" />
           {tDash("rows.back")}
-        </Link>
+        </BackLink>
         <RowHead id={`row-${group}`} title={tDash(`rows.${group}`)} count={row.cards.length} className="mt-3" />
-        <ul className={cn(EXPLORE_GRID, "mt-4")}>
+        {/* Your own Houses as MyHouseTiles (5 · 4 · 3 a row; Lived in two more); For your next trip as Explore's grid. */}
+        <ul className={cn(group === "nextTrip" ? EXPLORE_GRID : group === "livedIn" ? "grid grid-cols-3 gap-(--explore-gap) sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7" : "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4 [@media(min-width:90rem)]:grid-cols-5", "mt-4")}>
           {row.cards.map((c) => (
             <li key={c.key}>{c.node}</li>
           ))}
@@ -284,22 +292,18 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   }
 
   return (
-    // The same width, grid and shelf cards as Explore (at most 1440px): a row's card is exactly one grid column wide.
-    <Container className="explore-width explore-root pb-16 pt-8 md:pt-10">
+    <>
+      {/* The dashboard as a full-width band under the header (components/HeroBand): left Up next – exactly one House, its photo to the edge –,
+          right Ember to the window's edge: Needs you (the fixed columns), Coming up and the Payouts footer, --hero-h high. */}
+      <HeroBand
+        aria-labelledby="todo"
+        footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} openRequests={store.joinRequests.filter((r) => r.status === "pending" && store.stays.some((s) => s.id === r.stayId && s.hostId === me)).length} />}
+        media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
+        <TodoTile entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
+      </HeroBand>
+    <Container className="explore-width explore-root pb-16">
       {probe}
-      {/* The dashboard: Up next (1/3) beside Needs you (2/3), exactly the same height (520px); Payouts is the Needs you card's footer. */}
-      <div className="grid gap-5 lg:h-130 lg:grid-cols-3">
-        {running.length > 1 ? (
-          <UpNextCarousel stays={running} now={now} requestOf={requestOf} newsOf={(id) => activity.get(id)} />
-        ) : upNext ? (
-          <UpNextTile stay={upNext} request={upNextRequest} now={now} news={upNextNews} />
-        ) : (
-          <div className="hidden lg:block" />
-        )}
-        <TodoTile entries={todo} now={now} timeline={timelineFor(store, now)} footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} />} />
-      </div>
-
-      {/* Calm rows, no heading over them: 48px under the dashboard, 40px apart. */}
+      {/* Calm rows, no heading over them: 48px under the band, 40px apart. */}
       <div className="mt-12 flex flex-col gap-10">
         {shown.map((row, i) => (
           <YourRow
@@ -308,21 +312,23 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             title={tDash(`rows.${row.key}`)}
             cards={row.cards}
             extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
-            cols={cols}
+            cols={row.key === "nextTrip" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
           />
         ))}
         <SavedPeople />
       </div>
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
-      {filling && <InviteSheet stay={filling} open onClose={() => setFilling(null)} />}
     </Container>
+    </>
   );
 }
 
 /** One row of Your houses: the shared CardRow, "See all" to its own grid page. */
 function YourRow({ id, title, cards, extra, cols }: { id: YourRowKey; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode; cols: number }) {
-  return <CardRow id={id} title={title} cards={cards} extra={extra} cols={cols} seeAll={`/your-houses/all/${id}`} />;
+  // Your own Houses: MyHouseTile slots (5 · 4 · 3 a row, Lived in smaller); For your next trip: Explore's shelf cards.
+  const slide = id === "nextTrip" ? "explore-slide" : id === "livedIn" ? "my-slide-small" : "my-slide";
+  return <CardRow id={id} title={title} cards={cards} extra={extra} cols={cols} seeAll={`/your-houses/all/${id}`} slideClass={slide} />;
 }
 
 /**
@@ -351,52 +357,56 @@ function useStatusText() {
 
 
 /**
- * A House in Your houses: the one HouseCard, footer="status" – left the crew and "N of M", right exactly ONE pill: what's asked of you
- * ("Pay · 48h", "Review 4 requests", "Answer invite"; it opens the action) or the status ("Waiting for host", "You're in", "Booked", "2 spots
- * left"). Unread news: only an orange dot in that pill – no frame around the card. Opening the card marks it read.
+ * One of your Houses (Hosting · Going · Waiting): a MyHouseTile – no notch. Right in its status line exactly one thing: what's asked of you
+ * ("● Review 4 requests", "Pay · 48h" in orange; it opens the action) or the status muted ("Waiting for host", "You're in", "Booked", "2 spots
+ * left"). Unread news: an orange dot before the status. Opening it marks it read.
  */
 function YourHouseCard({ stay, now, request, unread = false, onRead }: { stay: Stay; now: string; request?: JoinRequest; unread?: boolean; onRead?: () => void }) {
+  const t = useTranslations("houses.home");
+  const format = useFormat();
   const store = useStore();
   const statusText = useStatusText();
   const failed = request ? didntWorkOut(request) : false;
   const task = failed ? null : cardTaskOf(store, stay, now);
-  const own = stay.hostId === store.currentUserId;
+  const hosting = stay.hostId === store.currentUserId;
+  const today = now.slice(0, 10);
+  const days = stay.startDate ? Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000) : null;
+  // Left: Hosting "2 of 4 in"; Going/Waiting "in 66 days" (running or no date: the date). No faces, no "+" circles.
+  const meta = hosting ? t("tileCrewIn", { filled: crewInOf(store, stay), total: stay.spotsTotal }) : days !== null && days >= 0 ? t("tileInDays", { days }) : stay.startDate ? format.stayDates(stay) : null;
+  // Hosting without a task: "Open for requests" while spots are open, else the status (complete, booked, happening).
+  const calm = hosting && openSpots(stay) > 0 && stay.acceptingRequests && stay.startDate > today ? t("tileOpen") : statusText(stay, now, request);
   return (
-    <div onClickCapture={unread ? onRead : undefined}>
-      <HouseCard
-        stay={stay}
-        host={findUser(store, stay.hostId)}
-        crew={getCrew(store, stay)}
-        notch={own ? "you" : "host"}
-        footer="status"
-        href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)}
-        status={task ? <CardTaskAction stay={stay} task={task} now={now} /> : <CardStatusChip attention={unread}>{statusText(stay, now, request)}</CardStatusChip>}
-      />
-    </div>
+    <MyHouseTile
+      stay={stay}
+      href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)}
+      onClickCapture={unread ? onRead : undefined}
+      meta={meta}
+      status={task ? <CardTaskAction stay={stay} task={task} now={now} text /> : <MyHouseStatus attention={unread}>{calm}</MyHouseStatus>}
+    />
   );
 }
 
 /**
- * A draft as a HouseCard: chip "Draft" and "Continue"; without a photo the calm placeholder; "…" › "Delete draft" with a small
+ * A draft as a MyHouseTile: "● Continue draft"; without a photo the calm placeholder; "…" › "Delete draft" with a small
  * confirmation. The card and Continue lead into the flow.
  */
 function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelete: () => void }) {
   const t = useTranslations("houses.home");
-  const store = useStore();
   const router = useRouter();
   const showToast = useToast();
   const [confirming, setConfirming] = useState(false);
   return (
     <>
-      <HouseCard
+      <MyHouseTile
         stay={stay}
-        host={getCurrentUser(store)}
-        crew={[]}
-        notch="you"
-        footer="status"
         href={href}
         menu={<MoreMenu label={t("draftOptions")} buttonClassName={iconButtonStyles("sm", undefined, "onImage")} items={[{ label: t("deleteDraft"), danger: true, onSelect: () => setConfirming(true) }]} />}
-        status={<CardStatusAction onClick={() => router.push(href)}>{t("continueDraft")}</CardStatusAction>}
+        status={
+          <button type="button" onClick={() => router.push(href)} className="inline-flex items-center gap-1.5 text-small font-semibold text-ink underline-offset-4 hover:underline">
+            <span aria-hidden className="size-1.5 rounded-full bg-accent" />
+            {t("continueDraft")}
+          </button>
+        }
       />
       <ConfirmSheet
         open={confirming}
@@ -414,20 +424,18 @@ function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelet
   );
 }
 
-/** Under Hosting, last: exactly a HouseCard's size (4:5, the grid's height cap), a dashed edge, centred – a plus in a circle, "Open a House". */
+/** Under Hosting, last (only while you host fewer than two): a MyHouseTile's size – the picture area dashed ink 15 % with "+", under it "Open a House" and "Your crew chips in". */
 function OpenHouseTile() {
   const t = useTranslations("houses.home");
   return (
-    <Link
-      href="/create"
-      data-house-card="open"
-      className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-[1.5px] border-dashed border-ink/15 p-6 text-center transition-colors duration-150 hover:border-ink/30 hover:bg-ink/3"
-    >
-      <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
-        <Plus className="size-5" aria-hidden />
+    <Link href="/create" data-house-card="open" className="group block min-w-0 rounded-2xl">
+      <span className="flex aspect-16/10 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/15 transition-colors duration-150 group-hover:border-ink/30 group-hover:bg-ink/3">
+        <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
+          <Plus className="size-5" aria-hidden />
+        </span>
       </span>
-      <span className="text-body font-semibold text-ink">{t("openHouse")}</span>
-      <span className="text-small text-muted">{t("openHouseText")}</span>
+      <span className="mt-3 block truncate text-body-lg font-semibold text-ink">{t("openHouse")}</span>
+      <span className="block truncate text-small text-muted">{t("crewChipsIn")}</span>
     </Link>
   );
 }
@@ -472,36 +480,61 @@ interface TodoEntry {
 }
 
 /**
- * "Up next" as the one HouseCard (photo, the host's tab or "You", gradient, title, dates · place, the crew and its state), a third of the
- * dashboard and as high as it. Top right its eyebrow chip ("Up next · in 21 days", "Happening now"). No chat message word for word: at the
- * bottom right "3 new messages" (only while unread) and the light glass "Open chat". The whole card opens the House.
+ * Up next as the band's media: the House's photo to the edge – no rounding, no notch, no swiping, no dots; the whole photo opens the House
+ * (/h/[id]). On it, bottom left: the capsule "Up next · in 66 days" (on now: "Happening now"), the title, "date · short name", the crew
+ * (components/CrewRow) and "{in} of {total}"; right "Open chat". Nothing planned: the calm default picture (config/upnext.ts), "Nothing
+ * planned yet" and "Explore" (cream) and "Open a House" (outline).
  */
-function UpNextTile({ stay, request, now, news }: { stay: Stay; request?: JoinRequest; now: string; news?: ActivitySummary | null }) {
+function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: JoinRequest; now: string; news?: ActivitySummary | null }) {
   const t = useTranslations("houses.home");
   const td = useTranslations("houses.home.dash");
+  const format = useFormat();
   const store = useStore();
   const router = useRouter();
-  const statusText = useStatusText();
+  if (!stay) {
+    return (
+      <div className="absolute inset-0">
+        {UP_NEXT_EMPTY_IMAGE && <Img src={UP_NEXT_EMPTY_IMAGE} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" className="object-cover" />}
+        <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
+        <div className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 text-on-image sm:p-8", cardTextShadow)}>
+          <p className="text-h2">{td("nothingPlanned")}</p>
+          <div className="flex flex-wrap gap-2 [text-shadow:none]">
+            <Button variant="cream" href="/">
+              {td("explore")}
+            </Button>
+            <Button variant="creamOutline" href="/create">
+              {t("openHouse")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
   const thread = getCrewThread(store, stay.id);
   const chat = thread ? `/messages/${crewThreadId(stay.id)}` : null;
   const today = now.slice(0, 10);
   const days = Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000);
-  const eyebrow = stay.startDate <= today ? t("liveNow") : days === 0 ? td("upNextToday") : td("upNextIn", { days });
+  const capsule = stay.startDate <= today ? t("liveNow") : days === 0 ? td("upNextToday") : td("upNextIn", { days });
   const task = cardTaskOf(store, stay, now);
   const newMessages = news?.unread ? news.messages : 0;
+  void request;
   return (
-    <div className="relative min-w-0 lg:h-full [&_[data-house-card]]:lg:aspect-auto [&_[data-house-card]]:lg:h-full">
-      <HouseCard
-        stay={stay}
-        host={findUser(store, stay.hostId)}
-        crew={getCrew(store, stay)}
-        notch={stay.hostId === store.currentUserId ? "you" : "host"}
-        footer="status"
-        href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)}
-        live={`${t("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })} · ${statusText(stay, now, request)}`}
-        menu={<span className="on-image rounded-full px-3 py-1.5 text-eyebrow uppercase text-white">{eyebrow}</span>}
-        status={
-          <>
+    <Link href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)} aria-label={stay.title} className="group absolute inset-0 block">
+      {photo && <Img src={photo} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.02]" />}
+      <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
+      <span className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-2 p-6 text-on-image sm:p-8", cardTextShadow)}>
+        <span className="on-image self-start rounded-full px-3 py-1.5 text-eyebrow uppercase text-on-image [text-shadow:none]">{capsule}</span>
+        <span className="line-clamp-2 text-h1">{stay.title}</span>
+        <span className="truncate text-small text-on-image/85">
+          {format.stayDates(stay)} · {placeShortOf(stay)}
+        </span>
+        <span className="mt-2 flex items-center justify-between gap-3 [text-shadow:none]">
+          <span className="flex min-w-0 items-center gap-2">
+            <CrewRow stay={stay} crew={getCrew(store, stay)} size="xs" tone="image" max={5} className="shrink-0" />
+            <span className="truncate text-small text-on-image/85">{t("crewOf", { filled: crewInOf(store, stay), total: stay.spotsTotal })}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
             {newMessages > 0 && <CardStatusChip attention>{td("newMessages", { count: newMessages })}</CardStatusChip>}
             {chat && (
               <button
@@ -511,38 +544,15 @@ function UpNextTile({ stay, request, now, news }: { stay: Stay; request?: JoinRe
                   e.stopPropagation();
                   router.push(chat);
                 }}
-                className="press inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
+                className="press inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full bg-on-image/85 px-4 text-small font-semibold text-stage shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-on-image"
               >
                 {t("openChat")}
               </button>
             )}
-          </>
-        }
-      />
-    </div>
-  );
-}
-
-/** Several Houses on at the same time: Up next swipes through them (snap), its dots and "1 / 2" at the top. */
-function UpNextCarousel({ stays, now, requestOf, newsOf }: { stays: Stay[]; now: string; requestOf: (stay: Stay) => JoinRequest | undefined; newsOf: (id: string) => ActivitySummary | null | undefined }) {
-  const td = useTranslations("houses.home.dash");
-  const { ref, active, onScroll, scrollTo } = useSnapCarousel<HTMLDivElement>(stays.length);
-  return (
-    <div className="relative min-w-0 lg:h-full">
-      <div ref={ref} onScroll={onScroll} className="no-scrollbar flex h-full snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain">
-        {stays.map((stay) => (
-          <div key={stay.id} className="w-full shrink-0 snap-center [&>div]:h-full">
-            <UpNextTile stay={stay} request={requestOf(stay)} now={now} news={newsOf(stay.id)} />
-          </div>
-        ))}
-      </div>
-      <div className="on-image absolute left-1/2 top-16 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-white">
-        {stays.map((stay, i) => (
-          <button key={stay.id} type="button" onClick={() => scrollTo(i)} aria-label={td("showHouse", { index: i + 1, count: stays.length })} aria-current={i === active || undefined} className={cn("block h-1.5 rounded-full transition-all", i === active ? "w-3 bg-white" : "w-1.5 bg-white/50")} />
-        ))}
-        <span className="text-small tabular-nums">{td("pageOf", { index: active + 1, count: stays.length })}</span>
-      </div>
-    </div>
+          </span>
+        </span>
+      </span>
+    </Link>
   );
 }
 
@@ -564,41 +574,36 @@ const GROUP_ICONS: Record<TodoGroup, LucideIcon> = { pay: CreditCard, reply: Mes
 
 /** Every row of Needs you: 64px, and its 1px divider. */
 const NEEDS_ROW_H = 65;
-/** Phones: at most this many rows, then "+N more". */
-const NEEDS_PHONE_ROWS = 4;
-/** Coming up: rows of 44px; its label and the gap above it. */
-const UP_ROW_H = 44;
-const UP_HEAD_H = 40;
-/** Coming up only with room for at least this many rows – otherwise Needs you takes the whole card. */
-const UP_MIN_ROWS = 2;
-/** Phones: at most this many events. */
-const UP_PHONE_ROWS = 3;
-/** "You're all set": one line. */
-const ALL_SET_H = 40;
+/** A column's head: icon, word and how many open (32px + 8px air). */
+const NEEDS_HEAD_H = 40;
+/** Phones: at most this many entries per column, then "+N more". */
+const NEEDS_PHONE_ROWS = 3;
+/** Coming up: at most this many events beside its label. */
+const UP_MAX = 3;
 
-/** The list's order: the shortest deadline first (none last), then money before answers before setting up. */
-function needsOrder(a: TodoEntry, b: TodoEntry): number {
-  return (a.due ?? "9999").localeCompare(b.due ?? "9999") || TODO_GROUPS.indexOf(TODO_GROUP[a.kind]) - TODO_GROUPS.indexOf(TODO_GROUP[b.kind]);
-}
+/** A column's order: the shortest deadline first (none last). */
+const byDeadline = (a: TodoEntry, b: TodoEntry) => (a.due ?? "9999").localeCompare(b.due ?? "9999");
 
 /**
- * "Needs you · N", Ember, two thirds wide and exactly as high as Up next; Payouts its footer. ONE list without filters: every open task, two
- * columns, rows of 64px, the category as an eyebrow on each (PAY / REPLY / SET UP, orange under 24h). Needs you takes the height it needs;
- * under it "Coming up" (lib/timeline.ts) fills the rest of the card with as many 44px rows as fit (measured) – at least two, otherwise it's
- * left out and Needs you takes the whole card, with "+N more" when that's still too little. No task: one line "You're all set", then Coming up.
+ * "Needs you · N", Ember (the global class), two thirds wide and exactly as high as Up next; Payouts its footer. Three fixed columns of the same
+ * width – Pay · Reply · Set up (config/todo.ts): each headed by its icon 20px, the word and how many are open; an empty one says only "All
+ * done ✓". Entries of 64px (photo 48px, what, "short name · deadline", under 24h orange) – as many as fit the column's height (measured); more:
+ * the last row "+N more →", which opens a sheet "{Column} · {n}" with all of them. An entry leads to its House (/h/[id]?step=…). Under the
+ * columns one line "COMING UP" (56px). Phones: the columns under each other, three entries each at most.
  */
-function TodoTile({ entries, now, timeline, footer }: { entries: TodoEntry[]; now: string; timeline: TimelineEvent[]; /** Across the card's foot: Payouts */ footer?: ReactNode }) {
+function TodoTile({ entries, now, timeline }: { entries: TodoEntry[]; now: string; timeline: TimelineEvent[] }) {
   const td = useTranslations("houses.home.dash");
-  const [sheet, setSheet] = useState(false);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const [sheet, setSheet] = useState<TodoGroup | null>(null);
+  const colsRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
-  const wide = useMediaQuery("(min-width: 40rem)");
-  const sorted = entries.toSorted(needsOrder);
+  // Only from 1100px the card has its fixed height (--hero-h): there the columns are measured; below, three entries each.
+  const fixed = useMediaQuery("(min-width: 68.75rem)");
   const total = entries.length;
+  const groups = TODO_GROUPS.map((group) => ({ group, items: entries.filter((e) => TODO_GROUP[e.kind] === group).toSorted(byDeadline) }));
 
-  // The room under the eyebrow (the card minus its head and the footer), measured.
+  // The columns' height (the card minus its head, Coming up and the footer), measured.
   useLayoutEffect(() => {
-    const el = bodyRef.current;
+    const el = colsRef.current;
     if (!el) return;
     const measure = () => setHeight(el.clientHeight);
     measure();
@@ -606,54 +611,62 @@ function TodoTile({ entries, now, timeline, footer }: { entries: TodoEntry[]; no
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  // How the room is shared: Needs you as much as it needs, Coming up the rest (at least two rows), or Needs you all of it.
-  const cols = wide ? 2 : 1;
-  const needsH = total === 0 ? ALL_SET_H : Math.ceil(total / cols) * NEEDS_ROW_H;
-  const upFits = wide ? Math.floor((height - needsH - UP_HEAD_H) / UP_ROW_H) : UP_PHONE_ROWS;
-  const showUp = timeline.length > 0 && (upFits >= UP_MIN_ROWS || (height === 0 && !wide));
-  const capacity = wide ? (showUp ? total : Math.max(1, Math.floor(height / NEEDS_ROW_H)) * cols) : NEEDS_PHONE_ROWS;
-  const overflow = sorted.length > capacity;
-  const visible = overflow ? sorted.slice(0, Math.max(0, capacity - 1)) : sorted;
-  const upcoming = timeline.slice(0, Math.max(0, upFits));
+  const fit = fixed ? Math.max(1, Math.floor((height - NEEDS_HEAD_H) / NEEDS_ROW_H)) : NEEDS_PHONE_ROWS;
+  const sheetGroup = groups.find((g) => g.group === sheet);
 
   return (
-    <section aria-labelledby="todo" className="ember flex min-h-0 flex-col overflow-hidden rounded-[20px] lg:col-span-2">
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
-        <h2 id="todo" className="text-eyebrow uppercase text-white/60">
+    <section aria-labelledby="todo" className="flex h-full min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* No visible label: the three columns say it. */}
+        <h2 id="todo" className="sr-only">
           {total > 0 ? td("needsCount", { count: total }) : td("needsTitle")}
         </h2>
-        <div ref={bodyRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {total === 0 ? (
-            <p className="flex h-10 shrink-0 items-center gap-2 text-body font-semibold text-white">
-              <Check aria-hidden className="size-4" strokeWidth={2.5} />
-              {td("allSet")}
-            </p>
-          ) : (
-            <ul className="grid shrink-0 gap-x-6 sm:grid-cols-2">
-              {visible.map((entry) => (
-                <li key={entry.key} className="border-b border-[#F4EEE7]/6">
-                  <NeedsRow entry={entry} now={now} />
-                </li>
-              ))}
-              {overflow && (
-                <li className="border-b border-[#F4EEE7]/6">
-                  <button type="button" onClick={() => setSheet(true)} className="flex h-16 w-full items-center px-2 text-body font-semibold text-white/85 transition-colors hover:text-white">
-                    {td("moreCount", { count: sorted.length - visible.length })}
-                  </button>
-                </li>
-              )}
-            </ul>
-          )}
-          {showUp && upcoming.length > 0 && <ComingUp events={upcoming} now={now} />}
+        {/* Three equal columns across the whole Ember width, 1px cream 8 % between them, 32px inside each; heads all 32px high. */}
+        <div ref={colsRef} className="grid min-h-0 flex-1 gap-y-6 overflow-hidden sm:grid-cols-3 sm:gap-y-0 sm:divide-x sm:divide-ink/8">
+          {groups.map(({ group, items }) => {
+            const Icon = GROUP_ICONS[group];
+            const overflow = items.length > fit;
+            const visible = overflow ? items.slice(0, Math.max(0, fit - 1)) : items;
+            return (
+              <section key={group} aria-labelledby={`todo-${group}`} className="flex min-h-0 min-w-0 flex-col sm:px-8 sm:first:pl-0 sm:last:pr-0">
+                <h3 id={`todo-${group}`} className="flex h-8 shrink-0 items-center gap-2 text-ink">
+                  <Icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
+                  <span className="text-body-lg font-semibold">{td(`group.${group}`)}</span>
+                  {items.length > 0 && <span className="text-body-lg tabular-nums text-ink/60">{items.length}</span>}
+                </h3>
+                {items.length === 0 ? (
+                  <p className="mt-2 flex items-center gap-1.5 text-small text-ink/60">
+                    {td("allDone")}
+                    <Check aria-hidden className="size-3.5" strokeWidth={2.5} />
+                  </p>
+                ) : (
+                  <ul className="mt-2">
+                    {visible.map((entry) => (
+                      <li key={entry.key} className="border-b border-ink/6">
+                        <NeedsRow entry={entry} now={now} />
+                      </li>
+                    ))}
+                    {overflow && (
+                      <li className="border-b border-ink/6">
+                        <button type="button" onClick={() => setSheet(group)} className="flex h-16 w-full items-center gap-1 px-0 text-body font-semibold text-ink/85 transition-colors hover:text-ink">
+                          {td("moreCount", { count: items.length - visible.length })}
+                          <ArrowRight aria-hidden className="size-4" />
+                        </button>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
         </div>
       </div>
-      {footer}
-      <Sheet open={sheet} onClose={() => setSheet(false)} title={td("needsTitle")}>
+      {timeline.length > 0 && <ComingUp events={timeline.slice(0, UP_MAX)} now={now} />}
+      <Sheet open={sheetGroup !== undefined} onClose={() => setSheet(null)} title={sheetGroup ? td("sheetTitle", { group: td(`group.${sheetGroup.group}`), count: sheetGroup.items.length }) : ""}>
         <ul className="-mx-2">
-          {sorted.map((entry) => (
+          {sheetGroup?.items.map((entry) => (
             <li key={entry.key}>
-              <TodoRow entry={entry} now={now} onDone={() => setSheet(false)} />
+              <TodoRow entry={entry} now={now} onDone={() => setSheet(null)} />
             </li>
           ))}
         </ul>
@@ -663,34 +676,31 @@ function TodoTile({ entries, now, timeline, footer }: { entries: TodoEntry[]; no
 }
 
 /**
- * "COMING UP": the next events of your sure Houses, rows of 44px – a dot (orange within 7 days, else cream 30 %), the date (72px), what +
- * short name, and on the very next one "in N days" muted on the right. A row opens the House (/h/[id]).
+ * "COMING UP" as one line (56px): the label left, beside it up to three events – a dot (orange within 7 days, else cream 30 %), the date,
+ * what · short name; each opens its House. Nothing coming: no line.
  */
 function ComingUp({ events, now }: { events: TimelineEvent[]; now: string }) {
   const td = useTranslations("houses.home.dash");
   const f = useFormat();
   return (
-    <section aria-labelledby="coming-up" className="mt-4 flex min-h-0 flex-col">
-      <h3 id="coming-up" className="flex h-6 shrink-0 items-center text-eyebrow uppercase text-white/60">
+    <section aria-labelledby="coming-up" className="flex h-14 shrink-0 items-center gap-6 border-t border-ink/6">
+      <h3 id="coming-up" className="shrink-0 text-eyebrow uppercase text-ink/60">
         {td("comingUp")}
       </h3>
-      <ul className="mt-2.5">
-        {events.map((event, i) => {
-          const days = daysUntil(event.at, now);
-          return (
-            <li key={event.key}>
-              <Link href={`/h/${event.stay.id}`} className="group -mx-2 flex h-11 items-center gap-3 rounded-xl px-2 transition-colors duration-150 hover:bg-white/6">
-                <span aria-hidden className={cn("size-2 shrink-0 rounded-full", days <= 7 ? "bg-accent" : "bg-[#F4EEE7]/30")} />
-                <span className="w-18 shrink-0 text-small tabular-nums text-white/60">{f.day(event.at)}</span>
-                <span className="min-w-0 flex-1 truncate text-body text-white">
-                  <span className="font-semibold">{td(`timeline.${event.kind}`)}</span>
-                  <span className="text-white/60"> · {shortNameOf(event.stay)}</span>
-                </span>
-                {i === 0 && <span className="shrink-0 text-small text-white/60">{days === 0 ? td("timeline.today") : td("timeline.inDays", { count: days })}</span>}
-              </Link>
-            </li>
-          );
-        })}
+      <ul className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden">
+        {/* Phones: only the next one (three don't fit in one line). */}
+        {events.map((event, i) => (
+          <li key={event.key} className={cn("min-w-0 shrink", i > 0 && "max-sm:hidden")}>
+            <Link href={`/h/${event.stay.id}`} className="flex min-w-0 items-center gap-2 rounded-lg text-small transition-colors duration-150 hover:text-ink">
+              <span aria-hidden className={cn("size-2 shrink-0 rounded-full", daysUntil(event.at, now) <= 7 ? "bg-accent" : "bg-ink/30")} />
+              <span className="shrink-0 tabular-nums text-ink/60">{f.day(event.at)}</span>
+              <span className="min-w-0 truncate text-ink">
+                <span className="font-semibold">{td(`timeline.${event.kind}`)}</span>
+                <span className="text-ink/60"> · {shortNameOf(event.stay)}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -698,23 +708,15 @@ function ComingUp({ events, now }: { events: TimelineEvent[]; now: string }) {
 
 /** A task in the list: 64px – the photo (48px, rounded square), what, "short name · deadline" (under 24h orange), a chevron on hover. */
 function NeedsRow({ entry, now }: { entry: TodoEntry; now: string }) {
-  const td = useTranslations("houses.home.dash");
   const left = countdownOf(entry.due, now);
-  const group = TODO_GROUP[entry.kind];
-  const GroupIcon = GROUP_ICONS[group];
   const body = (
     <>
-      <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/10 text-white [&_svg]:size-5">
+      <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink/10 text-ink [&_svg]:size-5">
         {entry.photo ? <Img src={entry.photo} alt="" fill sizes="48px" className="object-cover" /> : entry.icon}
       </span>
       <span className="min-w-0 flex-1">
-        {/* The category: icon + PAY / REPLY / SET UP, cream 50 % – orange when it's due within 24h. */}
-        <span className={cn("flex items-center gap-1 text-eyebrow uppercase leading-4", left?.urgent ? "text-accent" : "text-white/50")}>
-          <GroupIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
-          {td(`group.${group}`)}
-        </span>
-        <span className="block truncate text-body font-semibold leading-5 text-white">{entry.what}</span>
-        <span className="block truncate text-small leading-4 text-white/60">
+        <span className="block truncate text-body font-semibold text-ink">{entry.what}</span>
+        <span className="block truncate text-small text-ink/60">
           {entry.short}
           {left && (
             <>
@@ -724,10 +726,10 @@ function NeedsRow({ entry, now }: { entry: TodoEntry; now: string }) {
           )}
         </span>
       </span>
-      <ChevronRight aria-hidden className="size-4 shrink-0 text-white/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
     </>
   );
-  const row = "group -mx-2 flex h-16 w-[calc(100%+16px)] items-center gap-3 rounded-xl px-2 text-left transition-colors duration-150 hover:bg-white/6";
+  const row = "group -mx-2 flex h-16 w-[calc(100%+16px)] items-center gap-3 rounded-xl px-2 text-left transition-colors duration-150 hover:bg-ink/6";
   return entry.href ? (
     <Link href={entry.href} className={row}>
       {body}
@@ -753,18 +755,18 @@ function TodoRow({ entry, now, onDone, dark = false }: { entry: TodoEntry; now: 
   const left = entry.due ? timeLeft(entry.due, now) : null;
   const body = (
     <>
-      <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden [&_svg]:size-4", dark ? "size-9 rounded-[9px] bg-white/10 text-white" : "size-10 rounded-[10px] bg-ink/6 text-ink")}>
+      <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden [&_svg]:size-4", dark ? "size-9 rounded-[9px] bg-ink/10 text-ink" : "size-10 rounded-[10px] bg-ink/6 text-ink")}>
         {entry.photo ? <Img src={entry.photo} alt="" fill sizes="40px" className="object-cover" /> : entry.icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className={cn("block truncate text-body", dark ? "font-semibold text-white" : "text-ink")}>{entry.what}</span>
-        <span className={cn("block truncate text-small", dark ? "text-white/60" : "text-muted")}>{entry.short}</span>
+        <span className={cn("block truncate text-body", dark ? "font-semibold text-ink" : "text-ink")}>{entry.what}</span>
+        <span className={cn("block truncate text-small", dark ? "text-ink/60" : "text-muted")}>{entry.short}</span>
       </span>
-      {left && <span className={cn("shrink-0 text-small tabular-nums", left.urgent ? "font-semibold text-accent" : dark ? "text-white/60" : "text-muted")}>{left.text}</span>}
+      {left && <span className={cn("shrink-0 text-small tabular-nums", left.urgent ? "font-semibold text-accent" : dark ? "text-ink/60" : "text-muted")}>{left.text}</span>}
       {!dark && <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />}
     </>
   );
-  const row = cn("flex items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors duration-150", dark ? "-mx-2 w-[calc(100%+16px)] hover:bg-white/8" : "w-full hover:bg-ink/4");
+  const row = cn("flex items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors duration-150", dark ? "-mx-2 w-[calc(100%+16px)] hover:bg-ink/8" : "w-full hover:bg-ink/4");
   return entry.href ? (
     <Link href={entry.href} onClick={onDone} className={row}>
       {body}
@@ -789,19 +791,20 @@ function TodoRow({ entry, now, onDone, dark = false }: { entry: TodoEntry; now: 
  * "100 % full" – and the arrow on the right; the whole footer opens Payouts (hover: a little lighter). Never hosted: "Host your own House ·
  * Your crew chips in for the stay" and the outline button "Open a House".
  */
-function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests }: { hosts: boolean; earnings: Earnings; hostingCount: number; /** A payout account exists: else "Payouts not set up" instead of the next payout */ setUp: boolean; /** Anyone ever asked to join one of the Houses */ hasRequests: boolean }) {
+function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests, openRequests }: { hosts: boolean; earnings: Earnings; hostingCount: number; /** A payout account exists: else "Payouts not set up" instead of the next payout */ setUp: boolean; /** Anyone ever asked to join one of the Houses */ hasRequests: boolean; /** Requests waiting for an answer now */ openRequests: number }) {
   const td = useTranslations("houses.home.dash");
   const t = useTranslations("houses.home");
   const f = useFormat();
   const store = useStore();
   const viewer = usePreferredCurrency();
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
-  const foot = "flex h-24 shrink-0 items-center gap-6 border-t border-[#F4EEE7]/12 px-6 text-left";
+  // No box: across the whole Ember (photo edge → window edge), a soft light gradient and a 1px cream 8 % line; the content on the grid.
+  const foot = "band-inset flex h-24 shrink-0 items-center gap-6 border-t border-ink/8 bg-[linear-gradient(to_bottom,transparent,color-mix(in_srgb,var(--text)_5%,transparent))] text-left";
   if (!hosts) {
     return (
       <div className={foot}>
-        <p className="min-w-0 flex-1 truncate text-body text-white/80">
-          <span className="font-semibold text-white">{td("hostOwnTitle")}</span> · {t("openHouseText")}
+        <p className="min-w-0 flex-1 truncate text-body text-ink/80">
+          <span className="font-semibold text-ink">{td("hostOwnTitle")}</span> · {t("openHouseText")}
         </p>
         <Button variant="creamOutline" href="/create">
           <Plus aria-hidden />
@@ -818,21 +821,29 @@ function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests }: { 
     pro ? { key: "earned", value: money(stats.earningsThisYear), label: td("strip.earned"), big: true } : { key: "paid", value: money(earnings.thisYear), label: td("strip.paidOut"), big: true },
     ...(!setUp ? [{ key: "next", value: td("payoutsNotSetUp"), label: "", dot: true }] : earnings.next ? [{ key: "next", value: td("nextPayoutChip", { date: f.day(earnings.next.date) }), label: "" }] : []),
     { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }) },
-    // "N % full" only once anyone has asked to join; before that the Houses are simply open for requests.
-    ...(stats.houses > 0 ? [hasRequests ? { key: "full", value: `${Math.round(stats.fullShare * 100)} %`, label: td("strip.full"), wide: true } : { key: "full", value: td("openForRequests"), label: "", wide: true }] : []),
+    // Never "0 % full": with nobody in yet "Open for requests" (no request at all) or "{n} requests" (some waiting); "N % full" once anyone's in.
+    ...(stats.houses > 0
+      ? [
+          stats.fullShare > 0
+            ? { key: "full", value: `${Math.round(stats.fullShare * 100)} %`, label: td("strip.full"), wide: true }
+            : hasRequests && openRequests > 0
+              ? { key: "full", value: String(openRequests), label: td("strip.requests", { count: openRequests }), wide: true }
+              : { key: "full", value: td("openForRequests"), label: "", wide: true },
+        ]
+      : []),
   ];
   return (
-    <Link href="/your-houses/payouts" aria-label={td("payoutsTitle")} className={cn(foot, "transition-colors duration-150 hover:bg-white/5")}>
+    <Link href="/your-houses/payouts" aria-label={td("payoutsTitle")} className={cn(foot, "transition-colors duration-150 hover:bg-ink/3")}>
       <span className="flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap">
         {figures.map((fig, i) => (
-          <span key={fig.key} className={cn("flex shrink-0 items-baseline gap-2 px-4 first:pl-0 xl:px-6", i > 0 && "border-l border-[#F4EEE7]/15", fig.wide && "hidden xl:flex")}>
+          <span key={fig.key} className={cn("flex shrink-0 items-baseline gap-2 px-4 first:pl-0 xl:px-6", i > 0 && "border-l border-ink/15", fig.wide && "hidden xl:flex")}>
             {fig.dot && <span aria-hidden className="size-2 shrink-0 self-center rounded-full bg-accent" />}
-            <span className={cn("tabular-nums text-white", fig.big ? "text-h2" : "text-body-lg font-semibold xl:text-h3")}>{fig.value}</span>
-            {fig.label && <span className="text-small text-white/65">{fig.label}</span>}
+            <span className={cn("tabular-nums text-ink", fig.big ? "text-h2" : "text-body-lg font-semibold xl:text-h3")}>{fig.value}</span>
+            {fig.label && <span className="text-small text-ink/65">{fig.label}</span>}
           </span>
         ))}
       </span>
-      <ArrowUpRight aria-hidden className="size-5 shrink-0 text-white/70" />
+      <ArrowUpRight aria-hidden className="size-5 shrink-0 text-ink/70" />
     </Link>
   );
 }
@@ -843,32 +854,15 @@ function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests }: { 
  */
 function LivedInCard({ stay }: { stay: Stay }) {
   const td = useTranslations("houses.home.dash");
-  const format = useFormatter();
-  const store = useStore();
   const router = useRouter();
-  const me = store.currentUserId;
-  const host = findUser(store, stay.hostId);
-  const faces = [...(host && host.id !== me ? [host] : []), ...getCrew(store, stay).filter((u) => u.id !== me && u.id !== stay.hostId)];
-  const month = format.dateTime(new Date(`${stay.startDate.slice(0, 7)}-01T00:00:00Z`), { month: "short", year: "numeric", timeZone: "UTC" });
+  // Smaller (1:1), its status "Do it again" – Open a House with everything but the dates, the old crew picked in "Fill your House".
   return (
-    <HouseCard
+    <MyHouseTile
       stay={stay}
-      host={host}
-      crew={faces}
-      notch={stay.hostId === me ? "you" : "host"}
-      footer="memory"
+      square
       href={manageHref(stay)}
-      live={td("livedWithMonth", { month })}
       status={
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            router.push(againHref(stay.id));
-          }}
-          className="press inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
-        >
+        <button type="button" onClick={() => router.push(againHref(stay.id))} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
           {td("doItAgain")}
         </button>
       }

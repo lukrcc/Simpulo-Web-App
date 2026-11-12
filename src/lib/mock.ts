@@ -1727,7 +1727,7 @@ const BORROWED_PHOTOS: Record<string, string> = { s54: 's34', s55: 's24' };
 /** The cover is the place or the activity, not a person: where the first photo shows someone up front, this one of the House's photos leads. */
 const COVER_PHOTO: Record<string, number> = {
   s1: 3, s2: 3, x2: 3, s3: 2, x5: 2, s6: 3, s8: 2, s10: 2, x10: 2, s12: 3, x13: 2, s14: 2, x16: 2, s20: 2, s22: 3, x22: 2, s25: 2, x25: 3,
-  x26: 2, x27: 3, s30: 3, x32: 2, s33: 2, s34: 3, s35: 3, x36: 2, s37: 2, x38: 2, s39: 3, x39: 2, s41: 2, x42: 2, s43: 2, x43: 2, x44: 2,
+  x26: 2, x27: 3, s30: 3, x32: 2, s33: 2, s34: 3, s35: 3, x36: 2, s37: 3, x38: 2, s39: 3, x39: 2, s41: 2, x42: 2, s43: 2, x43: 2, x44: 2,
   x47: 2, s49: 2, x50: 2, s52: 2,
 };
 for (const stay of stays) {
@@ -1741,6 +1741,10 @@ for (const stay of stays) {
   const hostAge = users.find((u) => u.id === stay.hostId)?.age;
   if (hostAge) stay.ageRange ??= { min: Math.max(18, hostAge - 6), max: hostAge + 6 };
 }
+// Cozy Stream House: no game controller on white – a warm, dark room with a setup leads (the Berlin studio's room; Berlin's own cover is now
+// its street, so no photo leads two cards). Its own chess and Bali photos follow.
+const cozyStream = stays.find((s) => s.id === 's23');
+if (cozyStream) cozyStream.photos = [houseThemePath('s37', 2), houseThemePath('s23', 3), houseThemePath('s23', 2)];
 /*
  * The state shelves need Houses in these states in every dev session, also later than the fixed dates here: the latest Houses with only
  * their host count as just opened, some with two spots left get a smaller crew and with it their last spot.

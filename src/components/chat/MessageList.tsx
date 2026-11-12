@@ -126,6 +126,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   }, [highlightId]);
 
   const closePicker = useCallback(() => setPickerId(null), []);
+  // Read (✓✓): someone other than you wrote after it – the mock has no receipts of its own.
+  const lastOtherAt = thread.messages.filter((m) => m.senderId !== me && m.senderId !== "system").reduce<string | null>((latest, m) => (latest === null || m.createdAt > latest ? m.createdAt : latest), null);
 
   function reply(message: Message) {
     const author = findUser(store, message.senderId);
@@ -137,7 +139,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     <div className="relative min-h-0 flex-1">
       <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain">
         {/* Under the glass head and over the floating composer: the messages keep clear of them when at either end. */}
-        <div ref={innerRef} className="mx-auto max-w-[960px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
+        <div ref={innerRef} className="mx-auto max-w-[920px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
         {count === 0 && !footer && <p className="py-16 text-center text-small text-muted">{emptyText}</p>}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
@@ -166,6 +168,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
               first={row.first}
               last={row.last}
               showName={thread.type === "house" && message.senderId !== me}
+              read={message.senderId === me && lastOtherAt !== null && message.createdAt <= lastOtherAt}
               replyTo={
                 original && {
                   message: original,

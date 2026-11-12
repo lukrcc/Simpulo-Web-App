@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowRight, Home, Languages, Sparkles, Users, Zap } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
+import { ArrowRight, Home, Languages, Sparkles, Users, Venus, Zap } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
+import { HeroBand, HeroPhotos } from "@/components/HeroBand";
+import { SaveButton } from "@/components/ui/SaveButton";
+import { ProHostBadge } from "@/components/ui/ProHostLabel";
 import { useState, type ReactNode, type Ref } from "react";
 import { showsAge } from "@/config/privacy";
 import { CurrencySheet, currencyLabel } from "@/components/layout/CurrencyPicker";
-import { HouseCard } from "@/components/HouseCard";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { SocialLinks } from "@/components/SocialLinks";
@@ -22,7 +25,7 @@ import { useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { usePeopleSignal } from "@/lib/useYourPeople";
-import { firstName, stayNights, stayPrice } from "@/lib/utils";
+import { firstName, housePhotos, stayNights, stayPrice } from "@/lib/utils";
 
 interface HouseHeroProps {
   stay: Stay;
@@ -56,6 +59,7 @@ const FAST_REPLY_MINUTES = 120;
  * COMMON, CREW, "View profile →"). Below 1100px People moves under House (its blocks side by side); phones one column.
  */
 export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref }: HouseHeroProps) {
+  const tBack = useTranslations("common");
   const t = useTranslations("house.page");
   const tHero = useTranslations("house.page.hero");
   const format = useFormat();
@@ -63,66 +67,25 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const booked = stay.accommodationStatus === "locked";
   const women = stay.who === "women" || stay.audience === "women";
   const payBy = stage === "payment_due" && stay.paymentDueAt;
+  // Where, short: "Roma Norte, Mexico City" (the area and the city), else the city – never the country.
+  const city = stay.location.city || stay.city || stay.region.split(",")[0];
+  const placeShort = stay.location.area ? `${stay.location.area}, ${city}` : city;
   return (
-    <section ref={ref} aria-labelledby="house-title" className="grid gap-4 split:grid-cols-[minmax(0,min(33.333%,448px))_minmax(0,1fr)] split:gap-5">
-      {/* The photo: at least 4:5, as high as the Ember part beside it. */}
-      <div className="relative mx-auto w-full max-w-130 split:max-w-none">
-        <div aria-hidden className="hidden aspect-4/5 split:block" />
-        <div className="split:absolute split:inset-0">
-          <HouseCard stay={stay} host={host} gallery notch="none" className="split:aspect-auto split:h-full" />
-        </div>
-      </div>
-
-      <div className="ember ember-scope grid min-w-0 overflow-hidden rounded-3xl split:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        {/* House */}
-        <div className="flex min-w-0 flex-col gap-4 p-6 sm:p-8 split:p-10">
-          <div className="flex min-h-9 items-center justify-between gap-4">
-            <p className="min-w-0 truncate text-eyebrow uppercase text-ink/60">
-              {stay.customVibe?.trim() || format.vibe(stay.vibe)} · {booked ? tHero("placeBooked") : tHero("pickingTogether")}
-            </p>
-            {actions}
-          </div>
-          <h1 id="house-title" className="text-hero text-ink">
-            {stay.title}
-          </h1>
-          <p className="text-body-lg text-muted">
-            {stay.datesOpen
-              ? t.rich("lineOpen", { dates: format.stayDatesLong(stay), place: format.placeLabel(stay), date: lineDate })
-              : t.rich("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: format.placeLabel(stay), date: lineDate })}
-          </p>
-          <ul className="flex flex-wrap gap-2 text-small font-medium">
-            {languages.length > 0 && (
-              <li className="ember-chip">
-                <Languages aria-hidden className="size-3.5" />
-                {languages.join(", ")}
-              </li>
-            )}
-            <li className="ember-chip">
-              <Home aria-hidden className="size-3.5" />
-              {stay.hostFeePerPerson ? tHero("stayAndHost") : tHero("stayIncluded")}
-            </li>
-            {women && <li className="ember-chip">{tHero("womenOnly")}</li>}
-          </ul>
-
-          <div className="mt-auto flex flex-col gap-4 pt-4">
-            <HeroPrice stay={stay} />
-            {notice && <p className="text-small text-muted">{notice}</p>}
-            <div className="flex flex-wrap gap-2">
-              <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>
-              {secondary}
-            </div>
-            <div className="flex flex-col gap-1">
-              {note && <p className="text-small text-muted">{note}</p>}
-              {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
-              {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
-              {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
-              {showSteps && <WayIn />}
-            </div>
-          </div>
-        </div>
-
-        {/* People */}
-        <div className="flex min-w-0 flex-wrap gap-x-10 gap-y-6 border-t border-[#F4EEE7]/10 p-6 sm:p-8 split:flex-col split:flex-nowrap split:border-l split:border-t-0 split:p-10">
+    // The House is the page's main object: a full-width band under the header (components/HeroBand) – the photos left, Ember to the right
+    // edge with "House" and, in its own 360px column, "People".
+    <HeroBand
+      ref={ref}
+      aria-labelledby="house-title"
+      media={
+        <>
+          <HeroPhotos photos={housePhotos(stay, host)} />
+          <span className="absolute right-2 top-2 z-10 flex">
+            <SaveButton stay={stay} />
+          </span>
+        </>
+      }
+      rightColumn={
+        <div className="flex h-full min-w-0 flex-wrap gap-x-10 gap-y-5 split:flex-col split:flex-nowrap">
           {host && <HostBlock host={host} stay={stay} />}
           {host && <InCommon host={host} />}
           <CrewBlock stay={stay} crew={crew} />
@@ -133,8 +96,65 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
             </Link>
           )}
         </div>
-      </div>
-    </section>
+      }
+    >
+        {/* House */}
+        {/* Compact, from the top: eyebrow · title 52px (two lines at most) · 12px · dates 20px · 20px · chips · 32px · price 56px · 20px · actions. */}
+        <div className="flex h-full min-w-0 flex-col">
+          <div className="flex min-h-9 items-center justify-between gap-4">
+            {/* The way back: phones and the installed app. */}
+            <BackButton fallback="/" label={tBack("back")} />
+            <p className="min-w-0 flex-1 truncate text-eyebrow uppercase text-ink/60">
+              {stay.customVibe?.trim() || format.vibe(stay.vibe)} · {booked ? tHero("placeBooked") : tHero("pickingTogether")}
+            </p>
+            {actions}
+          </div>
+          <h1 id="house-title" className="mt-2 line-clamp-2 text-hero text-ink">
+            {stay.title}
+          </h1>
+          {/* One line: the dates, the nights and where – the area and the city, no country. */}
+          <p className="mt-3 truncate text-h3 font-normal text-muted">
+            {stay.datesOpen
+              ? t.rich("lineOpen", { dates: format.stayDatesLong(stay), place: placeShort, date: lineDate })
+              : t.rich("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: placeShort, date: lineDate })}
+          </p>
+          <ul className="mt-5 flex flex-wrap gap-2 text-small font-medium">
+            {languages.length > 0 && (
+              <li className="ember-chip">
+                <Languages aria-hidden className="size-3.5" />
+                {languages.join(", ")}
+              </li>
+            )}
+            <li className="ember-chip">
+              <Home aria-hidden className="size-3.5" />
+              {stay.hostFeePerPerson ? tHero("stayAndHost") : tHero("stayIncluded")}
+            </li>
+            {women && (
+              <li className="ember-chip">
+                <Venus aria-hidden className="size-3.5" />
+                {tHero("womenOnly")}
+              </li>
+            )}
+          </ul>
+
+          <div className="mt-8 flex flex-col">
+            <HeroPrice stay={stay} />
+            {notice && <p className="mt-3 text-small text-muted">{notice}</p>}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>
+              {secondary}
+            </div>
+            <div className="mt-3 flex flex-col gap-1">
+              {note && <p className="text-small text-muted">{note}</p>}
+              {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
+              {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
+              {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
+              {showSteps && <WayIn />}
+            </div>
+          </div>
+        </div>
+
+    </HeroBand>
   );
 }
 
@@ -158,7 +178,7 @@ function HeroPrice({ stay }: { stay: Stay }) {
   return (
     <div className="min-w-0">
       <p className="flex items-baseline gap-1.5">
-        <span className="text-h1 text-ink">{perPerson ? perPerson[1] : label}</span>
+        <span className="text-display text-ink">{perPerson ? perPerson[1] : label}</span>
         {perPerson && <span className="text-body text-muted">{perPerson[2]}</span>}
       </p>
       <p className="mt-0.5 text-small text-muted">
@@ -206,6 +226,8 @@ function HostBlock({ host, stay }: { host: User; stay: Stay }) {
             <span className="truncate">{firstName(host)}</span>
             {host.verified && <VerifiedBadge />}
           </span>
+          {/* Only pro hosts (a host fee): the outline badge beside the name, with its tooltip. */}
+          <ProHostBadge user={host} className="mt-1" />
           <span className="block truncate text-small text-muted">{format.ageAndCountry(host, showsAge(host, store.currentUserId))}</span>
         </span>
       </Link>

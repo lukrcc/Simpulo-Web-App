@@ -38,6 +38,8 @@ export type HouseFocus = "pay" | "requests" | "invite" | "booking" | "chat";
 export const hostManageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}/manage${focus ? `?focus=${focus}` : ""}`;
 /** A guest's tasks: the House page (/h/[id]), which shows their way through it. */
 export const manageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}${focus ? `?focus=${focus}` : ""}`;
+/** Needs you: an entry leads to its House page with the step to show (?step=pay|requests|invite|booking|chat); the page scrolls its head into view. */
+export const stepHref = (stay: Pick<Stay, "id">, step?: HouseFocus) => `/h/${stay.id}${step ? `?step=${step}` : ""}`;
 /** The focus that answers a task. */
 export const focusOfTask = (kind: string): HouseFocus | undefined =>
   kind === "pay" || kind === "offer" ? "pay" : kind === "requests" ? "requests" : kind === "invite" ? "invite" : kind === "book" || kind === "choosePlace" || kind === "paymentsOpen" ? "booking" : undefined;

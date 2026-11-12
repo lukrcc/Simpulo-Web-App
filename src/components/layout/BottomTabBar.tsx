@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -30,6 +31,14 @@ export function BottomTabBar() {
   const unreadIn = useMessagesUnread();
   // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
   const unread = unreadIn.chats;
+  // What floats at the bottom of a page (the House's join bar) keeps clear of the bar: data-tabbar on <html> → --tabbar-clear (globals.css).
+  const shown = hiddenRoute || mode === "header" ? "none" : mode;
+  useEffect(() => {
+    document.documentElement.dataset.tabbar = shown;
+    return () => {
+      delete document.documentElement.dataset.tabbar;
+    };
+  }, [shown]);
   if (hiddenRoute || mode === "header") return null;
 
   // Logged out (pill only): Explore · How it works · Log in. Logged in: Explore · Houses · Messages · Profile.
@@ -39,7 +48,8 @@ export function BottomTabBar() {
     <>
       {/* "Open a House" on mobile: round button above the bar (pill: 64px + 12px + 12px gap; docked: 56px + 16px).
           The docked variant slides away together with the bar. */}
-      {pathname !== "/create" && (
+      {/* Not on a House page: there its join bar is the screen's one main action (and would sit under the round button). */}
+      {pathname !== "/create" && !pathname.startsWith("/h/") && !pathname.startsWith("/house/") && (
         <Link
           href="/create"
           aria-label={t("openHouse")}
@@ -47,8 +57,8 @@ export function BottomTabBar() {
           className={cn(
             openHouseClass,
             "open-house-btn--round fixed right-4 z-40 md:hidden",
-            docked ? "bottom-[calc(72px+env(safe-area-inset-bottom))]" : "bottom-[calc(88px+env(safe-area-inset-bottom))]",
-            scrolledAway && "translate-y-[calc(100%+72px+env(safe-area-inset-bottom))]",
+            docked ? "bottom-[calc(72px+var(--safe-bottom))]" : "bottom-[calc(88px+var(--safe-bottom))]",
+            scrolledAway && "translate-y-[calc(100%+72px+var(--safe-bottom))]",
           )}
         >
           <OpenHousePlus />
@@ -60,8 +70,8 @@ export function BottomTabBar() {
         className={cn(
           "fixed z-40 md:hidden",
           docked
-            ? "inset-x-0 bottom-0 h-[calc(56px+env(safe-area-inset-bottom))] bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
-            : "glass inset-x-4 bottom-[calc(12px+env(safe-area-inset-bottom))] h-16 rounded-full",
+            ? "inset-x-0 bottom-0 h-[calc(56px+var(--safe-bottom))] bg-surface/90 pb-[var(--safe-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
+            : "glass inset-x-4 bottom-[calc(12px+var(--safe-bottom))] h-16 rounded-full",
           scrolledAway && "translate-y-full",
         )}
       >

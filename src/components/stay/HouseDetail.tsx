@@ -31,7 +31,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getInvited, getMyPayment, isCrewMember, joinedAt, paymentStatus, useStore } from "@/lib/store";
+import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getInvited, getMyPayment, isCrewMember, joinedAt, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { CrewMenu } from "./CrewMenu";
@@ -126,7 +126,7 @@ function Capsule({ label, count, unread, onClick }: { label: string; count?: num
     >
       {label}
       {count !== undefined && <span className="tabular-nums text-muted">{count}</span>}
-      {unread !== undefined && unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-eyebrow leading-none tracking-normal text-white tabular-nums">{unread}</span>}
+      {unread !== undefined && unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">{unread}</span>}
     </button>
   );
 }
@@ -310,7 +310,7 @@ function HouseManage({ stay }: { stay: Stay }) {
       capsules={
         <>
           <Capsule label={t("requests")} count={requests.length + waitlistRequests.length} onClick={() => setSheet("requests")} />
-          <Capsule label={t("crew")} count={stay.spotsFilled} onClick={() => setSheet("crew")} />
+          <Capsule label={t("crew")} count={crewInOf(store, stay)} onClick={() => setSheet("crew")} />
           {chat && <Capsule label={t("chat")} unread={unread} onClick={() => setSheet("chat")} />}
           <Capsule label={t("details")} onClick={() => setSheet("details")} />
         </>
@@ -659,7 +659,7 @@ function JoinedHouse({ stay }: { stay: Stay }) {
       }
       capsules={
         <>
-          <Capsule label={tView("crew")} count={stay.spotsFilled} onClick={() => setSheet("crew")} />
+          <Capsule label={tView("crew")} count={crewInOf(store, stay)} onClick={() => setSheet("crew")} />
           {chat && <Capsule label={tView("chat")} unread={unread} onClick={() => setSheet("chat")} />}
           <Capsule label={tView("details")} onClick={() => setSheet("details")} />
         </>
@@ -732,7 +732,7 @@ function PastHouse({ stay }: { stay: Stay }) {
   const place = ALL_PLACES.find((p) => p.name.split(",")[0].trim().toLowerCase() === stay.location.city.toLowerCase());
   return (
     <HouseFrame head={<HouseHead stay={stay} eyebrow={t("livedIn", { date: month })} actions={<ViewPageLink href={`/house/${stay.slug}`} />} />}>
-      <section className="flex max-w-[640px] flex-col gap-5 rounded-[20px] bg-(--card) p-6">
+      <section className="flex max-w-[640px] flex-col gap-5 rounded-[20px] bg-(--surface) p-6">
         <h2 className="text-eyebrow uppercase text-ink/55">{t("crew")}</h2>
         <ul className="flex flex-wrap gap-4">
           {people.map((person) => (

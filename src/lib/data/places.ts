@@ -54,9 +54,7 @@ export const cityPoint = (name: string) => cityPoints.get(foldPlace(name.trim())
 const cityIds = new Map(CITIES.map((c) => [foldPlace(c.name.split(",")[0]), c.id]));
 export const cityPlaceIdOf = (name: string) => cityIds.get(foldPlace(name.trim())) ?? null;
 
-/** The photo of a curated city, for the search's list. */
-const covers = new Map(CURATED_DESTINATIONS.flatMap((d) => (d.coverImage ? [[d.id, d.coverImage] as const] : [])));
-export const coverOf = (placeId: string) => covers.get(placeId);
+/* Place photos: config/place-images.ts (placeImageOf) – the one curated list. */
 
 const countryRegions = new Map(CITIES.flatMap((c) => (c.region ? [[foldPlace(c.country), c.region] as const] : [])));
 export const regionOfCountry = (country: string): WorldRegion | "" => countryRegions.get(foldPlace(country)) ?? worldRegionOf(country);

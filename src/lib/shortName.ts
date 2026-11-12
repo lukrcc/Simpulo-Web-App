@@ -1,6 +1,14 @@
 import { VIBES } from "./catalog";
 import type { Stay } from "./types";
 
+/**
+ * The place, short (Place.short): the city or region the House is in – "Madeira", "Lisbon", "Canggu" – never the House's short name and
+ * never the country. Every "date · place" line uses it (Up next, MyHouseTile).
+ */
+export function placeShortOf(stay: Pick<Stay, "location">): string {
+  return stay.location.city.split(",")[0].trim();
+}
+
 /** A House's short name: at most this many characters – dashboards and small tiles ("Surf Bali", "IRL Bangkok", "Fitness Canggu"). */
 export const SHORT_NAME_MAX = 14;
 

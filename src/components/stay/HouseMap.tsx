@@ -18,7 +18,7 @@ const EMBED_TOP_CROP = 56;
  */
 const EMBED_LEFT_CROP = 64;
 /** Nearly opaque, so the button under it doesn't show through the glass. */
-export const EMBED_CAPSULE = { right: 10, bottom: 20, height: 44, backgroundColor: "rgba(250, 248, 244, 0.97)" } as const;
+export const EMBED_CAPSULE = { right: 10, bottom: 20, height: 44, backgroundColor: "color-mix(in srgb, var(--glass-solid) 97%, transparent)" } as const;
 /** Without a key (or coordinates) it's the embed – the House page places its capsule over the embed's camera button then. */
 export const mapIsEmbed = (hasCoordinates: boolean) => !API_KEY || !hasCoordinates;
 const CALM_STYLES = [
@@ -79,10 +79,13 @@ export function HouseMap({ lat, lng, pin, query, hasCoordinates, zoom, title, ra
       const [{ Map, Circle }, { Marker }, { SymbolPath }] = await Promise.all([maps.importLibrary("maps"), maps.importLibrary("marker"), maps.importLibrary("core")]);
       if (cancelled) return;
       const center = { lat, lng };
-      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+      const css = getComputedStyle(document.documentElement);
+      const accent = css.getPropertyValue("--signal").trim();
+      const plate = css.getPropertyValue("--plate").trim();
+      const stage = css.getPropertyValue("--stage-bg").trim();
       const live = new (Map as unknown as new (element: HTMLElement, options: object) => unknown)(canvas, { center, zoom: pin ? PIN_ZOOM : AREA_ZOOM, styles: CALM_STYLES, gestureHandling: "none", disableDefaultUI: true, fullscreenControl: false, mapTypeControl: false, cameraControl: false, rotateControl: false, scaleControl: false, streetViewControl: false, zoomControl: false, keyboardShortcuts: false, clickableIcons: false });
-      if (pin) new Marker({ map: live, position: center, icon: { path: SymbolPath.CIRCLE, scale: 8, fillColor: accent, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 } });
-      else new Circle({ map: live, center, radius, fillColor: "#221e1b", fillOpacity: 0.1, strokeWeight: 0, clickable: false });
+      if (pin) new Marker({ map: live, position: center, icon: { path: SymbolPath.CIRCLE, scale: 8, fillColor: accent, fillOpacity: 1, strokeColor: plate, strokeWeight: 2 } });
+      else new Circle({ map: live, center, radius, fillColor: stage, fillOpacity: 0.1, strokeWeight: 0, clickable: false });
     };
     const observer = new IntersectionObserver(
       ([entry]) => {

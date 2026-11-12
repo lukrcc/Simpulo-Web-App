@@ -187,7 +187,7 @@ function AuthButton({ icon, label, onClick }: { icon: ReactNode; label: string; 
 }
 
 /** Magic-link form that replaces the email button in place. */
-function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
+export function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }) {
   const t = useTranslations("auth");
   const { users, login } = useStore();
   const [email, setEmail] = useState("");

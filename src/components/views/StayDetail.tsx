@@ -1,5 +1,6 @@
 "use client";
 
+import { useDevSetting } from "@/lib/devSettings";
 import { paidOverlapOf } from "@/lib/overlap";
 import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
@@ -31,7 +32,7 @@ import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { guestJourney } from "@/config/house-steps";
 import { useHouseRole } from "@/lib/useHouseRole";
-import { HouseActions, HouseCrew, HouseDay, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
+import { HouseActions, HouseCrew, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { Button } from "@/components/ui/ActionButton";
@@ -41,7 +42,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite } from "@/lib/store";
+import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
 import { memberStage } from "@/lib/joinFlow";
@@ -164,15 +165,17 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const crew = getCrew(store, stay);
   // "Preview as guest" (?preview=guest, host only): render as a logged-out stranger; nothing changes data.
   const previewing = stay.hostId === store.currentUserId && previewParam;
-  const myRequest = previewing ? undefined : getMyRequest(store, stay.id);
+  // Dev menu "House role" (dev only; "auto" elsewhere): the page acts as that role, whatever the real one is – a visitor has no request.
+  const devRole = useDevSetting("houseRole");
+  const myRequest = previewing || devRole === "visitor" ? undefined : getMyRequest(store, stay.id);
   // Who invited me (the host or someone in the crew) – for "Don't invite me again".
   const inviterId = myRequest?.status === "invited" ? (myRequest.invitedBy ?? stay.hostId) : stay.hostId;
   const inviterName = findUser(store, inviterId)?.name.split(" ")[0] ?? "";
   const me = previewing ? undefined : getCurrentUser(store);
   // Requests work without a photo – but the host should see who's asking.
   const askForPhoto = myRequest?.status === "pending" && me !== undefined && me.photos.length === 0;
-  const isHost = stay.hostId === store.currentUserId && !previewing;
-  const isMember = !previewing && isCrewMember(store, stay, store.currentUserId);
+  const isHost = !previewing && (devRole === "auto" ? stay.hostId === store.currentUserId : devRole === "host");
+  const isMember = !previewing && (devRole === "auto" ? isCrewMember(store, stay, store.currentUserId) : devRole === "member");
   const spotsLeft = openSpots(stay);
   // A valid invite link (pending, not expired): reserved spot, banner, Join → account → payment. Used, expired or
   // cancelled ones simply don't match – the page is the normal one.
@@ -187,12 +190,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const { role: liveRole } = useHouseRole(stay.id);
   const role = previewing ? "visitor" : liveRole;
   const [leaving, setLeaving] = useState(false);
-  const journey = guestJourney(stay, myRequest, store.payments.find((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status !== "refunded"), openedAt);
+  const journey = guestJourney(stay, myRequest, store.payments.find((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status !== "refunded"), openedAt, crewInOf(store, stay));
   const crewThread = getCrewThread(store, stay.id);
   // ?focus= (Needs you, notifications): a member's "pay" opens the pay sheet; the host is sent on to the management page with it.
   const [focusParam, setFocusParam] = useState<string | null>(null);
   useEffect(() => {
     if (!focusParam) return;
+    // The step in view: the head (the member's Ember step, the host's status) scrolls up under the header.
+    summaryRef.current?.scrollIntoView({ block: "start" });
     // The host: to the management page – except "invite", which opens the invite sheet right here.
     if (role === "host" && focusParam !== "invite") router.replace(`/h/${stay.id}/manage?focus=${focusParam}`);
   }, [focusParam, role, router, stay.id]);
@@ -373,7 +378,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const stepContent = useStepContent(stay, host, journey, { onPay: () => setPaying(true), onInvite: () => (canBring ? setInviting(true) : inviteFriends()), now: openedAt });
   // The host's line in the head: "3 of 6 in · 2 requests" (management lives at /h/[id]/manage).
   const openRequests = store.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;
-  const hostStatus = t("page.hostStatus", { filled: stay.spotsFilled, total: stay.spotsTotal, requests: openRequests });
+  // Under the host's price only what needs them: "● 1 request to review" (orange dot) → Manage. The crew stands in the right column.
+  const hostStatus =
+    openRequests > 0 ? (
+      <Link href={`/h/${stay.id}/manage?focus=requests`} className="inline-flex items-center gap-2 font-semibold text-ink underline-offset-4 hover:underline">
+        <span aria-hidden className="size-2 rounded-full bg-accent" />
+        {t("page.requestsToReview", { count: openRequests })}
+      </Link>
+    ) : undefined;
 
   return (
     <PreviewProvider active={previewing}>
@@ -391,7 +403,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       <FriendParam onChange={setFriendParam} />
     </Suspense>
     {friendRequest && !myRequest && role === "visitor" && (
-      <Container className="pt-4 md:pt-6">
+      <Container className="pt-4 md:pb-8 md:pt-6">
         <div className="card-soft flex flex-wrap items-center justify-between gap-4 rounded-3xl p-6">
           <div className="min-w-0 max-w-[560px]">
             <p className="text-h3 text-ink">{tInvite("friendTitle", { name: friendName })}</p>
@@ -402,12 +414,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       </Container>
     )}
     {invite && (
-      <Container className="pt-4 md:pt-10">
+      <Container className="pt-4 md:pb-8 md:pt-10">
         <InviteBanner stay={stay} invite={invite} />
       </Container>
     )}
-    <Container className="pb-24 pt-4 md:pb-[calc(120px-var(--space-section))] md:pt-6">
-      {/* The head: photo a third, Ember two thirds – the same height; fits 1440 × 900. Phones: the photo on top, Ember under it. */}
+    {/* The House as the page's main object: the full-width band under the header (components/HeroBand). */}
       {role === "member" ? (
         <MemberHero ref={summaryRef} stay={stay} host={host} crew={crew} journey={journey} content={stepContent} chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} onLeave={() => setLeaving(true)} />
       ) : (
@@ -459,9 +470,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           }
         />
       )}
-
-      {/* Under the head: the sections in one order, 64px apart, each headed like Explore. Text reads at most 760px wide. */}
-      <div className="mt-10 flex flex-col gap-10">
+    <Container className="explore-width">
+      {/* Under the band, 48px down: the sections in one order, 40px apart, right on the page's background. Text reads at most 760px wide. */}
+      <div className="mt-12 flex flex-col gap-10">
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
         {role === "member" && <MemberSections stay={stay} crew={crew} />}
         <div className="flex max-w-[760px] flex-col gap-6 empty:hidden">
@@ -517,37 +528,51 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           )}
         </div>
 
-        {/* Why I'm hosting → The crew → (host experience) → A typical day → Who I'm looking for | House rules → Where you'll be. */}
-        <div className="max-w-[760px] empty:hidden">
-          <HouseWhy stay={stay} />
+        {/* Two columns from 1100px on the 12-column grid, right on the page's background: left 7 – Why I'm hosting · A typical day · Who I'm
+            looking for; right 5, after a 1px line ink 8 % – The crew · House rules · What's included, lines between them. No boxes. */}
+        <div className="grid gap-10 split:grid-cols-12 split:gap-0">
+          <div className="flex min-w-0 flex-col gap-10 split:col-span-7 split:pr-12">
+            <div className="empty:hidden">
+              <HouseWhy stay={stay} />
+            </div>
+            <div className="empty:hidden">
+              <HouseDay stay={stay} />
+            </div>
+            <div className="empty:hidden">
+              <HouseLooking stay={stay} />
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-col gap-8 split:col-span-5 split:border-l split:border-ink/8 split:pl-12 [&>:not(:empty)~:not(:empty)]:border-t [&>:not(:empty)~:not(:empty)]:border-ink/8 [&>:not(:empty)~:not(:empty)]:pt-8">
+            {/* A member has the crew (and the vote on the place) above already. */}
+            {role !== "member" && (
+              <div className="flex flex-col gap-8">
+                <HouseCrew
+                  stay={stay}
+                  crew={crew}
+                  waitlist={waitlist}
+                  myWaitlist={myPosition ? { position: myPosition } : myRequest?.status === "waitlist_requested" ? { requested: true } : undefined}
+                  canJoin={canJoin}
+                  onJoin={startRequest}
+                  onInvite={canBring ? () => setInviting(true) : undefined}
+                />
+                <CrewVotes stay={stay} />
+              </div>
+            )}
+            <div className="empty:hidden">
+              <HouseRules stay={stay} />
+            </div>
+            <div className="empty:hidden">
+              <HouseOffer stay={stay} />
+            </div>
+          </div>
         </div>
-        {/* A member has the crew (and the vote on the place) above already. */}
-        {role !== "member" && (
-        <div className="flex flex-col gap-8">
-          <HouseCrew
-            stay={stay}
-            crew={crew}
-            waitlist={waitlist}
-            myWaitlist={myPosition ? { position: myPosition } : myRequest?.status === "waitlist_requested" ? { requested: true } : undefined}
-            canJoin={canJoin}
-            onJoin={startRequest}
-            onInvite={canBring ? () => setInviting(true) : undefined}
-          />
-          <CrewVotes stay={stay} />
-        </div>
-        )}
-        <div className="empty:hidden">
-          <HouseOffer stay={stay} />
-        </div>
-        <div className="max-w-[760px] empty:hidden">
-          <HouseDay stay={stay} />
-        </div>
-        <div className="empty:hidden">
-          <HouseFit stay={stay} />
-        </div>
-        <HouseWhere stay={stay} canOpenChat={isMember && getCrewThread(store, stay.id) !== undefined} />
       </div>
+    </Container>
 
+    {/* Where you'll be: the place as a full-width strip (the map over the whole window, the glass field on the grid). */}
+    <HouseWhere stay={stay} />
+
+    <Container className="explore-width pb-24 md:pb-[calc(120px-var(--space-section))]">
       <HouseMore stay={stay} />
 
       {/* The floating bar: a member sees the current step and its action instead of "Request to join". */}
@@ -647,7 +672,9 @@ function FriendParam({ onChange }: { onChange: (requestId: string | null) => voi
 
 /** ?focus= on the House page (from Needs you and notifications) – in its own boundary, like ?preview. */
 function FocusParam({ onChange }: { onChange: (focus: string | null) => void }) {
-  const focus = useSearchParams().get("focus");
+  // ?step= (Needs you: the step to show) and the older ?focus= mean the same.
+  const params = useSearchParams();
+  const focus = params.get("step") ?? params.get("focus");
   useEffect(() => onChange(focus), [focus, onChange]);
   return null;
 }

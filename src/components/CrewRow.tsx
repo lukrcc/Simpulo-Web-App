@@ -7,6 +7,7 @@ import { InviteSheet } from "@/components/InviteSheet";
 import { Avatar } from "@/components/ui/Avatar";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { useCanInvite } from "@/lib/invites";
+import { crewInOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, firstName, openSpots } from "@/lib/utils";
 
@@ -17,9 +18,9 @@ const TONE = {
   /** On the page and light panels: ink 25 %; the host's dot ink on a light ring */
   light: { edge: "border-ink/25", plus: "text-ink/55", hover: "hover:bg-ink/5", name: "text-ink", muted: "text-muted", dot: "bg-ink ring-(--bg)" },
   /** On Ember: cream, the dot cream on an ink ring */
-  dark: { edge: "border-[#F4EEE7]/35", plus: "text-[#F4EEE7]/70", hover: "hover:bg-[#F4EEE7]/8", name: "text-[#F4EEE7]", muted: "text-[#F4EEE7]/55", dot: "bg-[#F4EEE7] ring-[#221E1B]" },
+  dark: { edge: "border-ink/35", plus: "text-ink/70", hover: "hover:bg-ink/8", name: "text-ink", muted: "text-ink/55", dot: "bg-ink ring-bg" },
   /** On a photo (a card's foot): white */
-  image: { edge: "border-white/60", plus: "text-white/85", hover: "hover:bg-white/15", name: "text-white", muted: "text-white/75", dot: "bg-white ring-black/40" },
+  image: { edge: "border-on-image/60", plus: "text-on-image/85", hover: "hover:bg-on-image/15", name: "text-on-image", muted: "text-on-image/75", dot: "bg-on-image ring-shade/40" },
 } as const;
 const DOT: Record<Size, string> = { xs: "size-2 ring-[1.5px]", md: "size-2.5 ring-2", lg: "size-3 ring-2" };
 
@@ -65,7 +66,7 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
         {shown.map((member) => (
           <li key={member.id} className={cn(names && "flex w-14 flex-col items-center gap-1.5")}>
             <span className="relative inline-flex">
-              <Avatar user={member} size={avatarSize} mode={faceOf(member)} linked={!names ? false : faceOf(member) === "full"} className={size === "xs" ? "ring-1 ring-black/20" : undefined} />
+              <Avatar user={member} size={avatarSize} mode={faceOf(member)} linked={!names ? false : faceOf(member) === "full"} className={size === "xs" ? "ring-1 ring-shade/20" : undefined} />
               {member.id === stay.hostId && (
                 <span role="img" aria-label={t("hostDot")} className={cn("absolute -bottom-0.5 -right-0.5 rounded-full", DOT[size], colors.dot)} />
               )}
@@ -97,15 +98,18 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
 
 /**
  * The crew's one line, the same everywhere: "2 of 6 in · 4 spots left"; one spot free: "5 of 6 in · 1 spot left" with that part orange;
- * none: "Full". The host counts to "in" (spotsFilled).
+ * none: "Full". The host counts to "in" (crewInOf).
  */
 export function CrewCount({ stay, className }: { stay: Stay; className?: string }) {
   const t = useTranslations("invite");
-  const left = openSpots(stay);
+  const store = useStore();
+  // The host always counts: never "0 of 3 in" (the mock's spotsFilled can lag behind the crew).
+  const inCrew = crewInOf(store, stay);
+  const left = Math.max(0, Math.min(openSpots(stay), stay.spotsTotal - inCrew));
   if (left === 0) return <p className={cn("text-small font-semibold text-ink", className)}>{t("full")}</p>;
   return (
     <p className={cn("text-small text-ink", className)}>
-      {t("crewIn", { in: stay.spotsFilled, total: stay.spotsTotal })}
+      {t("crewIn", { in: inCrew, total: stay.spotsTotal })}
       {" · "}
       <span className={cn(left === 1 && "font-semibold text-accent")}>{t("spotsLeft", { count: left })}</span>
     </p>

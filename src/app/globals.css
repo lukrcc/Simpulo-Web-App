@@ -1,145 +1,64 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* One screen without scrolling (the profile): wide enough for the desktop layout (1100px) and at least 760px high; below either, it scrolls. */
+@custom-variant fit (@media (min-width: 68.75rem) and (min-height: 47.5rem));
 
 /*
- * The colour system – these six and nothing else (components use them as bg-bg, bg-surface, text-ink, text-muted,
- * border-line, outline-accent …; white with alpha only as overlays on photos).
+ * Colours: only the semantic tokens of src/styles/tokens.css (floor, stage, graphite, signal, chat). Below only the header's own role
+ * values – always graphite – which useNotchShape paints as numbers.
  */
 :root {
-  color-scheme: light;
-  --bg: #F2F0EB;        /* Seitenhintergrund */
-  --surface: #FBFAF7;   /* Karten, Kapseln, Drawer, Header */
-  --ink: #221E1B;       /* Text und die eine Hauptaktion */
-  --muted: #77706A;     /* Sekundärtext: Daten, Preise, Zähler */
-  --line: #E3E0D9;      /* Nur noch die Griffe und Formen, die eine Kante brauchen */
-  --accent: #F0633A;    /* Nur: Logo-Punkt, Verified-Häkchen, Benachrichtigungs-Punkte, Filter-Zähler, „1 spot left“ (dazu gemerktes Herz, Host-Karte) */
-  --focus-ring: rgba(34, 30, 27, 0.25);
-  /* Only the backgrounds: .stage-gradient (Explore's Spotlight, the Host hero) and PageGlow's patches. A warm grey-black now, the names are the old
-     colours'. --stage-shade is the one dial. */
-  --stage-shade: 0.5;
-  --stage-peach: rgba(40, 32, 26, var(--stage-shade));
-  --stage-sand: rgba(40, 32, 26, var(--stage-shade));
-  --stage-mist: rgba(40, 32, 26, 0.04);
-  /* The soft surface of a card without a photo yet: not part of the stage. */
-  --card-blank-from: #F7D9C8;
-  --card-blank-to: #E6E9EE;
-  --card-blank: #F2EBDF;
-  /* What floats over a page (GlassPanel), selection (Chip) – "Schönheit als Grundprinzip" in CLAUDE.md. */
-  --glass-bg: rgba(250, 248, 244, 0.72);
-  --glass-blur: blur(24px) saturate(1.2) brightness(1.12);
-  --glass-sheen: none;
-  --glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.6); /* The header tab's panel paints the same values from useNotchShape. */
-  --glass-shadow: 0 24px 64px rgba(0, 0, 0, 0.14);
-  --select-bg: #fdfcfa;
-  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.06);
-  --chip-bg: rgba(255, 255, 255, 0.55);
-  --chip-bg-hover: rgba(255, 255, 255, 0.8);
-  --chip-text-hover: rgba(255, 255, 255, 0.45);
-  --filters-capsule: rgba(255, 255, 255, 0.6);
-  --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
-  /* Content cards that lie on the page (.card-soft): the booking card, the Your houses tiles, the profile tiles. Warm, a breath lighter than
-     bg (≈ +4 % lightness, so a Panel visibly lifts off the page and stays warm, never #FFFFFF), a light inner edge, a faint outer one, a soft warm shadow. */
-  --card-soft: rgba(255, 253, 250, 0.7);
-  --card-soft-blur: blur(16px);
-  --card-soft-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(34, 30, 27, 0.06);
-  --card-soft-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 32px rgba(40, 32, 26, 0.06);
-  /* Header (bar + tab): .milk-glass. Solid: without backdrop-filter, and around the header's dots. */
-  --header-bg: linear-gradient(rgba(247, 245, 241, 0.94) 0, rgba(242, 240, 235, 0.94) 56px);
-  --header-solid: #F7F5F1;
-  /*
-   * The header's colours, all of them (bar, tab, grip, docked filters, the big filter panel): data-header="light" | "dark" on <html> (Dev menu
-   * "Header"). Light is the default. Painted values (useNotchShape) read the *-rgb / *-alpha ones: "r, g, b" and a number.
-   */
-  --hdr-bg: var(--header-bg);
-  --hdr-solid: var(--header-solid);
-  --hdr-fg: #221e1b;
-  --hdr-muted: rgba(34, 30, 27, 0.55);
-  --hdr-line: rgba(34, 30, 27, 0.08);
-  --hdr-pill: rgba(34, 30, 27, 0.05);
-  --hdr-grip-rgb: 34, 30, 27;
-  --hdr-avatar-ring: rgba(255, 255, 255, 0.9);
-  /* The shape's surface per stage: bar (p 0) is the CSS gradient above in light; the docked chip row (p 1); the big panel (p 2). */
-  --hdr-bar-rgb: 247, 245, 241;
-  --hdr-bar-alpha: 0.94;
-  --hdr-chips-rgb: 247, 245, 241;
-  --hdr-chips-alpha: 0.94;
-  --hdr-panel-rgb: 251, 247, 242;
-  --hdr-panel-alpha: 0.8;
-  --hdr-edge-rgb: 34, 30, 27;
-  --hdr-edge-alpha: 0.08;
-  --hdr-edge-panel-rgb: 255, 255, 255;
-  --hdr-edge-panel-alpha: 0.6;
-  /* "All filters": ink block, white words (light) – cream block, ink words (dark). */
-  --hdr-corner-bg: #221e1b;
-  --hdr-corner-fg: #ffffff;
-  --hdr-corner-hover: #3a3430;
-  --sheet-bg: rgba(251, 247, 242, 0.8);
-}
-/* The dark header (a test, Dev menu): ink bar, cream words; the docked filters dark glass .78, the big panel .82. Pages keep their colours. */
-html[data-header="dark"] {
-  --hdr-bg: linear-gradient(#221e1b, #221e1b);
-  --hdr-solid: #221e1b;
-  --hdr-fg: #f4eee7;
-  --hdr-muted: rgba(244, 238, 231, 0.6);
-  --hdr-line: rgba(244, 238, 231, 0.08);
-  --hdr-pill: rgba(244, 238, 231, 0.06);
+  /* The header (bar, tab, docked filters, the big filter sheet): graphite, in every mode. *-rgb / *-alpha: "r, g, b" and a number for the
+     painted shape. */
+  --hdr-bg: var(--graphite-glass);
+  --hdr-solid: var(--graphite);
+  --hdr-fg: var(--stage-text);
+  --hdr-muted: rgba(244, 238, 231, 0.65);
+  --hdr-line: var(--graphite-line);
+  /* The tab group's track: cream 5 %. */
+  --hdr-pill: rgba(244, 238, 231, 0.05);
   --hdr-grip-rgb: 244, 238, 231;
   --hdr-avatar-ring: rgba(244, 238, 231, 0.2);
-  --hdr-bar-rgb: 34, 30, 27;
-  --hdr-bar-alpha: 1;
-  --hdr-chips-rgb: 34, 30, 27;
-  --hdr-chips-alpha: 0.78;
-  --hdr-panel-rgb: 34, 30, 27;
-  --hdr-panel-alpha: 0.82;
-  --hdr-edge-rgb: 244, 238, 231;
+  --hdr-avatar-ring-w: 1px;
+  --hdr-bar-rgb: 72, 66, 62;
+  --hdr-bar-alpha: 0.94;
+  --hdr-chips-rgb: 72, 66, 62;
+  --hdr-chips-alpha: 0.94;
+  --hdr-panel-rgb: 72, 66, 62;
+  --hdr-panel-alpha: 0.92;
+  --hdr-edge-rgb: 251, 247, 242;
   --hdr-edge-alpha: 0.08;
-  --hdr-edge-panel-rgb: 244, 238, 231;
+  --hdr-edge-panel-rgb: 251, 247, 242;
   --hdr-edge-panel-alpha: 0.12;
-  --hdr-corner-bg: #f4eee7;
-  --hdr-corner-fg: #221e1b;
+  /* "All filters": a cream block, ink words and icon. */
+  --hdr-corner-bg: var(--stage-text);
+  --hdr-corner-fg: var(--stage-bg);
   --hdr-corner-hover: #ffffff;
-  --sheet-bg: rgba(34, 30, 27, 0.82);
+  --sheet-bg: var(--graphite-sheet);
 }
-/* Inside the dark header the tokens turn round (like .ember-scope): ink is cream, muted cream 60 % – the tabs, the logo, "Open a House",
-   the docked filters and the big panel follow by themselves. The choice in the filters: a cream fill, ink words, the 1.5px orange edge. */
-html[data-header="dark"] [data-site-header] {
-  --ink: #f4eee7;
-  --color-ink: #f4eee7;
-  --muted: rgba(244, 238, 231, 0.6);
-  --color-muted: rgba(244, 238, 231, 0.6);
-  --chip-bg: rgba(244, 238, 231, 0.06);
-  --chip-bg-hover: rgba(244, 238, 231, 0.12);
-  --card-soft: rgba(244, 238, 231, 0.06);
-  --focus-ring: rgba(244, 238, 231, 0.4);
-  --pick-bg: #f4eee7;
-  --pick-text: #221e1b;
-  color: #f4eee7;
-  color-scheme: dark;
-}
-/* The avatar beside the tabs (and the login circle): a light ring – white 2px (light), cream 20 % 1px (dark). */
+/* The avatar beside the tabs (and the login circle): a ring cream 20 % 1px. */
 [data-header-avatar] {
   border-radius: 999px;
-  box-shadow: 0 0 0 var(--hdr-avatar-ring-w, 2px) var(--hdr-avatar-ring);
+  box-shadow: 0 0 0 var(--hdr-avatar-ring-w) var(--hdr-avatar-ring);
 }
-html[data-header="dark"] {
-  --hdr-avatar-ring-w: 1px;
+[data-site-header] .search-capsule {
+  box-shadow: inset 0 0 0 1px var(--input-border);
 }
-html[data-header="dark"] [data-site-header] .search-capsule {
-  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.15);
-}
-html[data-header="dark"] [data-site-header] .pick-option,
-html[data-header="dark"] [data-site-header] .filters-capsule.panel-field,
-html[data-header="dark"] [data-site-header] .filters-capsule.panel-field:hover {
+[data-site-header] .pick-option,
+[data-site-header] .filters-capsule.panel-field,
+[data-site-header] .filters-capsule.panel-field:hover {
   background-color: transparent;
-  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.15);
-  color: rgba(244, 238, 231, 0.85);
+  box-shadow: inset 0 0 0 1px var(--input-border);
+  color: color-mix(in srgb, var(--text) 85%, transparent);
 }
-html[data-header="dark"] [data-site-header] .pick-option:hover {
-  background-color: rgba(244, 238, 231, 0.08);
-  color: #f4eee7;
+[data-site-header] .pick-option:hover {
+  background-color: var(--chip-bg);
+  color: var(--text);
 }
-html[data-header="dark"] [data-site-header] .pick-option.pick-on,
-html[data-header="dark"] [data-site-header] .pick-option.pick-on:hover,
-html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-active] {
+[data-site-header] .pick-option.pick-on,
+[data-site-header] .pick-option.pick-on:hover,
+[data-site-header] .filters-capsule.panel-field[data-active] {
   background-color: var(--pick-bg);
   box-shadow: inset 0 0 0 1.5px var(--pick-edge);
   color: var(--pick-text);
@@ -180,7 +99,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   --text-nav-main--line-height: 1.4;
   --text-nav-main--font-weight: 500;
   /* The House page's title in its head: 44px at 1440px. */
-  --text-hero: clamp(32px, 2.4vw + 10px, 44px);
+  /* The House page's title: 52px at 1440, two lines at most. */
+  --text-hero: clamp(36px, 2.6vw + 14px, 52px);
   --text-hero--line-height: 1.05;
   --text-hero--font-weight: 700;
   --text-hero--letter-spacing: -0.03em;
@@ -220,6 +140,10 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   --text-body-lg: 17px;
   --text-body-lg--line-height: 1.5;
   --text-body-lg--font-weight: 400;
+  /* Only Messages' input field: 16px, so phones don't zoom into it. */
+  --text-input: 16px;
+  --text-input--line-height: 22px;
+  --text-input--font-weight: 400;
   --text-body: 15px;
   --text-body--line-height: 1.5;
   --text-body--font-weight: 400;
@@ -250,12 +174,31 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 
 /* The six as Tailwind theme colours (inline: utilities read the variables above directly). */
 @theme inline {
+  /* The semantic tokens as Tailwind colours (inline: a utility reads the variable directly, so every ground – .stage, .ember, Messages, the
+     header, dark mode – turns it round by itself). "ink" and "muted" stay the class names for --text and --text-muted. */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
   --color-line: var(--line);
-  --color-accent: var(--accent);
+  --color-input-border: var(--input-border);
+  --color-inverse: var(--text-inverse);
+  --color-accent: var(--signal);
+  --color-signal: var(--signal);
+  --color-on-image: var(--on-image);
+  --color-on-signal: var(--on-signal);
+  --color-shade: var(--shade);
+  --color-plate: var(--plate);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-stage: var(--stage-bg);
+  --color-stage-text: var(--stage-text);
+  --color-graphite: var(--graphite);
+  --color-chat: var(--chat-bg);
+  --color-bubble-own: var(--bubble-own);
+  --color-bubble-other: var(--bubble-other);
 }
 
 /* static: also emit variables that are only read via var(). */
@@ -291,12 +234,35 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 :root {
   /* The page's own chip row (phones; the city / vibe pages on every size) */
   --filter-row-h: 56px;
+  /* The device's safe areas – everything reads these, never env() directly, so the Dev menu's "Simulate installed app" stands in for a
+     phone (47px / 34px, html.sim-standalone). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Phones: no top header, only the status bar's inset. From md: the site header (see the block below). */
-  --header-h: env(safe-area-inset-top, 0px);
+  --header-h: var(--safe-top);
   /* Where things stick and the page's content starts: the bar plus the depth of its nav tab from md (SiteHeader). */
   --header-total: calc(var(--header-h) + var(--band-h));
   /* The demo's preview band above the header. */
-  --band-h: 0px;
+  --demo-band-h: 0px;
+  /* What lies above the header: the demo band; from md also the status bar of the installed app (black-translucent – the graphite strip
+     under it, AppShell). */
+  --band-h: var(--demo-band-h);
+}
+/* Phones - how much the bottom tab bar covers (data-tabbar on <html>, BottomTabBar) – floating bars sit above it. */
+:root {
+  --tabbar-clear: 0px;
+}
+@media (max-width: 767px) {
+  html[data-tabbar="pill"] {
+    --tabbar-clear: calc(76px + var(--safe-bottom));
+  }
+  html[data-tabbar="docked"] {
+    --tabbar-clear: calc(56px + var(--safe-bottom));
+  }
+}
+html.sim-standalone {
+  --safe-top: 47px;
+  --safe-bottom: 34px;
 }
 
 /*
@@ -304,14 +270,18 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
  * `position` here – unlayered, it would beat the row's `sticky` utility.
  */
 .header-surface {
-  background: rgba(246, 242, 236, 0.92);
+  background: var(--row-surface);
   -webkit-backdrop-filter: blur(24px) saturate(1.3);
   backdrop-filter: blur(24px) saturate(1.3);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .header-surface {
-    background: #f6f2ec;
+    background: var(--bg);
   }
+}
+/* Explore scrolled down (lib/exploreCompact): the compact bar has the filters – the phones' own row steps back. */
+html[data-explore-compact] .filter-row {
+  visibility: hidden;
 }
 .header-surface::after {
   content: "";
@@ -341,6 +311,7 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   :root {
     --header-h: 56px;
     --header-total: calc(72px + var(--band-h));
+    --band-h: calc(var(--demo-band-h) + var(--safe-top));
   }
 }
 
@@ -357,7 +328,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   /* The grid's card height keeps the chip row's former depth (108px), so the deeper tab doesn't shrink the cards. */
   --header-row-total: calc(108px + var(--band-h));
   --scroll-under-tab: calc(var(--header-open-total) + 40px);
-  --footer-surface: #efe9e2;
+  /* The footer: a step darker than the floor. */
+  --footer-surface: color-mix(in srgb, var(--surface-2) 70%, var(--bg));
   --spot-h: clamp(440px, 100vh - var(--header-total) - 160px, 680px);
   --spot-w: calc(var(--spot-h) * 3 / 4);
   --spot-top: clamp(96px, 100vh - var(--spot-h) - 32px, 280px);
@@ -369,6 +341,21 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   --explore-cols: 1;
   --explore-gap: 16px;
   --explore-w: min(100vw - var(--scrollbar-w, 0px) - 2 * var(--page-margin), var(--explore-max));
+  --my-cols: 2;
+  /* A band's right inner edge (components/HeroBand): where the header's content ends – its container is at most 1680px wide. */
+  --band-edge: calc((100vw - var(--scrollbar-w, 0px) - min(100vw - var(--scrollbar-w, 0px) - 2 * var(--page-margin), 1680px)) / 2);
+  /* The one grid for the heads of Your houses (overview), the House page (object) and the profile (person): the same measures everywhere,
+     each page its own build. --page-top: header → head; --gap: between tiles; --hero-h: the head's height – a third of the content (minus the
+     two gaps) at 4:5, at least 560, at most 720px. */
+  /* Header → head on every page with a head: 64px from the bar's lower edge. The page content already starts 16px under the bar, so the
+     head adds --page-top-offset. */
+  --page-top: 64px;
+  --page-top-offset: calc(var(--page-top) - 16px);
+  /* Between the tiles of a head (and of the profile's bento). */
+  --gap: 16px;
+  /* Both sides of a head, and every bento tile. */
+  --radius-hero: 24px;
+  --hero-h: clamp(560px, calc((min(100vw, 1440px) - 2 * var(--page-margin) - 2 * var(--gap)) / 3 * 1.25), 720px);
 }
 @media (min-width: 40rem) {
   :root {
@@ -381,8 +368,19 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
     --explore-cols: 3;
   }
 }
+@media (min-width: 48rem) {
+  :root {
+    --my-cols: 3;
+  }
+}
+@media (min-width: 68.75rem) {
+  :root {
+    --my-cols: 4;
+  }
+}
 @media (min-width: 90rem) {
   :root {
+    --my-cols: 5;
     --explore-cols: 4;
   }
 }
@@ -410,7 +408,7 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass-panel {
-      background-color: #f6f0e8;
+      background-color: var(--glass-solid);
     }
   }
   .page-container {
@@ -460,6 +458,31 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   .explore-slide {
     width: calc((var(--explore-w) - (var(--explore-cols) - 1) * var(--explore-gap)) / var(--explore-cols));
   }
+  /* Your houses' own Houses (components/MyHouseTile, no notch): 5 a row from 1440px, 4 from 1100, 3 from 768, 2 below.
+     Lived in: smaller, two more a row (.my-slide-small). Same gap as Explore. */
+  /* Content on the band's grid inside a full-width footer: the same inner edges as the band's columns. */
+  .band-inset {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  @media (min-width: 40rem) {
+    .band-inset {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+  }
+  @media (min-width: 68.75rem) {
+    .band-inset {
+      padding-left: 56px;
+      padding-right: var(--band-edge);
+    }
+  }
+  .my-slide {
+    width: calc((var(--explore-w) - (var(--my-cols) - 1) * var(--explore-gap)) / var(--my-cols));
+  }
+  .my-slide-small {
+    width: calc((var(--explore-w) - (var(--my-cols) + 1) * var(--explore-gap)) / (var(--my-cols) + 2));
+  }
   .explore-root {
     --row-max: var(--explore-max);
   }
@@ -472,17 +495,17 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 /* On a surface card a white chip would vanish: there the same chip is a warm tint. Back on glass it's white again. */
 .bg-surface,
 [class*="card-surface"] {
-  --chip-bg: rgba(34, 30, 27, 0.05);
-  --chip-bg-hover: rgba(34, 30, 27, 0.09);
+  --chip-bg: color-mix(in srgb, var(--text) 5%, transparent);
+  --chip-bg-hover: color-mix(in srgb, var(--text) 9%, transparent);
 }
 .glass-panel {
-  /* Muted a step darker on glass, whatever photo lies behind it. */
-  --muted: rgba(34, 30, 27, 0.8);
+  /* Muted a step stronger on glass, whatever photo lies behind it. */
+  --text-muted: color-mix(in srgb, var(--text) 80%, transparent);
 }
 .glass-panel,
 [data-notch-panel] {
-  --chip-bg: rgba(255, 255, 255, 0.55);
-  --chip-bg-hover: rgba(255, 255, 255, 0.8);
+  --chip-bg: var(--pick-option-bg);
+  --chip-bg-hover: color-mix(in srgb, var(--pick-option-bg) 60%, var(--surface));
 }
 /* Content cards on the page (--card-soft): unlayered, so it wins over .glass-panel when a GlassPanel carries it. */
 .card-soft {
@@ -509,10 +532,10 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 }
 /* What floats over the page in a bar (House join bar, chat composer): what passes under it stays readable. */
 .glass-float {
-  background-color: rgba(250, 248, 244, 0.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4) brightness(1.08);
-  backdrop-filter: blur(20px) saturate(1.4) brightness(1.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 12px 32px rgba(0, 0, 0, 0.12);
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge), 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 /* The chat's head: messages scroll under it. */
 .chat-glass {
@@ -520,70 +543,44 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
-/*
- * Messages' chat (the right side, and the chat page on phones): dark, a warm step lighter than ink – #2B2622 as the surface, cream #F4EEE7 as the text, side
- * information cream 55 %. The tokens are turned round inside it (the --color-* too: Tailwind resolves those at :root), so ink/x and muted
- * read right; what's fixed to light (own bubbles, the send button) is set where it's drawn.
- */
-.chat-dark {
-  --ink: #F4EEE7;
-  --color-ink: #F4EEE7;
-  --muted: rgba(244, 238, 231, 0.55);
-  --color-muted: rgba(244, 238, 231, 0.55);
-  --bg: #2B2622;
-  --color-bg: #2B2622;
-  --surface: #3A332E;
-  --color-surface: #3A332E;
-  --line: rgba(244, 238, 231, 0.15);
-  --color-line: rgba(244, 238, 231, 0.15);
-  --select-bg: #3A332E;
-  --chip-bg: rgba(255, 255, 255, 0.06);
-  --chip-bg-hover: rgba(255, 255, 255, 0.08);
-  --glass-bg: rgba(43, 38, 34, 0.82);
-  --focus-ring: rgba(244, 238, 231, 0.35);
-  background-color: #2B2622;
-  color: #F4EEE7;
-  color-scheme: dark;
-}
-/* The composer: a flat dark capsule, no glass. */
-.chat-dark .glass-float {
-  background-color: #3A332E;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+/* Messages – the one dark page (CLAUDE.md "Messaging"): its tokens are tokens.css' (.chat-dark, .messages-dark: --chat-bg, --bubble-*). */
+/* The page behind Messages is the same surface – no light ground anywhere. */
+html:has([data-messages-page]) body,
+html:has([data-messages-page]) main {
+  background-color: var(--chat-bg);
 }
 /* Hover actions, the reaction picker, the emoji picker: dark glass. */
 .chat-dark .glass-panel {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--surface-2);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  color: #F4EEE7;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
 }
 /* What lies on a photo: dark glass, white icon. Never the grey one above. */
 .on-image {
-  background-color: rgba(20, 18, 16, 0.28);
-  color: rgba(255, 255, 255, 0.9);
+  background-color: var(--image-glass);
+  color: color-mix(in srgb, var(--on-image) 90%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
   backdrop-filter: blur(12px) saturate(1.4);
   transition: background-color 150ms, scale 120ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms;
 }
 .on-image:hover {
-  background-color: rgba(20, 18, 16, 0.42);
+  background-color: var(--image-glass-hover);
 }
 .on-image:active {
   scale: 0.94;
 }
 /* A card's photo arrows: a little darker than the other controls on photos, they fade in with the hover. */
 .photo-arrow {
-  background-color: rgba(20, 18, 16, 0.32);
-  color: #fff;
+  background-color: var(--image-arrow);
+  color: var(--on-image);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   transition: background-color 150ms, scale 120ms cubic-bezier(0.32, 0.72, 0, 1), opacity 150ms;
 }
 .photo-arrow:hover {
-  background-color: rgba(20, 18, 16, 0.5);
+  background-color: var(--image-arrow-hover);
 }
 @media (prefers-reduced-motion: reduce) {
   .photo-arrow {
@@ -594,42 +591,42 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 .heart-on-image {
   width: 24px;
   height: 24px;
-  stroke: #fff;
+  stroke: var(--on-image);
   stroke-width: 2px;
-  fill: rgba(0, 0, 0, 0.18);
+  fill: var(--image-heart-fill);
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
 }
 .heart-on-image[data-saved] {
-  fill: var(--accent);
+  fill: var(--signal);
 }
 /* Where? / When? and the Filters button: like an input – a 1px edge ink 12 % (inset, so the size never changes), transparent.
    Where? / When? holding a value: ink with white text (black = chosen by you). The Filters button never turns black: it counts. */
 .filters-capsule {
   background-color: transparent;
-  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.12);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
   transition: background-color 150ms, color 150ms, box-shadow 150ms;
 }
 .filters-capsule:hover {
-  background-color: rgba(34, 30, 27, 0.05);
+  background-color: color-mix(in srgb, var(--text) 5%, transparent);
 }
 .filters-capsule[data-active],
 .filters-capsule[data-active]:hover {
-  background-color: var(--ink);
+  background-color: var(--text);
   box-shadow: none;
-  color: #fff;
+  color: var(--text-inverse);
 }
 .filters-capsule[data-active] button {
-  color: #fff;
+  color: var(--text-inverse);
 }
 /* The filter panel's controls: on the panel's clear glass each sits on its own solid light surface (--card-soft at 96 %) with a 1px ink 12 %
    edge, 44px, round. The SegmentedControl's rail keeps its ink 5 % – over that surface. A chosen field stays ink (data-active). */
 .filter-control:not([data-active]) {
-  background-color: rgba(255, 253, 250, 0.96);
-  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.12);
+  background-color: var(--surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
 }
 .segmented.filter-control {
-  background-color: rgba(255, 253, 250, 0.96);
-  background-image: linear-gradient(rgba(34, 30, 27, 0.05), rgba(34, 30, 27, 0.05));
+  background-color: var(--surface);
+  background-image: linear-gradient(color-mix(in srgb, var(--text) 5%, transparent), color-mix(in srgb, var(--text) 5%, transparent));
   box-shadow: none;
 }
 /* Settings' grouped lists: a thin line between rows (ink 8 %), starting where the text starts (--row-inset, set per row). */
@@ -640,7 +637,7 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   right: 0;
   left: var(--row-inset, 16px);
   height: 1px;
-  background-color: rgba(34, 30, 27, 0.08);
+  background-color: var(--line);
   pointer-events: none;
 }
 /* A choice in the filters (row, panel, their dropdowns): ink, white semibold text, a 1.5px orange edge – no orange fill. The counts stay
@@ -649,11 +646,6 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   /* One height for every capsule and button of the header and the filter row: tab track, avatar, "Open a House", "Where · When",
      "Short trips", "Soonest first", "All filters". */
   --control-h: 44px;
-  /* The filter panel's surface where glass can't show. */
-  --card: #fbf9f6;
-  --pick-bg: var(--ink);
-  --pick-edge: #f0633a;
-  --pick-text: #fff;
 }
 .pick-on {
   background-color: var(--pick-bg);
@@ -664,14 +656,14 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 /* The filter panel's option capsules and dropdowns: 36px, on the glass a half-opaque white (55 %) with a 1px ink 8 % edge, ink 75 % text;
    chosen the orange tone. */
 .pick-option {
-  background-color: rgba(255, 255, 255, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.08);
-  color: rgba(34, 30, 27, 0.75);
+  background-color: var(--pick-option-bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: color-mix(in srgb, var(--text) 75%, transparent);
   transition: background-color 150ms, box-shadow 150ms, color 150ms;
 }
 .pick-option:hover {
-  background-color: rgba(255, 255, 255, 0.75);
-  color: var(--ink);
+  background-color: var(--chip-bg-hover);
+  color: var(--text);
 }
 .pick-option.pick-on,
 .pick-option.pick-on:hover {
@@ -684,8 +676,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 .filters-capsule.panel-field,
 .filters-capsule.panel-field:hover {
   border-radius: 14px;
-  background-color: rgba(255, 255, 255, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.08);
+  background-color: var(--pick-option-bg);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 .filters-capsule.panel-field[data-active],
 .filters-capsule.panel-field[data-active]:hover {
@@ -698,59 +690,31 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 }
 /* Dark menus (the filters' dropdowns, sort, More): ink, white text, the chosen entry on 12 % white with a check. */
 .menu-dark {
-  background-color: rgba(34, 30, 27, 0.88);
+  background-color: var(--bg);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  color: #fff;
+  color: var(--text);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
 }
 /* Without backdrop-filter, or with reduced transparency asked for: solid. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .menu-dark {
-    background-color: var(--ink);
+    background-color: var(--stage-bg);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .menu-dark {
-    background-color: var(--ink);
+    background-color: var(--stage-bg);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
 }
-/* Ember – the one accent surface: ink with a soft orange glow from the top right (about 60 % of the surface), cream text, a fine light edge
-   on top. Only for the summary tiles (Payouts, To do); Houses stay photo cards, everything else light.
-   Hover (where it's pressable): the glow a little stronger. */
+/* Ember (.ember, tokens.css): the summary tiles – Payouts' head cards – dark in every mode. The bands (HeroBand, the Spotlight, Your houses'
+   band) are .stage: the same ground in hybrid and dark, light in light mode. Both turn the tokens round by themselves. */
 .ember {
-  /* Fixed, not var(--ink): inside .ember-scope the token is cream. ONE Ember for every surface (Needs you, the House page's head, the
-     profile's head, Payouts): the ink ground and one orange glow, only top right – no brown wash over the surface. */
-  background-color: #221e1b;
-  background-image: var(--ember-glow);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color: #f6f1ea;
   transition: box-shadow 150ms, transform 150ms;
 }
-:root {
-  --ember-glow: radial-gradient(circle at 100% 0%, rgba(240, 99, 58, 0.22) 0, transparent 38%);
-}
-/* The House page's head (HouseHero) and its floating bar: on Ember the tokens turn round like in the chat – ink is cream, muted cream 55 % –
-   so the shared pieces (crew line, avatars, links) read right; the buttons there are "cream" / "creamOutline". */
-.ember-scope {
-  --ink: #F4EEE7;
-  --color-ink: #F4EEE7;
-  --muted: rgba(244, 238, 231, 0.6);
-  --color-muted: rgba(244, 238, 231, 0.6);
-  --line: rgba(244, 238, 231, 0.15);
-  --color-line: rgba(244, 238, 231, 0.15);
-  --chip-bg: rgba(244, 238, 231, 0.12);
-  --chip-bg-hover: rgba(244, 238, 231, 0.16);
-  --select-bg: #2E2925;
-  --surface: #2E2925;
-  --color-surface: #2E2925;
-  --focus-ring: rgba(244, 238, 231, 0.4);
-  color: #F4EEE7;
-  color-scheme: dark;
-}
-/* Its chips: cream 12 %. */
+/* A chip on a stage (the House page's head): the stage chip, cream 8 % (in light mode ink 5 %). */
 .ember-chip {
   display: inline-flex;
   align-items: center;
@@ -758,8 +722,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background-color: rgba(244, 238, 231, 0.12);
-  color: #F4EEE7;
+  background-color: var(--chip-bg);
+  color: var(--text);
 }
 
 /* Payouts' bars grow in on showing, staggered by their own animation-delay (40ms each). Only transform. */
@@ -774,8 +738,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 }
 /* A detail page's section the link pointed at (?focus=): a soft orange edge that fades out once. */
 @keyframes focus-flash {
-  0%, 35% { box-shadow: 0 0 0 2px rgba(240, 99, 58, 0.7); }
-  100% { box-shadow: 0 0 0 2px rgba(240, 99, 58, 0); }
+  0%, 35% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--signal) 70%, transparent); }
+  100% { box-shadow: 0 0 0 2px transparent; }
 }
 [data-flash] {
   animation: focus-flash 1600ms ease-out;
@@ -783,7 +747,7 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 /* The filter row's search capsule: a 1px ink 12 % edge on the warm card surface. */
 .search-capsule {
   background-color: var(--card-soft);
-  box-shadow: inset 0 0 0 1px rgba(34, 30, 27, 0.12);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
 }
 .search-capsule[data-active] {
   background-color: var(--pick-bg);
@@ -791,11 +755,11 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
 }
 /* "Filters" beside the chips: filled, not outlined, so it reads as its own thing (no black – not the main action). */
 .filters-button {
-  background-color: rgba(34, 30, 27, 0.07);
+  background-color: color-mix(in srgb, var(--text) 7%, transparent);
   transition: background-color 150ms;
 }
 .filters-button:hover {
-  background-color: rgba(34, 30, 27, 0.12);
+  background-color: color-mix(in srgb, var(--text) 12%, transparent);
 }
 /* The host's map: land and markers move together on one curve. Under a finger: no transition. */
 .map-move {
@@ -854,9 +818,10 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
  * Without backdrop-filter: solid.
  */
 .milk-glass {
-  background-image: var(--hdr-bg);
-  -webkit-backdrop-filter: blur(24px) saturate(1.3);
-  backdrop-filter: blur(24px) saturate(1.3);
+  /* Graphite .94 over blur 20px: reads solid, only a hint of what scrolls under it. */
+  background-color: var(--hdr-bg);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .milk-glass {
@@ -870,6 +835,8 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
  * per card.
  */
 .stage-gradient {
+  /* Only light mode keeps the soft wash; hybrid and dark paint the stage as a solid band (tokens.css .stage). */
+  display: none;
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -885,9 +852,12 @@ html[data-header="dark"] [data-site-header] .filters-capsule.panel-field[data-ac
   background-image:
     radial-gradient(34% 46% at var(--stage-focus, 50%) 58%, var(--stage-peach) 0%, transparent 70%),
     radial-gradient(50% 45% at var(--stage-focus, 50%) 100%, color-mix(in srgb, var(--stage-mist) 30%, transparent) 0%, transparent 70%),
-    radial-gradient(40% 40% at var(--stage-focus, 50%) 100%, color-mix(in srgb, var(--stage-sand) 40%, transparent) 0%, transparent 70%);
+    radial-gradient(40% 40% at var(--stage-focus, 50%) 100%, color-mix(in srgb, var(--stage-peach) 40%, transparent) 0%, transparent 70%);
   opacity: 0.4;
   animation: stage-drift 40s ease-in-out infinite alternate;
+}
+html[data-mode="light"] .stage-gradient {
+  display: revert-layer;
 }
 @keyframes stage-drift {
   from { transform: translate(-4%, -2%); }
@@ -926,7 +896,7 @@ body {
   font-size: var(--text-body);
   line-height: var(--text-body--line-height);
   background: var(--bg);
-  color: var(--ink);
+  color: var(--text);
   overscroll-behavior: none;
 }
 
@@ -981,7 +951,7 @@ main:has([data-explore-blocks]) {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   &:hover {
-    scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent) transparent;
   }
   /* WebKit/Blink without scrollbar-color support */
   &::-webkit-scrollbar {
@@ -992,7 +962,7 @@ main:has([data-explore-blocks]) {
     background: transparent;
   }
   &:hover::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--muted) 45%, transparent);
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
   }
 }
 
@@ -1005,11 +975,11 @@ main:has([data-explore-blocks]) {
     border: 1px solid color-mix(in srgb, var(--surface) 60%, transparent);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
-      0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+      0 8px 24px color-mix(in srgb, var(--text) 8%, transparent);
   }
   /* Over photos */
   .glass-dark {
-    background: color-mix(in srgb, var(--ink) 35%, transparent);
+    background: color-mix(in srgb, var(--text) 35%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid color-mix(in srgb, var(--surface) 25%, transparent);
@@ -1017,7 +987,7 @@ main:has([data-explore-blocks]) {
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass { background: color-mix(in srgb, var(--surface) 92%, transparent); }
-    .glass-dark { background: color-mix(in srgb, var(--ink) 85%, transparent); }
+    .glass-dark { background: color-mix(in srgb, var(--text) 85%, transparent); }
   }
 }
 
@@ -1240,13 +1210,13 @@ input[type="number"]::-webkit-inner-spin-button {
 /* Focus overlay behind a dialog (ModalOverlay): blur + light dim; without backdrop-filter a stronger dim instead.
    The panel slides up as a bottom sheet on phones and fades + scales 0.98 → 1 from md; reduced motion: fade only. */
 .modal-backdrop {
-  background: rgba(34, 30, 27, 0.18);
+  background: var(--scrim);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   animation: fade-in 200ms ease-out;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .modal-backdrop { background: color-mix(in srgb, var(--ink) 55%, transparent); }
+  .modal-backdrop { background: color-mix(in srgb, var(--text) 55%, transparent); }
 }
 @keyframes modal-sheet-up {
   from { transform: translateY(100%); }
@@ -1275,8 +1245,8 @@ input[type="number"]::-webkit-inner-spin-button {
     height: 36px;
     padding: 0 14px;
     border-radius: 9999px;
-    border: 1px solid var(--ink);
-    color: var(--ink);
+    border: 1px solid var(--text);
+    color: var(--text);
     background: var(--surface);
     font-size: var(--text-small);
     font-weight: 500;
@@ -1284,7 +1254,7 @@ input[type="number"]::-webkit-inner-spin-button {
     transition: color 0.15s ease, background-color 0.15s ease, transform 160ms ease-out, filter 160ms ease-out;
   }
   .open-house-btn:hover {
-    background: var(--ink);
+    background: var(--text);
     color: var(--surface);
   }
   .open-house-btn:active {
@@ -1298,23 +1268,23 @@ input[type="number"]::-webkit-inner-spin-button {
   /* The header pill: filled primary. Ink fill, white semibold text; hover lifts 1px and lightens, pressed it sits
      back down in ink. A hairline shadow keeps its edge crisp on the glass header over bright photos. */
   .open-house-btn--primary {
-    background: var(--ink);
+    background: var(--text);
     color: var(--surface);
     font-weight: 600;
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 18%, transparent);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 18%, transparent);
     transition: background-color 0.15s ease, transform 160ms ease-out, filter 160ms ease-out, box-shadow 0.15s ease;
   }
   .open-house-btn--primary:hover {
-    background: color-mix(in srgb, var(--ink) 90%, var(--surface));
+    background: color-mix(in srgb, var(--text) 90%, var(--surface));
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--ink) 22%, transparent);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--text) 22%, transparent);
   }
   .open-house-btn--primary:active {
-    background: var(--ink);
+    background: var(--text);
     transform: scale(0.97);
     filter: brightness(0.92);
     transition-duration: 90ms;
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 18%, transparent);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 18%, transparent);
   }
   .open-house-btn--primary:focus-visible {
     outline: none;
@@ -1353,7 +1323,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* The demo: its band, and the login page on its own. */
 :root[data-app-mode="demo"] {
-  --band-h: 28px;
+  --demo-band-h: 28px;
 }
 body:has([data-demo-login]) :is(header, footer, [data-demo-band]),
 body:has([data-demo-login]) .fixed.md\:hidden {
@@ -1400,7 +1370,7 @@ main:has([data-demo-login]) {
 /* A stage headline in letters that can move, under one gradient (FlipText): each letter paints its piece. Without clipped backgrounds plain
    ink, never invisible. The extra room around a letter keeps its overhang and descenders inside what it paints; the negative margins give it back. */
 .flip-text {
-  color: var(--ink);
+  color: var(--text);
   padding: 0 0.06em 0.12em;
   margin-inline: -0.06em;
   margin-bottom: -0.12em;
@@ -1430,7 +1400,7 @@ main:has([data-demo-login]) {
 }
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   .flow-text[data-ready] .flow-part {
-    background-image: linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%);
+    background-image: var(--headline-gradient);
     background-repeat: no-repeat;
     background-position: var(--flow-x) var(--flow-y);
     -webkit-background-clip: text;
@@ -1445,7 +1415,7 @@ main:has([data-demo-login]) {
     }
   }
   .flip-text[data-ready] .flip-letter {
-    background-image: linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%);
+    background-image: var(--headline-gradient);
     background-repeat: no-repeat;
     -webkit-background-clip: text;
     background-clip: text;

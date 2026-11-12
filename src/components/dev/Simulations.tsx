@@ -126,7 +126,7 @@ function IdentityForm() {
             <input type="file" accept="image/*" className="sr-only" onChange={(e) => setDocument(e.target.files?.[0]?.name ?? t("sampleId"))} />
           </label>
           <button type="button" onClick={() => setSelfie(true)} className={cn(tile, selfie ? "bg-(--select-bg) shadow-(--select-shadow)" : "bg-ink/5 hover:bg-ink/8")}>
-            <span className={cn("flex size-16 items-center justify-center rounded-full", selfie ? "bg-ink text-white" : "bg-ink/8 text-muted")}>
+            <span className={cn("flex size-16 items-center justify-center rounded-full", selfie ? "bg-ink text-inverse" : "bg-ink/8 text-muted")}>
               <Camera className="size-6" aria-hidden />
             </span>
             <span className="text-body font-semibold text-ink">{selfie ? t("selfieTaken") : t("selfie")}</span>

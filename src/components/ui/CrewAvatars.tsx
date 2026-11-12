@@ -38,7 +38,7 @@ export function CrewAvatars({ host, members, stay }: { host: User; members: User
           </span>
         )}
       </div>
-      <CrewLine stay={stay} onDark className="min-w-0 truncate" />
+      <CrewLine stay={stay} inCrew={1 + members.filter((m) => m.id !== host.id).length} onDark className="min-w-0 truncate" />
     </div>
   );
 }

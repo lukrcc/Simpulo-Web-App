@@ -358,6 +358,8 @@ interface StoreActions {
   confirmBooking: (stayId: string, file: File) => Promise<void>;
   /** Dev only: every payment of the stay back to pending, booking proof cleared. */
   resetPayments: (stayId: string) => void;
+  /** Read the data again (mock: what this browser saved; later the backend) – the installed app coming back to the front (no pull-to-refresh). */
+  reloadData: () => void;
   /** Host's "Taking requests" switch. Nothing else ever changes it. */
   setAcceptingRequests: (stayId: string, accepting: boolean) => void;
   /** Heart: adds the House to the current user's saved list, or removes it. */
@@ -652,7 +654,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 13;
+const MOCK_VERSION = 17;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 
@@ -2525,6 +2527,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "confirmBooking", stayId, proofUrl: URL.createObjectURL(file), message: { id: makeId("m"), createdAt: new Date().toISOString() } });
   }, []);
   const resetPayments = useCallback((stayId: string) => dispatch({ type: "resetPayments", stayId }), []);
+  const reloadData = useCallback(() => {
+    const saved = readPersistedMock(readDataState());
+    if (saved) dispatch({ type: "loadDataset", state: { ...saved, typing: {} } });
+  }, []);
   const toggleSaved = useCallback((stayId: string) => dispatch({ type: "toggleSaved", stayId }), []);
   const confirmLivedWith = useCallback((otherUserId: string) => dispatch({ type: "confirmLivedWith", otherUserId, at: new Date().toISOString() }), []);
   const toggleHostAlert = useCallback((hostId: string) => dispatch({ type: "toggleHostAlert", hostId }), []);
@@ -2631,6 +2637,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markSharePaid,
       confirmBooking,
       resetPayments,
+      reloadData,
       setAcceptingRequests,
       toggleSaved,
       confirmLivedWith,
@@ -2648,7 +2655,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2710,6 +2717,11 @@ export function getCurrentUser(store: Pick<StoreState, "users" | "currentUserId"
 }
 
 /** Host first, then accepted guests. */
+/** How many are in: the host counts (never "0 of 4"), plus the accepted members – never less than the stored spotsFilled. Every "N of M" uses it. */
+export function crewInOf(store: StoreData, stay: Stay): number {
+  return Math.max(stay.spotsFilled, getCrew(store, stay).length, 1);
+}
+
 export function getCrew(store: StoreData, stay: Stay): User[] {
   const memberIds = [
     stay.hostId,

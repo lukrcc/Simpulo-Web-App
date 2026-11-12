@@ -98,7 +98,7 @@ export function PhotoLightbox({ photos, index, onIndexChange, onClose, alt }: Ph
         className="animate-lightbox-in relative h-auto max-h-[86vh] w-auto max-w-[90vw] rounded-2xl object-contain motion-reduce:animate-none"
       />
 
-      <button type="button" onClick={onClose} aria-label={t("close")} className={cn(roundButton, "right-4 top-[max(1rem,env(safe-area-inset-top))]")}>
+      <button type="button" onClick={onClose} aria-label={t("close")} className={cn(roundButton, "right-4 top-[max(1rem,var(--safe-top))]")}>
         <X className="size-6" />
       </button>
       <button
@@ -122,7 +122,7 @@ export function PhotoLightbox({ photos, index, onIndexChange, onClose, alt }: Ph
 
       <p
         aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-small font-medium text-white/70"
+        className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,var(--safe-bottom))] text-center text-small font-medium text-on-image/70"
       >
         {t("counter", { index: index + 1, total: photos.length })}
       </p>

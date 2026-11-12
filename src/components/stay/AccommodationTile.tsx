@@ -46,8 +46,8 @@ function PlatformMark({ platform, large = false }: { platform: Platform; large?:
   return (
     <span
       aria-hidden
-      className={cn("flex shrink-0 items-center justify-center rounded-md font-bold text-white", large ? "size-14 rounded-2xl text-h2" : "size-5 text-small")}
-      style={{ background: large ? "rgba(255,255,255,0.18)" : platform.color }}
+      className={cn("flex shrink-0 items-center justify-center rounded-md font-bold text-on-image", large ? "size-14 rounded-2xl text-h2" : "size-5 text-small")}
+      style={{ background: large ? "color-mix(in srgb, var(--on-image) 18%, transparent)" : platform.color }}
     >
       {platform.name.charAt(0).toUpperCase()}
     </span>
@@ -99,7 +99,7 @@ function ListingTile({ stay, link }: { stay: Stay; link: string }) {
           <Img src={image} alt="" fill sizes="(min-width: 1100px) 300px, 50vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
         ) : (
           // No picture anywhere: the platform's colour, its mark large, the title on it.
-          <span className="absolute inset-0 flex flex-col justify-between p-4 text-white" style={{ background: platform.color }}>
+          <span className="absolute inset-0 flex flex-col justify-between p-4 text-on-image" style={{ background: platform.color }}>
             <PlatformMark platform={platform} large />
             <span className="line-clamp-2 text-body font-semibold">{title}</span>
           </span>
@@ -116,6 +116,32 @@ function ListingTile({ stay, link }: { stay: Stay; link: string }) {
         <span className="glass-panel mt-1 inline-flex h-8 items-center gap-1 self-start rounded-full! px-3 text-small font-semibold text-ink">
           {t("viewListing")}
           <ArrowUpRight className="size-4" aria-hidden />
+        </span>
+      </span>
+    </a>
+  );
+}
+
+/** The booked listing in a few lines (Where you'll be's glass field): picture 56px, title, platform · total, "View listing ↗". */
+export function ListingInfo({ stay, link }: { stay: Stay; link: string }) {
+  const t = useTranslations("house.page");
+  const preview = useListingPreview(link, stay.title);
+  const amount = useViewerAmount();
+  const total = stay.totalPrice ? t("placeTotal", { price: amount(stay.totalPrice, stay.currency), nights: stayNights(stay) }) : null;
+  const platform = platformOf(link);
+  const title = preview?.title ?? stay.title;
+  const image = preview?.imageUrl || stay.accommodationPhoto || "";
+  return (
+    <a href={link} target="_blank" rel="noopener noreferrer" className="group -mx-2 flex items-center gap-3 rounded-2xl p-2 transition-colors duration-150 hover:bg-ink/5">
+      <span className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-on-image" style={image ? undefined : { background: platform.color }}>
+        {image ? <Img src={image} alt="" fill sizes="56px" className="object-cover" /> : <PlatformMark platform={platform} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body font-semibold text-ink">{title}</span>
+        <span className="block truncate text-small text-muted">{[platform.name, total].filter(Boolean).join(" · ")}</span>
+        <span className="mt-0.5 inline-flex items-center gap-1 text-small font-semibold text-ink">
+          {t("viewListing")}
+          <ArrowUpRight className="size-3.5" aria-hidden />
         </span>
       </span>
     </a>

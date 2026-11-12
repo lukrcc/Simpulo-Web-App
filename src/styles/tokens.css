@@ -1,0 +1,273 @@
+/*
+ * Simpulo's colours - semantic only (CLAUDE.md "Farbsystem"). Components never name a colour; they name a role:
+ *   Floor (Boden): --bg, --surface, --surface-2, --text, --text-muted, --text-faint, --line, --input-border (+ --text-inverse: words on a
+ *     --text fill, the primary button)
+ *   Stage (Bühne): --stage-bg, --stage-text, --stage-muted, --stage-line, --stage-chip – the dark bands to look at (Spotlight, HeroBands,
+ *     Your houses' band); inside .stage / .ember the floor roles take these values, so the same components turn round by themselves.
+ *   Frame: --graphite, --graphite-line – the header and its filters, always.
+ *   Signal: --signal #F0633A, the same in every mode.
+ *   Chat: --chat-bg, --bubble-own, --bubble-other – Messages, the same in every mode.
+ *
+ * Modes (data-mode on <html>, Dev menu only, default "hybrid"): hybrid – light floor, dark stages · light – stages light too (Ember tiles
+ * stay dark) · dark – dark floor, dark stages. The header is graphite in all three.
+ *
+ * Contrast (WCAG, checked): floor text ≥ 13.9 : 1, floor muted (ink 64 %) ≥ 4.67 : 1 on bg, surface and surface-2; dark muted (cream 68 %)
+ * ≥ 6.1 : 1; stage muted (cream 65 %) 6.8 : 1; header muted (cream 65 %) 4.7 : 1 on graphite; chat muted (cream 55 %) 5.1 : 1.
+ */
+
+/* ── Constants: the same in every mode ── */
+:root {
+  --signal: #f0633a;
+  --graphite: #48423e;
+  --graphite-line: rgba(251, 247, 242, 0.08);
+  /* The header and its docked filters: graphite .94 over blur 20px – reads solid, only a hint of what scrolls under it. */
+  --graphite-glass: rgba(72, 66, 62, 0.94);
+  /* The big filter sheet in the header. */
+  --graphite-sheet: rgba(72, 66, 62, 0.92);
+  --stage-bg: #221e1b;
+  --stage-text: #f4eee7;
+  --stage-muted: rgba(244, 238, 231, 0.65);
+  --stage-line: rgba(244, 238, 231, 0.08);
+  --stage-chip: rgba(244, 238, 231, 0.08);
+  /* The one Ember glow: large and soft from the top right, several stops against banding, a fine grain over it. */
+  --stage-glow: radial-gradient(circle at 100% 0%, rgba(240, 99, 58, 0.22) 0%, rgba(240, 99, 58, 0.12) 18%, rgba(240, 99, 58, 0.05) 32%, rgba(240, 99, 58, 0) 48%);
+  --stage-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+  --chat-bg: #262320;
+  --chat-input: #3a3633;
+  --bubble-own: #5a5450;
+  --bubble-other: #2f2c29;
+  /* On a photo (cards, Up next, the gallery): white words and controls, in every mode – the photo is the ground. */
+  --on-image: #ffffff;
+  /* Controls on a photo: dark glass (IconButton onImage, "N photos"), the card's arrows a little darker, the heart's fill. */
+  --image-glass: rgba(20, 18, 16, 0.28);
+  --image-glass-hover: rgba(20, 18, 16, 0.42);
+  --image-arrow: rgba(20, 18, 16, 0.32);
+  --image-arrow-hover: rgba(20, 18, 16, 0.5);
+  --image-heart-fill: rgba(0, 0, 0, 0.18);
+  /* What darkens a photo (the Spotlight's side cards, the cover label, a quote in a bubble): black at an alpha. */
+  --shade: #000000;
+  /* Words on the signal (counts, badges). */
+  --on-signal: #ffffff;
+  /* A white plate whatever the ground: brand marks' circle (Find me), slider knobs, the vibe dot's edge, a light button on a photo. */
+  --plate: #ffffff;
+  /* Behind a dialog; the header's manual scrim is lighter. */
+  --scrim: rgba(34, 30, 27, 0.18);
+  --card-soft-blur: blur(16px);
+  --glass-sheen: none;
+  --scrim-soft: rgba(34, 30, 27, 0.12);
+  /* The one tooltip: dark glass in every mode. */
+  --tooltip-bg: rgba(34, 30, 27, 0.85);
+}
+
+/* ── Floor, light: hybrid and light (and inside a light-mode stage) ── */
+:root,
+html[data-mode="light"] .stage {
+  color-scheme: light;
+  --bg: #f3efea;
+  --surface: #fbf8f4;
+  --surface-2: #f0ebe5;
+  --text: #221e1b;
+  --text-muted: rgba(34, 30, 27, 0.64);
+  --text-faint: rgba(34, 30, 27, 0.42);
+  --line: rgba(34, 30, 27, 0.08);
+  --input-border: rgba(34, 30, 27, 0.1);
+  --text-inverse: #f4eee7;
+  --danger: #c4321f;
+  --success: #2f7a4f;
+  --warn-bg: rgba(240, 99, 58, 0.08);
+  --warn-text: #8a3b1f;
+  /* The primary button: ink, cream words; hover a shade lighter. */
+  --action-hover: #3a3430;
+  /* The secondary button: a raised warm white, a faint ink edge. */
+  --secondary-bg: #fdfcfa;
+  --secondary-edge: rgba(34, 30, 27, 0.1);
+  --secondary-hover: #ffffff;
+  --secondary-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* Selection in lists and navigation: an outline capsule in the text's colour (on dark grounds: a filled cream 12 % capsule, no edge). */
+  --sel-fill: 0%;
+  --sel-edge: 100%;
+  --select-bg: #fdfcfa;
+  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --chip-bg: rgba(255, 255, 255, 0.55);
+  --chip-bg-hover: rgba(255, 255, 255, 0.8);
+  --filters-capsule: rgba(255, 255, 255, 0.6);
+  --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(250, 248, 244, 0.72);
+  --glass-solid: #fbf8f4;
+  --glass-blur: blur(24px) saturate(1.2) brightness(1.12);
+  --glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 24px 64px rgba(0, 0, 0, 0.14);
+  --card-soft: rgba(255, 253, 250, 0.7);
+  --card-soft-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(34, 30, 27, 0.06);
+  --card-soft-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 32px rgba(40, 32, 26, 0.06);
+  --card-blank-from: #f7d9c8;
+  --card-blank-to: #e6e9ee;
+  --card-blank: #f2ebdf;
+  /* The filter panel's controls on its glass. */
+  --pick-option-bg: rgba(255, 255, 255, 0.55);
+  /* The phones' own chip row. */
+  --row-surface: rgba(246, 242, 236, 0.92);
+  /* Stage headlines in the Spotlight ("Where to next?"): one gradient, ink to warm grey. */
+  --headline-gradient: linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%);
+  /* The light-mode Spotlight keeps the old soft wash behind it (.stage-gradient). */
+  --stage-wash: 0.5;
+  --stage-peach: rgba(40, 32, 26, var(--stage-wash));
+  --stage-mist: rgba(40, 32, 26, 0.04);
+}
+
+/* ── Floor, dark ── */
+html[data-mode="dark"] {
+  color-scheme: dark;
+  --bg: #1e1b19;
+  --surface: #2a2623;
+  --surface-2: #34302c;
+  --text: #f4eee7;
+  --text-muted: rgba(244, 238, 231, 0.68);
+  --text-faint: rgba(244, 238, 231, 0.45);
+  --line: rgba(244, 238, 231, 0.08);
+  --input-border: rgba(244, 238, 231, 0.14);
+  --text-inverse: #221e1b;
+  --danger: #ff8a75;
+  --success: #7fcf9f;
+  --warn-bg: rgba(240, 99, 58, 0.14);
+  --warn-text: #ffb59c;
+  --action-hover: #ffffff;
+  /* On dark grounds the secondary button is an outline: 1px cream 25 %, hover cream 6 %. */
+  --secondary-bg: transparent;
+  --secondary-edge: rgba(244, 238, 231, 0.25);
+  --secondary-hover: rgba(244, 238, 231, 0.06);
+  --secondary-shadow: none;
+  --sel-fill: 12%;
+  --sel-edge: 0%;
+  --select-bg: #34302c;
+  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --chip-bg: rgba(244, 238, 231, 0.08);
+  --chip-bg-hover: rgba(244, 238, 231, 0.12);
+  --filters-capsule: rgba(244, 238, 231, 0.06);
+  --panel-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(42, 38, 35, 0.82);
+  --glass-solid: #2a2623;
+  --glass-blur: blur(24px) saturate(1.2);
+  --glass-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.08);
+  --glass-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --card-soft: rgba(244, 238, 231, 0.05);
+  --card-soft-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.06);
+  --card-soft-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  --card-blank-from: #3a332e;
+  --card-blank-to: #2c2a2b;
+  --card-blank: #34302c;
+  --pick-option-bg: rgba(244, 238, 231, 0.06);
+  --row-surface: rgba(30, 27, 25, 0.92);
+  --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
+  --stage-wash: 0;
+}
+
+/* ── Stage and the other dark grounds: the Ember bands (.stage; light mode turns these light again, above), Ember tiles (.ember, dark in
+   every mode), Messages, the header, the dark menus ── */
+.stage,
+.ember,
+.chat-dark,
+.messages-dark,
+[data-site-header],
+.menu-dark {
+  color-scheme: dark;
+  --bg: var(--stage-bg);
+  --surface: rgba(244, 238, 231, 0.06);
+  --surface-2: rgba(244, 238, 231, 0.1);
+  --text: var(--stage-text);
+  --text-muted: var(--stage-muted);
+  --text-faint: rgba(244, 238, 231, 0.45);
+  --line: var(--stage-line);
+  --input-border: rgba(244, 238, 231, 0.14);
+  --text-inverse: #221e1b;
+  --danger: #ff8a75;
+  --success: #7fcf9f;
+  --warn-bg: rgba(240, 99, 58, 0.14);
+  --warn-text: #ffb59c;
+  --action-hover: #ffffff;
+  /* On dark grounds the secondary button is an outline: 1px cream 25 %, hover cream 6 %. */
+  --secondary-bg: transparent;
+  --secondary-edge: rgba(244, 238, 231, 0.25);
+  --secondary-hover: rgba(244, 238, 231, 0.06);
+  --secondary-shadow: none;
+  --sel-fill: 12%;
+  --sel-edge: 0%;
+  --select-bg: rgba(244, 238, 231, 0.1);
+  --select-shadow: none;
+  --chip-bg: var(--stage-chip);
+  --chip-bg-hover: rgba(244, 238, 231, 0.12);
+  --filters-capsule: rgba(244, 238, 231, 0.06);
+  --card-soft: rgba(244, 238, 231, 0.06);
+  --card-soft-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.06);
+  --card-soft-shadow: none;
+  --pick-option-bg: transparent;
+  --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
+  --stage-wash: 0;
+}
+/* Messages: one surface, the chat's own tones. */
+.chat-dark,
+.messages-dark {
+  --bg: var(--chat-bg);
+  --surface: var(--bubble-other);
+  --select-bg: var(--bubble-other);
+  --text-muted: rgba(244, 238, 231, 0.55);
+  --line: rgba(244, 238, 231, 0.06);
+  --glass-bg: color-mix(in srgb, var(--chat-bg) 82%, transparent);
+}
+/* The header: graphite. Muted cream 65 % (4.7 : 1). */
+[data-site-header] {
+  --bg: var(--graphite);
+  --line: var(--graphite-line);
+  --text-muted: rgba(244, 238, 231, 0.65);
+  --input-border: rgba(244, 238, 231, 0.15);
+}
+/* The dark menus (filters' dropdowns, sort, More). */
+.menu-dark {
+  --bg: rgba(34, 30, 27, 0.88);
+}
+
+/* ── Derived: recomputed on every ground, from that ground's values ── */
+:root,
+html[data-mode],
+.stage,
+.ember,
+.chat-dark,
+.messages-dark,
+[data-site-header],
+.menu-dark {
+  --focus-ring: color-mix(in srgb, var(--text) 25%, transparent);
+  --action-bg: var(--text);
+  --action-text: var(--text-inverse);
+  --sel-bg: color-mix(in srgb, var(--text) var(--sel-fill), transparent);
+  --sel-border: color-mix(in srgb, var(--text) var(--sel-edge), transparent);
+  --pick-bg: var(--text);
+  --pick-text: var(--text-inverse);
+  --pick-edge: var(--signal);
+}
+
+/* ── Painted grounds ── */
+.stage,
+.ember {
+  background-color: var(--stage-bg);
+  background-image: var(--stage-noise), var(--stage-glow);
+  background-size: 160px 160px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  background-blend-mode: overlay, normal;
+  color: var(--text);
+}
+.ember {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+html[data-mode="light"] .stage {
+  background-color: var(--surface-2);
+  background-image: none;
+}
+/* The Spotlight's band in light mode: no surface, the old soft wash behind it. */
+html[data-mode="light"] .stage.stage-open {
+  background-color: transparent;
+}
+.chat-dark,
+.messages-dark {
+  background-color: var(--chat-bg);
+  color: var(--text);
+}

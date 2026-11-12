@@ -2,6 +2,7 @@
 
 import { FileUp, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { CardStatusAction } from "@/components/HouseCard";
@@ -28,7 +29,7 @@ const noSubscribe = () => () => {};
  * ("Pay · 31h left", "Review 4", "Answer invite") that opens the action itself, in a sheet – not the card. Up next shows it as a button. The sheet goes to the body (a portal): the card scales on hover
  * and clips its content, a fixed sheet inside it would move and be cut.
  */
-export function CardTaskAction({ stay, task, now, button = false }: { stay: Stay; task: CardTask; now: string; /** A real button (Up next) instead of the card's glass pill */ button?: boolean }) {
+export function CardTaskAction({ stay, task, now, button = false, text = false }: { stay: Stay; task: CardTask; now: string; /** A real button (Up next) instead of the card's glass pill */ button?: boolean; /** MyHouseTile's status line: "● Review 1 request", "Pay · 48h" in orange – text, no pill */ text?: boolean }) {
   const t = useTranslations("houses.home.task");
   const [open, setOpen] = useState(false);
   const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
@@ -37,7 +38,24 @@ export function CardTaskAction({ stay, task, now, button = false }: { stay: Stay
   const label = t(`${task.kind}.action`, { count: task.count ?? 0, hours });
   return (
     <>
-      {button ? <Button onClick={() => setOpen(true)}>{label}</Button> : <CardStatusAction onClick={() => setOpen(true)}>{label}</CardStatusAction>}
+      {text ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(true);
+          }}
+          className={cn("inline-flex min-w-0 items-center gap-1.5 truncate text-small font-semibold underline-offset-4 hover:underline", task.kind === "pay" || task.kind === "offer" ? "text-accent" : "text-ink")}
+        >
+          {task.kind !== "pay" && task.kind !== "offer" && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent" />}
+          {label}
+        </button>
+      ) : button ? (
+        <Button onClick={() => setOpen(true)}>{label}</Button>
+      ) : (
+        <CardStatusAction onClick={() => setOpen(true)}>{label}</CardStatusAction>
+      )}
       {hydrated && createPortal(<TaskSheet stay={stay} kind={task.kind} open={open} onClose={() => setOpen(false)} now={now} />, document.body)}
     </>
   );

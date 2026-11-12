@@ -77,7 +77,7 @@ export function LegalList({ items }: { items: string[] }) {
 export function TodoNote({ children }: { children: ReactNode }) {
   const t = useTranslations("footer.pages");
   return (
-    <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-body font-medium text-amber-800">
+    <p className="rounded-xl border border-dashed border-accent/40 bg-(--warn-bg) px-4 py-3 text-body font-medium text-(--warn-text)">
       {t("todo")} {children}
     </p>
   );

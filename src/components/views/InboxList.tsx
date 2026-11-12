@@ -1,6 +1,6 @@
 "use client";
 
-import { LegalLine } from "@/components/layout/LegalLine";
+import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { ChevronRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,11 +16,10 @@ import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
-import { findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
+import { crewInOf, findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { outlineListItemStyles } from "@/components/ui/listSelection";
-import { TabBar } from "@/components/ui/TabBar";
+import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { DIRECT_MESSAGE_POLICY } from "@/config/policies";
 import { shortNameOf } from "@/lib/shortName";
 import { cn, housePhotos } from "@/lib/utils";
@@ -28,18 +27,17 @@ import { cn, housePhotos } from "@/lib/utils";
 interface ThreadRow {
   thread: Thread;
   title: string;
-  /** Questions: "about {shortName}" – searchable too */
+  /** House chats: "Dec 2–16 · 2 of 4 in"; questions: "About {shortName}" – searchable too */
   subtitle?: string;
   /** Questions: the other person, in a circle */
   avatar?: User;
   /** House chats: the cover in a rounded square; questions: the House's small badge on the face */
   cover?: string;
-  dates?: string;
   /** Houses: the House is over. Questions: no new message for DIRECT_MESSAGE_POLICY.archiveAfterDays, or the House is over. */
   past: boolean;
 }
 
-type Tab = "houses" | "questions";
+type Filter = "all" | "unread";
 
 export function InboxList() {
   const t = useTranslations("messages.inbox");
@@ -57,11 +55,13 @@ const newestFirst = (a: ThreadRow, b: ThreadRow) =>
 const SEARCH_FROM = 16;
 const DAY_MS = 86_400_000;
 /**
- * /messages – the chats only, in two text tabs with an underline: "Houses" (the crews' chats) and "Questions" (direct chats, each about one
- * House – DIRECT_MESSAGE_POLICY), each with the number of unread chats. "Past" folded at the end of each tab. The search only with more than
- * 15 chats, behind a magnifier.
+ * /messages – ONE list of every chat (the crews' House chats and the questions – direct chats, each about one House, DIRECT_MESSAGE_POLICY),
+ * newest message first; "Past" folded at the end. On top a capsule group "All · Unread {n}" (the count an orange circle, only there). The
+ * search only with more than 15 chats, behind a magnifier.
  */
 function InboxContent() {
+  // The installed app coming back to the front: read again (no pull-to-refresh there).
+  useReloadOnReturn();
   const t = useTranslations("messages.inbox");
   const store = useStore();
   const me = store.currentUserId;
@@ -84,7 +84,7 @@ function InboxContent() {
     const over = stay.endDate !== "" && stay.endDate < today;
     const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
     if (thread.type === "house") {
-      return [{ thread, title: stay.title, cover, dates: f.shortRange(stay.startDate, stay.endDate), past: over }];
+      return [{ thread, title: stay.title, cover, subtitle: t("houseLine", { dates: f.shortRange(stay.startDate, stay.endDate), filled: crewInOf(store, stay), total: stay.spotsTotal }), past: over }];
     }
     const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
     // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
@@ -94,18 +94,14 @@ function InboxContent() {
     return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, past: over || quiet }];
   });
 
-  const houseRows = rows.filter((r) => r.thread.type === "house");
-  const questionRows = rows.filter((r) => r.thread.type !== "house");
-  const unreadOf = (list: ThreadRow[]) => list.filter((r) => !r.past && isThreadUnread(store, r.thread)).length;
-  // ?id= opens the tab its chat is in; otherwise Houses.
-  const selectedRow = rows.find((r) => r.thread.id === selectedId);
-  const [tabChoice, setTab] = useState<Tab | null>(null);
-  const tab: Tab = tabChoice ?? (selectedRow && selectedRow.thread.type !== "house" ? "questions" : "houses");
+  const isUnread = (r: ThreadRow) => !r.past && isThreadUnread(store, r.thread);
+  const unreadCount = rows.filter(isUnread).length;
+  const [filter, setFilter] = useState<Filter>("all");
 
   const canSearch = rows.length >= SEARCH_FROM;
   const q = canSearch ? query.trim().toLowerCase() : "";
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
-  const inTab = (tab === "houses" ? houseRows : questionRows).filter(matches);
+  const inTab = rows.filter(matches).filter((r) => filter === "all" || isUnread(r));
   const current = inTab.filter((r) => !r.past).toSorted(newestFirst);
   const past = inTab.filter((r) => r.past).toSorted(newestFirst);
   const ordered = [...current, ...past];
@@ -140,7 +136,7 @@ function InboxContent() {
     ) : (
       <>
         {current.length > 0 && <div className="mt-4">{list(current)}</div>}
-        {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t(tab === "houses" ? "housesEmpty" : "questionsEmpty")}</p>}
+        {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t(filter === "unread" ? "unreadEmpty" : "housesEmpty")}</p>}
         {past.length > 0 && (
           <section className="mt-5">
             <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 text-small uppercase text-muted hover:text-ink">
@@ -161,13 +157,21 @@ function InboxContent() {
       list={
         <>
           <div className="flex shrink-0 items-center justify-between gap-2">
-            <TabBar
-              label={t("tabsLabel")}
-              value={tab}
-              onChange={setTab}
+            <CapsuleGroup
+              label={t("filterLabel")}
+              value={filter}
+              onChange={setFilter}
               options={[
-                { value: "houses", label: t("tabHouses"), count: unreadOf(houseRows) },
-                { value: "questions", label: t("tabQuestions"), count: unreadOf(questionRows) },
+                { value: "all", content: t("filterAll") },
+                {
+                  value: "unread",
+                  content: (
+                    <span className="inline-flex items-center gap-1.5">
+                      {t("filterUnread")}
+                      {unreadCount > 0 && <span className="inline-flex size-4.5 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">{unreadCount}</span>}
+                    </span>
+                  ),
+                },
               ]}
             />
             {canSearch && (
@@ -190,9 +194,8 @@ function InboxContent() {
               />
             </label>
           )}
+          {/* No footer and no legal line on Messages – the one dark page, nothing light under it. */}
           <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3 split:pt-1">{chats}</div>
-          {/* From 1100px Messages has no footer: the legal line at the very bottom of the list (phones keep the footer). */}
-          <LegalLine className="hidden shrink-0 pt-3 split:flex" />
         </>
       }
       // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
@@ -206,7 +209,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
   const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
-  const { thread, title, subtitle, avatar, cover, dates } = row;
+  const { thread, title, subtitle, avatar, cover } = row;
 
   /** Photos and files get a hint instead of an empty preview; event lines are translated. */
   function previewText(message: Message): string {
@@ -234,32 +237,34 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={outlineListItemStyles(active, "block px-6")}
+      // Chosen: a full capsule filled cream 8 %, no edge; hover cream 4 %.
+      className={cn("block rounded-[28px] px-4 transition-colors duration-150", active ? "bg-ink/8" : "hover:bg-ink/4")}
     >
       <span className="flex items-center gap-3 py-3">
         {avatar ? (
-          // Questions: the person in a circle, the House as a small badge at the bottom right.
-          <span className="relative size-12 shrink-0">
-            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={48} className="size-12 bg-line" />
+          // Questions: the person in a circle 56px, the House as a rounded-square badge 22px at the bottom right (a 2px edge in the chat's ground).
+          <span className="relative size-14 shrink-0">
+            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={56} className="size-14 bg-line" />
             {cover && (
-              <span className="absolute -bottom-0.5 -right-0.5 block size-5 overflow-hidden rounded-md ring-2 ring-bg">
-                <Img src={cover} alt="" fill sizes="20px" className="object-cover" />
+              <span className="absolute -bottom-0.5 -right-0.5 block size-5.5 overflow-hidden rounded-md ring-2 ring-(--chat-bg)">
+                <Img src={cover} alt="" fill sizes="22px" className="object-cover" />
               </span>
             )}
           </span>
         ) : cover ? (
-          <span className="relative size-12 shrink-0 overflow-hidden rounded-2xl bg-line">
-            <Img src={cover} alt="" fill sizes="48px" className="object-cover" />
+          // House chats: the House's photo in a rounded square 56px.
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl bg-line">
+            <Img src={cover} alt="" fill sizes="56px" className="object-cover" />
           </span>
         ) : (
-          <span className="size-12 shrink-0 rounded-full bg-bg" />
+          <span className="size-14 shrink-0 rounded-2xl bg-surface" />
         )}
         <span className="block min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2 text-body text-ink">
             <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>{title}</span>
-            {time && <span className="shrink-0 text-small text-muted">{time}</span>}
+            {time && <span className="shrink-0 text-small text-ink/40">{time}</span>}
           </span>
-          {(subtitle ?? dates) && <span className="block truncate text-small text-muted">{subtitle ?? dates}</span>}
+          {subtitle && <span className="block truncate text-small text-muted">{subtitle}</span>}
           {/* Unread: the preview in ink semibold, and the orange dot. */}
           <span className={cn("block truncate text-small", unread ? "font-semibold text-ink" : "text-muted")}>{preview}</span>
         </span>

@@ -1,11 +1,12 @@
 "use client";
 
+import { BackButton } from "@/components/ui/BackButton";
 import { Check, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
+import { HeroBand, HeroPhotos } from "@/components/HeroBand";
 import { useState, type ReactNode, type Ref } from "react";
-import { HouseCard } from "@/components/HouseCard";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { Button } from "@/components/ui/ActionButton";
 import { RowHead } from "@/components/ui/CardRow";
@@ -15,9 +16,9 @@ import { useViewerAmount } from "@/components/ui/PriceLine";
 import { useToast } from "@/components/ui/Toast";
 import type { GuestJourney, GuestStepKey } from "@/config/house-steps";
 import { useFormat } from "@/i18n/format";
-import { getMyPayment, useStore } from "@/lib/store";
+import { crewInOf, getMyPayment, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
-import { cn, firstName, googleMapsUrl, openSpots } from "@/lib/utils";
+import { cn, firstName, googleMapsUrl, housePhotos, openSpots } from "@/lib/utils";
 import { CrewVotes } from "./CrewVotes";
 
 /** What the current step asks: its title, one sentence, an action (or none) – for the head and the floating bar alike. */
@@ -79,18 +80,18 @@ function Stepper({ journey }: { journey: GuestJourney }) {
               aria-hidden
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded-full",
-                step.state === "done" ? "bg-[#F4EEE7] text-[#221E1B]" : step.state === "current" ? "bg-accent/20" : "border-[1.5px] border-[#F4EEE7]/30",
+                step.state === "done" ? "bg-ink text-inverse" : step.state === "current" ? "bg-accent/20" : "border-[1.5px] border-ink/30",
               )}
             >
               {step.state === "done" && <Check className="size-3" strokeWidth={3} />}
               {step.state === "current" && <span className="size-2 rounded-full bg-accent" />}
             </span>
-            {i < journey.steps.length - 1 && <span aria-hidden className={cn("h-px flex-1", step.state === "done" ? "bg-[#F4EEE7]/60" : "bg-[#F4EEE7]/15")} />}
+            {i < journey.steps.length - 1 && <span aria-hidden className={cn("h-px flex-1", step.state === "done" ? "bg-ink/60" : "bg-ink/15")} />}
           </span>
-          <span className={cn("max-sm:hidden", step.state === "todo" ? "text-[#F4EEE7]/50" : "text-[#F4EEE7]")}>
+          <span className={cn("max-sm:hidden", step.state === "todo" ? "text-ink/50" : "text-ink")}>
             <span className={cn("block truncate text-small", step.state === "current" && "font-semibold")}>{label(step.key)}</span>
-            {step.key === "crew" && journey.together && <span className="block truncate text-small text-[#F4EEE7]/50">{t("crewAndPlace")}</span>}
-            {step.key === "arrival" && journey.booked && <span className="block truncate text-small text-[#F4EEE7]/60">{t("bookedCheck")}</span>}
+            {step.key === "crew" && journey.together && <span className="block truncate text-small text-ink/50">{t("crewAndPlace")}</span>}
+            {step.key === "arrival" && journey.booked && <span className="block truncate text-small text-ink/60">{t("bookedCheck")}</span>}
           </span>
         </li>
       ))}
@@ -104,26 +105,27 @@ function Stepper({ journey }: { journey: GuestJourney }) {
  * them the current step large (its title 28px, the sentence muted, its action a cream button) beside the crew's faces with the empty spots.
  */
 export function MemberHero({ stay, host, crew, journey, content, chatHref, onLeave, ref }: { stay: Stay; host?: User; crew: User[]; journey: GuestJourney; content: StepContent; chatHref: string | null; onLeave: () => void; ref?: Ref<HTMLElement> }) {
+  const tBack = useTranslations("common");
   const t = useTranslations("house.steps");
   const format = useFormat();
   return (
-    <section ref={ref} aria-labelledby="house-title" className="grid gap-4 split:grid-cols-[minmax(0,min(33.333%,448px))_minmax(0,1fr)] split:gap-5">
-      <div className="relative mx-auto w-full max-w-130 split:max-w-none">
-        <div aria-hidden className="hidden aspect-4/5 split:block" />
-        <div className="split:absolute split:inset-0">
-          <HouseCard stay={stay} host={host} gallery notch="none" className="split:aspect-auto split:h-full" />
-        </div>
-      </div>
-      <div className="ember ember-scope flex min-w-0 flex-col gap-6 rounded-3xl p-6 sm:p-8 split:p-10">
+    // The House as the page's main object: the full-width band (components/HeroBand), the same for every role.
+    <HeroBand ref={ref} aria-labelledby="house-title" media={<HeroPhotos photos={housePhotos(stay, host)} />}>
+      <div className="flex h-full min-w-0 flex-col gap-6">
         {/* Phones: the actions sit above the title, so the title gets the whole width. */}
         <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-eyebrow uppercase text-ink/60">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
-            <h1 id="house-title" className="mt-2 text-hero text-ink">
+            <div className="flex items-center gap-2">
+              {/* The way back: phones and the installed app. */}
+              <BackButton fallback="/your-houses" label={tBack("back")} />
+              <p className="text-eyebrow uppercase text-ink/60">{stay.customVibe?.trim() || format.vibe(stay.vibe)}</p>
+            </div>
+            <h1 id="house-title" className="mt-2 line-clamp-2 text-hero text-ink">
               {stay.title}
             </h1>
-            <p className="mt-2 text-body-lg text-muted">
-              {format.stayDatesLong(stay)} · {format.placeLabel(stay)}
+            {/* As in the visitor's head: 20px, one line, the area and the city – no country. */}
+            <p className="mt-3 truncate text-h3 font-normal text-muted">
+              {format.stayDatesLong(stay)} · {stay.location.area ? `${stay.location.area}, ${stay.location.city || stay.city}` : stay.location.city || stay.city || stay.region.split(",")[0]}
             </p>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2">
@@ -169,7 +171,7 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
           </div>
         </div>
       </div>
-    </section>
+    </HeroBand>
   );
 }
 
@@ -180,6 +182,7 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
  */
 export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
   const t = useTranslations("house.steps.sections");
+  const store = useStore();
   const tPage = useTranslations("house.page");
   const format = useFormat();
   const together = stay.accommodationStatus !== "locked";
@@ -193,7 +196,7 @@ export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
   return (
     <>
       <section aria-labelledby="house-member-crew">
-        <RowHead id="house-member-crew" title={t("crew", { filled: stay.spotsFilled, open: openSpots(stay) })} />
+        <RowHead id="house-member-crew" title={t("crew", { filled: crewInOf(store, stay), open: openSpots(stay) })} />
         <CrewRow stay={stay} crew={crew} size="lg" names className="mt-4" />
       </section>
 

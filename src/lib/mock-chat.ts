@@ -197,22 +197,28 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
       // Story beats in order; chatter fills the gaps up to `total`. Payments and the lock never show here – they're on
       // the House page.
       const beats: Message[] = [];
-      for (const member of members) {
+      // Each member greets with a different line (they repeat only past the list's end).
+      const greetingOffset = between(random, 0, GREETINGS.length - 1);
+      members.forEach((member, m) => {
         beats.push(line("joined", { name: userName(member) }));
-        beats.push(say(member, fill(pick(random, GREETINGS), { name: userName(host), city, activity })));
-      }
+        beats.push(say(member, fill(GREETINGS[(m + greetingOffset) % GREETINGS.length], { name: userName(host), city, activity })));
+      });
       if (stay.spotsFilled >= stay.spotsTotal) beats.push(line("crewComplete"));
       const linkCount = between(random, 2, 3);
+      const linkOffset = between(random, 0, LINK_INTROS.length - 1);
       for (let i = 0; i < linkCount; i++) {
         const url = i === linkCount - 1 && stay.accommodationLink ? stay.accommodationLink : `https://www.${pick(random, ["airbnb.com/rooms", "booking.com/hotel"])}/${stay.slug}-${i + 1}`;
-        beats.push(say(pick(random, people), `${pick(random, LINK_INTROS)} ${url}`, { type: "link" }));
+        // Each link its own intro – never the same line twice in one chat.
+        beats.push(say(pick(random, people), `${LINK_INTROS[(i + linkOffset) % LINK_INTROS.length]} ${url}`, { type: "link" }));
       }
       beats.push(say(pick(random, people), fill(pick(random, PLANS), { name: "", city, activity })));
-      const imageCount = between(random, 1, 2);
+      // Photos from the House's own (local, public/mock/houses) – never an outside image host that may not answer.
+      const pool = stay.photos ?? [];
+      const imageCount = pool.length > 0 ? between(random, 1, 2) : 0;
       for (let i = 0; i < imageCount; i++) {
-        const attachments: Attachment[] = Array.from({ length: i === 0 ? 1 : between(random, 2, 3) }, (_, n) => ({
+        const attachments: Attachment[] = Array.from({ length: i === 0 ? 1 : 2 }, (_, n) => ({
           kind: "image",
-          url: `https://picsum.photos/seed/${thread.id}-img${i}-${n}/900/700`,
+          url: pool[(i * 2 + n + 1) % pool.length],
           name: `IMG_${2040 + i * 10 + n}.jpg`,
         }));
         beats.push(say(pick(random, people), i === 0 ? "View from the place 😍" : "", { type: "image", attachments }));
@@ -221,6 +227,7 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
       // Spread beats across the history.
       beats.forEach((_, i) => beatSlots.add(Math.min(total - 1, Math.round(((i + 1) / (beats.length + 2)) * total))));
       let beat = 0;
+      const usedLines = new Set<string>();
       for (let i = 0; i < total; i++) {
         if (beatSlots.has(i) && beat < beats.length) {
           generated.push(beats[beat++]);
@@ -228,8 +235,17 @@ export function withMockHistory(threads: Thread[], seed: Seed): { threads: Threa
         }
         const from = pick(random, people);
         const roll = random();
+        // A line of logistics or chatter appears once per chat (a second "Found a great … place" reads like a bug); emoji may repeat.
+        const fresh = (lines: readonly string[]) => {
+          const unused = lines.filter((line) => !usedLines.has(line));
+          const line = pick(random, unused.length > 0 ? unused : lines);
+          usedLines.add(line);
+          return line;
+        };
         const text =
-          roll < 0.12 ? pick(random, EMOJI_REPLIES) : roll < 0.5 ? fill(pick(random, LOGISTICS), { name: someoneElse(from), city, activity }) : fill(pick(random, CHATTER), { name: someoneElse(from), city, activity });
+          roll < 0.12 ? pick(random, EMOJI_REPLIES) : roll < 0.5 ? fill(fresh(LOGISTICS), { name: someoneElse(from), city, activity }) : fill(fresh(CHATTER), { name: someoneElse(from), city, activity });
+        // Never the same text twice in a row from the generator.
+        if (generated.at(-1)?.text === text) continue;
         generated.push(say(from, text));
       }
       while (beat < beats.length) generated.push(beats[beat++]);

@@ -56,6 +56,8 @@ const nextConfig: NextConfig = {
       { source: "/my-stays/:id/edit", destination: "/your-houses/:id/edit", permanent: true },
       { source: "/my-stays/:id", destination: "/your-houses/:id", permanent: true },
       // Messages: /messages and /messages/[threadId].
+      // One list for every chat: the old question links go to the chat itself; ?tab= is gone.
+      { source: "/messages/q/:threadId", destination: "/messages/:threadId", permanent: true },
       { source: "/inbox", destination: "/messages", permanent: true },
       { source: "/inbox/:threadId", destination: "/messages/:threadId", permanent: true },
     ];

@@ -225,7 +225,7 @@ function PersonRow({ user, note, on, disabled, onToggle }: { user: User; note: s
           <span className="block truncate text-body font-semibold text-ink">{firstName(user)}</span>
           <span className="block truncate text-small text-muted">{note}</span>
         </span>
-        <span aria-hidden className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-150", on ? "border-ink bg-ink text-white" : "border-ink/20 text-transparent")}>
+        <span aria-hidden className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-150", on ? "border-ink bg-ink text-inverse" : "border-ink/20 text-transparent")}>
           <Check className="size-3.5 motion-safe:transition-transform motion-safe:duration-200" strokeWidth={3} />
         </span>
       </button>
@@ -295,7 +295,7 @@ function ShareLink({ stay }: { stay: Stay }) {
       </div>
       <p className="mt-2 text-small text-muted">{t("linkHolds", { hours: INVITE_POLICY.inviteHoldHours })}</p>
       {qr && invite && (
-        <div className="mt-4 inline-block rounded-[20px] bg-[#F4EEE7] p-4">
+        <div className="mt-4 inline-block rounded-[20px] bg-stage-text p-4">
           <SimpuloQR url={inviteLink(invite.token)} size={160} refParam="invite-sheet" />
         </div>
       )}

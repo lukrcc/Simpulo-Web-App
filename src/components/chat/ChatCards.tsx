@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUpRight, FileText, RotateCcw } from "lucide-react";
+import { ArrowUpRight, FileText, ImageIcon, RotateCcw } from "lucide-react";
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { againHref } from "@/components/create/model";
 import { Button } from "@/components/ui/ActionButton";
@@ -29,7 +30,7 @@ export function DayDivider({ day }: { day: string }) {
         : new Intl.DateTimeFormat(locale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
   return (
     <div className="my-5 flex justify-center">
-      <span className="text-small text-muted">{label}</span>
+      <span className="rounded-full bg-ink/8 px-3 py-1 text-small text-ink/70">{label}</span>
     </div>
   );
 }
@@ -71,7 +72,8 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
   const shown = images.slice(0, 4);
   const single = shown.length === 1;
   return (
-    <div className={cn("grid w-[320px] max-w-full gap-1 overflow-hidden rounded-[14px]", !single && "grid-cols-2")}>
+    // Each photo radius 12, at most two side by side, 220px each.
+    <div className={cn("grid max-w-full gap-1", single ? "w-[220px]" : "w-[444px] grid-cols-2")}>
       {shown.map((image, i) => (
         <button
           key={image.url}
@@ -79,13 +81,13 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
           onClick={() => onOpen(i)}
           aria-label={t("openPhoto", { index: i + 1, count: images.length })}
           className={cn(
-            "relative overflow-hidden bg-bg outline-none focus-visible:ring-2 focus-visible:ring-ink/25",
+            "relative overflow-hidden rounded-xl bg-(--bubble-other) outline-none focus-visible:ring-2 focus-visible:ring-ink/25",
             single ? "aspect-[4/3]" : shown.length === 3 && i === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square",
           )}
         >
-          <Img src={image.url} alt={image.name ?? ""} fill sizes="320px" className="object-cover transition-transform hover:scale-[1.02]" />
+          <ChatImage src={image.url} alt={image.name ?? ""} sizes="220px" />
           {i === 3 && images.length > 4 && (
-            <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-body-lg font-semibold text-white">
+            <span className="absolute inset-0 flex items-center justify-center bg-shade/45 text-body-lg font-semibold text-on-image">
               +{images.length - 4}
             </span>
           )}
@@ -93,6 +95,19 @@ export function ImageGrid({ images, onOpen }: { images: Attachment[]; onOpen: (i
       ))}
     </div>
   );
+}
+
+/** A photo in the chat; one that doesn't load shows a calm placeholder (image icon on #33302D) instead of the browser's broken image. */
+function ChatImage({ src, alt, sizes = "320px" }: { src: string; alt: string; sizes?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !src) {
+    return (
+      <span className="absolute inset-0 flex items-center justify-center bg-(--bubble-other) text-ink/45">
+        <ImageIcon aria-hidden className="size-6" strokeWidth={1.75} />
+      </span>
+    );
+  }
+  return <Img src={src} alt={alt} fill sizes={sizes} onError={() => setFailed(true)} className="object-cover transition-transform hover:scale-[1.02]" />;
 }
 
 /** A PDF or other file in a bubble: icon, name, size – links to the file. */
@@ -107,15 +122,15 @@ export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
       download={file.name}
       className={cn(
         "flex w-64 max-w-full items-center gap-3 rounded-[20px] px-3 py-2.5 text-left",
-        mine ? "bg-[#F4EEE7] text-[#221E1B]" : "bg-[#3A332E] text-ink hover:bg-ink/10",
+        mine ? "bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink hover:bg-ink/10",
       )}
     >
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-[#221E1B]/8" : "bg-ink/5")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", mine ? "bg-shade/15" : "bg-ink/5")}>
         <FileText className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-body font-medium">{file.name ?? t("file")}</span>
-        {file.size !== undefined && <span className={cn("block text-small", mine ? "text-[#221E1B]/55" : "text-muted")}>{formatSize(file.size, locale)}</span>}
+        {file.size !== undefined && <span className={cn("block text-small", mine ? "text-ink/60" : "text-muted")}>{formatSize(file.size, locale)}</span>}
       </span>
     </a>
   );
@@ -129,11 +144,15 @@ export function ChatLinkCard({ url, mine }: { url: string; mine: boolean }) {
   const t = useTranslations("house.linkPreview");
   const preview = previewForUrl(url);
   return (
-    <div className={cn("mt-2 flex items-center gap-3 rounded-2xl p-2", mine ? "bg-[#221E1B]/6" : "bg-ink/5")}>
-      {preview.imageUrl && <Img src={preview.imageUrl} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl object-cover" />}
+    <div className={cn("mt-2 flex items-center gap-3 rounded-2xl p-2", "bg-shade/15")}>
+      {preview.imageUrl && (
+        <span className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-(--bubble-other)">
+          <ChatImage src={preview.imageUrl} alt="" sizes="64px" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-semibold">{preview.title}</p>
-        <p className={cn("truncate text-small", mine ? "text-[#221E1B]/55" : "text-muted")}>{preview.domain}</p>
+        <p className={cn("truncate text-small", mine ? "text-ink/60" : "text-muted")}>{preview.domain}</p>
         <a href={url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-small font-semibold underline-offset-4 hover:underline">
           {t("open")}
           <ArrowUpRight className="size-3.5" aria-hidden />

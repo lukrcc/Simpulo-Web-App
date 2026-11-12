@@ -118,7 +118,7 @@ export function DateRangePicker({ id, start, end, onChange, min, maxNights, inva
         aria-haspopup="dialog"
         data-invalid={invalid || undefined}
         // The form field look: 44px, surface, 1px line (red when invalid), accent focus ring.
-        className={cn(formInput, "flex items-center gap-2.5 text-left data-invalid:border-red-300")}
+        className={cn(formInput, "flex items-center gap-2.5 text-left data-invalid:border-danger")}
       >
         <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
         {start ? (

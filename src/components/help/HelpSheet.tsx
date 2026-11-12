@@ -56,7 +56,7 @@ function HelpForm({ stay, onClose }: { stay: Stay; onClose: () => void }) {
   if (number) {
     return (
       <div role="status" className="flex flex-col items-center py-4 text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-ink text-white motion-safe:animate-check-in">
+        <span className="flex size-14 items-center justify-center rounded-full bg-ink text-inverse motion-safe:animate-check-in">
           <Check className="size-7" strokeWidth={2.5} aria-hidden />
         </span>
         <p className="mt-4 text-h3 text-ink">{t("sentTitle")}</p>

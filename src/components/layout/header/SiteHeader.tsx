@@ -1,4 +1,6 @@
 "use client";
+import { cn } from "@/lib/utils";
+import { useExploreCompact } from "@/lib/exploreCompact";
 import { Plus, UserRound } from "lucide-react";
 
 import Link from "next/link";
@@ -108,6 +110,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const { mode, source, handle, auto } = useNotchState();
   // The tab and its handle only on Explore (/ and /explore); every other page has a straight bar.
   const explorePage = pathname === "/" || pathname === "/explore";
+  // Explore scrolled down: the compact bar (CompactExploreBar) takes over – this header, its tab and handle step back.
+  const compact = useExploreCompact() && explorePage;
   const handleProps = useNotchShape(refs, mode, source, handle && explorePage, auto, explorePage);
   const open = mode !== "nav";
   const closeTab = () => (mode === "panel" ? closeNotchPanel() : setNotchOpen(false));
@@ -125,6 +129,13 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
       setNotchCornerSlot(null);
     };
   }, []);
+
+  // Going compact closes a tab opened by hand (the compact bar has the filters now).
+  useEffect(() => {
+    if (!compact || source !== "manual") return;
+    if (mode === "panel") closeNotchPanel();
+    else if (mode !== "nav") setNotchOpen(false);
+  }, [compact, mode, source]);
 
   // The whole panel: the page behind it stays where it is.
   useEffect(() => (mode === "panel" ? lockScroll() : undefined), [mode]);
@@ -160,9 +171,14 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         data-notch-scrim
         onClick={closeTab}
         style={{ opacity: 0, pointerEvents: "none" }}
-        className="fixed inset-0 z-39 hidden bg-[rgba(34,30,27,0.12)] backdrop-blur-[6px] md:block"
+        className="fixed inset-0 z-39 hidden bg-(--scrim-soft) backdrop-blur-[6px] md:block"
       />
-      <header ref={headerRef} data-site-header className="fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
+      <header
+        ref={headerRef}
+        data-site-header
+        inert={compact}
+        className={cn("fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) transition-opacity duration-220 ease-out motion-reduce:transition-none md:block", compact && "pointer-events-none opacity-0")}
+      >
         {/* The soft shadow: the same shape, blurred and lower, cut away inside the shape so nothing gathers in the curves. */}
         <svg
           ref={shadowRef}
@@ -273,7 +289,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <div className="flex items-center justify-self-end">
             <Link href="/create" className={headerActionStyles}>
               <Plus aria-hidden strokeWidth={2.25} />
-              {tOpen("label")}
+              <span className="max-md:sr-only">{tOpen("label")}</span>
             </Link>
           </div>
         </Container>

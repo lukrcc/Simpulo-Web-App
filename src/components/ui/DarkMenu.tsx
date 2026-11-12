@@ -19,17 +19,17 @@ export function DarkMenuItem({ selected, children, hint, checkbox = false, class
       {...props}
       className={cn(
         "flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-body transition-colors duration-150",
-        selected ? "bg-white/12 font-semibold text-white" : "text-white/85 hover:bg-white/8 hover:text-white",
+        selected ? "bg-ink/12 font-semibold text-ink" : "text-ink/85 hover:bg-ink/8 hover:text-ink",
         className,
       )}
     >
       {checkbox && (
-        <span aria-hidden className={cn("flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors duration-150", selected ? "border-white bg-white text-ink" : "border-white/40")}>
+        <span aria-hidden className={cn("flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors duration-150", selected ? "border-ink bg-ink text-inverse" : "border-ink/40")}>
           {selected && <Check className="size-3" strokeWidth={3} />}
         </span>
       )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {hint && <span className="text-small text-white/55">{hint}</span>}
+      {hint && <span className="text-small text-ink/55">{hint}</span>}
       {!checkbox && <Check aria-hidden className={cn("size-4 shrink-0", selected ? "opacity-100" : "opacity-0")} strokeWidth={2.5} />}
     </button>
   );

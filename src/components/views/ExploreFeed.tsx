@@ -1,5 +1,7 @@
 "use client";
 
+import { CompactExploreBar } from "@/components/layout/header/CompactExploreBar";
+import { expandExploreHeader, useExploreCompactWatch } from "@/lib/exploreCompact";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
@@ -24,7 +26,6 @@ import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { useHeaderTheme } from "@/lib/headerTheme";
 import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
 import { useFormat } from "@/i18n/format";
@@ -164,7 +165,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     [store.stays, store.joinRequests, today],
   );
   const hostPremium = useFeatureFlag("hostPremium");
-  const headerTheme = useHeaderTheme();
 
   // Options with how many Houses each would show alongside the other filters.
   const languageOptions = useMemo<CheckOption[]>(
@@ -281,8 +281,12 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   };
   const openOfVibe = (vibe: Vibe) => listed.filter((s) => s.vibe === vibe && s.acceptingRequests).length;
   const chipRow = showVibes && <CategoryRow {...vibeRow} />;
+  const preLaunch = !scoped && isPreLaunch(store.stays);
+  // Explore itself (not a city / vibe / collection page, not before the launch): scrolled down, header and filters become one compact bar.
+  const compactBar = !scoped && !headless && !preLaunch;
+  useExploreCompactWatch(compactBar);
   // Before the launch: no Spotlight, no grid. The slogan and the same search, ending where an empty result ends.
-  if (!scoped && isPreLaunch(store.stays)) return <ExplorePrelaunch />;
+  if (preLaunch) return <ExplorePrelaunch />;
 
   const useTab = inBar && mouse;
   const openPanel = () => (useTab ? setNotchStage(2) : setSheetOpen(true));
@@ -310,6 +314,10 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     // Rows: the label left (150px), the content right, 16px above and below, a 1px line (ink 7 %) between. No "Any": nothing picked means
     // all. Compact enough to fit without scrolling at 1440 × 900.
     <div className="flex flex-col divide-y divide-ink/7">
+      {/* The sort, here too: the compact bar has no room for it (it sits beside "Open Houses" and in the tab otherwise). */}
+      <FilterRow label={t("sort")}>
+        <PickOptions label={t("sort")} options={sortOptions} value={[filters.sort]} onChange={(sort) => sort[0] && update({ sort: sort[0] })} />
+      </FilterRow>
       <FilterRow label={tf("whereWhenRow")}>
         <div className="grid grid-cols-2 gap-3">
           <PlaceField size="panel" value={filters.place} onChange={(place) => update({ place })} className="w-full max-w-none" />
@@ -372,7 +380,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       )}
       {/* The panel's one primary: it only closes – the filters apply live. */}
       {/* In the dark header the panel's one main action is cream (the light header: ink). */}
-      <Button variant={headerTheme === "dark" && useTab ? "cream" : "primary"} size="md" onClick={close}>
+      <Button variant="primary" size="md" onClick={close}>
         {/* One span: inside the button's flex row, "Show", the number and "houses" would each be an item with 8px gaps instead of spaces. */}
         <span>{tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}</span>
       </Button>
@@ -382,6 +390,32 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const RowWrap = headless ? "div" : Container;
   return (
     <div className="explore-root">
+      {compactBar && (
+        <CompactExploreBar
+          search={<SearchField place={filters.place} month={filters.month} onChange={update} />}
+          shortTrips={
+            <ShortTripsToggle
+              label={tf("shortTrips")}
+              active={filters.lengths.includes("weekend")}
+              onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
+            />
+          }
+          categories={showVibes && <CategoryRow {...vibeRow} icons arrow />}
+          // "All filters" opens the panel in the header's tab: the full header comes back first.
+          filters={
+            <FiltersButton
+              variant="compact"
+              count={panelCount}
+              expanded={panelOpen}
+              onClick={() => {
+                if (useTab) expandExploreHeader();
+                openPanel();
+              }}
+            />
+          }
+          mobileFilters={<FiltersButton variant="icon" count={panelCount} expanded={panelOpen} onClick={openPanel} />}
+        />
+      )}
       {/* City / vibe pages, and phones: the chips, Sort and Filters as a plain sticky row at the top of the page. */}
       {!inBar && (
         <div className={cn("filter-row header-surface sticky top-(--header-total) z-30", !headless && "md:hidden")}>

@@ -27,13 +27,13 @@ export function NotchGrip({ hover = false, active = false, line = false }: { hov
         width: 32,
         height: 12,
         borderRadius: 6,
-        backgroundColor: hover ? "rgba(34, 30, 27, 0.09)" : "rgba(34, 30, 27, 0.05)",
+        backgroundColor: hover ? "color-mix(in srgb, var(--text) 9%, transparent)" : "color-mix(in srgb, var(--text) 5%, transparent)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
         transition: TRANSITION,
       }}
     >
-      <span style={{ display: "block", width: 14, height: 2, borderRadius: 1, backgroundColor: `color-mix(in srgb, var(--muted) ${hover ? 80 : 50}%, transparent)`, transition: TRANSITION }} />
+      <span style={{ display: "block", width: 14, height: 2, borderRadius: 1, backgroundColor: `color-mix(in srgb, var(--text-muted) ${hover ? 80 : 50}%, transparent)`, transition: TRANSITION }} />
     </span>
   );
 }

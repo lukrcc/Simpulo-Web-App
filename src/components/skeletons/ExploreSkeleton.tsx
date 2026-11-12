@@ -22,7 +22,7 @@ export function ExploreSkeleton() {
       {/* Same shape as the Spotlight: a rounded card in the 16px / 32px gutter. */}
       {/* From lg on the stage, like the Spotlight, so the header is transparent from the first paint. */}
       <StageBand from="lg">
-        <div className="page-container pt-[calc(12px+env(safe-area-inset-top))] md:pt-8">
+        <div className="page-container pt-[calc(12px+var(--safe-top))] md:pt-8">
           <div className="h-[60dvh] min-h-110 rounded-3xl bg-ink/5 md:h-160 md:min-h-0" />
         </div>
       </StageBand>

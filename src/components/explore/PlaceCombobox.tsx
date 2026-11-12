@@ -1,12 +1,13 @@
 "use client";
 
+import { placeImageOf } from "@/config/place-images";
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { Img } from "@/components/ui/Img";
 import { searchPlaces } from "@/lib/data";
-import { ALL_PLACES, coverOf, placeKindOf } from "@/lib/data/places";
+import { ALL_PLACES, placeKindOf } from "@/lib/data/places";
 import { isListedStay } from "@/lib/launch";
 import { stayInPlace, type SearchPlace } from "@/lib/savedSearches";
 import { useStore } from "@/lib/store";
@@ -98,10 +99,10 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
         <ul id={`${id}-suggestions`} role="listbox" className="mt-2 max-h-80 overflow-y-auto overscroll-contain">
           {suggestions.map((place, i) => {
             const kind = placeKindOf(place.id);
-            const cover = coverOf(place.id);
+            const cover = placeImageOf(place.id);
             return (
               <li key={place.id} id={`${id}-option-${i}`} role="option" aria-selected={i === active}>
-                <button type="button" onClick={() => onPick(place)} className={cn("flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-body hover:bg-white/50", i === active && "bg-white/50")}>
+                <button type="button" onClick={() => onPick(place)} className={cn("flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-body hover:bg-ink/5", i === active && "bg-ink/5")}>
                   {cover && (
                     <span className="relative size-10 shrink-0 overflow-hidden rounded-xl">
                       <Img src={cover} alt="" fill sizes="40px" className="object-cover" />

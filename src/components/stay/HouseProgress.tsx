@@ -12,7 +12,7 @@ import { downloadIcs } from "@/lib/ics";
 import { linkDomain } from "@/lib/links";
 import { convertApprox } from "@/lib/rates";
 import { hoursLeft } from "@/lib/requests";
-import { getCrew, getMyPayment, paymentProgress, paymentStatus, useStore } from "@/lib/store";
+import { crewInOf, getCrew, getMyPayment, paymentProgress, paymentStatus, useStore } from "@/lib/store";
 import type { JoinRequest, Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { cn, firstName, googleMapsUrl, openSpots } from "@/lib/utils";
@@ -47,7 +47,7 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
           <li key={step.key} className={cn("flex min-w-0 items-center gap-2", i < steps.length - 1 && "flex-1")}>
             <span aria-hidden className="relative flex size-5 shrink-0 items-center justify-center">
               {state === "done" && (
-                <span className="flex size-5 items-center justify-center rounded-full bg-ink text-white">
+                <span className="flex size-5 items-center justify-center rounded-full bg-ink text-inverse">
                   <Check className="size-3" strokeWidth={3} />
                 </span>
               )}
@@ -74,7 +74,7 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
 /** The one card under the stepper: what the current step is about and its action. At most 640px, left-aligned. */
 export function StepCard({ children, id }: { children: ReactNode; id?: string }) {
   return (
-    <section id={id} className="flex max-w-[640px] scroll-mt-[calc(var(--header-total)+24px)] flex-col gap-4 rounded-[20px] bg-(--card) p-6">
+    <section id={id} className="flex max-w-[640px] scroll-mt-[calc(var(--header-total)+24px)] flex-col gap-4 rounded-[20px] bg-(--surface) p-6">
       {children}
     </section>
   );
@@ -186,7 +186,7 @@ function CrewPaid({ stay }: { stay: Stay }) {
         return (
           <li key={u.id} className="relative">
             <Avatar user={u} size="md" className={paid ? undefined : "opacity-60"} />
-            <span aria-hidden className={cn("absolute -bottom-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full ring-2 ring-(--card)", paid ? "bg-ink text-white" : "bg-ink/15 text-ink")}>
+            <span aria-hidden className={cn("absolute -bottom-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full ring-2 ring-(--surface)", paid ? "bg-ink text-inverse" : "bg-ink/15 text-ink")}>
               {paid ? <Check className="size-2.5" strokeWidth={3.5} /> : <Clock className="size-2.5" strokeWidth={3} />}
             </span>
             <span className="sr-only">{`${firstName(u)}: ${paid ? "paid" : "open"}`}</span>
@@ -324,7 +324,7 @@ export function GuestProgress({
     // In, nothing to pay yet: the crew filling up, or the place being decided.
     card = (
       <>
-        {sentence(openVote(stay, "accommodation") ? t("next.voting") : tCard("payLater", { filled: stay.spotsFilled, total: stay.spotsTotal }))}
+        {sentence(openVote(stay, "accommodation") ? t("next.voting") : tCard("payLater", { filled: crewInOf(store, stay), total: stay.spotsTotal }))}
         <div className="flex flex-wrap items-center gap-3">
           {openVote(stay, "accommodation") && chat && <Button size="md" href={chat}>{t("next.openChat")}</Button>}
         </div>

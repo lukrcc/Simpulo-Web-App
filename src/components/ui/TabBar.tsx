@@ -38,7 +38,7 @@ export function TabBar<T extends string>({ options, value, onChange, label, clas
             {option.label}
             {option.dot && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
             {option.count ? (
-              <span aria-hidden className="flex size-4.5 items-center justify-center rounded-full bg-accent text-small text-white">
+              <span aria-hidden className="flex size-4.5 items-center justify-center rounded-full bg-accent text-small text-on-signal">
                 {option.count}
               </span>
             ) : null}

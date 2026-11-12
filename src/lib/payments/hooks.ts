@@ -37,8 +37,9 @@ export function usePayoutAccount(): { status: PayoutAccountStatus | null; last4?
   const me = useStore().currentUserId;
   // The Dev menu's "Host without payouts" changes the answer: read again when it's switched.
   const withoutPayouts = useFeatureFlag("simulateHostWithoutPayouts");
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- withoutPayouts only re-reads
-  const read = useCallback(() => (me ? payments.getPayoutAccountStatus(me) : Promise.resolve({ status: "none" as const })), [me, withoutPayouts]);
+  const actionNeeded = useFeatureFlag("simulateOnboardingActionRequired");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the flags only re-read
+  const read = useCallback(() => (me ? payments.getPayoutAccountStatus(me) : Promise.resolve({ status: "none" as const })), [me, withoutPayouts, actionNeeded]);
   const [account, refresh] = usePolled(me ? read : null, (a) => a.status === "pending");
   return { status: account?.status ?? null, last4: account?.last4, refresh };
 }

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialLinks } from "@/components/SocialLinks";
-import { ProHostLabel } from "@/components/ui/ProHostLabel";
+import { ProHostBadge } from "@/components/ui/ProHostLabel";
 import { cardClass } from "@/components/ui/Card";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -42,7 +42,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
             {user.city && ` · ${t("basedIn", { city: user.city })}`}
           </p>
           {stats && <p className="mt-0.5 text-small text-muted">{stats}</p>}
-          <ProHostLabel user={user} className="mt-1.5" />
+          <ProHostBadge user={user} tone="light" tagline className="mt-1.5" />
         </div>
       </div>
 

@@ -6,18 +6,23 @@ export type ButtonVariant = "primary" | "secondary" | "tertiary" | "soft" | "onI
 /** md 44px, the standard · sm 36px · lg 48px (a list's "Show more"). */
 export type ButtonSize = "md" | "sm" | "lg";
 
+// Every colour from the ground's tokens (src/styles/tokens.css): on the light floor the primary is ink with cream words, on a stage or a dark
+// floor cream with ink words – the same classes.
+const primaryLook =
+  "bg-(--action-bg) text-(--action-text) shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-(--action-hover) hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none";
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-ink bg-[linear-gradient(to_bottom,#2E2925,#221E1B)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-[#3A3430] hover:bg-none hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:bg-none disabled:text-muted disabled:shadow-none",
-  secondary: "border border-ink/10 bg-(--select-bg) text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px hover:border-ink/20 hover:bg-white disabled:translate-y-0 disabled:text-muted",
+  primary: primaryLook,
+  // Light floor: a raised warm white; on a dark ground a 1px cream 25 % outline (--secondary-*).
+  secondary: "border border-(--secondary-edge) bg-(--secondary-bg) text-ink shadow-(--secondary-shadow) hover:-translate-y-px hover:bg-(--secondary-hover) disabled:translate-y-0 disabled:text-muted",
   tertiary: "text-ink hover:bg-ink/6 disabled:text-muted disabled:hover:bg-transparent",
   // A filled quiet surface, no black: "Filters" and a list's "Show more" – there for the taking, never the main action.
   soft: "bg-ink/7 text-ink hover:bg-ink/12 disabled:cursor-default",
   // On a photo, and only there.
   onImage: "on-image",
-  // On an Ember surface (the House page's head and its floating bar), and only there: the main action is cream with ink words …
-  cream: "bg-[#F4EEE7] text-[#221E1B] shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] hover:-translate-y-px hover:bg-white hover:shadow-[0_6px_16px_rgba(0,0,0,0.28)] disabled:translate-y-0 disabled:bg-[#F4EEE7]/15 disabled:text-[#F4EEE7]/60 disabled:shadow-none",
-  // … the others a cream outline.
-  creamOutline: "border border-[#F4EEE7]/40 text-[#F4EEE7] hover:-translate-y-px hover:border-[#F4EEE7]/70 hover:bg-[#F4EEE7]/8 disabled:translate-y-0 disabled:text-[#F4EEE7]/50",
+  // The stage's main action – the primary itself (on a stage it is cream with ink words by the tokens).
+  cream: primaryLook,
+  // The stage's other actions: a 1px outline in the words' colour at 25 %.
+  creamOutline: "border border-ink/25 text-ink hover:-translate-y-px hover:bg-ink/6 disabled:translate-y-0 disabled:text-ink/50",
 };
 
 const sizes: Record<ButtonSize, string> = { md: "h-11 px-5", sm: "h-9 px-4", lg: "h-12 px-6" };
@@ -76,9 +81,10 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
   );
 }
 
-/** "Open a House" in the header: the header's one dark button (ink, white text, a plus before it), 36px; everything else in the header stays light. */
+/**
+ * "Open a House" in the header (graphite): a 1px cream 25 % outline, cream words and plus, hover cream 6 %; 36px, padding 0 16px, 15px semibold,
+ * fully round, the plus a 16px block on the text's centre line. Below 768px only the plus, a circle of the same height.
+ */
 export const headerActionStyles = cn(
-  // "Open a House": the outline button – no fill, no gradient, a 1.5px ink edge, ink text and plus; hover ink 5 %. Exactly the tab capsule's
-  // active pill: 36px, padding 0 16px, 15px semibold, fully round; the plus a 16px block on the text's centre line.
-  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border-[1.5px] border-ink bg-transparent px-4 text-nav-main font-semibold text-ink transition-colors duration-150 hover:bg-ink/5 [&_svg]:block [&_svg]:size-4",
+  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-ink/25 bg-transparent px-4 text-nav-main font-semibold text-ink transition-colors duration-150 hover:bg-ink/6 max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
 );

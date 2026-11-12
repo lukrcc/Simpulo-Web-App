@@ -20,7 +20,7 @@ import { useViewerPriceLabel } from "@/components/ui/PriceLine";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { useFormat } from "@/i18n/format";
 import { rememberOrigin } from "@/lib/houseTransition";
-import { getCurrentUser, isInvitedTo, useStore } from "@/lib/store";
+import { crewInOf, getCurrentUser, isInvitedTo, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
@@ -200,7 +200,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {!spotlight && !gallery && <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
-        {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-black opacity-0" />}
+        {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-shade opacity-0" />}
 
         {!preview && !spotlight && !calm && (
           <div className="absolute right-2 top-2 z-10 flex">
@@ -210,10 +210,10 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {calm && menu && <div className="absolute right-3 top-3 z-10 flex">{menu}</div>}
 
         {/* Bottom: title (up to two lines, then an ellipsis), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
-        <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-white", cardTextShadow)}>
+        <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-on-image", cardTextShadow)}>
           {invited && footer === "explore" && <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>}
           <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
-          <p className="mt-1 truncate text-small text-white/85">
+          <p className="mt-1 truncate text-small text-on-image/85">
             {format.stayDates(stay)}
             {stay.region && ` · ${format.placeName(stay)}`}
           </p>
@@ -225,22 +225,22 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                     and members they open the invite sheet. */}
                 <CrewRow stay={stay} crew={crew.filter((member) => faceOf(member) !== "hidden")} size="xs" tone="image" max={5} className="pointer-events-auto shrink-0" />
                 {liveDot && <span role="img" aria-label={tHome("unreadNews")} className="size-2 shrink-0 rounded-full bg-accent" />}
-                <span className="truncate text-small text-white/85">{live ?? tHome("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>
+                <span className="truncate text-small text-on-image/85">{live ?? tHome("crewOf", { filled: crewInOf(store, stay), total: stay.spotsTotal })}</span>
               </span>
               {status && <span className="pointer-events-auto flex shrink-0 items-center gap-2 [text-shadow:none]">{status}</span>}
             </div>
           ) : (
             <>
               {/* After the title the most important line. Every card has it: without a price, "Price set with crew". */}
-              <p className="mt-1 truncate text-body font-semibold text-white">{priceLabel}</p>
+              <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
               {/* One of your people is in it: that before the host's note – "Anna is in" / "Hosted by Tom from your people". */}
               {signal ? (
-                <p className="mt-1 flex items-center gap-1.5 text-small font-semibold text-white">
-                  <PersonPhoto src={signal.user.photos[0]} alt="" size={16} className="size-4 shrink-0 border border-white/60" />
+                <p className="mt-1 flex items-center gap-1.5 text-small font-semibold text-on-image">
+                  <PersonPhoto src={signal.user.photos[0]} alt="" size={16} className="size-4 shrink-0 border border-on-image/60" />
                   <span className="truncate">{signal.role === "host" ? tPeople("hostedBy", { name: firstName(signal.user) }) : tPeople("isIn", { name: firstName(signal.user), others: signal.count - 1 })}</span>
                 </p>
               ) : stay.hostNote && (
-                <p className="mt-1 flex items-center gap-1.5 text-small text-white/75">
+                <p className="mt-1 flex items-center gap-1.5 text-small text-on-image/75">
                   <MessageCircle className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{stay.hostNote}</span>
                 </p>
@@ -274,7 +274,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
               <div className="absolute inset-x-0 bottom-2 flex justify-center">
                 {photos.map((src, i) => (
                   <button key={src} type="button" onClick={() => scrollTo(i)} aria-label={t("cards.showPhoto", { number: i + 1, count: photos.length })} aria-current={i === active || undefined} data-no-tooltip className="flex h-5 items-center px-0.5">
-                    <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-surface" : "w-1 bg-white/50")} />
+                    <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-on-image" : "w-1 bg-on-image/50")} />
                   </button>
                 ))}
               </div>
@@ -291,7 +291,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
 /** footer="status", nothing to do: a chip in dark glass (like IconButton onImage), white text; `attention` adds the orange dot. */
 export function CardStatusChip({ children, attention = false }: { children: ReactNode; attention?: boolean }) {
   return (
-    <span className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(20,18,16,0.28)] px-2.5 text-small font-medium text-white backdrop-blur-md backdrop-saturate-[1.4]">
+    <span className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-(--image-glass) px-2.5 text-small font-medium text-on-image backdrop-blur-md backdrop-saturate-[1.4]">
       {attention && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
       {children}
     </span>
@@ -308,7 +308,7 @@ export function CardStatusAction({ children, onClick, dot = true }: { children: 
         e.stopPropagation();
         onClick();
       }}
-      className="press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
+      className="press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-on-image/80 px-3.5 text-small font-semibold text-stage shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-on-image"
     >
       {dot && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
       {children}

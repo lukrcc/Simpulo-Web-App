@@ -22,7 +22,7 @@ export function LanguageChips({ languages, variant = "light", compact = false, c
             "shrink-0 rounded-full",
             compact ? "px-2.5 py-0.5 text-small" : "px-3 py-1 text-body",
             variant === "glass"
-              ? "border border-white/20 bg-white/15 text-small font-medium text-white backdrop-blur-md"
+              ? "border border-on-image/20 bg-on-image/15 text-small font-medium text-on-image backdrop-blur-md"
               : "bg-bg text-ink",
           )}
         >

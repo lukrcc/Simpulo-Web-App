@@ -18,7 +18,7 @@ const TEXT_SHADOW = cardTextShadow;
 
 /** A line of the building card: its placeholder bar until the answer is there, then the answer comes in. */
 function Reveal({ ready, width, className, children }: { ready: boolean; width: string; className?: string; children: ReactNode }) {
-  if (!ready) return <span aria-hidden className={cn("my-1 block h-3 rounded-full bg-white/35", className)} style={{ width }} />;
+  if (!ready) return <span aria-hidden className={cn("my-1 block h-3 rounded-full bg-on-image/35", className)} style={{ width }} />;
   return <div className={cn("reveal-in", className)}>{children}</div>;
 }
 
@@ -44,7 +44,7 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
             <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />
           </div>
         )}
-        <div className={cn("absolute inset-x-0 bottom-0 px-5 pb-8", cover ? cn("text-white", TEXT_SHADOW) : "text-ink")}>
+        <div className={cn("absolute inset-x-0 bottom-0 px-5 pb-8", cover ? cn("text-on-image", TEXT_SHADOW) : "text-ink")}>
           <Reveal ready={theme !== null} width="28%">
             <p className="mb-1 truncate text-eyebrow uppercase">{theme}</p>
           </Reveal>

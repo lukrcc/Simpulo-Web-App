@@ -20,7 +20,7 @@ export function DemoLoginForm() {
       <input type="hidden" name="next" value={next} />
       <input type="password" name="password" required autoFocus autoComplete="current-password" aria-label={t("password")} placeholder={t("password")} aria-invalid={state.failed || undefined} className={formInput} />
       {state.failed && (
-        <p role="alert" className="text-small text-red-600">
+        <p role="alert" className="text-small text-danger">
           {t("wrong")}
         </p>
       )}

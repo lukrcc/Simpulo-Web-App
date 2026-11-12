@@ -19,7 +19,7 @@ export function FilterRow({ label, count = 0, aside, children, className }: { la
       <span className="flex items-center gap-2 text-nav font-semibold text-ink">
         {label}
         {count > 0 && (
-          <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-white tabular-nums">
+          <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
             {count}
           </span>
         )}
@@ -90,19 +90,19 @@ function SearchableChecklist<T extends string | number>({ label, options, value,
     <div className="flex max-h-[calc(20rem-12px)] flex-col">
       <label className="relative mb-1 block shrink-0">
         <span className="sr-only">{t("searchIn", { label })}</span>
-        <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/50" />
+        <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/50" />
         <input
           autoFocus
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("searchPlaceholder")}
-          className="h-10 w-full rounded-xl bg-white/10 pl-9 pr-3 text-body text-white outline-none placeholder:text-white/50 focus:ring-2 focus:ring-white/30"
+          className="h-10 w-full rounded-xl bg-ink/10 pl-9 pr-3 text-body text-ink outline-none placeholder:text-ink/50 focus:ring-2 focus:ring-ink/30"
         />
       </label>
       <div role="group" aria-label={label} className="min-h-0 overflow-y-auto overscroll-contain">
         {shown.length === 0 ? (
-          <p className="px-3 py-2.5 text-small text-white/60">{t("noMatch")}</p>
+          <p className="px-3 py-2.5 text-small text-ink/60">{t("noMatch")}</p>
         ) : (
           shown.map((o) => {
             const on = value.includes(o.value);

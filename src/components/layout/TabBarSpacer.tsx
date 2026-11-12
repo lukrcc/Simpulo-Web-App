@@ -6,7 +6,7 @@ import { useMobileChrome } from "./mobileChrome";
 import { hidesTabBar } from "./nav";
 
 /** Floating pill (64px, 12px above the bottom) + 16px; also clears the House page's sticky CTA. */
-export const PILL_SPACER = "h-[calc(92px+env(safe-area-inset-bottom))]";
+export const PILL_SPACER = "h-[calc(92px+var(--safe-bottom))]";
 
 /**
  * Mobile-only space at the end of the footer so nothing hides behind the bottom bar. Uses usePathname – render it
@@ -24,8 +24,8 @@ export function TabBarSpacer() {
         hidesTabBar(pathname) || mode === "pill"
           ? PILL_SPACER
           : mode === "docked"
-            ? "h-[calc(72px+env(safe-area-inset-bottom))]" // docked bar 56px + 16px
-            : "h-[env(safe-area-inset-bottom)]", // logged out: no bar
+            ? "h-[calc(72px+var(--safe-bottom))]" // docked bar 56px + 16px
+            : "h-[var(--safe-bottom)]", // logged out: no bar
       )}
     />
   );

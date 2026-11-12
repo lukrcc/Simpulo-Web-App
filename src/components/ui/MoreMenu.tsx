@@ -40,7 +40,7 @@ export function MoreMenu({ items, label, className, buttonClassName }: MoreMenuP
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
   if (items.length === 0) return null;
-  const itemClass = "block w-full px-4 py-2.5 text-left text-body hover:bg-white/50";
+  const itemClass = "block w-full px-4 py-2.5 text-left text-body hover:bg-ink/5";
 
   return (
     <div className={cn("relative", className)}>
@@ -61,7 +61,7 @@ export function MoreMenu({ items, label, className, buttonClassName }: MoreMenuP
           <div role="menu" className="glass-panel animate-fade-in w-56 overflow-hidden rounded-[20px]! py-1">
             {items.map((item) =>
               "href" in item ? (
-                <Link key={item.label} role="menuitem" href={item.href} onClick={() => setOpen(false)} className={cn(itemClass, item.danger && "text-red-600")}>
+                <Link key={item.label} role="menuitem" href={item.href} onClick={() => setOpen(false)} className={cn(itemClass, item.danger && "text-danger")}>
                   {item.label}
                 </Link>
               ) : (
@@ -73,7 +73,7 @@ export function MoreMenu({ items, label, className, buttonClassName }: MoreMenuP
                     setOpen(false);
                     item.onSelect();
                   }}
-                  className={cn(itemClass, item.danger && "text-red-600")}
+                  className={cn(itemClass, item.danger && "text-danger")}
                 >
                   {item.label}
                 </button>

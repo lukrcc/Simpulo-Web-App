@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowUpRight, Check, Lightbulb, Plus, UserPlus, Vote } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { EXPLORE_SPACING } from "@/config/explore";
 import { Fragment, useEffect, useState, type ReactNode, type RefObject } from "react";
 import { Shelf } from "@/components/ui/Shelf";
 import { HouseCard } from "@/components/HouseCard";
@@ -22,11 +23,9 @@ import { cn, firstName, googleMapsUrl, isCityOpen, mapQuery, openSpots, typicalD
 import { previewForUrl } from "@/lib/data";
 import { platformOf } from "@/lib/platforms";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { AccommodationTile } from "./AccommodationTile";
-import { EMBED_CAPSULE, HouseMap, mapIsEmbed } from "./HouseMap";
+import { ListingInfo } from "./AccommodationTile";
+import { HouseMap } from "./HouseMap";
 
-/** Every section 40px under the one before (More houses like this comes after the column). */
-const SECTION = "mt-10";
 /** Under a section's eyebrow in the page's left column. */
 const ROW = "mt-4";
 const MAX_MORE_HOUSES = 12;
@@ -40,7 +39,7 @@ export function HouseWhy({ stay }: { stay: Stay }) {
   return (
     <section aria-labelledby="house-why">
       <RowHead id="house-why" title={t("why")} />
-      <blockquote className={cn(ROW, "max-w-[640px] whitespace-pre-line text-quote text-ink")}>{quote}</blockquote>
+      <blockquote className={cn(ROW, "max-w-[64ch] whitespace-pre-line text-row font-medium text-ink")}>{quote}</blockquote>
     </section>
   );
 }
@@ -54,10 +53,10 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
   const t = useTranslations("house.page");
   const store = useStore();
   const host = findUser(store, stay.hostId);
-  const person = "flex w-[88px] flex-col items-center text-center";
+  const person = "flex w-18 flex-col items-center text-center";
   const action = onInvite ?? (canJoin ? onJoin : undefined);
   const restLabel = canJoin ? t("yourSpot") : t("openSpot");
-  const spot = "flex size-18 items-center justify-center rounded-full border-2 border-dashed border-ink/15 text-ink";
+  const spot = "flex size-14 items-center justify-center rounded-full border-[1.5px] border-dashed border-ink/25 text-ink";
   // As the viewer may see each (config/privacy.ts): hidden ones collapse into one neutral "+N", blurred ones have no name and no link.
   const faceOf = useCrewFaceOf(stay);
   const hiddenCount = crew.filter((member) => faceOf(member) === "hidden").length;
@@ -75,7 +74,7 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
             return (
               <li key={member.id}>
                 <div className={person}>
-                  <Avatar user={member} size="crew" mode="blurred" />
+                  <Avatar user={member} size="lg" mode="blurred" />
                 </div>
               </li>
             );
@@ -84,12 +83,12 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
             <li key={member.id}>
               <Link href={`/u/${member.id}`} className={person}>
                 <span className="relative">
-                  <Avatar user={member} size="crew" />
+                  <Avatar user={member} size="lg" />
                   {member.id === stay.hostId && (
                     <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-(--select-bg) px-2 py-px text-small text-ink shadow-(--select-shadow)">{t("hostBadge")}</span>
                   )}
                 </span>
-                <span className="mt-2.5 max-w-full truncate text-body font-semibold text-ink">{firstName(member)}</span>
+                <span className="mt-2 max-w-full truncate text-small font-semibold text-ink">{firstName(member)}</span>
               </Link>
             </li>
           );
@@ -97,7 +96,7 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
         {hiddenCount > 0 && (
           <li>
             <div className={person} aria-label={t("crewHidden", { count: hiddenCount })}>
-              <span aria-hidden className="flex size-18 items-center justify-center rounded-full bg-ink/6 text-body font-semibold text-muted">
+              <span aria-hidden className="flex size-14 items-center justify-center rounded-full bg-ink/6 text-body font-semibold text-muted">
                 +{hiddenCount}
               </span>
             </div>
@@ -121,21 +120,19 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
             {action ? (
               <button type="button" onClick={action} data-preview-action aria-label={onInvite ? t("spotInvite") : undefined} className={cn(person, "group/spot")}>
                 <span aria-hidden className={cn(spot, "transition-colors duration-150 group-hover/spot:border-transparent group-hover/spot:bg-(--chip-bg) group-focus-visible/spot:border-transparent group-focus-visible/spot:bg-(--chip-bg)")}>
-                  <Plus className="size-5 opacity-0 transition-opacity duration-150 group-hover/spot:opacity-100 group-focus-visible/spot:opacity-100" />
+                  {/* Host and members: "+" (invite); visitors: an empty circle, "Your spot". */}
+                  {onInvite && <Plus className="size-5 text-ink/55" />}
                 </span>
                 {onInvite ? (
-                  <span className="mt-2.5 grid max-w-full text-body font-semibold">
-                    <span className="col-start-1 row-start-1 truncate text-muted transition-opacity duration-150 group-hover/spot:opacity-0 group-focus-visible/spot:opacity-0">{restLabel}</span>
-                    <span className="col-start-1 row-start-1 truncate text-ink opacity-0 transition-opacity duration-150 group-hover/spot:opacity-100 group-focus-visible/spot:opacity-100">{t("spotInviteShort")}</span>
-                  </span>
+                  <span className="mt-2 max-w-full truncate text-small font-semibold text-muted group-hover/spot:text-ink">{t("spotInviteShort")}</span>
                 ) : (
-                  <span className="mt-2.5 max-w-full truncate text-body font-semibold text-muted group-hover/spot:text-ink">{restLabel}</span>
+                  <span className="mt-2 max-w-full truncate text-small font-semibold text-muted group-hover/spot:text-ink">{restLabel}</span>
                 )}
               </button>
             ) : (
               <div className={person}>
                 <span aria-hidden className={spot} />
-                <span className="mt-2.5 max-w-full truncate text-body font-semibold text-muted">{restLabel}</span>
+                <span className="mt-2 max-w-full truncate text-small font-semibold text-muted">{restLabel}</span>
               </div>
             )}
           </li>
@@ -181,35 +178,37 @@ export function HouseDay({ stay }: { stay: Stay }) {
 }
 
 /** Who I'm looking for, then House rules: two short blocks, no cards. */
-export function HouseFit({ stay }: { stay: Stay }) {
+/** Who I'm looking for (and the crew's age), in the left column. Text at most 64 characters a line. */
+export function HouseLooking({ stay }: { stay: Stay }) {
   const t = useTranslations("house.page");
   const tFacts = useTranslations("house.facts");
   const looking = stay.lookingForText.trim();
-  if (!looking && !stay.ageRange && stay.houseRules.length === 0) return null;
+  if (!looking && !stay.ageRange) return null;
   return (
-    // Side by side, one alone takes the width.
-    <div className="grid gap-x-12 gap-y-10 sm:grid-cols-2 sm:[&>:only-child]:col-span-2">
-      {(looking || stay.ageRange) && (
-        <section aria-labelledby="house-looking">
-          <RowHead id="house-looking" title={t("lookingFor")} />
-          {looking && <p className={cn(ROW, "whitespace-pre-line text-body text-ink")}>{looking}</p>}
-          {stay.ageRange && <p className="mt-3 text-small text-muted">{tFacts("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
-        </section>
-      )}
-      {stay.houseRules.length > 0 && (
-        <section aria-labelledby="house-rules">
-          <RowHead id="house-rules" title={t("rules")} />
-          <ul className={cn(ROW, "space-y-2")}>
-            {stay.houseRules.map((rule) => (
-              <li key={rule} className="flex gap-2 text-body text-ink">
-                <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
-                {rule}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+    <section aria-labelledby="house-looking">
+      <RowHead id="house-looking" title={t("lookingFor")} />
+      {looking && <p className={cn(ROW, "max-w-[64ch] whitespace-pre-line text-body text-ink")}>{looking}</p>}
+      {stay.ageRange && <p className="mt-3 text-small text-muted">{tFacts("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
+    </section>
+  );
+}
+
+/** House rules, in the right column: a check each. */
+export function HouseRules({ stay }: { stay: Stay }) {
+  const t = useTranslations("house.page");
+  if (stay.houseRules.length === 0) return null;
+  return (
+    <section aria-labelledby="house-rules">
+      <RowHead id="house-rules" title={t("rules")} />
+      <ul className={cn(ROW, "space-y-2")}>
+        {stay.houseRules.map((rule) => (
+          <li key={rule} className="flex gap-2 text-body text-ink">
+            <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
+            {rule}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -223,7 +222,7 @@ export function HouseOffer({ stay }: { stay: Stay }) {
   return (
     <section aria-labelledby="house-offer">
       <RowHead id="house-offer" title={t("offerTitle")} aside={<span className="text-small text-muted">{`${fee} ${t("perPerson")}`}</span>} />
-      <ul className={cn(ROW, "grid gap-x-6 gap-y-2 md:grid-cols-2")}>
+      <ul className={cn(ROW, "space-y-2")}>
         {stay.hostOffer.map((item) => (
           <li key={item} className="flex gap-2 text-body text-ink">
             <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
@@ -236,12 +235,12 @@ export function HouseOffer({ stay }: { stay: Stay }) {
 }
 
 /**
- * Where you'll be: map 60 % | place 40 %, the same height side by side. The map is a picture, not a tool – the whole of it opens Google Maps.
- * A place booked ("set"): no exact pin, a circle of about 500m over the area, the listing beside it (photo, title, source, "€5,340 total · 28
- * nights", "View listing ↗") and "Exact address after booking." Picking together: the area (its label says the crew decides), beside it the
- * shortlist – 2–3 candidates from the crew's vote (photo, title, price per person, link) – or, before any, "How the place is picked".
+ * Where you'll be – the place as a full-width strip: the map over the whole window, 440px high, no rounding; the approximate circle stays,
+ * nothing written on it. On it, on the page's grid at the left, a glass field (rgba(251,247,242,.82) + blur 16, radius 20, 360px): "Around
+ * Roma Norte", then – picking together – the shortlist or the three steps, or – booked – the listing, and at the bottom "Open in Google Maps ↗"
+ * (ink, cream text). The map behind it opens Google Maps too.
  */
-export function HouseWhere({ stay, canOpenChat }: { stay: Stay; canOpenChat: boolean }) {
+export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
   const t = useTranslations("house.page");
   const tWhere = useTranslations("house.page.where2");
   const tMap = useTranslations("house.map");
@@ -249,36 +248,35 @@ export function HouseWhere({ stay, canOpenChat }: { stay: Stay; canOpenChat: boo
   const { query, zoom } = mapQuery(stay);
   const booked = stay.accommodationStatus === "locked" && Boolean(stay.accommodationLink);
   const hasCoordinates = !isCityOpen(stay) && Boolean(stay.lat || stay.lng);
-  const embed = mapIsEmbed(hasCoordinates);
   const area = stay.location.area ?? stay.location.city ?? stay.region;
   const candidates = (stay.accommodationVote?.options ?? []).filter((o) => o.link).slice(0, 3);
   return (
-    <section aria-labelledby="house-where">
-      <RowHead id="house-where" title={t("where")} />
-      <div className={cn(ROW, "grid gap-4 sm:h-80 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]")}>
-        <div className="relative h-80 overflow-hidden rounded-3xl bg-line sm:h-full">
-          <HouseMap lat={stay.lat} lng={stay.lng} pin={false} radius={booked ? BOOKED_RADIUS_M : undefined} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - (booked ? 1 : 3), 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
-          <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" aria-label={tMap("openInMaps")} className="group absolute inset-0 z-10 cursor-pointer bg-black/0 transition-colors duration-150 hover:bg-black/6">
-            <span className="glass-panel absolute left-4 top-4 max-w-[calc(100%-32px)] rounded-2xl! px-3 py-2 text-small text-ink">{booked ? tWhere("around", { area }) : t("aroundArea", { area })}</span>
-            {/* Over the embed (no key) it covers the embed's own camera button exactly; Google's attribution below stays free. */}
-            <span
-              className={cn("glass-panel absolute inline-flex items-center gap-1.5 rounded-full! px-4 text-small font-semibold text-ink transition-[translate,box-shadow] duration-150 group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_16px_rgba(0,0,0,0.16)]", !embed && "bottom-4 right-4 h-9")}
-              style={embed ? EMBED_CAPSULE : undefined}
-            >
+    <section aria-labelledby="house-where" className="relative mt-14 h-110 overflow-hidden bg-line">
+      <h2 id="house-where" className="sr-only">
+        {t("where")}
+      </h2>
+      <HouseMap lat={stay.lat} lng={stay.lng} pin={false} radius={booked ? BOOKED_RADIUS_M : undefined} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - (booked ? 1 : 3), 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
+      <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden className="absolute inset-0 z-10" />
+      <div className="pointer-events-none absolute inset-0 z-20">
+        <div className="page-container explore-width flex h-full items-center">
+          <div className="pointer-events-auto flex max-h-[calc(100%-48px)] w-full max-w-90 flex-col gap-4 overflow-y-auto rounded-[20px] border border-(--glass-solid)/60 bg-(--glass-bg) p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[16px]">
+            <div>
+              <p className="text-eyebrow uppercase text-ink/55">{t("where")}</p>
+              <p className="mt-1 text-h3 text-ink">{tWhere("around", { area })}</p>
+            </div>
+            {booked ? <ListingInfo stay={stay} link={stay.accommodationLink!} /> : candidates.length > 0 ? <Shortlist stay={stay} options={candidates} /> : <HowPicked />}
+            {booked && <p className="text-small text-muted">{tWhere("exactAfter")}</p>}
+            <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className="press inline-flex h-11 items-center justify-center gap-2 self-start rounded-full bg-(--action-bg) px-5 text-body font-semibold text-(--action-text) transition-colors hover:bg-(--action-hover)">
               {tMap("openInMaps")}
               <ArrowUpRight className="size-4" aria-hidden />
-            </span>
-          </a>
+            </a>
+          </div>
         </div>
-        {booked ? <AccommodationTile stay={stay} canOpenChat={canOpenChat} /> : candidates.length > 0 ? <Shortlist stay={stay} options={candidates} /> : <HowPicked />}
       </div>
-      {/* Picking together, the map's own label says it already ("… exact place decided with the crew"): no second line. */}
-      {booked && <p className="mt-3 text-small text-muted">{tWhere("exactAfter")}</p>}
     </section>
   );
 }
 
-/** Picking together, before any candidates: how it goes, in three short steps – never an empty box. Top-aligned, as high as the map. */
 function HowPicked() {
   const tWhere = useTranslations("house.page.where2");
   const steps = [
@@ -287,9 +285,9 @@ function HowPicked() {
     { key: "vote", icon: Vote },
   ] as const;
   return (
-    <div className="card-soft flex h-full flex-col rounded-3xl p-6">
+    <div className="flex flex-col">
       <p className="text-body font-semibold text-ink">{tWhere("howTitle")}</p>
-      <ol className="mt-4 flex flex-col gap-3">
+      <ol className="mt-3 flex flex-col gap-3">
         {steps.map(({ key, icon: Icon }) => (
           <li key={key} className="flex items-center gap-3 text-body text-ink">
             <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink/6 text-ink/70">
@@ -310,9 +308,9 @@ const BOOKED_RADIUS_M = 500;
 function Shortlist({ stay, options }: { stay: Stay; options: { id: string; link?: string; pricePerPerson?: number }[] }) {
   const tWhere = useTranslations("house.page.where2");
   return (
-    <div className="card-soft flex h-full min-h-80 flex-col rounded-3xl p-4 sm:min-h-0">
-      <p className="px-2 pb-2 pt-1 text-eyebrow uppercase text-ink/55">{tWhere("shortlist")}</p>
-      <ul className="flex min-h-0 flex-1 flex-col justify-between gap-2">
+    <div className="-mx-2 flex flex-col">
+      <p className="px-2 pb-1 text-eyebrow uppercase text-ink/55">{tWhere("shortlist")}</p>
+      <ul className="flex flex-col gap-1">
         {options.map((option, i) => (
           <li key={option.id}>
             <ShortlistRow stay={stay} link={option.link!} price={option.pricePerPerson} index={i + 1} />
@@ -356,11 +354,12 @@ export function HouseMore({ stay }: { stay: Stay }) {
     .slice(0, MAX_MORE_HOUSES);
   if (more.length === 0) return null;
   return (
-    <section aria-labelledby="house-more" className={SECTION}>
+    // The same row as Explore's shelves (Shelf flat, a card exactly one grid column wide – .explore-slide), arrows as there.
+    <section aria-labelledby="house-more" className="explore-root mt-14">
       <RowHead id="house-more" title={t("more")} />
-      <Shelf>
+      <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
         {more.map((s) => (
-          <div key={s.id} className="w-90 shrink-0">
+          <div key={s.id} className="explore-slide shrink-0">
             <HouseCard stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
           </div>
         ))}
@@ -432,12 +431,12 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: St
       data-join-bar
       inert={!shown}
       className={cn(
-        "fixed bottom-4 left-1/2 z-30 flex h-16 w-[min(100%-32px,720px)] -translate-x-1/2 items-center gap-3 rounded-full border border-ink/8 bg-[rgba(251,247,242,0.72)] py-2 pl-3 pr-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[20px] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
+        "fixed bottom-[calc(var(--tabbar-clear)+16px)] left-1/2 z-30 flex h-16 w-[min(100%-32px,720px)] -translate-x-1/2 items-center gap-3 rounded-full border border-ink/8 bg-(--glass-bg) py-2 pl-3 pr-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[20px] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
       )}
     >
       {photo && (
-        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-line ring-1 ring-white/60">
+        <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-line ring-1 ring-surface/60">
           <Img src={photo} alt="" fill sizes="40px" className="object-cover" />
         </span>
       )}

@@ -40,7 +40,7 @@ function NotifySheet({ draft, onClose }: { draft: SearchDraft; onClose: () => vo
             {t("email")}
           </label>
           <input id="notify-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("emailPlaceholder")} aria-invalid={tried && !emailOk ? true : undefined} className={formInput} />
-          {tried && !emailOk && <p className="mt-1.5 text-small text-red-600">{t("emailError")}</p>}
+          {tried && !emailOk && <p className="mt-1.5 text-small text-danger">{t("emailError")}</p>}
         </div>
         <div>
           <label className="flex cursor-pointer items-center justify-between gap-4">
@@ -50,7 +50,7 @@ function NotifySheet({ draft, onClose }: { draft: SearchDraft; onClose: () => vo
           <Link href="/privacy" className="mt-1 inline-block text-small text-muted underline underline-offset-4 hover:text-ink">
             {t("privacy")}
           </Link>
-          {tried && !consent && <p className="mt-1.5 text-small text-red-600">{t("consentError")}</p>}
+          {tried && !consent && <p className="mt-1.5 text-small text-danger">{t("consentError")}</p>}
         </div>
         <div className="flex items-center justify-between gap-4">
 <Button

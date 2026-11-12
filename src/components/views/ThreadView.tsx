@@ -147,8 +147,11 @@ function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean
       </div>
       {children}
       {composer && (
-        <div ref={composerRef} className="absolute inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20">
-          {composer}
+        // The input as its own area at the bottom: the chat's ground, a 24px fade above it (the messages never show under the field), 20px
+        // under it; centred in at most 920px like the messages.
+        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-(--chat-bg) px-4 pb-[max(20px,var(--safe-bottom))] pt-1">
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-[linear-gradient(to_bottom,transparent,var(--chat-bg))]" />
+          <div className="mx-auto max-w-[920px]">{composer}</div>
         </div>
       )}
     </div>
@@ -211,9 +214,9 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
           ended ? (
             <DoItAgainCard stay={stay} isHost={isHost} />
           ) : guestIn ? (
-            <div className="mx-auto mt-6 flex max-w-[480px] flex-col items-center gap-3 rounded-[20px] bg-[#3A332E] px-5 py-4 text-center">
+            <div className="mx-auto mt-6 flex max-w-[480px] flex-col items-center gap-3 rounded-[20px] bg-(--bubble-other) px-5 py-4 text-center">
               <p className="text-body text-ink">{isHost ? t("theyreIn", { name: guestName ?? "" }) : t("youreIn")}</p>
-              <Link href={`/messages?id=${crewThreadId(stay.id)}`} className="press inline-flex h-9 items-center rounded-full bg-[#F4EEE7] px-4 text-nav-main font-semibold text-[#221E1B] transition-opacity hover:opacity-90">
+              <Link href={`/messages?id=${crewThreadId(stay.id)}`} className="press inline-flex h-9 items-center rounded-full bg-ink px-4 text-nav-main font-semibold text-inverse transition-opacity hover:opacity-90">
                 {t("openHouseChat")}
               </Link>
             </div>

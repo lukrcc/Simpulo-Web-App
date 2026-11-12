@@ -57,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-live="polite"
         className={
           toast?.placement === "bottom"
-            ? "pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+24px)] left-1/2 z-[80] flex w-[min(380px,calc(100vw-2*var(--page-margin)))] -translate-x-1/2 justify-center"
+            ? "pointer-events-none fixed bottom-[calc(var(--safe-bottom)+24px)] left-1/2 z-[80] flex w-[min(380px,calc(100vw-2*var(--page-margin)))] -translate-x-1/2 justify-center"
             : "pointer-events-none fixed right-(--page-margin) top-[calc(var(--header-total)+8px)] z-[80] w-[min(380px,calc(100vw-2*var(--page-margin)))]"
         }
       >

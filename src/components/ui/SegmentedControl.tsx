@@ -40,7 +40,7 @@ export function SegmentedControl<T extends string | number | null>({ options, va
             onClick={() => onChange(option.value)}
             className={cn(
               "relative z-1 grid min-w-0 flex-1 rounded-full text-small transition-colors duration-150",
-              chosen ? (quiet ? "text-ink" : "font-semibold text-white") : "text-ink/80 hover:text-ink",
+              chosen ? (quiet ? "text-ink" : "font-semibold text-inverse") : "text-ink/80 hover:text-ink",
             )}
           >
             {/* As wide as in bold, so choosing moves nothing. */}

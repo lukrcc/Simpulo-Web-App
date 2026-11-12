@@ -194,7 +194,7 @@ function UploadCountdown({ from }: { from: string }) {
   const minutes = Math.max(0, Math.floor(left / 60_000));
 
   return (
-    <p className={cn("flex items-center gap-1.5 text-small", left > 0 ? "text-muted" : "font-medium text-red-600")} suppressHydrationWarning>
+    <p className={cn("flex items-center gap-1.5 text-small", left > 0 ? "text-muted" : "font-medium text-danger")} suppressHydrationWarning>
       <Clock className="size-3.5 shrink-0" aria-hidden />
       {left > 0
         ? `${t("uploadWithin")} · ${t("timeLeft", { hours: Math.floor(minutes / 60), minutes: minutes % 60 })}`

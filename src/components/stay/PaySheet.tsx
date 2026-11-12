@@ -86,7 +86,7 @@ function PaidView({ stay, onClose }: { stay: Stay; onClose: () => void }) {
   const t = useTranslations("house.pay");
   return (
     <div role="status" className="flex flex-col items-center py-6 text-center">
-      <span className="flex size-16 items-center justify-center rounded-full bg-ink text-white motion-safe:animate-check-in">
+      <span className="flex size-16 items-center justify-center rounded-full bg-ink text-inverse motion-safe:animate-check-in">
         <Check className="size-8" strokeWidth={2.5} aria-hidden />
       </span>
       <p className="mt-5 text-h3 text-ink">{t("successTitle")}</p>
@@ -205,7 +205,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
           </p>
         )}
         {/* On phones the button stays at the bottom while the rest scrolls. */}
-        <div className="sticky bottom-0 -mx-7 -mb-7 flex flex-col gap-2 bg-[rgba(250,248,244,0.96)] px-7 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-3 md:static md:m-0 md:bg-transparent md:p-0">
+        <div className="sticky bottom-0 -mx-7 -mb-7 flex flex-col gap-2 bg-[color-mix(in_srgb,var(--glass-solid)_96%,transparent)] px-7 pb-[max(1.75rem,var(--safe-bottom))] pt-3 md:static md:m-0 md:bg-transparent md:p-0">
           <Button type="submit" disabled={!complete || busy !== null} className="w-full">
             {busy === "card" ? <Loader2 className="animate-spin" aria-label={t("processing")} /> : t("payButton", { amount: money(amounts.total) })}
           </Button>

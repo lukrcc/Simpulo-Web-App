@@ -15,7 +15,7 @@ export function SettingsGroup({ title, footer, children, className }: { title?: 
   return (
     <section className={className}>
       {title && <h3 className="mb-2 px-4 text-eyebrow uppercase text-muted">{title}</h3>}
-      <ul className="settings-list overflow-hidden rounded-[20px] bg-(--card)">
+      <ul className="settings-list overflow-hidden rounded-[20px] bg-(--surface)">
         {rows.map((row, i) => (
           <li key={i}>{row}</li>
         ))}
@@ -30,7 +30,7 @@ export function SettingsPanel({ id, title, description, children, className }: {
   return (
     <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)]", className)}>
       {title && <h3 className="mb-2 px-4 text-eyebrow uppercase text-muted">{title}</h3>}
-      <div className="space-y-5 rounded-[20px] bg-(--card) p-6">
+      <div className="space-y-5 rounded-[20px] bg-(--surface) p-6">
         {description && <p className="text-small text-muted">{description}</p>}
         {children}
       </div>
@@ -69,7 +69,7 @@ export function SettingsRow({ icon, title, subtitle, value, control, chevron = f
     <>
       {icon}
       <span className="min-w-0 flex-1 py-3">
-        <span className={cn("block text-body", danger ? "text-red-600" : "text-ink")}>{title}</span>
+        <span className={cn("block text-body", danger ? "text-danger" : "text-ink")}>{title}</span>
         {subtitle && <span className="mt-0.5 block text-small text-muted">{subtitle}</span>}
       </span>
       {value !== undefined && value !== null && <span className="min-w-0 shrink truncate text-right text-body text-muted">{value}</span>}

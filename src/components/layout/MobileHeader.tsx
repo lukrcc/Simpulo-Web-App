@@ -31,7 +31,7 @@ export function MobileHeader() {
   }
 
   return (
-    <header className="pt-[env(safe-area-inset-top)] md:hidden">
+    <header data-site-header className="bg-graphite pt-[var(--safe-top)] text-ink md:hidden">
       <div className="flex h-16 items-center justify-between gap-4 px-4">
         <Logo />
         <div className="flex items-center gap-5">
@@ -56,7 +56,7 @@ function MemberHeader() {
   const pathname = usePathname();
   if (hidesTabBar(pathname)) return null;
   return (
-    <header className="pt-[env(safe-area-inset-top)] md:hidden">
+    <header data-site-header className="bg-graphite pt-[var(--safe-top)] text-ink md:hidden">
       <div className="flex h-14 items-center justify-between gap-4 px-4">
         <Logo />
       </div>

@@ -24,7 +24,7 @@ export type ChipVariant = "capsule" | "text" | "plain" | "bare";
  * gap the words stand 24px apart.
  */
 /** Chosen, anywhere: ink with white text. Never a white pill, never orange. */
-export const selectedSurface = "bg-ink text-white";
+export const selectedSurface = "bg-ink text-inverse";
 
 export function chipStyles(active: boolean, { size = "md", variant = "capsule" }: { size?: ChipSize; variant?: ChipVariant; /** Kept for callers; there's no surface-less chip any more */ hoverSurface?: boolean } = {}): string {
   if (variant === "plain") {
@@ -45,7 +45,7 @@ export function chipStyles(active: boolean, { size = "md", variant = "capsule" }
   return cn(
     "press inline-flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border text-nav transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:size-3.5",
     sizes[size],
-    active ? "border-transparent bg-ink font-medium text-white" : "border-ink/12 text-ink/80 hover:bg-ink/5 hover:text-ink",
+    active ? "border-transparent bg-ink font-medium text-inverse" : "border-ink/12 text-ink/80 hover:bg-ink/5 hover:text-ink",
   );
 }
 

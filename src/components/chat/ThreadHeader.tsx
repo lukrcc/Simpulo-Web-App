@@ -1,5 +1,6 @@
 "use client";
 
+import { useBack } from "@/components/ui/BackButton";
 import { ArrowLeft, ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,23 +13,26 @@ import { Button } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Img } from "@/components/ui/Img";
 import { useFormat } from "@/i18n/format";
-import { findUser, getCrew, useStore } from "@/lib/store";
+import { crewInOf, findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
+import { shortNameOf } from "@/lib/shortName";
 import { WhosInSheet } from "./WhosInSheet";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 
 /** One 64px row – the desktop panel and the mobile page alike. The glass is the frame's: messages scroll under it. */
 function headerClass(embedded: boolean) {
-  return cn("relative flex h-16 shrink-0 items-center gap-2 border-b border-[#F4EEE7]/8", embedded ? "px-4" : "px-2 sm:px-4");
+  return cn("relative flex h-16 shrink-0 items-center gap-2 border-b border-ink/8", embedded ? "px-4" : "px-2 sm:px-4");
 }
 
 function BackToInbox({ embedded }: { embedded: boolean }) {
   const t = useTranslations("messages.thread");
+  // history.back() when there's a page of ours behind it (the installed app has no browser back), the list otherwise.
+  const back = useBack("/messages");
   if (embedded) return null;
   return (
-    <Link href="/messages" aria-label={t("backToMessages")} className={iconButtonStyles("md")}>
+    <Link href="/messages" onClick={back} aria-label={t("backToMessages")} className={iconButtonStyles("md")}>
       <ArrowLeft className="size-5" />
     </Link>
   );
@@ -65,7 +69,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           <Link href={`/house/${stay.slug}`} className="block truncate text-body font-semibold leading-5 hover:underline">
             {stay.title}
           </Link>
-          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.stayDates(stay), filled: stay.spotsFilled, total: stay.spotsTotal })}</p>
+          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.stayDates(stay), filled: crewInOf(store, stay), total: stay.spotsTotal })}</p>
         </div>
 
         {groupChat && (
@@ -104,13 +108,16 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
   );
 }
 
-/** A 1:1 thread: the other person, and the House it's about (every direct chat has one) – its photo, title and dates, linked. */
+/**
+ * A question (1:1 thread): the person's avatar, their first name and muted "about {shortName}" (a link to the House – every direct chat has
+ * one); right "…" (Report, Block). The host also gets "View request" when this person asked to join.
+ */
 export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: User; embedded: boolean }) {
   const t = useTranslations("messages.thread");
-  const f = useFormat();
   const router = useRouter();
   const store = useStore();
-  const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
+  const hosting = stay.hostId === store.currentUserId;
+  const request = hosting && other ? store.joinRequests.find((r) => r.stayId === stay.id && r.userId === other.id) : undefined;
   return (
     <header className={headerClass(embedded)}>
       <BackToInbox embedded={embedded} />
@@ -118,19 +125,19 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
       <div className="min-w-0 flex-1">
         {other ? (
           <Link href={`/u/${other.id}`} className="block truncate text-body font-semibold leading-5 hover:underline">
-            {other.name}
+            {other.name.split(" ")[0]}
           </Link>
         ) : (
           <p className="truncate text-body font-semibold leading-5">{t("unknown")}</p>
         )}
-        <Link href={`/house/${stay.slug}`} className="block truncate text-small text-muted hover:underline">
-          {t("about", { title: stay.title, dates: f.stayDates(stay) })}
+        <Link href={`/h/${stay.id}`} className="block truncate text-small text-muted hover:underline">
+          {t("aboutShort", { name: shortNameOf(stay) })}
         </Link>
       </div>
-      {cover && (
-        <Link href={`/house/${stay.slug}`} aria-label={stay.title} className="relative block size-10 shrink-0 overflow-hidden rounded-xl bg-line">
-          <Img src={cover} alt="" fill sizes="40px" className="object-cover" />
-        </Link>
+      {request && (
+        <Button variant="secondary" size="sm" href={`/h/${stay.id}/manage?focus=requests`}>
+          {t("viewRequest")}
+        </Button>
       )}
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
       {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} className="shrink-0" />}

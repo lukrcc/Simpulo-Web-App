@@ -5,7 +5,7 @@ import { BOOKING_WINDOW_HOURS } from "./joinFlow";
 import { getMyPayment, type StoreData } from "./store";
 import type { Payment, Stay } from "./types";
 
-export type TimelineKind = "pay_opens" | "pay_due" | "booking_confirmed" | "arrival" | "house_starts" | "house_ends";
+export type TimelineKind = "pay_opens" | "pay_due" | "booking_confirmed" | "arrival";
 
 export interface TimelineEvent {
   key: string;
@@ -25,7 +25,7 @@ const plusHours = (iso: string, hours: number) => new Date(Date.parse(iso) + hou
  * - pay_opens: the crew's vote on the place ends (its deadline) – then paying opens
  * - pay_due: your share is due (guests) / the crew pays by (host)
  * - booking_confirmed: everyone paid – the host confirms the booking by then
- * - arrival (guests) / house_starts (host): the first day · house_ends: the last day
+ * - arrival: the first day (guests and host alike). No "house ends" – Coming up is about what's next to do or look forward to.
  */
 export function timelineFor(data: Data, now: string): TimelineEvent[] {
   const me = data.currentUserId;
@@ -47,8 +47,7 @@ export function timelineFor(data: Data, now: string): TimelineEvent[] {
       if (hosting || mine?.status === "pending") add("pay_due", stay.paymentDueAt);
     }
     if (stay.allPaidAt && !stay.bookingConfirmedAt) add("booking_confirmed", plusHours(stay.allPaidAt, BOOKING_WINDOW_HOURS));
-    add(hosting ? "house_starts" : "arrival", stay.startDate);
-    add("house_ends", stay.endDate);
+    add("arrival", stay.startDate);
   }
   return events.toSorted((a, b) => a.at.localeCompare(b.at));
 }

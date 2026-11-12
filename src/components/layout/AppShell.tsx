@@ -21,6 +21,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <HouseTransitions />
       </Suspense>
+      {/* From md, the installed app's status bar (black-translucent) lies over the page: a graphite strip as tall as its safe area continues the
+          header under it (0px in a browser tab). */}
+      <div aria-hidden data-status-bar className="sticky top-0 z-50 hidden h-(--safe-top) bg-graphite md:block" />
       {APP_MODE === "demo" && (
         <>
           <DemoBand />
