@@ -157,14 +157,14 @@ function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean
     </div>
   );
   // Desktop: the right column, a little lighter than the page, nothing around it.
-  // Desktop: the right column, dark (.chat-dark) – head, messages and composer alike.
-  if (embedded) return <div className="chat-dark h-full min-h-0">{stage}</div>;
+  // Desktop: the right column on the page's ground (.chat-dark keeps the chat's own small rules, light now).
+  if (embedded) return <div className="chat-dark h-full min-h-0 bg-bg">{stage}</div>;
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
   // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
   // itself never scrolls.
   return (
-    <div data-app-pane="always" className="chat-dark relative z-41 h-dvh overflow-hidden md:h-[calc(100dvh-var(--header-total))]">
+    <div data-app-pane="always" className="chat-dark relative z-41 bg-bg h-dvh overflow-hidden md:h-[calc(100dvh-var(--header-total))]">
       <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--header-h) md:pt-0">{stage}</div>
     </div>
   );

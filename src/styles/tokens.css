@@ -1,27 +1,30 @@
 /*
- * Simpulo's colours - semantic only (CLAUDE.md "Farbsystem"). Components never name a colour; they name a role:
+ * Simpulo's colours - semantic only (CLAUDE.md "Farbsystem: Heller Boden, dunkle Akzente"). Components never name a colour; they name a role:
  *   Floor (Boden): --bg, --surface, --surface-2, --text, --text-muted, --text-faint, --line, --input-border (+ --text-inverse: words on a
- *     --text fill, the primary button)
- *   Stage (Bühne): --stage-bg, --stage-text, --stage-muted, --stage-line, --stage-chip – the dark bands to look at (Spotlight, HeroBands,
- *     Your houses' band); inside .stage / .ember the floor roles take these values, so the same components turn round by themselves.
+ *     --text fill, the primary button). The page is always light.
+ *   Band: --band #EAE4DD – the tinted surface beside a photo in HeroBand (Your houses, the profile). Explore's rows are dark bands (.band-dark).
+ *   Ember (.ember): the ONE dark accent – single tiles for the main action (the House page's main tile, Payouts' head cards); inside it the
+ *     floor roles take the --stage-* values, so the same components turn round by themselves.
  *   Frame: --graphite, --graphite-line – the header and its filters, always.
- *   Signal: --signal #F0633A, the same in every mode.
- *   Chat: --chat-bg, --bubble-own, --bubble-other – Messages, the same in every mode.
+ *   Signal: --signal #F0633A.
+ *   Chat: --chat-bg, --bubble-own, --bubble-other – Messages, light like every page (your bubble graphite).
  *
- * Modes (data-mode on <html>, Dev menu only, default "hybrid"): hybrid – light floor, dark stages · light – stages light too (Ember tiles
- * stay dark) · dark – dark floor, dark stages. The header is graphite in all three.
- *
- * Contrast (WCAG, checked): floor text ≥ 13.9 : 1, floor muted (ink 64 %) ≥ 4.67 : 1 on bg, surface and surface-2; dark muted (cream 68 %)
- * ≥ 6.1 : 1; stage muted (cream 65 %) 6.8 : 1; header muted (cream 65 %) 4.7 : 1 on graphite; chat muted (cream 55 %) 5.1 : 1.
+ * Contrast (WCAG, checked): floor text ≥ 13.9 : 1, floor muted (ink 64 %) ≥ 4.67 : 1 on bg, surface, surface-2 and band; Ember muted
+ * (cream 65 %) 6.8 : 1; header inactive (cream 85 %) 4.67 : 1 on its glass over the light page.
  */
 
-/* ── Constants: the same in every mode ── */
+/* ── Constants ── */
 :root {
   --signal: #f0633a;
   --graphite: #48423e;
   --graphite-line: rgba(251, 247, 242, 0.08);
-  /* The header and its docked filters: graphite .94 over blur 20px – reads solid, only a hint of what scrolls under it. */
-  --graphite-glass: rgba(72, 66, 62, 0.94);
+  /* The header's one bar: transparent graphite glass .40 over blur 28px + saturate 180 %, a 1px line white 10 % at its foot. Its words cream
+     100 % (inactive 85 %) with a soft text shadow – on dark ground 11.9 : 1, over the light page only 2.0 : 1 (see CLAUDE.md). */
+  --graphite-glass: rgba(72, 66, 62, 0.4);
+  /* At the very top of a page (scrollY < 8): a little more opaque. Only this colour changes, in 200ms. */
+  --graphite-glass-top: rgba(72, 66, 62, 0.62);
+  --graphite-glass-filter: blur(28px) saturate(1.8);
+  --graphite-glass-line: rgba(255, 255, 255, 0.1);
   /* The big filter sheet in the header. */
   --graphite-sheet: rgba(72, 66, 62, 0.92);
   --stage-bg: #221e1b;
@@ -29,13 +32,12 @@
   --stage-muted: rgba(244, 238, 231, 0.65);
   --stage-line: rgba(244, 238, 231, 0.08);
   --stage-chip: rgba(244, 238, 231, 0.08);
-  /* The one Ember glow: large and soft from the top right, several stops against banding, a fine grain over it. */
-  --stage-glow: radial-gradient(circle at 100% 0%, rgba(240, 99, 58, 0.22) 0%, rgba(240, 99, 58, 0.12) 18%, rgba(240, 99, 58, 0.05) 32%, rgba(240, 99, 58, 0) 48%);
-  --stage-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
-  --chat-bg: #262320;
-  --chat-input: #3a3633;
-  --bubble-own: #5a5450;
-  --bubble-other: #2f2c29;
+  /* Messages – light like every page: the chat on the page's ground, the input on the surface, your bubble graphite (cream words), theirs a warm
+     light grey (ink words). */
+  --chat-bg: #f3efea;
+  --chat-input: #fbf8f4;
+  --bubble-own: #48423e;
+  --bubble-other: #ece6df;
   /* On a photo (cards, Up next, the gallery): white words and controls, in every mode – the photo is the ground. */
   --on-image: #ffffff;
   /* Controls on a photo: dark glass (IconButton onImage, "N photos"), the card's arrows a little darker, the heart's fill. */
@@ -59,13 +61,17 @@
   --tooltip-bg: rgba(34, 30, 27, 0.85);
 }
 
-/* ── Floor, light: hybrid and light (and inside a light-mode stage) ── */
-:root,
-html[data-mode="light"] .stage {
+/* ── Floor (the page, always light) ── */
+:root {
   color-scheme: light;
   --bg: #f3efea;
   --surface: #fbf8f4;
   --surface-2: #f0ebe5;
+  /* Tinted bands across the page; the House page's crew tile a warmer tint. */
+  --band: #eae4dd;
+  --tile-tint: #efe6dc;
+  /* Explore's filter sheet: a light glass over the slightly dimmed page. */
+  --filter-sheet-bg: rgba(251, 247, 242, 0.86);
   --text: #221e1b;
   --text-muted: rgba(34, 30, 27, 0.64);
   --text-faint: rgba(34, 30, 27, 0.42);
@@ -109,67 +115,19 @@ html[data-mode="light"] .stage {
   --row-surface: rgba(246, 242, 236, 0.92);
   /* Stage headlines in the Spotlight ("Where to next?"): one gradient, ink to warm grey. */
   --headline-gradient: linear-gradient(135deg, #221e1b 0%, #3a3430 35%, #8a827b 100%);
-  /* The light-mode Spotlight keeps the old soft wash behind it (.stage-gradient). */
+  /* Unused since the glow patches are gone; kept for the share images. */
   --stage-wash: 0.5;
   --stage-peach: rgba(40, 32, 26, var(--stage-wash));
   --stage-mist: rgba(40, 32, 26, 0.04);
 }
 
-/* ── Floor, dark ── */
-html[data-mode="dark"] {
-  color-scheme: dark;
-  --bg: #1e1b19;
-  --surface: #2a2623;
-  --surface-2: #34302c;
-  --text: #f4eee7;
-  --text-muted: rgba(244, 238, 231, 0.68);
-  --text-faint: rgba(244, 238, 231, 0.45);
-  --line: rgba(244, 238, 231, 0.08);
-  --input-border: rgba(244, 238, 231, 0.14);
-  --text-inverse: #221e1b;
-  --danger: #ff8a75;
-  --success: #7fcf9f;
-  --warn-bg: rgba(240, 99, 58, 0.14);
-  --warn-text: #ffb59c;
-  --action-hover: #ffffff;
-  /* On dark grounds the secondary button is an outline: 1px cream 25 %, hover cream 6 %. */
-  --secondary-bg: transparent;
-  --secondary-edge: rgba(244, 238, 231, 0.25);
-  --secondary-hover: rgba(244, 238, 231, 0.06);
-  --secondary-shadow: none;
-  --sel-fill: 12%;
-  --sel-edge: 0%;
-  --select-bg: #34302c;
-  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --chip-bg: rgba(244, 238, 231, 0.08);
-  --chip-bg-hover: rgba(244, 238, 231, 0.12);
-  --filters-capsule: rgba(244, 238, 231, 0.06);
-  --panel-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08), 0 8px 24px rgba(0, 0, 0, 0.3);
-  --glass-bg: rgba(42, 38, 35, 0.82);
-  --glass-solid: #2a2623;
-  --glass-blur: blur(24px) saturate(1.2);
-  --glass-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.08);
-  --glass-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-  --card-soft: rgba(244, 238, 231, 0.05);
-  --card-soft-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.06);
-  --card-soft-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-  --card-blank-from: #3a332e;
-  --card-blank-to: #2c2a2b;
-  --card-blank: #34302c;
-  --pick-option-bg: rgba(244, 238, 231, 0.06);
-  --row-surface: rgba(30, 27, 25, 0.92);
-  --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
-  --stage-wash: 0;
-}
-
-/* ── Stage and the other dark grounds: the Ember bands (.stage; light mode turns these light again, above), Ember tiles (.ember, dark in
-   every mode), Messages, the header, the dark menus ── */
-.stage,
+/* ── The dark grounds: Ember tiles (.ember), Explore's dark band (.band-dark), Messages, the header, the bar's sheets and menus ── */
 .ember,
-.chat-dark,
-.messages-dark,
+.band-dark,
+.bubble-own,
 [data-site-header],
-.menu-dark {
+.bar-sheet,
+.bar-menu {
   color-scheme: dark;
   --bg: var(--stage-bg);
   --surface: rgba(244, 238, 231, 0.06);
@@ -204,37 +162,39 @@ html[data-mode="dark"] {
   --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
   --stage-wash: 0;
 }
-/* Messages: one surface, the chat's own tones. */
-.chat-dark,
-.messages-dark {
-  --bg: var(--chat-bg);
-  --surface: var(--bubble-other);
-  --select-bg: var(--bubble-other);
-  --text-muted: rgba(244, 238, 231, 0.55);
-  --line: rgba(244, 238, 231, 0.06);
-  --glass-bg: color-mix(in srgb, var(--chat-bg) 82%, transparent);
+/* Your own chat bubble: graphite, the words cream – inside it the tokens turn round (time, ticks, a quote, a link card). */
+.bubble-own {
+  --bg: var(--bubble-own);
+  --surface: rgba(244, 238, 231, 0.1);
 }
 /* The header: graphite. Muted cream 65 % (4.7 : 1). */
 [data-site-header] {
   --bg: var(--graphite);
   --line: var(--graphite-line);
-  --text-muted: rgba(244, 238, 231, 0.65);
+  /* 85 % on the glass: 4.67 : 1 even over the light page. */
+  --text-muted: rgba(244, 238, 231, 0.85);
   --input-border: rgba(244, 238, 231, 0.15);
 }
-/* The dark menus (filters' dropdowns, sort, More). */
-.menu-dark {
-  --bg: rgba(34, 30, 27, 0.88);
+/* The bar's sheets (ui/BarSheet) and the menus opened from them (ui/DarkMenu): the bar's graphite, denser; muted cream 65 %, fields cream 10 %
+   with a 1px cream 20 % edge, capsules cream 8 % (chosen 26 %). */
+.bar-sheet,
+.bar-menu {
+  --bg: var(--graphite);
+  --line: rgba(244, 238, 231, 0.1);
+  --text-muted: rgba(244, 238, 231, 0.65);
+  --input-border: rgba(244, 238, 231, 0.2);
+  --chip-bg: rgba(244, 238, 231, 0.08);
+  --chip-bg-hover: rgba(244, 238, 231, 0.14);
 }
 
 /* ── Derived: recomputed on every ground, from that ground's values ── */
 :root,
-html[data-mode],
-.stage,
 .ember,
-.chat-dark,
-.messages-dark,
+.band-dark,
+.bubble-own,
 [data-site-header],
-.menu-dark {
+.bar-sheet,
+.bar-menu {
   --focus-ring: color-mix(in srgb, var(--text) 25%, transparent);
   --action-bg: var(--text);
   --action-text: var(--text-inverse);
@@ -246,28 +206,148 @@ html[data-mode],
 }
 
 /* ── Painted grounds ── */
-.stage,
-.ember {
-  background-color: var(--stage-bg);
-  background-image: var(--stage-noise), var(--stage-glow);
-  background-size: 160px 160px, 100% 100%;
-  background-repeat: repeat, no-repeat;
-  background-blend-mode: overlay, normal;
+/* Ember – every dark surface (.ember tiles, Explore's .band-dark): one pre-rendered picture (public/glow/ember-band.png from
+   scripts/make-glow.mjs – computed in float, Floyd–Steinberg-dithered to 8 bit, lossless, 3840 × 1600): deepest black top left (behind the
+   titles) through #221E1B to a warm #4A2E22 bottom right, a very soft warm glow in that corner. No CSS gradient, no grain overlay on it. */
+.ember,
+.band-dark {
+  background: #1e1a17 url("/glow/ember-band.png") center / cover no-repeat;
+  image-rendering: auto;
   color: var(--text);
 }
 .ember {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-html[data-mode="light"] .stage {
-  background-color: var(--surface-2);
-  background-image: none;
-}
-/* The Spotlight's band in light mode: no surface, the old soft wash behind it. */
-html[data-mode="light"] .stage.stage-open {
-  background-color: transparent;
-}
-.chat-dark,
-.messages-dark {
-  background-color: var(--chat-bg);
+/* A band beside a photo (components/HeroBand: Your houses, the profile): the tint, light – words in ink. */
+.stage {
+  background-color: var(--band);
   color: var(--text);
 }
+/* Explore's horizontal rows: always a dark band (Ember, above) – a straight strip, full width, HARD edges top and bottom (no fade, no shadow,
+   no notch). Words cream (the tokens turn round here); the shelf's arrows cream 12 % circles. */
+.band-dark [data-shelf-arrow] {
+  background-color: rgba(244, 238, 231, 0.12);
+  color: var(--stage-text);
+}
+.band-dark [data-shelf-arrow]:hover {
+  background-color: rgba(244, 238, 231, 0.2);
+}
+
+/* ── The bar's flyouts (ui/BarSheet): Where · When, More, All filters – one piece with the bar. Its graphite glass, denser: rgba(72,66,62,.90)
+   + blur 32px saturate 160 %; it hangs right on the bar's foot (0px), square on top, radius 24 below; it grows downwards out of the bar
+   (clip-path, 260ms cubic-bezier(.2,.8,.2,1)), its content fades in 80ms later; closing the other way. Reduced motion: only the fade. ── */
+.bar-sheet {
+  background-color: rgba(72, 66, 62, 0.9);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  backdrop-filter: blur(32px) saturate(1.6);
+  border-radius: 0 0 24px 24px;
+  /* Only below: offset 32 − blur 48 + spread 16 = nothing above its top edge (no seam on the bar). */
+  box-shadow: 0 32px 48px -16px rgba(20, 18, 16, 0.32);
+  color: var(--text);
+  overflow: hidden;
+  animation: bar-sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bar-sheet[data-closing] {
+  animation: bar-sheet-out 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bar-sheet-body {
+  animation: bar-sheet-fade-in 180ms ease-out 80ms both;
+}
+.bar-sheet[data-closing] .bar-sheet-body {
+  animation: bar-sheet-fade-out 120ms ease-in both;
+}
+@keyframes bar-sheet-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes bar-sheet-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes bar-sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bar-sheet-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+/* Behind it the page dims a little and stays put. */
+.bar-sheet-scrim {
+  background-color: rgba(20, 18, 16, 0.18);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: bar-sheet-fade-in 260ms ease-out both;
+}
+.bar-sheet-scrim[data-closing] {
+  animation: bar-sheet-fade-out 260ms ease-in both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-sheet {
+    animation: bar-sheet-fade-in 160ms ease-out both;
+  }
+  .bar-sheet[data-closing] {
+    animation: bar-sheet-fade-out 160ms ease-in both;
+  }
+  .bar-sheet-body,
+  .bar-sheet[data-closing] .bar-sheet-body {
+    animation: none;
+  }
+}
+/* While a sheet hangs from the bar, the bar has no foot line: bar and sheet are one surface. */
+html[data-bar-sheet] .header-glass,
+html[data-bar-sheet] [data-bar] {
+  box-shadow: none;
+}
+/* A menu opened from inside a sheet (the dropdowns of All filters, the sort): the same dark glass, round, 12px inside. */
+.bar-menu {
+  background-color: rgba(72, 66, 62, 0.9);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  backdrop-filter: blur(32px) saturate(1.6);
+  border-radius: 20px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08), 0 24px 60px rgba(20, 18, 16, 0.28);
+  color: var(--text);
+  text-shadow: none;
+  animation: bar-sheet-fade-in 160ms ease-out;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bar-sheet,
+  .bar-menu {
+    background-color: var(--graphite);
+  }
+}
+/* Fields inside: cream 10 %, no edge, cream words; focused cream 16 % – no ring (and never an orange one). The keyboard's focus on anything else:
+   2px cream 40 %. The capsules themselves: globals.css "ONE capsule". */
+:is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea) {
+  background-color: rgba(244, 238, 231, 0.1);
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  color: var(--text);
+}
+:is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea):focus {
+  background-color: rgba(244, 238, 231, 0.16);
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+:is(.bar-sheet, .bar-menu) :is(input, textarea)::placeholder {
+  color: var(--text-muted);
+}
+:is(.bar-sheet, .bar-menu) :is(button, a, [role="radio"], [role="option"], input[type="range"]):focus-visible {
+  outline: 2px solid rgba(244, 238, 231, 0.4);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+

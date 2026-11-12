@@ -1,5 +1,6 @@
 "use client";
 
+import { listItemStyles } from "@/components/ui/listSelection";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { ChevronRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
@@ -237,8 +238,8 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      // Chosen: a full capsule filled cream 8 %, no edge; hover cream 4 %.
-      className={cn("block rounded-[28px] px-4 transition-colors duration-150", active ? "bg-ink/8" : "hover:bg-ink/4")}
+      // Chosen: the outline capsule in ink (ui/listSelection) – Messages is light like every page.
+      className={listItemStyles(active, "block px-4")}
     >
       <span className="flex items-center gap-3 py-3">
         {avatar ? (

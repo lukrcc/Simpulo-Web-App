@@ -258,7 +258,8 @@
     "openFilters": "Show categories",
     "dragFilters": "Drag or click for filters",
     "closeFilters": "Hide categories",
-    "backToTop": "Simpulo, back to top"
+    "whereNext": "Where to next?",
+    "profile": "Your profile"
   },
   "footer": {
     "label": "Footer",
@@ -520,10 +521,6 @@
         "full": "Full"
       },
       "complete": "Mark as completed (writes the House)",
-      "colorMode": "Mode",
-      "colorMode_hybrid": "Hybrid",
-      "colorMode_light": "Light",
-      "colorMode_dark": "Dark",
       "devLabel": "DEV",
       "sectionAccount": "Account",
       "sectionScenario": "Scenario",
@@ -619,7 +616,12 @@
       "prevPhoto": "Previous",
       "nextPhoto": "Next",
       "showPhoto": "Photo {number} of {count}",
-      "invited": "You're invited"
+      "invited": "You're invited",
+      "highlight": {
+        "lastSpot": "Last spot",
+        "startsIn": "{days, plural, =0 {Starts today} =1 {Starts tomorrow} other {Starts in # days}}",
+        "justOpened": "Just opened"
+      }
     },
     "collections": {
       "scrollBack": "Previous",
@@ -806,7 +808,9 @@
       "hint": {
         "placeMonth": "{count, plural, one {# person} other {# people}} searched for {place} in {month} – they'll be notified first",
         "place": "{count, plural, one {# person} other {# people}} searched for {place} – they'll be notified first"
-      }
+      },
+      "whereShort": "Where",
+      "whenShort": "When"
     }
   },
   "house": {
@@ -1052,7 +1056,8 @@
         "inCommonLabel": "In common",
         "crewLabel": "Crew",
         "spotsLeftOf": "{open} of {total} spots left",
-        "crewComplete": "Crew complete"
+        "crewComplete": "Crew complete",
+        "bringFriend": "Bring a friend – request together"
       },
       "where2": {
         "around": "Around {area}",
@@ -1866,7 +1871,8 @@
           "waiting": "Waiting",
           "livedIn": "Lived in",
           "nextTrip": "For your next trip",
-          "back": "Your houses"
+          "back": "Your houses",
+          "saved": "Saved"
         },
         "filterAll": "All",
         "allSet": "You're all set",
@@ -3029,7 +3035,21 @@
       "hostingOn": "Hosting · {date}",
       "goingOn": "Going · {date}",
       "moreHouses": "+{count} more",
-      "manageInYourHouses": "Manage in Your houses →"
+      "manageInYourHouses": "Manage in Your houses →",
+      "quick": {
+        "saved": "Saved",
+        "savedCount": "{count, plural, one {# house} other {# houses}}",
+        "people": "Your people",
+        "peopleCount": "{count, plural, =0 {Nobody yet} one {# person} other {# people}}",
+        "settings": "Settings",
+        "getApp": "Get the app",
+        "getAppSub": "On your phone",
+        "notifications": "Notifications",
+        "on": "On",
+        "off": "Off",
+        "peopleEmpty": "After a House, everyone you both confirmed living with shows up here.",
+        "peopleAll": "Open Your people"
+      }
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {
@@ -3131,7 +3151,9 @@
         "language": "Language",
         "english": "English",
         "languageSoon": "More languages soon.",
-        "backTo": "General"
+        "backTo": "General",
+        "yourPeople": "Your people",
+        "getApp": "Get the app"
       }
     },
     "loginTitle": "Log in to see your settings",

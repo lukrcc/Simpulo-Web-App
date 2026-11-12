@@ -1,12 +1,13 @@
 "use client";
 
+import { BarSheet } from "@/components/ui/BarSheet";
+import { darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { CalendarDays, MapPin, Search, X, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MonthName, newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
 import { Anchored } from "@/components/ui/Anchored";
 import { Chip } from "@/components/ui/Chip";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 import { placeById } from "@/lib/data/places";
 import { cn } from "@/lib/utils";
 import { useDismiss } from "./Filters";
@@ -24,9 +25,10 @@ function FieldPopover({ anchor, width, label, onClose, children }: { anchor: Ref
   useDismiss(true, onClose, anchor, anchor, panelRef);
   return (
     <Anchored anchor={anchor} ref={panelRef} align="start" width={width}>
-      <GlassPanel role="dialog" aria-label={label} style={{ width: `min(${width}px, calc(100vw - 32px))` }} className="animate-fade-in max-h-80 overflow-y-auto overscroll-contain rounded-[20px]! p-3">
+      {/* Opened inside All filters (a BarSheet): the sheet's dark glass as a menu. */}
+      <div role="dialog" aria-label={label} style={{ width: `min(${width}px, calc(100vw - 32px))` }} className={cn(darkMenuClass, darkMenuScroll)}>
         {children}
-      </GlassPanel>
+      </div>
     </Anchored>
   );
 }
@@ -70,7 +72,7 @@ export function ShortTripsToggle({ label, active, onToggle }: { label: string; a
       className={cn(
         // Set apart from the rest: an orange edge and bolt. Off: transparent, ink semibold, hover a breath of orange. On: ink, white text,
         // the bolt and edge still orange – the filters' chosen style.
-        "press inline-flex h-(--control-h) shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-accent px-4.5 text-nav-main font-semibold transition-colors duration-150 [&_svg]:size-4 [&_svg]:text-accent",
+        "short-trips press inline-flex h-(--control-h) shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-accent px-4.5 text-nav-main font-semibold transition-colors duration-150 [&_svg]:size-4 [&_svg]:text-accent",
         active ? "bg-(--pick-bg) text-(--pick-text)" : "bg-transparent text-ink hover:bg-accent/8",
       )}
     >
@@ -90,53 +92,81 @@ export function SearchField({
   place: placeId,
   month,
   onChange,
+  autoOpen = false,
   className,
 }: {
   place: string | null;
   month: string | null;
   onChange: (next: { place?: string | null; month?: string | null }) => void;
+  /** Opens itself once when the URL says ?search=open (the bar's "Where to next?" on every other page), then drops the parameter. */
+  autoOpen?: boolean;
   className?: string;
 }) {
   const t = useTranslations("explore.search");
   const tf = useTranslations("explore.filtersUi");
   const id = useId();
   const monthName = useMonthName();
-  const anchor = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  // Which half opened the sheet: the same sheet, its part focused – Where's search field, or When's months.
+  const [section, setSection] = useState<"where" | "when" | null>(null);
+  const open = section !== null;
+  useEffect(() => {
+    if (!autoOpen) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("search") !== "open") return;
+    url.searchParams.delete("search");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    // Not cancelled on cleanup: the parameter is gone after the first run (React's dev double effect would otherwise lose the open).
+    requestAnimationFrame(() => setSection("where"));
+  }, [autoOpen]);
+  useEffect(() => {
+    if (!section) return;
+    const frame = requestAnimationFrame(() => {
+      const root = body.current;
+      if (!root) return;
+      const target = section === "where" ? root.querySelector<HTMLElement>("input") : (root.querySelector<HTMLElement>('[data-when] [aria-checked="true"]') ?? root.querySelector<HTMLElement>("[data-when] [role=radio]"));
+      target?.focus({ preventScroll: true });
+      if (section === "when") root.querySelector("[data-when]")?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [section]);
+  const toggle = (part: "where" | "when") => setSection((current) => (current === part ? null : part));
   const place = placeById(placeId);
-  const parts = [place?.name.split(",")[0], month ? monthName(month, "bare") : null].filter(Boolean);
-  const value = parts.length > 0 ? parts.join(" · ") : null;
+  const placeName = place?.name.split(",")[0] ?? null;
+  const monthLabel = month ? monthName(month, "bare") : null;
+  const value = placeName || monthLabel ? [placeName, monthLabel].filter(Boolean).join(" · ") : null;
+  const half = "flex h-full min-w-0 items-center gap-2 text-nav-main [&>svg]:size-4 [&>svg]:shrink-0";
   return (
     <>
-      <span data-active={value ? "" : undefined} className={cn("search-capsule inline-flex h-(--control-h) min-w-0 max-w-72 items-center rounded-full pr-2", className)}>
-        <button
-          ref={anchor}
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          aria-label={value ? `${tf("whereWhen")}: ${value}` : tf("whereWhen")}
-          className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pl-4.5 pr-2 text-nav-main [&>svg]:size-4 [&>svg]:shrink-0"
-        >
-          <Search aria-hidden className={value ? "text-(--pick-text)" : "text-muted"} />
-          <span className={cn("truncate", value ? "font-semibold text-(--pick-text)" : "text-muted")}>{value ?? tf("whereWhen")}</span>
+      {/* "Where | When": one capsule, padding 0 16px, as wide as its words; a 1px × 16px line (30 %) 12px from each half. The left half opens
+          the sheet on Where, the right on When. */}
+      <span ref={anchor} data-active={value ? "" : undefined} className={cn("search-capsule inline-flex h-(--control-h) min-w-0 shrink-0 items-center rounded-full", className)}>
+        <button type="button" onClick={() => toggle("where")} aria-expanded={section === "where"} aria-haspopup="dialog" aria-label={placeName ? `${t("where")} ${placeName}` : t("where")} className={cn(half, "rounded-l-full pl-4 pr-3")}>
+          <Search aria-hidden />
+          <span className={cn("truncate", placeName && "font-semibold")}>{placeName ?? t("whereShort")}</span>
+        </button>
+        <span aria-hidden className="h-4 w-px shrink-0 bg-current opacity-30" />
+        <button type="button" onClick={() => toggle("when")} aria-expanded={section === "when"} aria-haspopup="dialog" aria-label={monthLabel ? `${t("when")} ${monthLabel}` : t("when")} className={cn(half, "rounded-r-full pl-3", value ? "pr-2" : "pr-4")}>
+          <span className={cn("truncate", monthLabel && "font-semibold")}>{monthLabel ?? t("whenShort")}</span>
         </button>
         {value && (
           <button
             type="button"
             onClick={() => {
-              setOpen(false);
+              setSection(null);
               onChange({ place: null, month: null });
             }}
             aria-label={tf("remove", { label: value })}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-(--pick-text) transition-colors duration-150 hover:bg-inverse/15"
+            className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-inverse/15"
           >
             <X className="size-3.5" aria-hidden />
           </button>
         )}
       </span>
-      {open && (
-        <FieldPopover anchor={anchor} width={360} label={tf("whereWhen")} onClose={() => setOpen(false)}>
+      {/* One sheet for both halves: out of the bar (ui/BarSheet), 520px under the capsule. */}
+      <BarSheet open={open} onClose={() => setSection(null)} anchor={anchor} label={tf("whereWhen")} className="p-5">
+        <div ref={body}>
           <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
           <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} onPick={(p) => onChange({ place: p.id })} />
           {place && (
@@ -144,16 +174,18 @@ export function SearchField({
               {t("anywhere")}
             </button>
           )}
-          <p className="mb-2 mt-4 px-1 text-nav font-semibold text-ink">{t("when")}</p>
-          <MonthOptions
-            value={month}
-            onPick={(next) => {
-              setOpen(false);
-              onChange({ month: next });
-            }}
-          />
-        </FieldPopover>
-      )}
+          <div data-when>
+            <p className="mb-2 mt-4 px-1 text-nav font-semibold text-ink">{t("when")}</p>
+            <MonthOptions
+              value={month}
+              onPick={(next) => {
+                setSection(null);
+                onChange({ month: next });
+              }}
+            />
+          </div>
+        </div>
+      </BarSheet>
     </>
   );
 }

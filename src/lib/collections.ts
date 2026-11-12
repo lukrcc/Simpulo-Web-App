@@ -64,6 +64,14 @@ export function topStateShelf(stays: readonly Stay[], exclude: ReadonlySet<strin
   return null;
 }
 
+/** One collection's shelf by its id (Explore's bands, EXPLORE_RHYTHM) – at least TOP_SHELF_MIN, never what `exclude` already shows. */
+export function shelfFor(id: Collection["id"], stays: readonly Stay[], exclude: ReadonlySet<string> = new Set()): Shelf | null {
+  const collection = COLLECTIONS.find((c) => c.id === id);
+  if (!collection) return null;
+  const shelf = shelfOf(stays.filter((s) => collection.filter(s) && !exclude.has(s.id)));
+  return shelf.length >= TOP_SHELF_MIN ? { collection, stays: shelf } : null;
+}
+
 export function collectionBySlug(slug: string | null | undefined): Collection | undefined {
   return COLLECTIONS.find((c) => c.slug === slug);
 }

@@ -16,7 +16,7 @@ export function FocusHeader({ exit = true }: { exit?: boolean }) {
   const me = getCurrentUser(useStore());
   const showToast = useToast();
   return (
-    <header data-site-header className="milk-glass fixed inset-x-0 top-(--band-h) z-40 h-14 shadow-[0_1px_0_rgba(0,0,0,0.08)]">
+    <header data-site-header className="milk-glass fixed inset-x-0 top-(--band-h) z-40 h-(--header-h) shadow-[0_1px_0_rgba(0,0,0,0.08)]">
       <Container className="flex h-full items-center justify-between">
         <Logo />
         {exit && <Link

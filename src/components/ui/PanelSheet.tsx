@@ -30,6 +30,8 @@ export interface PanelSheetProps {
   titleNote?: ReactNode;
   /** Two columns' room (Filters) */
   wide?: boolean;
+  /** Explore's filters: a lighter glass (cream .86 over blur 28px) and the page only slightly dimmed behind it (ink 12 % + blur 6px) */
+  filterSheet?: boolean;
   /** The top of a panel about one thing (a photo with its name): scrolls with the content, with only the X over it. It names the panel itself, `title` is for screen readers */
   hero?: ReactNode;
   children: ReactNode;
@@ -41,7 +43,7 @@ export interface PanelSheetProps {
  * dragging the handle. Above everything but its own popovers. p (0 gone, 1 there) is the only source: position and overlay are
  * worked out from it every frame, dragged or animated.
  */
-export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, wide = false, hero, children }: PanelSheetProps) {
+export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, wide = false, filterSheet = false, hero, children }: PanelSheetProps) {
   const t = useTranslations("common");
   const titleId = useId();
   const [mounted, setMounted] = useState(open);
@@ -157,7 +159,7 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
   if (!mounted) return null;
   return createPortal(
     <div className="fixed inset-0 z-[70]">
-      <div ref={overlayRef} aria-hidden onClick={onClose} style={{ opacity: 0 }} className="absolute inset-0 bg-(--scrim) backdrop-blur-[16px]" />
+      <div ref={overlayRef} aria-hidden onClick={onClose} style={{ opacity: 0 }} className={cn("absolute inset-0", filterSheet ? "bg-(--scrim-soft) backdrop-blur-[6px]" : "bg-(--scrim) backdrop-blur-[16px]")} />
       <GlassPanel
         ref={panelRef}
         role="dialog"
@@ -169,6 +171,8 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
         style={{ transform: bottom ? "translateY(100%)" : "translateX(calc(100% + 24px))" }}
         className={cn(
           "absolute flex flex-col overflow-hidden outline-none",
+          // The filter sheet: its own glass – cream .86 over blur 28px; the content on it at full strength.
+          filterSheet && "filter-sheet",
           bottom ? "inset-x-0 bottom-0 rounded-b-none" : cn("bottom-6 right-6 top-6 max-w-[calc(100vw-48px)]", wide ? "w-[clamp(720px,52vw,880px)]" : "w-[clamp(440px,34vw,560px)]"),
         )}
       >

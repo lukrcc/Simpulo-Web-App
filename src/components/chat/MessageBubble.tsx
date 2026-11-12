@@ -169,9 +169,9 @@ export function MessageBubble(props: MessageBubbleProps) {
               className={cn(
                 "relative max-w-full rounded-[18px] px-3.5 py-2 text-left text-body leading-5 wrap-break-word",
                 hasCard && "w-full",
-                // Your own: graphite --bubble-own (#4A4541), light text; the others': --bubble-other (#33302D), cream. The last of a run: a small corner (the tail)
+                // Your own: graphite --bubble-own (#48423E), cream words (.bubble-own turns the tokens round); the others': --bubble-other (#ECE6DF), ink. The last of a run: a small corner (the tail)
                 // on the sender's side, at the bottom.
-                mine ? "bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink",
+                mine ? "bubble-own bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink",
                 props.last && (mine ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
               )}
             >

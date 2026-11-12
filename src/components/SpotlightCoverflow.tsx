@@ -36,8 +36,8 @@ import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
  * any slide's transform.
  */
 
-/** The slide's size from the same clamp as --spot-h, before it can be measured (the header's 72px). */
-const slideHeightFor = (windowHeight: number) => Math.min(680, Math.max(440, windowHeight - 72 - BAND_HEIGHT - 160));
+/** The slide's size from the same clamp as --spot-h, before it can be measured (the header's 64px bar). */
+const slideHeightFor = (windowHeight: number) => Math.min(680, Math.max(440, windowHeight - 64 - BAND_HEIGHT - 160));
 /** How Embla lays the slides out, at their full size. */
 const LAYOUT_GAP = 24;
 /** The gap you see between the scaled cards. */
@@ -53,9 +53,9 @@ const FIT_THEME = [28, 24, 20];
 const TEXT_ABOVE_TAB = 32;
 /** Logged in: from the bottom of "Where to next?" to the neighbour's tab. */
 const GREETING_ABOVE_TAB = 40;
-/** The text sets the carousel's place, from the bottom of the closed tab, at least this far under it; logged in the letters of "Hi" sit this far inside their line. */
-const TAB_BOTTOM = 62;
-const GREETING_UNDER_TAB = 32;
+/** The text sets the carousel's place: 40px under the header's one bar (64px) – no more centring, so the cards sit high. */
+const TAB_BOTTOM = 64;
+const GREETING_UNDER_TAB = 40;
 /** At least this much under the centre card, or the text gets smaller. */
 const WINDOW_BOTTOM = 32;
 /** Logged in: how far the letters of "Hi …" sit below their line's top, in its size; the theme block comes down this much less 1.5px (its eyebrow's own room). */
@@ -409,7 +409,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
       const done = (place: "side" | "above") => {
         probe?.remove();
         if (place === "side" && title) {
-          const textTop = BAND_HEIGHT + TAB_BOTTOM + Math.max(GREETING_UNDER_TAB, (area - total()) / 2);
+          const textTop = BAND_HEIGHT + TAB_BOTTOM + GREETING_UNDER_TAB;
           stage?.style.setProperty("--spot-top", `${Math.round(textTop + textHeight() + gapToTab - tabInCard)}px`);
         } else stage?.style.removeProperty("--spot-top");
         setTextPlace(place);
@@ -505,8 +505,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
     <StageBand
       from="lg"
       className={cn(
-        // The band ends 48px under the cards, on a hard edge (hybrid, dark); the floor starts there.
-        "hidden pb-12 lg:block",
+        "hidden lg:block",
         // Until it's measured (server render): by the window's width.
         textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-56px)]"),
       )}
@@ -552,13 +551,13 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
           </div>
         </div>
 
-        <IconButton variant="onImage" size="lg" onClick={() => {
+        <IconButton variant="raised" size="lg" onClick={() => {
             pauseAutoplay();
             emblaApi?.scrollPrev();
           }} aria-label={tc("previousShort")} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
           <ChevronLeft className="size-5" aria-hidden />
         </IconButton>
-        <IconButton variant="onImage" size="lg" onClick={() => {
+        <IconButton variant="raised" size="lg" onClick={() => {
             pauseAutoplay();
             emblaApi?.scrollNext();
           }} aria-label={tc("nextShort")} className={cn(ARROW, "right-4", !ends.next && ARROW_GONE)}>

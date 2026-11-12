@@ -96,7 +96,7 @@ export function Chip({ active, size, variant = "capsule", icon, trailing, indica
     );
   }
   return (
-    <button type={type} aria-pressed={props.role ? undefined : active} className={cn(chipStyles(active, { size }), "[&>svg]:size-3.5", className)} {...props}>
+    <button type={type} data-chip aria-pressed={props.role ? undefined : active} className={cn(chipStyles(active, { size }), "[&>svg]:size-3.5", className)} {...props}>
       {icon}
       <span className="min-w-0 truncate">{children}</span>
     </button>

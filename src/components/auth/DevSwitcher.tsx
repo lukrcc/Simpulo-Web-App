@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
-import { COLOR_MODES, setColorMode, useColorMode } from "@/lib/colorMode";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -68,7 +67,6 @@ function DevSwitcherInner() {
   const paymentFails = useFeatureFlag("simulatePaymentFailure");
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
-  const mode = useColorMode();
   const [dataState] = useState(readDataState);
 
   const role: Role | null = !stay || !currentUserId ? null : roleIn(store, stay, currentUserId);
@@ -163,9 +161,6 @@ function DevSwitcherInner() {
                     }}
                     options={DATA_STATES.map((value) => ({ value, content: t(`presets.${value}`) }))}
                   />
-                </DevRow>
-                <DevRow label={t("colorMode")}>
-                  <CapsuleGroup size="sm" label={t("colorMode")} value={mode} onChange={setColorMode} options={COLOR_MODES.map((value) => ({ value, content: t(`colorMode_${value}`) }))} />
                 </DevRow>
                 <DevRow label={t("installedApp")}>
                   <DevSwitch label={t("installedApp")} on={installedApp} onChange={(on) => setDevSetting("installedApp", on)} />

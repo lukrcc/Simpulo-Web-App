@@ -24,6 +24,7 @@ import { OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notificatio
 import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
+import { useIsStandalone } from "@/lib/install";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
@@ -520,12 +521,18 @@ function useCurrencyState(me: User) {
 function GeneralArea({ me }: { me: User }) {
   const tu = useTranslations("settings.ui");
   const { automatic, current } = useCurrencyState(me);
+  const standalone = useIsStandalone();
   return (
     <div className="space-y-8">
       <AreaTitle title={tu("nav.general")} />
       <SettingsGroup>
         <SettingsRow title={tu("general.currency")} value={automatic ? tu("general.automaticValue", { label: currencyLabel(current) }) : currencyLabel(current)} chevron onClick={() => go("general/currency")} />
         <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron onClick={() => go("general/language")} />
+      </SettingsGroup>
+      {/* What the avatar menu held: Your people and – not in the installed app – Get the app (Log out sits in Account › Devices). */}
+      <SettingsGroup>
+        <SettingsRow title={tu("general.yourPeople")} chevron href="/people" />
+        {!standalone && <SettingsRow title={tu("general.getApp")} chevron href="/get" />}
       </SettingsGroup>
     </div>
   );

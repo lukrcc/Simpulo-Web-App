@@ -6,44 +6,90 @@
 
 /*
  * Colours: only the semantic tokens of src/styles/tokens.css (floor, stage, graphite, signal, chat). Below only the header's own role
- * values – always graphite – which useNotchShape paints as numbers.
+ * values – always graphite glass (.header-glass).
  */
 :root {
-  /* The header (bar, tab, docked filters, the big filter sheet): graphite, in every mode. *-rgb / *-alpha: "r, g, b" and a number for the
-     painted shape. */
+  /* The header and Explore's filter strip and compact bar: graphite glass. */
   --hdr-bg: var(--graphite-glass);
   --hdr-solid: var(--graphite);
   --hdr-fg: var(--stage-text);
-  --hdr-muted: rgba(244, 238, 231, 0.65);
+  --hdr-muted: rgba(244, 238, 231, 0.85);
   --hdr-line: var(--graphite-line);
   /* The tab group's track: cream 5 %. */
   --hdr-pill: rgba(244, 238, 231, 0.05);
   --hdr-grip-rgb: 244, 238, 231;
   --hdr-avatar-ring: rgba(244, 238, 231, 0.2);
   --hdr-avatar-ring-w: 1px;
-  --hdr-bar-rgb: 72, 66, 62;
-  --hdr-bar-alpha: 0.94;
-  --hdr-chips-rgb: 72, 66, 62;
-  --hdr-chips-alpha: 0.94;
-  --hdr-panel-rgb: 72, 66, 62;
-  --hdr-panel-alpha: 0.92;
-  --hdr-edge-rgb: 251, 247, 242;
-  --hdr-edge-alpha: 0.08;
-  --hdr-edge-panel-rgb: 251, 247, 242;
-  --hdr-edge-panel-alpha: 0.12;
-  /* "All filters": a cream block, ink words and icon. */
-  --hdr-corner-bg: var(--stage-text);
-  --hdr-corner-fg: var(--stage-bg);
-  --hdr-corner-hover: #ffffff;
-  --sheet-bg: var(--graphite-sheet);
+  /* "All filters" (the tab's corner block and the compact bar): glass on graphite – cream 16 % over blur 12px, a 1px cream 28 % edge, cream
+     semibold words; hover 22 %, pressed 26 % (FiltersButton in the header bar). */
+  --hdr-corner-bg: rgba(244, 238, 231, 0.08);
+  --hdr-corner-fg: var(--stage-text);
+  --hdr-corner-hover: rgba(244, 238, 231, 0.14);
+  --hdr-corner-active: rgba(244, 238, 231, 0.22);
+  --hdr-corner-edge: transparent;
 }
-/* The avatar beside the tabs (and the login circle): a ring cream 20 % 1px. */
+/* The avatar in the bar (and the login circle): 40px, round, no ring or edge – the same size and line as the icon buttons. */
 [data-header-avatar] {
   border-radius: 999px;
-  box-shadow: 0 0 0 var(--hdr-avatar-ring-w) var(--hdr-avatar-ring);
 }
-[data-site-header] .search-capsule {
-  box-shadow: inset 0 0 0 1px var(--input-border);
+/* The bar's capsules (Where · When, All filters, the round buttons): cream 14 %, a 1px cream 30 % edge; its words carry a soft shadow so they
+   hold over a light page and photos alike. */
+[data-site-header] {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+/* ONE capsule in the bar and its sheets (Where · When, Short trips, the categories, More, All filters; in a sheet the chips, the panel's
+   options and fields): 40px, padding 0 16px, 15px medium, icon 16px in the words' colour, fully round, cream 8 %, no edge; hover 14 %;
+   chosen (or open) cream 22 % and semibold. No orange here – only the unread dot and the active-filter count. */
+[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)),
+:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) {
+  height: 40px;
+  padding: 0 16px;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  background-color: rgba(244, 238, 231, 0.08);
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--text-nav-main);
+  font-weight: 500;
+}
+[data-site-header] .chip-row [role="radiogroup"] {
+  gap: 8px;
+}
+/* Short trips: its bolt a soft orange (rgba(240,99,58,.75)), the words cream like the others (specific enough to beat the capsule's icon rule). */
+[data-site-header] button.short-trips.short-trips.short-trips.short-trips svg {
+  color: rgba(240, 99, 58, 0.75);
+}
+/* Icon → words exactly 8px (the capsule's gap): no extra margin on an icon of its own. */
+[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) > [aria-hidden],
+:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option) > [aria-hidden] {
+  margin: 0;
+}
+/* The two with a button inside (the field and its ✕): the inner button holds the padding. */
+/* (span.search-capsule doubled: as specific as the rule above, which counts its most specific branch.) */
+[data-site-header] span.search-capsule.search-capsule,
+:is(.bar-sheet, .bar-menu) .filters-capsule.panel-field {
+  padding: 0;
+  gap: 0;
+}
+[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) svg,
+:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button),
+:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button) {
+  color: inherit;
+}
+[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):hover,
+:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field):hover {
+  background-color: rgba(244, 238, 231, 0.14);
+}
+[data-site-header] :is(.search-capsule[data-active], .short-trips[aria-pressed="true"], .bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"])),
+:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .pick-option[aria-expanded="true"], .filters-capsule.panel-field[data-active]) {
+  background-color: rgba(244, 238, 231, 0.22);
+  font-weight: 600;
 }
 [data-site-header] .pick-option,
 [data-site-header] .filters-capsule.panel-field,
@@ -100,10 +146,16 @@
   --text-nav-main--font-weight: 500;
   /* The House page's title in its head: 44px at 1440px. */
   /* The House page's title: 52px at 1440, two lines at most. */
-  --text-hero: clamp(36px, 2.6vw + 14px, 52px);
+  /* The House page's title in its bento's main tile: 44px at 1440px. */
+  --text-hero: clamp(32px, 2vw + 16px, 44px);
   --text-hero--line-height: 1.05;
   --text-hero--font-weight: 700;
   --text-hero--letter-spacing: -0.03em;
+  /* The House page's price in its main tile: 48px from 1440px. */
+  --text-price: clamp(36px, 2vw + 20px, 48px);
+  --text-price--line-height: 1.05;
+  --text-price--font-weight: 700;
+  --text-price--letter-spacing: -0.035em;
   --text-h1: clamp(28px, 2vw + 8px, 40px);
   --text-h1--line-height: 1.05;
   --text-h1--font-weight: 700;
@@ -159,6 +211,11 @@
   --text-logo--line-height: 1;
   --text-logo--font-weight: 700;
   --text-logo--letter-spacing: -0.03em;
+  /* The header's bar (64px): the wordmark 24px. */
+  --text-logo-bar: 24px;
+  --text-logo-bar--line-height: 1;
+  --text-logo-bar--font-weight: 700;
+  --text-logo-bar--letter-spacing: -0.03em;
   --text-logo-sm: 22px;
   --text-logo-sm--line-height: 1;
   --text-logo-sm--font-weight: 700;
@@ -279,10 +336,6 @@ html.sim-standalone {
     background: var(--bg);
   }
 }
-/* Explore scrolled down (lib/exploreCompact): the compact bar has the filters – the phones' own row steps back. */
-html[data-explore-compact] .filter-row {
-  visibility: hidden;
-}
 .header-surface::after {
   content: "";
   pointer-events: none;
@@ -293,24 +346,12 @@ html[data-explore-compact] .filter-row {
   background: var(--line);
 }
 
-/* The page's own chip row (phones, city / vibe pages) fades only on a side with more to scroll to (data-at-start /
-   data-at-end on .chip-row). Open Houses' bar doesn't scroll – it shows what fits and "More". */
-.chip-scroller {
-  --fade: 12px;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-start, var(--fade)), #000 calc(100% - var(--fade-end, var(--fade))), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-start, var(--fade)), #000 calc(100% - var(--fade-end, var(--fade))), transparent 100%);
-}
-.chip-row[data-at-start] .chip-scroller {
-  --fade-start: 0px;
-}
-.chip-row[data-at-end] .chip-scroller {
-  --fade-end: 0px;
-}
-/* The site header: 56px, sticky in the page's flow, the same on every page (sizes: SiteHeader.tsx). */
+/* The site header: ONE bar, 64px, fixed and static (never moves while scrolling), the same on every page (SiteHeader.tsx); the page's
+   content gets exactly its 64px as padding-top. */
 @media (min-width: 768px) {
   :root {
-    --header-h: 56px;
-    --header-total: calc(72px + var(--band-h));
+    --header-h: 64px;
+    --header-total: calc(64px + var(--band-h));
     --band-h: calc(var(--demo-band-h) + var(--safe-top));
   }
 }
@@ -324,7 +365,8 @@ html[data-explore-compact] .filter-row {
   --page-margin: 16px;
   --space-section: clamp(56px, 6vw, 96px);
   --space-inner: clamp(20px, 2vw, 32px);
-  --header-open-total: calc(132px + var(--band-h));
+  /* The header's one bar (64px). */
+  --header-open-total: calc(64px + var(--band-h));
   /* The grid's card height keeps the chip row's former depth (108px), so the deeper tab doesn't shrink the cards. */
   --header-row-total: calc(108px + var(--band-h));
   --scroll-under-tab: calc(var(--header-open-total) + 40px);
@@ -502,8 +544,7 @@ html[data-explore-compact] .filter-row {
   /* Muted a step stronger on glass, whatever photo lies behind it. */
   --text-muted: color-mix(in srgb, var(--text) 80%, transparent);
 }
-.glass-panel,
-[data-notch-panel] {
+.glass-panel {
   --chip-bg: var(--pick-option-bg);
   --chip-bg-hover: color-mix(in srgb, var(--pick-option-bg) 60%, var(--surface));
 }
@@ -543,13 +584,7 @@ html[data-explore-compact] .filter-row {
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
-/* Messages – the one dark page (CLAUDE.md "Messaging"): its tokens are tokens.css' (.chat-dark, .messages-dark: --chat-bg, --bubble-*). */
-/* The page behind Messages is the same surface – no light ground anywhere. */
-html:has([data-messages-page]) body,
-html:has([data-messages-page]) main {
-  background-color: var(--chat-bg);
-}
-/* Hover actions, the reaction picker, the emoji picker: dark glass. */
+/* Hover actions, the reaction picker, the emoji picker in the chat: a light glass. */
 .chat-dark .glass-panel {
   background-color: var(--surface-2);
   -webkit-backdrop-filter: blur(20px);
@@ -688,29 +723,7 @@ html:has([data-messages-page]) main {
 .filters-capsule.panel-field[data-active] button {
   color: var(--pick-text);
 }
-/* Dark menus (the filters' dropdowns, sort, More): ink, white text, the chosen entry on 12 % white with a check. */
-.menu-dark {
-  background-color: var(--bg);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  color: var(--text);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
-}
-/* Without backdrop-filter, or with reduced transparency asked for: solid. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .menu-dark {
-    background-color: var(--stage-bg);
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .menu-dark {
-    background-color: var(--stage-bg);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-}
-/* Ember (.ember, tokens.css): the summary tiles – Payouts' head cards – dark in every mode. The bands (HeroBand, the Spotlight, Your houses'
-   band) are .stage: the same ground in hybrid and dark, light in light mode. Both turn the tokens round by themselves. */
+/* Ember (.ember, tokens.css): the one dark accent – single tiles for the main action (the House page's main tile, Payouts' head cards). */
 .ember {
   transition: box-shadow 150ms, transform 150ms;
 }
@@ -817,56 +830,82 @@ html:has([data-messages-page]) main {
  * The header's shape: --header-bg with a blur, so nothing under it can be made out. The -webkit- line is what Safari reads.
  * Without backdrop-filter: solid.
  */
+/* The header's glass (SiteHeader, FocusHeader, Explore's filter strip and compact bar): graphite .85 over blur 24px + saturate 160 %, a 1px
+   line white 8 % at the foot. Without backdrop-filter: solid graphite. */
+.header-glass,
 .milk-glass {
-  /* Graphite .94 over blur 20px: reads solid, only a hint of what scrolls under it. */
-  background-color: var(--hdr-bg);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background-color: var(--graphite-glass);
+  transition: background-color 200ms ease-out;
+  -webkit-backdrop-filter: var(--graphite-glass-filter);
+  backdrop-filter: var(--graphite-glass-filter);
+  box-shadow: inset 0 -1px 0 var(--graphite-glass-line);
+}
+/* Explore's filter sheet (PanelSheet filterSheet): a light glass, cream .86 over blur 28px – unlayered, so it wins over .glass-panel. */
+.filter-sheet {
+  background-color: var(--filter-sheet-bg);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  --text-muted: rgba(34, 30, 27, 0.72);
+}
+html[data-at-top] .header-glass,
+html[data-at-top] .milk-glass {
+  background-color: var(--graphite-glass-top);
+}
+/* All filters in the bar: More's dropdowns as capsules in two columns, each a column wide, its chevron at the end. */
+.filter-more-grid > * {
+  width: 100%;
+  min-width: 0;
+}
+.filter-more-grid > * > button,
+.filter-more-grid > button {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+}
+.filter-more-grid button > svg:last-child {
+  margin-left: auto;
+}
+/* The panel's Where / When fields: the inner button holds the capsule's 16px. */
+:is(.bar-sheet, .bar-menu) .filters-capsule.panel-field > button:first-child {
+  padding-inline: 16px;
+}
+/* The bar's content and its full-width sheet (All filters): at most 1600px, 32px from the window's edges. */
+.bar-width {
+  width: min(100% - 64px, 1600px);
+  margin-inline: auto;
+}
+/* While a sheet hangs from the bar (ui/BarSheet): the bar takes the sheet's exact glass – rgba(72,66,62,.90), blur 32px – in 200ms, without its
+   foot line; closing, it goes back to its transparency. Bar and sheet are one surface. */
+html[data-bar-sheet] .header-glass {
+  background-color: rgba(72, 66, 62, 0.9);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  backdrop-filter: blur(32px) saturate(1.6);
+  box-shadow: none;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .header-glass,
   .milk-glass {
-    background-image: none;
-    background-color: var(--hdr-solid);
+    background-color: var(--graphite);
   }
 }
 /*
- * The stage (StageBand): a fixed mesh at the top of the page, its last 200px fading out, so the next section joins
- * without an edge. A larger layer drifts slowly inside the masked one. Never taken from an image, never
- * per card.
+ * The Spotlight's glow (StageBand): on the page's own light ground, a soft dark ellipse behind the carousel and a breath of warmth, contained
+ * inside its area (no mask, no fade into the page below – the band under it starts on a hard edge). Never from an image, no motion.
  */
 .stage-gradient {
-  /* Only light mode keeps the soft wash; hybrid and dark paint the stage as a solid band (tokens.css .stage). */
-  display: none;
   position: absolute;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 200px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 200px), transparent);
 }
 .stage-gradient::before {
   content: "";
   position: absolute;
-  inset: -10%;
+  inset: 0;
   background-image:
-    radial-gradient(34% 46% at var(--stage-focus, 50%) 58%, var(--stage-peach) 0%, transparent 70%),
-    radial-gradient(50% 45% at var(--stage-focus, 50%) 100%, color-mix(in srgb, var(--stage-mist) 30%, transparent) 0%, transparent 70%),
-    radial-gradient(40% 40% at var(--stage-focus, 50%) 100%, color-mix(in srgb, var(--stage-peach) 40%, transparent) 0%, transparent 70%);
-  opacity: 0.4;
-  animation: stage-drift 40s ease-in-out infinite alternate;
-}
-html[data-mode="light"] .stage-gradient {
-  display: revert-layer;
-}
-@keyframes stage-drift {
-  from { transform: translate(-4%, -2%); }
-  to { transform: translate(4%, 2%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .stage-gradient::before {
-    animation: none;
-  }
+    radial-gradient(ellipse 55% 42% at 50% 52%, rgba(34, 30, 27, 0.16), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 50% 50%, color-mix(in srgb, var(--signal) 6%, transparent), transparent 70%);
 }
 
 html,
@@ -1059,19 +1098,8 @@ main:has([data-explore-blocks]) {
 .shelf-track img {
   -webkit-user-drag: none;
 }
-/* <Shelf variant="flat"> (Explore): nothing depends on position or hover – no lift, no zoom, no shadow; every card the same size and top.
-   Explore's shelves use it; the other rows and the Spotlight keep theirs. */
-.shelf-flat [data-house-card],
-.shelf-flat [data-house-card]:hover {
-  /* scale/translate on their own (Tailwind's hover uses these properties): together with "transform: none" the CSS build merges them away. */
-  scale: 1 !important;
-  translate: 0 0 !important;
-  filter: none !important;
-}
-.shelf-flat [data-photo-zoom] {
-  scale: none !important;
-}
-/* A card in a shelf: the one HouseCard with its own hover (scale 1.02 + shadow); the hovered one lies above its neighbours. */
+/* <Shelf variant="flat"> (Explore): nothing depends on position – every card the same size and top; the hover is the cards' own (.card-hover). */
+/* A card in a shelf: the hovered one lies above its neighbours (its floor light and shadow). */
 .shelf-track > *:has(:hover),
 .shelf-track > *:has(:focus-visible) {
   position: relative;
@@ -1200,11 +1228,73 @@ input[type="number"]::-webkit-inner-spin-button {
 [data-notch="ready"] .card-tab::after {
   display: none;
 }
-/* The frame scales on hover as one layer (card + tab together), on whole pixels where the browser can. */
+/* The frame moves as one layer (card + tab together), on whole pixels where the browser can. */
 .notch-frame {
   transform: translateZ(0);
   will-change: transform;
   backface-visibility: hidden;
+}
+
+/* The HouseCard's text field (every card but the Spotlight's): from ~55 % of the height the photo blurs progressively – a copy of the photo,
+   blur 18px, masked from transparent at 55 % to full at 75 % (45 % of the field) – and a darkening from 35 % of the height: .62 at the title,
+   .70 at the foot (measured ≥ 4.5 : 1 for title and date on the brightest mock photos); the words white on it. Not a backdrop-filter: Chromium
+   ignores a mask on it and draws a hard edge. (-webkit-mask for Safari.) */
+.card-blur-img {
+  filter: blur(18px);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 75%);
+  mask-image: linear-gradient(to bottom, transparent 55%, #000 75%);
+}
+.card-shade {
+  /* Reaches .62 at about the title's top, then .70 at the foot – a plain linear ramp stayed under 3 : 1 on the brightest photos. */
+  background: linear-gradient(to bottom, rgba(20, 16, 14, 0) 0%, rgba(20, 16, 14, 0.62) 30%, rgba(20, 16, 14, 0.7) 100%);
+}
+/* The Spotlight's side cards are inert: only the middle one shows its host's socials. */
+[inert] [data-card-socials] {
+  visibility: hidden;
+}
+/* The HouseCard's hover – fine, at the bottom only (components/HouseCard). No veil, no brightness, no zoom, no scale. The card rises 2px, its
+   shadow a little deeper; inside it a faint warm light comes up at the bottom edge – radial-gradient(ellipse 70% 28% at 50% 100%), warm white
+   .10, soft-light, only the lowest ~25 % – over the photo, under the text's gradient (which stays as dark); under it a light on the ground
+   (60 % of its width, 24px high, 8px under its edge, warm .08 on the light page, .14 in a dark band, blur 16px). In 260ms ease-out.
+   Reduced motion: no movement, only the lights. */
+.card-hover {
+  transition: translate 260ms ease-out, filter 260ms ease-out, opacity 260ms ease-out;
+}
+.card-light {
+  background: radial-gradient(ellipse 70% 28% at 50% 100%, rgba(255, 210, 170, 0.1), transparent 70%);
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transition: opacity 260ms ease-out;
+}
+.card-floor {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 20%;
+  z-index: -1;
+  width: 60%;
+  height: 24px;
+  background: radial-gradient(closest-side, rgba(255, 200, 150, 0.08), transparent);
+  filter: blur(16px);
+  opacity: 0;
+  transition: opacity 260ms ease-out;
+}
+.band-dark .card-floor {
+  background: radial-gradient(closest-side, rgba(255, 200, 150, 0.14), transparent);
+}
+@media (hover: hover) and (min-width: 48rem) {
+  .card-hover:is(:hover, :has(:focus-visible)) {
+    translate: 0 -2px;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+  }
+  .card-hover:is(:hover, :has(:focus-visible)) :is(.card-light, .card-floor) {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-hover:is(:hover, :has(:focus-visible)) {
+    translate: none;
+  }
 }
 
 /* Focus overlay behind a dialog (ModalOverlay): blur + light dim; without backdrop-filter a stronger dim instead.
@@ -1340,15 +1430,22 @@ main:has([data-demo-login]) {
 .text-display,
 .text-stage,
 .text-hero,
+.text-price,
 .text-h1,
 .text-h2,
 .text-name,
 .text-row,
-.text-section,
+.text-section {
+  font-family: var(--font-display), var(--font-sans);
+}
+/* The wordmark: Inter Display (Inter at its display optical size) – bold 700, everywhere the same. */
 .text-logo,
 .text-logo-sm,
+.text-logo-bar,
 .text-logo-lg {
-  font-family: var(--font-display), var(--font-sans);
+  font-family: var(--font-inter), var(--font-sans);
+  font-variation-settings: "opsz" 32;
+  font-weight: 700;
 }
 /* At this tightness a space would nearly close. */
 .text-stage {
@@ -1362,10 +1459,6 @@ main:has([data-demo-login]) {
   }
 }
 
-/* The map's zoom hint is our own, small and bottom right (HouseMap): Google's grey overlay stays away. Not a public class. */
-.house-map .gm-style-moc {
-  display: none !important;
-}
 
 /* A stage headline in letters that can move, under one gradient (FlipText): each letter paints its piece. Without clipped backgrounds plain
    ink, never invisible. The extra room around a letter keeps its overhang and descenders inside what it paints; the negative margins give it back. */

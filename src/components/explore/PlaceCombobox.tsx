@@ -1,7 +1,7 @@
 "use client";
 
 import { placeImageOf } from "@/config/place-images";
-import { Search } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
@@ -103,11 +103,10 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
             return (
               <li key={place.id} id={`${id}-option-${i}`} role="option" aria-selected={i === active}>
                 <button type="button" onClick={() => onPick(place)} className={cn("flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-body hover:bg-ink/5", i === active && "bg-ink/5")}>
-                  {cover && (
-                    <span className="relative size-10 shrink-0 overflow-hidden rounded-xl">
-                      <Img src={cover} alt="" fill sizes="40px" className="object-cover" />
-                    </span>
-                  )}
+                  {/* Every row alike: the place's picture in a 40px square, or its pin in the same square. */}
+                  <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink/8 text-muted">
+                    {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <MapPin aria-hidden className="size-4" />}
+                  </span>
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-medium text-ink">{place.name}</span>{" "}
                     <span className="text-muted">{kind === "country" ? t("kindCountry") : kind === "world" ? t("kindRegion") : place.country}</span>

@@ -24,7 +24,6 @@ import { previewForUrl } from "@/lib/data";
 import { platformOf } from "@/lib/platforms";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { ListingInfo } from "./AccommodationTile";
-import { HouseMap } from "./HouseMap";
 
 /** Under a section's eyebrow in the page's left column. */
 const ROW = "mt-4";
@@ -39,7 +38,8 @@ export function HouseWhy({ stay }: { stay: Stay }) {
   return (
     <section aria-labelledby="house-why">
       <RowHead id="house-why" title={t("why")} />
-      <blockquote className={cn(ROW, "max-w-[64ch] whitespace-pre-line text-row font-medium text-ink")}>{quote}</blockquote>
+      {/* A quote: 22px regular, ink, at most 64 characters a line, a 3px line ink 12 % on its left. */}
+      <blockquote className={cn(ROW, "max-w-[64ch] whitespace-pre-line border-l-[3px] border-ink/12 pl-5 text-quote font-normal text-ink")}>{quote}</blockquote>
     </section>
   );
 }
@@ -235,10 +235,9 @@ export function HouseOffer({ stay }: { stay: Stay }) {
 }
 
 /**
- * Where you'll be – the place as a full-width strip: the map over the whole window, 440px high, no rounding; the approximate circle stays,
- * nothing written on it. On it, on the page's grid at the left, a glass field (rgba(251,247,242,.82) + blur 16, radius 20, 360px): "Around
- * Roma Norte", then – picking together – the shortlist or the three steps, or – booked – the listing, and at the bottom "Open in Google Maps ↗"
- * (ink, cream text). The map behind it opens Google Maps too.
+ * Where you'll be: two columns – left a static map image (560 × 320, radius 20; /api/static-map draws it with Google's Static Maps API when
+ * the server has a key, a calm mock without; the approximate circle drawn in, lazy, cached), right "Around {area}", how the place gets
+ * picked (together) or the listing (set), and "Open in Google Maps ↗". No interactive map, no embed.
  */
 export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
   const t = useTranslations("house.page");
@@ -250,28 +249,31 @@ export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
   const hasCoordinates = !isCityOpen(stay) && Boolean(stay.lat || stay.lng);
   const area = stay.location.area ?? stay.location.city ?? stay.region;
   const candidates = (stay.accommodationVote?.options ?? []).filter((o) => o.link).slice(0, 3);
+  const mapParams = new URLSearchParams(
+    hasCoordinates
+      ? // The circle about 70px across the image: 1.5km at zoom 13, 500m at zoom 14.
+        { lat: String(stay.lat), lng: String(stay.lng), zoom: booked ? "14" : "13", r: String(booked ? BOOKED_RADIUS_M : AREA_RADIUS_M) }
+      : { q: decodeURIComponent(query), zoom: String(Math.max(zoom - 2, 2)) },
+  );
   return (
-    <section aria-labelledby="house-where" className="relative mt-14 h-110 overflow-hidden bg-line">
-      <h2 id="house-where" className="sr-only">
-        {t("where")}
-      </h2>
-      <HouseMap lat={stay.lat} lng={stay.lng} pin={false} radius={booked ? BOOKED_RADIUS_M : undefined} query={query} hasCoordinates={hasCoordinates} zoom={Math.max(zoom - (booked ? 1 : 3), 2)} title={tMap("mapOf", { place: format.placeLabel(stay) })} />
-      <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden className="absolute inset-0 z-10" />
-      <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="page-container explore-width flex h-full items-center">
-          <div className="pointer-events-auto flex max-h-[calc(100%-48px)] w-full max-w-90 flex-col gap-4 overflow-y-auto rounded-[20px] border border-(--glass-solid)/60 bg-(--glass-bg) p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[16px]">
-            <div>
-              <p className="text-eyebrow uppercase text-ink/55">{t("where")}</p>
-              <p className="mt-1 text-h3 text-ink">{tWhere("around", { area })}</p>
-            </div>
-            {booked ? <ListingInfo stay={stay} link={stay.accommodationLink!} /> : candidates.length > 0 ? <Shortlist stay={stay} options={candidates} /> : <HowPicked />}
-            {booked && <p className="text-small text-muted">{tWhere("exactAfter")}</p>}
-            <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className="press inline-flex h-11 items-center justify-center gap-2 self-start rounded-full bg-(--action-bg) px-5 text-body font-semibold text-(--action-text) transition-colors hover:bg-(--action-hover)">
-              {tMap("openInMaps")}
-              <ArrowUpRight className="size-4" aria-hidden />
-            </a>
-          </div>
+    <section aria-labelledby="house-where" className={cn(ROW, "grid items-center gap-8 split:grid-cols-[minmax(0,560px)_minmax(0,1fr)] split:gap-12")}>
+      <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden className="block overflow-hidden rounded-[20px] bg-band">
+        {/* eslint-disable-next-line @next/next/no-img-element -- our own cached map route (an SVG mock or Google's PNG), lazy */}
+        <img src={`/api/static-map?${mapParams}`} alt={tMap("mapOf", { place: format.placeLabel(stay) })} width={560} height={320} loading="lazy" decoding="async" className="aspect-[560/320] w-full object-cover" />
+      </a>
+      <div className="flex max-w-90 flex-col gap-4">
+        <div>
+          <h2 id="house-where" className="text-eyebrow uppercase text-ink/55">
+            {t("where")}
+          </h2>
+          <p className="mt-1 text-row text-ink">{tWhere("around", { area })}</p>
         </div>
+        {booked ? <ListingInfo stay={stay} link={stay.accommodationLink!} /> : candidates.length > 0 ? <Shortlist stay={stay} options={candidates} /> : <HowPicked />}
+        {booked && <p className="text-small text-muted">{tWhere("exactAfter")}</p>}
+        <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className="press inline-flex h-11 items-center justify-center gap-2 self-start rounded-full bg-(--action-bg) px-5 text-body font-semibold text-(--action-text) transition-colors hover:bg-(--action-hover)">
+          {tMap("openInMaps")}
+          <ArrowUpRight className="size-4" aria-hidden />
+        </a>
       </div>
     </section>
   );
@@ -301,8 +303,9 @@ function HowPicked() {
   );
 }
 
-/** A booked place's circle: about 500m – the area, never the address. */
+/** A booked place's circle: about 500m – the area, never the address. Open: about 1.5km of the neighbourhood. */
 const BOOKED_RADIUS_M = 500;
+const AREA_RADIUS_M = 1500;
 
 /** Picking together: the candidates so far, each a row – photo, title, price per person, the listing in a new tab. */
 function Shortlist({ stay, options }: { stay: Stay; options: { id: string; link?: string; pricePerPerson?: number }[] }) {

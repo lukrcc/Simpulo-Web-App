@@ -81,10 +81,10 @@ export function Shelf({ children, className, variant = "default", top = EXPLORE_
       <div ref={viewportRef} data-shelf className="shelf">
         <div className={cn("shelf-track", (ends.prev || ends.next) && "md:cursor-grab md:active:cursor-grabbing")}>{children}</div>
       </div>
-      <IconButton variant="onImage" size="lg" tabIndex={ends.prev ? undefined : -1} aria-hidden={!ends.prev} aria-label={t("scrollBack")} onClick={() => page(-1)} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
+      <IconButton data-shelf-arrow variant="onImage" size="lg" tabIndex={ends.prev ? undefined : -1} aria-hidden={!ends.prev} aria-label={t("scrollBack")} onClick={() => page(-1)} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
         <ChevronLeft className="size-5" aria-hidden />
       </IconButton>
-      <IconButton variant="onImage" size="lg" tabIndex={ends.next ? undefined : -1} aria-hidden={!ends.next} aria-label={t("scrollOn")} onClick={() => page(1)} className={cn(ARROW, "right-4", !ends.next && ARROW_GONE)}>
+      <IconButton data-shelf-arrow variant="onImage" size="lg" tabIndex={ends.next ? undefined : -1} aria-hidden={!ends.next} aria-label={t("scrollOn")} onClick={() => page(1)} className={cn(ARROW, "right-4", !ends.next && ARROW_GONE)}>
         <ChevronRight className="size-5" aria-hidden />
       </IconButton>
     </div>

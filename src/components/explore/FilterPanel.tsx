@@ -13,7 +13,24 @@ import { useDismiss } from "./Filters";
  * below, a 1px line (ink 9 %) between rows (the panel's list: `divide-y`). Several picked: their number as a small orange count after
  * the label. No "Any" anywhere – nothing picked means everything.
  */
-export function FilterRow({ label, count = 0, aside, children, className }: { label: ReactNode; count?: number; aside?: ReactNode; children: ReactNode; className?: string }) {
+export function FilterRow({ label, count = 0, aside, children, className, stacked = false }: { label: ReactNode; count?: number; aside?: ReactNode; children: ReactNode; className?: string; /** The bar's All filters: the label above the capsules (aside at its right), no lines */ stacked?: boolean }) {
+  if (stacked)
+    return (
+      <div className={cn("flex min-w-0 flex-col gap-2.5", className)}>
+        <div className="flex min-h-5 items-center gap-2">
+          <span className="flex items-center gap-2 text-nav font-semibold text-ink">
+            {label}
+            {count > 0 && (
+              <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
+                {count}
+              </span>
+            )}
+          </span>
+          {aside && <div className="ml-auto">{aside}</div>}
+        </div>
+        {children}
+      </div>
+    );
   return (
     <div className={cn("grid items-center gap-x-6 gap-y-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[150px_minmax(0,1fr)]", className)}>
       <span className="flex items-center gap-2 text-nav font-semibold text-ink">
@@ -35,11 +52,11 @@ export function FilterRow({ label, count = 0, aside, children, className }: { la
 /** The panel's option capsule: 36px, padding 0 16px, a 1px ink 9 % edge, ink 75 % text; chosen the orange tone (.pick-option, .pick-on). */
 const optionClass = (on: boolean) => cn("pick-option press inline-flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-nav [&>svg]:size-3.5 [&>svg]:shrink-0", on && "pick-on");
 
-/** A capsule's line icon, 16px before its words: ink 60 %, chosen #F0633A. */
+/** A capsule's line icon, 16px before its words: ink 60 %, chosen ink. */
 function OptionIcon({ icon: Icon, on }: { icon?: LucideIcon; on: boolean }) {
   if (!Icon) return null;
   return (
-    <span aria-hidden className={cn("-ml-0.5 mr-1 flex shrink-0 transition-colors duration-150", on ? "text-accent" : "text-ink/60")}>
+    <span aria-hidden className={cn("-ml-0.5 mr-1 flex shrink-0 transition-colors duration-150", on ? "text-ink" : "text-ink/60")}>
       <Icon className="size-4" strokeWidth={1.75} />
     </span>
   );

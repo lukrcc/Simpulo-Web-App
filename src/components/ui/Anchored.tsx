@@ -28,7 +28,9 @@ export function Anchored({ anchor, align = "end", ref, width = 0, className, chi
     const place = () => {
       const r = anchor.current?.getBoundingClientRect();
       if (!r) return;
-      const top = r.bottom + 8;
+      // 8px under its anchor – and when the anchor sits in the header's bar, 8px under the bar: flyouts come out of the bar downwards.
+      const bar = anchor.current?.closest("[data-site-header]")?.getBoundingClientRect();
+      const top = Math.max(r.bottom, bar?.bottom ?? 0) + 8;
       // clientWidth: the viewport without the scrollbar – what fixed `right` measures from.
       setStyle(align === "end" ? { position: "fixed", top, right: Math.max(8, document.documentElement.clientWidth - r.right) } : { position: "fixed", top, left: Math.max(8, Math.min(r.left, document.documentElement.clientWidth - width - 16)) });
     };

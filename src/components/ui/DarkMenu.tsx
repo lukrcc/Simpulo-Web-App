@@ -3,10 +3,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The filters' drop-down menus (their dropdowns, sort, More): dark – ink, white text (.menu-dark), radius 20px. The chosen entry sits on
- * 12 % white with a check. One look for all of them.
+ * The filters' drop-down menus (the dropdowns of All filters, the sort, Where/When fields in the panel): the bar's dark glass (.bar-menu in
+ * tokens.css, like ui/BarSheet), cream words; the chosen entry a cream outline capsule with a check.
  */
-export const darkMenuClass = "menu-dark animate-fade-in rounded-[20px] p-1.5";
+export const darkMenuClass = "bar-menu";
 /** Every popover at most 320px high, scrolling inside. */
 export const darkMenuScroll = "max-h-80 overflow-y-auto overscroll-contain";
 // (darkMenuScroll sits on the menu itself, padding included: 320px in all.)
@@ -18,8 +18,8 @@ export function DarkMenuItem({ selected, children, hint, checkbox = false, class
       type="button"
       {...props}
       className={cn(
-        "flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-body transition-colors duration-150",
-        selected ? "bg-ink/12 font-semibold text-ink" : "text-ink/85 hover:bg-ink/8 hover:text-ink",
+        "flex min-h-10 w-full items-center gap-2 rounded-full px-3 text-left text-body transition-colors duration-150",
+        selected && !checkbox ? "font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--text)]" : selected ? "font-semibold text-ink" : "text-ink/85 hover:bg-ink/5 hover:text-ink",
         className,
       )}
     >

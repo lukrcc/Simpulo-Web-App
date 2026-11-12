@@ -20,7 +20,6 @@ export function HeroBand({
   rightColumn,
   height = "split:h-(--hero-h)",
   mediaWidth = "split:w-[clamp(360px,30%,640px)]",
-  flush = false,
   footer,
   ref,
   ...rest
@@ -32,14 +31,12 @@ export function HeroBand({
   height?: string;
   /** The media's width from 1100px (a class) */
   mediaWidth?: string;
-  /** The page already sits right under the header (the profile's one-screen frame): no pulling up */
-  flush?: boolean;
   /** Across the whole Ember at its foot, its content on the grid (`band-inset` gives the inner edges) */
   footer?: ReactNode;
   ref?: Ref<HTMLElement>;
 } & Omit<HTMLAttributes<HTMLElement>, "children">) {
   return (
-    <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, !flush && "md:-mt-4", rest.className)}>
+    <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, rest.className)}>
       <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-full", mediaWidth)}>{media}</div>
       <div className="stage flex min-w-0 flex-1 flex-col rounded-none">
         {/* The right inner edge: where the header's content ends (--band-edge, globals.css). */}

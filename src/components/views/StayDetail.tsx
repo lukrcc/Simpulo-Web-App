@@ -428,6 +428,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           host={host}
           crew={crew}
           cta={cta}
+          // Several spots open and the visitor can still ask: the crew tile offers asking together too.
+          onRequestWithFriend={!isHost && canJoin && !myRequest ? startRequestWithFriend : undefined}
           secondary={
             <>
               {/* One row for visitors: "Request to join" (cream) · "Request with a friend" (outline) · Message host as a round 48px icon.
@@ -569,10 +571,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       </div>
     </Container>
 
-    {/* Where you'll be: the place as a full-width strip (the map over the whole window, the glass field on the grid). */}
-    <HouseWhere stay={stay} />
-
     <Container className="explore-width pb-24 md:pb-[calc(120px-var(--space-section))]">
+      {/* Where you'll be: the static map left, the area and how the place is picked right. */}
+      <div className="mt-14">
+        <HouseWhere stay={stay} />
+      </div>
       <HouseMore stay={stay} />
 
       {/* The floating bar: a member sees the current step and its action instead of "Request to join". */}

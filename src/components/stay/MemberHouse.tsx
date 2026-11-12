@@ -5,7 +5,7 @@ import { Check, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
-import { HeroBand, HeroPhotos } from "@/components/HeroBand";
+import { HeroPhotos } from "@/components/HeroBand";
 import { useState, type ReactNode, type Ref } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { Button } from "@/components/ui/ActionButton";
@@ -109,8 +109,14 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
   const t = useTranslations("house.steps");
   const format = useFormat();
   return (
-    // The House as the page's main object: the full-width band (components/HeroBand), the same for every role.
-    <HeroBand ref={ref} aria-labelledby="house-title" media={<HeroPhotos photos={housePhotos(stay, host)} />}>
+    // The same bento frame as the visitor's (HouseHero): the photos left (radius 24, as tall as the tile), the member's way through the House
+    // as the one Ember tile right – the main action of this page.
+    <section ref={ref} aria-labelledby="house-title" className="page-container explore-width pt-4">
+      <div className="grid gap-4 split:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="relative aspect-4/5 overflow-hidden rounded-[24px] bg-band split:aspect-auto split:h-full split:max-h-[calc((var(--explore-w)-16px)/3*1.25)] split:min-h-100">
+          <HeroPhotos photos={housePhotos(stay, host)} />
+        </div>
+        <div className="ember min-w-0 rounded-[24px] p-6 sm:p-8">
       <div className="flex h-full min-w-0 flex-col gap-6">
         {/* Phones: the actions sit above the title, so the title gets the whole width. */}
         <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -171,7 +177,9 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
           </div>
         </div>
       </div>
-    </HeroBand>
+        </div>
+      </div>
+    </section>
   );
 }
 

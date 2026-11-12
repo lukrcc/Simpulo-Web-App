@@ -169,6 +169,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const smUp = useMediaQuery("(min-width: 48rem)");
   const myCols = xlUp ? 5 : lgUp ? 4 : smUp ? 3 : 2;
   const probe = <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />;
+  // Saved: the Houses you hearted (the avatar menu is gone – this row is where they live), as Explore's cards; "See all" → /saved.
+  const savedCards = (store.users.find((u) => u.id === me)?.savedStayIds ?? [])
+    .map((id) => store.stays.find((s) => s.id === id))
+    .filter((stay): stay is NonNullable<typeof stay> => Boolean(stay))
+    .map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
   const nextTripCards = nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
 
   // Never hosted, never joined: no dashboard, no cards – one calm invitation, and Houses for the first trip.
@@ -265,6 +270,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     { key: "going", cards: groupCards("going") },
     { key: "waiting", cards: groupCards("waiting") },
     { key: "livedIn", cards: livedIn.map((stay) => ({ key: stay.id, node: <LivedInCard stay={stay} /> })) },
+    { key: "saved", cards: savedCards },
     { key: "nextTrip", cards: nextTripCards },
   ];
   // Empty rows are left out – Hosting stays while you host (its dashed card); not hosting at all, the dashed card closes the last of yours.
@@ -281,7 +287,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         </BackLink>
         <RowHead id={`row-${group}`} title={tDash(`rows.${group}`)} count={row.cards.length} className="mt-3" />
         {/* Your own Houses as MyHouseTiles (5 · 4 · 3 a row; Lived in two more); For your next trip as Explore's grid. */}
-        <ul className={cn(group === "nextTrip" ? EXPLORE_GRID : group === "livedIn" ? "grid grid-cols-3 gap-(--explore-gap) sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7" : "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4 [@media(min-width:90rem)]:grid-cols-5", "mt-4")}>
+        <ul className={cn(group === "nextTrip" || group === "saved" ? EXPLORE_GRID : group === "livedIn" ? "grid grid-cols-3 gap-(--explore-gap) sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7" : "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4 [@media(min-width:90rem)]:grid-cols-5", "mt-4")}>
           {row.cards.map((c) => (
             <li key={c.key}>{c.node}</li>
           ))}
@@ -311,8 +317,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             id={row.key}
             title={tDash(`rows.${row.key}`)}
             cards={row.cards}
-            extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
-            cols={row.key === "nextTrip" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
+            extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "saved" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
+            cols={row.key === "nextTrip" || row.key === "saved" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
           />
         ))}
         <SavedPeople />
@@ -327,8 +333,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
 /** One row of Your houses: the shared CardRow, "See all" to its own grid page. */
 function YourRow({ id, title, cards, extra, cols }: { id: YourRowKey; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode; cols: number }) {
   // Your own Houses: MyHouseTile slots (5 · 4 · 3 a row, Lived in smaller); For your next trip: Explore's shelf cards.
-  const slide = id === "nextTrip" ? "explore-slide" : id === "livedIn" ? "my-slide-small" : "my-slide";
-  return <CardRow id={id} title={title} cards={cards} extra={extra} cols={cols} seeAll={`/your-houses/all/${id}`} slideClass={slide} />;
+  const slide = id === "nextTrip" || id === "saved" ? "explore-slide" : id === "livedIn" ? "my-slide-small" : "my-slide";
+  return <CardRow id={id} title={title} cards={cards} extra={extra} cols={cols} seeAll={id === "saved" ? "/saved" : `/your-houses/all/${id}`} slideClass={slide} />;
 }
 
 /**

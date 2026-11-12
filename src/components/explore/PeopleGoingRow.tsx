@@ -38,12 +38,13 @@ export function PeopleGoingRow() {
   if (stays.length === 0) return null;
   return (
     <section aria-labelledby={id}>
-      <SectionHeader variant="explore" id={id} eyebrow={t("eyebrow")} title={t("title")} subline={t("subline")} seeAll={{ href: "/people", label: t("seeAll") }} />
+      <SectionHeader variant="explore" id={id} title={t("title")} subline={t("subline")} seeAll={{ href: "/people", label: t("seeAll") }} />
       <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
         {stays.map((stay) => (
           <div key={stay.id} className="explore-slide shrink-0">
             {/* "Join them" = Request to join: the House page with the request sheet open. */}
             <HouseCard
+              variant="shelf"
               stay={stay}
               host={findUser(store, stay.hostId)}
               crew={getCrew(store, stay)}

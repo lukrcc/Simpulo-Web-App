@@ -39,8 +39,12 @@ export const VISIBLE_CHIPS = 8;
 
 
 
-/** The "More" categories popover (a 3-column grid): at most this wide (px). */
-export const MORE_POPOVER_MAX_WIDTH = 420;
+/** The bar's categories on Explore, in this order: as many as fit between Short trips and All filters (at least 2, at most 6); the rest under
+ *  "More". Later personalised. */
+export const TOP_CATEGORIES: readonly Vibe[] = ["creator", "fitness", "remote-work", "surf-water", "founder", "wellness"];
+/** The bar shows at least this many and at most this many categories. */
+export const BAR_CATEGORIES_MIN = 2;
+export const BAR_CATEGORIES_MAX = 6;
 
 /** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */
 export const HOUSE_GRID = "card-grid house-grid [--card-min:260px] [--card-cols:6]";
@@ -121,12 +125,29 @@ export const spotlightThemeFallback = (count: number) => `${count} ${count === 1
 export const pageSize = 24;
 
 /**
+ * Explore's rhythm (browsing, no filter): Spotlight → band → grid of `rowsPerBlock` rows → band → grid of 4 rows → … (4 rows = 16 cards at 4
+ * columns, 12 at 3). The shelves in this order; one with too few Houses (TOP_SHELF_MIN) is skipped, no House in two bands. It goes on after
+ * "Show N more" while shelves are left. "peopleGoing": "Your people are going"; every other id is a collection (lib/collections).
+ */
+export const EXPLORE_RHYTHM = {
+  rowsPerBlock: 4,
+  shelves: ["justOpened", "shortTrips", "peopleGoing", "startingSoon", "lastSpot", "party", "trainTogether", "buildTogether", "meetSomeone"],
+} as const;
+
+/** From this many columns each block of the grid has one highlight two columns wide (it fills two cells: one card fewer per block). */
+export const HIGHLIGHT_MIN_COLS = 3;
+/** Cards in one block of the grid: columns × rowsPerBlock, one fewer with the highlight (4 columns 15, 3 → 11, 2 → 8). */
+export const exploreBlockSize = (cols: number) => Math.max(1, cols) * EXPLORE_RHYTHM.rowsPerBlock - (cols >= HIGHLIGHT_MIN_COLS ? 1 : 0);
+/** How many cards a page loads: two blocks (4 columns 30, 3 → 22, 2 → 16) – "Show {n} more" loads exactly one page. */
+export const explorePageSize = (cols: number) => exploreBlockSize(cols) * 2;
+
+/**
  * Explore's vertical spacing, the one place for it (Tailwind classes, so they end up in the CSS). --space-section between
  * all sections, from the bottom of the cards or the button to the next eyebrow; --space-inner inside one (globals.css).
  */
 export const EXPLORE_SPACING = {
   /** The Spotlight's top edge in the window, from the bar (--spot-top, globals.css). */
-  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-56px)]",
+  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-64px)]",
   /** With the text over the carousel instead (it doesn't fit beside it): from the bar to the text. */
   spotlightTextTop: "lg:pt-[calc(var(--space-inner)+6px)]",
   /** From that title's subline to the centre card. */

@@ -1,119 +1,33 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { usePathname } from "next/navigation";
-import { createPortal } from "react-dom";
-import { BAND_HEIGHT } from "@/lib/appMode";
-import { NOTCH_CORNER_GAP, NOTCH_CORNER_W, NOTCH_OPEN_TOTAL, NOTCH_SLOT_INSET, registerNotchFilters, setNotchAuto, useNotchState } from "@/lib/notchState";
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 /*
- * Open Houses' filters, from md – the one filter row of Explore. In the page: a plain row 24px under the grid's head that doesn't stick (Where · When +
- * Short trips | the categories, as many as fit whole, then "More ▾" | "All filters"); the sort sits on the head's right. In the tab: all of it in one row.
- * Once it has gone under the header the header's tab takes over with the same controls and the same state, until the grid's
- * bottom edge reaches the tab. Only one of the two is ever showing.
+ * The filter row in the page – only on city, vibe and collection pages (Where · When + Short trips | the categories that fit, "More ▾" |
+ * "All filters"; the sort beside the section's title). Explore itself has its quick search in the header's one bar (SiteHeader).
  */
 
-/** The header's height at the tab, closed: the filters take over when the row has passed it. */
-const NOTCH_CLOSED_TOTAL = 72 + BAND_HEIGHT;
-/** Where a chip change puts the grid: 40px under the open tab, so the handle on its edge never lies on a card. The row above the grid is just over this line then, so the tab stays. */
-const UNDER_TAB_TOTAL = NOTCH_OPEN_TOTAL + 40;
-/** Everything below the fold counts as "not passed yet": a jump past the line still crosses it. */
-const BELOW = 100_000;
-
-/** Watches one line near the top of the window: `onCross(passed)` when the target goes above or comes back below it. */
-function watchLine(target: Element, line: number, onCross: (passed: boolean) => void) {
-  const observer = new IntersectionObserver(([entry]) => onCross(!entry.isIntersecting), { rootMargin: `-${line}px 0px ${BELOW}px 0px` });
-  observer.observe(target);
-  return observer;
-}
-
 /**
- * Smoothly scrolls `el` to just under the header and its filter row (phones: no top header, only the safe area).
- * Instant with reduced motion.
+ * Smoothly scrolls `el` to just under the header (its one 76px bar holds Explore's quick search; phones: the page's own chip row under the
+ * safe area). Instant with reduced motion.
  */
 export function scrollUnderHeader(el: HTMLElement | null) {
   if (!el) return;
   const root = getComputedStyle(document.documentElement);
   const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
-  // The row showing (from md): the header's open tab takes its place, 40px under it. Else the page's own chip row.
-  const row = document.querySelector<HTMLElement>("[data-explore-filter-row]");
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const offset = row && row.offsetHeight > 0 ? UNDER_TAB_TOTAL : px("--header-total") + px("--filter-row-h");
+  // From md the header's one bar (the quick search in it): 24px under it. Phones: under the page's own chip row.
+  const md = window.matchMedia("(min-width: 48rem)").matches;
+  const offset = md ? px("--header-h") + px("--band-h") + 24 : px("--header-total") + px("--filter-row-h");
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
 }
 
-export function ExploreFilterBar({ fields, chips, controls, corner, pageEnd, gridEndRef, handle }: { /** The page's row only: its last element ("All filters" as an ink capsule) */ pageEnd?: ReactNode; /** The tab only: its right corner filled by a block ("All filters"); the row stops 16px before it */ corner?: ReactNode; /** Sort and Filters: only in the header's tab; on the page they sit beside the section's title */ /** Where? and When?, before the chips */ fields?: ReactNode; chips: ReactNode; controls: ReactNode; gridEndRef: RefObject<HTMLDivElement | null>; /** The tab's handle: Explore itself */ handle: boolean }) {
-  const startRef = useRef<HTMLDivElement>(null);
-  const { chips: tabHasChips, slot: tabSlot, cornerSlot: tabCorner } = useNotchState();
-  // The header's tab (docking, the handle, the corner block) only on Explore itself: / and /explore. Elsewhere the row stays in the page.
-  const pathname = usePathname();
-  const docks = pathname === "/" || pathname === "/explore";
-  const slot = docks ? tabSlot : null;
-  const cornerSlot = docks ? tabCorner : null;
-
-  useEffect(() => {
-    if (!docks) return;
-    const start = startRef.current;
-    const end = gridEndRef.current;
-    if (!start || !end) return;
-    let inSection = false;
-    let ended = false;
-    const push = () => setNotchAuto(inSection && !ended);
-    const unregister = registerNotchFilters({
-      handle,
-      adopt: () => {
-        inSection = true;
-        push();
-      },
-    });
-    // On at the closed tab, off 40px under the open one: where a filter change scrolls to the row is between the two, and
-    // the tab stays as it is.
-    const observers = [
-      watchLine(start, NOTCH_CLOSED_TOTAL, (passed) => {
-        if (passed) {
-          inSection = true;
-          push();
-        }
-      }),
-      watchLine(start, UNDER_TAB_TOTAL, (passed) => {
-        if (!passed) {
-          inSection = false;
-          push();
-        }
-      }),
-      watchLine(end, NOTCH_OPEN_TOTAL, (passed) => {
-        ended = passed;
-        push();
-      }),
-    ];
-    return () => {
-      observers.forEach((observer) => observer.disconnect());
-      unregister();
-    };
-  }, [gridEndRef, handle, docks]);
-
-  const row = (inTab: boolean) => (
-    <>
+export function ExploreFilterBar({ fields, chips, pageEnd }: { /** Where? and When?, before the chips */ fields?: ReactNode; chips: ReactNode; /** The row's last element ("All filters" as an ink capsule) */ pageEnd?: ReactNode }) {
+  return (
+    <div data-explore-filter-row className="mt-6 hidden h-11 items-center gap-6 md:flex">
       {fields && <div className="flex min-w-0 shrink-0 items-center gap-2">{fields}</div>}
       <div className="min-w-0 flex-1">{chips}</div>
-      {inTab ? <div className="flex shrink-0 items-center gap-1">{controls}</div> : pageEnd && <div className="flex shrink-0 items-center">{pageEnd}</div>}
-    </>
-  );
-  return (
-    <>
-      <div data-explore-filter-row className={cn("mt-6 hidden h-11 items-center gap-6 md:flex", docks && tabHasChips && "invisible")}>
-        {row(false)}
-      </div>
-      <div ref={startRef} aria-hidden className="h-0" />
-      {slot &&
-        createPortal(
-          <div className="flex h-full items-center gap-6" style={corner ? { paddingRight: NOTCH_CORNER_W + NOTCH_CORNER_GAP - NOTCH_SLOT_INSET } : undefined}>
-            {row(true)}
-          </div>,
-          slot,
-        )}
-      {corner && cornerSlot && createPortal(corner, cornerSlot)}
-    </>
+      {pageEnd && <div className="flex shrink-0 items-center">{pageEnd}</div>}
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
-import { Bookmark, Eye, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Sparkles, UserPlus, UserX, Zap, type LucideIcon } from "lucide-react";
+import { Bell, Bookmark, Eye, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { use, useMemo, useState, type ReactNode } from "react";
@@ -40,6 +40,8 @@ import { findUser, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib
 import type { Stay, User } from "@/lib/types";
 import { cn, firstName, housePhotos, languageCode } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
+import { useYourPeople } from "@/lib/useYourPeople";
+import { useIsStandalone } from "@/lib/install";
 
 export function MyProfile() {
   const t = useTranslations("profile");
@@ -137,7 +139,6 @@ interface ProfileBodyProps {
 }
 
 function ProfileBody({ user, isMe, previewing, onPreview, onExitPreview }: ProfileBodyProps) {
-  const t = useTranslations("profile");
   const tPreview = useTranslations("common.ui.preview");
   const store = useStore();
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
@@ -169,16 +170,6 @@ function ProfileBody({ user, isMe, previewing, onPreview, onExitPreview }: Profi
         viewerId={viewerId}
         today={today}
         onOpenPhoto={(index) => photos.length > 0 && setPhotoIndex(index)}
-        settings={
-          isMe && (
-            // Mobile: Settings lives behind a gear on your own profile (desktop: the avatar menu in the header).
-            <div className="mb-2 flex justify-end md:hidden">
-              <Link href="/settings" aria-label={t("settings")} className={iconButtonStyles("lg")}>
-                <Settings className="size-5" />
-              </Link>
-            </div>
-          )
-        }
       />
       <PhotoLightbox photos={photos} index={photoIndex} onIndexChange={setPhotoIndex} onClose={() => setPhotoIndex(null)} alt={user.name} />
     </>
@@ -201,8 +192,6 @@ interface BentoProps {
   preview?: boolean;
   /** Edit profile: no date of birth yet – no age */
   hideAge?: boolean;
-  /** Your own, on phones: the gear to Settings, above the columns */
-  settings?: ReactNode;
 }
 
 /**
@@ -213,7 +202,7 @@ interface BentoProps {
  * People & places – what doesn't fit is cut, with "more" for the rest; empty ones are left out. Smaller or lower windows: the same order,
  * scrolling allowed. Phones: one under the other.
  */
-function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today, onOpenPhoto, preview = false, hideAge = false, settings }: BentoProps) {
+function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today, onOpenPhoto, preview = false, hideAge = false }: BentoProps) {
   const store = useStore();
   const links = (user.socials?.length ?? 0) > 0;
   const inFor = activeInForOf(store.inFor, user.id, today);
@@ -224,11 +213,11 @@ function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today
     (view.livedWith.length > 0 || view.places.length > 0 || (isMe && view.toConfirm.length > 0)) && { key: "people", node: <PeoplePlacesTile view={view} isMe={isMe} viewerId={viewerId} /> },
   ].filter((c) => c !== false && c !== "") as { key: string; node: ReactNode }[];
   return (
-    <div data-profile-bento className={cn(!preview && "md:-mt-4", !preview && "fit:flex fit:h-[calc(100dvh-var(--header-h)-var(--band-h)-32px)] fit:flex-col fit:overflow-hidden")}>
+    <div data-profile-bento className={cn(!preview && "fit:flex fit:h-[calc(100dvh-var(--header-h)-var(--band-h)-32px)] fit:flex-col fit:overflow-hidden")}>
       <HeroBand
         aria-labelledby="profile-name"
-        flush
-        height="split:h-[clamp(380px,54vh,540px)] fit:shrink-0"
+        // As high as its content (no big empty field), at least enough for the photos.
+        height="split:min-h-[clamp(360px,44vh,480px)] fit:shrink-0"
         mediaWidth="split:w-[clamp(320px,28%,560px)]"
         media={
           <div data-preview-part="photos" className="absolute inset-0">
@@ -241,10 +230,10 @@ function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today
       </HeroBand>
       <Container className={cn("explore-width explore-root fit:min-h-0 fit:flex-1", preview ? "pb-8" : "pb-12 fit:pb-6")}>
         <div className="mt-8 fit:h-[calc(100%-32px)]">
-          {settings}
-          <div className="flex flex-col divide-y divide-ink/8 split:flex-row split:divide-x split:divide-y-0 fit:h-full">
+          {/* No lines between the columns: 64px apart, top-aligned, each as high as its content. */}
+          <div className="flex flex-col gap-8 split:flex-row split:items-start split:gap-16 fit:max-h-full">
             {columns.map((column) => (
-              <div key={column.key} className="min-w-0 flex-1 py-6 first:pt-0 split:px-8 split:py-0 split:first:pl-0 split:last:pr-0 fit:min-h-0 fit:overflow-hidden">
+              <div key={column.key} className="min-w-0 flex-1 fit:max-h-full fit:min-h-0 fit:overflow-hidden">
                 {column.node}
               </div>
             ))}
@@ -390,8 +379,82 @@ function IdentityTile({ user, isMe, previewing, onPreview, view, viewerId, today
           )}
         </div>
       )}
+      {/* Your own only (never someone else's, never "Preview as others"): the quick way to what the avatar menu used to hold. */}
+      {isMe && !preview && !previewing && <QuickTiles user={user} />}
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
       {mineOpen.length > 0 && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+    </div>
+  );
+}
+
+/**
+ * Your own profile's quick way in (under "Edit profile · 4 of 6 · Preview as others see it"): four tiles, equally wide, 88px high, --surface,
+ * radius 20 – icon 22px top left, title semibold, the subtitle muted. Saved → Your houses › Saved · Your people → a sheet · Settings · Get the
+ * app (installed: Notifications · On/Off → Settings › Notifications).
+ */
+function QuickTiles({ user }: { user: User }) {
+  const tq = useTranslations("profile.view.quick");
+  const tp = useTranslations("people.page");
+  const people = useYourPeople();
+  const standalone = useIsStandalone();
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const notificationsOn = Object.values(settingsOf(user).notifications).some((p) => p.push);
+  const saved = user.savedStayIds?.length ?? 0;
+  const tile = "flex h-22 min-w-0 flex-col justify-between rounded-[20px] bg-surface p-3.5 text-left transition-colors duration-150 hover:bg-surface-2";
+  const body = (Icon: LucideIcon, title: string, sub?: string) => (
+    <>
+      <Icon aria-hidden className="size-5.5 text-ink" strokeWidth={1.75} />
+      <span className="min-w-0">
+        <span className="block truncate text-body font-semibold text-ink">{title}</span>
+        {sub && <span className="block truncate text-small text-muted">{sub}</span>}
+      </span>
+    </>
+  );
+  return (
+    // Four in a row where the head is wide enough (from 1440px); narrower 2 × 2, so no title is cut.
+    <div className="mt-6 grid grid-cols-2 gap-3 min-[90rem]:grid-cols-4">
+      <Link href="/your-houses#row-saved" className={tile}>
+        {body(Bookmark, tq("saved"), tq("savedCount", { count: saved }))}
+      </Link>
+      <button type="button" onClick={() => setPeopleOpen(true)} className={tile}>
+        {body(Users, tq("people"), tq("peopleCount", { count: people.length }))}
+      </button>
+      <Link href="/settings" className={tile}>
+        {body(Settings, tq("settings"))}
+      </Link>
+      {standalone ? (
+        <Link href="/settings/notifications" className={tile}>
+          {body(Bell, tq("notifications"), notificationsOn ? tq("on") : tq("off"))}
+        </Link>
+      ) : (
+        <Link href="/get" className={tile}>
+          {body(Smartphone, tq("getApp"), tq("getAppSub"))}
+        </Link>
+      )}
+      <Sheet variant="panel" open={peopleOpen} onClose={() => setPeopleOpen(false)} title={tp("title")}>
+        <div className="px-6 pb-6">
+          {people.length === 0 ? (
+            <p className="text-body text-muted">{tq("peopleEmpty")}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {people.map(({ user: person, house }) => (
+                <li key={person.id}>
+                  <Link href={`/u/${person.id}`} onClick={() => setPeopleOpen(false)} className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
+                    <Avatar user={person} size="md" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-body font-semibold text-ink">{firstName(person)}</span>
+                      <span className="block truncate text-small text-muted">{tp("livedIn", { place: shortNameOf(house) })}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link href="/people" onClick={() => setPeopleOpen(false)} className="mt-4 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+            {tq("peopleAll")}
+          </Link>
+        </div>
+      </Sheet>
     </div>
   );
 }
@@ -503,13 +566,20 @@ function AboutColumn({ user, isMe, preview }: { user: User; isMe: boolean; previ
   const codes = user.languages.map((name) => (languageCode(name) ?? name.slice(0, 2)).toUpperCase());
   const long = user.bio.length > 190;
   return (
-    <section aria-labelledby="col-about" data-preview-part="about" className="flex h-full min-w-0 flex-col gap-3">
+    <section aria-labelledby="col-about" data-preview-part="about" className="flex min-w-0 flex-col gap-3">
       <h2 id="col-about" className={COLUMN_LABEL}>
         {tv("about")}
       </h2>
       {user.bio ? (
         <>
           <p className="line-clamp-4 text-body text-ink">{user.bio}</p>
+          {/* The languages right under the bio (12px). */}
+      {codes.length > 0 && (
+        <p className="flex items-center gap-1.5 text-small font-semibold text-ink" aria-label={user.languages.join(", ")}>
+          <Languages aria-hidden className="size-3.5 text-ink/60" />
+          {codes.join(" · ")}
+        </p>
+      )}
           {long && (
             <button type="button" onClick={() => setOpen(true)} className="self-start text-small font-semibold text-ink underline-offset-4 hover:underline">
               {tv("readMore")}
@@ -523,12 +593,13 @@ function AboutColumn({ user, isMe, preview }: { user: User; isMe: boolean; previ
       ) : (
         <p className="text-body text-muted">{preview ? tv("aboutAdd") : tv("aboutEmpty")}</p>
       )}
-      {codes.length > 0 && (
-        <p className="mt-auto flex items-center gap-1.5 pt-2 text-small font-semibold text-ink" aria-label={user.languages.join(", ")}>
+      {!user.bio && codes.length > 0 && (
+        <p className="flex items-center gap-1.5 text-small font-semibold text-ink" aria-label={user.languages.join(", ")}>
           <Languages aria-hidden className="size-3.5 text-ink/60" />
           {codes.join(" · ")}
         </p>
       )}
+
       <Sheet open={open} onClose={() => setOpen(false)} title={tv("about")}>
         <p className="whitespace-pre-line text-body text-ink">{user.bio}</p>
       </Sheet>

@@ -20,7 +20,6 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
       <SectionHeader
         variant="explore"
         id={id}
-        eyebrow={t(`${collection.id}.eyebrow`)}
         title={t(`${collection.id}.title`)}
         subline={t(`${collection.id}.subline`)}
         seeAll={{ href: `/collections/${collection.slug}`, label: t("seeAll"), ariaLabel: t("seeAllLabel", { title: t(`${collection.id}.title`) }) }}
@@ -28,7 +27,7 @@ export function CollectionRow({ collection, stays }: { collection: Collection; s
       <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
         {stays.map((stay) => (
           <div key={stay.id} className="explore-slide shrink-0">
-            <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+            <HouseCard variant="shelf" stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
           </div>
         ))}
       </Shelf>

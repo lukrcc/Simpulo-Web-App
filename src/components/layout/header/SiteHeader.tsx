@@ -1,47 +1,29 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { useExploreCompact } from "@/lib/exploreCompact";
-import { Plus, UserRound } from "lucide-react";
+import { setHeaderSlot } from "@/lib/headerSlot";
+import { Plus, Search, UserRound } from "lucide-react";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { AccountMenu } from "@/components/layout/HeaderActions";
+import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/layout/Logo";
 import { isNavActive, navItemsFor } from "@/components/layout/nav";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
-import { closeNotchPanel, setNotchCornerSlot, setNotchOpen, setNotchPanelSlot, setNotchSlot, useNotchState } from "@/lib/notchState";
-import { lockScroll } from "@/components/ui/ModalOverlay";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { NavIcon } from "./FilledNavIcons";
-import { headerActionStyles } from "@/components/ui/ActionButton";
-import { NotchGrip } from "./NotchGrip";
-import { useNotchShape } from "./useNotchShape";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
-import { Container } from "@/components/layout/Container";
 
 /*
  * Header sizes – do not change without explicit instruction.
  *
- * One bar, the same on every page: 56px, fixed at the top, --header-bg with a blur, full width, above the page (only
- * dialogs go over it). The content starts 16px below it (72px in all, --header-total) and never moves with the tab.
- *   Left: wordmark 20px/700, no tagline. Right, 10px apart, centred in the 56px: logged out "Log in" 14px/500 + "Open a House" 36px, light glass,
- *     15px/600, padding 0 16px; logged in bell 32px (icon 16px, accent dot when new) + avatar 32px + "Open a House".
- *   Centre: the nav, centred in the 56px in every state: text 15px/500, icon 16px with a 1.5px line, 6px from icon to text, 28px apart (below
- *     1200px: 14px, 16px, 24px; below 1000px the icons alone, the word as a tooltip). The current page: filled icon, ink, 2px underline 6px under
- *     the text. The others: outline icon, muted 70 % (the word muted). 150ms crossfade. Logged in: Explore · Your houses · Messages (6px accent dot while unread).
- *     Logged out: Explore · Host · How it works.
- *   The tab hangs from the bar, same surface. "nav": 6px deep (62px in all), as wide as the nav + 32px either side. "filters": 76px deep (132px
- *     in all: the 44px row, 8px above and 24px below), as wide as the page's content. Handle: Explore only, a small pill with one line on the tab's edge,
- *     on the tab's line, centred on it, following it in every state (a line 44 × 6px covering the edge there, in an invisible 80 × 24px button; NotchGrip line).
- *     State: useNotchState. Surface: --header-bg, one colour, on every page.
- *   Bar and tab are ONE path (useNotchShape), on whole pixels, as true circular arcs: concave 12px, convex 16px, in every
- *     state; only width and depth animate. Three layers from it, no other surface: the glass (a clip-path: backdrop-filter
- *     doesn't work on SVG), under it a soft shadow (black 4 %, blur 8px, 4px down, cut out inside the shape), over it the
- *     edge, a 1px line in ink (#221E1B) half a pixel outside the shape, so it lies on one pixel row.
- * The concave tab shape exists only here and on the cards' host tab, nowhere else.
+ * ONE bar, 64px on every page, fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
+ * its foot, above the page (only dialogs go over it); the content gets its 64px as padding-top. It never moves while scrolling. The same on
+ * every page: the wordmark · in the middle Explore's quick search or the capsule "Where to next?" · the avatar (a link to /me), Your houses,
+ * Messages, "+". No text tabs, no avatar menu. Left the wordmark (same place everywhere). Explore: the quick search in the middle (Where · When, Short trips, the
+ * categories, "All filters"), right round 40px buttons (Your houses, Messages), the avatar, "+". Elsewhere: the tabs exactly centred, right
+ * the avatar and "Open a House".
  */
 import { FocusHeader } from "./FocusHeader";
 
@@ -74,257 +56,96 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const unreadIn = useMessagesUnread();
   // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
   const unread = unreadIn.chats;
-  const headerRef = useRef<HTMLElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const shadowRef = useRef<SVGSVGElement>(null);
-  const pathRef = useRef<SVGPathElement>(null);
-  const lineRef = useRef<SVGSVGElement>(null);
-  const edgeRef = useRef<SVGPathElement>(null);
-  const glassRef = useRef<HTMLDivElement>(null);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
-  const hitRef = useRef<HTMLDivElement>(null);
-  const slotRef = useRef<HTMLDivElement>(null);
-  const panelSlotRef = useRef<HTMLDivElement>(null);
-  const cornerRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<HTMLButtonElement>(null);
-  const refs = useMemo(
-    () => ({
-      header: headerRef,
-      nav: navRef,
-      shadow: shadowRef,
-      path: pathRef,
-      line: lineRef,
-      edge: edgeRef,
-      glass: glassRef,
-      scrim: scrimRef,
-      clip: clipRef,
-      hit: hitRef,
-      slot: slotRef,
-      panelSlot: panelSlotRef,
-      corner: cornerRef,
-      handle: handleRef,
-    }),
-    [],
-  );
-  const { mode, source, handle, auto } = useNotchState();
-  // The tab and its handle only on Explore (/ and /explore); every other page has a straight bar.
   const explorePage = pathname === "/" || pathname === "/explore";
-  // Explore scrolled down: the compact bar (CompactExploreBar) takes over – this header, its tab and handle step back.
-  const compact = useExploreCompact() && explorePage;
-  const handleProps = useNotchShape(refs, mode, source, handle && explorePage, auto, explorePage);
-  const open = mode !== "nav";
-  const closeTab = () => (mode === "panel" ? closeNotchPanel() : setNotchOpen(false));
-  const [gripHover, setGripHover] = useState(false);
-  const [gripDown, setGripDown] = useState(false);
-  const hoverGrip = setGripHover;
-
-  useLayoutEffect(() => {
-    setNotchSlot(slotRef.current);
-    setNotchPanelSlot(panelSlotRef.current);
-    setNotchCornerSlot(cornerRef.current);
+  // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
+  // the colour changes (200ms), never the height or the place.
+  useEffect(() => {
+    const mark = document.querySelector("[data-top-mark]");
+    if (!mark) return;
+    const observer = new IntersectionObserver(([entry]) => document.documentElement.toggleAttribute("data-at-top", entry.isIntersecting));
+    observer.observe(mark);
     return () => {
-      setNotchSlot(null);
-      setNotchPanelSlot(null);
-      setNotchCornerSlot(null);
+      observer.disconnect();
+      document.documentElement.removeAttribute("data-at-top");
     };
   }, []);
 
-  // Going compact closes a tab opened by hand (the compact bar has the filters now).
-  useEffect(() => {
-    if (!compact || source !== "manual") return;
-    if (mode === "panel") closeNotchPanel();
-    else if (mode !== "nav") setNotchOpen(false);
-  }, [compact, mode, source]);
-
-  // The whole panel: the page behind it stays where it is.
-  useEffect(() => (mode === "panel" ? lockScroll() : undefined), [mode]);
-
-  // Opened by hand: Escape or a click outside closes it. In Open Houses ("auto") it stays.
-  useEffect(() => {
-    if (!open || source !== "manual") return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || document.querySelector('[role="dialog"]')) return;
-      if (mode === "panel") closeNotchPanel();
-      else setNotchOpen(false);
-    };
-    const onPointer = (e: PointerEvent) => {
-      const target = e.target as Element;
-      if (target.closest("[data-site-header], [role='dialog'], [data-anchored]")) return;
-      if (mode === "panel") closeNotchPanel();
-      else setNotchOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onPointer);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onPointer);
-    };
-  }, [open, source, mode]);
+  // The avatar: a link to your profile (/me) – no menu (Saved is a row in Your houses, Settings the gear on your profile, Log out and Get the
+  // app in Settings). Logged out a person in a circle opening the login.
+  const profile = me ? (
+    <Link href="/me" aria-label={t("profile")} data-header-avatar className="press flex size-10 shrink-0 overflow-hidden rounded-full">
+      <Avatar user={me} size="md" className="max-w-none" />
+    </Link>
+  ) : (
+    <button
+      type="button"
+      onClick={() => requireAuth(undefined, { reason: "login" })}
+      aria-label={t("logIn")}
+      data-header-avatar
+      className="press flex size-10 items-center justify-center rounded-full bg-(--hdr-corner-bg) text-ink transition-colors duration-150 hover:bg-(--hdr-corner-hover)"
+    >
+      <UserRound aria-hidden className="size-4" />
+    </button>
+  );
+  // The round icon buttons: the bar's one capsule surface – cream 8 %, no edge, hover 14 %, the page you're on 22 %.
+  const round = "press relative flex size-10 items-center justify-center rounded-full text-ink transition-colors duration-150 [&_svg]:size-4";
 
   return (
-    <>
-      {/* Under a tab opened by hand, over the page. Its strength comes with the tab (useNotchShape). */}
-      <div
-        ref={scrimRef}
-        aria-hidden
-        data-notch-scrim
-        onClick={closeTab}
-        style={{ opacity: 0, pointerEvents: "none" }}
-        className="fixed inset-0 z-39 hidden bg-(--scrim-soft) backdrop-blur-[6px] md:block"
-      />
-      <header
-        ref={headerRef}
-        data-site-header
-        inert={compact}
-        className={cn("fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) transition-opacity duration-220 ease-out motion-reduce:transition-none md:block", compact && "pointer-events-none opacity-0")}
-      >
-        {/* The soft shadow: the same shape, blurred and lower, cut away inside the shape so nothing gathers in the curves. */}
-        <svg
-          ref={shadowRef}
-          aria-hidden
-          style={{
-            filter: "blur(8px)",
-            opacity: 0,
-            visibility: "hidden",
-            transition: "opacity 200ms ease-out",
-          }}
-          className="pointer-events-none absolute left-0 top-0 overflow-visible"
-        >
-          <g transform="translate(0 4)">
-            <path ref={pathRef} fill="#000" />
-          </g>
-        </svg>
-        {/* The one surface. Until it's measured: just the bar. */}
-        <div
-          ref={glassRef}
-          aria-hidden
-          data-header-shape
-          style={{ clipPath: "inset(0 0 calc(100dvh - 56px) 0)" }}
-          className="milk-glass pointer-events-none absolute inset-x-0 top-0 h-dvh"
-        />
-        {/* The edge: a 1px line on exact pixels, the same on straights and curves. */}
-        <svg ref={lineRef} aria-hidden style={{ visibility: "hidden" }} shapeRendering="geometricPrecision" className="pointer-events-none absolute left-0 top-0 overflow-visible">
-          <path ref={edgeRef} fill="none" stroke="var(--hdr-line)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-        </svg>
-        {/* The tab below the bar takes the pointer: nothing behind it can be clicked. */}
-        <div ref={hitRef} aria-hidden data-notch-hit className="absolute top-14" />
-        <Container className="relative grid h-full grid-cols-[1fr_auto_1fr] grid-rows-1 items-center">
-          <Logo />
-
-          {/* The tabs as one segmented capsule (iOS): 44px, a light glassy track (ink 5 %), equal segments, each a line icon (16px) and its word.
-            The current tab is a transparent pill with a 1.5px ink edge, text and icon ink semibold (like "Open a House"); only the edge glides
-            between them (spring, 300ms; none with reduced motion); the others ink 55 %. */}
-          {(() => {
-            const items = navItemsFor(me !== undefined, "header");
-            const activeIndex = items.findIndex((item) => isNavActive(item.href, pathname));
-            return (
-              // The capsule alone sets the column's width, so it stays exactly centred; the profile hangs outside it on the right.
-              <div className="relative">
-                {/* The tabs: the capsule group (ui/CapsuleGroup), equal segments, the outline glides only among them. */}
-                <CapsuleGroup
-                  ref={navRef}
-                  as="nav"
-                  equal
-                  label={t("compactLabel")}
-                  value={activeIndex >= 0 ? items[activeIndex].href : null}
-                  options={items.map((item, index) => {
-                    const { href, labelKey, headerLabelKey } = item;
-                    const label = t(`items.${headerLabelKey ?? labelKey}`);
-                    const current = index === activeIndex;
-                    // Logged out: no dot (there's nothing of yours yet).
-                    const showUnread = me !== undefined && labelKey === "messages" && unread > 0;
-                    // Logged out, Your houses and Messages don't navigate: the auth sheet opens, and after logging in you land there.
-                    const gated = me === undefined && item.audience === "member";
-                    return {
-                      value: href,
-                      href,
-                      tooltip: label,
-                      ariaLabel: showUnread ? t("itemUnread", { label, count: unread }) : undefined,
-                      onClick: gated
-                        ? (e) => {
-                            e.preventDefault();
-                            requireAuth(() => router.push(href), { reason: labelKey === "messages" ? "messages" : "yourHouses" });
-                          }
-                        : undefined,
-                      // Icons only below 1024px (the word as tooltip); from 1024px text only. The unread dot at the word's (or icon's) top right.
-                      content: (
-                        <span className="relative inline-flex items-center gap-2">
-                          <NavIcon item={item} active={current} line />
-                          {/* As wide as in semibold, so the segments never change width. */}
-                          <span className="grid max-nav-text:sr-only">
-                            <span className="col-start-1 row-start-1">{label}</span>
-                            <span aria-hidden className="invisible col-start-1 row-start-1 h-0 overflow-hidden font-semibold">
-                              {label}
-                            </span>
-                          </span>
-                          {showUnread && <span aria-hidden className="absolute -right-2 -top-0.5 size-1.5 rounded-full bg-accent" />}
-                        </span>
-                      ),
-                    };
-                  })}
-                />
-                {/* The profile, outside the capsule: 12px to its right, centred on it – the avatar (36px, 2px light ring) opening the
-                  profile menu; logged out a person in a 36px circle opening the login. */}
-                <span data-header-profile className="absolute left-full top-1/2 ml-3 flex w-max -translate-y-1/2">
-                  {me ? (
-                    <AccountMenu me={me} avatarSize="base" />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => requireAuth(undefined, { reason: "login" })}
-                      aria-label={t("logIn")}
-                      data-tooltip={t("logIn")}
-                      data-header-avatar className="press flex size-9 items-center justify-center rounded-full bg-ink/6 text-ink transition-colors duration-150 hover:bg-ink/10"
-                    >
-                      <UserRound aria-hidden className="size-4" />
-                    </button>
-                  )}
-                </span>
-              </div>
-            );
-          })()}
-
-          {/* Right: only the black "Open a House". */}
-          <div className="flex items-center justify-self-end">
-            <Link href="/create" className={headerActionStyles}>
-              <Plus aria-hidden strokeWidth={2.25} />
-              <span className="max-md:sr-only">{tOpen("label")}</span>
+    // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
+    // next?" (it opens Explore with Where open) · right the avatar, Your houses, Messages and "+". No text tabs.
+    <header data-site-header className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
+      {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
+      <div className="bar-width flex h-full items-center">
+        <Logo className="mr-8 shrink-0" />
+        {explorePage ? (
+          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 [--control-h:40px]" />
+        ) : (
+          <div className="flex min-w-0 flex-1">
+            <Link href="/explore?search=open" className="bar-capsule press inline-flex h-10 w-full max-w-90 items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
+              <Search aria-hidden className="size-4 shrink-0" />
+              <span className="truncate">{t("whereNext")}</span>
             </Link>
           </div>
-        </Container>
-        {/* The page's filters come here (ExploreFilterBar): the tab's lower part, cut to the shape's own path. */}
-        <div ref={clipRef} data-notch-clip style={{ clipPath: "inset(0 0 calc(100dvh - 56px) 0)" }} className="pointer-events-none absolute inset-x-0 top-0 h-dvh">
-          <div ref={slotRef} data-notch-slot className="pointer-events-none absolute top-[64px] h-11 opacity-0" />
-          {/* "All filters" as a block in the chip row's right corner (ExploreFilterBar), cut to its own concave curves. */}
-          <div ref={cornerRef} data-notch-corner style={{ visibility: "hidden" }} className="pointer-events-none absolute opacity-0" />
-          {/* The whole filter panel (ExploreFeed): the third stage, as high as it needs up to 80vh. */}
-          <div ref={panelSlotRef} data-notch-panel style={{ visibility: "hidden" }} className="pointer-events-none absolute top-[68px] overflow-hidden opacity-0" />
-        </div>
-        {handle && explorePage && (
-          <button
-            ref={handleRef}
-            type="button"
-            data-notch-handle
-            aria-expanded={open}
-            aria-label={t("dragFilters")}
-            data-tooltip={t("dragFilters")}
-            {...handleProps}
-            onPointerEnter={(e) => e.pointerType === "mouse" && hoverGrip(true)}
-            onPointerLeave={() => hoverGrip(false)}
-            onFocus={(e) => e.currentTarget.matches(":focus-visible") && hoverGrip(true)}
-            onBlur={() => hoverGrip(false)}
-            onPointerDownCapture={() => setGripDown(true)}
-            onPointerUpCapture={() => setGripDown(false)}
-            onPointerCancelCapture={() => setGripDown(false)}
-            style={{ cursor: gripDown ? "grabbing" : "grab" }}
-            // An invisible 80 × 24px target around the line.
-            className="absolute flex h-6 w-20 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center"
-          >
-            <NotchGrip line hover={gripHover} active={open || gripDown} />
-          </button>
         )}
-      </header>
-    </>
+        {/* Right, in this order: the avatar · Your houses · Messages · "+" – all 40px, 8px apart; the page you're on a little stronger. */}
+        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-2", explorePage ? "ml-4" : "ml-5")}>
+          {/* Explore: All filters | the right group – a 1px line cream 15 %, 24px high, 16px on each side. */}
+          {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-[rgba(244,238,231,0.15)]" />}
+          <span className="flex">{profile}</span>
+          {navItemsFor(me !== undefined, "header")
+            .filter((item) => item.labelKey === "houses" || item.labelKey === "messages")
+            .map((item) => {
+              const label = t(`items.${item.headerLabelKey ?? item.labelKey}`);
+              const showUnread = me !== undefined && item.labelKey === "messages" && unread > 0;
+              const gated = me === undefined && item.audience === "member";
+              const current = isNavActive(item.href, pathname);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-label={showUnread ? t("itemUnread", { label, count: unread }) : label}
+                  aria-current={current ? "page" : undefined}
+                  onClick={
+                    gated
+                      ? (e) => {
+                          e.preventDefault();
+                          requireAuth(() => router.push(item.href), { reason: item.labelKey === "messages" ? "messages" : "yourHouses" });
+                        }
+                      : undefined
+                  }
+                  className={cn(round, current ? "bg-(--hdr-corner-active)" : "bg-(--hdr-corner-bg) hover:bg-(--hdr-corner-hover)")}
+                >
+                  <NavIcon item={item} active={current} line />
+                  {showUnread && <span aria-hidden className="absolute right-1 top-1 size-2 rounded-full bg-accent" />}
+                </Link>
+              );
+            })}
+          {/* "Open a House": the round "+", the same surface as the others (Tooltip "Open a House"). */}
+          <Link href="/create" aria-label={tOpen("label")} className={cn(round, "bg-(--hdr-corner-bg) hover:bg-(--hdr-corner-hover)")}>
+            <Plus aria-hidden className="size-4" strokeWidth={2.25} />
+          </Link>
+        </nav>
+      </div>
+    </header>
   );
 }

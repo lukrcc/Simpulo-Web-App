@@ -13,7 +13,7 @@ interface FullBleedSectionProps {
 
 /**
  * A full-window section (negative margins out of the page container, no transform) with its content back inside a
- * Container – for what runs edge to edge, like the carousels. Transparent: PageGlow's patches show through, and
+ * Container – for what runs edge to edge, like the carousels. Transparent (or a dark band with hard edges), and
  * sections are told apart by their spacing and SectionHeader alone.
  */
 export function FullBleedSection({ children, padding, className, inner }: FullBleedSectionProps) {
