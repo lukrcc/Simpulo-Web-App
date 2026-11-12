@@ -8,9 +8,10 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
+import { CrewRow } from "@/components/CrewRow";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
-import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
+import { SocialLinks } from "@/components/SocialLinks";
 import { IconButton } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { useNotchClip } from "@/components/ui/notch";
@@ -48,7 +49,7 @@ interface HouseCardProps {
   notch?: "host" | "you" | "none";
   /** "memory": a past House in Your houses – no price or spots: who you lived with (avatars + `live`: "Lived with · Nov 2026") left, `status` (its action, "Do it again") right */
   footer?: "explore" | "status" | "memory";
-  /** footer="status": the right side – <CardStatusChip> or <CardStatusAction> */
+  /** footer="status": the right side – <CardStatusChip> or <CardStatusAction>; footer="explore": an action instead of the socials ("Join them") */
   /** An orange dot before the `live` line: unread news */
   liveDot?: boolean;
   status?: ReactNode;
@@ -220,21 +221,9 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             // Your houses: the crew and "N of M" left, the status (or its action) right. A memory: "Lived with · Nov 2026" left, "Do it again" right.
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="flex shrink-0 -space-x-2">
-                  {/* As the viewer may see them (config/privacy.ts) – in their own Houses that's everyone. */}
-                  {crew
-                    .filter((member) => faceOf(member) !== "hidden")
-                    .slice(0, 4)
-                    .map((member) =>
-                      faceOf(member) === "blurred" ? (
-                        <span key={member.id} aria-hidden className="block size-6 overflow-hidden rounded-full border-2 border-surface">
-                          <PersonPhoto src={member.photos[0]} alt="" size={24} className="size-full blur-[2px]" />
-                        </span>
-                      ) : (
-                        <PersonPhoto key={member.id} src={member.photos[0]} alt={member.name} size={24} className="size-6 border-2 border-surface" />
-                      ),
-                    )}
-                </span>
+                {/* The crew as one row (components/CrewRow): faces as the viewer may see them, then "+" circles for free spots – for the host
+                    and members they open the invite sheet. */}
+                <CrewRow stay={stay} crew={crew.filter((member) => faceOf(member) !== "hidden")} size="xs" tone="image" max={5} className="pointer-events-auto shrink-0" />
                 {liveDot && <span role="img" aria-label={tHome("unreadNews")} className="size-2 shrink-0 rounded-full bg-accent" />}
                 <span className="truncate text-small text-white/85">{live ?? tHome("crewOf", { filled: stay.spotsFilled, total: stay.spotsTotal })}</span>
               </span>
@@ -259,7 +248,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
               {host && (
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <CrewAvatars host={host} members={guests} stay={stay} />
-                  <HostSocialIcons host={host} />
+                  {/* An explore card's action (Explore › "Your people are going": "Join them") takes the socials' place. */}
+                  {status ? <span className="pointer-events-auto flex shrink-0 items-center [text-shadow:none]">{status}</span> : <SocialLinks user={host} variant="icons" tone="image" nested className="pointer-events-auto [text-shadow:none]" />}
                 </div>
               )}
             </>
@@ -309,7 +299,7 @@ export function CardStatusChip({ children, attention = false }: { children: Reac
 }
 
 /** footer="status", something to do: a light glass button with its text ("Answer", "Pay", "Review 4"); it opens the action, not the card. */
-export function CardStatusAction({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+export function CardStatusAction({ children, onClick, dot = true }: { children: ReactNode; onClick: () => void; /** The orange dot of a task; off for an offer ("Join them") */ dot?: boolean }) {
   return (
     <button
       type="button"
@@ -320,7 +310,7 @@ export function CardStatusAction({ children, onClick }: { children: ReactNode; o
       }}
       className="press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/80 px-3.5 text-small font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors duration-150 hover:bg-white"
     >
-      <span aria-hidden className="size-1.5 rounded-full bg-accent" />
+      {dot && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
       {children}
     </button>
   );

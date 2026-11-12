@@ -1,18 +1,17 @@
 "use client";
 
-import { Check, MessageCircle, Plus } from "lucide-react";
+import { Check, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { CrewCount, CrewRow } from "@/components/CrewRow";
 import { useState, type ReactNode, type Ref } from "react";
 import { HouseCard } from "@/components/HouseCard";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { Button } from "@/components/ui/ActionButton";
-import { Avatar } from "@/components/ui/Avatar";
 import { RowHead } from "@/components/ui/CardRow";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { iconButtonStyles } from "@/components/ui/IconButton";
 import { useViewerAmount } from "@/components/ui/PriceLine";
-import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { useToast } from "@/components/ui/Toast";
 import type { GuestJourney, GuestStepKey } from "@/config/house-steps";
 import { useFormat } from "@/i18n/format";
@@ -25,7 +24,8 @@ import { CrewVotes } from "./CrewVotes";
 export interface StepContent {
   title: string;
   sentence: string;
-  action?: { label: string; href?: string; onClick?: () => void; external?: boolean };
+  /** `invite`: it opens the invite sheet – then the crew circles beside it only show (one way to invite per block) */
+  action?: { label: string; href?: string; onClick?: () => void; external?: boolean; invite?: true };
 }
 
 /** The current step's words and action (config/house-steps.ts decides which step it is). */
@@ -43,7 +43,7 @@ export function useStepContent(stay: Stay, host: User | undefined, journey: Gues
       return { title: t("now.waitingHost", { name: hostName }), sentence: hours ? t("now.waitingHostLine", { hours }) : t("now.waitingHostLineNoTime") };
     }
     case "crew":
-      if (journey.missing > 0) return { title: t("now.waitingMore", { count: journey.missing }), sentence: t("now.waitingMoreLine"), action: { label: t("now.inviteFriend"), onClick: handlers.onInvite } };
+      if (journey.missing > 0) return { title: t("now.waitingMore", { count: journey.missing }), sentence: t("now.waitingMoreLine"), action: { label: t("now.inviteFriend"), onClick: handlers.onInvite, invite: true } };
       return { title: t("now.pickingPlace"), sentence: t("now.pickingPlaceLine"), action: { label: t("now.vote"), href: "#house-place" } };
     case "pay": {
       const share = getMyPayment(store, stay.id)?.total ?? stay.pricePerPerson ?? 0;
@@ -105,10 +105,7 @@ function Stepper({ journey }: { journey: GuestJourney }) {
  */
 export function MemberHero({ stay, host, crew, journey, content, chatHref, onLeave, ref }: { stay: Stay; host?: User; crew: User[]; journey: GuestJourney; content: StepContent; chatHref: string | null; onLeave: () => void; ref?: Ref<HTMLElement> }) {
   const t = useTranslations("house.steps");
-  const tHero = useTranslations("house.page.hero");
   const format = useFormat();
-  const faceOf = useCrewFaceOf(stay);
-  const open = Math.max(0, Math.min(openSpots(stay), stay.spotsTotal - crew.length, 6));
   return (
     <section ref={ref} aria-labelledby="house-title" className="grid gap-4 split:grid-cols-[minmax(0,min(33.333%,448px))_minmax(0,1fr)] split:gap-5">
       <div className="relative mx-auto w-full max-w-130 split:max-w-none">
@@ -167,15 +164,8 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <span className="flex flex-wrap items-center gap-1.5">
-              {crew.slice(0, 6).map((member) => (
-                <Avatar key={member.id} user={member} size="md" mode={faceOf(member)} linked={faceOf(member) !== "blurred"} />
-              ))}
-              {Array.from({ length: open }, (_, i) => (
-                <span key={i} aria-hidden className="size-10 rounded-full border-[1.5px] border-dashed border-[#F4EEE7]/35" />
-              ))}
-            </span>
-            <span className="text-small text-muted">{open > 0 ? tHero("spotsLeftOf", { open: openSpots(stay), total: stay.spotsTotal }) : tHero("crewComplete")}</span>
+            <CrewRow stay={stay} crew={crew} tone="dark" size="md" max={7} interactive={!content.action?.invite} />
+            <CrewCount stay={stay} />
           </div>
         </div>
       </div>
@@ -188,12 +178,10 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
  * empty circles with "+" to invite), "Place" (only "together": the shortlist and its vote), "Practical" (the address after booking, check-in and
  * -out, the cancellation rule, what's included). The House page's usual sections follow.
  */
-export function MemberSections({ stay, crew, onInvite }: { stay: Stay; crew: User[]; onInvite: () => void }) {
+export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
   const t = useTranslations("house.steps.sections");
   const tPage = useTranslations("house.page");
   const format = useFormat();
-  const faceOf = useCrewFaceOf(stay);
-  const open = Math.max(0, Math.min(openSpots(stay), stay.spotsTotal - crew.length));
   const together = stay.accommodationStatus !== "locked";
   const booked = Boolean(stay.bookingConfirmedAt);
   const fact = (label: string, value: ReactNode) => (
@@ -206,22 +194,7 @@ export function MemberSections({ stay, crew, onInvite }: { stay: Stay; crew: Use
     <>
       <section aria-labelledby="house-member-crew">
         <RowHead id="house-member-crew" title={t("crew", { filled: stay.spotsFilled, open: openSpots(stay) })} />
-        <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-5">
-          {crew.map((member) => (
-            <li key={member.id} className="flex w-20 flex-col items-center text-center">
-              <Avatar user={member} size="lg" mode={faceOf(member)} linked={faceOf(member) !== "blurred"} />
-              <span className="mt-2 max-w-full truncate text-body font-semibold text-ink">{faceOf(member) === "full" || faceOf(member) === "named" ? firstName(member) : ""}</span>
-            </li>
-          ))}
-          {Array.from({ length: open }, (_, i) => (
-            <li key={`open-${i}`} className="flex w-20 flex-col items-center text-center">
-              <button type="button" onClick={onInvite} aria-label={t("invite")} className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-ink/15 text-ink transition-colors hover:border-transparent hover:bg-(--chip-bg)">
-                <Plus aria-hidden className="size-5" />
-              </button>
-              <span className="mt-2 text-small text-muted">{t("invite")}</span>
-            </li>
-          ))}
-        </ul>
+        <CrewRow stay={stay} crew={crew} size="lg" names className="mt-4" />
       </section>
 
       {together && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { iconButtonStyles } from "@/components/ui/IconButton";
@@ -16,6 +16,8 @@ import { findUser, getCrew, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
 import { WhosInSheet } from "./WhosInSheet";
+import { InviteSheet } from "@/components/InviteSheet";
+import { useCanInvite } from "@/lib/invites";
 
 /** One 64px row – the desktop panel and the mobile page alike. The glass is the frame's: messages scroll under it. */
 function headerClass(embedded: boolean) {
@@ -41,6 +43,10 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
   const f = useFormat();
   const store = useStore();
   const [whosIn, setWhosIn] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  // "+": bring someone in (components/InviteSheet) – only while a spot is free and the House hasn't started.
+  const canBring = useCanInvite(stay.id);
+  const tInvite = useTranslations("invite");
   const crew = getCrew(store, stay);
   const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
   const groupChat = stay.spotsFilled >= stay.spotsTotal ? stay.crewGroupUrl : undefined;
@@ -79,8 +85,15 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           <AvatarStack users={crew} size="xs" max={embedded ? 4 : 3} />
         </button>
 
+        {canBring && (
+          <button type="button" onClick={() => setInviting(true)} aria-label={tInvite("title")} className={iconButtonStyles("sm")}>
+            <Plus className="size-4" aria-hidden />
+          </button>
+        )}
+
         <CrewMenu stay={stay} afterLeaveHref="/messages" />
 
+        {canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
         <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
       </header>
 

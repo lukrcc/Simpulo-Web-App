@@ -14,7 +14,7 @@ import { EXPLORE_GRID, EXPLORE_SPACING, FILTER_ICONS, pageSize, SPOTLIGHT_MIN, V
 import { Container } from "@/components/layout/Container";
 import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
-import { NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
+import { InForTile, NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
 import { MonthField, PlaceField, SearchField, ShortTripsToggle } from "@/components/explore/SearchFields";
 import { FilterDropdown, FilterRow, OverflowPickOptions, PickOptions, ToggleChip } from "@/components/explore/FilterPanel";
 import { FitChips } from "@/components/explore/FitChips";
@@ -475,7 +475,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                 <NoHouseYet draft={draft} stays={base} title={searched ? undefined : t("noResults.title")} onClear={filtered ? clearFilters : undefined} />
               ) : (
                 <>
-                  <FeedGrid cards={cards} fresh={paging.fresh} after={few && <OpenHereTile draft={draft} />} />
+                  <FeedGrid cards={cards} fresh={paging.fresh} after={
+                      few && (
+                        <>
+                          <OpenHereTile draft={draft} />
+                          <InForTile draft={draft} />
+                        </>
+                      )
+                    } />
                   {/* Fewer than a row: the dashed "Open a House here" closes it, a shelf "Nearby" follows. */}
                   {few && <NearbyShelf draft={draft} stays={base} results={results} />}
                 </>

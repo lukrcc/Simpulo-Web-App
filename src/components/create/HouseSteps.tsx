@@ -26,7 +26,7 @@ import { hostProgrammeEarning } from "@/lib/fees";
 import { linkDomain } from "@/lib/links";
 import type { Currency, User, Vibe } from "@/lib/types";
 import { CURRENCIES, VIBES, cn, nightsBetween } from "@/lib/utils";
-import { SearchDemandHint } from "./SearchDemandHint";
+import { InForHint, SearchDemandHint } from "./SearchDemandHint";
 import {
   budgetScaleOf,
   CUSTOM_VIBE_MAX,
@@ -238,6 +238,7 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepP
         </Group>
       )}
       <SearchDemandHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />
+      <InForHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />
     </div>
   );
 }

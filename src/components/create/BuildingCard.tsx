@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useRef } from "react";
 import { CardTab } from "@/components/ui/CardTab";
 import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
-import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
+import { SocialLinks } from "@/components/SocialLinks";
 import { Img } from "@/components/ui/Img";
 import { useNotchClip } from "@/components/ui/notch";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
@@ -75,7 +75,8 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
                 <span className="min-w-0 truncate text-small">{tFlow("cardCrew", { total: stay.spotsTotal })}</span>
               </span>
             </Reveal>
-            {host && <HostSocialIcons host={host} className={cover ? undefined : "text-ink/60!"} />}
+            {/* The preview card has no links: the marks only show. */}
+            {host && <SocialLinks user={host} variant="icons" tone={cover ? "image" : "light"} nested className="pointer-events-none" />}
           </div>
         </div>
       </div>

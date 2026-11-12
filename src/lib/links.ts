@@ -39,7 +39,7 @@ function withRef(path: string, ref?: string): string {
 export const appLink = (ref?: string) => withRef("/get", ref);
 /** /h/{slug} – a House (redirects to its page). */
 export const houseLink = (slug: string, ref?: string) => withRef(`/h/${encodeURIComponent(slug)}`, ref);
-/** /i/{code} – an invite (for now: the start page). */
+/** /i/{code} – an invite link (the code is its token; → /invite/[token], the spot held for 48h). */
 export const inviteLink = (code: string, ref?: string) => withRef(`/i/${encodeURIComponent(code)}`, ref);
 /** /c/{handle} – a creator (for now: the start page). */
 export const creatorLink = (handle: string, ref?: string) => withRef(`/c/${encodeURIComponent(handle)}`, ref);

@@ -1,6 +1,9 @@
 "use client";
 
 import { yourPeople } from "./yourPeople";
+import { canAddInFor, type InFor, type InForDraft } from "./inFor";
+import { mockInFor } from "./mock-inFor";
+import { INVITE_POLICY } from "@/config/policies";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
 import { useFeatureFlag } from "./featureFlags";
@@ -96,6 +99,8 @@ interface StoreState {
   houseInvites: HouseInvite[];
   /** "Something went wrong" during a stay – /admin/support (mock) */
   supportCases: SupportCase[];
+  /** "I'm in for …" signals (lib/inFor.ts) – running and run out */
+  inFor: InFor[];
 }
 
 export type SupportCategory = "place" | "host" | "safety" | "payment" | "other";
@@ -209,6 +214,10 @@ type StoreAction =
   | { type: "unblockUser"; userId: string }
   | { type: "blockUser"; userId: string }
   | { type: "removePerson"; userId: string }
+  | { type: "addInFor"; signal: InFor }
+  | { type: "removeInFor"; id: string }
+  | { type: "toggleSavedPerson"; userId: string }
+  | { type: "stopInvitesFrom"; userId: string }
   | { type: "report"; report: Omit<Report, "reporterId"> }
   | { type: "deleteAccount"; at: string }
   | { type: "settlePayments"; at: string }
@@ -260,8 +269,12 @@ interface StoreActions {
   respondToInvite: (stayId: string, accept: boolean) => void;
   /** The House is over (later: a scheduled job after the end date): status 'completed' and its Crew record written. */
   completeStay: (stayId: string) => void;
-  /** Host: invites someone from their People to an open House – 'invited', holds a spot, notification + email. */
-  inviteToStay: (stayId: string, userId: string) => void;
+  /**
+   * Host or crew: invites someone to an open House – 'invited', holds a spot for INVITE_POLICY.inviteHoldHours, notification + email.
+   * "limit": already INVITE_POLICY.inviteNonConnectionsPerDay invites today to people you have no tie to; "optedOut": they said
+   * "Don't invite me again" to you.
+   */
+  inviteToStay: (stayId: string, userId: string) => InviteResult;
   /** Host: an invite link for someone by name or email – reserves a spot for 48h; with an email it's mailed (mock). */
   createHouseInvite: (stayId: string, to: { name?: string; email?: string }) => HouseInvite | null;
   /** Host: another 48h from now – and the mail again, if it has an email. */
@@ -315,7 +328,8 @@ interface StoreActions {
   /** Applies a vote's result: the winner, or the host's pick on a tie. */
   decideVote: (stayId: string, kind: VoteKind, optionId: string) => void;
   unlockAccommodation: (stayId: string) => Promise<void>;
-  requestToJoin: (stayId: string, message: string) => void;
+  /** `withFriend`: asks for two spots (the friend confirms through a link); `pairedWith`: the friend's own request, by that link. */
+  requestToJoin: (stayId: string, message: string, extra?: { withFriend?: boolean; pairedWith?: string }) => string;
   acceptRequest: (requestId: string) => void;
   declineRequest: (requestId: string) => void;
   /** Sends as the current user. Images in `attachments` make it an image message; a URL makes it a link message. */
@@ -359,6 +373,13 @@ interface StoreActions {
   blockUser: (userId: string) => void;
   /** Out of "Your people" – silently, nobody is told */
   removePerson: (userId: string) => void;
+  /** "I'm in for …": false when IN_FOR_POLICY.maxActive are already running. */
+  addInFor: (draft: InForDraft) => boolean;
+  removeInFor: (id: string) => void;
+  /** "Save" on a profile – or unsave. Private, nobody is told. */
+  toggleSavedPerson: (userId: string) => void;
+  /** "Don't invite me again": no more invites from this person (an open one from them is declined). */
+  stopInvitesFrom: (userId: string) => void;
   /** Mock: queued in `reports` for review. */
   report: (target: Report["target"], reason: ReportReason, text?: string) => void;
   /** Mock: marks the account deleted and logs out (nothing else is removed). */
@@ -603,6 +624,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     livedWith: withMockConfirmations(crews.flatMap(livedWithOf)),
     houseInvites: [],
     supportCases: [],
+    inFor: mockInFor(stays, users),
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -630,7 +652,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 12;
+const MOCK_VERSION = 13;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (dataState: string) => `${MOCK_PREFIX}v${MOCK_VERSION}:${dataState}`;
 
@@ -1161,18 +1183,59 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "inviteToStay": {
       const stay = state.stays.find((s) => s.id === action.stayId);
-      if (!stay || !me || stay.hostId !== me || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) === 0) return state;
-      if (!getPeople(state, me).some((p) => p.user.id === action.userId)) return state;
+      if (!stay || !me || !isCrewMember(state, stay, me) || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) === 0) return state;
+      if (inviteBlock(state, me, action.userId, action.at)) return state;
       // Already in, already asking (answer the request instead) or already invited: nothing to send.
       const existing = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === action.userId && !didntWorkOut(r));
       if (existing) return state;
-      const invite: JoinRequest = { id: `inv-${stay.id}-${action.userId}`, stayId: stay.id, userId: action.userId, message: "", status: "invited", createdAt: action.at };
+      const invite: JoinRequest = { id: `inv-${stay.id}-${action.userId}`, stayId: stay.id, userId: action.userId, message: "", status: "invited", createdAt: action.at, invitedBy: me, reservedUntil: inviteExpiry(action.at) };
       return {
         ...state,
         // An earlier "not this time" gives way to the invite.
         joinRequests: [...state.joinRequests.filter((r) => !(r.stayId === stay.id && r.userId === action.userId)), invite],
         stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsInvited: (s.spotsInvited ?? 0) + 1 } : s)),
         notifications: notifyInApp(state, [action.userId], "houseInvite", { name: firstNameOf(state, me), title: stay.title }, invite.id, stay.id),
+      };
+    }
+
+    case "addInFor": {
+      if (!me || action.signal.userId !== me || !canAddInFor(state.inFor, me, action.signal.createdAt)) return state;
+      return { ...state, inFor: [...state.inFor, action.signal] };
+    }
+
+    case "removeInFor":
+      return { ...state, inFor: state.inFor.filter((s) => !(s.id === action.id && s.userId === me)) };
+
+    case "toggleSavedPerson": {
+      if (!me || action.userId === me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          const saved = settings.savedPeopleIds ?? [];
+          return { ...u, settings: { ...settings, savedPeopleIds: saved.includes(action.userId) ? saved.filter((id) => id !== action.userId) : [...saved, action.userId] } };
+        }),
+      };
+    }
+
+    case "stopInvitesFrom": {
+      if (!me || action.userId === me) return state;
+      // Their open invites to me are declined – the spot opens up again.
+      const open = state.joinRequests.filter((r) => r.userId === me && r.status === "invited" && r.invitedBy === action.userId);
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          const stopped = settings.noInvitesFrom ?? [];
+          return stopped.includes(action.userId) ? u : { ...u, settings: { ...settings, noInvitesFrom: [...stopped, action.userId] } };
+        }),
+        joinRequests: state.joinRequests.map((r) => (open.includes(r) ? { ...r, status: "declined" as const } : r)),
+        stays: state.stays.map((s) => {
+          const freed = open.filter((r) => r.stayId === s.id).length;
+          return freed > 0 ? { ...s, spotsInvited: Math.max(0, (s.spotsInvited ?? 0) - freed) } : s;
+        }),
       };
     }
 
@@ -1527,9 +1590,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       // Blocked by the host (from a direct chat's "…"): no request to their House.
       const blockedByHost = stay ? settingsOf(state.users.find((u) => u.id === stay.hostId)).blockedUserIds.includes(me) : false;
       if (!stay || stay.hostId === me || alreadyAsked || !stay.acceptingRequests || unverified || wrongAudience || blockedByHost) return state;
-      const { id, stayId, message, status, createdAt } = action.request;
+      const { id, stayId, message, status, createdAt, withFriend, pairedWith } = action.request;
       const attribution = attributionFor(state, me, action.request);
-      const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me };
+      const request: JoinRequest = { id, stayId, message, status, createdAt, ...attribution, userId: me, ...(withFriend && { withFriend }), ...(pairedWith && { pairedWith }) };
       const events = [...state.events, event(id, "request_sent", action.at, { houseId: stayId, userId: me, ...attribution })];
       // A host who blocked me declines automatically – and isn't notified.
       const host = state.users.find((u) => u.id === stay.hostId);
@@ -2186,8 +2249,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const completeStay = useCallback((stayId: string) => dispatch({ type: "completeStay", stayId, at: new Date().toISOString() }), []);
   const inviteToStay = useCallback(
-    (stayId: string, userId: string) => dispatch({ type: "inviteToStay", stayId, userId, at: new Date().toISOString() }),
-    [],
+    (stayId: string, userId: string): InviteResult => {
+      const at = new Date().toISOString();
+      const stay = stays.find((s) => s.id === stayId);
+      if (!stay || !currentUserId || !isCrewMember(state, stay, currentUserId) || openSpots(stay) === 0) return "invalid";
+      const blocked = inviteBlock(state, currentUserId, userId, at);
+      if (blocked) return blocked;
+      dispatch({ type: "inviteToStay", stayId, userId, at });
+      return "sent";
+    },
+    [state, stays, currentUserId],
   );
   const createHouseInvite = useCallback(
     (stayId: string, to: { name?: string; email?: string }): HouseInvite | null => {
@@ -2298,14 +2369,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const requestToJoin = useCallback((stayId: string, message: string) => {
+  const requestToJoin = useCallback((stayId: string, message: string, extra: { withFriend?: boolean; pairedWith?: string } = {}) => {
     const createdAt = new Date().toISOString();
+    const id = makeId("r");
     dispatch({
       type: "requestToJoin",
       at: createdAt,
       // The browser's first touch – the reducer prefers the user's own signup attribution.
-      request: { id: makeId("r"), stayId, message: message.trim(), status: "pending", createdAt, ...firstTouch() },
+      request: {
+        id,
+        stayId,
+        message: message.trim(),
+        status: "pending",
+        createdAt,
+        ...firstTouch(),
+        ...(extra.withFriend && { withFriend: true as const }),
+        ...(extra.pairedWith && { pairedWith: extra.pairedWith }),
+      },
     });
+    return id;
   }, []);
 
   const sendMessage = useCallback(
@@ -2453,6 +2535,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const unblockUser = useCallback((userId: string) => dispatch({ type: "unblockUser", userId }), []);
   const blockUser = useCallback((userId: string) => dispatch({ type: "blockUser", userId }), []);
   const removePerson = useCallback((userId: string) => dispatch({ type: "removePerson", userId }), []);
+  const addInFor = useCallback(
+    (draft: InForDraft) => {
+      const createdAt = new Date().toISOString();
+      if (!currentUserId || !canAddInFor(state.inFor, currentUserId, createdAt)) return false;
+      dispatch({ type: "addInFor", signal: { ...draft, id: makeId("in"), userId: currentUserId, createdAt } });
+      return true;
+    },
+    [currentUserId, state.inFor],
+  );
+  const removeInFor = useCallback((id: string) => dispatch({ type: "removeInFor", id }), []);
+  const toggleSavedPerson = useCallback((userId: string) => dispatch({ type: "toggleSavedPerson", userId }), []);
+  const stopInvitesFrom = useCallback((userId: string) => dispatch({ type: "stopInvitesFrom", userId }), []);
   const report = useCallback(
     (target: Report["target"], reason: ReportReason, text?: string) =>
       dispatch({ type: "report", report: { id: makeId("rep"), target, reason, text: text?.trim() || undefined, createdAt: new Date().toISOString() } }),
@@ -2545,12 +2639,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       unblockUser,
       blockUser,
       removePerson,
+      addInFor,
+      removeInFor,
+      toggleSavedPerson,
+      stopInvitesFrom,
       report,
       deleteAccount,
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, setAcceptingRequests, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2588,7 +2686,13 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
   const notifications = Object.fromEntries(
     (Object.keys(DEFAULT_NOTIFICATION_PREFS) as (keyof NotificationPrefs)[]).map((key) => [key, { ...DEFAULT_NOTIFICATION_PREFS[key], ...stored[key] }]),
   ) as NotificationPrefs;
-  return { notifications, blockedUserIds: user?.settings?.blockedUserIds ?? [], removedPeopleIds: user?.settings?.removedPeopleIds ?? [] };
+  return {
+    notifications,
+    blockedUserIds: user?.settings?.blockedUserIds ?? [],
+    removedPeopleIds: user?.settings?.removedPeopleIds ?? [],
+    savedPeopleIds: user?.settings?.savedPeopleIds ?? [],
+    noInvitesFrom: user?.settings?.noInvitesFrom ?? [],
+  };
 }
 
 /** The switchable channels of a notification group (in-app is always on). */
@@ -2830,7 +2934,29 @@ export function isInvitedTo(store: Pick<StoreState, "joinRequests" | "currentUse
 }
 
 /** Invite links stay valid this long – from creating (or resending) them. */
-export const INVITE_VALID_MS = 48 * 60 * 60 * 1000;
+export const INVITE_VALID_MS = INVITE_POLICY.inviteHoldHours * 60 * 60 * 1000;
+export type InviteResult = "sent" | "limit" | "optedOut" | "invalid";
+
+/**
+ * Why `from` can't invite `to` right now (null: they can): blocked either way or "Don't invite me again" → "optedOut"; already
+ * INVITE_POLICY.inviteNonConnectionsPerDay invites today to people with no tie (not Your people, not saved, not in for one of your Houses).
+ */
+export function inviteBlock(state: StoreState, from: string, to: string, at: string): "optedOut" | "limit" | null {
+  const sender = settingsOf(state.users.find((u) => u.id === from));
+  const target = settingsOf(state.users.find((u) => u.id === to));
+  if (sender.blockedUserIds.includes(to) || target.blockedUserIds.includes(from) || (target.noInvitesFrom ?? []).includes(from)) return "optedOut";
+  if (isConnection(state, from, to)) return null;
+  const day = at.slice(0, 10);
+  const today = state.joinRequests.filter((r) => r.invitedBy === from && r.createdAt.slice(0, 10) === day && !isConnection(state, from, r.userId)).length;
+  return today >= INVITE_POLICY.inviteNonConnectionsPerDay ? "limit" : null;
+}
+
+/** A tie that lifts the daily limit: Your people, or saved. */
+export function isConnection(state: StoreState, from: string, to: string): boolean {
+  const saved = settingsOf(state.users.find((u) => u.id === from)).savedPeopleIds ?? [];
+  return saved.includes(to) || yourPeople(state, from).some((p) => p.user.id === to);
+}
+
 const inviteExpiry = (from: string) => new Date(new Date(from).getTime() + INVITE_VALID_MS).toISOString();
 
 /** Every House's reserved spots, counted from its pending invite links. */

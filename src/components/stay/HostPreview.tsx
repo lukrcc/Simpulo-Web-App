@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { Anchored } from "@/components/ui/Anchored";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { HostSocialIcons } from "@/components/ui/HostSocialIcons";
+import { SocialLinks } from "@/components/SocialLinks";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -77,7 +77,7 @@ export function HostPreview({ host, anchor, ...pointer }: { host: User; anchor: 
         )}
         {host.bio && <p className="line-clamp-2 text-body text-ink">{host.bio}</p>}
         <div className="flex items-center justify-between gap-3">
-          <HostSocialIcons host={host} className="text-muted!" />
+          <SocialLinks user={host} variant="icons" tone="light" />
           <Link href={`/u/${host.id}`} className={buttonStyles("tertiary", "sm", "-mr-4 ml-auto")}>
             {tCard("viewProfile")}
           </Link>

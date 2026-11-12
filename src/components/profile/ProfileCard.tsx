@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { SocialRow } from "@/components/ui/SocialRow";
+import { SocialLinks } from "@/components/SocialLinks";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { cardClass } from "@/components/ui/Card";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -47,7 +47,7 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
       </div>
 
       {/* The public links, as the host ordered them (at most 4). Contact happens in Messages. */}
-      <SocialRow user={user} className="mt-5" />
+      <SocialLinks user={user} variant="full" className="mt-5" />
       <LanguageChips languages={user.languages} compact className="mt-3" />
 
       {user.bio && <p className="mt-5 pt-5 text-body leading-[1.6] text-ink">{user.bio}</p>}

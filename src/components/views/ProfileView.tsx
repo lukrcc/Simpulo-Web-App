@@ -1,12 +1,16 @@
 "use client";
 
 import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
-import { CalendarDays, Home, Languages, Lock, MoreHorizontal, Pencil, SearchX, Settings, Share2, Sparkles, UserPlus, UserX, Users, Zap } from "lucide-react";
+import { Bookmark, CalendarDays, Home, Languages, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Sparkles, UserPlus, UserX, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { use, useMemo, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { HouseCard } from "@/components/HouseCard";
+import { InviteSheet } from "@/components/InviteSheet";
+import { useMonthName } from "@/components/explore/SearchFields";
+import { activeInForOf, inForPlaceName, type InFor } from "@/lib/inFor";
+import { canInvite } from "@/lib/invites";
 import { Container } from "@/components/layout/Container";
 import { PreviewBanner, PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
@@ -23,7 +27,7 @@ import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { Sheet } from "@/components/ui/Sheet";
 import { Shelf } from "@/components/ui/Shelf";
-import { SocialIcons } from "@/components/ui/SocialRow";
+import { SocialLinks } from "@/components/SocialLinks";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { MoreList } from "@/components/views/MoreList";
@@ -33,7 +37,7 @@ import { useFormat } from "@/i18n/format";
 import { cityPlaceIdOf, coverOf } from "@/lib/data/places";
 import { inCommonWith, medianReplyMinutes, profileViewFor, sharesCrew, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
 import { shortNameOf } from "@/lib/shortName";
-import { findUser, getCrew, getCurrentUser, isBlocked, useStore } from "@/lib/store";
+import { findUser, getCrew, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
@@ -225,8 +229,23 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
   const guard = usePreviewGuard();
   const showToast = useToast();
   const [sharing, setSharing] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const monthName = useMonthName();
   const minutes = medianReplyMinutes(user);
+  // "I'm in for …" (lib/inFor.ts): their running signals as chips – "In for Lisbon · Mar".
+  const inFor = activeInForOf(store.inFor, user.id, today);
+  const inForText = (s: InFor) =>
+    tv("inForChip", { place: inForPlaceName(s), months: s.monthFrom === s.monthTo ? monthName(s.monthFrom, "bare") : `${monthName(s.monthFrom, "bare")}–${monthName(s.monthTo, "bare")}` });
+  // "Save" (private, nobody is told): Your houses › Saved people, first in the invite sheet.
+  const saved = !isMe && viewerId ? (settingsOf(store.users.find((u) => u.id === viewerId)).savedPeopleIds ?? []).includes(user.id) : false;
+  const toggleSave = () =>
+    guard(() => {
+      store.toggleSavedPerson(user.id);
+      showToast(saved ? tv("unsavedToast", { name: firstName(user) }) : tv("savedToast", { name: firstName(user) }));
+    });
+  // The compact House line under the socials: hosting now, else going (only what profilePrivacy shows).
+  const houseLine = view.hostingNow.find((s) => s.status === "published" || s.status === "booked") ?? view.upcoming[0];
   const trust = [
     view.housesCount > 0 && { key: "houses", icon: Home, text: tv("chipHouses", { count: view.housesCount }) },
     view.livedWith.length > 0 && { key: "people", icon: Users, text: tv("chipLivedWith", { count: view.livedWith.length }) },
@@ -236,21 +255,22 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
   const common = isMe ? null : inCommonWith(store, user, viewerId, today);
   // Their open House (the soonest), and yours to invite them to.
   const theirOpen = view.hostingNow.find((s) => s.status === "published" && s.acceptingRequests && openSpots(s) > 0);
-  const mine = !isMe && viewerId ? store.stays.filter((s) => s.hostId === viewerId && s.status === "published" && s.acceptingRequests && openSpots(s) > 0 && s.endDate >= today).toSorted((a, b) => a.startDate.localeCompare(b.startDate))[0] : undefined;
-  const alreadyIn = mine ? store.joinRequests.some((r) => r.stayId === mine.id && r.userId === user.id && ["invited", "pending", "accepted"].includes(r.status)) : false;
-  const invite = () =>
-    guard(() => {
-      if (!mine) return;
-      store.inviteToStay(mine.id, user.id);
-      showToast(tv("invitedToast", { name: firstName(user), house: shortNameOf(mine) }));
-    });
+  // Your open Houses with a free spot they aren't in or asking for yet – "Invite to your House" opens the invite sheet with them picked
+  // (several Houses: pick one first).
+  const mineOpen = !isMe && viewerId
+    ? store.stays
+        .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
+        .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
+    : [];
+  const mine = mineOpen[0];
+  const invite = () => guard(() => setInviting(true));
   const seeTheirs = theirOpen && (
     <Button key="see" variant="cream" size="lg" href={`/house/${theirOpen.slug}`}>
       {tv("seeHouse", { name: shortNameOf(theirOpen) })}
     </Button>
   );
   const inviteButton = (primary: boolean) =>
-    mine && !alreadyIn ? (
+    mine ? (
       <Button key="invite" variant={primary ? "cream" : "creamOutline"} size="lg" onClick={invite} data-preview-action>
         <UserPlus aria-hidden />
         {tv("inviteToHouse")}
@@ -263,7 +283,8 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
       <div data-preview-part="photos" className="min-w-0">
         <ProfilePhotoCard user={user} onOpen={onOpenPhoto} />
       </div>
-      <div className="ember ember-scope flex min-w-0 flex-col gap-5 rounded-3xl p-6 sm:p-8 split:p-10">
+      {/* With a House line the Ember fills the photo's height; without one it's as tall as its content, top-aligned (the photo keeps 4:5). */}
+      <div className={cn("ember ember-scope flex min-w-0 flex-col gap-5 rounded-3xl p-6 sm:p-8 split:p-10", !houseLine && "split:self-start")}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div data-preview-part="basics" className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -284,6 +305,11 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
             <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={iconButtonStyles()}>
               <Share2 className="size-4" aria-hidden />
             </button>
+            {!isMe && viewerId && (
+              <button type="button" onClick={toggleSave} aria-pressed={saved} aria-label={saved ? tv("unsave") : tv("save")} className={iconButtonStyles()}>
+                <Bookmark className={cn("size-4", saved && "fill-current")} aria-hidden />
+              </button>
+            )}
             {isMe ? (
               <Button variant="creamOutline" size="sm" href="/settings/profile">
                 <Pencil aria-hidden />
@@ -294,17 +320,23 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
                 <MoreHorizontal className="size-5" aria-hidden />
               </button>
             ) : (
-              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} buttonClassName={iconButtonStyles()} />
+              <SafetyMenu target={{ kind: "user", id: user.id }} user={user} extraItems={viewerId ? [{ label: saved ? tv("unsave") : tv("save"), onSelect: toggleSave }] : []} buttonClassName={iconButtonStyles()} />
             )}
           </div>
         </div>
 
-        {trust.length > 0 && (
+        {(trust.length > 0 || inFor.length > 0) && (
           <ul className="flex flex-wrap gap-2 text-small font-medium">
             {trust.map(({ key, icon: Icon, text }) => (
               <li key={key} className="ember-chip">
                 <Icon aria-hidden className="size-3.5" />
                 {text}
+              </li>
+            ))}
+            {inFor.map((s) => (
+              <li key={s.id} className="ember-chip">
+                <MapPin aria-hidden className="size-3.5" />
+                {inForText(s)}
               </li>
             ))}
           </ul>
@@ -336,8 +368,10 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
         )}
 
         <div data-preview-part="links" className="self-start">
-          {(user.socials?.length ?? 0) > 0 ? <SocialIcons user={user} /> : preview && <span className="ember-chip text-small font-medium text-ink/60">{tv("linksAdd")}</span>}
+          {(user.socials?.length ?? 0) > 0 ? <SocialLinks user={user} variant="full" tone="dark" /> : preview && <span className="ember-chip text-small font-medium text-ink/60">{tv("linksAdd")}</span>}
         </div>
+
+        {houseLine && !preview && <HouseLine stay={houseLine} label={view.hostingNow.includes(houseLine) ? tv("hostingNow") : tv("going")} />}
 
         {isMe && !user.verified && (
           <p className="text-small text-muted">
@@ -355,7 +389,29 @@ function ProfileHead({ user, isMe, previewing, onPreview, view, viewerId, onOpen
         </div>
       </div>
       <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />
+      {mineOpen.length > 0 && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
     </section>
+  );
+}
+
+/** "Hosting now" / "Going": one compact House line in the Ember – photo 48px, title, "date · short name"; the whole line opens the House. */
+function HouseLine({ stay, label }: { stay: Stay; label: string }) {
+  const f = useFormat();
+  const store = useStore();
+  const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
+  return (
+    <div>
+      <p className="mb-2 text-eyebrow uppercase text-ink/60">{label}</p>
+      <Link href={`/h/${stay.id}`} className="group -mx-2 flex max-w-[480px] items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors duration-150 hover:bg-[#F4EEE7]/6">
+        <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-[#F4EEE7]/10">{photo && <Img src={photo} alt="" fill sizes="48px" className="object-cover" />}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-body font-semibold text-ink">{stay.title}</span>
+          <span className="block truncate text-small text-muted">
+            {f.stayDates(stay)} · {shortNameOf(stay)}
+          </span>
+        </span>
+      </Link>
+    </div>
   );
 }
 

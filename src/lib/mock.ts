@@ -107,10 +107,14 @@ export interface UserSettings {
   blockedUserIds: string[];
   /** Taken out of "Your people" – silently, nobody is told (lib/yourPeople.ts) */
   removedPeopleIds?: string[];
+  /** "Save" on someone's profile – private, nobody is told; Your houses › Saved people, first in the invite sheet */
+  savedPeopleIds?: string[];
+  /** "Don't invite me again": invites from these people don't reach me */
+  noInvitesFrom?: string[];
 }
 
 /** The platforms a profile can link to. */
-export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'twitch' | 'kick' | 'x' | 'website';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'twitch' | 'kick' | 'x' | 'linkedin' | 'website';
 
 /** One public link: the handle as typed (without "@") – or, for a website, the full https URL. */
 export interface SocialLink {
@@ -349,6 +353,12 @@ export interface JoinRequest extends Attribution {
   coveredBy?: string[];
   /** An invite from Open a House: its spot is held until then (48h, "Reserved for Anna"), then it's open to anyone */
   reservedUntil?: string;
+  /** Invited (status "invited"): by whom – the host or someone in the crew */
+  invitedBy?: string;
+  /** "Request with a friend": asks for two spots; the friend confirms through a link (their own request, pairedWith this one) */
+  withFriend?: true;
+  /** A friend's request: the request (id) that brought them along */
+  pairedWith?: string;
 }
 
 export type MessageType = 'text' | 'image' | 'link' | 'system';

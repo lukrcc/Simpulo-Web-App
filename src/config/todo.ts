@@ -19,6 +19,7 @@ export type TodoTask =
   | "answer_invite"
   | "overlap_pick_one"
   | "answer_question"
+  | "invite_fill"
   | "confirm_booking"
   | "setup_payouts"
   | "verify_id"
@@ -39,6 +40,8 @@ export const TODO_TASK_GROUP: Record<TodoTask, TodoGroup> = {
   answer_invite: "reply",
   overlap_pick_one: "reply",
   answer_question: "reply",
+  // A House of yours starting within 30 days, under half full: "Fill 3 spots" (the invite sheet).
+  invite_fill: "reply",
   confirm_booking: "setup",
   setup_payouts: "setup",
   verify_id: "setup",
@@ -46,7 +49,7 @@ export const TODO_TASK_GROUP: Record<TodoTask, TodoGroup> = {
 };
 
 /** The kinds the app produces today (lib/houseTasks.ts and the account's own), each one of the tasks above. */
-export type TodoKind = "pay" | "offer" | "requests" | "invite" | "overlap" | "book" | "choosePlace" | "payouts" | "profile" | "verify";
+export type TodoKind = "pay" | "offer" | "requests" | "invite" | "overlap" | "fill" | "book" | "choosePlace" | "payouts" | "profile" | "verify";
 
 export const TODO_TASK_OF: Record<TodoKind, TodoTask> = {
   pay: "pay_share",
@@ -55,6 +58,7 @@ export const TODO_TASK_OF: Record<TodoKind, TodoTask> = {
   requests: "review_requests",
   invite: "answer_invite",
   overlap: "overlap_pick_one",
+  fill: "invite_fill",
   book: "confirm_booking",
   // Choosing the place is the step before the booking: the same column.
   choosePlace: "confirm_booking",

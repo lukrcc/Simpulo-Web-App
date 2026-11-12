@@ -33,8 +33,8 @@ const nextConfig: NextConfig = {
       { source: "/your-houses/hosting", destination: "/your-houses/all/hosting", permanent: true },
       { source: "/your-houses/joined", destination: "/your-houses/all/going", permanent: true },
       // Short links (lib/links.ts): /h/[id] is a page of its own (the House by role); invites and creators are placeholders for now.
-      // TODO: invite codes → /invite/[token] once codes exist apart from tokens.
-      { source: "/i/:code", destination: "/", permanent: false },
+      // An invite link from the invite sheet (components/InviteSheet): the code is the invite's token – its page holds the spot for 48h.
+      { source: "/i/:code", destination: "/invite/:code", permanent: false },
       // TODO: creator pages.
       { source: "/c/:handle", destination: "/", permanent: false },
       // Hosting is explained in the FAQ (Hosting) – no page of its own.

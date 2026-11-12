@@ -370,13 +370,14 @@ export function HouseMore({ stay }: { stay: Stay }) {
 }
 
 /** Beside the title: "…"; on phones the way back too. The heart is on the card. */
-export function HouseActions({ menu, onBack }: { menu?: ReactNode; /** Phones: the way back (no header there) */ onBack: () => void }) {
+export function HouseActions({ menu, share, onBack }: { menu?: ReactNode; /** Share (36px, like "…"), before the menu – as in the profile's head */ share?: ReactNode; /** Phones: the way back (no header there) */ onBack: () => void }) {
   const t = useTranslations("house.page");
   return (
     <div className="flex shrink-0 items-center gap-2">
       <IconButton onClick={onBack} aria-label={t("back")} className="md:hidden">
         <ArrowLeft className="size-5" aria-hidden />
       </IconButton>
+      {share}
       {menu}
     </div>
   );

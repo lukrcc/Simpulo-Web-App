@@ -1,12 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useMemo } from "react";
-import { HouseCard } from "@/components/HouseCard";
+import { CardStatusAction, HouseCard } from "@/components/HouseCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Shelf } from "@/components/ui/Shelf";
 import { EXPLORE_SPACING } from "@/config/explore";
 import { findUser, getCrew, useStore } from "@/lib/store";
+import { openSpots } from "@/lib/utils";
 import { housesOfYourPeople, yourPeople } from "@/lib/yourPeople";
 
 /** At most this many Houses on the shelf. */
@@ -31,6 +33,8 @@ export function PeopleGoingRow() {
   const store = useStore();
   const id = useId();
   const stays = usePeopleGoing();
+  const router = useRouter();
+  const tInvite = useTranslations("invite");
   if (stays.length === 0) return null;
   return (
     <section aria-labelledby={id}>
@@ -38,7 +42,19 @@ export function PeopleGoingRow() {
       <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
         {stays.map((stay) => (
           <div key={stay.id} className="explore-slide shrink-0">
-            <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+            {/* "Join them" = Request to join: the House page with the request sheet open. */}
+            <HouseCard
+              stay={stay}
+              host={findUser(store, stay.hostId)}
+              crew={getCrew(store, stay)}
+              status={
+                stay.acceptingRequests && openSpots(stay) > 0 ? (
+                  <CardStatusAction dot={false} onClick={() => router.push(`/h/${stay.id}?focus=request`)}>
+                    {tInvite("joinThem")}
+                  </CardStatusAction>
+                ) : undefined
+              }
+            />
           </div>
         ))}
       </Shelf>

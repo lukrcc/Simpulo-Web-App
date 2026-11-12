@@ -9,7 +9,6 @@ import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, useSync
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import {
   AccommodationDetail,
-  CheckRow,
   CoverStep,
   CrewGroupDetail,
   CrewStep,
@@ -71,6 +70,8 @@ import {
   type StepKey,
 } from "@/components/create/model";
 import { useSearchDemand } from "@/components/create/SearchDemandHint";
+import { InvitePage } from "@/components/InviteSheet";
+import { canInvite } from "@/lib/invites";
 import { useDismiss } from "@/components/explore/Filters";
 import { useHostShare } from "@/components/share/HostShareTools";
 import { BuildingCard } from "@/components/create/BuildingCard";
@@ -86,7 +87,6 @@ import { useFeatureFlag } from "@/lib/featureFlags";
 import { useFormat } from "@/i18n/format";
 import { getCrew, getCurrentUser, houseInviteUrl, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
 import { yourPeople } from "@/lib/yourPeople";
-import { InviteStep } from "@/components/create/InviteStep";
 import { locationOf } from "@/lib/catalog";
 import { coversFromHouses } from "@/lib/coverSuggestions";
 import type { Stay, User } from "@/lib/types";
@@ -158,7 +158,6 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // Opened: the success screen, and how many heard first.
   const [openedId, setOpenedId] = useState<string | null>(null);
   const [notified, setNotified] = useState(0);
-  const [inviteOn, setInviteOn] = useState(true);
   // "Invite by link": the token of the link made with the House – copied from the success screen.
   const [linkToken, setLinkToken] = useState<string | null>(null);
   // A required answer opened from the list (editing): its button leads back to the list.
@@ -204,9 +203,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // Who can be invited on publish: the host's people (lived together, both confirmed; not removed or blocked – lib/yourPeople.ts).
   const yours = useMemo(() => (!me || editing ? [] : yourPeople(store, me.id)), [store, me, editing]);
   const invitePeople: PersonEntry[] = yours.map((p) => ({ user: p.user, houses: [p.house] }));
-  // The optional "Invite your crew / your people" step: only with someone to invite.
-  const hasInviteStep = !editing && yours.length > 0;
-  const againCrewIds = againSource ? getCrew(store, againSource).map((u) => u.id).filter((id) => id !== me?.id && yours.some((p) => p.user.id === id)) : [];
+  // Inviting happens after publishing, in "Fill your House" (components/InviteSheet: Your people, Saved, who's in for it, search, the link);
+  // the old crew of "Do it again" and a ?invite= person are picked there already. No invite step inside the flow any more.
+  const hasInviteStep = false;
   if (againId && againSource && !againApplied) {
     setAgainApplied(true);
     const crewIds = getCrew(store, againSource).map((u) => u.id).filter((id) => invitePeople.some((p) => p.user.id === id));
@@ -220,7 +219,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     setInviteApplied(true);
     setForm((f) => ({ ...f, inviteIds: f.inviteIds.includes(inviteId) ? f.inviteIds : [inviteId, ...f.inviteIds] }));
   }
-  const invites = inviteOn ? invitesOf(form, invitePeople) : [];
+  // Who "Fill your House" starts with picked: the old crew (Do it again) or the ?invite= person.
+  const preselect = invitesOf(form, invitePeople);
   const errorsOf = (key: StepKey): FieldErrors => stepErrors(key, { form, me, minSpots, today, editing, starters });
   const titleMax = titleMaxFor(editing);
   const titleIdeas = useTitleSuggestions(form, titleMax);
@@ -327,7 +327,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!profileReady || !validateAll()) return;
     // Logged out: log in first, then publish – the draft is still in state, nothing is lost.
     requireAuth(() => {
-      const { id, linkToken } = store.createStay(input(), [], { invite: invites, againFrom: form.againFrom || undefined, link: form.inviteLink });
+      const { id, linkToken } = store.createStay(input(), [], { invite: [], againFrom: form.againFrom || undefined, link: false });
       setLinkToken(linkToken ?? null);
       clearDraft();
       setNotified(demand.count);
@@ -382,8 +382,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     lng: 0,
     mapPreviewUrl: "",
     spotsFilled: editing?.spotsFilled ?? 1,
-    // Invited people hold their spots on the card too.
-    spotsInvited: editing ? editing.spotsInvited : invites.length,
+    // Invites come after publishing ("Fill your House").
+    spotsInvited: editing ? editing.spotsInvited : 0,
     currency: editing?.accommodationStatus === "locked" ? editing.currency : currencyOf(form, me, preferredCurrency),
     status: "draft",
     acceptingRequests: true,
@@ -423,13 +423,11 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         { step: "crew" as const, value: `${format.people(form.spotsTotal)} · ${format.priceLabel(previewStay)}` },
       ]
     : undefined;
-  const invitesRow = invitesOf(form, invitePeople).length > 0 && <CheckRow label={t("publish.inviteCrew", { count: invitesOf(form, invitePeople).length })} checked={inviteOn} onChange={setInviteOn} />;
   const body = (
     <>
       {step === "vibe" && <VibeStep {...stepProps} />}
       {step === "place" && <PlaceStep {...stepProps} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
-      {step === INVITE_STEP && <InviteStep form={form} patch={patch} people={yours} againCrewIds={againCrewIds} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
       {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} />}
@@ -477,7 +475,6 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             <span className="text-body text-muted">{tFlow("optionalLine", { count: extrasAdded(form), total: EXTRAS.length })}</span>
             <span className="text-body font-semibold text-ink">{tFlow("addDetails")} →</span>
           </button>
-          {invitesRow}
         </div>
       )}
     </>
@@ -570,7 +567,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   );
 
   const openedStay = openedId ? store.stays.find((s) => s.id === openedId) : undefined;
-  if (openedStay) return <OpenedScreen stay={openedStay} notified={notified} host={me} form={form} linkToken={linkToken} />;
+  if (openedStay) return <OpenedScreen stay={openedStay} notified={notified} host={me} form={form} linkToken={linkToken} preselect={preselect} />;
 
   return (
     <>
@@ -728,7 +725,7 @@ function OpenedPayouts() {
   );
 }
 
-function OpenedScreen({ stay, notified, host, form, linkToken }: { stay: Stay; notified: number; host?: User; form: FormState; /** "Invite by link" */ linkToken: string | null }) {
+function OpenedScreen({ stay, notified, host, form, linkToken, preselect }: { stay: Stay; notified: number; host?: User; form: FormState; /** "Invite by link" */ linkToken: string | null; /** Picked already in "Fill your House" */ preselect: string[] }) {
   const t = useTranslations("create.opened");
   const showToast = useToast();
   const store = useStore();
@@ -744,6 +741,37 @@ function OpenedScreen({ stay, notified, host, form, linkToken }: { stay: Stay; n
   }
   const { copy, story, busy } = useHostShare(stay);
   const [saved, setSaved] = useState(false);
+  const tInvite = useTranslations("invite");
+  // First "Fill your House": the invite sheet as a page (Your people, Saved, who's in for it, search, the link) – then the ways to share.
+  const [filling, setFilling] = useState(true);
+  const today = new Date().toISOString().slice(0, 10);
+  if (filling && canInvite(store, stay, store.currentUserId, today)) {
+    return (
+      <CreateLayout
+        aside={
+          <div className={CARD_BOX}>
+            <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
+          </div>
+        }
+      >
+        <div data-flow-done className="question-in">
+          <InvitePage
+            stay={stay}
+            preselect={preselect}
+            onDone={() => setFilling(false)}
+            head={
+              <div>
+                <p className="text-eyebrow uppercase text-ink/55">{tInvite("fillLive")}</p>
+                <h1 className="mt-2 text-h1 text-ink">{tInvite("fillTitle")}</h1>
+                <p className="mt-3 max-w-[560px] text-body-lg text-muted">{tInvite("fillText", { hours: 48 })}</p>
+              </div>
+            }
+          />
+          <LegalLine className="mt-6" />
+        </div>
+      </CreateLayout>
+    );
+  }
   return (
     <CreateLayout
       aside={

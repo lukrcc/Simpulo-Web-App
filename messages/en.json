@@ -1761,7 +1761,8 @@
           "payouts": "Set up payouts",
           "overlap": "{count, plural, one {Pick one} other {Sort # overlaps}}",
           "verify": "Verify your ID",
-          "profile": "Finish profile"
+          "profile": "Finish profile",
+          "fill": "{count, plural, one {Fill # spot} other {Fill # spots}}"
         },
         "whatsNew": "What's new",
         "what": {
@@ -1797,7 +1798,8 @@
           "payouts": "Set up payouts",
           "overlap": "{count, plural, one {Pick one} other {Sort # overlaps}}",
           "verify": "Verify your ID",
-          "profile": "Complete your profile"
+          "profile": "Complete your profile",
+          "fill": "{count, plural, one {Fill # spot} other {Fill # spots}}"
         },
         "payoutsTitle": "Payouts",
         "receivedYear": "received this year",
@@ -1845,7 +1847,18 @@
         "allSet": "You're all set",
         "allSetHint": "We'll tell you when something needs you.",
         "groupEmpty": "Nothing here right now.",
-        "openForRequests": "Open for requests"
+        "openForRequests": "Open for requests",
+        "comingUp": "Coming up",
+        "timeline": {
+          "pay_opens": "Pay opens",
+          "pay_due": "Pay due",
+          "booking_confirmed": "Booking confirmed",
+          "arrival": "Arrival",
+          "house_starts": "House starts",
+          "house_ends": "House ends",
+          "today": "today",
+          "inDays": "{count, plural, one {in # day} other {in # days}}"
+        }
       },
       "tabsLabel": "Show",
       "tabs": {
@@ -2559,6 +2572,9 @@
         "done": "Done",
         "failed": "No spot left to reserve."
       }
+    },
+    "rows": {
+      "savedPeople": "Saved people"
     }
   },
   "messages": {
@@ -2818,6 +2834,10 @@
           "title": "Verify ID",
           "done": "Verified",
           "empty": "Not verified"
+        },
+        "inFor": {
+          "title": "I'm in for",
+          "empty": "Where you'd go next"
         }
       },
       "progressOf": "{done} of {total}",
@@ -2941,7 +2961,13 @@
       "vibeAdd": "Add your vibe",
       "notVerified": "ID not verified",
       "linksAdd": "Add your links",
-      "languagesAdd": "Add your languages"
+      "languagesAdd": "Add your languages",
+      "inForChip": "In for {place} · {months}",
+      "save": "Save",
+      "unsave": "Saved",
+      "savedToast": "{name} saved – only you see this",
+      "unsavedToast": "{name} removed from saved",
+      "going": "Going"
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {
@@ -3883,5 +3909,87 @@
     "keep": "Keep {name}",
     "kept": "You kept {name}",
     "hostTwo": "You're hosting two Houses at the same time."
+  },
+  "invite": {
+    "title": "Bring people",
+    "invite": "Invite",
+    "inviteCount": "{count, plural, one {Invite # person} other {Invite #}}",
+    "skip": "Not now",
+    "spotsOpen": "{count, plural, =0 {No spots open} one {# spot open} other {# spots open}}",
+    "pickHouse": "Which House?",
+    "shareLink": "Share link",
+    "copy": "Copy link",
+    "whatsapp": "WhatsApp",
+    "qr": "QR code",
+    "share": "Share",
+    "linkHolds": "A link holds a spot for {hours}h.",
+    "linkFailed": "No spot left to hold.",
+    "copied": "Invite link copied – the spot is held for {hours}h",
+    "message": "Come to {title} with me: {url}",
+    "yourPeople": "Your people",
+    "livedWith": "Lived with you",
+    "saved": "Saved",
+    "savedNote": "Saved",
+    "inForTitle": "In for {place} · {month}",
+    "inForTitleNoPlace": "In for this House",
+    "inForNote": "In for this",
+    "picked": "Picked",
+    "search": "Anyone else",
+    "searchPlaceholder": "Search by first name",
+    "searchNote": "From the search",
+    "noMatch": "Nobody by that name",
+    "allSpotsPicked": "Every open spot is picked.",
+    "strangersLeft": "{count, plural, =0 {No more invites to new people today} one {# more invite to new people today} other {# more invites to new people today}} · {limit} a day",
+    "sent": "{count, plural, one {# invite sent} other {# invites sent}} – spots held for {hours}h",
+    "limitReached": "That's {count} invites to new people today – {sent} sent",
+    "notSent": "Nothing sent – they can't be invited right now",
+    "addSpot": "Invite to a free spot",
+    "freeSpot": "Free spot",
+    "bringSomeone": "Bring someone? {count, plural, one {# spot left} other {# spots left}}",
+    "dontInviteAgain": "Don't invite me again",
+    "stopped": "You won't get invites from {name} again",
+    "fillTitle": "Fill your House",
+    "fillLive": "Your House is live",
+    "fillText": "Invite the people who'd love it – each invite holds a spot for {hours}h.",
+    "requestWithFriend": "Request with a friend",
+    "withFriendSent": "Request sent for two – send your friend this link to confirm",
+    "withFriendCopy": "Copy friend link",
+    "friendTitle": "{name} wants you along",
+    "friendText": "{name} asked {host} for two spots in {title}. Confirm to send your own request with them.",
+    "friendConfirm": "Confirm and request",
+    "friendDone": "Request sent – together with {name}",
+    "joinThem": "Join them",
+    "shareHouse": "Share this House",
+    "hostDot": "Host",
+    "crewIn": "{in} of {total} in",
+    "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
+    "full": "Full"
+  },
+  "inFor": {
+    "title": "I'm in for",
+    "lead": "Tell hosts where you'd go. They can invite you – nobody else sees more than the place and month.",
+    "where": "Where",
+    "when": "When",
+    "from": "From",
+    "until": "Until",
+    "howLong": "How long",
+    "short": "Short trip",
+    "month": "About a month",
+    "long": "Longer",
+    "categories": "Into (optional)",
+    "add": "Add",
+    "save": "Save",
+    "remove": "Remove",
+    "max": "{count} at a time – remove one to add another.",
+    "added": "Saved – hosts in {place} can invite you",
+    "empty": "Nothing yet.",
+    "summary": "{count, plural, =0 {Where you'd go next} one {# place} other {# places}}",
+    "line": "{place} · {months}",
+    "cardTitle": "Nothing fits?",
+    "cardText": "Tell hosts where you'd go.",
+    "cardAction": "I'm in for…",
+    "hint": "{count, plural, one {# person is} other {# people are}} in for {place} in {month}",
+    "hintNoMonth": "{count, plural, one {# person is} other {# people are}} in for {place}",
+    "invitePeopleIn": "Invite people who are in"
   }
 }

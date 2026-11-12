@@ -1,5 +1,6 @@
 "use client";
 
+import { SocialLinks } from "@/components/SocialLinks";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/Avatar";
@@ -27,6 +28,7 @@ export function WhosInSheet({ stay, open, onClose }: { stay: Stay; open: boolean
                 subtitle={user.country}
                 aside={
                   <span className="flex shrink-0 items-center gap-1.5">
+                    <SocialLinks user={user} variant="icons" nested />
                     {user.id === stay.hostId && <Badge>{t("host")}</Badge>}
                     {user.id === store.currentUserId && <Badge>{t("you")}</Badge>}
                   </span>

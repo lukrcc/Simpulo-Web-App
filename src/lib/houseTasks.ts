@@ -3,6 +3,7 @@ import { openVote } from "./crewVotes";
 import { requestExpiresAt } from "./requests";
 import { getMyPayment, paymentProgress, type StoreData } from "./store";
 import type { Payment, Stay } from "./types";
+import { openSpots } from "./utils";
 import { hasOffer } from "./waitlist";
 
 export type HouseTaskKind =
@@ -63,13 +64,26 @@ export function hostTasks(data: TaskData, stay: Stay): HouseTask[] {
   return tasks;
 }
 
+/** Days before the start from which an emptyish House asks to be filled. */
+export const FILL_WITHIN_DAYS = 30;
+/** Under this share of the crew in: "Fill {n} spots". */
+export const FILL_BELOW_SHARE = 0.5;
+
+/** A House of yours that should fill up: free spots, starting within 30 days, under half full (Needs you › "Fill 3 spots"). */
+export function needsFill(stay: Stay, today: string): boolean {
+  if (stay.status !== "published" && stay.status !== "booked") return false;
+  if (stay.startDate <= today) return false;
+  const days = (Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000;
+  return days <= FILL_WITHIN_DAYS && openSpots(stay) > 0 && stay.spotsFilled / stay.spotsTotal < FILL_BELOW_SHARE;
+}
+
 /** A guest's open task for one House: answer an invite, pay the share, take a spot offered from the waitlist. */
 export function guestTasks(data: TaskData, stay: Stay, now: string): HouseTask[] {
   const me = data.currentUserId;
   const request = data.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === me);
   if (!request) return [];
-  if (request.status === "invited") return [{ id: `${stay.id}-invite`, kind: "invite", stay, href: `/house/${stay.slug}` }];
-  if (request.status === "waitlisted" && hasOffer(request, now)) return [{ id: `${stay.id}-offer`, kind: "offer", stay, date: request.offerExpiresAt, href: `/house/${stay.slug}` }];
+  if (request.status === "invited") return [{ id: `${stay.id}-invite`, kind: "invite", stay, href: manageHref(stay) }];
+  if (request.status === "waitlisted" && hasOffer(request, now)) return [{ id: `${stay.id}-offer`, kind: "offer", stay, date: request.offerExpiresAt, href: manageHref(stay) }];
   const payment = getMyPayment(data, stay.id);
   if (request.status === "accepted" && payment?.status === "pending" && stay.paymentDueAt) return [{ id: `${stay.id}-pay`, kind: "pay", stay, date: stay.paymentDueAt, href: manageHref(stay, "pay") }];
   return [];

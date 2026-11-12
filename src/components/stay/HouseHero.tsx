@@ -3,14 +3,14 @@
 import { ArrowRight, Home, Languages, Sparkles, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { CrewCount, CrewRow } from "@/components/CrewRow";
 import { useState, type ReactNode, type Ref } from "react";
 import { showsAge } from "@/config/privacy";
 import { CurrencySheet, currencyLabel } from "@/components/layout/CurrencyPicker";
 import { HouseCard } from "@/components/HouseCard";
-import { Avatar } from "@/components/ui/Avatar";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useViewerPriceLabel } from "@/components/ui/PriceLine";
-import { SocialIcons } from "@/components/ui/SocialRow";
+import { SocialLinks } from "@/components/SocialLinks";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -22,7 +22,7 @@ import { useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { usePeopleSignal } from "@/lib/useYourPeople";
-import { cn, firstName, openSpots, stayNights, stayPrice } from "@/lib/utils";
+import { firstName, stayNights, stayPrice } from "@/lib/utils";
 
 interface HouseHeroProps {
   stay: Stay;
@@ -225,7 +225,7 @@ function HostBlock({ host, stay }: { host: User; stay: Stay }) {
           )}
         </ul>
       )}
-      <SocialIcons user={host} className="mt-3" />
+      <SocialLinks user={host} variant="full" tone="dark" className="mt-3" />
       <span className="sr-only">{t("hostedByShort", { name: firstName(host) })}</span>
     </div>
   );
@@ -278,27 +278,18 @@ function InCommon({ host }: { host: User }) {
   );
 }
 
-/** CREW: the faces, then an empty circle per free spot, and "2 of 6 spots left" (full: "Crew complete"). */
+/** CREW: the host first (with the host dot), the faces, an empty circle per free spot, and "2 of 6 in · 4 spots left" (full: "Full"). */
 function CrewBlock({ stay, crew }: { stay: Stay; crew: User[] }) {
   const tHero = useTranslations("house.page.hero");
   const faceOf = useCrewFaceOf(stay);
-  const open = openSpots(stay);
   const shown = crew.filter((member) => faceOf(member) !== "hidden");
   const hidden = crew.length - shown.length;
   return (
     <div className="min-w-0">
       <Label>{tHero("crewLabel")}</Label>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {shown.slice(0, 6).map((member) => (
-          <Avatar key={member.id} user={member} size="md" mode={faceOf(member)} linked={faceOf(member) !== "blurred"} />
-        ))}
-        {hidden > 0 && <span className="flex size-10 items-center justify-center rounded-full bg-(--chip-bg) text-small font-semibold text-ink">+{hidden}</span>}
-        {/* Never more circles than the crew has room for beside the faces shown. */}
-        {Array.from({ length: Math.max(0, Math.min(open, stay.spotsTotal - crew.length, 6)) }, (_, i) => (
-          <span key={i} aria-hidden className="size-10 rounded-full border-[1.5px] border-dashed border-[#F4EEE7]/35" />
-        ))}
-      </div>
-      <p className={cn("mt-2 text-small", open > 0 ? "text-ink" : "text-muted")}>{open > 0 ? tHero("spotsLeftOf", { open, total: stay.spotsTotal }) : tHero("crewComplete")}</p>
+      {/* components/CrewRow: free spots are "+" circles – the host and members open the invite sheet with them. */}
+      <CrewRow stay={stay} crew={shown} tone="dark" size="md" max={7} hiddenCount={hidden} />
+      <CrewCount stay={stay} className="mt-2" />
     </div>
   );
 }

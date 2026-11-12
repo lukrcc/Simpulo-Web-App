@@ -1,5 +1,6 @@
 "use client";
 
+import { BringSomeone } from "@/components/InviteSheet";
 import { Check, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -46,7 +47,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
   const payment = getMyPayment(store, stay.id);
   const [done, setDone] = useState(false);
 
-  if (done) return <PaidView onClose={onDone} />;
+  if (done) return <PaidView stay={stay} onClose={onDone} />;
   if (!payment) return <p className="text-small text-muted">{t("nothingToPay")}</p>;
   if (payment.status === "paid") return <p className="text-small text-muted">{t("alreadyPaid")}</p>;
   // One House per night (PARALLEL_POLICY): already paid for one on these dates – that one has to go first.
@@ -81,7 +82,7 @@ function PayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 }
 
 /** Paid: a check drawing in, and what happens next. */
-function PaidView({ onClose }: { onClose: () => void }) {
+function PaidView({ stay, onClose }: { stay: Stay; onClose: () => void }) {
   const t = useTranslations("house.pay");
   return (
     <div role="status" className="flex flex-col items-center py-6 text-center">
@@ -90,6 +91,7 @@ function PaidView({ onClose }: { onClose: () => void }) {
       </span>
       <p className="mt-5 text-h3 text-ink">{t("successTitle")}</p>
       <p className="mt-1 text-body text-muted">{t("successText")}</p>
+      <BringSomeone stay={stay} className="mt-6" />
       <ModalFooter className="mt-8 w-full">
         <Button onClick={onClose}>{t("done")}</Button>
       </ModalFooter>

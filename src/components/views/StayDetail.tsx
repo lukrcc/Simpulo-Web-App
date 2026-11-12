@@ -3,7 +3,7 @@
 import { paidOverlapOf } from "@/lib/overlap";
 import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
-import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, UserPlus, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, Share, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
@@ -27,6 +27,8 @@ import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { HouseHero } from "@/components/stay/HouseHero";
 import { LeaveSheet, MemberHero, MemberSections, useStepContent } from "@/components/stay/MemberHouse";
+import { InviteSheet } from "@/components/InviteSheet";
+import { useCanInvite } from "@/lib/invites";
 import { guestJourney } from "@/config/house-steps";
 import { useHouseRole } from "@/lib/useHouseRole";
 import { HouseActions, HouseCrew, HouseDay, HouseFit, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
@@ -39,7 +41,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite, houseInviteUrl } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
 import { memberStage } from "@/lib/joinFlow";
@@ -118,6 +120,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const offerInstall = useOfferInstall();
   const requireAuth = useRequireAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** The request asks for two spots ("Request with a friend") */
+  const [withFriend, setWithFriend] = useState(false);
+  /** The invite sheet (components/InviteSheet) – the one way to bring people in */
+  const [inviting, setInviting] = useState(false);
+  /** ?with=<request id>: a friend's link – confirm to request together */
+  const [friendParam, setFriendParam] = useState<string | null>(null);
   /** The request sheet asks for a place on the waitlist instead of a spot */
   const [waitlistSheet, setWaitlistSheet] = useState(false);
   // When the page opened: whether an offer is still running (the store's clock drops it when it runs out).
@@ -129,6 +137,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const [requestKey, setRequestKey] = useState(0);
   function closeRequestSheet(sent: boolean) {
     setSheetOpen(false);
+    setFocusParam(null);
     if (!sent) return; // closed mid-way: keep the message for next time
     setRequestKey((k) => k + 1);
     // Only now, so the install prompt doesn't stack on top of the request sheet.
@@ -143,12 +152,22 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   // Share: the system dialog where there is one, else the link is copied (see useHouseShare).
   const inviteFriends = useHouseShare(stay);
+  const tInvite = useTranslations("invite");
+  // Host or crew, a free spot, not started: the invite sheet (lib/invites.ts).
+  const canBring = useCanInvite(stay.id);
+  // A friend's link (?with=): their open "with a friend" request in this House.
+  const friendRequest = friendParam ? store.joinRequests.find((r) => r.id === friendParam && r.stayId === stay.id && r.withFriend && (r.status === "pending" || r.status === "accepted")) : undefined;
+  const friendOwner = friendRequest ? findUser(store, friendRequest.userId) : undefined;
+  const friendName = friendOwner ? friendOwner.name.split(" ")[0] : "";
 
   const host = findUser(store, stay.hostId);
   const crew = getCrew(store, stay);
   // "Preview as guest" (?preview=guest, host only): render as a logged-out stranger; nothing changes data.
   const previewing = stay.hostId === store.currentUserId && previewParam;
   const myRequest = previewing ? undefined : getMyRequest(store, stay.id);
+  // Who invited me (the host or someone in the crew) – for "Don't invite me again".
+  const inviterId = myRequest?.status === "invited" ? (myRequest.invitedBy ?? stay.hostId) : stay.hostId;
+  const inviterName = findUser(store, inviterId)?.name.split(" ")[0] ?? "";
   const me = previewing ? undefined : getCurrentUser(store);
   // Requests work without a photo – but the host should see who's asking.
   const askForPhoto = myRequest?.status === "pending" && me !== undefined && me.photos.length === 0;
@@ -174,10 +193,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const [focusParam, setFocusParam] = useState<string | null>(null);
   useEffect(() => {
     if (!focusParam) return;
-    if (role === "host") router.replace(`/h/${stay.id}/manage?focus=${focusParam}`);
+    // The host: to the management page – except "invite", which opens the invite sheet right here.
+    if (role === "host" && focusParam !== "invite") router.replace(`/h/${stay.id}/manage?focus=${focusParam}`);
   }, [focusParam, role, router, stay.id]);
   // A member's ?focus=pay opens the pay sheet once (closing it clears the focus).
   const payOpen = paying || (role === "member" && focusParam === "pay");
+  // ?focus=invite (host or crew, "Fill 3 spots"): the invite sheet; ?focus=request (a visitor, "Join them"): the request sheet.
+  const clearFocus = () => setFocusParam(null);
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
@@ -196,8 +218,37 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
   function startRequest() {
     store.track("join_started", { houseId: stay.id });
+    setWithFriend(false);
     setWaitlistSheet(false);
     setSheetOpen(true);
+  }
+
+  /** "Request with a friend": the same request, for two spots; the friend confirms through a link afterwards. */
+  function startRequestWithFriend() {
+    store.track("join_started", { houseId: stay.id });
+    setWithFriend(true);
+    setWaitlistSheet(false);
+    setSheetOpen(true);
+  }
+
+  /** The friend's link: /h/[id]?with=<request id>. */
+  async function copyFriendLink(requestId: string) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/h/${stay.id}?with=${requestId}`);
+      showToast(tInvite("copied", { hours: 48 }));
+    } catch {
+      showToast(tCommon("linkCopyFailed"));
+    }
+  }
+
+  /** Opened from a friend's link: request too, paired with theirs. */
+  function confirmWithFriend(pairedWith: string) {
+    requireAuth((userId) => {
+      if (userId === stay.hostId) return showToast(t("ownHouse"));
+      store.requestToJoin(stay.id, "", { pairedWith });
+      setFriendParam(null);
+      showToast(tInvite("friendDone", { name: friendName }));
+    }, { reason: "join", hostName: host?.name.split(" ")[0] });
   }
 
   /** Full House: "Join waitlist" is a request to the host too, with an optional message. */
@@ -237,7 +288,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   function respondToInvite(accept: boolean) {
     if (previewing) return showToast(tPreview("noChanges"));
     store.respondToInvite(stay.id, accept);
-    showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
+    // In: "Bring someone?" right away – the toast's action opens the invite sheet (it shows once there's a free spot).
+    // (The invite's spot was held already: accepting leaves the open spots as they are.)
+    if (accept && openSpots(stay) > 0) showToast(t("invite.acceptedToast", { title: stay.title }), undefined, undefined, { ms: 8000, action: { label: tInvite("bringSomeone", { count: openSpots(stay) }), onClick: () => setInviting(true) } });
+    else showToast(accept ? t("invite.acceptedToast", { title: stay.title }) : t("invite.declinedToast"));
   }
 
   // The waitlist (src/lib/waitlist.ts): open once every spot is taken; your own place; a spot offered to you for 24h.
@@ -316,19 +370,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
   // The crew-only and host-only panels: between the facts and the House's own story.
   const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (didntWorkOut(myRequest) || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
-  /** A free spot: a link that holds it for 48h, on the clipboard. */
-  async function inviteToSpot() {
-    const created = store.createHouseInvite(stay.id, {});
-    if (!created) return showToast(t("inviteLink.invalid"));
-    try {
-      await navigator.clipboard.writeText(houseInviteUrl(window.location.origin, stay, created));
-      showToast(t("page.spotInviteCopied"));
-    } catch {
-      showToast(tCommon("linkCopyFailed"));
-    }
-  }
-  const canInviteToSpot = isMember && (stay.status === "published" || stay.status === "booked");
-  const stepContent = useStepContent(stay, host, journey, { onPay: () => setPaying(true), onInvite: inviteFriends, now: openedAt });
+  const stepContent = useStepContent(stay, host, journey, { onPay: () => setPaying(true), onInvite: () => (canBring ? setInviting(true) : inviteFriends()), now: openedAt });
   // The host's line in the head: "3 of 6 in · 2 requests" (management lives at /h/[id]/manage).
   const openRequests = store.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;
   const hostStatus = t("page.hostStatus", { filled: stay.spotsFilled, total: stay.spotsTotal, requests: openRequests });
@@ -345,6 +387,20 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     <Suspense fallback={null}>
       <FocusParam onChange={setFocusParam} />
     </Suspense>
+    <Suspense fallback={null}>
+      <FriendParam onChange={setFriendParam} />
+    </Suspense>
+    {friendRequest && !myRequest && role === "visitor" && (
+      <Container className="pt-4 md:pt-6">
+        <div className="card-soft flex flex-wrap items-center justify-between gap-4 rounded-3xl p-6">
+          <div className="min-w-0 max-w-[560px]">
+            <p className="text-h3 text-ink">{tInvite("friendTitle", { name: friendName })}</p>
+            <p className="mt-1 text-body text-muted">{tInvite("friendText", { name: friendName, host: hostFirstName, title: stay.title })}</p>
+          </div>
+          <Button onClick={() => confirmWithFriend(friendRequest.id)}>{tInvite("friendConfirm")}</Button>
+        </div>
+      </Container>
+    )}
     {invite && (
       <Container className="pt-4 md:pt-10">
         <InviteBanner stay={stay} invite={invite} />
@@ -363,16 +419,19 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           cta={cta}
           secondary={
             <>
-              {!isHost && (
-                <Button variant="creamOutline" size="lg" onClick={messageHost} data-preview-action aria-label={t("messageHost", { name: hostFirstName })}>
-                  <MessageCircle aria-hidden />
-                  {t("page.messageHostShort")}
+              {/* One row for visitors: "Request to join" (cream) · "Request with a friend" (outline) · Message host as a round 48px icon.
+                  The host and crew invite through the crew's "+" circles (components/CrewRow); sharing sits top right beside "…". */}
+              {!isHost && canJoin && !myRequest && (
+                <Button variant="creamOutline" size="lg" onClick={startRequestWithFriend} data-preview-action>
+                  <UserPlus aria-hidden />
+                  {tInvite("requestWithFriend")}
                 </Button>
               )}
-              <Button variant="creamOutline" size="lg" onClick={inviteFriends}>
-                <UserPlus aria-hidden />
-                {t("page.invite")}
-              </Button>
+              {!isHost && (
+                <Button variant="creamOutline" size="lg" icon onClick={messageHost} data-preview-action aria-label={t("messageHost", { name: hostFirstName })}>
+                  <MessageCircle aria-hidden />
+                </Button>
+              )}
             </>
           }
           stage={stage}
@@ -381,6 +440,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin)}
           actions={
             <HouseActions
+              share={
+                previewing ? undefined : (
+                  <button type="button" onClick={inviteFriends} aria-label={tInvite("share")} className={iconButtonStyles("sm")}>
+                    <Share className="size-4" aria-hidden />
+                  </button>
+                )
+              }
               menu={
                 previewing ? undefined : isHost ? (
                   <MoreMenu items={[{ label: tInstall("qrMenu"), onSelect: () => setQrOpen(true) }]} label={tCommon("ui.moreMenu.moreOptions")} buttonClassName={iconButtonStyles("sm")} />
@@ -397,7 +463,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       {/* Under the head: the sections in one order, 64px apart, each headed like Explore. Text reads at most 760px wide. */}
       <div className="mt-10 flex flex-col gap-10">
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
-        {role === "member" && <MemberSections stay={stay} crew={crew} onInvite={inviteFriends} />}
+        {role === "member" && <MemberSections stay={stay} crew={crew} />}
         <div className="flex max-w-[760px] flex-col gap-6 empty:hidden">
           {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
           {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
@@ -407,8 +473,20 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             <div className="flex items-start gap-4">
               <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
               <div className="min-w-0 text-body">
-                <p className="font-semibold text-ink">{t("invite.title", { name: hostFirstName })}</p>
+                <p className="font-semibold text-ink">{t("invite.title", { name: inviterName })}</p>
                 <p className="mt-0.5 text-muted">{t("invite.text")}</p>
+                {/* "Don't invite me again": no more invites from this person – this one is declined, nobody is told. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (previewing) return showToast(tPreview("noChanges"));
+                    store.stopInvitesFrom(inviterId);
+                    showToast(tInvite("stopped", { name: inviterName }));
+                  }}
+                  className="mt-2 text-small font-semibold text-muted underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline"
+                >
+                  {tInvite("dontInviteAgain")}
+                </button>
               </div>
             </div>
           )}
@@ -453,7 +531,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             myWaitlist={myPosition ? { position: myPosition } : myRequest?.status === "waitlist_requested" ? { requested: true } : undefined}
             canJoin={canJoin}
             onJoin={startRequest}
-            onInvite={canInviteToSpot ? () => void inviteToSpot() : undefined}
+            onInvite={canBring ? () => setInviting(true) : undefined}
           />
           <CrewVotes stay={stay} />
         </div>
@@ -507,6 +585,16 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         }}
       />
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
+      {canBring && (
+        <InviteSheet
+          stay={stay}
+          open={inviting || focusParam === "invite"}
+          onClose={() => {
+            setInviting(false);
+            clearFocus();
+          }}
+        />
+      )}
       <HouseQrSheet stay={stay} open={qrOpen} onClose={() => setQrOpen(false)} />
       {invite && <InviteJoinSheet stay={stay} invite={invite} open={inviteSheetOpen} onClose={() => setInviteSheetOpen(false)} />}
       <RequestSheet
@@ -514,7 +602,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         waitlist={waitlistSheet}
         stay={stay}
         photo={photos[0]}
-        open={sheetOpen}
+        open={sheetOpen || (focusParam === "request" && role === "visitor" && canJoin && !myRequest)}
         hostName={hostFirstName}
         loggedIn={me !== undefined}
         blockedNote={previewing ? tPreview("hostRequestsDisabled") : undefined}
@@ -527,7 +615,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             return false;
           }
           if (waitlistSheet) store.requestWaitlist(stay.id, message);
-          else store.requestToJoin(stay.id, message);
+          else {
+            const id = store.requestToJoin(stay.id, message, { withFriend });
+            // Two spots: the friend confirms through a link – offered right away.
+            if (withFriend) showToast(tInvite("withFriendSent"), undefined, undefined, { ms: 10000, action: { label: tInvite("withFriendCopy"), onClick: () => void copyFriendLink(id) } });
+          }
           return true;
         }}
       />
@@ -543,6 +635,13 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 function PreviewParam({ onChange }: { onChange: (preview: boolean) => void }) {
   const preview = useSearchParams().get("preview") === "guest";
   useEffect(() => onChange(preview), [preview, onChange]);
+  return null;
+}
+
+/** ?with= on the House page (a friend's "Request with a friend" link) – in its own boundary, like ?focus. */
+function FriendParam({ onChange }: { onChange: (requestId: string | null) => void }) {
+  const requestId = useSearchParams().get("with");
+  useEffect(() => onChange(requestId), [requestId, onChange]);
   return null;
 }
 

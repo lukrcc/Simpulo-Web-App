@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { Check, MapPin, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useRequireAuth } from "@/components/auth/AuthProvider";
+import { InForSheet } from "@/components/InFor";
 import { createHrefOf } from "@/components/create/model";
 import { HouseCard } from "@/components/HouseCard";
 import { Button } from "@/components/ui/ActionButton";
@@ -58,6 +60,7 @@ export function NoHouseYet({ draft, stays = [], title: own, onClear }: { draft: 
             {t("notifyMe")}
           </Button>
         )}
+        <InForLink draft={draft} className="mt-2" />
         {onClear && (
           <button type="button" onClick={onClear} className="mt-2 text-small font-semibold text-muted underline underline-offset-4 transition-colors duration-150 hover:text-ink">
             {t("clearFilters")}
@@ -96,6 +99,52 @@ export function OpenHereTile({ draft }: { draft: SearchDraft }) {
       <span className="text-body font-semibold text-ink">{t("openHere")}</span>
       <span className="text-small text-muted">{place ? t("openHereIn", { place }) : t("openHereText")}</span>
     </Link>
+  );
+}
+
+/** "I'm in for …" from a search: log in if needed, then the sheet with the search's place and month already in. */
+function useInForSheet(draft: SearchDraft) {
+  const requireAuth = useRequireAuth();
+  const [open, setOpen] = useState(false);
+  const start = () => requireAuth(() => setOpen(true), { reason: "save" });
+  const sheet = <InForSheet open={open} onClose={() => setOpen(false)} initial={{ placeId: draft.place?.id ?? null, month: draft.month }} />;
+  return { start, sheet };
+}
+
+/** No result: one quiet line under the two ways on – "Nothing fits? Tell hosts where you'd go". */
+function InForLink({ draft, className }: { draft: SearchDraft; className?: string }) {
+  const t = useTranslations("inFor");
+  const { start, sheet } = useInForSheet(draft);
+  return (
+    <>
+      <button type="button" onClick={start} className={cn("text-small font-semibold text-muted underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline", className)}>
+        {t("cardTitle")} {t("cardText")}
+      </button>
+      {sheet}
+    </>
+  );
+}
+
+/** Few results: after "Open a House here" one more tile of the same size – "Nothing fits? Tell hosts where you'd go" (I'm in for). */
+export function InForTile({ draft }: { draft: SearchDraft }) {
+  const t = useTranslations("inFor");
+  const { start, sheet } = useInForSheet(draft);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={start}
+        data-house-card="in-for"
+        className="flex aspect-4/5 w-full flex-col items-center justify-center gap-3 rounded-3xl border-[1.5px] border-dashed border-ink/15 p-6 text-center transition-colors duration-150 hover:border-ink/30 hover:bg-ink/3"
+      >
+        <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
+          <MapPin className="size-5" aria-hidden />
+        </span>
+        <span className="text-body font-semibold text-ink">{t("cardTitle")}</span>
+        <span className="text-small text-muted">{t("cardText")}</span>
+      </button>
+      {sheet}
+    </>
   );
 }
 

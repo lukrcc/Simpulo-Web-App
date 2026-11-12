@@ -19,12 +19,14 @@ import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { Sheet } from "@/components/ui/Sheet";
 import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { ProfilePreviewBody } from "@/components/views/ProfileView";
+import { InForEditor, useInForLine } from "@/components/InFor";
+import { activeInForOf } from "@/lib/inFor";
 import { HOUSE_VIBE_SCALES, HOUSE_VIBE_STEPS } from "@/config/houseVibe";
 import { PROFILE_SECTIONS, sectionStatus, type ProfileSectionKey, type ProfileSectionStatus } from "@/config/profile-sections";
 import { MIN_AGE, ageOn, isoOf, partsOf, useTodayIso, type DateParts } from "@/lib/birthDate";
 import { useIdentity } from "@/lib/payments/hooks";
 import { COUNTRIES, PLACES } from "@/lib/places";
-import { HANDLE_PREFIX, MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS, isValidHandle, isValidWebsite, normalizeSocialValue } from "@/lib/socialLinks";
+import { HANDLE_PREFIX, MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS, isValidHandle, isValidWebsite, normalizeSocialValue, socialHandle } from "@/lib/socialLinks";
 import { getCurrentUser, useStore, type ProfilePatch } from "@/lib/store";
 import type { HouseVibe, JoinRequest, SocialLink, SocialPlatform, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -187,8 +189,14 @@ function EditProfileForm({ me }: { me: User }) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  const statuses = Object.fromEntries(PROFILE_SECTIONS.map(({ key }) => [key, sectionStatus(key, draft, today)])) as Record<ProfileSectionKey, ProfileSectionStatus>;
-  const doneCount = Object.values(statuses).filter((s) => s === "complete").length;
+  // "I'm in for" lives in the store (lib/inFor.ts): done while one is running; not part of the progress.
+  const myInFor = today ? activeInForOf(store.inFor, me.id, today) : [];
+  const inForLine = useInForLine();
+  const statuses = Object.fromEntries(
+    PROFILE_SECTIONS.map(({ key }) => [key, key === "inFor" ? (myInFor.length > 0 ? "complete" : "optional") : sectionStatus(key, draft, today)]),
+  ) as Record<ProfileSectionKey, ProfileSectionStatus>;
+  const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
+  const doneCount = counted.filter(({ key }) => statuses[key] === "complete").length;
   // Onboarding: asked for (?setup=1), or a new account (no photo yet).
   const [setup] = useState(() => setupParam || me.photos.length === 0);
   const firstOpen = PROFILE_SECTIONS.find(({ key }) => statuses[key] !== "complete")?.key ?? null;
@@ -245,12 +253,14 @@ function EditProfileForm({ me }: { me: User }) {
         return <SocialLinksEditor links={form.socials} onChange={(socials) => update("socials", socials)} showErrors={Boolean(errorText("links"))} />;
       case "verify":
         return <VerifySection me={me} />;
+      case "inFor":
+        return <InForEditor />;
     }
   };
 
   const list = (
     <div className="flex flex-col gap-4">
-      <Progress done={doneCount} total={PROFILE_SECTIONS.length} />
+      <Progress done={doneCount} total={counted.length} />
       <ul className="overflow-hidden rounded-[20px] bg-(--card)">
         {PROFILE_SECTIONS.map(({ key, icon: Icon }, i) => {
           const isOpen = open === key;
@@ -270,7 +280,13 @@ function EditProfileForm({ me }: { me: User }) {
                   <span className="block text-body font-semibold text-ink">{t(`sections.${key}.title`)}</span>
                   {!isOpen && (
                     <span className="block truncate text-small text-muted">
-                      {key === "vibe" && draft.houseVibe ? HOUSE_VIBE_SCALES.map(({ key: k }) => tVibe(`${k}.${draft.houseVibe![k]}`)).join(" · ") : summaryOf(key, draft, t, Boolean(isoOf(form.birth)))}
+                      {key === "vibe" && draft.houseVibe
+                        ? HOUSE_VIBE_SCALES.map(({ key: k }) => tVibe(`${k}.${draft.houseVibe![k]}`)).join(" · ")
+                        : key === "inFor"
+                          ? myInFor.length > 0
+                            ? myInFor.map(inForLine).join(", ")
+                            : t("sections.inFor.empty")
+                          : summaryOf(key, draft, t, Boolean(isoOf(form.birth)))}
                     </span>
                   )}
                 </span>
@@ -388,9 +404,11 @@ function summaryOf(key: ProfileSectionKey, user: User, t: ReturnType<typeof useT
     case "about":
       return user.bio.trim() || (user.languages.length > 0 ? user.languages.join(", ") : t("sections.about.empty"));
     case "links":
-      return (user.socials?.length ?? 0) > 0 ? (user.socials ?? []).map((l) => SOCIAL_ICONS[l.platform].brand ?? l.value).join(", ") : t("sections.links.empty");
+      return (user.socials?.length ?? 0) > 0 ? (user.socials ?? []).map(socialHandle).join(", ") : t("sections.links.empty");
     case "verify":
       return user.verified ? t("sections.verify.done") : t("sections.verify.empty");
+    case "inFor":
+      return t("sections.inFor.empty");
   }
 }
 

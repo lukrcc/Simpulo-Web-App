@@ -104,3 +104,18 @@ export const PARALLEL_POLICY = {
 export const DIRECT_MESSAGE_POLICY = {
   archiveAfterDays: 30,
 } as const;
+
+/**
+ * Bringing people into a House (components/InviteSheet.tsx, lib/invites.ts): an invite – a link (/i/{code}) or a person picked in the
+ * sheet – holds a spot this many hours. Invites to people who aren't Your people, aren't saved and didn't say they're in for it: at most
+ * this many a day. Whoever is invited can say "Don't invite me again" (to that person). No friend list, no followers, no requests.
+ */
+export const INVITE_POLICY = {
+  inviteHoldHours: 48,
+  inviteNonConnectionsPerDay: 5,
+} as const;
+
+/** "I'm in for …" (lib/inFor.ts): at most this many running at once per person; each runs out after its last month. */
+export const IN_FOR_POLICY = {
+  maxActive: 3,
+} as const;

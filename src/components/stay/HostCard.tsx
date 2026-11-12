@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { SocialRow } from "@/components/ui/SocialRow";
+import { SocialLinks } from "@/components/SocialLinks";
 import { ProHostLabel } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { User } from "@/lib/types";
@@ -27,7 +27,7 @@ export function HostCard({ host, action }: { host: User; /** Beside "View profil
         </div>
         <ProHostLabel user={host} className="mt-1" />
         {host.languages.length > 0 && <p className="mt-0.5 text-small text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
-        <SocialRow user={host} size="sm" className="mt-3" />
+        <SocialLinks user={host} variant="icons" className="mt-3" />
         {host.bio && <p className="mt-3 line-clamp-2 text-body text-ink">{host.bio}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-4">
           <Link href={profile} className={buttonStyles("tertiary", "md")}>

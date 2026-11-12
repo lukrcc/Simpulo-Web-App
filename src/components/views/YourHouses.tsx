@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, ListTodo, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -18,7 +18,6 @@ import { activitySummary, isDiscovery, type ActivitySummary } from "@/config/act
 import { useNotifications } from "@/components/notifications/useNotifications";
 import { Sheet } from "@/components/ui/Sheet";
 import { CardRow, RowHead } from "@/components/ui/CardRow";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { convertApprox } from "@/lib/rates";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
@@ -35,12 +34,15 @@ import { useFormat } from "@/i18n/format";
 import { locationOf } from "@/lib/catalog";
 import { earningsFor, type Earnings } from "@/lib/earnings";
 import { hostStatsFor } from "@/lib/hostStats";
-import { focusOfTask, manageHref } from "@/lib/houseTasks";
+import { focusOfTask, manageHref, needsFill } from "@/lib/houseTasks";
+import { daysUntil, timelineFor, type TimelineEvent } from "@/lib/timeline";
+import { InviteSheet } from "@/components/InviteSheet";
+import { Avatar } from "@/components/ui/Avatar";
 import { acceptedOverlaps, runningNow } from "@/lib/overlap";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
-import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, useStore } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { waitlistPosition } from "@/lib/waitlist";
@@ -86,6 +88,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const viewer = usePreferredCurrency();
   const [payoutSheet, setPayoutSheet] = useState(false);
   const [picking, setPicking] = useState<[Stay, Stay][] | null>(null);
+  /** "Fill 3 spots": the House whose invite sheet is open */
+  const [filling, setFilling] = useState<Stay | null>(null);
   const repo = useNotifications();
 
   // The Open a House flow's own draft (this browser), shown with the draft Houses.
@@ -215,6 +219,19 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
           },
         ]
       : []),
+    // A House of yours starting within 30 days and under half full: "Fill 3 spots" – the invite sheet (Reply).
+    ...hosting
+      .filter((stay) => needsFill(stay, now.slice(0, 10)))
+      .map((stay) => ({
+        key: `${stay.id}-fill`,
+        kind: "fill" as const,
+        title: tDash("todo.fill", { count: openSpots(stay) }),
+        sub: stay.title,
+        what: tDash("need.fill", { count: openSpots(stay), amount: "" }),
+        short: shortNameOf(stay),
+        photo: housePhotos(stay, findUser(store, stay.hostId))[0],
+        onClick: () => setFilling(stay),
+      })),
     // Payouts only while no payout account is set up; the ID check is part of it ("Bank account + ID check, 5 min").
     ...(payoutSetup ? [{ key: "payouts", kind: "payouts" as const, title: tDash("todo.payouts"), sub: tDash("setUpText"), what: tDash("need.payouts", { count: 0, amount: "" }), short: tDash("payoutsSetupSub"), icon: <Wallet aria-hidden />, onClick: () => setPayoutSheet(true) }] : []),
     // "Verify your ID" on its own only for guests who don't host – and only as an option.
@@ -279,7 +296,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         ) : (
           <div className="hidden lg:block" />
         )}
-        <TodoTile entries={todo} now={now} footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} />} />
+        <TodoTile entries={todo} now={now} timeline={timelineFor(store, now)} footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} />} />
       </div>
 
       {/* Calm rows, no heading over them: 48px under the dashboard, 40px apart. */}
@@ -294,9 +311,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             cols={cols}
           />
         ))}
+        <SavedPeople />
       </div>
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
+      {filling && <InviteSheet stay={filling} open onClose={() => setFilling(null)} />}
     </Container>
   );
 }
@@ -547,7 +566,15 @@ const GROUP_ICONS: Record<TodoGroup, LucideIcon> = { pay: CreditCard, reply: Mes
 const NEEDS_ROW_H = 65;
 /** Phones: at most this many rows, then "+N more". */
 const NEEDS_PHONE_ROWS = 4;
-type NeedsFilter = "all" | TodoGroup;
+/** Coming up: rows of 44px; its label and the gap above it. */
+const UP_ROW_H = 44;
+const UP_HEAD_H = 40;
+/** Coming up only with room for at least this many rows – otherwise Needs you takes the whole card. */
+const UP_MIN_ROWS = 2;
+/** Phones: at most this many events. */
+const UP_PHONE_ROWS = 3;
+/** "You're all set": one line. */
+const ALL_SET_H = 40;
 
 /** The list's order: the shortest deadline first (none last), then money before answers before setting up. */
 function needsOrder(a: TodoEntry, b: TodoEntry): number {
@@ -555,89 +582,55 @@ function needsOrder(a: TodoEntry, b: TodoEntry): number {
 }
 
 /**
- * "Needs you · N", Ember, two thirds wide and exactly as high as Up next; Payouts its footer. Under the eyebrow the capsule group (ui/
- * CapsuleGroup "on-dark"): All · Pay · Reply · Set up – each its icon, word and how many (an orange dot when one is due in under 24h); a group
- * with nothing in it quiet with a check. A click filters the one list; the chosen one again: all. The list: every open task in one grid of two
- * columns, rows of 64px (photo 48px, what in three words at most, "short name · deadline"), as many as fit the card's height (measured);
- * "+N more" only when they don't, as the last cell – it opens a sheet with all of them. Exactly one task: shown large, with its action as a
- * cream button. None: "You're all set". Nothing else changes its size.
+ * "Needs you · N", Ember, two thirds wide and exactly as high as Up next; Payouts its footer. ONE list without filters: every open task, two
+ * columns, rows of 64px, the category as an eyebrow on each (PAY / REPLY / SET UP, orange under 24h). Needs you takes the height it needs;
+ * under it "Coming up" (lib/timeline.ts) fills the rest of the card with as many 44px rows as fit (measured) – at least two, otherwise it's
+ * left out and Needs you takes the whole card, with "+N more" when that's still too little. No task: one line "You're all set", then Coming up.
  */
-function TodoTile({ entries, now, footer }: { entries: TodoEntry[]; now: string; /** Across the card's foot: Payouts */ footer?: ReactNode }) {
+function TodoTile({ entries, now, timeline, footer }: { entries: TodoEntry[]; now: string; timeline: TimelineEvent[]; /** Across the card's foot: Payouts */ footer?: ReactNode }) {
   const td = useTranslations("houses.home.dash");
-  const [filter, setFilter] = useState<NeedsFilter>("all");
   const [sheet, setSheet] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const [rowsFit, setRowsFit] = useState(3);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
   const wide = useMediaQuery("(min-width: 40rem)");
   const sorted = entries.toSorted(needsOrder);
-  const shown = filter === "all" ? sorted : sorted.filter((e) => TODO_GROUP[e.kind] === filter);
   const total = entries.length;
 
-  // How many rows fit: the list's own height (the card minus its head and the footer), measured.
+  // The room under the eyebrow (the card minus its head and the footer), measured.
   useLayoutEffect(() => {
-    const el = listRef.current;
+    const el = bodyRef.current;
     if (!el) return;
-    const measure = () => setRowsFit(Math.max(1, Math.floor(el.clientHeight / NEEDS_ROW_H)));
+    const measure = () => setHeight(el.clientHeight);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [total]);
+  }, []);
 
-  const capacity = wide ? rowsFit * 2 : NEEDS_PHONE_ROWS;
-  const overflow = shown.length > capacity;
-  const visible = overflow ? shown.slice(0, capacity - 1) : shown;
-  const urgentIn = (list: TodoEntry[]) => list.some((e) => countdownOf(e.due, now)?.urgent);
-  const segment = (key: NeedsFilter, Icon: LucideIcon, word: string, list: TodoEntry[], withCount: boolean) => ({
-    value: key,
-    quiet: list.length === 0,
-    ariaLabel: `${word}: ${list.length}`,
-    content: (
-      <span className="inline-flex items-center gap-2">
-        <Icon aria-hidden className="size-4.5 shrink-0" strokeWidth={1.75} />
-        {word}
-        {list.length > 0 ? (
-          <span className="inline-flex items-center gap-1 tabular-nums">
-            {withCount || key !== "all" ? list.length : null}
-            {urgentIn(list) && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
-          </span>
-        ) : (
-          <Check aria-hidden className="size-3.5 text-[#F4EEE7]/50" strokeWidth={2.5} />
-        )}
-      </span>
-    ),
-  });
-  const options = [
-    segment("all", ListTodo, td("filterAll"), sorted, true),
-    ...TODO_GROUPS.map((group) => segment(group, GROUP_ICONS[group], td(`group.${group}`), sorted.filter((e) => TODO_GROUP[e.kind] === group), true)),
-  ];
+  // How the room is shared: Needs you as much as it needs, Coming up the rest (at least two rows), or Needs you all of it.
+  const cols = wide ? 2 : 1;
+  const needsH = total === 0 ? ALL_SET_H : Math.ceil(total / cols) * NEEDS_ROW_H;
+  const upFits = wide ? Math.floor((height - needsH - UP_HEAD_H) / UP_ROW_H) : UP_PHONE_ROWS;
+  const showUp = timeline.length > 0 && (upFits >= UP_MIN_ROWS || (height === 0 && !wide));
+  const capacity = wide ? (showUp ? total : Math.max(1, Math.floor(height / NEEDS_ROW_H)) * cols) : NEEDS_PHONE_ROWS;
+  const overflow = sorted.length > capacity;
+  const visible = overflow ? sorted.slice(0, Math.max(0, capacity - 1)) : sorted;
+  const upcoming = timeline.slice(0, Math.max(0, upFits));
 
   return (
     <section aria-labelledby="todo" className="ember flex min-h-0 flex-col overflow-hidden rounded-[20px] lg:col-span-2">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
         <h2 id="todo" className="text-eyebrow uppercase text-white/60">
           {total > 0 ? td("needsCount", { count: total }) : td("needsTitle")}
         </h2>
-        {total > 0 && (
-          <div className="no-scrollbar -mx-6 overflow-x-auto px-6">
-            <CapsuleGroup variant="on-dark" label={td("needsTitle")} value={filter} onChange={(next) => setFilter(next === filter ? "all" : next)} options={options} className="w-max" />
-          </div>
-        )}
-        <div ref={listRef} className="min-h-0 flex-1 overflow-hidden">
+        <div ref={bodyRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {total === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <span className="flex size-12 items-center justify-center rounded-full bg-white/10">
-                <Check aria-hidden className="size-6" strokeWidth={2.25} />
-              </span>
-              <p className="mt-3 text-h3 text-white">{td("allSet")}</p>
-              <p className="mt-1 text-small text-white/60">{td("allSetHint")}</p>
-            </div>
-          ) : total === 1 && filter === "all" ? (
-            <SingleTask entry={sorted[0]} now={now} />
-          ) : shown.length === 0 ? (
-            <p className="flex h-full items-center text-small text-white/60">{td("groupEmpty")}</p>
+            <p className="flex h-10 shrink-0 items-center gap-2 text-body font-semibold text-white">
+              <Check aria-hidden className="size-4" strokeWidth={2.5} />
+              {td("allSet")}
+            </p>
           ) : (
-            <ul className="grid gap-x-6 sm:grid-cols-2">
+            <ul className="grid shrink-0 gap-x-6 sm:grid-cols-2">
               {visible.map((entry) => (
                 <li key={entry.key} className="border-b border-[#F4EEE7]/6">
                   <NeedsRow entry={entry} now={now} />
@@ -646,18 +639,19 @@ function TodoTile({ entries, now, footer }: { entries: TodoEntry[]; now: string;
               {overflow && (
                 <li className="border-b border-[#F4EEE7]/6">
                   <button type="button" onClick={() => setSheet(true)} className="flex h-16 w-full items-center px-2 text-body font-semibold text-white/85 transition-colors hover:text-white">
-                    {td("moreCount", { count: shown.length - visible.length })}
+                    {td("moreCount", { count: sorted.length - visible.length })}
                   </button>
                 </li>
               )}
             </ul>
           )}
+          {showUp && upcoming.length > 0 && <ComingUp events={upcoming} now={now} />}
         </div>
       </div>
       {footer}
       <Sheet open={sheet} onClose={() => setSheet(false)} title={td("needsTitle")}>
         <ul className="-mx-2">
-          {shown.map((entry) => (
+          {sorted.map((entry) => (
             <li key={entry.key}>
               <TodoRow entry={entry} now={now} onDone={() => setSheet(false)} />
             </li>
@@ -668,17 +662,59 @@ function TodoTile({ entries, now, footer }: { entries: TodoEntry[]; now: string;
   );
 }
 
+/**
+ * "COMING UP": the next events of your sure Houses, rows of 44px – a dot (orange within 7 days, else cream 30 %), the date (72px), what +
+ * short name, and on the very next one "in N days" muted on the right. A row opens the House (/h/[id]).
+ */
+function ComingUp({ events, now }: { events: TimelineEvent[]; now: string }) {
+  const td = useTranslations("houses.home.dash");
+  const f = useFormat();
+  return (
+    <section aria-labelledby="coming-up" className="mt-4 flex min-h-0 flex-col">
+      <h3 id="coming-up" className="flex h-6 shrink-0 items-center text-eyebrow uppercase text-white/60">
+        {td("comingUp")}
+      </h3>
+      <ul className="mt-2.5">
+        {events.map((event, i) => {
+          const days = daysUntil(event.at, now);
+          return (
+            <li key={event.key}>
+              <Link href={`/h/${event.stay.id}`} className="group -mx-2 flex h-11 items-center gap-3 rounded-xl px-2 transition-colors duration-150 hover:bg-white/6">
+                <span aria-hidden className={cn("size-2 shrink-0 rounded-full", days <= 7 ? "bg-accent" : "bg-[#F4EEE7]/30")} />
+                <span className="w-18 shrink-0 text-small tabular-nums text-white/60">{f.day(event.at)}</span>
+                <span className="min-w-0 flex-1 truncate text-body text-white">
+                  <span className="font-semibold">{td(`timeline.${event.kind}`)}</span>
+                  <span className="text-white/60"> · {shortNameOf(event.stay)}</span>
+                </span>
+                {i === 0 && <span className="shrink-0 text-small text-white/60">{days === 0 ? td("timeline.today") : td("timeline.inDays", { count: days })}</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /** A task in the list: 64px – the photo (48px, rounded square), what, "short name · deadline" (under 24h orange), a chevron on hover. */
 function NeedsRow({ entry, now }: { entry: TodoEntry; now: string }) {
+  const td = useTranslations("houses.home.dash");
   const left = countdownOf(entry.due, now);
+  const group = TODO_GROUP[entry.kind];
+  const GroupIcon = GROUP_ICONS[group];
   const body = (
     <>
       <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/10 text-white [&_svg]:size-5">
         {entry.photo ? <Img src={entry.photo} alt="" fill sizes="48px" className="object-cover" /> : entry.icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body font-semibold text-white">{entry.what}</span>
-        <span className="block truncate text-small text-white/60">
+        {/* The category: icon + PAY / REPLY / SET UP, cream 50 % – orange when it's due within 24h. */}
+        <span className={cn("flex items-center gap-1 text-eyebrow uppercase leading-4", left?.urgent ? "text-accent" : "text-white/50")}>
+          <GroupIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+          {td(`group.${group}`)}
+        </span>
+        <span className="block truncate text-body font-semibold leading-5 text-white">{entry.what}</span>
+        <span className="block truncate text-small leading-4 text-white/60">
           {entry.short}
           {left && (
             <>
@@ -700,44 +736,6 @@ function NeedsRow({ entry, now }: { entry: TodoEntry; now: string }) {
     <button type="button" onClick={entry.onClick} className={row}>
       {body}
     </button>
-  );
-}
-
-/** Exactly one task: large – the photo 72px, what in 24px, "short name · deadline", and its action as a cream button. */
-function SingleTask({ entry, now }: { entry: TodoEntry; now: string }) {
-  const left = countdownOf(entry.due, now);
-  const action = (
-    <>
-      {entry.title}
-    </>
-  );
-  return (
-    <div className="flex h-full items-center gap-5">
-      <span className="relative flex size-18 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/10 text-white [&_svg]:size-7">
-        {entry.photo ? <Img src={entry.photo} alt="" fill sizes="72px" className="object-cover" /> : entry.icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-row text-white">{entry.what}</p>
-        <p className="mt-1 truncate text-body text-white/60">
-          {entry.short}
-          {left && (
-            <>
-              {" · "}
-              <span className={cn("tabular-nums", left.urgent && "font-semibold text-accent")}>{left.text}</span>
-            </>
-          )}
-        </p>
-      </div>
-      {entry.href ? (
-        <Button variant="cream" href={entry.href}>
-          {action}
-        </Button>
-      ) : (
-        <Button variant="cream" onClick={entry.onClick}>
-          {action}
-        </Button>
-      )}
-    </div>
   );
 }
 
@@ -955,3 +953,27 @@ function PickOneSheet({ pairs, onClose }: { pairs: [Stay, Stay][] | null; onClos
   );
 }
 
+
+/** "Saved people" (Save on a profile – private): avatars 56px with the first name, each to their profile. Only when there's someone. */
+function SavedPeople() {
+  const tRows = useTranslations("houses.rows");
+  const store = useStore();
+  const me = getCurrentUser(store);
+  const saved = (settingsOf(me).savedPeopleIds ?? []).flatMap((id) => findUser(store, id) ?? []);
+  if (saved.length === 0) return null;
+  return (
+    <section aria-labelledby="row-savedPeople">
+      <RowHead id="row-savedPeople" title={tRows("savedPeople")} count={saved.length} />
+      <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-5">
+        {saved.map((user) => (
+          <li key={user.id}>
+            <Link href={`/u/${user.id}`} className="flex w-20 flex-col items-center text-center">
+              <Avatar user={user} size="lg" />
+              <span className="mt-2 max-w-full truncate text-body font-semibold text-ink">{user.name.split(" ")[0]}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

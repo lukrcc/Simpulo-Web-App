@@ -26,7 +26,7 @@ import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { Img } from "@/components/ui/Img";
 import { MoreMenu } from "@/components/ui/MoreMenu";
 import { Sheet } from "@/components/ui/Sheet";
-import { SocialRow } from "@/components/ui/SocialRow";
+import { SocialLinks } from "@/components/SocialLinks";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -563,7 +563,7 @@ export function RequestRow({ request, applicant, stay }: { request: JoinRequest;
           {f.ageAndCountry(applicant, true)} · {f.day(request.createdAt)}
           {applicant.photos.length === 0 && ` · ${t("noPhoto")}`}
         </p>
-        <SocialRow user={applicant} size="sm" className="mt-1 empty:hidden" />
+        <SocialLinks user={applicant} variant="icons" className="mt-1 empty:hidden" />
         {known.length > 0 && (
           <p className="mt-2 flex items-center gap-2 text-small font-semibold text-ink">
             <Avatar user={known[0]} size="xs" />

@@ -3,7 +3,7 @@
 import type { SocialLink, SocialPlatform } from "./types";
 
 /** The platforms, in the order the "add a link" choice lists them. */
-export const SOCIAL_PLATFORMS: readonly SocialPlatform[] = ["instagram", "tiktok", "youtube", "twitch", "kick", "x", "website"];
+export const SOCIAL_PLATFORMS: readonly SocialPlatform[] = ["instagram", "tiktok", "youtube", "twitch", "kick", "x", "linkedin", "website"];
 
 /** At most this many links per profile. */
 export const MAX_SOCIAL_LINKS = 4;
@@ -16,6 +16,7 @@ const PROFILE_URL: Record<Exclude<SocialPlatform, "website">, (handle: string) =
   twitch: (h) => `https://www.twitch.tv/${h}`,
   kick: (h) => `https://kick.com/${h}`,
   x: (h) => `https://x.com/${h}`,
+  linkedin: (h) => `https://www.linkedin.com/in/${h}`,
 };
 
 /** Shown in front of the handle field ("instagram.com/") – the URL the handle completes. */
@@ -26,6 +27,7 @@ export const HANDLE_PREFIX: Record<Exclude<SocialPlatform, "website">, string> =
   twitch: "twitch.tv/",
   kick: "kick.com/",
   x: "x.com/",
+  linkedin: "linkedin.com/in/",
 };
 
 /** A pasted profile URL → its handle. */
@@ -36,6 +38,7 @@ const URL_HANDLE: Record<Exclude<SocialPlatform, "website">, RegExp> = {
   twitch: /^(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i,
   kick: /^(?:https?:\/\/)?(?:www\.)?kick\.com\/([^/?#]+)/i,
   x: /^(?:https?:\/\/)?(?:www\.)?(?:x|twitter)\.com\/@?([^/?#]+)/i,
+  linkedin: /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/([^/?#]+)/i,
 };
 
 /** The link's URL – what profiles open in a new tab. */
@@ -45,7 +48,10 @@ export function socialUrl(link: SocialLink): string {
 
 /** How a link reads: "@mara.goes", a website by its domain. */
 export function socialHandle(link: SocialLink): string {
-  return link.platform === "website" ? link.value.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : `@${link.value.replace(/^@/, "")}`;
+  if (link.platform === "website") return link.value.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+  // LinkedIn has no @ handles: the profile's name as it stands in its URL.
+  if (link.platform === "linkedin") return link.value.replace(/^@/, "");
+  return `@${link.value.replace(/^@/, "")}`;
 }
 
 /**
