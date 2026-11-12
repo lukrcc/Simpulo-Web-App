@@ -35,11 +35,11 @@ export function RowHead({ id, title, count, seeAll, aside, className }: { id: st
  * More than fit: swipe sideways, with the arrows; no focus curve (Shelf "flat"). `extra` closes the row (e.g. the dashed "Open a House").
  * `cols`: how many show at once – "See all" (to `seeAll`) only with more.
  */
-export function CardRow({ id, title, cards, extra, cols, seeAll, count, slideClass = "explore-slide" }: { id: string; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode; cols: number; seeAll?: string; /** Shown beside the title; default the number of cards */ count?: number; /** Each card's slot: Explore's column (default) or Your houses' own tiles (my-slide) */ slideClass?: string }) {
+export function CardRow({ id, title, cards, extra, cols, seeAll, count, showCount = true, slideClass = "explore-slide" }: { id: string; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode; cols: number; seeAll?: string; /** Shown beside the title; default the number of cards */ count?: number; /** false: the title alone (Your houses › For your next trip) */ showCount?: boolean; /** Each card's slot: Explore's column (default) or Your houses' own tiles (my-slide) */ slideClass?: string }) {
   const total = cards.length + (extra ? 1 : 0);
   return (
     <section aria-labelledby={`row-${id}`}>
-      <RowHead id={`row-${id}`} title={title} count={count ?? cards.length} seeAll={seeAll && total > cols ? seeAll : undefined} />
+      <RowHead id={`row-${id}`} title={title} count={showCount ? (count ?? cards.length) : undefined} seeAll={seeAll && total > cols ? seeAll : undefined} />
       <Shelf variant="flat" top="mt-4">
         {cards.map((c) => (
           <div key={c.key} className={cn(slideClass, "shrink-0")}>

@@ -1070,11 +1070,32 @@
           "join": "Crew joins",
           "suggest": "Everyone suggests places",
           "vote": "Vote, host books"
-        }
+        },
+        "exactShared": "Exact place shared after booking",
+        "photoAlt": "{area}"
       },
       "messageHostShort": "Message host",
       "hostStatus": "{filled} of {total} in · {requests, plural, =0 {no requests} one {# request} other {# requests}}",
-      "requestsToReview": "{count, plural, one {# request to review} other {# requests to review}}"
+      "requestsToReview": "{count, plural, one {# request to review} other {# requests to review}}",
+      "place": {
+        "label": "Place",
+        "exactAfter": "Exact place after booking",
+        "pickedTogether": "Picked together · how it works",
+        "viewListing": "View listing",
+        "openMaps": "Open in Maps",
+        "howTitle": "How the place is picked"
+      },
+      "tiles": {
+        "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
+        "full": "Crew complete",
+        "of": "of {total}",
+        "ofWaitlist": "of {total} · {waiting} on the waitlist",
+        "bringFriend": "Bring a friend",
+        "pickedTogether": "Picked together",
+        "viewListing": "View listing",
+        "openMaps": "Open in Maps",
+        "profile": "{name}'s profile"
+      }
     },
     "headStartHint": "Your House is live. For the first {hours}h only the people who searched for this see it, then it's on Explore.",
     "steps": {
@@ -2168,7 +2189,7 @@
         "fillRate": "Fill rate",
         "bestHouse": "Best House",
         "repeatGuests": "Repeat guests",
-        "rentPassed": "Rent passed to stays this year: {amount}",
+        "rentPassed": "Rent passed on this year: {amount}",
         "rentPassedInfo": "Your crew's share of the place – not income."
       },
       "share": {
@@ -2197,6 +2218,17 @@
         "range": "Period",
         "year": "12 months",
         "all": "All time"
+      },
+      "strip": {
+        "nextPayout": "Next payout",
+        "setUpToGet": "Set up to get {amount}",
+        "shareLine": "{earned} earned · {rent} rent passed on",
+        "firstPayout": "Your first payout comes the day after check-in",
+        "leadQuestion": "Lead your next House?",
+        "leadLink": "Add a host fee",
+        "verify": "Verify identity",
+        "checking": "Stripe is checking your details",
+        "best": "Best House: {name} · {amount}"
       }
     },
     "loginTitle": "Log in to see your houses",

@@ -144,7 +144,9 @@ export function earningsFor(data: { stays: readonly Stay[]; payments: readonly P
   });
   const upcoming = rows.filter((r) => r.status !== "paid").toSorted((a, b) => a.payoutDate.localeCompare(b.payoutDate));
   // In EUR like every sum here (a House in IDR would otherwise show its rupiah with a € sign).
-  const next = upcoming[0] ? { id: `po-${upcoming[0].id}`, date: upcoming[0].payoutDate, amount: eur(upcoming[0]), currency: "EUR" as Currency, account: ACCOUNT, status: "scheduled" as const } : null;
+  // "Next payout": the sum of everything still to be paid out, with the next date – ONE number everywhere (Payouts' strip, Your houses' footer);
+  // there is no second "coming up" figure.
+  const next = upcoming[0] ? { id: `po-${upcoming[0].id}`, date: upcoming[0].payoutDate, amount: upcoming.reduce((sum, r) => sum + eur(r), 0), currency: "EUR" as Currency, account: ACCOUNT, status: "scheduled" as const } : null;
   return {
     rows,
     payouts,

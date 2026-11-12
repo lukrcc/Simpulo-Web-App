@@ -1,0 +1,1438 @@
+{
+  "/mock/houses/s1/1.webp": {
+    "tint": "#1d1d20",
+    "lum": 0.172
+  },
+  "/mock/houses/s1/2.webp": {
+    "tint": "#262117",
+    "lum": 0.297
+  },
+  "/mock/houses/s1/3.webp": {
+    "tint": "#2c1712",
+    "lum": 0.553
+  },
+  "/mock/houses/s10/1.webp": {
+    "tint": "#231f1a",
+    "lum": 0.496
+  },
+  "/mock/houses/s10/2.webp": {
+    "tint": "#1b2221",
+    "lum": 0.57
+  },
+  "/mock/houses/s10/3.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.573
+  },
+  "/mock/houses/s11/1.webp": {
+    "tint": "#241919",
+    "lum": 0.883
+  },
+  "/mock/houses/s11/2.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.366
+  },
+  "/mock/houses/s11/3.webp": {
+    "tint": "#1b2022",
+    "lum": 0.23
+  },
+  "/mock/houses/s12/1.webp": {
+    "tint": "#221d1c",
+    "lum": 0.269
+  },
+  "/mock/houses/s12/2.webp": {
+    "tint": "#2b121d",
+    "lum": 0.204
+  },
+  "/mock/houses/s12/3.webp": {
+    "tint": "#201f1d",
+    "lum": 0.563
+  },
+  "/mock/houses/s13/1.webp": {
+    "tint": "#221e1c",
+    "lum": 0.257
+  },
+  "/mock/houses/s13/2.webp": {
+    "tint": "#282216",
+    "lum": 0.66
+  },
+  "/mock/houses/s13/3.webp": {
+    "tint": "#211e1c",
+    "lum": 0.748
+  },
+  "/mock/houses/s14/1.webp": {
+    "tint": "#1e1d20",
+    "lum": 0.28
+  },
+  "/mock/houses/s14/2.webp": {
+    "tint": "#261d17",
+    "lum": 0.243
+  },
+  "/mock/houses/s14/3.webp": {
+    "tint": "#211d1f",
+    "lum": 0.565
+  },
+  "/mock/houses/s15/1.webp": {
+    "tint": "#211e1c",
+    "lum": 0.302
+  },
+  "/mock/houses/s15/2.webp": {
+    "tint": "#241e19",
+    "lum": 0.538
+  },
+  "/mock/houses/s15/3.webp": {
+    "tint": "#261f17",
+    "lum": 0.254
+  },
+  "/mock/houses/s16/1.webp": {
+    "tint": "#22201b",
+    "lum": 0.527
+  },
+  "/mock/houses/s16/2.webp": {
+    "tint": "#30190d",
+    "lum": 0.282
+  },
+  "/mock/houses/s16/3.webp": {
+    "tint": "#211e1c",
+    "lum": 0.321
+  },
+  "/mock/houses/s17/1.webp": {
+    "tint": "#251f18",
+    "lum": 0.19
+  },
+  "/mock/houses/s17/2.webp": {
+    "tint": "#2a1f13",
+    "lum": 0.371
+  },
+  "/mock/houses/s17/3.webp": {
+    "tint": "#1c1f21",
+    "lum": 0.228
+  },
+  "/mock/houses/s18/1.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.687
+  },
+  "/mock/houses/s18/2.webp": {
+    "tint": "#1c2518",
+    "lum": 0.534
+  },
+  "/mock/houses/s18/3.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.846
+  },
+  "/mock/houses/s19/1.webp": {
+    "tint": "#1b1d22",
+    "lum": 0.622
+  },
+  "/mock/houses/s19/2.webp": {
+    "tint": "#201e1d",
+    "lum": 0.309
+  },
+  "/mock/houses/s19/3.webp": {
+    "tint": "#151528",
+    "lum": 0.55
+  },
+  "/mock/houses/s2/1.webp": {
+    "tint": "#1e1d20",
+    "lum": 0.22
+  },
+  "/mock/houses/s2/2.webp": {
+    "tint": "#251f18",
+    "lum": 0.403
+  },
+  "/mock/houses/s2/3.webp": {
+    "tint": "#242019",
+    "lum": 0.585
+  },
+  "/mock/houses/s20/1.webp": {
+    "tint": "#202518",
+    "lum": 0.228
+  },
+  "/mock/houses/s20/2.webp": {
+    "tint": "#251d18",
+    "lum": 0.473
+  },
+  "/mock/houses/s20/3.webp": {
+    "tint": "#1e1c21",
+    "lum": 0.515
+  },
+  "/mock/houses/s21/1.webp": {
+    "tint": "#0d2130",
+    "lum": 0.11
+  },
+  "/mock/houses/s21/2.webp": {
+    "tint": "#211924",
+    "lum": 0.454
+  },
+  "/mock/houses/s21/3.webp": {
+    "tint": "#271e16",
+    "lum": 0.485
+  },
+  "/mock/houses/s22/1.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.264
+  },
+  "/mock/houses/s22/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.474
+  },
+  "/mock/houses/s22/3.webp": {
+    "tint": "#231a1a",
+    "lum": 0.331
+  },
+  "/mock/houses/s23/1.webp": {
+    "tint": "#1f1e1f",
+    "lum": 0.368
+  },
+  "/mock/houses/s23/2.webp": {
+    "tint": "#292215",
+    "lum": 0.356
+  },
+  "/mock/houses/s23/3.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.518
+  },
+  "/mock/houses/s24/1.webp": {
+    "tint": "#261f17",
+    "lum": 0.506
+  },
+  "/mock/houses/s24/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.351
+  },
+  "/mock/houses/s24/3.webp": {
+    "tint": "#282115",
+    "lum": 0.513
+  },
+  "/mock/houses/s25/1.webp": {
+    "tint": "#20201d",
+    "lum": 0.59
+  },
+  "/mock/houses/s25/2.webp": {
+    "tint": "#272016",
+    "lum": 0.542
+  },
+  "/mock/houses/s25/3.webp": {
+    "tint": "#252618",
+    "lum": 0.355
+  },
+  "/mock/houses/s26/1.webp": {
+    "tint": "#221c1c",
+    "lum": 0.548
+  },
+  "/mock/houses/s26/2.webp": {
+    "tint": "#192423",
+    "lum": 0.099
+  },
+  "/mock/houses/s26/3.webp": {
+    "tint": "#201d1e",
+    "lum": 0.408
+  },
+  "/mock/houses/s27/1.webp": {
+    "tint": "#242518",
+    "lum": 0.061
+  },
+  "/mock/houses/s27/2.webp": {
+    "tint": "#201e1d",
+    "lum": 0.553
+  },
+  "/mock/houses/s27/3.webp": {
+    "tint": "#251e18",
+    "lum": 0.332
+  },
+  "/mock/houses/s28/1.webp": {
+    "tint": "#201e1e",
+    "lum": 0.47
+  },
+  "/mock/houses/s28/2.webp": {
+    "tint": "#1d2020",
+    "lum": 0.534
+  },
+  "/mock/houses/s28/3.webp": {
+    "tint": "#201f1d",
+    "lum": 0.424
+  },
+  "/mock/houses/s29/1.webp": {
+    "tint": "#1b1e22",
+    "lum": 0.378
+  },
+  "/mock/houses/s29/2.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.566
+  },
+  "/mock/houses/s29/3.webp": {
+    "tint": "#291e14",
+    "lum": 0.332
+  },
+  "/mock/houses/s3/1.webp": {
+    "tint": "#1f1e20",
+    "lum": 0.471
+  },
+  "/mock/houses/s3/2.webp": {
+    "tint": "#1f201e",
+    "lum": 0.474
+  },
+  "/mock/houses/s3/3.webp": {
+    "tint": "#2b1d12",
+    "lum": 0.521
+  },
+  "/mock/houses/s30/1.webp": {
+    "tint": "#1f231a",
+    "lum": 0.542
+  },
+  "/mock/houses/s30/2.webp": {
+    "tint": "#20201d",
+    "lum": 0.521
+  },
+  "/mock/houses/s30/3.webp": {
+    "tint": "#282b12",
+    "lum": 0.149
+  },
+  "/mock/houses/s31/1.webp": {
+    "tint": "#1f1e1f",
+    "lum": 0.526
+  },
+  "/mock/houses/s31/2.webp": {
+    "tint": "#191e24",
+    "lum": 0.745
+  },
+  "/mock/houses/s31/3.webp": {
+    "tint": "#251e18",
+    "lum": 0.298
+  },
+  "/mock/houses/s32/1.webp": {
+    "tint": "#082935",
+    "lum": 0.19
+  },
+  "/mock/houses/s32/2.webp": {
+    "tint": "#0a2533",
+    "lum": 0.432
+  },
+  "/mock/houses/s32/3.webp": {
+    "tint": "#1c2221",
+    "lum": 0.693
+  },
+  "/mock/houses/s33/1.webp": {
+    "tint": "#262017",
+    "lum": 0.376
+  },
+  "/mock/houses/s33/2.webp": {
+    "tint": "#22201b",
+    "lum": 0.68
+  },
+  "/mock/houses/s33/3.webp": {
+    "tint": "#271a16",
+    "lum": 0.523
+  },
+  "/mock/houses/s34/1.webp": {
+    "tint": "#241b19",
+    "lum": 0.046
+  },
+  "/mock/houses/s34/2.webp": {
+    "tint": "#271716",
+    "lum": 0.03
+  },
+  "/mock/houses/s34/3.webp": {
+    "tint": "#261f17",
+    "lum": 0.252
+  },
+  "/mock/houses/s35/1.webp": {
+    "tint": "#231d1a",
+    "lum": 0.672
+  },
+  "/mock/houses/s35/2.webp": {
+    "tint": "#2a1d13",
+    "lum": 0.403
+  },
+  "/mock/houses/s35/3.webp": {
+    "tint": "#281b15",
+    "lum": 0.782
+  },
+  "/mock/houses/s36/1.webp": {
+    "tint": "#1f1e20",
+    "lum": 0.768
+  },
+  "/mock/houses/s36/2.webp": {
+    "tint": "#1b1e23",
+    "lum": 0.395
+  },
+  "/mock/houses/s36/3.webp": {
+    "tint": "#2c2112",
+    "lum": 0.463
+  },
+  "/mock/houses/s37/1.webp": {
+    "tint": "#251c18",
+    "lum": 0.257
+  },
+  "/mock/houses/s37/2.webp": {
+    "tint": "#211d1f",
+    "lum": 0.449
+  },
+  "/mock/houses/s37/3.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.409
+  },
+  "/mock/houses/s38/1.webp": {
+    "tint": "#271c17",
+    "lum": 0.071
+  },
+  "/mock/houses/s38/2.webp": {
+    "tint": "#162127",
+    "lum": 0.808
+  },
+  "/mock/houses/s38/3.webp": {
+    "tint": "#1e1f20",
+    "lum": 0.157
+  },
+  "/mock/houses/s39/1.webp": {
+    "tint": "#1f201d",
+    "lum": 0.627
+  },
+  "/mock/houses/s39/2.webp": {
+    "tint": "#181b26",
+    "lum": 0.53
+  },
+  "/mock/houses/s39/3.webp": {
+    "tint": "#282015",
+    "lum": 0.792
+  },
+  "/mock/houses/s4/1.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.389
+  },
+  "/mock/houses/s4/2.webp": {
+    "tint": "#231d1a",
+    "lum": 0.2
+  },
+  "/mock/houses/s4/3.webp": {
+    "tint": "#292214",
+    "lum": 0.226
+  },
+  "/mock/houses/s40/1.webp": {
+    "tint": "#2d1e10",
+    "lum": 0.212
+  },
+  "/mock/houses/s40/2.webp": {
+    "tint": "#22211b",
+    "lum": 0.534
+  },
+  "/mock/houses/s40/3.webp": {
+    "tint": "#261d17",
+    "lum": 0.67
+  },
+  "/mock/houses/s41/1.webp": {
+    "tint": "#211e1c",
+    "lum": 0.322
+  },
+  "/mock/houses/s41/2.webp": {
+    "tint": "#211d1c",
+    "lum": 0.198
+  },
+  "/mock/houses/s41/3.webp": {
+    "tint": "#211f1d",
+    "lum": 0.349
+  },
+  "/mock/houses/s42/1.webp": {
+    "tint": "#2a2a13",
+    "lum": 0.236
+  },
+  "/mock/houses/s42/2.webp": {
+    "tint": "#2a1c13",
+    "lum": 0.212
+  },
+  "/mock/houses/s42/3.webp": {
+    "tint": "#211f1c",
+    "lum": 0.446
+  },
+  "/mock/houses/s43/1.webp": {
+    "tint": "#262017",
+    "lum": 0.211
+  },
+  "/mock/houses/s43/2.webp": {
+    "tint": "#211e1d",
+    "lum": 0.344
+  },
+  "/mock/houses/s43/3.webp": {
+    "tint": "#2b2212",
+    "lum": 0.45
+  },
+  "/mock/houses/s44/1.webp": {
+    "tint": "#201d20",
+    "lum": 0.037
+  },
+  "/mock/houses/s44/2.webp": {
+    "tint": "#201e1d",
+    "lum": 0.142
+  },
+  "/mock/houses/s44/3.webp": {
+    "tint": "#231f1a",
+    "lum": 0.491
+  },
+  "/mock/houses/s45/1.webp": {
+    "tint": "#181d26",
+    "lum": 0.543
+  },
+  "/mock/houses/s45/2.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.578
+  },
+  "/mock/houses/s45/3.webp": {
+    "tint": "#1c1c21",
+    "lum": 0.868
+  },
+  "/mock/houses/s46/1.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.759
+  },
+  "/mock/houses/s46/2.webp": {
+    "tint": "#271b17",
+    "lum": 0.405
+  },
+  "/mock/houses/s46/3.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.533
+  },
+  "/mock/houses/s47/1.webp": {
+    "tint": "#251e18",
+    "lum": 0.614
+  },
+  "/mock/houses/s47/2.webp": {
+    "tint": "#24201a",
+    "lum": 0.495
+  },
+  "/mock/houses/s47/3.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.398
+  },
+  "/mock/houses/s48/1.webp": {
+    "tint": "#1f211d",
+    "lum": 0.323
+  },
+  "/mock/houses/s48/2.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.459
+  },
+  "/mock/houses/s48/3.webp": {
+    "tint": "#14232a",
+    "lum": 0.261
+  },
+  "/mock/houses/s49/1.webp": {
+    "tint": "#1d1e20",
+    "lum": 0.475
+  },
+  "/mock/houses/s49/2.webp": {
+    "tint": "#131d2a",
+    "lum": 0.713
+  },
+  "/mock/houses/s49/3.webp": {
+    "tint": "#1a1e23",
+    "lum": 0.44
+  },
+  "/mock/houses/s5/1.webp": {
+    "tint": "#282215",
+    "lum": 0.497
+  },
+  "/mock/houses/s5/2.webp": {
+    "tint": "#231f1b",
+    "lum": 0.525
+  },
+  "/mock/houses/s5/3.webp": {
+    "tint": "#172027",
+    "lum": 0.086
+  },
+  "/mock/houses/s50/1.webp": {
+    "tint": "#221b1c",
+    "lum": 0.717
+  },
+  "/mock/houses/s50/2.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.392
+  },
+  "/mock/houses/s50/3.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.441
+  },
+  "/mock/houses/s51/1.webp": {
+    "tint": "#211e1d",
+    "lum": 0.401
+  },
+  "/mock/houses/s51/2.webp": {
+    "tint": "#131d2a",
+    "lum": 0.168
+  },
+  "/mock/houses/s51/3.webp": {
+    "tint": "#231726",
+    "lum": 0.262
+  },
+  "/mock/houses/s52/1.webp": {
+    "tint": "#1f1e1f",
+    "lum": 0.564
+  },
+  "/mock/houses/s52/2.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.486
+  },
+  "/mock/houses/s52/3.webp": {
+    "tint": "#1d201e",
+    "lum": 0.688
+  },
+  "/mock/houses/s53/1.webp": {
+    "tint": "#2d1b11",
+    "lum": 0.662
+  },
+  "/mock/houses/s53/2.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.568
+  },
+  "/mock/houses/s53/3.webp": {
+    "tint": "#261e17",
+    "lum": 0.429
+  },
+  "/mock/houses/s6/1.webp": {
+    "tint": "#262217",
+    "lum": 0.458
+  },
+  "/mock/houses/s6/2.webp": {
+    "tint": "#1b1e22",
+    "lum": 0.417
+  },
+  "/mock/houses/s6/3.webp": {
+    "tint": "#201f1d",
+    "lum": 0.148
+  },
+  "/mock/houses/s7/1.webp": {
+    "tint": "#093409",
+    "lum": 0.207
+  },
+  "/mock/houses/s7/2.webp": {
+    "tint": "#282615",
+    "lum": 0.297
+  },
+  "/mock/houses/s7/3.webp": {
+    "tint": "#201f1d",
+    "lum": 0.432
+  },
+  "/mock/houses/s8/1.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.634
+  },
+  "/mock/houses/s8/2.webp": {
+    "tint": "#2d1810",
+    "lum": 0.307
+  },
+  "/mock/houses/s8/3.webp": {
+    "tint": "#1e211c",
+    "lum": 0.338
+  },
+  "/mock/houses/s9/1.webp": {
+    "tint": "#21231a",
+    "lum": 0.576
+  },
+  "/mock/houses/s9/2.webp": {
+    "tint": "#1e221b",
+    "lum": 0.434
+  },
+  "/mock/houses/s9/3.webp": {
+    "tint": "#272017",
+    "lum": 0.253
+  },
+  "/mock/houses/x1/1.webp": {
+    "tint": "#2c2811",
+    "lum": 0.394
+  },
+  "/mock/houses/x1/2.webp": {
+    "tint": "#360814",
+    "lum": 0.117
+  },
+  "/mock/houses/x1/3.webp": {
+    "tint": "#0c3130",
+    "lum": 0.69
+  },
+  "/mock/houses/x1/4.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.205
+  },
+  "/mock/houses/x10/1.webp": {
+    "tint": "#1d1d20",
+    "lum": 0.317
+  },
+  "/mock/houses/x10/2.webp": {
+    "tint": "#22201b",
+    "lum": 0.306
+  },
+  "/mock/houses/x10/3.webp": {
+    "tint": "#1f201e",
+    "lum": 0.282
+  },
+  "/mock/houses/x10/4.webp": {
+    "tint": "#21201d",
+    "lum": 0.512
+  },
+  "/mock/houses/x11/1.webp": {
+    "tint": "#261e18",
+    "lum": 0.23
+  },
+  "/mock/houses/x11/2.webp": {
+    "tint": "#211e1c",
+    "lum": 0.459
+  },
+  "/mock/houses/x11/3.webp": {
+    "tint": "#0e1b2f",
+    "lum": 0.343
+  },
+  "/mock/houses/x11/4.webp": {
+    "tint": "#23211a",
+    "lum": 0.865
+  },
+  "/mock/houses/x12/1.webp": {
+    "tint": "#241f19",
+    "lum": 0.719
+  },
+  "/mock/houses/x12/2.webp": {
+    "tint": "#1d201d",
+    "lum": 0.605
+  },
+  "/mock/houses/x12/3.webp": {
+    "tint": "#23211b",
+    "lum": 0.334
+  },
+  "/mock/houses/x12/4.webp": {
+    "tint": "#291f14",
+    "lum": 0.262
+  },
+  "/mock/houses/x13/1.webp": {
+    "tint": "#1c1f21",
+    "lum": 0.423
+  },
+  "/mock/houses/x13/2.webp": {
+    "tint": "#1d1e21",
+    "lum": 0.355
+  },
+  "/mock/houses/x13/3.webp": {
+    "tint": "#291e14",
+    "lum": 0.2
+  },
+  "/mock/houses/x13/4.webp": {
+    "tint": "#2d1d10",
+    "lum": 0.364
+  },
+  "/mock/houses/x14/1.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.613
+  },
+  "/mock/houses/x14/2.webp": {
+    "tint": "#211f1c",
+    "lum": 0.309
+  },
+  "/mock/houses/x14/3.webp": {
+    "tint": "#211f1c",
+    "lum": 0.478
+  },
+  "/mock/houses/x14/4.webp": {
+    "tint": "#211e1c",
+    "lum": 0.308
+  },
+  "/mock/houses/x15/1.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.471
+  },
+  "/mock/houses/x15/2.webp": {
+    "tint": "#1d221b",
+    "lum": 0.183
+  },
+  "/mock/houses/x15/3.webp": {
+    "tint": "#271f16",
+    "lum": 0.397
+  },
+  "/mock/houses/x15/4.webp": {
+    "tint": "#1a2123",
+    "lum": 0.416
+  },
+  "/mock/houses/x16/1.webp": {
+    "tint": "#211f1c",
+    "lum": 0.49
+  },
+  "/mock/houses/x16/2.webp": {
+    "tint": "#21201d",
+    "lum": 0.415
+  },
+  "/mock/houses/x16/3.webp": {
+    "tint": "#221d1b",
+    "lum": 0.326
+  },
+  "/mock/houses/x16/4.webp": {
+    "tint": "#320d0b",
+    "lum": 0.033
+  },
+  "/mock/houses/x17/1.webp": {
+    "tint": "#262118",
+    "lum": 0.338
+  },
+  "/mock/houses/x17/2.webp": {
+    "tint": "#262117",
+    "lum": 0.418
+  },
+  "/mock/houses/x17/3.webp": {
+    "tint": "#282115",
+    "lum": 0.32
+  },
+  "/mock/houses/x17/4.webp": {
+    "tint": "#242319",
+    "lum": 0.375
+  },
+  "/mock/houses/x18/1.webp": {
+    "tint": "#2a1d13",
+    "lum": 0.441
+  },
+  "/mock/houses/x18/2.webp": {
+    "tint": "#2b1d12",
+    "lum": 0.336
+  },
+  "/mock/houses/x18/3.webp": {
+    "tint": "#2a2113",
+    "lum": 0.593
+  },
+  "/mock/houses/x18/4.webp": {
+    "tint": "#241a19",
+    "lum": 0.195
+  },
+  "/mock/houses/x19/1.webp": {
+    "tint": "#201d1d",
+    "lum": 0.526
+  },
+  "/mock/houses/x19/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.413
+  },
+  "/mock/houses/x19/3.webp": {
+    "tint": "#2a1913",
+    "lum": 0.278
+  },
+  "/mock/houses/x19/4.webp": {
+    "tint": "#261918",
+    "lum": 0.346
+  },
+  "/mock/houses/x2/1.webp": {
+    "tint": "#20201d",
+    "lum": 0.298
+  },
+  "/mock/houses/x2/2.webp": {
+    "tint": "#1d201e",
+    "lum": 0.372
+  },
+  "/mock/houses/x2/3.webp": {
+    "tint": "#1c211f",
+    "lum": 0.248
+  },
+  "/mock/houses/x2/4.webp": {
+    "tint": "#261c17",
+    "lum": 0.101
+  },
+  "/mock/houses/x20/1.webp": {
+    "tint": "#2c1e11",
+    "lum": 0.336
+  },
+  "/mock/houses/x20/2.webp": {
+    "tint": "#221f1b",
+    "lum": 0.333
+  },
+  "/mock/houses/x20/3.webp": {
+    "tint": "#261a18",
+    "lum": 0.488
+  },
+  "/mock/houses/x20/4.webp": {
+    "tint": "#27161e",
+    "lum": 0.265
+  },
+  "/mock/houses/x21/1.webp": {
+    "tint": "#2f250e",
+    "lum": 0.391
+  },
+  "/mock/houses/x21/2.webp": {
+    "tint": "#341e0a",
+    "lum": 0.131
+  },
+  "/mock/houses/x21/3.webp": {
+    "tint": "#221d1c",
+    "lum": 0.733
+  },
+  "/mock/houses/x21/4.webp": {
+    "tint": "#1d1e20",
+    "lum": 0.408
+  },
+  "/mock/houses/x22/1.webp": {
+    "tint": "#20211d",
+    "lum": 0.058
+  },
+  "/mock/houses/x22/2.webp": {
+    "tint": "#2c2511",
+    "lum": 0.38
+  },
+  "/mock/houses/x22/3.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.316
+  },
+  "/mock/houses/x22/4.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.458
+  },
+  "/mock/houses/x23/1.webp": {
+    "tint": "#222419",
+    "lum": 0.239
+  },
+  "/mock/houses/x23/2.webp": {
+    "tint": "#262217",
+    "lum": 0.554
+  },
+  "/mock/houses/x23/3.webp": {
+    "tint": "#171e26",
+    "lum": 0.831
+  },
+  "/mock/houses/x23/4.webp": {
+    "tint": "#211e1c",
+    "lum": 0.705
+  },
+  "/mock/houses/x24/1.webp": {
+    "tint": "#1b2122",
+    "lum": 0.315
+  },
+  "/mock/houses/x24/2.webp": {
+    "tint": "#2e190f",
+    "lum": 0.148
+  },
+  "/mock/houses/x24/3.webp": {
+    "tint": "#262217",
+    "lum": 0.624
+  },
+  "/mock/houses/x24/4.webp": {
+    "tint": "#281815",
+    "lum": 0.249
+  },
+  "/mock/houses/x25/1.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.738
+  },
+  "/mock/houses/x25/2.webp": {
+    "tint": "#291e14",
+    "lum": 0.611
+  },
+  "/mock/houses/x25/3.webp": {
+    "tint": "#31180c",
+    "lum": 0.287
+  },
+  "/mock/houses/x25/4.webp": {
+    "tint": "#241d19",
+    "lum": 0.45
+  },
+  "/mock/houses/x26/1.webp": {
+    "tint": "#2a1614",
+    "lum": 0.247
+  },
+  "/mock/houses/x26/2.webp": {
+    "tint": "#231f1a",
+    "lum": 0.466
+  },
+  "/mock/houses/x26/3.webp": {
+    "tint": "#241e19",
+    "lum": 0.577
+  },
+  "/mock/houses/x26/4.webp": {
+    "tint": "#2e180f",
+    "lum": 0.465
+  },
+  "/mock/houses/x27/1.webp": {
+    "tint": "#1e1d20",
+    "lum": 0.696
+  },
+  "/mock/houses/x27/2.webp": {
+    "tint": "#1a1e23",
+    "lum": 0.306
+  },
+  "/mock/houses/x27/3.webp": {
+    "tint": "#181f25",
+    "lum": 0.402
+  },
+  "/mock/houses/x27/4.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.333
+  },
+  "/mock/houses/x28/1.webp": {
+    "tint": "#19241e",
+    "lum": 0.586
+  },
+  "/mock/houses/x28/2.webp": {
+    "tint": "#1c211f",
+    "lum": 0.518
+  },
+  "/mock/houses/x28/3.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.465
+  },
+  "/mock/houses/x28/4.webp": {
+    "tint": "#21211c",
+    "lum": 0.36
+  },
+  "/mock/houses/x29/1.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.498
+  },
+  "/mock/houses/x29/2.webp": {
+    "tint": "#1b1e22",
+    "lum": 0.594
+  },
+  "/mock/houses/x29/3.webp": {
+    "tint": "#221f1b",
+    "lum": 0.479
+  },
+  "/mock/houses/x29/4.webp": {
+    "tint": "#261d17",
+    "lum": 0.659
+  },
+  "/mock/houses/x3/1.webp": {
+    "tint": "#171b26",
+    "lum": 0.327
+  },
+  "/mock/houses/x3/2.webp": {
+    "tint": "#2a2c11",
+    "lum": 0.131
+  },
+  "/mock/houses/x3/3.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.532
+  },
+  "/mock/houses/x3/4.webp": {
+    "tint": "#261e17",
+    "lum": 0.416
+  },
+  "/mock/houses/x30/1.webp": {
+    "tint": "#093533",
+    "lum": 0.449
+  },
+  "/mock/houses/x30/2.webp": {
+    "tint": "#231e1b",
+    "lum": 0.514
+  },
+  "/mock/houses/x30/3.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.048
+  },
+  "/mock/houses/x30/4.webp": {
+    "tint": "#21201c",
+    "lum": 0.713
+  },
+  "/mock/houses/x31/1.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.434
+  },
+  "/mock/houses/x31/2.webp": {
+    "tint": "#2f160e",
+    "lum": 0.165
+  },
+  "/mock/houses/x31/3.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.438
+  },
+  "/mock/houses/x31/4.webp": {
+    "tint": "#1f1c21",
+    "lum": 0.465
+  },
+  "/mock/houses/x32/1.webp": {
+    "tint": "#201f1d",
+    "lum": 0.737
+  },
+  "/mock/houses/x32/2.webp": {
+    "tint": "#20241a",
+    "lum": 0.426
+  },
+  "/mock/houses/x32/3.webp": {
+    "tint": "#101b2d",
+    "lum": 0.183
+  },
+  "/mock/houses/x32/4.webp": {
+    "tint": "#1b2222",
+    "lum": 0.553
+  },
+  "/mock/houses/x33/1.webp": {
+    "tint": "#1c1925",
+    "lum": 0.268
+  },
+  "/mock/houses/x33/2.webp": {
+    "tint": "#1c1d21",
+    "lum": 0.451
+  },
+  "/mock/houses/x33/3.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.485
+  },
+  "/mock/houses/x33/4.webp": {
+    "tint": "#221e1b",
+    "lum": 0.374
+  },
+  "/mock/houses/x34/1.webp": {
+    "tint": "#1b1e22",
+    "lum": 0.155
+  },
+  "/mock/houses/x34/2.webp": {
+    "tint": "#191d24",
+    "lum": 0.691
+  },
+  "/mock/houses/x34/3.webp": {
+    "tint": "#1b1c22",
+    "lum": 0.254
+  },
+  "/mock/houses/x34/4.webp": {
+    "tint": "#221f1b",
+    "lum": 0.21
+  },
+  "/mock/houses/x35/1.webp": {
+    "tint": "#1d201f",
+    "lum": 0.133
+  },
+  "/mock/houses/x35/2.webp": {
+    "tint": "#161f27",
+    "lum": 0.706
+  },
+  "/mock/houses/x35/3.webp": {
+    "tint": "#221f1b",
+    "lum": 0.449
+  },
+  "/mock/houses/x35/4.webp": {
+    "tint": "#171d26",
+    "lum": 0.518
+  },
+  "/mock/houses/x36/1.webp": {
+    "tint": "#231e1a",
+    "lum": 0.58
+  },
+  "/mock/houses/x36/2.webp": {
+    "tint": "#20211d",
+    "lum": 0.194
+  },
+  "/mock/houses/x36/3.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.539
+  },
+  "/mock/houses/x36/4.webp": {
+    "tint": "#221f1b",
+    "lum": 0.495
+  },
+  "/mock/houses/x37/1.webp": {
+    "tint": "#390f04",
+    "lum": 0.104
+  },
+  "/mock/houses/x37/2.webp": {
+    "tint": "#2e1c0f",
+    "lum": 0.254
+  },
+  "/mock/houses/x37/3.webp": {
+    "tint": "#2c1113",
+    "lum": 0.332
+  },
+  "/mock/houses/x37/4.webp": {
+    "tint": "#262117",
+    "lum": 0.102
+  },
+  "/mock/houses/x38/1.webp": {
+    "tint": "#1b1c22",
+    "lum": 0.122
+  },
+  "/mock/houses/x38/2.webp": {
+    "tint": "#111d2c",
+    "lum": 0.706
+  },
+  "/mock/houses/x38/3.webp": {
+    "tint": "#241a19",
+    "lum": 0.412
+  },
+  "/mock/houses/x38/4.webp": {
+    "tint": "#271d16",
+    "lum": 0.518
+  },
+  "/mock/houses/x39/1.webp": {
+    "tint": "#292215",
+    "lum": 0.653
+  },
+  "/mock/houses/x39/2.webp": {
+    "tint": "#222f0e",
+    "lum": 0.326
+  },
+  "/mock/houses/x39/3.webp": {
+    "tint": "#242e0f",
+    "lum": 0.405
+  },
+  "/mock/houses/x39/4.webp": {
+    "tint": "#151d28",
+    "lum": 0.81
+  },
+  "/mock/houses/x4/1.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.515
+  },
+  "/mock/houses/x4/2.webp": {
+    "tint": "#2b2112",
+    "lum": 0.311
+  },
+  "/mock/houses/x4/3.webp": {
+    "tint": "#242219",
+    "lum": 0.436
+  },
+  "/mock/houses/x4/4.webp": {
+    "tint": "#211f1c",
+    "lum": 0.395
+  },
+  "/mock/houses/x40/1.webp": {
+    "tint": "#2b2b12",
+    "lum": 0.514
+  },
+  "/mock/houses/x40/2.webp": {
+    "tint": "#22211b",
+    "lum": 0.308
+  },
+  "/mock/houses/x40/3.webp": {
+    "tint": "#271623",
+    "lum": 0.789
+  },
+  "/mock/houses/x40/4.webp": {
+    "tint": "#242419",
+    "lum": 0.361
+  },
+  "/mock/houses/x41/1.webp": {
+    "tint": "#251e18",
+    "lum": 0.475
+  },
+  "/mock/houses/x41/2.webp": {
+    "tint": "#1f1e1f",
+    "lum": 0.21
+  },
+  "/mock/houses/x41/3.webp": {
+    "tint": "#181c25",
+    "lum": 0.43
+  },
+  "/mock/houses/x41/4.webp": {
+    "tint": "#281b15",
+    "lum": 0.34
+  },
+  "/mock/houses/x42/1.webp": {
+    "tint": "#25181c",
+    "lum": 0.231
+  },
+  "/mock/houses/x42/2.webp": {
+    "tint": "#281d15",
+    "lum": 0.225
+  },
+  "/mock/houses/x42/3.webp": {
+    "tint": "#20221b",
+    "lum": 0.285
+  },
+  "/mock/houses/x42/4.webp": {
+    "tint": "#211e1c",
+    "lum": 0.519
+  },
+  "/mock/houses/x43/1.webp": {
+    "tint": "#221e1b",
+    "lum": 0.3
+  },
+  "/mock/houses/x43/2.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.28
+  },
+  "/mock/houses/x43/3.webp": {
+    "tint": "#231c1a",
+    "lum": 0.456
+  },
+  "/mock/houses/x43/4.webp": {
+    "tint": "#251d18",
+    "lum": 0.217
+  },
+  "/mock/houses/x44/1.webp": {
+    "tint": "#261d17",
+    "lum": 0.164
+  },
+  "/mock/houses/x44/2.webp": {
+    "tint": "#2b2112",
+    "lum": 0.445
+  },
+  "/mock/houses/x44/3.webp": {
+    "tint": "#2e1a0f",
+    "lum": 0.209
+  },
+  "/mock/houses/x44/4.webp": {
+    "tint": "#211f1c",
+    "lum": 0.351
+  },
+  "/mock/houses/x45/1.webp": {
+    "tint": "#271916",
+    "lum": 0.212
+  },
+  "/mock/houses/x45/2.webp": {
+    "tint": "#21201c",
+    "lum": 0.348
+  },
+  "/mock/houses/x45/3.webp": {
+    "tint": "#2b1612",
+    "lum": 0.255
+  },
+  "/mock/houses/x45/4.webp": {
+    "tint": "#291c14",
+    "lum": 0.44
+  },
+  "/mock/houses/x46/1.webp": {
+    "tint": "#231d1a",
+    "lum": 0.297
+  },
+  "/mock/houses/x46/2.webp": {
+    "tint": "#2f250e",
+    "lum": 0.333
+  },
+  "/mock/houses/x46/3.webp": {
+    "tint": "#21211c",
+    "lum": 0.389
+  },
+  "/mock/houses/x46/4.webp": {
+    "tint": "#181925",
+    "lum": 0.746
+  },
+  "/mock/houses/x47/1.webp": {
+    "tint": "#241b19",
+    "lum": 0.163
+  },
+  "/mock/houses/x47/2.webp": {
+    "tint": "#271f16",
+    "lum": 0.557
+  },
+  "/mock/houses/x47/3.webp": {
+    "tint": "#201e1d",
+    "lum": 0.774
+  },
+  "/mock/houses/x47/4.webp": {
+    "tint": "#211e1c",
+    "lum": 0.439
+  },
+  "/mock/houses/x48/1.webp": {
+    "tint": "#251b18",
+    "lum": 0.67
+  },
+  "/mock/houses/x48/2.webp": {
+    "tint": "#211c1e",
+    "lum": 0.776
+  },
+  "/mock/houses/x48/3.webp": {
+    "tint": "#221c1b",
+    "lum": 0.401
+  },
+  "/mock/houses/x48/4.webp": {
+    "tint": "#23201a",
+    "lum": 0.254
+  },
+  "/mock/houses/x49/1.webp": {
+    "tint": "#2a2013",
+    "lum": 0.736
+  },
+  "/mock/houses/x49/2.webp": {
+    "tint": "#22201c",
+    "lum": 0.621
+  },
+  "/mock/houses/x49/3.webp": {
+    "tint": "#252915",
+    "lum": 0.367
+  },
+  "/mock/houses/x49/4.webp": {
+    "tint": "#20211c",
+    "lum": 0.437
+  },
+  "/mock/houses/x5/1.webp": {
+    "tint": "#1e1e20",
+    "lum": 0.354
+  },
+  "/mock/houses/x5/2.webp": {
+    "tint": "#241c19",
+    "lum": 0.275
+  },
+  "/mock/houses/x5/3.webp": {
+    "tint": "#231a1b",
+    "lum": 0.352
+  },
+  "/mock/houses/x5/4.webp": {
+    "tint": "#181e25",
+    "lum": 0.027
+  },
+  "/mock/houses/x50/1.webp": {
+    "tint": "#281f16",
+    "lum": 0.743
+  },
+  "/mock/houses/x50/2.webp": {
+    "tint": "#262317",
+    "lum": 0.249
+  },
+  "/mock/houses/x50/3.webp": {
+    "tint": "#182225",
+    "lum": 0.167
+  },
+  "/mock/houses/x50/4.webp": {
+    "tint": "#21201c",
+    "lum": 0.424
+  },
+  "/mock/houses/x6/1.webp": {
+    "tint": "#370f06",
+    "lum": 0.182
+  },
+  "/mock/houses/x6/2.webp": {
+    "tint": "#1b1c22",
+    "lum": 0.379
+  },
+  "/mock/houses/x6/3.webp": {
+    "tint": "#1e1d20",
+    "lum": 0.208
+  },
+  "/mock/houses/x6/4.webp": {
+    "tint": "#23201a",
+    "lum": 0.428
+  },
+  "/mock/houses/x7/1.webp": {
+    "tint": "#31220d",
+    "lum": 0.444
+  },
+  "/mock/houses/x7/2.webp": {
+    "tint": "#0c2d31",
+    "lum": 0.402
+  },
+  "/mock/houses/x7/3.webp": {
+    "tint": "#201e1d",
+    "lum": 0.686
+  },
+  "/mock/houses/x7/4.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.746
+  },
+  "/mock/houses/x8/1.webp": {
+    "tint": "#261b17",
+    "lum": 0.044
+  },
+  "/mock/houses/x8/2.webp": {
+    "tint": "#201d1e",
+    "lum": 0.542
+  },
+  "/mock/houses/x8/3.webp": {
+    "tint": "#10232d",
+    "lum": 0.679
+  },
+  "/mock/houses/x8/4.webp": {
+    "tint": "#211c1c",
+    "lum": 0.19
+  },
+  "/mock/houses/x9/1.webp": {
+    "tint": "#1d2020",
+    "lum": 0.589
+  },
+  "/mock/houses/x9/2.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.293
+  },
+  "/mock/houses/x9/3.webp": {
+    "tint": "#272716",
+    "lum": 0.246
+  },
+  "/mock/houses/x9/4.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.172
+  }
+}

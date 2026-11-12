@@ -19,11 +19,10 @@ const FULL = {
   dark: "bg-ink/8 text-ink hover:bg-ink/14",
 } as const;
 
+/** Monochrome (chat, lists): ink 60 % on light ground, cream 70 % on dark – hover full. No socials on House cards. */
 const ICONS = {
-  light: "bg-ink/6 text-ink/80 hover:bg-ink/10 hover:text-ink",
-  dark: "bg-ink/8 text-ink/85 hover:bg-ink/14 hover:text-ink",
-  /** On a photo (a card): IconButton onImage's glass */
-  image: "bg-(--image-glass) text-on-image/90 backdrop-blur-[12px] backdrop-saturate-[1.4] hover:bg-(--image-glass-hover)",
+  light: "bg-ink/6 text-ink/60 hover:bg-ink/10 hover:text-ink",
+  dark: "bg-ink/8 text-ink/70 hover:bg-ink/14 hover:text-ink",
 } as const;
 
 /**
@@ -39,16 +38,20 @@ export function SocialLinks({
   variant = "full",
   tone = "light",
   nested = false,
+  max = MAX_SOCIAL_LINKS,
   className,
 }: {
   user: Pick<User, "socials">;
-  variant?: "full" | "icons" | "rows";
-  tone?: "light" | "dark" | "image";
+  /** At most this many (the House page's head: 2 – the rest are on the profile) */
+  max?: number;
+  /** "marks": the marks alone in their own colours, 20px, no circle (the House page's host tile – the handle as the tooltip) */
+  variant?: "full" | "icons" | "rows" | "marks";
+  tone?: "light" | "dark";
   nested?: boolean;
   className?: string;
 }) {
   const t = useTranslations("common.ui.socialRow");
-  const links = (user.socials ?? []).slice(0, MAX_SOCIAL_LINKS);
+  const links = (user.socials ?? []).slice(0, Math.min(max, MAX_SOCIAL_LINKS));
   if (links.length === 0) return null;
   const label = (link: SocialLink) => `${SOCIAL_ICONS[link.platform].brand ?? t("website")} · ${socialHandle(link)}`;
 
@@ -78,13 +81,19 @@ export function SocialLinks({
       {links.map((link) => {
         const { icon: Icon } = SOCIAL_ICONS[link.platform];
         const full = variant === "full";
-        const style = full
+        const marks = variant === "marks";
+        const style = marks
+          ? "press flex size-6 shrink-0 items-center justify-center rounded-md transition-opacity duration-150 hover:opacity-75"
+          : full
           ? cn("press inline-flex h-9 max-w-full items-center gap-2 rounded-full px-3.5 transition-colors duration-150", FULL[tone === "dark" ? "dark" : "light"])
           : cn("press flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-150", ICONS[tone]);
         const body = (
           <>
-            {/* On Ember (the House page's host column) the mark in its own colour, in a small white circle; elsewhere monochrome. */}
-            {full && tone === "dark" ? (
+            {/* With its handle (`full`: the House page's host column, profiles) the mark in its own colour, in a small white circle; the icon
+                rows (chat, lists) monochrome. */}
+            {marks ? (
+              <BrandMark platform={link.platform} className="size-5" />
+            ) : full ? (
               <span className="relative -ml-1.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-plate">
                 <BrandMark platform={link.platform} className="size-3.5" />
               </span>

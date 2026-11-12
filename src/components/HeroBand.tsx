@@ -21,6 +21,8 @@ export function HeroBand({
   height = "split:h-(--hero-h)",
   mediaWidth = "split:w-[clamp(360px,30%,640px)]",
   footer,
+  stageClassName,
+  bodyClassName,
   ref,
   ...rest
 }: {
@@ -33,15 +35,20 @@ export function HeroBand({
   mediaWidth?: string;
   /** Across the whole Ember at its foot, its content on the grid (`band-inset` gives the inner edges) */
   footer?: ReactNode;
+  /** The surface right of the photo (default the tint, .stage) */
+  stageClassName?: string;
+  /** The content's box (e.g. no bottom padding, so the last line sits on the footer) */
+  bodyClassName?: string;
   ref?: Ref<HTMLElement>;
 } & Omit<HTMLAttributes<HTMLElement>, "children">) {
   return (
     <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, rest.className)}>
-      <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-full", mediaWidth)}>{media}</div>
-      <div className="stage flex min-w-0 flex-1 flex-col rounded-none">
+      {/* Stretched to the band's height (also when the band is only as high as its content, with a min-height – height: 100 % would collapse). */}
+      <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+      <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
         {/* The right inner edge: where the header's content ends (--band-edge, globals.css). */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col split:flex-row split:pr-(--band-edge)">
-          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 split:py-10 split:pl-14", rightColumn !== undefined ? "split:pr-10" : "split:pr-0")}>{children}</div>
+          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 split:py-10 split:pl-14", rightColumn !== undefined ? "split:pr-10" : "split:pr-0", bodyClassName)}>{children}</div>
           {rightColumn !== undefined && (
             <div className="flex min-w-0 shrink-0 flex-col border-t border-ink/10 px-6 py-8 sm:px-10 split:w-90 split:border-l split:border-t-0 split:py-10 split:pl-10 split:pr-0">
               {rightColumn}

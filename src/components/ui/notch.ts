@@ -68,7 +68,14 @@ export function useNotchClip(
         tabW = tab.offsetWidth;
         tabH = tab.offsetHeight;
       }
-      clip.style.clipPath = `path("${notchPath(w, h, tabW, tabH, Math.min(radius, w / 2, h / 2))}")`;
+      const path = notchPath(w, h, tabW, tabH, Math.min(radius, w / 2, h / 2));
+      clip.style.clipPath = `path("${path}")`;
+      // The card's inner edge (HouseCard's [data-card-edge]): the same outline, in the same pixels.
+      const edge = clip.querySelector<SVGSVGElement>(":scope > [data-card-edge]");
+      if (edge) {
+        edge.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        edge.firstElementChild?.setAttribute("d", path);
+      }
       frame.dataset.notch = "ready";
     };
     update();

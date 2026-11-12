@@ -9,5 +9,7 @@ export const imageGradient = "bg-linear-to-t from-ink/75 via-ink/30 to-transpare
 /** House cards: the gradient behind the text block (over the whole card), and the shadow on every line of it. */
 export const cardGradient = "bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.55)_30%,rgba(0,0,0,0.2)_55%,rgba(0,0,0,0)_70%)]";
 export const cardTextShadow = "[text-shadow:0_1px_3px_rgba(0,0,0,0.35)]";
+/** The HouseCard's words (white on the darkening in the photo's colour): a softer shadow. */
+export const houseCardTextShadow = "[text-shadow:0_1px_2px_rgba(0,0,0,0.25)]";
 /** The title's weight and tracking on every House card; its size is the card type's (h3; SpotlightHero h2 / h1). */
 export const cardTitle = "font-bold tracking-[-0.01em] text-on-image";

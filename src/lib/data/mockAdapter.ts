@@ -6,6 +6,9 @@ import { withMockHistory } from "../mock-chat";
 import { MOCK_SEARCHES, MOCK_SEARCHES_FULL } from "../mock-saved-searches";
 import type { DataAdapter } from "./adapter";
 import { delayedPageOfList } from "./paging";
+import imageMeta from "../../../data/image-meta.json";
+
+const PHOTO_META: Record<string, { tint: string; lum: number }> = imageMeta;
 
 /** Dev and demo: the mock data. */
 export const mockAdapter: DataAdapter = {
@@ -26,4 +29,6 @@ export const mockAdapter: DataAdapter = {
   withChatHistory: withMockHistory,
   growthEvents: mockGrowthEvents,
   loadPage: (list, keyOf, request) => delayedPageOfList(list, keyOf, request),
+  // The mock photos' measures (data/image-meta.json from scripts/image-meta.mjs).
+  getPhotoMeta: (src) => PHOTO_META[src] ?? null,
 };

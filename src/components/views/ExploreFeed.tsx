@@ -31,6 +31,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
+import { DarkBand } from "@/components/ui/DarkBand";
 import { useFormat } from "@/i18n/format";
 import { COLLECTIONS, shelfFor, type Collection, type Shelf } from "@/lib/collections";
 import { citySlugOf } from "@/lib/data/stays";
@@ -740,16 +741,4 @@ function BandRow({ band }: { band: Band }) {
   return <DarkBand>{band.kind === "people" ? <PeopleGoingRow /> : <CollectionRow collection={band.shelf.collection} stays={band.shelf.stays} />}</DarkBand>;
 }
 
-/**
- * A horizontal row on Explore is always a dark band (the grid is always light): full width, HARD edges top and bottom (no fade, no shadow),
- * Ember – ink with the one soft glow top right and its grain against banding (.band-dark). 64px of the light page before and after it, 64px
- * inside from its top to the title and from the cards to its foot (no eyebrow) – the cards and their host tabs never touch its edge. Its words
- * turn cream by themselves (subtitle 65 %, "See all"); the shelf's arrows cream 12 % circles.
- */
-function DarkBand({ children }: { children: ReactNode }) {
-  return (
-    <FullBleedSection inner="explore-width" padding="py-16" className="band-dark my-16">
-      {children}
-    </FullBleedSection>
-  );
-}
+

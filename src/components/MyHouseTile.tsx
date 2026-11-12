@@ -59,7 +59,7 @@ export function MyHouseTile({
           {placeShortOf(stay)}
         </span>
       </Link>
-      <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-2">
         {!square && meta && <span className="shrink-0 text-small tabular-nums text-muted">{meta}</span>}
         {/* The meta never shrinks; a long status ("Review 4 requests") is the one that gets cut. */}
         {status && <span className={cn("flex min-w-0 items-center justify-end overflow-hidden", square && "w-full justify-start")}>{status}</span>}

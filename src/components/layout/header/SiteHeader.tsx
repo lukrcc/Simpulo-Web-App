@@ -101,10 +101,11 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 [--control-h:40px]" />
         ) : (
           <div className="flex min-w-0 flex-1">
-            <Link href="/explore?search=open" className="bar-capsule press inline-flex h-10 w-full max-w-90 items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
+            {/* "Where to next?": to Explore with its Where sheet open (SearchField opens it once, after the first render, then drops ?open). */}
+            <button type="button" onClick={() => router.push("/explore?open=where")} className="bar-capsule press inline-flex h-10 w-full max-w-90 items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
               <Search aria-hidden className="size-4 shrink-0" />
               <span className="truncate">{t("whereNext")}</span>
-            </Link>
+            </button>
           </div>
         )}
         {/* Right, in this order: the avatar · Your houses · Messages · "+" – all 40px, 8px apart; the page you're on a little stronger. */}

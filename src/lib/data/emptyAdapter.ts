@@ -25,4 +25,6 @@ export const emptyAdapter: DataAdapter = {
   // TODO(firestore): run the list's query – orderBy(…), startAfter(the cursor's document), limit(request.limit) – and the total from
   // getCountFromServer. Until then the list the app already holds.
   loadPage: (list, keyOf, request) => Promise.resolve(pageOfList(list, keyOf, request)),
+  // TODO(backend): the { tint, lum } stored with each photo on upload (a Cloud Function running scripts/image-meta.mjs's measure).
+  getPhotoMeta: () => null,
 };

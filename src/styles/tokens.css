@@ -70,6 +70,10 @@
   /* Tinted bands across the page; the House page's crew tile a warmer tint. */
   --band: #eae4dd;
   --tile-tint: #efe6dc;
+  /* The House page's head tiles (bento under the title): Host, Crew, Place without a photo – three warm steps on the band. */
+  --tile-host: #e4ddd4;
+  --tile-crew: #eadfd2;
+  --tile-place: #ded6cc;
   /* Explore's filter sheet: a light glass over the slightly dimmed page. */
   --filter-sheet-bg: rgba(251, 247, 242, 0.86);
   --text: #221e1b;
@@ -217,6 +221,12 @@
 }
 .ember {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* The dark action strips (the House page's head, Your houses' Payouts): darker and calmer than the bands – #141110, only at the far right (the
+   last 20 %) a light warmth to #2A1E18, no brown across it (public/glow/ember-strip.png, scripts/make-glow.mjs). The bands keep ember-band.png.
+   Header glass → light band (#EAE4DD) → this strip: light, middle, dark. */
+.ember.ember-strip {
+  background: #141110 url("/glow/ember-strip.png") center / 100% 100% no-repeat;
 }
 /* A band beside a photo (components/HeroBand: Your houses, the profile): the tint, light – words in ink. */
 .stage {

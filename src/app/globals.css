@@ -66,7 +66,7 @@
   margin: 0;
 }
 /* The two with a button inside (the field and its ✕): the inner button holds the padding. */
-/* (span.search-capsule doubled: as specific as the rule above, which counts its most specific branch.) */
+/* (span.search-capsule, doubled: as specific as the rule above, which counts its most specific branch.) */
 [data-site-header] span.search-capsule.search-capsule,
 :is(.bar-sheet, .bar-menu) .filters-capsule.panel-field {
   padding: 0;
@@ -189,6 +189,19 @@
   --text-quote: 22px;
   --text-quote--line-height: 1.4;
   --text-quote--font-weight: 500;
+  /* The House page's text (Apple-like): "Why I'm hosting" 24px/1.4 regular; the section heads 22px semibold. */
+  --text-lead: 24px;
+  --text-lead--line-height: 1.4;
+  --text-lead--font-weight: 400;
+  --text-subhead: 22px;
+  --text-subhead--line-height: 1.25;
+  --text-subhead--font-weight: 600;
+  --text-subhead--letter-spacing: -0.01em;
+  /* One big figure on a dark strip (Payouts: "Earnings this year"): 72px, display face. */
+  --text-figure: clamp(48px, 3vw + 28px, 72px);
+  --text-figure--line-height: 1;
+  --text-figure--font-weight: 700;
+  --text-figure--letter-spacing: -0.035em;
   --text-body-lg: 17px;
   --text-body-lg--line-height: 1.5;
   --text-body-lg--font-weight: 400;
@@ -397,7 +410,9 @@ html.sim-standalone {
   --gap: 16px;
   /* Both sides of a head, and every bento tile. */
   --radius-hero: 24px;
-  --hero-h: clamp(560px, calc((min(100vw, 1440px) - 2 * var(--page-margin) - 2 * var(--gap)) / 3 * 1.25), 720px);
+  /* The one head height for Your houses and the House page: the tallest House head (eyebrow, title on two lines, host – two social capsules
+     with handles – · crew · place, the dark action strip) measured over all mock Houses is 729px – 736px fits it on a 900px-high window. */
+  --hero-h: 736px;
 }
 @media (min-width: 40rem) {
   :root {
@@ -874,6 +889,14 @@ html[data-at-top] .milk-glass {
   width: min(100% - 64px, 1600px);
   margin-inline: auto;
 }
+/* HeroBand's surface right of the photo on Your houses: light --surface instead of the tint (HeroBand stageClassName). */
+.stage.stage-surface {
+  background-color: var(--surface);
+}
+/* …and on the House page: the page's own light ground (--bg), no boxes on it. */
+.stage.stage-page {
+  background-color: var(--bg);
+}
 /* While a sheet hangs from the bar (ui/BarSheet): the bar takes the sheet's exact glass – rgba(72,66,62,.90), blur 32px – in 200ms, without its
    foot line; closing, it goes back to its transparency. Bar and sheet are one surface. */
 html[data-bar-sheet] .header-glass {
@@ -1235,23 +1258,50 @@ input[type="number"]::-webkit-inner-spin-button {
   backface-visibility: hidden;
 }
 
-/* The HouseCard's text field (every card but the Spotlight's): from ~55 % of the height the photo blurs progressively – a copy of the photo,
-   blur 18px, masked from transparent at 55 % to full at 75 % (45 % of the field) – and a darkening from 35 % of the height: .62 at the title,
-   .70 at the foot (measured ≥ 4.5 : 1 for title and date on the brightest mock photos); the words white on it. Not a backdrop-filter: Chromium
-   ignores a mask on it and draws a hard edge. (-webkit-mask for Safari.) */
+/* The HouseCard's text field, on every card (grid, bands, the Spotlight) – after Apple's: the upper 60 % stays sharp; below, the photo four
+   times on top of itself, blurred 2 · 6 · 12 · 20px, each masked in from its own height (60 · 70 · 80 · 90 %) over the next 10 %, so no
+   edge shows. Blurred copies, not backdrop-filter layers: inside the card Chromium drops a backdrop blur's mask (at 1× density the whole photo
+   went soft, an offset layer showed hard edges – measured), a masked filter on the photo itself renders reliably. Over them the darkening in
+   the photo's own colour (HouseCard shadeOf, data/image-meta.json). (-webkit-mask for Safari.) */
 .card-blur-img {
-  filter: blur(18px);
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 75%);
-  mask-image: linear-gradient(to bottom, transparent 55%, #000 75%);
 }
-.card-shade {
-  /* Reaches .62 at about the title's top, then .70 at the foot – a plain linear ramp stayed under 3 : 1 on the brightest photos. */
-  background: linear-gradient(to bottom, rgba(20, 16, 14, 0) 0%, rgba(20, 16, 14, 0.62) 30%, rgba(20, 16, 14, 0.7) 100%);
+.card-blur-img-1 {
+  filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 60%, #000 70%);
+  mask-image: linear-gradient(to bottom, transparent 60%, #000 70%);
 }
-/* The Spotlight's side cards are inert: only the middle one shows its host's socials. */
-[inert] [data-card-socials] {
-  visibility: hidden;
+.card-blur-img-2 {
+  filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 70%, #000 80%);
+  mask-image: linear-gradient(to bottom, transparent 70%, #000 80%);
+}
+.card-blur-img-3 {
+  filter: blur(12px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 80%, #000 90%);
+  mask-image: linear-gradient(to bottom, transparent 80%, #000 90%);
+}
+.card-blur-img-4 {
+  filter: blur(20px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 90%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 90%, #000 100%);
+}
+/* Every HouseCard's inner edge (HouseCard [data-card-edge], its path from useNotchClip): 1px inside its own outline, notch included, so a
+   light photo comes off the ground – ink 22 % on the light page, white 12 % in a dark band. */
+.card-edge path {
+  stroke: rgba(34, 30, 27, 0.22);
+}
+.band-dark .card-edge path {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+/* The Spotlight's depth (HouseCard .card-depth-spotlight; drop-shadow, so it follows the notch): the middle card two steps, the side cards
+   (inert) one softer step. Nothing moves or grows. */
+.card-depth-spotlight {
+  filter: drop-shadow(0 4px 10px rgba(34, 30, 27, 0.14)) drop-shadow(0 28px 56px rgba(34, 30, 27, 0.28));
+  transition: filter 300ms ease-out;
+}
+[inert] .card-depth-spotlight {
+  filter: drop-shadow(0 12px 28px rgba(34, 30, 27, 0.16));
 }
 /* The HouseCard's hover – fine, at the bottom only (components/HouseCard). No veil, no brightness, no zoom, no scale. The card rises 2px, its
    shadow a little deeper; inside it a faint warm light comes up at the bottom edge – radial-gradient(ellipse 70% 28% at 50% 100%), warm white
@@ -1435,6 +1485,7 @@ main:has([data-demo-login]) {
 .text-h2,
 .text-name,
 .text-row,
+.text-figure,
 .text-section {
   font-family: var(--font-display), var(--font-sans);
 }

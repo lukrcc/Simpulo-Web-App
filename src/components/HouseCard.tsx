@@ -1,17 +1,16 @@
 "use client";
 
-import { usePeopleSignal } from "@/lib/useYourPeople";
+import { usePeopleSignal, useYourPeople } from "@/lib/useYourPeople";
+import { useTodayIso } from "@/lib/birthDate";
 import { Camera, ChevronLeft, ChevronRight, MessageCircle, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { CardTab } from "@/components/ui/CardTab";
-import { CrewLine } from "@/components/ui/CrewLine";
-import { CrewRow } from "@/components/CrewRow";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
-import { cardGradient, cardTextShadow, cardTitle } from "@/components/ui/glass";
-import { SocialLinks } from "@/components/SocialLinks";
+import { cardTitle, houseCardTextShadow } from "@/components/ui/glass";
+import { photoMetaOf } from "@/lib/data";
 import { IconButton } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { useNotchClip } from "@/components/ui/notch";
@@ -25,7 +24,7 @@ import type { Stay, User } from "@/lib/types";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { placeShortOf } from "@/lib/shortName";
-import { cn, firstName, housePhotos } from "@/lib/utils";
+import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 
 /**
  * The one House card of the app – Explore's card everywhere a House shows as a tile (Explore, shelves, Your houses, the profile,
@@ -47,6 +46,9 @@ interface HouseCardProps {
   variant?: "grid" | "shelf";
   /** Explore's one highlight per block: two columns wide, as high as the row (the photo landscape) */
   wide?: boolean;
+  /** What the footer shows (default from `spotlight` / `variant`): spotlight – no footer, an urgency capsule instead; shelf – a footer only for a
+   *  personal link ("Anna is in"), else the note (or "1 spot left"); grid – the compact crew. */
+  context?: "spotlight" | "shelf" | "grid";
   /** Why it's highlighted – a small capsule top left ("Last spot", "Starts in 5 days") */
   highlight?: string;
   stay: Stay;
@@ -87,10 +89,22 @@ const MAX_PHOTOS = 5;
 /** The photo arrows: 16px from the card's edge, in the middle, while the pointer is over the card (or on keyboard focus). Touch swipes. */
 const PHOTO_ARROW = "photo-arrow absolute top-1/2 z-10 -translate-y-1/2 opacity-0 before:absolute before:-inset-1 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
 
-export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, className }: HouseCardProps) {
+/** Where the darkening starts and reaches a1 (% of the card's height). The title starts at ~58–60 %: a1 has to be there already – with the
+ *  first draft's 55 % / 78 % the brightest photos stayed under 2.5 : 1 (measured). */
+const SHADE_FROM = 22;
+const SHADE_MID = 42;
+/** "#1a1614" → "26 22 20". */
+const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(" ");
+/** The card's darkening for one photo, in its own colour: a1 = .35 + lum × .25 at 78 %, a2 = .70 + lum × .20 at the foot. */
+function shadeOf(src: string): string {
+  const { tint, lum } = photoMetaOf(src);
+  const rgb = rgbOf(tint);
+  return `linear-gradient(to bottom, transparent ${SHADE_FROM}%, rgb(${rgb} / ${(0.35 + lum * 0.25).toFixed(3)}) ${SHADE_MID}%, rgb(${rgb} / ${(0.7 + lum * 0.2).toFixed(3)}) 100%)`;
+}
+
+export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, context: contextProp, className }: HouseCardProps) {
   // Your own cards (footer="status", Your houses): calm – no heart, no photo arrows or dots, no hover zoom.
   const calm = footer !== "explore";
-  const faceOf = useCrewFaceOf(stay);
   const t = useTranslations("explore");
   const tHome = useTranslations("houses.home");
   const store = useStore();
@@ -101,10 +115,18 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   // Your people in this House (not in the Spotlight, which shows every card the same).
   const peopleHint = usePeopleSignal(stay);
   const signal = spotlight || preview ? null : peopleHint;
-  const tPeople = useTranslations("people.signal");
+  const tCrew = useTranslations("common.ui.crewLine");
   // The cover first, then the rest of the House's world (the host's portrait belongs in the tab). The Spotlight shows one photo.
   // In a shelf (variant "shelf") only the first photo: no photo arrows, no dots – a sideways swipe moves the row, never the photos.
   const single = spotlight || variant === "shelf";
+  const context = contextProp ?? (spotlight ? "spotlight" : variant === "shelf" ? "shelf" : "grid");
+  // The Spotlight's urgency (no footer there): one spot left, or starting within 7 days – a small capsule under the notch.
+  const today = useTodayIso();
+  const tHighlight = useTranslations("explore.cards.highlight");
+  const startsIn = today ? Math.round((Date.parse(`${stay.startDate.slice(0, 10)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) : null;
+  const urgency = context !== "spotlight" ? undefined : openSpots(stay) === 1 ? tHighlight("lastSpot") : startsIn !== null && startsIn >= 0 && startsIn <= 7 ? tHighlight("startsIn", { days: startsIn }) : undefined;
+  const capsule = highlight ?? urgency;
+  const lastSpot = openSpots(stay) === 1;
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const drag = usePhotoDrag(ref, active, scrollTo, gallery && photos.length > 1);
@@ -126,9 +148,6 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   useNotchClip(revealRef, clipRef);
 
   const target = href ?? `/house/${stay.slug}`;
-  // The crew as the viewer may see it (config/privacy.ts): hidden ones only counted.
-  const visibleCrew = crew.filter((member) => faceOf(member) !== "hidden");
-  const hiddenCrew = crew.length - visibleCrew.length;
   // "you": the viewer; logged out (How it works shows how a host sees it) the person given as host stands in.
   // "none": no tab at all (the House page names its host beside the photo).
   const tabPerson = notch === "none" ? undefined : notch === "you" ? (me ?? host) : host;
@@ -149,6 +168,9 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       )}
     >
       {/* The one rounded layer: 24px radius, overflow hidden (notched by clip-path), surface behind the photo; no border, ring or outline. */}
+      {/* Depth: a wrapper with the shadow (filter: drop-shadow follows the notch; on the clipped layer itself the clip would cut it off) – only
+          the Spotlight's cards have one (globals.css .card-depth). Same box as the card: no size or place changes. */}
+      <div className={cn("card-depth h-full w-full", spotlight && "card-depth-spotlight")}>
       <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", tabPerson && "rounded-tl-none")}>
         {/* Photo track – each slide is the card link, so swiping and tapping both work. The Spotlight has no scroller (its carousel swipes). */}
         <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("flex h-full", single ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto", drag.className)}>
@@ -179,18 +201,23 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
             );
-            // The text field's progressive blur: the same photo, blurred 18px, masked in from ~55 % of the height (globals.css .card-blur-img) – a
-            // backdrop-filter with a mask shows a hard edge in Chromium (it ignores the mask), a masked blurred copy doesn't. It sits in each slide,
-            // so it swipes with its photo.
-            const blurred = !spotlight && !gallery && (
-              <Img src={src} alt="" aria-hidden fill sizes={CARD_SIZES} className="card-blur-img object-cover" style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined} />
-            );
+            // The darkening in the photo's own colour (lib/data photoMetaOf: its lower third's tint at 12 % lightness, and how bright it is):
+            // transparent to 55 %, a1 = .35 + lum × .25 at 78 %, a2 = .70 + lum × .20 at the foot – bright photos darker. In each slide, so it
+            // swipes with its photo.
+            const shade = !gallery && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: shadeOf(src) }} />;
+            // The stepped blur of the lower ~40 %: the same photo four times, blurred 2 · 6 · 12 · 20px, each masked in from 60 · 70 · 80 · 90 %
+            // over the next 10 % (globals.css .card-blur-img) – the upper 60 % stays sharp. Copies, not backdrop-filter: in the card Chromium
+            // drops the mask of a backdrop blur at 1× pixel density (measured – the whole photo went soft). Only in the photo showing.
+            const blurs = !gallery && i === active && [1, 2, 3, 4].map((level) => (
+              <Img key={level} src={src} alt="" aria-hidden fill sizes={CARD_SIZES} className={`card-blur-img card-blur-img-${level} object-cover`} style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined} />
+            ));
             const slideClass = "relative block h-full w-full shrink-0 snap-center snap-always overflow-hidden outline-none";
             if (gallery || preview) {
               return (
                 <div key={src} className={slideClass} aria-hidden={(gallery && i !== active) || undefined}>
                   {image}
-                  {blurred}
+                  {blurs}
+                  {shade}
                 </div>
               );
             }
@@ -205,7 +232,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 tabIndex={i > 0 ? -1 : undefined}
               >
                 {image}
-                {blurred}
+                {blurs}
+                {shade}
               </Link>
             );
           })}
@@ -213,15 +241,10 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
 
         {/* The one hover light: a faint warm glow at the bottom edge, over the photo, under the text's gradient (which stays as dark). */}
         {!spotlight && !gallery && !calm && <div aria-hidden className="card-light pointer-events-none absolute inset-0" />}
-        {/* Readability. The Spotlight: its gradient. Every other card: the lower text field blurred progressively (the blurred copy in each
-            slide, above) and over it a darkening (.62 at the title, .70 at the foot); the same on hover (globals.css .card-shade). */}
-        {spotlight && <div className={cn("pointer-events-none absolute inset-0", cardGradient)} />}
-        {!spotlight && !gallery && (
-          <>
-            <div aria-hidden className="card-shade pointer-events-none absolute inset-x-0 bottom-0 top-[35%]" />
-          </>
-        )}
-        {highlight && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention>{highlight}</CardStatusChip></span>}
+        {/* Readability, on every card (grid, bands, the Spotlight): in each slide the stepped blur of the lower ~40 % and the darkening in the
+            photo's own colour (above). The same on hover. */}
+
+        {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention>{capsule}</CardStatusChip></span>}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
         {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-shade opacity-0" />}
@@ -234,7 +257,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {calm && menu && <div className="absolute right-3 top-3 z-10 flex">{menu}</div>}
 
         {/* Bottom: title (up to two lines, then an ellipsis), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
-        <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-on-image", cardTextShadow)}>
+        <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-on-image", houseCardTextShadow)}>
           {invited && footer === "explore" && <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>}
           <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           {/* Date · Place.short – the city or region, never the country. */}
@@ -246,9 +269,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             // Your houses: the crew and "N of M" left, the status (or its action) right. A memory: "Lived with · Nov 2026" left, "Do it again" right.
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
-                {/* The crew as one row (components/CrewRow): faces as the viewer may see them, then "+" circles for free spots – for the host
-                    and members they open the invite sheet. */}
-                <CrewRow stay={stay} crew={crew.filter((member) => faceOf(member) !== "hidden")} size="xs" tone="image" max={5} className="pointer-events-auto shrink-0" />
+                {/* The faces only (no empty circles on cards – they're on the House page and Up next). */}
+                <CrewFaces stay={stay} crew={crew} />
                 {liveDot && <span role="img" aria-label={tHome("unreadNews")} className="size-2 shrink-0 rounded-full bg-accent" />}
                 <span className="truncate text-small text-on-image/85">{live ?? tHome("crewOf", { filled: crewInOf(store, stay), total: stay.spotsTotal })}</span>
               </span>
@@ -258,44 +280,39 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             <>
               {/* After the title the most important line. Every card has it: without a price, "Price set with crew". */}
               <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
-              {/* One of your people is in it: that before the host's note – "Anna is in" / "Hosted by Tom from your people". */}
-              {signal ? (
-                <p className="mt-1 flex items-center gap-1.5 text-small font-semibold text-on-image">
-                  <PersonPhoto src={signal.user.photos[0]} alt="" size={16} className="size-4 shrink-0 border border-on-image/60" />
-                  <span className="truncate">{signal.role === "host" ? tPeople("hostedBy", { name: firstName(signal.user) }) : tPeople("isIn", { name: firstName(signal.user), others: signal.count - 1 })}</span>
-                </p>
-              ) : stay.hostNote && (
-                <p className="mt-1 flex items-center gap-1.5 text-small text-on-image/75">
-                  <MessageCircle className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{stay.hostNote}</span>
-                </p>
+              {/* The note line. Grid: "Anna is in" before the host's note. Shelf: "1 spot left" (orange) instead of the note when true; with a
+                  personal link the note gives way to it in the footer. Spotlight: the host's note only. */}
+              {context === "grid" && signal ? (
+                <SignalLine signal={signal} size={16} className="mt-1" />
+              ) : context === "shelf" && signal ? null : context === "shelf" && lastSpot ? (
+                <p className="mt-1 truncate text-small font-semibold text-accent">{tCrew("oneLeft")}</p>
+              ) : (
+                stay.hostNote && (
+                  <p className="mt-1 flex items-center gap-1.5 text-small text-on-image/75">
+                    <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{stay.hostNote}</span>
+                  </p>
+                )
               )}
-              {host && (
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  {/* The crew (components/CrewRow: host first, faces as the viewer may see them, a dashed circle per free spot) and its state
-                      ("2 of 4 in", "1 spot left" orange, "Just opened · 3 spots") – never cut: the circles stop at four. */}
-                  <span className="flex min-w-0 items-center gap-2">
-                    <CrewRow stay={stay} crew={visibleCrew} hiddenCount={hiddenCrew} size="xs" tone="image" max={4} interactive={false} className="shrink-0" />
-                    <CrewLine stay={stay} inCrew={crewInOf(store, stay)} onDark className="shrink-0 whitespace-nowrap" />
-                  </span>
-                  {/* An explore card's action (Explore › "Your people are going": "Join them"); the host's socials only on the Spotlight's middle
-                      card (the side cards are inert – globals.css hides them there) and on the House page. */}
-                  {status ? (
-                    <span className="pointer-events-auto flex shrink-0 items-center [text-shadow:none]">{status}</span>
-                  ) : (
-                    spotlight && (
-                      <span data-card-socials className="shrink-0">
-                        <SocialLinks user={host} variant="icons" tone="image" nested className="pointer-events-auto [text-shadow:none]" />
-                      </span>
-                    )
-                  )}
+              {/* Grid: the compact crew, 12px under the note. Shelf: a footer only for a personal link (or an action like "Join them").
+                  Spotlight: no footer, no socials. */}
+              {context === "grid" && host && (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <CompactCrew stay={stay} crew={crew} />
+                  {status && <span className="pointer-events-auto flex shrink-0 items-center [text-shadow:none]">{status}</span>}
+                </div>
+              )}
+              {context === "shelf" && (signal || status) && (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  {signal ? <SignalLine signal={signal} size={22} /> : <span />}
+                  {status && <span className="pointer-events-auto flex shrink-0 items-center [text-shadow:none]">{status}</span>}
                 </div>
               )}
             </>
           )}
         </div>
 
-        {photos.length > 1 && !calm && (
+        {photos.length > 1 && !calm && context === "grid" && (
           <>
             {/* Desktop: ‹ › while hovering (or focused); phones swipe. */}
             {active > 0 && (
@@ -310,7 +327,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             )}
             {/* Dots: the current photo; each one jumps there (a taller hit area than the dot itself). */}
             {(
-              <div className="absolute inset-x-0 bottom-2 flex justify-center">
+              <div className="absolute inset-x-0 bottom-2 flex justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
                 {photos.map((src, i) => (
                   <button key={src} type="button" onClick={() => scrollTo(i)} aria-label={t("cards.showPhoto", { number: i + 1, count: photos.length })} aria-current={i === active || undefined} data-no-tooltip className="flex h-5 items-center px-0.5">
                     <span className={cn("block h-1 rounded-full transition-all", i === active ? "w-3 bg-on-image" : "w-1 bg-on-image/50")} />
@@ -320,6 +337,12 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
             )}
           </>
         )}
+        {/* The inner edge: the card's own outline (the notch's path, set by useNotchClip) drawn 2px wide inside the clipped layer – the clip cuts
+            the outer half away, 1px stays inside. No size change, no layout shift; ink 12 % on light ground, white 8 % in a dark band. */}
+        <svg aria-hidden data-card-edge className="card-edge pointer-events-none absolute inset-0 z-30 size-full overflow-visible">
+          <path fill="none" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
       </div>
       {/* The heart's 40px hit area top right takes 48px; the tab stops 16px short of it. */}
       {tabPerson && <CardTab host={tabPerson} label={notch === "you" ? tHome("you") : undefined} className="max-w-[calc(100%-64px)]" />}
@@ -377,4 +400,51 @@ function useRevealOnce<T extends Element>() {
     return () => observer.disconnect();
   }, []);
   return [ref, visible] as const;
+}
+
+/** "Anna is in" / "Hosted by Tom from your people": the one personal link, with that person's face. */
+function SignalLine({ signal, size, className }: { signal: NonNullable<ReturnType<typeof usePeopleSignal>>; size: 16 | 22; className?: string }) {
+  const tPeople = useTranslations("people.signal");
+  return (
+    <p className={cn("flex min-w-0 items-center gap-1.5 text-small font-semibold text-on-image", className)}>
+      <PersonPhoto src={signal.user.photos[0]} alt="" size={size} className={cn("shrink-0 border border-on-image/60", size === 22 ? "size-5.5" : "size-4")} />
+      <span className="truncate">{signal.role === "host" ? tPeople("hostedBy", { name: firstName(signal.user) }) : tPeople("isIn", { name: firstName(signal.user), others: signal.count - 1 })}</span>
+    </p>
+  );
+}
+
+/** At most three faces, 26px, overlapping 8px, a 2px dark ring – your people first, then in the order they joined (the host isn't special);
+ *  never an empty circle, a host dot or a "+n" bubble. Faces as the viewer may see them (config/privacy.ts). */
+function CrewFaces({ stay, crew }: { stay: Stay; crew: User[] }) {
+  const faceOf = useCrewFaceOf(stay);
+  const people = new Set(useYourPeople().map((p) => p.user.id));
+  const shown = crew
+    .filter((member) => faceOf(member) !== "hidden")
+    .toSorted((a, b) => Number(people.has(b.id)) - Number(people.has(a.id)))
+    .slice(0, 3);
+  if (shown.length === 0) return null;
+  return (
+    <span className="flex shrink-0 -space-x-2">
+      {shown.map((member) => (
+        <span key={member.id} className="block size-6.5 overflow-hidden rounded-full ring-2 ring-[rgba(20,16,14,0.85)]">
+          <PersonPhoto src={member.photos[0]} alt={faceOf(member) === "blurred" ? "" : firstName(member)} size={26} className={cn("size-full", faceOf(member) === "blurred" && "blur-[2px]")} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The grid's crew line: the faces, then 15px "2 of 4 in" · "1 spot left" (orange, semibold) · "Just opened · 3 spots" · "Crew complete". */
+function CompactCrew({ stay, crew }: { stay: Stay; crew: User[] }) {
+  const t = useTranslations("common.ui.crewLine");
+  const store = useStore();
+  const filled = Math.max(crewInOf(store, stay), 1);
+  const open = openSpots(stay);
+  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 ? t("oneLeft") : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <CrewFaces stay={stay} crew={crew} />
+      <span className={cn("whitespace-nowrap text-body", open === 1 && filled < stay.spotsTotal ? "font-semibold text-accent" : "text-on-image/90")}>{text}</span>
+    </span>
+  );
 }

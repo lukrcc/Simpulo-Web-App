@@ -98,7 +98,7 @@ export function SearchField({
   place: string | null;
   month: string | null;
   onChange: (next: { place?: string | null; month?: string | null }) => void;
-  /** Opens itself once when the URL says ?search=open (the bar's "Where to next?" on every other page), then drops the parameter. */
+  /** Opens itself once when the URL says ?open=where (the bar's "Where to next?" on every other page), then drops the parameter. */
   autoOpen?: boolean;
   className?: string;
 }) {
@@ -111,13 +111,16 @@ export function SearchField({
   // Which half opened the sheet: the same sheet, its part focused – Where's search field, or When's months.
   const [section, setSection] = useState<"where" | "when" | null>(null);
   const open = section !== null;
+  // "Where to next?" (the bar on every other page) lands here with ?open=where: once, after the first render, the sheet opens on Where with the
+  // search focused – the page at its top, nothing jumps. The parameter goes at once (replace), so Back or a reload never opens it again.
+  // (Not cancelled on cleanup: after the first run the parameter is gone – React's dev double effect would otherwise lose the open.)
   useEffect(() => {
     if (!autoOpen) return;
     const url = new URL(window.location.href);
-    if (url.searchParams.get("search") !== "open") return;
-    url.searchParams.delete("search");
+    if (url.searchParams.get("open") !== "where") return;
+    url.searchParams.delete("open");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
-    // Not cancelled on cleanup: the parameter is gone after the first run (React's dev double effect would otherwise lose the open).
+    window.scrollTo(0, 0);
     requestAnimationFrame(() => setSection("where"));
   }, [autoOpen]);
   useEffect(() => {

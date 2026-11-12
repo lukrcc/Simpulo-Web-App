@@ -64,7 +64,7 @@ export async function Footer() {
                   const Icon = SOCIAL_ICONS[network];
                   return (
                     <li key={network}>
-                      <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-muted transition-colors hover:text-ink">
+                      <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-ink/60 transition-colors hover:text-ink">
                         <Icon className="size-5" aria-hidden />
                       </a>
                     </li>
@@ -135,7 +135,7 @@ export async function SlimFooter() {
               const Icon = SOCIAL_ICONS[network];
               return (
                 <li key={network}>
-                  <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-muted transition-colors hover:text-ink">
+                  <a href={url} target="_blank" rel="noopener" aria-label={t(`social.${network}`)} className="flex text-ink/60 transition-colors hover:text-ink">
                     <Icon className="size-4" aria-hidden />
                   </a>
                 </li>

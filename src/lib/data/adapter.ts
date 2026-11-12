@@ -5,6 +5,12 @@ import type { GrowthEvent } from "../growth";
 import type { JoinRequest, Payment, Stay, Thread, User } from "../types";
 import type { Page, PageRequest } from "./paging";
 
+/** A photo's lower third: the darkening's colour (its hue and saturation at 12 % lightness) and its mean lightness 0–1. */
+export interface PhotoMeta {
+  tint: string;
+  lum: number;
+}
+
 /** What the app starts from. */
 export interface AppData {
   stays: Stay[];
@@ -55,4 +61,6 @@ export interface DataAdapter {
    * delay; the real source runs the list's query with startAfter(cursor) + limit and ignores `list`.
    */
   loadPage<T>(list: readonly T[], keyOf: (item: T) => string, request: PageRequest): Promise<Page<T>>;
+  /** A photo's lower third, measured once (scripts/image-meta.mjs; later on upload): its dark tint and mean lightness – null when unknown */
+  getPhotoMeta(src: string): PhotoMeta | null;
 }

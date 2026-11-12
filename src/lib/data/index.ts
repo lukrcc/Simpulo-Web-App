@@ -5,7 +5,8 @@ import { createListPlaceProvider, type PlaceProvider } from "./placeProvider";
 import type { Stay } from "../types";
 import { DATA_STATES, type DataAdapter, type DataState } from "./adapter";
 
-export { DATA_STATES, type AppData, type DataState } from "./adapter";
+export { DATA_STATES, type AppData, type DataState, type PhotoMeta } from "./adapter";
+import type { PhotoMeta } from "./adapter";
 
 // Written out, so a production build drops the mock from its bundle: these two are decided while bundling.
 const adapter: DataAdapter =
@@ -39,6 +40,8 @@ export const withChatHistory = adapter.withChatHistory;
 export const growthEventsFor = adapter.growthEvents;
 /** The next page of a list after a cursor (src/lib/data/paging.ts). */
 export const loadPage = adapter.loadPage;
+/** A photo's { tint, lum } for the card's darkening; without a measure: tint #1A1614, lum .5. */
+export const photoMetaOf = (src: string): PhotoMeta => adapter.getPhotoMeta(src) ?? { tint: "#1a1614", lum: 0.5 };
 export type { Page, PageRequest } from "./paging";
 
 const STATE_KEY = "simpulo:dataset";

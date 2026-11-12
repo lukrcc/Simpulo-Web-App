@@ -11,9 +11,9 @@ import { crewInOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, firstName, openSpots } from "@/lib/utils";
 
-type Size = "xs" | "md" | "lg";
-const CIRCLE: Record<Size, string> = { xs: "size-6", md: "size-10", lg: "size-14" };
-const PLUS: Record<Size, string> = { xs: "size-3", md: "size-4", lg: "size-5" };
+type Size = "xs" | "sm" | "md" | "lg";
+const CIRCLE: Record<Size, string> = { xs: "size-6", sm: "size-8", md: "size-10", lg: "size-14" };
+const PLUS: Record<Size, string> = { xs: "size-3", sm: "size-3.5", md: "size-4", lg: "size-5" };
 const TONE = {
   /** On the page and light panels: ink 25 %; the host's dot ink on a light ring */
   light: { edge: "border-ink/25", plus: "text-ink/55", hover: "hover:bg-ink/5", name: "text-ink", muted: "text-muted", dot: "bg-ink ring-(--bg)" },
@@ -22,7 +22,7 @@ const TONE = {
   /** On a photo (a card's foot): white */
   image: { edge: "border-on-image/60", plus: "text-on-image/85", hover: "hover:bg-on-image/15", name: "text-on-image", muted: "text-on-image/75", dot: "bg-on-image ring-shade/40" },
 } as const;
-const DOT: Record<Size, string> = { xs: "size-2 ring-[1.5px]", md: "size-2.5 ring-2", lg: "size-3 ring-2" };
+const DOT: Record<Size, string> = { xs: "size-2 ring-[1.5px]", sm: "size-2 ring-2", md: "size-2.5 ring-2", lg: "size-3 ring-2" };
 
 /**
  * The crew of a House as one row, the same everywhere: the host counts to the crew and comes first, with a small host dot on the avatar;
@@ -38,7 +38,7 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
   const shown = crew.toSorted((a, b) => Number(b.id === stay.hostId) - Number(a.id === stay.hostId)).slice(0, max);
   const free = Math.max(0, Math.min(openSpots(stay), stay.spotsTotal - crew.length - hiddenCount, max - shown.length));
   const colors = TONE[tone];
-  const avatarSize = size === "xs" ? "xs" : size === "md" ? "md" : "lg";
+  const avatarSize = size === "xs" ? "xs" : size === "sm" ? "sm" : size === "md" ? "md" : "lg";
   const invite = (e: MouseEvent) => {
     // Inside a card's link: the circle opens the sheet, not the House.
     e.preventDefault();
@@ -62,11 +62,11 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
 
   return (
     <>
-      <ul className={cn("flex flex-wrap items-start", names ? "gap-4" : size === "xs" ? "-space-x-1" : "gap-1.5", className)}>
+      <ul className={cn("flex flex-wrap items-start", names ? "gap-4" : size === "xs" ? "-space-x-1" : size === "sm" ? "-space-x-2" : "gap-1.5", className)}>
         {shown.map((member) => (
           <li key={member.id} className={cn(names && "flex w-14 flex-col items-center gap-1.5")}>
             <span className="relative inline-flex">
-              <Avatar user={member} size={avatarSize} mode={faceOf(member)} linked={!names ? false : faceOf(member) === "full"} className={size === "xs" ? "ring-1 ring-shade/20" : undefined} />
+              <Avatar user={member} size={avatarSize} mode={faceOf(member)} linked={!names ? false : faceOf(member) === "full"} className={size === "xs" ? "ring-1 ring-shade/20" : size === "sm" ? "ring-2 ring-(--tile-crew)" : undefined} />
               {member.id === stay.hostId && (
                 <span role="img" aria-label={t("hostDot")} className={cn("absolute -bottom-0.5 -right-0.5 rounded-full", DOT[size], colors.dot)} />
               )}
@@ -80,7 +80,7 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
           </li>
         )}
         {Array.from({ length: free }, (_, i) => (
-          <li key={`free-${i}`} className={cn(names && "flex w-14 flex-col items-center gap-1.5", size === "xs" && "ml-1")}>
+          <li key={`free-${i}`} className={cn(names && "flex w-14 flex-col items-center gap-1.5", size === "xs" && "ml-1", size === "sm" && "ml-3 first:ml-0")}>
             {circle(i)}
             {names && <span className={cn("text-small", colors.muted)}>{can ? t("invite") : t("freeSpot")}</span>}
           </li>

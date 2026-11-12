@@ -12,7 +12,7 @@ import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 import { ageOn, MIN_AGE } from "@/lib/birthDate";
 import { audienceFit, didntWorkOut } from "@/lib/requests";
-import { hasOffer, waitlistOf, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
+import { hasOffer, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
 import { useOfferInstall } from "@/components/installPromptContext";
@@ -32,7 +32,7 @@ import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { guestJourney } from "@/config/house-steps";
 import { useHouseRole } from "@/lib/useHouseRole";
-import { HouseActions, HouseCrew, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhere, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
+import { HouseActions, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { Button } from "@/components/ui/ActionButton";
@@ -46,7 +46,7 @@ import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUse
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
 import { memberStage } from "@/lib/joinFlow";
-import { cn, housePhotos, openSpots } from "@/lib/utils";
+import { cn, housePhotos, openSpots, typicalDayOf } from "@/lib/utils";
 import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { inHeadStart, isListedStay } from "@/lib/launch";
 
@@ -300,7 +300,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   }
 
   // The waitlist (src/lib/waitlist.ts): open once every spot is taken; your own place; a spot offered to you for 24h.
-  const waitlist = waitlistOf(store, stay.id).flatMap((r) => findUser(store, r.userId) ?? []);
+  // The text columns' balance: a rough length of each side (characters; a typical-day row or a rule ≈ 40). Left more than twice the right:
+  // "Who I'm looking for" moves right.
+  const leftText = stay.whyText.trim().length + stay.lookingForText.trim().length;
+  const rightText = typicalDayOf(stay).length * 40 + stay.houseRules.reduce((sum, r) => sum + Math.max(40, r.length), 0) + (stay.hostFeePerPerson ? (stay.hostOffer ?? []).reduce((sum, r) => sum + Math.max(40, r.length), 0) : 0);
+  const lookingRight = leftText > 2 * rightText;
   const canJoin = !isHost && !isMember && !myRequest && stay.status === "published" && stay.acceptingRequests && spotsLeft > 0;
   // "full": the waitlist is the main action; "covered": every free spot has an open request – Request to join stays, the waitlist beside it.
   const waitlistWhy = waitlistReason(store, stay);
@@ -428,7 +432,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           host={host}
           crew={crew}
           cta={cta}
-          // Several spots open and the visitor can still ask: the crew tile offers asking together too.
+          // Several spots open and the visitor can still ask: the crew column offers asking together too.
           onRequestWithFriend={!isHost && canJoin && !myRequest ? startRequestWithFriend : undefined}
           secondary={
             <>
@@ -530,53 +534,51 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           )}
         </div>
 
-        {/* Two columns from 1100px on the 12-column grid, right on the page's background: left 7 – Why I'm hosting · A typical day · Who I'm
-            looking for; right 5, after a 1px line ink 8 % – The crew · House rules · What's included, lines between them. No boxes. */}
-        <div className="grid gap-10 split:grid-cols-12 split:gap-0">
-          <div className="flex min-w-0 flex-col gap-10 split:col-span-7 split:pr-12">
+        {/* Two balanced columns from 1100px (7 / 5 on the 12-column grid, 64px apart, no line between): left Why I'm hosting · Who I'm looking
+            for (and an open vote), right A typical day · House rules · What's included. When the left would be more than twice as long as the
+            right (by its text), Who I'm looking for moves right. No boxes; the crew is in the head. */}
+        <div className="grid items-start gap-12 split:grid-cols-12 split:gap-x-16 split:gap-y-0">
+          <div className="flex min-w-0 flex-col gap-12 split:col-span-7">
             <div className="empty:hidden">
               <HouseWhy stay={stay} />
             </div>
-            <div className="empty:hidden">
-              <HouseDay stay={stay} />
-            </div>
-            <div className="empty:hidden">
-              <HouseLooking stay={stay} />
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-col gap-8 split:col-span-5 split:border-l split:border-ink/8 split:pl-12 [&>:not(:empty)~:not(:empty)]:border-t [&>:not(:empty)~:not(:empty)]:border-ink/8 [&>:not(:empty)~:not(:empty)]:pt-8">
-            {/* A member has the crew (and the vote on the place) above already. */}
+            {!lookingRight && (
+              <div className="empty:hidden">
+                <HouseLooking stay={stay} />
+              </div>
+            )}
+            {/* The crew's vote on the place or the dates (the crew itself is in the head). */}
             {role !== "member" && (
-              <div className="flex flex-col gap-8">
-                <HouseCrew
-                  stay={stay}
-                  crew={crew}
-                  waitlist={waitlist}
-                  myWaitlist={myPosition ? { position: myPosition } : myRequest?.status === "waitlist_requested" ? { requested: true } : undefined}
-                  canJoin={canJoin}
-                  onJoin={startRequest}
-                  onInvite={canBring ? () => setInviting(true) : undefined}
-                />
+              <div className="empty:hidden">
                 <CrewVotes stay={stay} />
               </div>
             )}
+          </div>
+          <div className="flex min-w-0 flex-col gap-12 split:col-span-5">
+            <div className="empty:hidden">
+              <HouseDay stay={stay} />
+            </div>
             <div className="empty:hidden">
               <HouseRules stay={stay} />
             </div>
             <div className="empty:hidden">
               <HouseOffer stay={stay} />
             </div>
+            {lookingRight && (
+              <div className="empty:hidden">
+                <HouseLooking stay={stay} />
+              </div>
+            )}
           </div>
         </div>
       </div>
     </Container>
 
-    <Container className="explore-width pb-24 md:pb-[calc(120px-var(--space-section))]">
-      {/* Where you'll be: the static map left, the area and how the place is picked right. */}
-      <div className="mt-14">
-        <HouseWhere stay={stay} />
-      </div>
-      <HouseMore stay={stay} />
+    {/* Under the text: More houses like this as a dark band, the last section (the place sits in the head now). Phones: room for the fixed
+        action strip. */}
+    <HouseMore stay={stay} />
+    <div aria-hidden className="h-40 md:hidden" />
+    <Container className="explore-width">
 
       {/* The floating bar: a member sees the current step and its action instead of "Request to join". */}
       <HouseJoinBar

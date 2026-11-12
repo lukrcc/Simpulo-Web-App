@@ -545,8 +545,10 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe }: { stays: Stay
       >
         {/* Wider than the window: the cards are drawn closer to the centre than Embla lays them out, so it has to keep
             them in place past the window's edge too – up to 1.8× as far out at the outer cards' spacing. The section clips it. */}
-        <div ref={viewportRef} data-spotlight-viewport className="absolute inset-y-0 -left-[40vw] -right-[40vw] z-1 overflow-hidden">
-          <div className="flex h-full touch-pan-y items-start select-none [&_a]:[-webkit-user-drag:none] [&_img]:[-webkit-user-drag:none]">
+        {/* 96px taller above and below than the cards, the track padded back by the same: the cards stay put, their shadows (Spotlight depth,
+            up to ~84px below) aren't cut by the clip. Only the cards take the pointer – the padding never covers what's above or below. */}
+        <div ref={viewportRef} data-spotlight-viewport className="pointer-events-none absolute -inset-y-24 -left-[40vw] -right-[40vw] z-1 overflow-hidden">
+          <div className="flex h-full touch-pan-y items-start py-24 select-none [&>*]:pointer-events-auto [&_a]:[-webkit-user-drag:none] [&_img]:[-webkit-user-drag:none]">
             {slides}
           </div>
         </div>

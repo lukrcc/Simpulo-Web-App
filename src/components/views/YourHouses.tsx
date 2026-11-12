@@ -24,6 +24,7 @@ import { TODO_GROUP, TODO_GROUPS, TODO_URGENT_HOURS, type TodoGroup, type TodoKi
 import { activitySummary, isDiscovery, type ActivitySummary } from "@/config/activity";
 import { useNotifications } from "@/components/notifications/useNotifications";
 import { Sheet } from "@/components/ui/Sheet";
+import { DarkBand } from "@/components/ui/DarkBand";
 import { CardRow, RowHead } from "@/components/ui/CardRow";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { convertApprox } from "@/lib/rates";
@@ -181,10 +182,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     return (
       <>
         <NewHere />
-        <Container className="explore-width explore-root pb-16">
-          {probe}
-          <YourRow id="nextTrip" title={tDash("rows.nextTrip")} cards={nextTripCards} cols={cols} />
-        </Container>
+        <Container className="explore-width explore-root">{probe}</Container>
+        {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
       </>
     );
   // Every open task across your Houses, the payout account and the profile to set up (ordered in TodoTile, config/todo.ts).
@@ -274,7 +273,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     { key: "nextTrip", cards: nextTripCards },
   ];
   // Empty rows are left out – Hosting stays while you host (its dashed card); not hosting at all, the dashed card closes the last of yours.
-  const shown = rows.filter((row) => row.cards.length > 0 || (row.key === "hosting" && hosts));
+  const shown = rows.filter((row) => row.key !== "nextTrip" && (row.cards.length > 0 || (row.key === "hosting" && hosts)));
 
   // "See all": one row as a grid, under the way back.
   if (group) {
@@ -303,13 +302,15 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
           right Ember to the window's edge: Needs you (the fixed columns), Coming up and the Payouts footer, --hero-h high. */}
       <HeroBand
         aria-labelledby="todo"
+        // Right of the photo: the band tone (#EAE4DD, like the House page's head); Coming up sits right on the dark Payouts strip (no padding under it).
+        bodyClassName="split:pb-0"
         footer={<PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} openRequests={store.joinRequests.filter((r) => r.status === "pending" && store.stays.some((s) => s.id === r.stayId && s.hostId === me)).length} />}
         media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
         <TodoTile entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
       </HeroBand>
-    <Container className="explore-width explore-root pb-16">
+    <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
-      {/* Calm rows, no heading over them: 48px under the band, 40px apart. */}
+      {/* Calm rows, no heading over them: 48px under the band, 40px apart. For your next trip is the dark band after them. */}
       <div className="mt-12 flex flex-col gap-10">
         {shown.map((row, i) => (
           <YourRow
@@ -326,7 +327,20 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
     </Container>
+    {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
     </>
+  );
+}
+
+/**
+ * "For your next trip": the last section, a dark band like Explore's (ui/DarkBand – hard edges, 64px inside, title and "See all" cream), 64px of
+ * the light page above it; no count beside the title.
+ */
+function NextTripBand({ cards, cols, title }: { cards: { key: string; node: ReactNode }[]; cols: number; title: string }) {
+  return (
+    <DarkBand className="mb-0 mt-16">
+      <CardRow id="nextTrip" title={title} cards={cards} cols={cols} showCount={false} seeAll="/your-houses/all/nextTrip" />
+    </DarkBand>
   );
 }
 
@@ -804,12 +818,13 @@ function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests, open
   const store = useStore();
   const viewer = usePreferredCurrency();
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
-  // No box: across the whole Ember (photo edge → window edge), a soft light gradient and a 1px cream 8 % line; the content on the grid.
-  const foot = "band-inset flex h-24 shrink-0 items-center gap-6 border-t border-ink/8 bg-[linear-gradient(to_bottom,transparent,color-mix(in_srgb,var(--text)_5%,transparent))] text-left";
+  // A dark strip (the global Ember: ember-band.png) across the whole band from the photo's edge to the window's, a hard edge on top, 120px,
+  // its foot flush with the photo's; numbers cream 40px, labels cream 65 %, dividers cream 12 %, the arrow cream. The content on the grid.
+  const foot = "ember ember-strip band-inset flex h-30 shrink-0 items-center gap-6 text-left";
   if (!hosts) {
     return (
       <div className={foot}>
-        <p className="min-w-0 flex-1 truncate text-body text-ink/80">
+        <p className="min-w-0 flex-1 truncate text-body text-muted">
           <span className="font-semibold text-ink">{td("hostOwnTitle")}</span> · {t("openHouseText")}
         </p>
         <Button variant="creamOutline" href="/create">
@@ -823,9 +838,11 @@ function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests, open
   const pro = stats.type === "pro";
   const money = (eur: number) => f.price(Math.round(convertApprox(eur, "EUR", viewer)), viewer);
   // One line always: below 1280px the values a step smaller and "N % full" left out.
-  const figures: { key: string; value: string; label: string; big?: boolean; wide?: boolean; dot?: boolean }[] = [
+  // `words`: a phrase in the value's place ("Next payout · Feb 13", "Open for requests") – a step smaller than the 40px numbers.
+  const figures: { key: string; value: string; label: string; big?: boolean; wide?: boolean; dot?: boolean; words?: boolean }[] = [
     pro ? { key: "earned", value: money(stats.earningsThisYear), label: td("strip.earned"), big: true } : { key: "paid", value: money(earnings.thisYear), label: td("strip.paidOut"), big: true },
-    ...(!setUp ? [{ key: "next", value: td("payoutsNotSetUp"), label: "", dot: true }] : earnings.next ? [{ key: "next", value: td("nextPayoutChip", { date: f.day(earnings.next.date) }), label: "" }] : []),
+    // The next payout: the same number as on Payouts (lib/earnings next – everything still to be paid out, with the next date).
+    ...(!setUp ? [{ key: "next", value: td("payoutsNotSetUp"), label: "", dot: true, words: true }] : earnings.next ? [{ key: "next", value: money(earnings.next.amount), label: td("nextPayoutChip", { date: f.day(earnings.next.date) }) }] : []),
     { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }) },
     // Never "0 % full": with nobody in yet "Open for requests" (no request at all) or "{n} requests" (some waiting); "N % full" once anyone's in.
     ...(stats.houses > 0
@@ -834,22 +851,23 @@ function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests, open
             ? { key: "full", value: `${Math.round(stats.fullShare * 100)} %`, label: td("strip.full"), wide: true }
             : hasRequests && openRequests > 0
               ? { key: "full", value: String(openRequests), label: td("strip.requests", { count: openRequests }), wide: true }
-              : { key: "full", value: td("openForRequests"), label: "", wide: true },
+              : { key: "full", value: td("openForRequests"), label: "", wide: true, words: true },
         ]
       : []),
   ];
   return (
-    <Link href="/your-houses/payouts" aria-label={td("payoutsTitle")} className={cn(foot, "transition-colors duration-150 hover:bg-ink/3")}>
+    <Link href="/your-houses/payouts" aria-label={td("payoutsTitle")} className={cn(foot, "transition-[filter] duration-150 hover:brightness-110")}>
       <span className="flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap">
         {figures.map((fig, i) => (
-          <span key={fig.key} className={cn("flex shrink-0 items-baseline gap-2 px-4 first:pl-0 xl:px-6", i > 0 && "border-l border-ink/15", fig.wide && "hidden xl:flex")}>
+          <span key={fig.key} className={cn("flex shrink-0 items-baseline gap-2 px-4 first:pl-0 xl:px-6", i > 0 && "border-l border-ink/12", fig.wide && "hidden xl:flex")}>
             {fig.dot && <span aria-hidden className="size-2 shrink-0 self-center rounded-full bg-accent" />}
-            <span className={cn("tabular-nums text-ink", fig.big ? "text-h2" : "text-body-lg font-semibold xl:text-h3")}>{fig.value}</span>
-            {fig.label && <span className="text-small text-ink/65">{fig.label}</span>}
+            {/* Numbers 40px (h1); words in the value's place ("Next payout · Feb 13", "Open for requests") a step smaller. */}
+            <span className={cn("tabular-nums text-ink", fig.words ? "text-h3" : "text-h1")}>{fig.value}</span>
+            {fig.label && <span className="text-small text-muted">{fig.label}</span>}
           </span>
         ))}
       </span>
-      <ArrowUpRight aria-hidden className="size-5 shrink-0 text-ink/70" />
+      <ArrowUpRight aria-hidden className="size-5 shrink-0 text-ink" />
     </Link>
   );
 }
