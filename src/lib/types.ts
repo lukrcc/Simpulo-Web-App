@@ -125,4 +125,75 @@ export interface AdminLogEntry {
   createdAt: string;
 }
 
-export type AdminAction = "phase_changed" | "application_decided" | "founding_host_added";
+export type AdminAction =
+  | "phase_changed"
+  | "application_decided"
+  | "founding_host_added"
+  | "ticket_replied"
+  | "ticket_status"
+  | "ticket_tags"
+  | "ticket_note"
+  | "ticket_merged"
+  | "payout_requested"
+  | "withdrawal_added";
+
+// Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
+
+export const TICKET_CATEGORIES = ["question", "bug", "idea", "safety"] as const;
+export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
+/** new → open → answered → closed; an idea also planned / done */
+export type TicketStatus = "new" | "open" | "answered" | "closed" | "planned" | "done";
+
+export interface TicketContext {
+  /** The page it was sent from ("/house/surf-house-ericeira") */
+  page: string;
+  houseId?: string;
+  /** "Desktop · Chrome", "iPhone · Safari" */
+  device: string;
+  /** px */
+  screenWidth: number;
+  phase: PlatformPhase;
+}
+
+export interface TicketReply {
+  id: string;
+  /** "admin" = Simpulo's answer, "user" = the person's follow-up */
+  from: "admin" | "user";
+  /** The admin's user id for "admin" */
+  by?: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId?: string;
+  email: string;
+  category: TicketCategory;
+  message: string;
+  context: TicketContext;
+  /** Screenshots: their file name and size (the file itself goes to storage later) */
+  attachments: readonly { name: string; size: number }[];
+  status: TicketStatus;
+  /** Safety: always high – first in the inbox */
+  priority: "normal" | "high";
+  tags: readonly string[];
+  /** Ideas: how many asked for it (1 = this person; merged duplicates add theirs) */
+  votes: number;
+  /** A duplicate: the ticket it was merged into */
+  mergedInto?: string;
+  /** Internal, never shown to the person */
+  adminNotes: string;
+  replies: readonly TicketReply[];
+  createdAt: string;
+}
+
+/** Admin › Money: a private withdrawal from the company account, entered by hand. */
+export interface Withdrawal {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** EUR */
+  amount: number;
+  note?: string;
+}

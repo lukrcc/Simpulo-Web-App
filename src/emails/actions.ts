@@ -14,6 +14,7 @@ export const EMAIL_ACTION: Record<NotifyEvent, { label: string; path: string }> 
   [NotifyEvent.ChatMessage]: { label: "Reply", path: "/messages" },
   [NotifyEvent.HouseNearby]: { label: "See the House", path: "/explore" },
   [NotifyEvent.SimpuloNews]: { label: "Open Simpulo", path: "/" },
+  [NotifyEvent.SupportReply]: { label: "Open Simpulo", path: "/" },
 };
 
 /** Groups you can switch off get an unsubscribe link (signed token from the backend later); bookings & payments don't. */

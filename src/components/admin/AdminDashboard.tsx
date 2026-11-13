@@ -1,18 +1,18 @@
 "use client";
 
-// The read-only areas of /admin: Overview, Waitlist, Topics, Algorithm, Traffic, Log. Every number comes from lib/admin/metrics.ts.
+// The read-only areas of /admin: Waitlist, Topics, Algorithm, Traffic, Log. Every number comes from lib/admin/metrics.ts.
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-import { LAUNCH_CRITERIA, TOPIC_WEIGHTS } from "@/config/admin";
+import { TOPIC_WEIGHTS } from "@/config/admin";
 import { VIBE_ICONS } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
-import { algorithmMetrics, fullHousesPerMonth, getStatus, launchProgress, overview, topicScores, waitlistMetrics } from "@/lib/admin/metrics";
+import { algorithmMetrics, topicScores, waitlistMetrics } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getTrafficReport } from "@/lib/data";
 import { findUser, useStore } from "@/lib/store";
 import type { Vibe } from "@/lib/types";
-import { BarList, ColumnChart, ProgressBar, TrendChart } from "./AdminCharts";
+import { BarList, ColumnChart, TrendChart } from "./AdminCharts";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
 const percent = (ratio: number | null) => (ratio === null ? "–" : `${Math.round(ratio * 100)} %`);
@@ -31,69 +31,17 @@ function VibeLabel({ vibe }: { vibe: Vibe }) {
   );
 }
 
-// ── Overview ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-export function AdminOverview() {
-  const t = useTranslations("admin.overview");
-  const tNav = useTranslations("admin.nav");
-  const inputs = useAdminInputs();
-  const o = overview(inputs);
-  const launch = launchProgress(inputs);
-  const move = fullHousesPerMonth(inputs);
-
-  const criteria = [
-    { key: "houses", status: getStatus("realHouses", launch.houses.value), label: t("criteria.houses"), p: launch.houses, text: t("ofTarget", { value: num(launch.houses.value), target: num(launch.houses.target) }) },
-    { key: "hubs", status: getStatus("hubs", launch.hubs.value), label: t("criteria.hubs", { min: LAUNCH_CRITERIA.hubMinHouses }), p: launch.hubs, text: t("hubsTarget", { value: launch.hubs.value, min: LAUNCH_CRITERIA.hubs.min, max: LAUNCH_CRITERIA.hubs.max }) },
-    { key: "reserved", status: getStatus("reservedShare", launch.reservedShare.value), label: t("criteria.reservedShare", { min: LAUNCH_CRITERIA.reservationsMin }), p: launch.reservedShare, text: t("ofTargetPercent", { value: launch.reservedShare.value, target: launch.reservedShare.target }) },
-    { key: "waitlist", status: getStatus("waitlist", launch.waitlist.value), label: t("criteria.waitlist"), p: launch.waitlist, text: t("ofTarget", { value: num(launch.waitlist.value), target: num(launch.waitlist.target) }) },
-  ];
-
-  return (
-    <AdminShell title={tNav("overview")} intro={t("intro")}>
-      <StatRow
-        stats={[
-          { label: t("realHouses"), value: num(o.realHouses) },
-          { label: t("reservedShare"), value: percent(o.reservedShare) },
-          { label: t("waitlist"), value: num(o.waitlist) },
-          { label: t("openApplications"), value: num(o.openApplications) },
-        ]}
-      />
-      <AdminSection title={t("launch")}>
-        <ul className="grid gap-x-12 gap-y-6 md:grid-cols-2">
-          {criteria.map((c) => (
-            <li key={c.key}>
-              <div className="mb-2 flex items-baseline justify-between gap-3 text-body">
-                <span className="text-ink">{c.label}</span>
-                <span className="shrink-0 tabular-nums text-muted">{c.text}</span>
-              </div>
-              <ProgressBar ratio={c.p.ratio} label={c.label} status={c.status} />
-            </li>
-          ))}
-        </ul>
-      </AdminSection>
-      <AdminSection title={t("move")} aside={<span className="text-small text-muted">{t("moveSub", { target: move.target, current: move.current })}</span>}>
-        <ColumnChart label={t("move")} data={move.rows.map((r) => ({ label: monthLabel(r.month), value: r.full }))}
-          target={move.target}
-          statusOf={(value) => getStatus("fullHousesPerMonth", value)}
-          height={240}
-        />
-      </AdminSection>
-    </AdminShell>
-  );
-}
-
 // ── Waitlist ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function AdminWaitlist() {
   const t = useTranslations("admin.waitlist");
-  const tNav = useTranslations("admin.nav");
   const f = useFormat();
   const inputs = useAdminInputs();
   const w = waitlistMetrics(inputs);
   const latest = inputs.admin.waitlist.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
 
   return (
-    <AdminShell title={tNav("waitlist")} intro={t("intro")}>
+    <AdminShell title={t("title")}>
       <StatRow
         stats={[
           { label: t("total"), value: num(w.total) },
@@ -105,7 +53,7 @@ export function AdminWaitlist() {
       <AdminSection title={t("overTime")}>
         <TrendChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total }))} />
       </AdminSection>
-      <div className="grid gap-x-16 md:grid-cols-2">
+      <div className="mt-14 grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
         <AdminSection title={t("sources")}>
           <BarList tone="chart-2" rows={w.bySource.map((s) => ({ key: s.key, label: s.key === "direct" ? t("direct") : s.key, value: s.count }))} />
         </AdminSection>
@@ -133,13 +81,12 @@ export function AdminWaitlist() {
 
 export function AdminTopics() {
   const t = useTranslations("admin.topics");
-  const tNav = useTranslations("admin.nav");
   const inputs = useAdminInputs();
   const topics = topicScores(inputs);
   const weight = (w: number) => `${Math.round(w * 100)} %`;
 
   return (
-    <AdminShell title={tNav("topics")} intro={t("intro")}>
+    <AdminShell title={t("title")}>
       <p className="mb-6 text-small text-muted">
         {t("weights", { reservations: weight(TOPIC_WEIGHTS.reservations), applications: weight(TOPIC_WEIGHTS.applications), waitlist: weight(TOPIC_WEIGHTS.waitlistInterest), hostFee: weight(TOPIC_WEIGHTS.hostFeeShare) })}
       </p>
@@ -186,14 +133,14 @@ export function AdminTopics() {
 
 // ── Algorithm ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export function AdminAlgorithm() {
+/** The network today (Admin › Data & Algorithm, at the bottom): mutual Your people, repeat rate, days until full, and how fast Houses fill. */
+export function NetworkToday() {
   const t = useTranslations("admin.algorithm");
-  const tNav = useTranslations("admin.nav");
   const inputs = useAdminInputs();
   const a = algorithmMetrics(inputs);
 
   return (
-    <AdminShell title={tNav("algorithm")} intro={t("intro")}>
+    <AdminSection title={t("title")}>
       <dl className="grid gap-y-8 md:grid-cols-3">
         {[
           { label: t("mutual"), value: percent(a.mutualShare), sub: t("mutualSub", { mutual: a.mutualPairs, all: a.allPairs, people: a.peopleWithMutual }) },
@@ -207,10 +154,9 @@ export function AdminAlgorithm() {
           </div>
         ))}
       </dl>
-      <AdminSection title={t("toFullChart")}>
-        <ColumnChart label={t("toFullChart")} data={a.daysToFullBuckets.map((b) => ({ label: b.key, value: b.count }))} unit={t("houses")} tone="chart-2" />
-      </AdminSection>
-    </AdminShell>
+      <p className="mb-4 mt-10 text-small text-muted">{t("toFullChart")}</p>
+      <ColumnChart label={t("toFullChart")} data={a.daysToFullBuckets.map((b) => ({ label: b.key, value: b.count }))} unit={t("houses")} tone="chart-2" />
+    </AdminSection>
   );
 }
 
@@ -222,12 +168,11 @@ export function AdminTraffic() {
   const report = useMemo(() => getTrafficReport(), []);
 
   return (
-    <AdminShell title={tAdmin("nav.traffic")} intro={t("intro")} badge={tAdmin("demoData")}>
+    <AdminShell title={t("title")} badge={tAdmin("demoData")}>
       {!report ? (
         <p className="text-body text-muted">{t("unavailable")}</p>
       ) : (
         <>
-          <p className="-mt-4 mb-8 text-small text-muted">{t("note")}</p>
           <StatRow
             stats={[
               { label: t("visitors"), value: num(report.visitorsPerWeek.at(-1)?.visitors ?? 0) },
@@ -239,7 +184,7 @@ export function AdminTraffic() {
           <AdminSection title={t("visitorsChart")}>
             <TrendChart label={t("visitorsChart")} data={report.visitorsPerWeek.map((p) => ({ label: dayLabel(p.week), value: p.visitors }))} />
           </AdminSection>
-          <div className="grid gap-x-16 md:grid-cols-2">
+          <div className="mt-14 grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
             <AdminSection title={t("countries")}>
               <BarList tone="chart-2" rows={report.countries.map((c) => ({ key: c.country, label: c.country, value: c.share, display: percent(c.share) }))} />
             </AdminSection>
@@ -275,7 +220,7 @@ export function AdminLog() {
   const target = (entry: (typeof log)[number]) => (entry.action === "phase_changed" ? tAdmin(`platform.phases.${entry.target as "prelaunch" | "beta" | "live"}`) : entry.target);
 
   return (
-    <AdminShell title={tAdmin("nav.log")} intro={t("intro")}>
+    <AdminShell title={t("title")}>
       {log.length === 0 ? (
         <p className="text-body text-muted">{tAdmin("empty")}</p>
       ) : (

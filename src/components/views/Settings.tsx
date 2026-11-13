@@ -26,6 +26,7 @@ import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
+import { openHelpFeedback } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
@@ -520,6 +521,10 @@ function GeneralArea({ me }: { me: User }) {
       <SettingsGroup>
         <SettingsRow title={tu("general.yourPeople")} chevron href="/people" />
         {!standalone && <SettingsRow title={tu("general.getApp")} chevron href="/get" />}
+      </SettingsGroup>
+      {/* "Help & feedback": the one sheet (questions, bugs, ideas, safety) → Admin › Support. */}
+      <SettingsGroup>
+        <SettingsRow title={tu("general.help")} chevron onClick={openHelpFeedback} />
       </SettingsGroup>
     </div>
   );

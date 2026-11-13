@@ -52,9 +52,16 @@ export const STATUS_RULES = {
   repeatRate: { better: "higher", good: 25, warning: 15 },
   /** Median days from opening to full */
   daysToFull: { better: "lower", good: 14, warning: 30 },
+  /** Support tickets still new or open (not merged) */
+  openTickets: { better: "lower", good: 10, warning: 25 },
+  /** An open safety ticket is always critical */
+  openSafetyTickets: { better: "lower", good: 0, warning: 0 },
 } as const satisfies Record<string, { better: "higher" | "lower"; good: number; warning: number }>;
 
 export type StatusMetric = keyof typeof STATUS_RULES;
 
 /** "Months in a row above target: X / 6" */
 export const STREAK_MONTHS = 6;
+
+/** Admin › Money: the share of profit set aside for taxes, before "left in the company". Not tax advice – a rough reserve. */
+export const TAX_RESERVE_PERCENT = 30;

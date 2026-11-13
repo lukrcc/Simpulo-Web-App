@@ -16,6 +16,8 @@ export enum NotifyEvent {
   ChatMessage = "chat_message",
   HouseNearby = "house_nearby",
   SimpuloNews = "simpulo_news",
+  /** An answer to "Help & feedback" (Admin › Support) */
+  SupportReply = "support_reply",
 }
 
 /** Which kind each detailed notification is. */
@@ -58,4 +60,5 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   systemWelcome: NotifyEvent.SimpuloNews,
   systemVerify: NotifyEvent.SimpuloNews,
   systemPhoto: NotifyEvent.SimpuloNews,
+  supportReply: NotifyEvent.SupportReply,
 };

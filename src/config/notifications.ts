@@ -39,6 +39,8 @@ export const CHANNELS: Record<NotifyEvent, ChannelRule> = {
   [NotifyEvent.HouseNearby]: { category: "nearby", push: true, email: "weekly" },
   // News from Simpulo: in-app; email only with opt-in; never push.
   [NotifyEvent.SimpuloNews]: { category: "news", push: false, email: "optIn" },
+  // A reply to "Help & feedback": in-app + email, always (someone asked); no push.
+  [NotifyEvent.SupportReply]: { category: "bookings", push: false, email: "instant" },
 };
 
 /** A chat message is emailed only if it's still unread this long after it arrived. */

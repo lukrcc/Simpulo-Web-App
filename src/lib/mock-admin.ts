@@ -1,6 +1,6 @@
 // ⚠ MOCK: the admin collections (/admin) – waitlist sign-ups, host applications, the admin log – and the demo traffic. Deterministic: the
 // same entries every time. Only the data adapter reads this file (lib/data/mockAdapter.ts); the real source is Firestore (phase 4).
-import type { AdminLogEntry, HostApplication, Vibe, WaitlistEntry } from "./types";
+import type { AdminLogEntry, HostApplication, SupportTicket, Vibe, WaitlistEntry, Withdrawal } from "./types";
 
 /** A small seeded random: the same list on every load. */
 function seeded(seed: number) {
@@ -124,7 +124,7 @@ export const MOCK_FOUNDING_HOST_IDS: readonly string[] = applications()
 
 export function mockAdminData() {
   const apps = applications();
-  return { waitlist: waitlist(), applications: apps, log: adminLog(apps) };
+  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS };
 }
 
 /** ⚠ DEMO DATA: what Google Analytics will report from phase 4 – visitors per week, countries, sources, the way to the sign-up. */
@@ -156,17 +156,108 @@ export const MOCK_TRAFFIC = {
 
 /**
  * ⚠ MOCK: the admin history the mock data can't hold (it has ~100 Houses, no year of bookings). Months as "months ago" (0 = this month,
- * so far), oldest first: a slow climb with one weaker month (3 months back up to now: 3 months above target in a row). The weekly trends
- * shape the Cockpit's sparklines: each the last 8 weeks as factors of today's value (1 = now) – up, with a dip; for numbers where lower is
- * better (open applications, days until full) it falls.
+ * so far), oldest first: a slow climb with one weaker month (3 months back up to now: 3 months above target in a row).
  */
 export const MOCK_METRICS_HISTORY = {
   fullHousesPerMonth: [14, 17, 19, 22, 26, 31, 36, 24, 37, 39, 41, 38].map((full, i, all) => ({ monthsAgo: all.length - 1 - i, full })),
   /** What Simpulo kept, EUR */
   profitPerMonth: [1200, 1500, 1800, 2100, 2600, 3200, 3700, 2500, 3900, 4300, 4700, 4400].map((profit, i, all) => ({ monthsAgo: all.length - 1 - i, profit })),
-  weekly: {
-    rising: [0.78, 0.82, 0.86, 0.83, 0.89, 0.93, 0.96, 1],
-    steady: [0.9, 0.92, 0.95, 0.91, 0.94, 0.97, 0.99, 1],
-    falling: [1.35, 1.3, 1.22, 1.28, 1.16, 1.1, 1.04, 1],
-  },
+} as const;
+
+/** ⚠ MOCK: what the data says about each hypothesis so far (config/hypotheses.ts) – the current value and the verdict. */
+export const MOCK_HYPOTHESIS_RESULTS = {
+  topicsFirst: { current: "41 % faster", status: "supported" },
+  proFaster: { current: "12 % faster", status: "open" },
+  reservedFill: { current: "74 %", status: "open" },
+  peopleRebook: { current: "2.1×", status: "supported" },
+  shortTrips: { current: "3 % faster", status: "rejected" },
+  tiktokConverts: { current: "1.1× (38 sign-ups)", status: "open" },
+} as const;
+
+// ── Support ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+type MockTicket = readonly [category: SupportTicket["category"], status: SupportTicket["status"], message: string, page: string, tags: readonly string[], votes?: number, userId?: string, houseId?: string];
+
+/** 36 tickets over seven weeks, the newest first: questions, bugs, ideas (some asked often) and three safety cases. */
+const TICKETS: readonly MockTicket[] = [
+  ["safety", "new", "The host asked me to pay the rest in cash when I arrive. Is that normal?", "/h/s5", ["payment", "host"], 1, "u9", "s5"],
+  ["bug", "new", "The Pay button spins forever on my iPhone. Tried twice.", "/h/s2?focus=pay", ["payment", "ios"], 1, "u11", "s2"],
+  ["idea", "new", "Please let me filter by \"private room only\". Sharing a room is a dealbreaker for me.", "/explore", ["filters", "rooms"], 1, "u13"],
+  ["question", "new", "Can I join a House for only the first two weeks?", "/house/founder-house-lisbon", ["dates"], 1, undefined, "s3"],
+  ["idea", "new", "Calendar sync with Google would be great – I keep forgetting dates.", "/your-houses", ["calendar"], 1, "u15"],
+  ["bug", "open", "The map in the place tile doesn't load in Firefox.", "/house/slow-house-bangkok", ["house-page", "firefox"], 1, "u16", "s6"],
+  ["question", "open", "How does the host fee work? Do I pay it on top of my share?", "/house/muay-thai-house-phuket", ["fees"], 1, "u17", "s4"],
+  ["idea", "planned", "A dark mode for the app, please!", "/settings", ["design"], 14, "u18"],
+  ["idea", "open", "Let us split the House into two smaller groups for day trips.", "/h/s1", ["crew"], 3, "u19", "s1"],
+  ["safety", "open", "Someone in my crew keeps messaging me privately after I said no. Please help.", "/messages", ["harassment"], 1, "u20"],
+  ["question", "answered", "Is the deposit refundable if the House doesn't fill?", "/faq", ["refund"], 1, "u5"],
+  ["bug", "answered", "I got two emails for the same request.", "/your-houses", ["email"], 1, "u6"],
+  ["idea", "planned", "Show how far the House is from the beach / gym.", "/house/surf-house-ericeira", ["house-page", "map"], 11, "u7", "s9"],
+  ["idea", "open", "Private room only filter", "/explore", ["filters", "rooms"], 1, "u8"],
+  ["question", "closed", "Can I change my email address?", "/settings", ["account"], 1, "u10"],
+  ["bug", "closed", "Photos upload sideways from my Android phone.", "/settings/profile", ["photos", "android"], 1, "u12"],
+  ["idea", "done", "Let me save Houses without logging in.", "/explore", ["saved"], 9],
+  ["idea", "open", "Group video call before the House starts, to meet the crew.", "/h/s3", ["crew", "video"], 6, "u14", "s3"],
+  ["question", "answered", "What happens if the host cancels?", "/cancellation", ["cancellation"], 1],
+  ["bug", "open", "The \"Request with a friend\" link opens the wrong House.", "/h/s10", ["invite"], 1, "u2", "s10"],
+  ["idea", "open", "Monthly price discounts for 3+ month stays.", "/create", ["pricing"], 4, "u3"],
+  ["safety", "answered", "The apartment had no working smoke detector.", "/h/s9", ["accommodation"], 1, "u4", "s9"],
+  ["question", "open", "Do you have Houses for families with kids?", "/explore", ["audience"], 1],
+  ["idea", "open", "Pet-friendly Houses filter", "/explore", ["filters", "pets"], 5, "u21"],
+  ["bug", "new", "The month picker shows 2026 twice.", "/explore?open=where", ["search"], 1, "u22"],
+  ["question", "new", "How do I become a Founding Host?", "/faq?role=host", ["hosting"], 1],
+  ["idea", "new", "Dark mode would be nice", "/settings", ["design"], 1, "u23"],
+  ["bug", "answered", "Currency switch resets after reload.", "/settings", ["currency"], 1, "u24"],
+  ["question", "closed", "Can I pay with PayPal?", "/h/s2?focus=pay", ["payment"], 1, "u25", "s2"],
+  ["idea", "open", "A shared shopping list for the crew.", "/messages", ["crew", "tools"], 2, "u26"],
+  ["bug", "open", "On iPad the Join bar covers the last line of House rules.", "/house/creator-house-uluwatu", ["house-page", "ipad"], 1, "u27", "s2"],
+  ["question", "answered", "Why can't I message the host directly from their profile?", "/u/u3", ["messages"], 1, "u28"],
+  ["idea", "done", "Show the crew's languages on the House page.", "/house/dev-house-da-nang", ["house-page"], 7],
+  ["question", "new", "Is there an app in the App Store?", "/get", ["app"], 1],
+  ["bug", "new", "Notifications badge doesn't clear after reading.", "/your-houses", ["notifications"], 1, "u29"],
+  ["idea", "open", "Let hosts post a short video tour of the place.", "/create", ["house-page", "video"], 3, "u30"],
+];
+
+const DEVICES = ["Desktop · Chrome", "iPhone · Safari", "Desktop · Safari", "Android · Chrome", "iPad · Safari", "Desktop · Firefox"];
+const WIDTHS = [1470, 390, 1728, 412, 1024, 1280];
+
+function tickets(): SupportTicket[] {
+  const rand = seeded(41);
+  const list = TICKETS.map(([category, status, message, page, tags, votes, userId, houseId], i): SupportTicket => {
+    const createdAt = iso(TODAY - Math.round(i * 1.35) * DAY - Math.floor(rand() * DAY));
+    const answered = status === "answered" || status === "closed" || status === "planned" || status === "done";
+    return {
+      id: `t-${i + 1}`,
+      userId,
+      email: userId ? `${userId}@example.com` : `${FIRST[(i * 3) % FIRST.length]}.${i}@gmail.com`,
+      category,
+      message,
+      context: { page, houseId, device: DEVICES[i % DEVICES.length], screenWidth: WIDTHS[i % WIDTHS.length], phase: "beta" },
+      attachments: category === "bug" && i % 2 === 0 ? [{ name: "screenshot.png", size: 182_000 + i * 1000 }] : [],
+      status,
+      priority: category === "safety" ? "high" : "normal",
+      tags,
+      votes: votes ?? 1,
+      adminNotes: category === "safety" && status !== "new" ? "Checked with the host – following up." : "",
+      replies: answered ? [{ id: `r-${i}`, from: "admin", by: "u1", text: "Thanks for writing – we're on it and will get back to you here.", createdAt: iso(Date.parse(createdAt) + DAY / 3) }] : [],
+      createdAt,
+    };
+  });
+  // The second "private room only" and "dark mode" were merged into the first ones.
+  return list.map((t) => (t.id === "t-14" ? { ...t, status: "closed", mergedInto: "t-3" } : t.id === "t-27" ? { ...t, status: "closed", mergedInto: "t-8" } : t));
+}
+
+/** Private withdrawals from the company account (Admin › Money), EUR. */
+const WITHDRAWALS: Withdrawal[] = [
+  { id: "wd-1", date: "2026-09-30", amount: 1500, note: "September" },
+  { id: "wd-2", date: "2026-10-31", amount: 1800, note: "October" },
+];
+
+/** ⚠ MOCK: Simpulo's own Stripe payout settings (Admin › Money) – changed only in Stripe. */
+export const MOCK_PLATFORM_PAYOUTS = {
+  schedule: "weekly",
+  account: "Qonto ••1234",
+  available: 1240,
+  next: { date: "2026-11-16", amount: 1240 },
+  manageUrl: "https://dashboard.stripe.com/settings/payouts",
 } as const;

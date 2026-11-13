@@ -81,7 +81,9 @@ export type NotifyEventKey =
   // From Simpulo itself
   | "systemWelcome"
   | "systemVerify"
-  | "systemPhoto";
+  | "systemPhoto"
+  // Simpulo answered "Help & feedback"
+  | "supportReply";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -122,6 +124,7 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   systemWelcome: "system",
   systemVerify: "system",
   systemPhoto: "system",
+  supportReply: "system",
 };
 
 /** One notification of one person. */

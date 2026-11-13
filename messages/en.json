@@ -2713,7 +2713,8 @@
       "inviteAccepted": "{name} accepted your invite to {title}",
       "doItAgain": "{title} is over – your House and the chat are still there",
       "houseInvite": "{name} invited you to {title}",
-      "searchOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else."
+      "searchOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else.",
+      "supportReply": "Simpulo replied to your message"
     },
     "inbox": {
       "title": "Messages",
@@ -3198,7 +3199,8 @@
         "backTo": "General",
         "yourPeople": "Your people",
         "getApp": "Get the app",
-        "admin": "Admin"
+        "admin": "Admin",
+        "help": "Help & feedback"
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -3454,7 +3456,36 @@
     "done": "Done",
     "adminTitle": "Support",
     "adminIntro": "Help requests from Houses about to start or running (mock, this browser).",
-    "adminEmpty": "No cases yet."
+    "adminEmpty": "No cases yet.",
+    "feedback": {
+      "entry": "Help & feedback",
+      "title": "How can we help?",
+      "category": "What's it about?",
+      "categories": {
+        "question": "Question",
+        "bug": "Something's broken",
+        "idea": "Idea",
+        "safety": "Safety"
+      },
+      "message": "Your message",
+      "messagePlaceholder": {
+        "question": "What would you like to know?",
+        "bug": "What happened, and what did you expect?",
+        "idea": "What would make Simpulo better for you?",
+        "safety": "What happened? We'll get back to you quickly."
+      },
+      "screenshot": "Add a screenshot (optional)",
+      "remove": "Remove",
+      "email": "Your email",
+      "emailHint": "We answer here and by email.",
+      "context": "We'll include this page: {page} · {device} · {width}px",
+      "emergency": "In an emergency, call your local emergency number first.",
+      "send": "Send",
+      "sending": "Sending…",
+      "thanks": "Thanks – we read every message.",
+      "close": "Close",
+      "invalidEmail": "Please enter your email."
+    }
   },
   "calendar": {
     "add": "Add to calendar"
@@ -4161,25 +4192,23 @@
     "title": "Admin",
     "nav": {
       "cockpit": "Cockpit",
-      "overview": "Overview",
+      "money": "Money",
       "houses": "Houses",
       "applications": "Applications",
       "waitlist": "Waitlist",
       "topics": "Topics",
-      "algorithm": "Algorithm",
+      "data": "Data & Algorithm",
       "traffic": "Traffic",
-      "platform": "Platform",
-      "log": "Log",
-      "more": "More",
       "growth": "Growth",
+      "support": "Support",
       "prepared": "Prepared Houses",
-      "support": "Support"
+      "platform": "Platform",
+      "log": "Log"
     },
     "demoData": "Demo data",
     "mockData": "Mock data",
     "empty": "Nothing here yet.",
     "overview": {
-      "intro": "Where Simpulo stands on the way to the launch.",
       "realHouses": "Real Houses",
       "reservedShare": "With 2+ reservations",
       "waitlist": "Waitlist",
@@ -4199,7 +4228,6 @@
       "target": "Target"
     },
     "houses": {
-      "intro": "Every House with its fill rate and reservations.",
       "filter": "Show",
       "all": "All",
       "kind": {
@@ -4217,10 +4245,10 @@
         "reservations": "Reservations"
       },
       "count": "{count, plural, one {# House} other {# Houses}}",
-      "preparedLink": "Prepared Houses →"
+      "preparedLink": "Prepared Houses →",
+      "title": "How full are the Houses?"
     },
     "applications": {
-      "intro": "Founding host applications. Yes makes the person a founding host.",
       "filter": "Status",
       "status": {
         "new": "New",
@@ -4238,10 +4266,10 @@
       "noLinks": "No links",
       "foundingHost": "Founding host",
       "applied": "Applied {date}",
-      "keys": "Keys: → Yes · ↓ Maybe · ← No (the first open card)"
+      "keys": "Keys: → Yes · ↓ Maybe · ← No (the first open card)",
+      "title": "Who wants to host?"
     },
     "waitlist": {
-      "intro": "Who's waiting, where they came from and what they're into.",
       "total": "On the waitlist",
       "lastWeek": "Last 7 days",
       "wantsToHost": "Want to host",
@@ -4253,10 +4281,10 @@
       "direct": "direct",
       "anywhere": "Anywhere",
       "anytime": "Any time",
-      "hostTag": "Wants to host"
+      "hostTag": "Wants to host",
+      "title": "Who is waiting?"
     },
     "topics": {
-      "intro": "A score per category from reservations, applications, waitlist interest and the share of Houses with a host fee.",
       "weights": "Weights: reservations {reservations} · applications {applications} · waitlist {waitlist} · host fee {hostFee}",
       "col": {
         "topic": "Topic",
@@ -4265,7 +4293,8 @@
         "applications": "Applications",
         "waitlist": "Waitlist",
         "hostFee": "Host fee"
-      }
+      },
+      "title": "Which topics work?"
     },
     "algorithm": {
       "intro": "How the network grows: people who lived together, who comes back, how fast Houses fill.",
@@ -4277,11 +4306,10 @@
       "toFullSub": "Median over {count} full Houses",
       "toFullChart": "Time until a House is full (days)",
       "houses": "Houses",
-      "none": "–"
+      "none": "–",
+      "title": "Network today"
     },
     "traffic": {
-      "intro": "Visitors, countries, sources and the way to the sign-up.",
-      "note": "Demo data – real numbers come from Google Analytics in phase 4.",
       "visitors": "Visitors this week",
       "visitorsChart": "Visitors per week",
       "countries": "Countries",
@@ -4294,10 +4322,10 @@
         "signedUp": "Signed up"
       },
       "ofPrevious": "{percent} % of the step before",
-      "unavailable": "No traffic source connected yet."
+      "unavailable": "No traffic source connected yet.",
+      "title": "Where do visitors come from?"
     },
     "platform": {
-      "intro": "The platform's phase – the same switch as the Dev menu's.",
       "phase": "Phase",
       "current": "Now: {phase}",
       "phases": {
@@ -4323,16 +4351,24 @@
         "applyAsHost": "Apply as a host"
       },
       "on": "Yes",
-      "off": "–"
+      "off": "–",
+      "title": "Phase and settings"
     },
     "log": {
-      "intro": "Every admin action, newest first.",
       "action": {
         "phase_changed": "Phase changed",
         "application_decided": "Application decided",
-        "founding_host_added": "Founding host added"
+        "founding_host_added": "Founding host added",
+        "ticket_replied": "Ticket answered",
+        "ticket_status": "Ticket status",
+        "ticket_tags": "Ticket tags",
+        "ticket_note": "Internal note",
+        "ticket_merged": "Tickets merged",
+        "payout_requested": "Payout requested",
+        "withdrawal_added": "Withdrawal added"
       },
-      "by": "by {name}"
+      "by": "by {name}",
+      "title": "What changed?"
     },
     "status": {
       "good": "On target",
@@ -4341,7 +4377,6 @@
       "none": "No target"
     },
     "cockpit": {
-      "intro": "The move target first, then supply, demand, quality and money – each against its target.",
       "move": "Full houses per month",
       "moveTarget": "of {target}",
       "streak": "Months in a row above target: {streak} / {of}",
@@ -4363,17 +4398,180 @@
         "daysToFull": "Days until full",
         "profit": "Profit this month",
         "perHouse": "Per full House",
-        "revenueTotal": "Revenue in all"
+        "revenueTotal": "Revenue in all",
+        "openTickets": "Open tickets"
       },
       "profitTarget": "of {target}",
-      "vsLastWeek": "{delta} vs last week",
-      "noChange": "no change",
-      "weeks": "Last 8 weeks",
       "open": "Open {area}",
       "launch": "Launch criteria",
       "topics": "Top 5 topics",
       "allTopics": "All topics →",
-      "signups": "{count} sign-ups"
+      "signups": "{count} sign-ups",
+      "title": "Are we on track to move?"
+    },
+    "data": {
+      "title": "What do we learn from our data?",
+      "models": "Models",
+      "hypotheses": "Hypotheses",
+      "dataPoints": "Data points",
+      "inputs": "{count, plural, one {# data point} other {# data points}}",
+      "output": "Delivers",
+      "feeds": "Used for",
+      "measure": "Success measure",
+      "now": "Now: {value}",
+      "notMeasured": "Not measured yet",
+      "stage": {
+        "idea": "Idea",
+        "rules": "Rules",
+        "trained": "Trained"
+      },
+      "stageHint": "Idea → Rules → Trained",
+      "hyp": {
+        "metric": "Measured by",
+        "target": "Target",
+        "current": "Now",
+        "status": {
+          "open": "Open",
+          "supported": "Supported",
+          "rejected": "Rejected"
+        }
+      },
+      "filter": {
+        "moment": "Moment",
+        "model": "Model",
+        "status": "Status",
+        "all": "All",
+        "none": "No model"
+      },
+      "moment": {
+        "onboarding": "Onboarding",
+        "search": "Search",
+        "create": "Create",
+        "request": "Request",
+        "inTheHouse": "In the house",
+        "afterTheStay": "After the stay",
+        "marketing": "Marketing",
+        "support": "Support"
+      },
+      "dpStatus": {
+        "planned": "Planned",
+        "collecting": "Collecting",
+        "used": "Used"
+      },
+      "basis": {
+        "consent": "Consent",
+        "contract": "Contract"
+      },
+      "col": {
+        "captures": "What",
+        "moment": "Moment",
+        "purpose": "Purpose",
+        "models": "Models",
+        "basis": "Legal basis",
+        "status": "Status"
+      },
+      "count": "{shown} of {all} data points",
+      "never": "Never collected: special categories (religion, orientation, health, politics) and the content of chat messages. New data points go into config/data-points.ts first."
+    },
+    "navGroup": {
+      "steer": "Steer",
+      "market": "Market",
+      "intelligence": "Intelligence",
+      "operate": "Operate"
+    },
+    "money": {
+      "title": "Are we earning enough?",
+      "perMonth": "Profit per month",
+      "target": "Target {target} a month",
+      "note": "What Simpulo keeps: the guests' service fee and its share of host fees, in EUR.",
+      "payouts": "Payouts",
+      "schedule": "Schedule",
+      "account": "To account",
+      "nextPayout": "Next payout",
+      "available": "Available now",
+      "manage": "Manage in Stripe ↗",
+      "payNow": "Pay out now",
+      "payTitle": "Pay out {amount}?",
+      "payText": "{amount} goes to {account} – the account on file at Stripe. It can't go anywhere else.",
+      "payConfirm": "Pay out {amount}",
+      "paid": "Payout requested – {amount} to {account}",
+      "noPayouts": "Stripe isn't connected yet.",
+      "withdrawals": "My withdrawals",
+      "balanceYear": "This year ({year})",
+      "profitYear": "Profit",
+      "taxReserve": "Tax reserve ({percent} %)",
+      "withdrawn": "Withdrawn",
+      "left": "Left in the company",
+      "addWithdrawal": "Add withdrawal",
+      "date": "Date",
+      "amount": "Amount (€)",
+      "noteLabel": "Note (optional)",
+      "none": "No withdrawals yet.",
+      "added": "Withdrawal added",
+      "taxNote": "A rough reserve, not tax advice."
+    },
+    "growthTitle": "What spreads Simpulo?",
+    "supportTitle": "What do users need?",
+    "preparedTitle": "Which Houses wait for their host?",
+    "support": {
+      "views": {
+        "inbox": "Inbox",
+        "ideas": "Ideas"
+      },
+      "category": {
+        "question": "Question",
+        "bug": "Something's broken",
+        "idea": "Idea",
+        "safety": "Safety"
+      },
+      "status": {
+        "new": "New",
+        "open": "Open",
+        "answered": "Answered",
+        "closed": "Closed",
+        "planned": "Planned",
+        "done": "Done"
+      },
+      "all": "All",
+      "allTags": "All tags",
+      "search": "Search tickets",
+      "statusFilter": "Status",
+      "tagFilter": "Tag",
+      "categoryFilter": "Category",
+      "count": "{count, plural, one {# ticket} other {# tickets}}",
+      "openCount": "{count} open",
+      "none": "No tickets match.",
+      "pick": "Pick a ticket on the left.",
+      "high": "High priority",
+      "guest": "Guest",
+      "votes": "{count, plural, one {# vote} other {# votes}}",
+      "context": "Context",
+      "page": "Page",
+      "house": "House",
+      "device": "Device",
+      "screen": "Screen",
+      "phase": "Phase",
+      "attachments": "Screenshot",
+      "profile": "Profile ↗",
+      "openHouse": "House ↗",
+      "conversation": "Conversation",
+      "you": "Simpulo",
+      "them": "They wrote",
+      "reply": "Reply",
+      "replyPlaceholder": "Write an answer – it goes out by email and in the app.",
+      "send": "Send reply",
+      "sent": "Reply sent",
+      "statusLabel": "Status",
+      "tags": "Tags",
+      "addTag": "Add a tag",
+      "note": "Internal note",
+      "notePlaceholder": "Only admins see this.",
+      "merge": "Merge into…",
+      "mergeHint": "A duplicate wish: it closes and its votes go to the other.",
+      "mergedInto": "Merged into {id}",
+      "mergeButton": "Merge",
+      "ideasHint": "Feature wishes by votes – merged duplicates count for the one they went into.",
+      "back": "‹ All tickets"
     }
   }
 }

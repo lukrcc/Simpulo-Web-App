@@ -1,11 +1,13 @@
 // Every number of the admin dashboard (/admin) – computed here, never in the UI. Pure functions over the app data and the admin collections;
 // the targets and weights come from config/admin.ts. With a backend the same functions run on the server (or as scheduled aggregates).
-import { LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
+import { LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
 import { FEE_MODEL } from "@/config/policies";
 import { VIBES } from "@/lib/catalog";
+import type { HypothesisStatus } from "@/config/hypotheses";
+import type { ModelId } from "@/config/models";
 import type { AdminData, MetricsHistory } from "@/lib/data";
 import { getVisibleHouses } from "@/lib/data/visibleHouses";
-import type { JoinRequest, LivedWith, Payment, PlatformPhase, Stay, Vibe } from "@/lib/types";
+import { TICKET_CATEGORIES, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
 
 export interface AdminInputs {
   stays: readonly Stay[];
@@ -13,7 +15,7 @@ export interface AdminInputs {
   livedWith: readonly LivedWith[];
   payments: readonly Payment[];
   admin: AdminData;
-  /** The months and weekly trends behind the Cockpit (mock); null = computed from the records alone */
+  /** The months behind the Cockpit and Money (mock); null = computed from the records alone */
   history: MetricsHistory | null;
   phase: PlatformPhase;
   /** YYYY-MM-DD */
@@ -296,9 +298,20 @@ export function money(inputs: Pick<AdminInputs, "stays" | "payments" | "history"
   };
 }
 
+/** What Simpulo kept per month, the last 12 up to this one (so far), against the target – from the history, else from the paid payments. */
+export function profitPerMonth(inputs: Pick<AdminInputs, "payments" | "history" | "today">) {
+  const paid = inputs.payments.filter((p) => p.status === "paid" && p.paidAt);
+  return Array.from({ length: 12 }, (_, i) => {
+    const back = 11 - i;
+    const month = monthBefore(inputs.today, back);
+    const profit = inputs.history?.profitPerMonth.find((h) => h.monthsAgo === back)?.profit ?? paid.filter((p) => monthOf(p.paidAt!) === month).reduce((n, p) => n + keptOf(p), 0);
+    return { month, profit: Math.round(profit), status: getStatus("profitPerMonth", profit) };
+  });
+}
+
 // ── Cockpit ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type CockpitKey = "realHouses" | "examplesLeft" | "openApplications" | "waitlist" | "reservedShare" | "bestSource" | "mutualShare" | "repeatRate" | "daysToFull" | "profit" | "perHouse" | "revenueTotal";
+export type CockpitKey = "realHouses" | "examplesLeft" | "openApplications" | "waitlist" | "reservedShare" | "bestSource" | "mutualShare" | "repeatRate" | "daysToFull" | "openTickets" | "profit" | "perHouse" | "revenueTotal";
 
 export interface CockpitNumber {
   key: CockpitKey;
@@ -309,35 +322,18 @@ export interface CockpitNumber {
   text?: string;
   /** null = no target, no status colour */
   status: Status | null;
-  /** The last 8 weeks, the last one now */
-  spark: number[];
-  /** Change against the week before (null = no history) */
-  delta: number | null;
 }
 
-type Trend = keyof MetricsHistory["weekly"];
-
-/** The last 8 weeks of a number: today's value shaped by the history's weekly trend; without history only today. */
-function weeksOf(value: number | null, trend: Trend, history: MetricsHistory | null, decimals = 0): number[] {
-  if (value === null) return [];
-  if (!history) return [value];
-  const f = 10 ** decimals;
-  return history.weekly[trend].map((factor) => Math.round(value * factor * f) / f);
-}
-
-function cockpitNumber(key: CockpitKey, value: number | null, format: CockpitNumber["format"], trend: Trend, history: MetricsHistory | null, status: Status | null, text?: string): CockpitNumber {
-  const spark = weeksOf(value, trend, history);
-  return { key, value, format, text, status, spark, delta: spark.length >= 2 ? spark.at(-1)! - spark.at(-2)! : null };
-}
+const cockpitNumber = (key: CockpitKey, value: number | null, format: CockpitNumber["format"], status: Status | null, text?: string): CockpitNumber => ({ key, value, format, text, status });
 
 /** The Cockpit: the move target on top, then Supply · Demand · Quality · Money with three numbers each, the launch criteria, the top topics. */
 export function cockpit(inputs: AdminInputs) {
-  const { history } = inputs;
   const o = overview(inputs);
   const launch = launchProgress(inputs);
   const a = algorithmMetrics(inputs);
   const w = waitlistMetrics(inputs);
   const m = money(inputs);
+  const support = supportMetrics(inputs.admin.tickets);
   const examplesLeft = getVisibleHouses(inputs.stays, inputs.phase).filter((s) => s.isExample).length;
   const best = w.bySource.find((s) => s.key !== "direct") ?? w.bySource[0] ?? null;
   const pct = (ratio: number | null) => (ratio === null ? null : Math.round(ratio * 100));
@@ -349,24 +345,25 @@ export function cockpit(inputs: AdminInputs) {
     move: fullHousesPerMonth(inputs),
     groups: {
       supply: [
-        cockpitNumber("realHouses", o.realHouses, "count", "rising", history, getStatus("realHouses", o.realHouses)),
-        cockpitNumber("examplesLeft", examplesLeft, "count", "falling", history, null),
-        cockpitNumber("openApplications", o.openApplications, "count", "steady", history, getStatus("openApplications", o.openApplications)),
+        cockpitNumber("realHouses", o.realHouses, "count", getStatus("realHouses", o.realHouses)),
+        cockpitNumber("examplesLeft", examplesLeft, "count", null),
+        cockpitNumber("openApplications", o.openApplications, "count", getStatus("openApplications", o.openApplications)),
       ],
       demand: [
-        cockpitNumber("waitlist", o.waitlist, "count", "rising", history, getStatus("waitlist", o.waitlist)),
-        cockpitNumber("reservedShare", reserved, "percent", "steady", history, getStatus("reservedShare", reserved)),
-        cockpitNumber("bestSource", best?.count ?? null, "text", "rising", history, null, best?.key),
+        cockpitNumber("waitlist", o.waitlist, "count", getStatus("waitlist", o.waitlist)),
+        cockpitNumber("reservedShare", reserved, "percent", getStatus("reservedShare", reserved)),
+        cockpitNumber("bestSource", best?.count ?? null, "text", null, best?.key),
       ],
       quality: [
-        cockpitNumber("mutualShare", mutual, "percent", "steady", history, getStatus("mutualShare", mutual)),
-        cockpitNumber("repeatRate", repeat, "percent", "rising", history, getStatus("repeatRate", repeat)),
-        cockpitNumber("daysToFull", a.medianDaysToFull, "days", "falling", history, getStatus("daysToFull", a.medianDaysToFull)),
+        cockpitNumber("mutualShare", mutual, "percent", getStatus("mutualShare", mutual)),
+        cockpitNumber("repeatRate", repeat, "percent", getStatus("repeatRate", repeat)),
+        cockpitNumber("daysToFull", a.medianDaysToFull, "days", getStatus("daysToFull", a.medianDaysToFull)),
+        cockpitNumber("openTickets", support.open, "count", support.openStatus),
       ],
       money: [
-        cockpitNumber("profit", m.profitThisMonth, "eur", "rising", history, m.status),
-        cockpitNumber("perHouse", m.perHouse, "eur", "steady", history, null),
-        cockpitNumber("revenueTotal", m.total, "eur", "rising", history, null),
+        cockpitNumber("profit", m.profitThisMonth, "eur", m.status),
+        cockpitNumber("perHouse", m.perHouse, "eur", null),
+        cockpitNumber("revenueTotal", m.total, "eur", null),
       ],
     },
     launch: [
@@ -377,4 +374,65 @@ export function cockpit(inputs: AdminInputs) {
     ],
     topics: topicScores(inputs).slice(0, 5),
   };
+}
+
+// ── Data & Algorithm ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A hypothesis's verdict as a status colour: supported good, open warning, rejected critical (Admin › Data & Algorithm). */
+export function hypothesisStatus(status: HypothesisStatus): Status {
+  return status === "supported" ? "good" : status === "rejected" ? "critical" : "warning";
+}
+
+/** Each model's success measure today, where the data already has it (null = not measured yet). */
+export function modelMeasures(inputs: AdminInputs): Record<ModelId, string | null> {
+  const a = algorithmMetrics(inputs);
+  // Demand without supply: waitlist wishes (place + category) with no real House of that category in that place.
+  const real = inputs.stays.filter(isLiveReal);
+  const unmet = inputs.admin.waitlist.filter((e) => e.where && !e.interests.some((v) => real.some((s) => s.vibe === v && hubOf(s) === e.where))).length;
+  return {
+    interestRanking: null,
+    crewFit: a.mutualShare === null ? null : `${Math.round(a.mutualShare * 100)} % mutual`,
+    houseChemistry: null,
+    demandMap: `${unmet} of ${inputs.admin.waitlist.length} waitlist wishes without a House`,
+    marketingImpact: null,
+  };
+}
+
+// ── Support ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Still to answer: new or open, not merged into another. */
+export const isOpenTicket = (t: SupportTicket) => !t.mergedInto && (t.status === "new" || t.status === "open");
+
+/** The inbox's numbers: open tickets (its status – any open safety ticket makes it critical), per category, the ideas by votes. */
+export function supportMetrics(tickets: readonly SupportTicket[]) {
+  const open = tickets.filter(isOpenTicket);
+  const openSafety = open.filter((t) => t.category === "safety").length;
+  const statuses = [getStatus("openTickets", open.length), getStatus("openSafetyTickets", openSafety)];
+  const openStatus = statuses.includes("critical") ? "critical" : statuses.includes("warning") ? "warning" : statuses[0];
+  return {
+    open: open.length,
+    openSafety,
+    openStatus,
+    perCategory: Object.fromEntries(TICKET_CATEGORIES.map((c) => [c, tickets.filter((t) => t.category === c && !t.mergedInto).length])) as Record<TicketCategory, number>,
+    ideas: tickets.filter((t) => t.category === "idea" && !t.mergedInto).toSorted((a, b) => b.votes - a.votes || b.createdAt.localeCompare(a.createdAt)),
+  };
+}
+
+/** The inbox order: open safety first, then new and open by date (newest first), then the rest. */
+export function sortTickets(tickets: readonly SupportTicket[]): SupportTicket[] {
+  const rank = (t: SupportTicket) => (t.category === "safety" && isOpenTicket(t) ? 0 : isOpenTicket(t) ? 1 : 2);
+  return tickets.toSorted((a, b) => rank(a) - rank(b) || b.createdAt.localeCompare(a.createdAt));
+}
+
+// ── Money: what's left ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** This year: profit − tax reserve (TAX_RESERVE_PERCENT) − private withdrawals = what's still in the company. */
+export function companyBalance(inputs: Pick<AdminInputs, "payments" | "history" | "today" | "admin">) {
+  const year = inputs.today.slice(0, 4);
+  const profit = profitPerMonth(inputs)
+    .filter((r) => r.month.startsWith(year))
+    .reduce((n, r) => n + r.profit, 0);
+  const taxReserve = Math.round((profit * TAX_RESERVE_PERCENT) / 100);
+  const withdrawals = inputs.admin.withdrawals.filter((w) => w.date.startsWith(year)).reduce((n, w) => n + w.amount, 0);
+  return { year, profit, taxReserve, taxPercent: TAX_RESERVE_PERCENT, withdrawals, left: profit - taxReserve - withdrawals };
 }

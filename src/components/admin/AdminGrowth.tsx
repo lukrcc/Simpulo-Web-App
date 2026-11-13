@@ -50,6 +50,7 @@ const COLLAPSED_ROWS = 10;
 /** /admin/growth – tracked events per channel, per referrer and per House. */
 export function AdminGrowth() {
   const t = useTranslations("growth.admin");
+  const tAdmin = useTranslations("admin");
   const store = useStore();
   const { events } = store;
 
@@ -63,7 +64,7 @@ export function AdminGrowth() {
   const stayOf = (id: string) => store.stays.find((s) => s.id === id);
 
   return (
-    <AdminShell title={t("growthTitle")} intro={t("growthIntro")}>
+    <AdminShell title={tAdmin("growthTitle")}>
       <p className="text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
 
       <div className="mt-6 space-y-6">

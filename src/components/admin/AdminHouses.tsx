@@ -39,13 +39,13 @@ function useCopyClaimLink() {
 /** /admin/houses – every House prepared on someone's behalf, claimed or not. */
 export function AdminHouses() {
   const t = useTranslations("growth.admin");
+  const tAdmin = useTranslations("admin");
   const { stays } = useStore();
   const prepared = stays.filter((s) => s.claim).toSorted((a, b) => b.claim!.createdAt.localeCompare(a.claim!.createdAt));
 
   return (
     <AdminShell
-      title={t("housesTitle")}
-      intro={t("housesIntro")}
+      title={tAdmin("preparedTitle")}
       aside={
         <Link href="/admin/houses/new" className={buttonStyles("primary", "md")}>
           <Plus className="size-4" aria-hidden />
@@ -173,7 +173,8 @@ export function AdminNewHouse() {
   if (created) {
     const link = claimLink(created.token);
     return (
-      <AdminShell title={t("createdTitle")} intro={t("createdText", { name: created.name })}>
+      <AdminShell title={t("createdTitle")}>
+        <p className="mb-6 max-w-2xl text-body text-muted">{t("createdText", { name: created.name })}</p>
         <section className={cn("max-w-2xl", cardClass)}>
           <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-body">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -218,7 +219,7 @@ export function AdminNewHouse() {
   );
 
   return (
-    <AdminShell title={t("newTitle")} intro={t("newIntro")}>
+    <AdminShell title={t("newTitle")}>
       <form onSubmit={submit} noValidate className={cn("max-w-2xl space-y-5", cardClass)}>
         <div className="grid gap-5 sm:grid-cols-2">
           {text("name")}

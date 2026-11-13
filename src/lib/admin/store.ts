@@ -6,7 +6,7 @@
 // which also writes the log.
 import { useSyncExternalStore } from "react";
 import { getAdminData, type AdminData } from "@/lib/data";
-import type { AdminAction, AdminLogEntry, ApplicationStatus, HostApplication, WaitlistEntry } from "@/lib/types";
+import type { AdminAction, AdminLogEntry, ApplicationStatus, HostApplication, SupportTicket, WaitlistEntry, Withdrawal } from "@/lib/types";
 
 /** Under the mock prefix, so "Reset mock data" (lib/store.tsx resetMockData) clears it too. */
 const ADMIN_KEY = "simpulo:mock:admin:v1";
@@ -19,7 +19,9 @@ function read(): AdminData {
   if (current) return current;
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_KEY) ?? "null") as Partial<AdminData> | null;
-    current = saved ? { waitlist: saved.waitlist ?? seed.waitlist, applications: saved.applications ?? seed.applications, log: saved.log ?? seed.log } : seed;
+    current = saved
+      ? { waitlist: saved.waitlist ?? seed.waitlist, applications: saved.applications ?? seed.applications, log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals }
+      : seed;
   } catch {
     current = seed;
   }
@@ -59,6 +61,35 @@ export function addWaitlistEntry(entry: Omit<WaitlistEntry, "id" | "createdAt">)
 export function addHostApplication(application: Omit<HostApplication, "id" | "createdAt" | "status">): HostApplication {
   const added: HostApplication = { ...application, id: newId("app"), status: "new", createdAt: new Date().toISOString() };
   write({ ...read(), applications: [...read().applications, added] });
+  return added;
+}
+
+/** "Help & feedback" (and the House's "Something went wrong") – the one way in. Safety comes in with high priority. */
+export function addSupportTicket(ticket: Omit<SupportTicket, "id" | "createdAt" | "status" | "priority" | "tags" | "votes" | "adminNotes" | "replies">): SupportTicket {
+  const added: SupportTicket = {
+    ...ticket,
+    id: newId("t"),
+    status: "new",
+    priority: ticket.category === "safety" ? "high" : "normal",
+    tags: [],
+    votes: 1,
+    adminNotes: "",
+    replies: [],
+    createdAt: new Date().toISOString(),
+  };
+  write({ ...read(), tickets: [added, ...read().tickets] });
+  return added;
+}
+
+/** Internal – lib/admin/actions.ts changes a ticket and logs it. */
+export function patchTicket(id: string, patch: (ticket: SupportTicket) => Partial<SupportTicket>) {
+  write({ ...read(), tickets: read().tickets.map((t) => (t.id === id ? { ...t, ...patch(t) } : t)) });
+}
+
+/** Internal – lib/admin/actions.ts adds it and logs it. */
+export function pushWithdrawal(withdrawal: Omit<Withdrawal, "id">): Withdrawal {
+  const added: Withdrawal = { ...withdrawal, id: newId("wd") };
+  write({ ...read(), withdrawals: [...read().withdrawals, added] });
   return added;
 }
 

@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/ActionButton";
 import { Chip } from "@/components/ui/Chip";
 import { Img } from "@/components/ui/Img";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
-import { useStore, type SupportCategory } from "@/lib/store";
+import { getCurrentUser, useStore, type SupportCategory } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { usePlatformPhase } from "@/config/platform";
+import { addSupportTicket } from "@/lib/admin/store";
+import { ticketContext } from "@/lib/support/feedback";
 
 const CATEGORIES: readonly SupportCategory[] = ["place", "host", "safety", "payment", "other"];
 const DAY_MS = 86_400_000;
@@ -48,6 +51,7 @@ export function HelpSheet({ stay, open, onClose }: { stay: Stay; open: boolean; 
 function HelpForm({ stay, onClose }: { stay: Stay; onClose: () => void }) {
   const t = useTranslations("help");
   const store = useStore();
+  const phase = usePlatformPhase();
   const [category, setCategory] = useState<SupportCategory | null>(null);
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState<string | undefined>();
@@ -74,6 +78,16 @@ function HelpForm({ stay, onClose }: { stay: Stay; onClose: () => void }) {
         e.preventDefault();
         if (!category || !text.trim()) return;
         setNumber(store.addSupportCase({ stayId: stay.id, category, text: text.trim(), photo }));
+        // The same case in Admin › Support: safety as a safety ticket (high priority), the rest as a question tagged with its kind.
+        const me = getCurrentUser(store);
+        addSupportTicket({
+          userId: me?.id,
+          email: me?.email ?? "",
+          category: category === "safety" ? "safety" : "question",
+          message: `[${t(`categories.${category}`)}] ${text.trim()}`,
+          context: ticketContext(phase, stay.id),
+          attachments: photo ? [{ name: "photo.jpg", size: photo.length }] : [],
+        });
       }}
       className="flex flex-col gap-5"
     >

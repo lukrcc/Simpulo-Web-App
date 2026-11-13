@@ -1,6 +1,6 @@
 import { CURRENT_USER_ID, joinRequests, stays, users } from "../mock";
 import { getMockDataset } from "../mock-datasets";
-import { MOCK_METRICS_HISTORY, MOCK_TRAFFIC, mockAdminData } from "../mock-admin";
+import { MOCK_HYPOTHESIS_RESULTS, MOCK_METRICS_HISTORY, MOCK_PLATFORM_PAYOUTS, MOCK_TRAFFIC, mockAdminData } from "../mock-admin";
 import { mockInstalledUsers, mockPaidUsers, mockPastEarnings, mockPreviewForUrl } from "../mock-extras";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
@@ -35,4 +35,6 @@ export const mockAdapter: DataAdapter = {
   getAdminData: mockAdminData,
   getTrafficReport: () => MOCK_TRAFFIC,
   getMetricsHistory: () => MOCK_METRICS_HISTORY,
+  getHypothesisResults: () => MOCK_HYPOTHESIS_RESULTS,
+  getPlatformPayouts: () => MOCK_PLATFORM_PAYOUTS,
 };

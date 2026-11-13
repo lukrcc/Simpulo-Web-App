@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { AdminOverview } from "@/components/admin/AdminDashboard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Admin · Overview" };
-
-/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
+/** Only a redirect – nothing to prerender for instant navigation. */
 export const instant = false;
 
-/** Admins only (app/admin/layout.tsx). */
+/** The Overview is part of the Cockpit now. */
 export default function Page() {
-  return <AdminOverview />;
+  redirect("/admin");
 }

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import type { IconType } from "react-icons";
+import { HelpFeedbackLink } from "@/components/help/HelpFeedback";
 import { FooterInstallHint } from "@/components/InstallHint";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
@@ -84,6 +85,12 @@ export async function Footer() {
                     </Link>
                   </li>
                 ))}
+                {/* Simpulo: "Help & feedback" opens the sheet (no page of its own). */}
+                {column.title === t("columns.simpulo") && (
+                  <li>
+                    <HelpFeedbackLink className="min-h-11 md:min-h-8" />
+                  </li>
+                )}
               </ul>
             </nav>
           ))}
@@ -120,6 +127,10 @@ export async function SlimFooter() {
             <CurrencyPicker />
           </span>
           <span>{t("copyright", { year: COPYRIGHT_YEAR })}</span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden>·</span>
+            <HelpFeedbackLink className="min-h-11 md:min-h-0" />
+          </span>
           {legal.map(({ href, label }) => (
             <span key={href} className="flex items-center gap-1.5">
               <span aria-hidden>·</span>

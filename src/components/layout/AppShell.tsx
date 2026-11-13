@@ -1,3 +1,4 @@
+import { HelpFeedbackSheet } from "@/components/help/HelpFeedback";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { Suspense, type ReactNode } from "react";
 import { DemoBand } from "@/components/demo/DemoBand";
@@ -17,6 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           The 1px mark at the page's top: while it shows, the header's glass is a little more opaque (SiteHeader, IntersectionObserver). */}
       <div aria-hidden data-top-mark className="pointer-events-none absolute left-0 top-0 h-2 w-px" />
       <Tooltip />
+      {/* "Help & feedback": one sheet for the whole app, opened from the footer and Settings (lib/support/feedback.ts). */}
+      <HelpFeedbackSheet />
       <Suspense fallback={null}>
         <HouseTransitions />
       </Suspense>

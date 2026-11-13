@@ -32,7 +32,6 @@ type KindFilter = "all" | HouseKind;
 
 export function AdminHouseList() {
   const t = useTranslations("admin.houses");
-  const tNav = useTranslations("admin.nav");
   const f = useFormat();
   const store = useStore();
   const inputs = useAdminInputs();
@@ -43,8 +42,7 @@ export function AdminHouseList() {
 
   return (
     <AdminShell
-      title={tNav("houses")}
-      intro={t("intro")}
+      title={t("title")}
       aside={
         <Link href="/admin/houses/prepared" className="text-body font-semibold text-ink hover:underline">
           {t("preparedLink")}
@@ -124,7 +122,6 @@ const STATUSES: readonly ApplicationStatus[] = ["new", "maybe", "yes", "no"];
 /** Founding host applications as cards, decided like the swipe review of pro Houses: Yes · Maybe · No (keys → ↓ ← on the first open one). */
 export function AdminApplications() {
   const t = useTranslations("admin.applications");
-  const tNav = useTranslations("admin.nav");
   const tAdmin = useTranslations("admin");
   const { applications } = useAdminData();
   const { decide } = useAdminActions();
@@ -150,7 +147,7 @@ export function AdminApplications() {
   }, [first, decide]);
 
   return (
-    <AdminShell title={tNav("applications")} intro={t("intro")}>
+    <AdminShell title={t("title")}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <CapsuleGroup
           label={t("filter")}
@@ -252,13 +249,12 @@ const RULE_KEYS: readonly (keyof PhaseRules)[] = ["request", "reserve", "pay", "
 
 export function AdminPlatform() {
   const t = useTranslations("admin.platform");
-  const tNav = useTranslations("admin.nav");
   const phase = usePlatformPhase();
   const { changePhase } = useAdminActions();
   const [pending, setPending] = useState<PlatformPhase | null>(null);
 
   return (
-    <AdminShell title={tNav("platform")} intro={t("intro")}>
+    <AdminShell title={t("title")}>
       <AdminSection title={t("phase")}>
         <CapsuleGroup
           label={t("phase")}
