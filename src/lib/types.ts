@@ -197,3 +197,4 @@ export interface Withdrawal {
   amount: number;
   note?: string;
 }
+

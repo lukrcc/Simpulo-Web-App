@@ -4,6 +4,7 @@ import { LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, ST
 import { FEE_MODEL } from "@/config/policies";
 import { VIBES } from "@/lib/catalog";
 import type { HypothesisStatus } from "@/config/hypotheses";
+import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
 import type { AdminData, MetricsHistory } from "@/lib/data";
 import { getVisibleHouses } from "@/lib/data/visibleHouses";
@@ -311,7 +312,7 @@ export function profitPerMonth(inputs: Pick<AdminInputs, "payments" | "history" 
 
 // ── Cockpit ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type CockpitKey = "realHouses" | "examplesLeft" | "openApplications" | "waitlist" | "reservedShare" | "bestSource" | "mutualShare" | "repeatRate" | "daysToFull" | "openTickets" | "profit" | "perHouse" | "revenueTotal";
+export type CockpitKey = "fullHouses" | "leftInCompany" | "realHouses" | "examplesLeft" | "openApplications" | "waitlist" | "reservedShare" | "bestSource" | "mutualShare" | "repeatRate" | "daysToFull" | "openTickets" | "profit" | "perHouse" | "revenueTotal";
 
 export interface CockpitNumber {
   key: CockpitKey;
@@ -334,6 +335,7 @@ export function cockpit(inputs: AdminInputs) {
   const w = waitlistMetrics(inputs);
   const m = money(inputs);
   const support = supportMetrics(inputs.admin.tickets);
+  const full = fullHousesPerMonth(inputs);
   const examplesLeft = getVisibleHouses(inputs.stays, inputs.phase).filter((s) => s.isExample).length;
   const best = w.bySource.find((s) => s.key !== "direct") ?? w.bySource[0] ?? null;
   const pct = (ratio: number | null) => (ratio === null ? null : Math.round(ratio * 100));
@@ -342,9 +344,10 @@ export function cockpit(inputs: AdminInputs) {
   const repeat = pct(a.repeatRate);
 
   return {
-    move: fullHousesPerMonth(inputs),
+    move: moveProgress(inputs),
     groups: {
       supply: [
+        cockpitNumber("fullHouses", full.current, "count", full.status),
         cockpitNumber("realHouses", o.realHouses, "count", getStatus("realHouses", o.realHouses)),
         cockpitNumber("examplesLeft", examplesLeft, "count", null),
         cockpitNumber("openApplications", o.openApplications, "count", getStatus("openApplications", o.openApplications)),
@@ -361,9 +364,9 @@ export function cockpit(inputs: AdminInputs) {
         cockpitNumber("openTickets", support.open, "count", support.openStatus),
       ],
       money: [
-        cockpitNumber("profit", m.profitThisMonth, "eur", m.status),
         cockpitNumber("perHouse", m.perHouse, "eur", null),
         cockpitNumber("revenueTotal", m.total, "eur", null),
+        cockpitNumber("leftInCompany", companyBalance(inputs).left, "eur", null),
       ],
     },
     launch: [
@@ -435,4 +438,66 @@ export function companyBalance(inputs: Pick<AdminInputs, "payments" | "history" 
   const taxReserve = Math.round((profit * TAX_RESERVE_PERCENT) / 100);
   const withdrawals = inputs.admin.withdrawals.filter((w) => w.date.startsWith(year)).reduce((n, w) => n + w.amount, 0);
   return { year, profit, taxReserve, taxPercent: TAX_RESERVE_PERCENT, withdrawals, left: profit - taxReserve - withdrawals };
+}
+
+// ── The move and the vision (Cockpit's stage, Admin › Vision) ─────────────────────────────────────────────────────────────────────
+
+/** Completed months in a row (this month left out) at or above the target, at most MOVE_TARGET.months back. */
+function streakAt(values: readonly number[], target: number): number {
+  let streak = 0;
+  for (const value of values.slice(0, -1).toReversed().slice(0, MOVE_TARGET.months)) {
+    if (value < target) break;
+    streak++;
+  }
+  return streak;
+}
+
+/** The move: profit this month against €5,000, the last 12 months, and the completed months in a row at it (of six). */
+export function moveProgress(inputs: Pick<AdminInputs, "payments" | "history" | "today">) {
+  const rows = profitPerMonth(inputs);
+  const current = rows.at(-1)!.profit;
+  const target = MOVE_TARGET.profitPerMonth;
+  const streak = streakAt(
+    rows.map((r) => r.profit),
+    target,
+  );
+  return { rows, current, target, streak, streakOf: MOVE_TARGET.months, reached: streak >= MOVE_TARGET.months, status: getStatus("profitPerMonth", current), progress: progress(current, target) };
+}
+
+/**
+ * What each live source brought this month (EUR): the guests' service fees and Simpulo's share of host fees. With a history (the mock) this
+ * month's profit is split in the ratio the paid payments show; without one, this month's paid payments themselves.
+ */
+export function revenueBySource(inputs: Pick<AdminInputs, "payments" | "history" | "today">): Record<RevenueMeasure, number> {
+  const paid = inputs.payments.filter((p) => p.status === "paid" && p.paidAt);
+  const hostShareOf = (p: Payment) => ((p.hostFee ?? 0) * FEE_MODEL.hostFeeCommissionPercent) / 100;
+  if (!inputs.history) {
+    const month = paid.filter((p) => monthOf(p.paidAt!) === monthOf(inputs.today));
+    return { serviceFee: Math.round(month.reduce((n, p) => n + p.fee, 0)), hostFeeShare: Math.round(month.reduce((n, p) => n + hostShareOf(p), 0)) };
+  }
+  const fees = paid.reduce((n, p) => n + p.fee, 0);
+  const shares = paid.reduce((n, p) => n + hostShareOf(p), 0);
+  const thisMonth = profitPerMonth(inputs).at(-1)!.profit;
+  const serviceFee = Math.round(thisMonth * (fees + shares > 0 ? fees / (fees + shares) : 1));
+  return { serviceFee, hostFeeShare: thisMonth - serviceFee };
+}
+
+/** The most full real Houses this month in one hub (city) – Vision › Breadth & Depth, V2. */
+export function fullHousesInOneHub({ stays, today }: Pick<AdminInputs, "stays" | "today">): number {
+  const month = monthOf(today);
+  const counts = countBy(stays.filter((s) => isReal(s) && isFull(s) && monthOf(s.startDate) === month).map((s) => hubOf(s)));
+  return Math.max(0, ...counts.map((c) => c.count));
+}
+
+/** A depth unlock's value today, where it can be measured (config/vision.ts BREADTH_DEPTH); null = not measurable yet. */
+export function depthUnlockValue(measure: DepthUnlockMeasure, inputs: AdminInputs): number | null {
+  if (measure === "fullHousesInOneHub") return fullHousesInOneHub(inputs);
+  return null;
+}
+
+/** The matrix phase (0 Pre-launch … 4 Full): pre-launch while the platform is; then by real Houses (MATRIX_HOUSES_FROM). */
+export function visionPhase(inputs: Pick<AdminInputs, "stays" | "phase">): number {
+  if (inputs.phase === "prelaunch") return 0;
+  const real = inputs.stays.filter(isReal).length;
+  return real >= MATRIX_HOUSES_FROM.full ? 4 : real >= MATRIX_HOUSES_FROM.scale ? 3 : real >= MATRIX_HOUSES_FROM.growth ? 2 : 1;
 }

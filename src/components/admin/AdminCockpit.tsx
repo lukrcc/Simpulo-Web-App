@@ -1,8 +1,9 @@
 "use client";
 
-// /admin – the Cockpit: the move target on top (with the last 12 months), then Supply · Demand · Quality · Money (three numbers each, a
-// status dot where there is a target), the launch criteria and the top topics. Every number from lib/admin/metrics.ts (cockpit); status colours only
-// from getStatus. Bento tiles (radius 24) on the page – nothing boxed inside them.
+// /admin – the Cockpit: the move on the admin's one Ember stage (profit this month against €5,000, six months in a row, the last 12 months),
+// then Supply · Demand · Quality · Money (three or four numbers each, a status dot where there is a target), the launch criteria and the top
+// topics. Every number from lib/admin/metrics.ts (cockpit); status colours only as dots, from getStatus. Bento tiles (radius 24) – nothing
+// boxed inside them.
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -14,13 +15,13 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { VIBE_ICONS } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
-import { cockpit, companyBalance, getStatus, money, profitPerMonth, type CockpitNumber, type Status } from "@/lib/admin/metrics";
+import { cockpit, companyBalance, money, profitPerMonth, type CockpitNumber, type Status } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getPlatformPayouts } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { BarList, ColumnChart, ProgressBar, STATUS_SOFT, StatusDot } from "./AdminCharts";
-import { AdminSection, AdminShell, StatRow } from "./AdminShell";
+import { BarList, ColumnChart, ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
+import { AREA_BG, AdminSection, AdminShell, StatRow, type AreaColor } from "./AdminShell";
 
 const num = (n: number) => n.toLocaleString("en-US");
 const eur = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -28,8 +29,15 @@ const dayLabel = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateStrin
 const monthLabel = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
 
 /** Where each tile leads. */
-const GROUP_HREF = { supply: "/admin/houses", demand: "/admin/waitlist", quality: "/admin/data", money: "/admin/money" } as const;
+const GROUP_HREF = { supply: "/admin/houses", demand: "/admin/growth", quality: "/admin/data", money: "/admin/money" } as const;
 type Group = keyof typeof GROUP_HREF;
+/** The area each tile leads to – its 2px line on top (area colour, never status). */
+const GROUP_AREA: Record<Group, AreaColor> = { supply: "market", demand: "growth", quality: "growth", money: "launch" };
+
+/** A tile's fine top line in an area's colour: 2px, clipped by the tile's radius. */
+function AreaLine({ color }: { color: AreaColor }) {
+  return <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5", AREA_BG[color])} />;
+}
 
 function valueText(n: CockpitNumber): string {
   if (n.value === null) return "–";
@@ -48,33 +56,24 @@ export function AdminCockpit() {
 
   return (
     <AdminShell title={t("title")}>
-      {/* The move target, full width – the tile takes its status's soft surface; the last 12 months beside it (the old Overview's chart). */}
-      <section
-        className={cn("grid gap-8 rounded-[24px] p-6 md:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,560px)] xl:items-end", move.status ? STATUS_SOFT[move.status] : "bg-surface")}
-      >
+      {/* The one Ember stage of the admin: the move – profit this month against €5,000, six months in a row; the last 12 months beside it. */}
+      <section className="ember adm-stage grid gap-8 rounded-[24px] p-6 md:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,560px)] xl:items-end">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-eyebrow uppercase text-muted">
             <StatusDot status={move.status} />
             {t("move")}
             <span className="sr-only">· {tAdmin(`status.${move.status ?? "none"}`)}</span>
           </p>
-          <p className="mt-3 flex items-baseline gap-3">
-            <span className="text-display tabular-nums text-ink">{num(move.current)}</span>
-            <span className="text-h3 text-muted">{t("moveTarget", { target: move.target })}</span>
+          <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-display tabular-nums text-ink">{eur(move.current)}</span>
+            <span className="text-h3 text-muted">{t("moveTarget", { target: eur(move.target) })}</span>
             <span className="text-small text-muted">· {tAdmin(`status.${move.status ?? "none"}`)}</span>
           </p>
-          <div className="mt-5 max-w-xl">
-            <ProgressBar ratio={move.progress.ratio} label={t("move")} status={move.status} />
-          </div>
-          <p className="mt-3 text-body text-ink">{t("streak", { streak: move.streak, of: move.streakOf })}</p>
+          <ProgressBar ratio={move.progress.ratio} label={t("move")} className="mt-5 max-w-xl" />
+          <p className="mt-6 text-body text-ink">{t("streak", { streak: move.streak, of: move.streakOf })}</p>
+          <StepMeter reached={move.streak} of={move.streakOf} label={t("streak", { streak: move.streak, of: move.streakOf })} className="mt-3 max-w-60" />
         </div>
-        <ColumnChart
-          label={t("move")}
-          data={move.rows.map((r) => ({ label: monthLabel(r.month), value: r.full }))}
-          target={move.target}
-          statusOf={(value) => getStatus("fullHousesPerMonth", value)}
-          height={170}
-        />
+        <ColumnChart label={t("move")} data={move.rows.map((r) => ({ label: monthLabel(r.month), value: r.profit }))} target={move.target} tone="ink" unit="€" height={170} />
       </section>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 min-[90rem]:grid-cols-4">
@@ -84,11 +83,13 @@ export function AdminCockpit() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-[24px] bg-surface p-6">
+        <section className="relative overflow-hidden rounded-[24px] bg-surface p-6">
+          <AreaLine color="launch" />
           <h2 className="text-eyebrow uppercase text-muted">{t("launch")}</h2>
           <LaunchList items={c.launch} />
         </section>
-        <section className="rounded-[24px] bg-surface p-6">
+        <section className="relative overflow-hidden rounded-[24px] bg-surface p-6">
+          <AreaLine color="market" />
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-eyebrow uppercase text-muted">{t("topics")}</h2>
             <Link href="/admin/topics" className="text-small font-semibold text-ink hover:underline">
@@ -110,8 +111,9 @@ function GroupTile({ group, numbers }: { group: Group; numbers: readonly Cockpit
     <Link
       href={GROUP_HREF[group]}
       aria-label={t("open", { area: t(`group.${group}`) })}
-      className="group flex flex-col rounded-[24px] bg-surface p-6 transition-colors duration-150 hover:bg-surface-2"
+      className="group relative flex flex-col overflow-hidden rounded-[24px] bg-surface p-6 transition-colors duration-150 hover:bg-surface-2"
     >
+      <AreaLine color={GROUP_AREA[group]} />
       <span className="flex items-center justify-between">
         <span className="text-h3 text-ink">{t(`group.${group}`)}</span>
         <ArrowRight aria-hidden className="size-4 text-muted transition-transform duration-150 group-hover:translate-x-0.5" />
@@ -160,7 +162,7 @@ function LaunchList({ items }: { items: ReturnType<typeof cockpit>["launch"] }) 
             </span>
             <span className="shrink-0 tabular-nums text-muted">{text(item)}</span>
           </div>
-          <ProgressBar ratio={item.progress.ratio} label={label(item.key)} status={item.status} />
+          <ProgressBar ratio={item.progress.ratio} label={label(item.key)} />
         </li>
       ))}
     </ul>
@@ -203,7 +205,7 @@ export function AdminMoney() {
     <AdminShell title={t("title")}>
       <StatRow
         stats={[
-          { label: tc("metric.profit"), value: eur(m.profitThisMonth), status: m.status, sub: tc("profitTarget", { target: eur(m.target) }) },
+          { label: tc("metric.profit"), value: eur(m.profitThisMonth), status: m.status, sub: tc("profitTarget", { target: eur(m.target) }), focus: true },
           { label: tc("metric.perHouse"), value: m.perHouse === null ? "–" : eur(m.perHouse) },
           { label: tc("metric.revenueTotal"), value: eur(m.total) },
         ]}
@@ -213,7 +215,6 @@ export function AdminMoney() {
           label={t("perMonth")}
           data={months.map((r) => ({ label: monthLabel(r.month), value: r.profit }))}
           target={m.target}
-          statusOf={(value) => getStatus("profitPerMonth", value)}
           unit="€"
           height={260}
         />

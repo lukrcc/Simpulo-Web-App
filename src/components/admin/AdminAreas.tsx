@@ -2,19 +2,22 @@
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Img } from "@/components/ui/Img";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { TOOL_LINKS } from "@/config/app-links";
 import { VIBE_ICONS } from "@/config/explore";
 import { examples, launch, phaseRules, PLATFORM_PHASES, usePlatformPhase, type PhaseRules } from "@/config/platform";
 import { useFormat } from "@/i18n/format";
+import { APP_MODE } from "@/lib/appMode";
 import { useAdminActions } from "@/lib/admin/actions";
 import { houseKindCounts, houseRows, type HouseKind } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
@@ -267,6 +270,7 @@ export function AdminPlatform() {
         />
         <p className="mt-3 text-small text-muted">{t("current", { phase: t(`phases.${phase}`) })}</p>
       </AdminSection>
+      <Tools />
       <AdminSection title={t("values")}>
         <dl className="grid gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -331,5 +335,41 @@ export function AdminPlatform() {
         )}
       </Sheet>
     </AdminShell>
+  );
+}
+
+/**
+ * "Tools": the status line (environment, errors in 24h, cost this month – only the environment is known before phase 4, the rest marked)
+ * and quick links to the consoles (config/app-links.ts TOOL_LINKS), each in a new tab.
+ */
+function Tools() {
+  const t = useTranslations("admin.platform.tools");
+  const status = [
+    { label: t("environment"), value: t(`env.${APP_MODE}`) },
+    { label: t("errors"), value: "–" },
+    { label: t("cost"), value: "–" },
+  ];
+  return (
+    <AdminSection title={t("title")} aside={<Badge>{t("later")}</Badge>}>
+      <dl className="grid grid-cols-3">
+        {status.map((s, i) => (
+          <div key={s.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-6")}>
+            <dt className="text-small text-muted">{s.label}</dt>
+            <dd className={cn("mt-1 text-h3", i === 0 ? "text-ink" : "text-muted")}>{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <ul className="mt-8 flex flex-wrap gap-2">
+        {TOOL_LINKS.map((tool) => (
+          <li key={tool.key}>
+            <a href={tool.url} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-2 rounded-full border border-ink/12 px-4 text-nav-main text-ink transition-colors duration-150 hover:bg-ink/5">
+              {t(`links.${tool.key}`)}
+              <ArrowUpRight aria-hidden className="size-4 text-muted" />
+              <span className="sr-only">{t("newTab")}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </AdminSection>
   );
 }

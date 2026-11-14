@@ -261,3 +261,4 @@ export const MOCK_PLATFORM_PAYOUTS = {
   next: { date: "2026-11-16", amount: 1240 },
   manageUrl: "https://dashboard.stripe.com/settings/payouts",
 } as const;
+

@@ -60,6 +60,7 @@ function DevSwitcherInner() {
   const store = useStore();
   const { users, currentUserId, login, logout } = store;
   const stay = useRouteStay();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<"menu" | "scheduled" | "log" | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -83,8 +84,9 @@ function DevSwitcherInner() {
   const footAction = "flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-nav font-medium text-ink/70 hover:bg-ink/5 hover:text-ink aria-pressed:bg-ink/5 aria-pressed:text-ink";
 
   return (
-    // Bottom left, away from toasts, the floating join bar and the sheets on the right; opens upward. Phones: above the tab bar.
-    <div className="fixed bottom-[calc(var(--safe-bottom)+96px)] left-4 z-50 flex flex-col items-start gap-2 md:bottom-4">
+    // Bottom left, away from toasts, the floating join bar and the sheets on the right; opens upward. Phones: above the tab bar. In the
+    // admin bottom right – the side list fills the left edge, and the knob must never cover it.
+    <div className={cn("fixed bottom-[calc(var(--safe-bottom)+96px)] z-50 flex flex-col gap-2 md:bottom-4", pathname.startsWith("/admin") ? "right-4 items-end" : "left-4 items-start")}>
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />

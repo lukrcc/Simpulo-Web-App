@@ -4193,6 +4193,7 @@
     "nav": {
       "cockpit": "Cockpit",
       "money": "Money",
+      "vision": "Vision",
       "houses": "Houses",
       "applications": "Applications",
       "waitlist": "Waitlist",
@@ -4352,7 +4353,27 @@
       },
       "on": "Yes",
       "off": "–",
-      "title": "Phase and settings"
+      "title": "Phase and settings",
+      "tools": {
+        "title": "Tools",
+        "later": "Available from phase 4",
+        "environment": "Environment",
+        "errors": "Errors · 24h",
+        "cost": "Cost · this month",
+        "env": {
+          "dev": "Development",
+          "demo": "Demo",
+          "production": "Production"
+        },
+        "links": {
+          "firebaseStaging": "Firebase Staging",
+          "firebaseProduction": "Firebase Production",
+          "stripe": "Stripe",
+          "analytics": "Analytics",
+          "github": "GitHub"
+        },
+        "newTab": "(opens in a new tab)"
+      }
     },
     "log": {
       "action": {
@@ -4377,9 +4398,9 @@
       "none": "No target"
     },
     "cockpit": {
-      "move": "Full houses per month",
+      "move": "Profit this month",
       "moveTarget": "of {target}",
-      "streak": "Months in a row above target: {streak} / {of}",
+      "streak": "Months in a row at €5,000: {streak} / {of}",
       "group": {
         "supply": "Supply",
         "demand": "Demand",
@@ -4399,7 +4420,9 @@
         "profit": "Profit this month",
         "perHouse": "Per full House",
         "revenueTotal": "Revenue in all",
-        "openTickets": "Open tickets"
+        "openTickets": "Open tickets",
+        "fullHouses": "Full houses this month",
+        "leftInCompany": "Left in the company"
       },
       "profitTarget": "of {target}",
       "open": "Open {area}",
@@ -4572,6 +4595,7 @@
       "mergeButton": "Merge",
       "ideasHint": "Feature wishes by votes – merged duplicates count for the one they went into.",
       "back": "‹ All tickets"
-    }
+    },
+    "needsYou": "{count} need you"
   }
 }

@@ -14,8 +14,14 @@ export const LAUNCH_CRITERIA = {
   waitlist: 1000,
 } as const;
 
-/** The target that decides the move (admin › Overview): full Houses per month. */
-export const MOVE_TARGET = { fullHousesPerMonth: 35 } as const;
+/** What Simpulo earns in a month (service fees + its share of host fees, EUR): the move's target. */
+export const PROFIT_TARGET_PER_MONTH = 5000;
+
+/**
+ * The target that decides the move (Admin › Cockpit, on the Ember stage): €5,000 profit a month, six completed months in a row. Full Houses
+ * per month is the supply number behind it (Cockpit › Supply, and Vision).
+ */
+export const MOVE_TARGET = { profitPerMonth: PROFIT_TARGET_PER_MONTH, months: 6, fullHousesPerMonth: 35 } as const;
 
 /**
  * admin › Topics: a score per category from four signals, each scaled 0–100 against the strongest category, then weighted (the weights add up
@@ -27,9 +33,6 @@ export const TOPIC_WEIGHTS = {
   waitlistInterest: 0.25,
   hostFeeShare: 0.1,
 } as const;
-
-/** What Simpulo earns in a month (service fees + its share of host fees, EUR): the target the Cockpit's "Money" measures against. */
-export const PROFIT_TARGET_PER_MONTH = 5000;
 
 /**
  * The status of every number with a target (good · warning · critical) – read only through getStatus() in lib/admin/metrics.ts. `higher`:
@@ -60,8 +63,8 @@ export const STATUS_RULES = {
 
 export type StatusMetric = keyof typeof STATUS_RULES;
 
-/** "Months in a row above target: X / 6" */
-export const STREAK_MONTHS = 6;
+/** "Months in a row at €5,000: X / 6" */
+export const STREAK_MONTHS = MOVE_TARGET.months;
 
 /** Admin › Money: the share of profit set aside for taxes, before "left in the company". Not tax advice – a rough reserve. */
 export const TAX_RESERVE_PERCENT = 30;

@@ -1,21 +1,20 @@
 "use client";
 
 // The admin dashboard's charts: few and thin. One series each (no legend – the heading names it), in the admin colours (styles/admin-tokens.css):
-// chart-1 … 3 for plain series, good / warning / critical only where a value has a target (getStatus). Recessive grid (ink), a tooltip on
-// hover. Lists of shares are plain bars (BarList), not a chart library.
+// the page's main line in chart-1 (ocean, the focus), others chart-2 / chart-3 or ink; status colours never fill a chart or a bar – only the
+// small dot beside a number (StatusDot). Recessive grid (ink), a tooltip on hover. Lists of shares are plain bars (BarList), not a chart library.
 import type { ReactNode } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
 
-export type ChartTone = "chart-1" | "chart-2" | "chart-3";
+/** "ink": a quiet series in the words' colour at 70 % (on the Ember stage cream, by the tokens) */
+export type ChartTone = "chart-1" | "chart-2" | "chart-3" | "ink";
 
 /** Whole class names (Tailwind finds them only so): the series' colour as `color` (charts draw in currentColor), as a fill, as a background. */
-const TONE_TEXT: Record<ChartTone, string> = { "chart-1": "text-adm-chart-1", "chart-2": "text-adm-chart-2", "chart-3": "text-adm-chart-3" };
-const TONE_BG: Record<ChartTone, string> = { "chart-1": "bg-adm-chart-1", "chart-2": "bg-adm-chart-2", "chart-3": "bg-adm-chart-3" };
+const TONE_TEXT: Record<ChartTone, string> = { "chart-1": "text-adm-chart-1", "chart-2": "text-adm-chart-2", "chart-3": "text-adm-chart-3", ink: "text-ink/70" };
+const TONE_BG: Record<ChartTone, string> = { "chart-1": "bg-adm-chart-1", "chart-2": "bg-adm-chart-2", "chart-3": "bg-adm-chart-3", ink: "bg-ink/70" };
 export const STATUS_BG: Record<Status, string> = { good: "bg-adm-good", warning: "bg-adm-warning", critical: "bg-adm-critical" };
-const STATUS_FILL: Record<Status, string> = { good: "fill-adm-good", warning: "fill-adm-warning", critical: "fill-adm-critical" };
-export const STATUS_SOFT: Record<Status, string> = { good: "bg-adm-good-soft", warning: "bg-adm-warning-soft", critical: "bg-adm-critical-soft" };
 
 /** A number's status as a dot 8px (no rule: a quiet ink dot). The status word is the label beside it, so colour is never alone. */
 export function StatusDot({ status, className }: { status: Status | null; className?: string }) {
@@ -50,7 +49,6 @@ export function ColumnChart({
   height = 220,
   label,
   tone = "chart-1",
-  statusOf,
 }: {
   data: readonly ChartPoint[];
   target?: number;
@@ -59,8 +57,6 @@ export function ColumnChart({
   height?: number;
   label: string;
   tone?: ChartTone;
-  /** A value with a target: each column in its status colour (getStatus) instead of the tone */
-  statusOf?: (value: number) => Status | null;
 }) {
   return (
     <div role="img" aria-label={label} className={TONE_TEXT[tone]} style={{ height }}>
@@ -71,13 +67,7 @@ export function ColumnChart({
           <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(Math.max(target ?? 0, ...data.map((d) => d.value)))} domain={[0, (max: number) => Math.max(max, target ?? 0)]} ticks={target !== undefined ? [0, target] : undefined} />
           <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.05 }} content={<ChartTooltip unit={unit} />} />
           {target !== undefined && <ReferenceLine y={target} stroke="var(--text-muted)" strokeDasharray="4 4" label={targetLabel ? { value: targetLabel, position: "insideTopLeft", ...AXIS } : undefined} />}
-          <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false}>
-            {statusOf &&
-              data.map((point) => {
-                const status = statusOf(point.value);
-                return <Cell key={point.label} className={status ? STATUS_FILL[status] : undefined} />;
-              })}
-          </Bar>
+          <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -121,11 +111,22 @@ export function BarList({ rows, tone = "chart-1", className }: { rows: readonly 
   );
 }
 
-/** A progress bar toward a target, in its status colour (getStatus) on ink 8 %; without a status chart-1. */
-export function ProgressBar({ ratio, label, status = null }: { ratio: number; label: string; status?: Status | null }) {
+/** A progress bar toward a target: ink 70 % on ink 8 % (the status is the dot beside its number, never the bar). */
+export function ProgressBar({ ratio, label, className }: { ratio: number; label: string; className?: string }) {
   return (
-    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} className="h-1.5 overflow-hidden rounded-full bg-ink/8">
-      <div className={cn("h-full rounded-full", status ? STATUS_BG[status] : "bg-adm-chart-1")} style={{ width: `${Math.max(ratio > 0 ? 2 : 0, ratio * 100)}%` }} />
+    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} className={cn("h-1.5 overflow-hidden rounded-full bg-ink/8", className)}>
+      <div className="h-full rounded-full bg-ink/70" style={{ width: `${Math.max(ratio > 0 ? 2 : 0, ratio * 100)}%` }} />
+    </div>
+  );
+}
+
+/** Steps toward a count ("3 of 6 months", "2 of 5 criteria"): one short segment each, the reached ones filled ink. */
+export function StepMeter({ reached, of, label, className }: { reached: number; of: number; label: string; className?: string }) {
+  return (
+    <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={of} aria-valuenow={reached} className={cn("flex gap-1", className)}>
+      {Array.from({ length: of }, (_, i) => (
+        <span key={i} className={cn("h-1.5 flex-1 rounded-full", i < reached ? "bg-ink/70" : "bg-ink/10")} />
+      ))}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, FileText, Gauge, Home, Inbox, LifeBuoy, ListOrdered, Network, ScrollText, SlidersHorizontal, Sparkles, Tags, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { BarChart3, Compass, FileText, Gauge, Home, Inbox, LifeBuoy, ListOrdered, Network, ScrollText, SlidersHorizontal, Sparkles, Tags, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/Badge";
 import { listItemStyles } from "@/components/ui/listSelection";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
-import type { Status } from "@/lib/admin/metrics";
+import { isOpenTicket, type Status } from "@/lib/admin/metrics";
+import { useAdminData } from "@/lib/admin/store";
 import { StatusDot } from "./AdminCharts";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "money" | "houses" | "applications" | "waitlist" | "topics" | "data" | "traffic" | "growth" | "support" | "prepared" | "platform" | "log";
+type AreaKey = "cockpit" | "money" | "vision" | "houses" | "applications" | "waitlist" | "topics" | "data" | "traffic" | "growth" | "support" | "prepared" | "platform" | "log";
 interface Area {
   key: AreaKey;
   href: string;
@@ -28,6 +29,7 @@ const GROUPS: readonly { key: "steer" | "market" | "intelligence" | "operate"; a
     areas: [
       { key: "cockpit", href: "/admin", icon: Gauge },
       { key: "money", href: "/admin/money", icon: Wallet },
+      { key: "vision", href: "/admin/vision", icon: Compass },
     ],
   },
   {
@@ -59,6 +61,21 @@ const GROUPS: readonly { key: "steer" | "market" | "intelligence" | "operate"; a
 ];
 const AREAS: readonly Area[] = GROUPS.flatMap((g) => g.areas);
 
+/**
+ * Area colours (styles/admin-tokens.css, never status, never dots): Steer → launch (neutral grey), Market → clay, Intelligence → growth
+ * (plum), Operate → slate. Whole class names, so Tailwind finds them.
+ */
+export type AreaColor = "launch" | "market" | "growth" | "operate";
+const GROUP_COLOR: Record<(typeof GROUPS)[number]["key"], AreaColor> = { steer: "launch", market: "market", intelligence: "growth", operate: "operate" };
+export const AREA_TEXT: Record<AreaColor, string> = { launch: "text-adm-area-launch", market: "text-adm-area-market", growth: "text-adm-area-growth", operate: "text-adm-area-operate" };
+export const AREA_BG: Record<AreaColor, string> = { launch: "bg-adm-area-launch", market: "bg-adm-area-market", growth: "bg-adm-area-growth", operate: "bg-adm-area-operate" };
+
+/** The area colour of a page, by the group its side-list entry is in. */
+function areaColorOf(pathname: string): AreaColor {
+  const href = activeHref(pathname);
+  return GROUP_COLOR[GROUPS.find((g) => g.areas.some((a) => a.href === href))?.key ?? "steer"];
+}
+
 /** The area a path belongs to: the longest href it starts with ("/admin", the Cockpit, only for itself – every other area starts with it). */
 function activeHref(pathname: string): string {
   return (
@@ -70,29 +87,43 @@ function activeHref(pathname: string): string {
 
 /**
  * The frame of /admin (app/admin/layout.tsx): only for admins (useIsAdmin – everyone else gets the 404; until it's known, nothing). From
- * 1024px the side list fixed at the left edge (208px, 12px from the edge, the full height under the header – it never scrolls with the page;
- * only if it's taller than the window, inside itself), the same SideNav as Settings, in four groups; the content takes all the rest and is
+ * 1024px the side list fixed at the left edge (200px, 16px from the edge, the full height under the header – it never scrolls with the page;
+ * compact so it fits at 1280 × 720: entries 36px, icon 18px, words 14px, group headings 11px), the same SideNav as Settings, in four groups; the content takes all the rest and is
  * what scrolls. Below 1024px the areas as one scrolling row of capsules.
  */
 export function AdminFrame({ children }: { children: ReactNode }) {
   const t = useTranslations("admin");
   const pathname = usePathname();
   const isAdmin = useIsAdmin();
+  const data = useAdminData();
   if (isAdmin === null) return <div className="min-h-[60vh]" />;
   if (!isAdmin) notFound();
 
   const active = activeHref(pathname);
-  const item = (a: Area) => ({ key: a.key, href: a.href, label: t(`nav.${a.key}`), icon: a.icon, selected: active === a.href, current: active === a.href });
+  // What needs you, as an ember count at the entry's right: new applications, open tickets.
+  const needs: Partial<Record<AreaKey, number>> = {
+    applications: data.applications.filter((a) => a.status === "new").length,
+    support: data.tickets.filter(isOpenTicket).length,
+  };
+  const item = (a: Area) => ({
+    key: a.key,
+    href: a.href,
+    label: t(`nav.${a.key}`),
+    icon: a.icon,
+    selected: active === a.href,
+    current: active === a.href,
+    badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} /> : undefined,
+  });
 
   return (
     // .admin-scope: the admin colours (styles/admin-tokens.css) exist only in here.
     // From 1024px at least the window's height under the header, and over the main area's bottom padding: the side list is never pushed up.
-    <div className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="scroll-pane max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:overflow-y-auto lg:overscroll-contain lg:py-6 lg:pl-3">
+    <div className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[200px_minmax(0,1fr)] lg:pl-4">
+      <aside className="scroll-pane max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[200px] lg:overflow-y-auto lg:overscroll-contain lg:pb-1.5 lg:pt-2">
         {GROUPS.map((group, i) => (
-          <div key={group.key} className={i > 0 ? "mt-5" : undefined}>
-            <p className="mb-1 px-4 text-eyebrow uppercase text-muted">{t(`navGroup.${group.key}`)}</p>
-            <SideNav label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />
+          <div key={group.key} className={i > 0 ? "mt-4" : undefined}>
+            <p className="mb-1 px-3 text-nav-group uppercase text-muted">{t(`navGroup.${group.key}`)}</p>
+            <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />
           </div>
         ))}
       </aside>
@@ -116,11 +147,22 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   );
 }
 
+/** A count that needs you, right-aligned in a side-list entry: ember, cream number (the admin's "needs you" colour). */
+function NavBadge({ count, label }: { count: number; label: string }) {
+  return (
+    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-adm-critical px-1.5 text-nav-group tabular-nums tracking-normal text-on-signal">
+      <span aria-hidden>{count}</span>
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
 /**
- * An area's head: ONE short title that says what the area answers ("Are we on track to move?") – never the tab's name again, no line under
- * it; a small capsule beside it when needed ("Demo data"), an action on the right.
+ * An area's head: ONE short title that says what the area answers ("Are we on track to move?") – never the tab's name again, no words under
+ * it, only a fine 2px line in the area's colour; a small capsule beside it when needed ("Demo data"), an action on the right.
  */
 export function AdminShell({ title, badge, aside, children }: { title: string; badge?: string; aside?: ReactNode; children: ReactNode }) {
+  const color = areaColorOf(usePathname());
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -130,7 +172,9 @@ export function AdminShell({ title, badge, aside, children }: { title: string; b
         </div>
         {aside}
       </div>
-      <div className="mt-8">{children}</div>
+      {/* The area's fine line under the title (2px, its area colour – not a status). */}
+      <span aria-hidden className={cn("mt-3 block h-0.5 w-12 rounded-full", AREA_BG[color])} />
+      <div className="mt-7">{children}</div>
     </>
   );
 }
@@ -139,8 +183,8 @@ export function AdminShell({ title, badge, aside, children }: { title: string; b
 export function AdminSection({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={cn("mt-14 first:mt-0", className)}>
-      <div className="mb-4 flex items-baseline justify-between gap-4">
-        <h2 className="text-eyebrow uppercase text-muted">{title}</h2>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-3">
+        <h2 className="shrink-0 text-eyebrow uppercase text-muted">{title}</h2>
         {aside}
       </div>
       {children}
@@ -153,7 +197,15 @@ export function StatRow({
   stats,
   size = "lg",
 }: {
-  stats: readonly { label: string; value: ReactNode; sub?: ReactNode; /** A number with a target: its status dot (getStatus) */ status?: Status | null }[];
+  stats: readonly {
+    label: string;
+    value: ReactNode;
+    sub?: ReactNode;
+    /** A number with a target: its status dot (getStatus) */
+    status?: Status | null;
+    /** The page's main number, in ocean (chart-1) – at most one per area */
+    focus?: boolean;
+  }[];
   /** "md": settings rather than key numbers (Money › Payouts) – the value at h3 */
   size?: "lg" | "md";
 }) {
@@ -165,7 +217,7 @@ export function StatRow({
             {s.status !== undefined && <StatusDot status={s.status} />}
             {s.label}
           </dt>
-          <dd className={cn("mt-1 tabular-nums text-ink", size === "lg" ? "text-h1" : "text-h3")}>{s.value}</dd>
+          <dd className={cn("mt-1 tabular-nums", s.focus ? "text-adm-chart-1" : "text-ink", size === "lg" ? "text-h1" : "text-h3")}>{s.value}</dd>
           {s.sub && <dd className="mt-1 text-small text-muted">{s.sub}</dd>}
         </div>
       ))}

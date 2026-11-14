@@ -1,9 +1,17 @@
 /*
  * Admin-only colours (/admin, CLAUDE.md "Admin"). They exist only inside .admin-scope (AdminFrame) – outside /admin these variables are
- * unset, so nothing in the app can take on an admin colour. Status colours only through getStatus() (lib/admin/metrics.ts), never as
- * decoration; charts use chart-1 … 3, and good / warning / critical when a value has a target. Each has a soft surface (12 %) for tiles.
+ * unset, so nothing in the app can take on an admin colour. The admin is light only; every colour in its components is a token (these and
+ * the app's in tokens.css), never a hex value – a dark mode later only redefines tokens.
+ *
+ * Each accent has ONE job:
+ *   ember (critical) – "needs you": badges, open safety tickets, deadlines, action needed (and the critical status dot)
+ *   ocean (chart-1)  – focus: the page's main number, the chosen tab (a filled capsule, ocean 12 %), a chart's main line; at most one per area
+ *   the Ember stage  – the most important: one dark tile, only the Cockpit's "Profit this month" against €5,000; nothing else is dark
+ *   good / warning / critical – only as small dots beside numbers (getStatus, lib/admin/metrics.ts), never a surface, bar or chart fill
  */
 .admin-scope {
+  color-scheme: light;
+
   --adm-good: #6f9a7e; /* sage */
   --adm-warning: #d9a441; /* amber */
   --adm-critical: #f0633a; /* ember – the app's orange */
@@ -18,4 +26,34 @@
   --adm-chart-1-soft: rgb(79 126 168 / 0.12);
   --adm-chart-2-soft: rgb(138 106 158 / 0.12);
   --adm-chart-3-soft: rgb(185 120 90 / 0.12);
+
+  /* Area colours (NOT status): which part of the admin something belongs to – side-list icons, the 2px line under a page's title, the 2px
+     line atop a Cockpit tile (the area it leads to). Never as dots – dots are status only. */
+  --adm-area-market: #b9785a; /* clay */
+  --adm-area-growth: #8a6a9e; /* plum */
+  --adm-area-operate: #6e7781; /* slate */
+  --adm-area-launch: #9b948e; /* neutral grey – Steer: Cockpit, Money, Vision, the launch criteria */
+
+  /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 12 %, no edge. */
+  --sel-bg: var(--adm-chart-1-soft);
+  --sel-border: transparent;
+}
+
+/*
+ * The Ember stage (Cockpit only): #221E1B with a soft orange glow top right – the app's pre-rendered ember picture (tokens.css .ember, warm
+ * bottom right) turned upside down, so no CSS gradient (no banding). Inside it the tokens turn round like every .ember tile.
+ */
+.admin-scope .adm-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--stage-bg);
+}
+.admin-scope .adm-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url("/glow/ember-band.png") center / cover no-repeat;
+  transform: scaleY(-1);
 }

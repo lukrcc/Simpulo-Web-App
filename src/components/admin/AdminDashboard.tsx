@@ -230,7 +230,8 @@ export function AdminLog() {
               <span className="tabular-nums text-muted">
                 {f.day(entry.createdAt)} · {f.time(entry.createdAt)}
               </span>
-              <span className="font-semibold text-ink">{t(`action.${entry.action}`)}</span>
+              {/* An entry of an action that no longer exists (saved in this browser) shows its raw name. */}
+              <span className="font-semibold text-ink">{t.has(`action.${entry.action}`) ? t(`action.${entry.action}`) : entry.action}</span>
               <span className="min-w-0 truncate text-ink">{target(entry)}</span>
               <span className="text-small text-muted md:text-body">{t("by", { name: findUser(store, entry.by)?.name ?? entry.by })}</span>
             </li>

@@ -241,6 +241,11 @@
   --text-nav: 14px;
   --text-nav--line-height: 1.4;
   --text-nav--font-weight: 500;
+  /* The admin side list: its group headings (uppercase) and badges – 11px. */
+  --text-nav-group: 11px;
+  --text-nav-group--line-height: 1.2;
+  --text-nav-group--font-weight: 600;
+  --text-nav-group--letter-spacing: 0.08em;
 }
 
 /* The six as Tailwind theme colours (inline: utilities read the variables above directly). */
@@ -282,6 +287,10 @@
   --color-adm-warning-soft: var(--adm-warning-soft);
   --color-adm-critical-soft: var(--adm-critical-soft);
   --color-adm-chart-1-soft: var(--adm-chart-1-soft);
+  --color-adm-area-market: var(--adm-area-market);
+  --color-adm-area-growth: var(--adm-area-growth);
+  --color-adm-area-operate: var(--adm-area-operate);
+  --color-adm-area-launch: var(--adm-area-launch);
 }
 
 /* static: also emit variables that are only read via var(). */

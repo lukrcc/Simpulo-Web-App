@@ -14,7 +14,7 @@ import { hypothesisStatus, modelMeasures } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getHypothesisResults } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { STATUS_SOFT, StatusDot } from "./AdminCharts";
+import { StatusDot } from "./AdminCharts";
 import { NetworkToday } from "./AdminDashboard";
 import { AdminSection, AdminShell } from "./AdminShell";
 
@@ -100,7 +100,7 @@ function StageMeter({ stage }: { stage: ModelStage }) {
   );
 }
 
-/** Each hypothesis: the statement, how it's measured, target and value now; the verdict as a soft capsule in its status colour. */
+/** Each hypothesis: the statement, how it's measured, target and value now; the verdict as a word with its status dot. */
 function Hypotheses() {
   const t = useTranslations("admin.data.hyp");
   const results = useMemo(() => getHypothesisResults(), []);
@@ -118,7 +118,7 @@ function Hypotheses() {
                 {t("metric")}: {h.metric} · {t("target")} {h.target} · {t("current")} <span className="font-semibold text-ink">{result?.current ?? "–"}</span>
               </p>
             </div>
-            <span className={cn("inline-flex h-7 items-center gap-2 justify-self-start rounded-full px-3 text-small font-medium text-ink", STATUS_SOFT[status])}>
+            <span className="inline-flex items-center gap-2 justify-self-start text-small font-medium text-ink">
               <StatusDot status={status} />
               {t(`status.${verdict}`)}
             </span>
