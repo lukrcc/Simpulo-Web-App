@@ -1,7 +1,8 @@
 "use client";
 
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { ChevronRight, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
+import { Check, ChevronRight, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
+import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPIC, TYPE_IMAGE, accommodationOf, livingCategoriesFor, type AccommodationCategoryId } from "@/config/accommodation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
 import { FEE_MODEL } from "@/config/policies";
@@ -49,6 +50,7 @@ import {
   fieldId,
   formPlaceOf,
   isLink,
+  kindPick,
   monthBounds,
   suggestionVibe,
   type DetailKey,
@@ -167,7 +169,117 @@ export function PlaceStep({ form, patch, errorOf }: StepProps) {
   );
 }
 
-/* ───────────────────────── 3 · Where + when ───────────────────────── */
+/* ───────────────────────── 3 · Where will you live? ───────────────────────── */
+
+/** "surf camp" → "Surf camp" */
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+/** Tiles shown before "More places" */
+const KIND_TILES_VISIBLE = 6;
+
+/**
+ * The kinds of place as photo tiles (photo, name, "crew 4–12"; config/accommodation.ts): the theme's 2–3 popular types first, marked
+ * "Popular for {theme}" – the step's one nudge –, then the categories one can live in; six visible, "More places" opens the rest. A
+ * category asks "Which one?" (its types as chips). "Not sure yet" leaves it to the crew. Picking sets the crew size to the category's lower
+ * end; the budget follows on "Crew and price" (kindBudget).
+ */
+export function KindStep({ form, patch, errorOf }: StepProps) {
+  const t = useTranslations("create.kind");
+  const format = useFormat();
+  const topic = form.customVibe !== null ? null : form.vibe;
+  const popular = ((topic && POPULAR_BY_TOPIC[topic]) || []).flatMap((id) => {
+    const place = accommodationOf(id);
+    return place ? [{ key: `type:${id}`, categoryId: place.category.id, typeId: id, name: capitalize(place.type.label), crew: place.category.crew, image: TYPE_IMAGE[id] ?? CATEGORY_IMAGE[place.category.id as AccommodationCategoryId], popular: true }] : [];
+  });
+  const usedImages = new Set(popular.map((tile) => tile.image));
+  const categories = livingCategoriesFor(topic).map((c) => {
+    const own = CATEGORY_IMAGE[c.id as AccommodationCategoryId];
+    // Never the same photo twice: a category whose photo is on a popular tile takes its second one.
+    const image = own && usedImages.has(own) ? (CATEGORY_IMAGE_ALT[c.id as AccommodationCategoryId] ?? own) : own;
+    return { key: `category:${c.id}`, categoryId: c.id, typeId: "", name: c.label, crew: c.crew, image, popular: false };
+  });
+  const tiles = [...popular, ...categories];
+  const popularPicked = popular.some((tile) => tile.typeId === form.accommodationType);
+  const isChosen = (tile: (typeof tiles)[number]) => (tile.popular ? form.accommodationType === tile.typeId : !popularPicked && form.accommodationCategory === tile.categoryId);
+  const [more, setMore] = useState(() => tiles.slice(KIND_TILES_VISIBLE).some(isChosen));
+  const shown = more ? tiles : tiles.slice(0, KIND_TILES_VISIBLE);
+  const category = form.accommodationCategory && form.accommodationCategory !== "unsure" && !popularPicked ? livingCategoriesFor(null).find((c) => c.id === form.accommodationCategory) : undefined;
+  const unsure = form.accommodationCategory === "unsure";
+
+  return (
+    <div id={fieldId("accommodationType")} className="space-y-5">
+      <div role="radiogroup" aria-label={t("whichOne")} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {shown.map((tile) => {
+          const chosen = isChosen(tile);
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              onClick={() => {
+                if (tile.popular) patch(kindPick(tile.categoryId, tile.typeId));
+                // The same category again keeps its type; another one starts without.
+                else if (form.accommodationCategory !== tile.categoryId || popularPicked) patch(kindPick(tile.categoryId, ""));
+              }}
+              className="press group min-w-0 text-left"
+            >
+              <span className={cn("relative block aspect-[4/3] overflow-hidden rounded-2xl bg-surface-2 transition-shadow duration-150", chosen ? "ring-2 ring-ink ring-offset-2 ring-offset-bg" : "group-hover:ring-1 group-hover:ring-ink/20")}>
+                {tile.image ? (
+                  <Img src={tile.image} alt="" width={360} height={270} className="size-full object-cover" />
+                ) : (
+                  <span className="flex size-full items-center justify-center text-muted">
+                    <MapPin className="size-6" aria-hidden />
+                  </span>
+                )}
+                {tile.popular && topic && <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2.5 py-1 text-small font-semibold text-ink">{t("popular", { topic: format.vibe(topic) })}</span>}
+                {chosen && (
+                  <span className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-ink text-inverse">
+                    <Check className="size-3.5 motion-safe:animate-check-in" strokeWidth={3} aria-hidden />
+                    <span className="sr-only">{t("chosen")}</span>
+                  </span>
+                )}
+              </span>
+              <span className="mt-2 block truncate text-body font-semibold text-ink">{tile.name}</span>
+              <span className="block text-small text-muted">{t("crew", { min: tile.crew.min, max: tile.crew.max })}</span>
+            </button>
+          );
+        })}
+      </div>
+      {tiles.length > KIND_TILES_VISIBLE && (
+        <Button variant="tertiary" size="sm" onClick={() => setMore((open) => !open)}>
+          {more ? t("less") : t("more")}
+        </Button>
+      )}
+      {category && (
+        <Group label={t("whichOne")}>
+          <div role="radiogroup" aria-label={t("whichOne")} className="flex flex-wrap gap-1.5">
+            {category.types.map((type) => (
+              <Chip key={type.id} role="radio" aria-checked={form.accommodationType === type.id} active={form.accommodationType === type.id} onClick={() => patch({ accommodationType: type.id })}>
+                {capitalize(type.label)}
+              </Chip>
+            ))}
+          </div>
+        </Group>
+      )}
+      <button
+        type="button"
+        role="radio"
+        aria-checked={unsure}
+        onClick={() => patch({ accommodationCategory: "unsure", accommodationType: "" })}
+        className={cn("press flex w-full items-center gap-3 rounded-2xl border px-5 py-4 text-left transition-colors duration-150", unsure ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5")}
+      >
+        <Users className={cn("size-5 shrink-0", unsure ? "text-inverse" : "text-muted")} aria-hidden />
+        <span className="text-body">
+          <span className="font-semibold">{t("unsure")}</span>
+          <span className={unsure ? "text-inverse/75" : "text-muted"}> – {t("unsureText")}</span>
+        </span>
+      </button>
+      <ErrorLine text={errorOf("accommodationType")} />
+    </div>
+  );
+}
+
+/* ───────────────────────── 4 · Where + when ───────────────────────── */
 
 /** The place search; once there's a place, it stands as a chip (a tap searches again). The months follow. */
 export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepProps & { /** "" before hydration */ today: string; editing: boolean }) {
@@ -288,6 +400,7 @@ const earliest = (today: string) => {
  */
 export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
   const t = useTranslations("create.house");
+  const tKind = useTranslations("create.kind");
   const tVerify = useTranslations("verification");
   // Host fees exist only with the feature (hostPremium).
   const hostFees = useFeatureFlag("hostPremium");
@@ -295,6 +408,8 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
     <div className="space-y-8">
       <CrewSize form={form} patch={patch} minSpots={minSpots} />
       {errorOf("spotsTotal") && <ErrorLine text={errorOf("spotsTotal")} />}
+      {/* Boats: the step's one nudge. */}
+      {form.accommodationCategory === CHARTERED_CATEGORY && <p className="-mt-6 text-small text-muted">{tKind("skipper")}</p>}
       {/* The waitlist behind a full House – a detail for later, so only when editing. */}
       {editing && (
         <Group label={t("waitlistMax")}>

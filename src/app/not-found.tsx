@@ -2,9 +2,11 @@ import { useTranslations } from "next-intl";
 import { Container } from "@/components/layout/Container";
 import { Wordmark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/ActionButton";
+import { ContextHelp } from "@/components/help/HelpFeedback";
 
 export default function NotFound() {
   const t = useTranslations("states.notFound");
+  const tHelp = useTranslations("help");
   return (
     <Container page>
       <div className="flex flex-col items-center py-16 text-center md:py-24">
@@ -19,6 +21,7 @@ export default function NotFound() {
             {t("howItWorks")}
           </Button>
         </div>
+        <ContextHelp text={tHelp("somethingWrong")} action={tHelp("getHelpLink")} className="mt-6" />
       </div>
     </Container>
   );

@@ -3,9 +3,11 @@
 // The admin dashboard's charts: few and thin. One series each (no legend – the heading names it), in the admin colours (styles/admin-tokens.css):
 // the page's main line in chart-1 (ocean, the focus), others chart-2 / chart-3 or ink; status colours never fill a chart or a bar – only the
 // small dot beside a number (StatusDot). Recessive grid (ink), a tooltip on hover. Lists of shares are plain bars (BarList), not a chart library.
-import type { ReactNode } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { Status } from "@/lib/admin/metrics";
+import { memo, useMemo, type ReactNode } from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { getStatus, type Status } from "@/lib/admin/metrics";
+import { eur, num } from "@/lib/i18n/adminFormat";
+import { profitMilestones } from "@/config/admin";
 import { cn } from "@/lib/utils";
 
 /** "ink": a quiet series in the words' colour at 70 % (on the Ember stage cream, by the tokens) */
@@ -28,13 +30,13 @@ export interface ChartPoint {
 
 const AXIS = { fontSize: 12, fill: "var(--text-muted)" } as const;
 /** The value axis as wide as its longest label (12px digits ≈ 7.5px each), so "5000" is never cut. */
-const axisWidth = (max: number) => 24 + Math.max(1, String(Math.round(max)).length) * 7.5;
+const axisWidth = (max: number) => 24 + Math.max(1, num(Math.round(max)).length) * 7.5;
 
 function ChartTooltip({ active, payload, label, unit }: { active?: boolean; payload?: { value?: number }[]; label?: string; unit?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg bg-ink/85 px-2.5 py-1.5 text-small text-inverse backdrop-blur-sm">
-      <span className="text-inverse/70">{label}</span> · <span className="font-semibold">{payload[0].value}</span>
+      <span className="text-inverse/70">{label}</span> · <span className="font-semibold">{typeof payload[0].value === "number" ? num(payload[0].value) : payload[0].value}</span>
       {unit && ` ${unit}`}
     </div>
   );
@@ -64,7 +66,7 @@ export function ColumnChart({
         <BarChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: -16 }} barCategoryGap="28%">
           <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(Math.max(target ?? 0, ...data.map((d) => d.value)))} domain={[0, (max: number) => Math.max(max, target ?? 0)]} ticks={target !== undefined ? [0, target] : undefined} />
+          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(Math.max(target ?? 0, ...data.map((d) => d.value)))} domain={[0, (max: number) => Math.max(max, target ?? 0)]} ticks={target !== undefined ? [0, target] : undefined} />
           <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.05 }} content={<ChartTooltip unit={unit} />} />
           {target !== undefined && <ReferenceLine y={target} stroke="var(--text-muted)" strokeDasharray="4 4" label={targetLabel ? { value: targetLabel, position: "insideTopLeft", ...AXIS } : undefined} />}
           <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false} />
@@ -82,7 +84,7 @@ export function TrendChart({ data, unit, height = 220, label, tone = "chart-1" }
         <AreaChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: -16 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} minTickGap={24} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(Math.max(...data.map((d) => d.value)))} />
+          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(Math.max(...data.map((d) => d.value)))} />
           <Tooltip cursor={{ stroke: "currentColor", strokeOpacity: 0.2 }} content={<ChartTooltip unit={unit} />} />
           <Area type="monotone" dataKey="value" stroke="currentColor" strokeWidth={2} fill="currentColor" fillOpacity={0.12} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />
         </AreaChart>
@@ -130,3 +132,184 @@ export function StepMeter({ reached, of, label, className }: { reached: number; 
     </div>
   );
 }
+
+/**
+ * The profit axis (config/admin.ts profitMilestones): `fixed` = a chosen top (the switch "Achse": 10k · 25k · 50k · 100k), else the first step
+ * whose top holds the highest month ("Aktuell"); its ticks every step (bis 5.000 in 1.000er, 10.000 in 2.500er, 25.000 in 5.000er,
+ * 50.000 in 10.000er, 100.000 in 20.000er Schritten).
+ */
+export function profitAxis(max: number, fixed?: number | null): { top: number; ticks: number[] } {
+  const steps = profitMilestones.axis;
+  const tier = (fixed ? steps.find((s) => s.max === fixed) : steps.find((s) => max <= s.max)) ?? steps[steps.length - 1];
+  return { top: tier.max, ticks: Array.from({ length: tier.max / tier.step + 1 }, (_, i) => i * tier.step) };
+}
+
+function ProfitTooltip({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) {
+  if (!active || !payload?.length || typeof payload[0].value !== "number") return null;
+  return (
+    <div className="rounded-lg bg-ink/85 px-2.5 py-1.5 text-small text-inverse">
+      {label} · <span className="font-semibold">{eur(payload[0].value)}</span>
+    </div>
+  );
+}
+
+const PROFIT_MARGIN = { top: 12, right: 56, bottom: 0, left: 0 } as const;
+const PROFIT_CURSOR = { fill: "var(--text)", fillOpacity: 0.04 } as const;
+const PROFIT_TOOLTIP = <ProfitTooltip />;
+const formatEur = (v: number) => eur(v);
+
+/**
+ * Profit per month on the overview, open on the light page: the value axis in euros (German format) with fine horizontal grid lines (profitAxis;
+ * `fixedTop` from the switch "Achse"); no dashed target – the milestone lines (the move at 5.000 €) a little stronger, labelled on the right,
+ * only once the axis reaches them. Bars below the move amber, from it sage (getStatus "profitPerMonth"). Tooltip "Okt · 4.900 €".
+ * Smooth hover: memoised (the page never re-renders on hover – recharts keeps the hover itself), no animation on bars or tooltip, a plain
+ * cursor; the data is built once per change (useMemo in the caller).
+ */
+export const ProfitChart = memo(function ProfitChart({
+  data,
+  label,
+  milestoneLabel,
+  fixedTop = null,
+  height = 320,
+}: {
+  data: readonly ChartPoint[];
+  label: string;
+  /** The move line's label ("Umzug") */
+  milestoneLabel: string;
+  /** A fixed top for the value axis; null = it grows with the data */
+  fixedTop?: number | null;
+  height?: number;
+}) {
+  const rows = useMemo(() => data.map((d) => ({ ...d, good: getStatus("profitPerMonth", d.value) === "good" })), [data]);
+  const { top, ticks } = useMemo(() => profitAxis(Math.max(0, ...data.map((d) => d.value)), fixedTop), [data, fixedTop]);
+  const lines = profitMilestones.lines.filter((m) => m.value <= top);
+  return (
+    <div role="img" aria-label={label} style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
+          <CartesianGrid vertical={false} stroke="var(--line)" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+          <YAxis tickLine={false} axisLine={false} tick={AXIS} width={24 + eur(top).length * 7.5} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} allowDataOverflow />
+          <Tooltip cursor={PROFIT_CURSOR} content={PROFIT_TOOLTIP} isAnimationActive={false} />
+          {lines.map((m) => (
+            <ReferenceLine key={m.key} y={m.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: milestoneLabel, position: "right", fontSize: 12, fill: "var(--text-muted)" }} />
+          ))}
+          <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false}>
+            {rows.map((d) => (
+              <Cell key={d.label} className={d.good ? "fill-adm-good" : "fill-adm-warning"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+});
+
+/** A calm value axis for any count: a top of 1 · 2 · 2,5 · 5 × 10ⁿ above the highest value, about five ticks. */
+export function niceAxis(max: number): { top: number; ticks: number[] } {
+  if (max <= 0) return { top: 1, ticks: [0, 1] };
+  const raw = max / 5;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw)!;
+  const top = Math.ceil(max / step) * step;
+  return { top, ticks: Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step) };
+}
+
+/** Bars per month in ocean (the north star), the same axis logic as the profit (a calm top, fine grid lines), no animation, a plain cursor. */
+export const CountBars = memo(function CountBars({ data, label, unit, height = 320 }: { data: readonly ChartPoint[]; label: string; unit?: string; height?: number }) {
+  const { top, ticks } = useMemo(() => niceAxis(Math.max(0, ...data.map((d) => d.value))), [data]);
+  const rows = useMemo(() => [...data], [data]);
+  return (
+    <div role="img" aria-label={label} className="text-adm-chart-1" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
+          <CartesianGrid vertical={false} stroke="var(--line)" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+          <YAxis tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(top)} domain={[0, top]} ticks={ticks} tickFormatter={(v: number) => num(v)} />
+          <Tooltip cursor={PROFIT_CURSOR} content={<ChartTooltip unit={unit} />} isAnimationActive={false} />
+          <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+});
+
+export interface LineSeries {
+  key: string;
+  label: string;
+  /** A CSS colour (an admin token, var(--adm-…)) */
+  color: string;
+  /** How a real value reads in the tooltip */
+  format: (value: number) => string;
+}
+
+function LinesTooltip({ active, payload, label, series, raw }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string; series: readonly LineSeries[]; raw?: (label: string, key: string) => number | null }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg bg-ink/85 px-3 py-2 text-small text-inverse">
+      <p className="mb-1 text-inverse/70">{label}</p>
+      {series.map((s) => {
+        const point = payload.find((p) => p.dataKey === s.key);
+        const value = raw && label ? raw(label, s.key) : (point?.value ?? null);
+        if (value === null || value === undefined) return null;
+        return (
+          <p key={s.key} className="flex items-center gap-2">
+            <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: s.color }} />
+            {s.label} · <span className="font-semibold">{s.format(value)}</span>
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Several 2px lines over months (Alles im Vergleich, the cohorts): one colour each, the legend under the chart (ink text, a coloured dash
+ * beside it), the tooltip with every line's real value (`raw`, else the plotted one). No animation.
+ */
+export const LinesChart = memo(function LinesChart({
+  data,
+  series,
+  label,
+  yFormat,
+  raw,
+  reference,
+  height = 320,
+}: {
+  data: readonly Record<string, string | number | null>[];
+  series: readonly LineSeries[];
+  label: string;
+  yFormat: (v: number) => string;
+  raw?: (label: string, key: string) => number | null;
+  /** A thin line across (e.g. index 100) */
+  reference?: number;
+  height?: number;
+}) {
+  const rows = useMemo(() => [...data], [data]);
+  return (
+    <div>
+      <div role="img" aria-label={label} style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--line)" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+            <YAxis tickLine={false} axisLine={false} tick={AXIS} width={56} tickFormatter={yFormat} />
+            <Tooltip cursor={{ stroke: "var(--text)", strokeOpacity: 0.15 }} content={<LinesTooltip series={series} raw={raw} />} isAnimationActive={false} />
+            {reference !== undefined && <ReferenceLine y={reference} stroke="var(--text-muted)" strokeDasharray="3 3" />}
+            {series.map((s) => (
+              <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-small text-ink">
+        {series.map((s) => (
+          <li key={s.key} className="flex items-center gap-2">
+            <span aria-hidden className="h-0.5 w-4 rounded-full" style={{ background: s.color }} />
+            {s.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+});

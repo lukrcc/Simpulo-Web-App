@@ -4,6 +4,7 @@ import { BringSomeone } from "@/components/InviteSheet";
 import { Check, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ContextHelp } from "@/components/help/HelpFeedback";
 import { useState, type FormEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
@@ -114,6 +115,7 @@ const FIELD = cn(formInput, "h-11 tabular-nums");
 /** The summary, the deadline and the payment element (mock). */
 export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
   const t = useTranslations("house.pay");
+  const tHelp = useTranslations("help");
   const tPremium = useTranslations("growth.premium");
   const tOverview = useTranslations("houses.overview.next");
   const f = useFormat();
@@ -200,9 +202,11 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
           <input inputMode="numeric" autoComplete="cc-csc" value={cvc} onChange={(e) => setCvc(e.target.value)} placeholder={t("cvcPlaceholder")} aria-label={t("cvc")} className={FIELD} />
         </div>
         {declined && (
-          <p role="alert" className="rounded-2xl bg-ink/6 px-4 py-2.5 text-body font-semibold text-ink">
-            {t("declined")}
-          </p>
+          <div role="alert" className="rounded-2xl bg-ink/6 px-4 py-2.5">
+            <p className="text-body font-semibold text-ink">{t("declined")}</p>
+            {/* Help in context: "Get help" opens with this House. */}
+            <ContextHelp houseId={stay.id} text={tHelp("somethingWrong")} action={tHelp("getHelpLink")} className="mt-1" />
+          </div>
         )}
         {/* On phones the button stays at the bottom while the rest scrolls. */}
         <div className="sticky bottom-0 -mx-7 -mb-7 flex flex-col gap-2 bg-[color-mix(in_srgb,var(--glass-solid)_96%,transparent)] px-7 pb-[max(1.75rem,var(--safe-bottom))] pt-3 md:static md:m-0 md:bg-transparent md:p-0">

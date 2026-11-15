@@ -23,7 +23,7 @@ function claimLink(token: string): string {
 }
 
 function useCopyClaimLink() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const tCommon = useTranslations("common");
   const showToast = useToast();
   return async (token: string) => {
@@ -38,38 +38,48 @@ function useCopyClaimLink() {
 
 /** /admin/houses – every House prepared on someone's behalf, claimed or not. */
 export function AdminHouses() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const tAdmin = useTranslations("admin");
-  const { stays } = useStore();
-  const prepared = stays.filter((s) => s.claim).toSorted((a, b) => b.claim!.createdAt.localeCompare(a.claim!.createdAt));
-
   return (
-    <AdminShell
-      title={tAdmin("preparedTitle")}
-      aside={
-        <Link href="/admin/houses/new" className={buttonStyles("primary", "md")}>
-          <Plus className="size-4" aria-hidden />
-          {t("newHouse")}
-        </Link>
-      }
-    >
-      <section className={cardClass}>
-        {prepared.length === 0 ? (
-          <p className="text-small text-muted">{t("none")}</p>
-        ) : (
-          <ul className="">
-            {prepared.map((stay) => (
-              <PreparedRow key={stay.id} stay={stay} />
-            ))}
-          </ul>
-        )}
-      </section>
+    <AdminShell title={tAdmin("preparedTitle")} aside={<PrepareButton label={t("newHouse")} />}>
+      <PreparedList />
     </AdminShell>
   );
 }
 
+/** "House vorbereiten" – the one action of the prepared Houses. */
+export function PrepareButton({ label }: { label: string }) {
+  return (
+    <Link href="/admin/houses/new" className={buttonStyles("primary", "md")}>
+      <Plus className="size-4" aria-hidden />
+      {label}
+    </Link>
+  );
+}
+
+/** The prepared Houses, newest first (also under Hosts › Prepared). */
+export function PreparedList() {
+  const t = useTranslations("admin.growthArea");
+  const { stays } = useStore();
+  const prepared = stays.filter((s) => s.claim).toSorted((a, b) => b.claim!.createdAt.localeCompare(a.claim!.createdAt));
+  return (
+    // No box around the list (admin: cards only for clickable objects) – rows on the page, split by fine lines.
+    <section>
+      {prepared.length === 0 ? (
+        <p className="text-small text-muted">{t("none")}</p>
+      ) : (
+        <ul className="divide-y divide-ink/8 border-y border-ink/8">
+          {prepared.map((stay) => (
+            <PreparedRow key={stay.id} stay={stay} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function PreparedRow({ stay }: { stay: Stay }) {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const f = useFormat();
   const store = useStore();
   const copy = useCopyClaimLink();
@@ -77,7 +87,7 @@ function PreparedRow({ stay }: { stay: Stay }) {
   const claimedBy = claim.claimedBy ? findUser(store, claim.claimedBy) : undefined;
 
   return (
-    <li className="flex flex-wrap items-center gap-4 py-4 first:pt-0 last:pb-0">
+    <li className="flex flex-wrap items-center gap-4 py-4">
       {claim.photoUrl ? (
         <Img src={claim.photoUrl} alt="" width={56} height={56} className="size-14 shrink-0 rounded-xl object-cover" />
       ) : (
@@ -152,7 +162,7 @@ function errorsOf(input: ClaimableStayInput): Partial<Record<FieldName, ErrorKey
 
 /** /admin/houses/new – prepare a House for a creator from their post; the result is a claim link. */
 export function AdminNewHouse() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const store = useStore();
   const copy = useCopyClaimLink();
   const [input, setInput] = useState<ClaimableStayInput>(EMPTY);

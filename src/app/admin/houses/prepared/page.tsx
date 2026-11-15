@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { AdminHouses } from "@/components/admin/AdminHouses";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta.pages");
-  return { title: t("adminHouses"), robots: { index: false, follow: false } };
-}
+export const metadata: Metadata = { title: "Admin · Vorbereitete Houses", robots: { index: false, follow: false } };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

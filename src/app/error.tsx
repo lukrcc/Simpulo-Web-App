@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
+import { ContextHelp } from "@/components/help/HelpFeedback";
 
 interface ErrorPageProps {
   error: unknown;
@@ -14,6 +15,7 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, retry }: ErrorPageProps) {
   const t = useTranslations("states.error");
+  const tHelp = useTranslations("help");
 
   useEffect(() => {
     console.error(error);
@@ -31,6 +33,7 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
           <RotateCcw aria-hidden />
           {t("retry")}
         </Button>
+        <ContextHelp text={tHelp("somethingWrong")} action={tHelp("getHelpLink")} className="mt-6" />
       </div>
     </Container>
   );

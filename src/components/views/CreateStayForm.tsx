@@ -20,6 +20,7 @@ import {
   LookingForDetail,
   PhotosDetail,
   PlaceStep,
+  KindStep,
   ProfileNote,
   ReadySummary,
   RulesDetail,
@@ -52,6 +53,7 @@ import {
   invitesOf,
   isDetail,
   placeShare,
+  kindBudget,
   prefillOf,
   readDraft,
   readTemplates,
@@ -85,6 +87,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { useFormat } from "@/i18n/format";
+import { accommodationOf } from "@/config/accommodation";
 import { getCrew, getCurrentUser, houseInviteUrl, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
 import { yourPeople } from "@/lib/yourPeople";
 import { locationOf } from "@/lib/catalog";
@@ -346,7 +349,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "cover" && !editing) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
     if (step === INVITE_STEP) return open("ready");
-    open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready");
+    const target = REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
+    // Into "Crew and price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
+    if (target === "crew") patch(kindBudget(form, previewStay.currency));
+    open(target);
   }
 
   function back() {
@@ -394,6 +400,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const themeName = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
   const tFlow = useTranslations("create.flow");
   const share = placeShare(form);
+  const tKind = useTranslations("create.kind");
+  const kindPlace = accommodationOf(form.accommodationType);
+  // "Villa" – or "Picked with the crew" for "Not sure yet".
+  const kindLine = kindPlace ? kindPlace.type.label.charAt(0).toUpperCase() + kindPlace.type.label.slice(1) : form.accommodationCategory === "unsure" ? tKind("unsureLine") : "";
   const placeLine = form.placeMode === "set" ? (share ? tFlow("placeSet", { total: format.price(share.total, previewStay.currency) }) : tFlow("placeSetTitle")) : form.placeMode === "together" ? tFlow("placeTogether") : "";
   // The preview of a new House builds itself up from the answers; editing shows the House as it is.
   const card = editing ? (
@@ -409,6 +419,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       showPrice={form.placeMode === "set" ? share !== null : form.placeMode === "together" && (form.budgetMin !== "" || form.budgetTbd)}
       showCrew={form.placeMode !== ""}
       placeLabel={form.placeMode === "set" ? tFlow("cardBooked") : form.placeMode === "together" ? tFlow("cardTogether") : null}
+      kindLabel={kindLine || null}
     />
   );
 
@@ -427,6 +438,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     <>
       {step === "vibe" && <VibeStep {...stepProps} />}
       {step === "place" && <PlaceStep {...stepProps} />}
+      {step === "kind" && <KindStep {...stepProps} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
@@ -465,6 +477,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             rows={[
               { key: "theme", label: tReady("theme"), value: themeName, step: "vibe" },
               { key: "place", label: tReady("place"), value: placeLine, step: "place" },
+              { key: "kind", label: tReady("kind"), value: kindLine, step: "kind" },
               { key: "where", label: tReady("where"), value: placeAndTime, step: "where" },
               { key: "crew", label: tReady("crew"), value: format.people(form.spotsTotal), step: "crew" },
               { key: "price", label: tReady("price"), value: format.priceLabel(previewStay), step: "crew" },

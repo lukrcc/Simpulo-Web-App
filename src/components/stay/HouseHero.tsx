@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Home, Languages, MapPin, Sparkles, Users, Ven
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CrewRow } from "@/components/CrewRow";
+import { ContextHelp } from "@/components/help/HelpFeedback";
 import { HeroBand, HeroPhotos } from "@/components/HeroBand";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { useState, type ReactNode, type Ref } from "react";
@@ -33,6 +34,8 @@ import { HowPicked } from "./HouseSections";
 
 interface HouseHeroProps {
   stay: Stay;
+  /** The host's view: "Need help with this House?" under the facts (help in context) */
+  showHelp?: boolean;
   host?: User;
   crew: User[];
   /** The main action (StayCta in the head: cream) */
@@ -68,7 +71,8 @@ const FAST_REPLY_MINUTES = 120;
  * price 48px and "KES … · Change" left, the actions right, the way in as a small line under it. Phones: the photo, the light part, host and
  * crew one under the other, and the strip as a fixed bar at the bottom. `ref` is the strip: the floating bar comes once it has left the window.
  */
-export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref, onRequestWithFriend }: HouseHeroProps) {
+export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, showSteps, note, notice, ref, onRequestWithFriend, showHelp = false }: HouseHeroProps) {
+  const tHelp = useTranslations("help");
   const tBack = useTranslations("common");
   const t = useTranslations("house.page");
   const tHero = useTranslations("house.page.hero");
@@ -160,6 +164,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
         {stay.isExample ? <ExampleCrewTile stay={stay} /> : <CrewTile stay={stay} crew={crew} onRequestWithFriend={onRequestWithFriend} />}
         <PlaceTile stay={stay} />
       </div>
+      {showHelp && <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} className="mt-4" />}
     </HeroBand>
   );
 }

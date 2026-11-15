@@ -23,7 +23,7 @@ import {
 import { VOTE_FIELD, paymentWaitsForCrew, voteOutcome } from "./crewVotes";
 import { BOOKING_WINDOW_HOURS, PAYMENT_WINDOW_HOURS } from "./joinFlow";
 import { locationOf } from "./catalog";
-import type { PlatformPhase } from "./types";
+import type { HostTier, PlatformPhase } from "./types";
 import { defaultUserId, getClaimableHouses, getData, getSavedSearches, growthEventsFor, paidUsersOf, previewForUrl, readPlatformPhase, withAttribution, withChatHistory, type AppData } from "./data";
 import { contactsAllowed, maskContacts } from "./contactFilter";
 import { withLaunchVisibility } from "./launch";
@@ -230,7 +230,8 @@ type StoreAction =
   | { type: "lapsePaymentWindow"; stayId: string; at: string }
   | { type: "fireReminder"; reminder: Reminder; message: Pick<Message, "id" | "createdAt"> }
   | { type: "setAcceptingRequests"; stayId: string; accepting: boolean }
-  | { type: "setFoundingHost"; userId: string; on: boolean };
+  | { type: "setFoundingHost"; userId: string; on: boolean }
+  | { type: "setHostTier"; userId: string; tier: HostTier };
 
 /** The profile bits Edit profile, the Create flow's "About you" step and the photo sheet can change. */
 export type ProfilePatch = Partial<
@@ -373,6 +374,8 @@ interface StoreActions {
   setAcceptingRequests: (stayId: string, accepting: boolean) => void;
   /** Admin › Applications: "Yes" makes the applicant a founding host (and taking it back undoes it). */
   setFoundingHost: (userId: string, on: boolean) => void;
+  /** Admin: a host's tier by hand (lib/admin/actions.ts, logged) */
+  setHostTier: (userId: string, tier: HostTier) => void;
   /** Heart: adds the House to the current user's saved list, or removes it. */
   toggleSaved: (stayId: string) => void;
   /** "Yes, I lived with them": shown on both profiles once they have said the same. */
@@ -1741,6 +1744,8 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return state.sessionRestored ? state : { ...state, sessionRestored: true };
     case "setFoundingHost":
       return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, foundingHost: action.on || undefined } : u)) };
+    case "setHostTier":
+      return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, hostTier: action.tier } : u)) };
     case "setAcceptingRequests":
       return {
         ...state,
@@ -2524,6 +2529,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [threads],
   );
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
+  const setHostTier = useCallback((userId: string, tier: HostTier) => dispatch({ type: "setHostTier", userId, tier }), []);
   const setAcceptingRequests = useCallback(
     (stayId: string, accepting: boolean) => dispatch({ type: "setAcceptingRequests", stayId, accepting }),
     [],
@@ -2682,6 +2688,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reloadData,
       setAcceptingRequests,
       setFoundingHost,
+      setHostTier,
       toggleSaved,
       confirmLivedWith,
       toggleHostAlert,
@@ -2698,7 +2705,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -93,13 +93,19 @@ export function SearchField({
   month,
   onChange,
   autoOpen = false,
+  trigger = "split",
+  onClose,
   className,
 }: {
   place: string | null;
   month: string | null;
   onChange: (next: { place?: string | null; month?: string | null }) => void;
-  /** Opens itself once when the URL says ?open=where (the bar's "Where to next?" on every other page), then drops the parameter. */
+  /** Opens itself once when the URL says ?open=where, then drops the parameter. */
   autoOpen?: boolean;
+  /** "split": Explore's "Where | When" capsule · "whereNext": the header's "Where to next?" on every other page (opens on Where) */
+  trigger?: "split" | "whereNext";
+  /** The sheet closed (picked, clicked beside it, Escape) */
+  onClose?: () => void;
   className?: string;
 }) {
   const t = useTranslations("explore.search");
@@ -135,6 +141,10 @@ export function SearchField({
     return () => cancelAnimationFrame(frame);
   }, [section]);
   const toggle = (part: "where" | "when") => setSection((current) => (current === part ? null : part));
+  const close = () => {
+    setSection(null);
+    onClose?.();
+  };
   const place = placeById(placeId);
   const placeName = place?.name.split(",")[0] ?? null;
   const monthLabel = month ? monthName(month, "bare") : null;
@@ -142,8 +152,17 @@ export function SearchField({
   const half = "flex h-full min-w-0 items-center gap-2 text-nav-main [&>svg]:size-4 [&>svg]:shrink-0";
   return (
     <>
-      {/* "Where | When": one capsule, padding 0 16px, as wide as its words; a 1px × 16px line (30 %) 12px from each half. The left half opens
-          the sheet on Where, the right on When. */}
+      {trigger === "whereNext" ? (
+        // Every other page: ONE capsule "Where to next?" (magnifier + words, 40px, at most 360px) – it opens the same sheet on Where.
+        <span ref={anchor} className={cn("flex min-w-0 flex-1", className)}>
+          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" className="bar-capsule press inline-flex h-10 w-full max-w-90 items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
+            <Search aria-hidden className="size-4 shrink-0" />
+            <span className="truncate">{t("whereNext")}</span>
+          </button>
+        </span>
+      ) : (
+      /* "Where | When": one capsule, padding 0 16px, as wide as its words; a 1px × 16px line (30 %) 12px from each half. The left half opens
+          the sheet on Where, the right on When. */
       <span ref={anchor} data-active={value ? "" : undefined} className={cn("search-capsule inline-flex h-(--control-h) min-w-0 shrink-0 items-center rounded-full", className)}>
         <button type="button" onClick={() => toggle("where")} aria-expanded={section === "where"} aria-haspopup="dialog" aria-label={placeName ? `${t("where")} ${placeName}` : t("where")} className={cn(half, "rounded-l-full pl-4 pr-3")}>
           <Search aria-hidden />
@@ -167,8 +186,9 @@ export function SearchField({
           </button>
         )}
       </span>
+      )}
       {/* One sheet for both halves: out of the bar (ui/BarSheet), 520px under the capsule. */}
-      <BarSheet open={open} onClose={() => setSection(null)} anchor={anchor} label={tf("whereWhen")} className="p-5">
+      <BarSheet open={open} onClose={close} anchor={anchor} label={tf("whereWhen")} className="p-5">
         <div ref={body}>
           <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
           <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} onPick={(p) => onChange({ place: p.id })} />
@@ -182,8 +202,8 @@ export function SearchField({
             <MonthOptions
               value={month}
               onPick={(next) => {
-                setSection(null);
                 onChange({ month: next });
+                close();
               }}
             />
           </div>

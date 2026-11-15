@@ -9,6 +9,10 @@ import { convertApprox } from "@/lib/rates";
 import { findUser, useStore } from "@/lib/store";
 import type { Currency } from "@/lib/types";
 import { AdminShell } from "./AdminShell";
+import { KeyNumbers } from "./AdminNumbers";
+import { monthKpis } from "@/lib/admin/metrics";
+import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { dec, eur, monthLong, num } from "@/lib/i18n/adminFormat";
 import { cardClass } from "@/components/ui/Card";
 
 /** One row of a growth table: a channel, a referrer or a House. */
@@ -49,7 +53,7 @@ const COLLAPSED_ROWS = 10;
 
 /** /admin/growth – tracked events per channel, per referrer and per House. */
 export function AdminGrowth() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const tAdmin = useTranslations("admin");
   const store = useStore();
   const { events } = store;
@@ -64,8 +68,16 @@ export function AdminGrowth() {
   const stayOf = (id: string) => store.stays.find((s) => s.id === id);
 
   return (
-    <AdminShell title={tAdmin("growthTitle")}>
-      <p className="text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
+    <AdminShell
+      title={tAdmin("growthTitle")}
+      aside={
+        <Link href="/admin/traffic" className="text-body font-semibold text-ink hover:underline">
+          {tAdmin("traffic.trafficLink")}
+        </Link>
+      }
+    >
+      <GrowthKpis />
+      <p className="mt-12 text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
 
       <div className="mt-6 space-y-6">
         <GrowthTable title={t("byChannel")} keyLabel={t("cols.channel")} rows={byChannel} label={(key) => (key === DIRECT ? t("direct") : key)} />
@@ -107,7 +119,7 @@ export function AdminGrowth() {
 }
 
 function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel: string; rows: Row[]; label: (key: string) => ReactNode }) {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const f = useFormat();
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
@@ -171,7 +183,7 @@ function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel
 }
 
 function AlertsCard() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const tAlert = useTranslations("growth.alert");
   const f = useFormat();
   const { alerts } = useStore();
@@ -199,7 +211,7 @@ function AlertsCard() {
 }
 
 function ApplicationsCard() {
-  const t = useTranslations("growth.admin");
+  const t = useTranslations("admin.growthArea");
   const tHost = useTranslations("growth.host");
   const f = useFormat();
   const { applications } = useStore();
@@ -226,5 +238,34 @@ function ApplicationsCard() {
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * On top: active users of the last full month, the cost per guest won (marketing ÷ new guests) and what a guest is worth in a year over that
+ * cost (target ≥ 3) – each with its change against the month before and ⓘ (lib/admin/metrics.ts monthKpis).
+ */
+function GrowthKpis() {
+  const t = useTranslations("admin.growthArea.kpis");
+  const k = monthKpis(useAdminInputs());
+  const month = monthLong(`${k.month}-01`);
+  const against = t("against", { month: monthLong(`${k.monthBefore}-01`) });
+  return (
+    <KeyNumbers
+      items={[
+        { key: "activeUsers", label: t("inMonth", { label: t("activeUsers"), month }), info: t("info.activeUsers"), value: num(k.activeUsers.value), change: k.activeUsers.change, against },
+        { key: "costPerGuest", label: t("costPerGuest"), info: t("info.costPerGuest"), value: k.costPerGuest.value === null ? "–" : eur(k.costPerGuest.value), change: k.costPerGuest.change, against },
+        {
+          key: "valueToCost",
+          label: t("valueToCost"),
+          info: t("info.valueToCost"),
+          value: k.valueToCost.value === null ? "–" : `${dec(k.valueToCost.value)} ×`,
+          change: k.valueToCost.change,
+          against,
+          target: { text: t("target", { target: k.valueToCost.target }), status: k.valueToCost.status },
+          sub: k.valueToCost.valuePerGuestYear === null ? undefined : t("valueSub", { value: eur(k.valueToCost.valuePerGuestYear) }),
+        },
+      ]}
+    />
   );
 }

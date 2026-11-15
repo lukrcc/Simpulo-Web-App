@@ -1,9 +1,10 @@
 "use client";
 
-// "Help & feedback" – the one sheet (mounted once in AppShell), in the manner of the InviteSheet: a panel, its body 24px in, the action in
-// its foot. What it's about as capsules, the message, an optional screenshot, the email (prefilled when logged in, else required); the
-// page, House and device go along and are shown before sending. Safety: the emergency line and high priority. The ticket lands in
-// Admin › Support (lib/admin/store.ts addSupportTicket).
+// Support in two ways (mounted once in AppShell), both in the manner of the InviteSheet – a panel, its body 24px in, the action in its foot:
+// "Get help" – what it's about as capsules (Question · Something's broken · Safety), the message, an optional screenshot, the email
+// (prefilled when logged in, else required); the page, House and device go along and are shown before sending. Safety: the emergency line
+// and high priority. "Share an idea" – light: "Your idea", optional "Why would it help you?", optional screenshot; a ticket with category
+// "idea". Both land in Admin › Support (lib/admin/store.ts addSupportTicket).
 import { Check, ImagePlus, Info, ShieldAlert, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,8 +17,11 @@ import { Sheet } from "@/components/ui/Sheet";
 import { usePlatformPhase } from "@/config/platform";
 import { addSupportTicket } from "@/lib/admin/store";
 import { getCurrentUser, useStore } from "@/lib/store";
-import { closeHelpFeedback, deviceLabel, openHelpFeedback, ticketContext, useHelpFeedbackOpen } from "@/lib/support/feedback";
-import { TICKET_CATEGORIES, type TicketCategory } from "@/lib/types";
+import { closeSupportSheet, deviceLabel, helpPrefill, openGetHelp, openShareIdea, ticketContext, useSupportSheet } from "@/lib/support/feedback";
+import type { TicketCategory } from "@/lib/types";
+
+/** "Get help" offers these; ideas have their own sheet ("Share an idea"). */
+const HELP_CATEGORIES = ["question", "bug", "safety"] as const satisfies readonly TicketCategory[];
 import { cn } from "@/lib/utils";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -33,10 +37,16 @@ function useRouteHouseId(): string | undefined {
 }
 
 export function HelpFeedbackSheet() {
-  const open = useHelpFeedbackOpen();
+  const open = useSupportSheet();
   const t = useTranslations("help.feedback");
-  // Mounted fresh each time it opens: a new message every time.
-  return open ? <FeedbackSheet key="open" onClose={closeHelpFeedback} /> : <Sheet variant="panel" open={false} onClose={closeHelpFeedback} title={t("title")}>{null}</Sheet>;
+  // Mounted fresh each time one opens: a new message every time.
+  if (open === "help") return <FeedbackSheet key="help" onClose={closeSupportSheet} />;
+  if (open === "idea") return <IdeaSheet key="idea" onClose={closeSupportSheet} />;
+  return (
+    <Sheet variant="panel" open={false} onClose={closeSupportSheet} title={t("title")}>
+      {null}
+    </Sheet>
+  );
 }
 
 function FeedbackSheet({ onClose }: { onClose: () => void }) {
@@ -44,11 +54,12 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
   const store = useStore();
   const me = getCurrentUser(store);
   const phase = usePlatformPhase();
-  const houseId = useRouteHouseId();
+  const routeHouseId = useRouteHouseId();
   const pathname = usePathname();
-  const fileId = useId();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [category, setCategory] = useState<TicketCategory>("question");
+  // Opened in context (a House, a report in the chat): that House, that category.
+  const [prefill] = useState(helpPrefill);
+  const houseId = prefill.houseId ?? routeHouseId;
+  const [category, setCategory] = useState<(typeof HELP_CATEGORIES)[number]>(prefill.category ?? "question");
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState(me?.email ?? "");
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
@@ -95,7 +106,7 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
             <div>
               <p className="mb-3 text-small text-muted">{t("category")}</p>
               <div role="radiogroup" aria-label={t("category")} className="flex flex-wrap gap-2">
-                {TICKET_CATEGORIES.map((key) => (
+                {HELP_CATEGORIES.map((key) => (
                   <Chip key={key} role="radio" aria-checked={category === key} active={category === key} onClick={() => setCategory(key)}>
                     {t(`categories.${key}`)}
                   </Chip>
@@ -114,41 +125,7 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
               <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t(`messagePlaceholder.${category}`)} className="min-h-36" maxLength={4000} />
             </FormField>
 
-            <div>
-              <input
-                ref={fileRef}
-                id={fileId}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => {
-                  const picked = e.target.files?.[0];
-                  if (picked) setFile({ name: picked.name, size: picked.size });
-                }}
-              />
-              {file ? (
-                <span className="inline-flex items-center gap-2 text-body text-ink">
-                  <ImagePlus aria-hidden className="size-4 text-muted" />
-                  <span className="max-w-60 truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    aria-label={t("remove")}
-                    onClick={() => {
-                      setFile(null);
-                      if (fileRef.current) fileRef.current.value = "";
-                    }}
-                    className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
-                  >
-                    <X className="size-4" aria-hidden />
-                  </button>
-                </span>
-              ) : (
-                <label htmlFor={fileId} className="inline-flex cursor-pointer items-center gap-2 text-body font-semibold text-ink hover:underline">
-                  <ImagePlus aria-hidden className="size-4" />
-                  {t("screenshot")}
-                </label>
-              )}
-            </div>
+            <ScreenshotField file={file} onChange={setFile} />
 
             <FormField label={t("email")} helper={t("emailHint")} error={email.length > 0 && !emailOk ? t("invalidEmail") : undefined}>
               <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" required />
@@ -166,12 +143,138 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** A link-styled button that opens "Help & feedback" (footer). */
-export function HelpFeedbackLink({ className }: { className?: string }) {
+/** The optional screenshot – name and size only so far (no upload yet). */
+function ScreenshotField({ file, onChange }: { file: { name: string; size: number } | null; onChange: (file: { name: string; size: number } | null) => void }) {
   const t = useTranslations("help.feedback");
+  const fileId = useId();
+  const fileRef = useRef<HTMLInputElement>(null);
   return (
-    <button type="button" onClick={openHelpFeedback} className={cn("inline-flex items-center transition-colors hover:text-ink", className)}>
-      {t("entry")}
+    <div>
+      <input
+        ref={fileRef}
+        id={fileId}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          const picked = e.target.files?.[0];
+          if (picked) onChange({ name: picked.name, size: picked.size });
+        }}
+      />
+      {file ? (
+        <span className="inline-flex items-center gap-2 text-body text-ink">
+          <ImagePlus aria-hidden className="size-4 text-muted" />
+          <span className="max-w-60 truncate">{file.name}</span>
+          <button
+            type="button"
+            aria-label={t("remove")}
+            onClick={() => {
+              onChange(null);
+              if (fileRef.current) fileRef.current.value = "";
+            }}
+            className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-ink/5 hover:text-ink"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </span>
+      ) : (
+        <label htmlFor={fileId} className="inline-flex cursor-pointer items-center gap-2 text-body font-semibold text-ink hover:underline">
+          <ImagePlus aria-hidden className="size-4" />
+          {t("screenshot")}
+        </label>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Share an idea": one field, an optional why, an optional screenshot – nothing else to fill in. Saved as a ticket with category "idea"
+ * (the why after the idea in the message; the email when logged in, so the team can answer); "Thanks – we read every idea."
+ */
+function IdeaSheet({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("help.idea");
+  const store = useStore();
+  const me = getCurrentUser(store);
+  const phase = usePlatformPhase();
+  const houseId = useRouteHouseId();
+  const [idea, setIdea] = useState("");
+  const [why, setWhy] = useState("");
+  const [file, setFile] = useState<{ name: string; size: number } | null>(null);
+  const [sent, setSent] = useState(false);
+  const ready = idea.trim().length > 0;
+
+  function send() {
+    if (!ready) return;
+    const message = why.trim() ? `${idea.trim()}\n\n${t("whyPrefix")} ${why.trim()}` : idea.trim();
+    addSupportTicket({ userId: me?.id, email: me?.email ?? "", category: "idea", message, context: ticketContext(phase, houseId), attachments: file ? [file] : [] });
+    setSent(true);
+  }
+
+  return (
+    <Sheet
+      variant="panel"
+      open
+      onClose={onClose}
+      title={t("title")}
+      footer={
+        <div className="flex w-full items-center justify-end">
+          {sent ? (
+            <Button variant="secondary" onClick={onClose}>
+              {t("close")}
+            </Button>
+          ) : (
+            <Button onClick={send} disabled={!ready}>
+              {t("send")}
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="px-6 pb-6 pt-2">
+        {sent ? (
+          <div className="flex flex-col items-start gap-4 py-8">
+            <span className="flex size-12 items-center justify-center rounded-full bg-ink text-inverse">
+              <Check className="size-6 motion-safe:animate-check-in" strokeWidth={2.5} aria-hidden />
+            </span>
+            <p className="text-h3 text-ink">{t("thanks")}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <FormField label={t("idea")}>
+              <Textarea value={idea} onChange={(e) => setIdea(e.target.value)} placeholder={t("ideaPlaceholder")} className="min-h-32" maxLength={2000} autoFocus />
+            </FormField>
+            <FormField label={t("why")} optional>
+              <Textarea value={why} onChange={(e) => setWhy(e.target.value)} placeholder={t("whyPlaceholder")} className="min-h-24" maxLength={1000} />
+            </FormField>
+            <ScreenshotField file={file} onChange={setFile} />
+          </div>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+/** A link-styled button that opens "Get help" or "Share an idea" (footer). */
+export function SupportLink({ kind, className }: { kind: "help" | "idea"; className?: string }) {
+  const t = useTranslations("help");
+  return (
+    <button type="button" onClick={() => (kind === "help" ? openGetHelp() : openShareIdea())} className={cn("inline-flex items-center transition-colors hover:text-ink", className)}>
+      {kind === "help" ? t("getHelp") : t("shareIdea")}
     </button>
+  );
+}
+
+/**
+ * Help in context: a small quiet line that opens "Get help" for this House ("Need help with this House?", "Something wrong? Get help") –
+ * text-small muted, the action words ink.
+ */
+export function ContextHelp({ houseId, text, action, className }: { houseId?: string; text?: string; action: string; className?: string }) {
+  return (
+    <p className={cn("text-small text-muted", className)}>
+      {text && <>{text} </>}
+      <button type="button" onClick={() => openGetHelp({ houseId })} className="font-semibold text-ink underline-offset-4 hover:underline">
+        {action}
+      </button>
+    </p>
   );
 }

@@ -13,12 +13,10 @@ import { getTrafficReport } from "@/lib/data";
 import { findUser, useStore } from "@/lib/store";
 import type { Vibe } from "@/lib/types";
 import { BarList, ColumnChart, TrendChart } from "./AdminCharts";
+import { LaunchCriteria } from "./AdminCockpit";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
-const percent = (ratio: number | null) => (ratio === null ? "–" : `${Math.round(ratio * 100)} %`);
-const num = (n: number) => n.toLocaleString("en-US");
-const monthLabel = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
-const dayLabel = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+import { day as dayLabel, month as monthLabel, num, share as percent } from "@/lib/i18n/adminFormat";
 
 function VibeLabel({ vibe }: { vibe: Vibe }) {
   const f = useFormat();
@@ -34,6 +32,7 @@ function VibeLabel({ vibe }: { vibe: Vibe }) {
 // ── Waitlist ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function AdminWaitlist() {
+  const tOverview = useTranslations("admin.overview");
   const t = useTranslations("admin.waitlist");
   const f = useFormat();
   const inputs = useAdminInputs();
@@ -50,6 +49,10 @@ export function AdminWaitlist() {
           { label: t("referred"), value: num(w.referred) },
         ]}
       />
+      {/* The launch criteria live here (no longer on the overview): each against its target. */}
+      <AdminSection title={tOverview("launch")}>
+        <LaunchCriteria />
+      </AdminSection>
       <AdminSection title={t("overTime")}>
         <TrendChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total }))} />
       </AdminSection>
@@ -79,14 +82,15 @@ export function AdminWaitlist() {
 
 // ── Topics ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export function AdminTopics() {
+/** Analyse › "Themen-Score": a score per topic from reservations, applications, waitlist interest and host fees (TOPIC_WEIGHTS). */
+export function ThemeScore() {
   const t = useTranslations("admin.topics");
   const inputs = useAdminInputs();
   const topics = topicScores(inputs);
   const weight = (w: number) => `${Math.round(w * 100)} %`;
 
   return (
-    <AdminShell title={t("title")}>
+    <>
       <p className="mb-6 text-small text-muted">
         {t("weights", { reservations: weight(TOPIC_WEIGHTS.reservations), applications: weight(TOPIC_WEIGHTS.applications), waitlist: weight(TOPIC_WEIGHTS.waitlistInterest), hostFee: weight(TOPIC_WEIGHTS.hostFeeShare) })}
       </p>
@@ -127,7 +131,7 @@ export function AdminTopics() {
           </tbody>
         </table>
       </div>
-    </AdminShell>
+    </>
   );
 }
 

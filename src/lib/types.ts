@@ -1,5 +1,5 @@
 // Domain types live next to the mock data in ./mock.ts (the data contract). App-only types are added here.
-import type { Stay, Thread, Vibe } from "./mock";
+import type { HostTier, Stay, Thread, Vibe } from "./mock";
 
 export type {
   AccommodationStatus,
@@ -22,6 +22,7 @@ export type {
   Reaction,
   Report,
   HouseVibe,
+  HostTier,
   ReportReason,
   NotificationGroup,
   Payment,
@@ -69,7 +70,7 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange">>;
+> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType">>;
 
 // Admin (/admin, lib/admin): the collections the waitlist and the host application write to. Mock through the data adapter; later Firestore.
 
@@ -105,8 +106,12 @@ export interface HostApplication {
   /** The city they'd host in ("Lisbon", "Bangkok") */
   hub: string;
   hostType: "share" | "pro";
+  /** Set by hand in the admin (unset = suggested: lib/admin/metrics.ts suggestTier) */
+  hostTier?: HostTier;
   /** Instagram, TikTok, YouTube … – full URLs */
   audienceLinks: string[];
+  /** Followers across those links (mock values) */
+  audienceSize: number;
   /** One or two sentences: the House they have in mind */
   pitch?: string;
   status: ApplicationStatus;
@@ -135,7 +140,20 @@ export type AdminAction =
   | "ticket_note"
   | "ticket_merged"
   | "payout_requested"
-  | "withdrawal_added";
+  | "withdrawal_added"
+  | "host_tier_changed"
+  | "house_highlighted"
+  | "waitlist_notified"
+  | "host_reminded"
+  | "guest_reminded"
+  | "task_done"
+  | "task_snoozed"
+  | "receipt_attached"
+  | "tax_question_updated"
+  | "export_created"
+  | "funding_moved"
+  | "funding_doc"
+  | "location_decided";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
 

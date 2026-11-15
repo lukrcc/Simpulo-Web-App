@@ -445,6 +445,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           cta={cta}
           // Several spots open and the visitor can still ask: the crew column offers asking together too.
           onRequestWithFriend={!isHost && canJoin && !myRequest && requestsOpen && !example ? startRequestWithFriend : undefined}
+          // The host: help with this House, under the facts.
+          showHelp={isHost && !example}
           secondary={
             example ? (
               <Button variant="creamOutline" size="lg" href={HOST_APPLY_HREF}>

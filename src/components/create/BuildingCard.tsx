@@ -25,7 +25,7 @@ function Reveal({ ready, width, className, children }: { ready: boolean; width: 
  * Open a House's preview, building itself up. It starts as a soft surface with only the host's tab and a placeholder bar per line; each
  * answer takes its line's place, the cover fades in over the surface. Prices are in the House's own currency, not the viewer's.
  */
-export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates, placeLabel = null }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean; /** "Place booked" / "Picking together" under the price */ placeLabel?: string | null }) {
+export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates, placeLabel = null, kindLabel = null }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean; /** "Place booked" / "Picking together" under the price */ placeLabel?: string | null; /** The kind of place ("Villa"), a small line under the place */ kindLabel?: string | null }) {
   const t = useTranslations("explore");
   const tFlow = useTranslations("create.flow");
   const format = useFormat();
@@ -53,6 +53,7 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
           <Reveal ready={showMeta} width="58%" className="mt-1">
             <p className="truncate text-small opacity-85">{[showDates ? format.stayDates(stay) : null, stay.region ? format.placeName(stay) : null].filter(Boolean).join(" · ")}</p>
           </Reveal>
+          {kindLabel && <p className="reveal-in truncate text-small opacity-75">{kindLabel}</p>}
           <Reveal ready={showPrice} width="34%" className="mt-1">
             {/* Exact with a place of your own, a range while it's picked together. */}
             <p className="truncate text-body font-semibold">

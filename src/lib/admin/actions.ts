@@ -2,11 +2,13 @@
 
 // Every admin action – and each writes its line in the admin log. No admin component changes data any other way.
 import { setPlatformPhase } from "@/config/platform";
+import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
-import type { ApplicationStatus, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
-import { appendAdminLog, patchTicket, pushWithdrawal, setApplicationStatus } from "./store";
+import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import type { TaxQuestion } from "@/lib/data";
 
 export function useAdminActions() {
   const store = useStore();
@@ -60,12 +62,80 @@ export function useAdminActions() {
      * Function calls stripe.payouts.create on the platform account (no destination given: Stripe pays the account on file).
      */
     payOutNow(amount: number, account: string) {
-      appendAdminLog("payout_requested", `€${amount.toLocaleString("en-US")} → ${account}`, by);
+      appendAdminLog("payout_requested", `${eur(amount)} → ${account}`, by);
     },
     /** A private withdrawal from the company account, entered by hand (Qonto) – for "what's left in the company". */
     addWithdrawal(date: string, amount: number, note?: string) {
       pushWithdrawal({ date, amount, note });
-      appendAdminLog("withdrawal_added", `€${amount.toLocaleString("en-US")} · ${date}`, by);
+      appendAdminLog("withdrawal_added", `${eur(amount)} · ${day(date)}`, by);
+    },
+    /** A tier by hand (Applications, Houses › Hosts) – for an application, or a host's account. */
+    setApplicationTier(application: HostApplication, tier: HostTier) {
+      if (application.hostTier === tier) return;
+      patchApplication(application.id, { hostTier: tier });
+      appendAdminLog("host_tier_changed", `${application.name} · ${tier}`, by);
+    },
+    setHostTier(user: { id: string; name: string; hostTier?: HostTier }, tier: HostTier) {
+      if (user.hostTier === tier) return;
+      store.setHostTier(user.id, tier);
+      appendAdminLog("host_tier_changed", `${user.name} · ${tier}`, by);
+    },
+    /**
+     * Early warning (Admin › Houses). Mock: only logged (the caller shows the toast). TODO(backend): "Hervorheben" moves the House up on
+     * Explore for a while; "Warteliste informieren" mails the matching sign-ups (lib/notify); "Host erinnern" sends the host a nudge.
+     */
+    highlightHouse(stay: { title: string }) {
+      appendAdminLog("house_highlighted", stay.title, by);
+    },
+    notifyWaitlist(stay: { title: string }, count: number) {
+      appendAdminLog("waitlist_notified", `${stay.title} · ${count}`, by);
+    },
+    remindHost(stay: { title: string }, hostName: string) {
+      appendAdminLog("host_reminded", `${hostName} · ${stay.title}`, by);
+    },
+    /** Heute: a task done (it's gone) – `label` is how it reads in the log. */
+    /** Geld › Steuern: a receipt for a cost (the mock keeps only the file name). */
+    attachReceipt(receiptNo: string, fileName: string) {
+      setReceipt(receiptNo, fileName);
+      appendAdminLog("receipt_attached", `${receiptNo} · ${fileName}`, by);
+    },
+    /** Geld › Steuern: a question for the tax advisor – its status or its note. */
+    updateTaxQuestion(question: TaxQuestion, patch: Partial<Pick<TaxQuestion, "status" | "note">>) {
+      if (Object.entries(patch).every(([k, v]) => question[k as keyof TaxQuestion] === v)) return;
+      patchTaxQuestion(question.id, patch);
+      appendAdminLog("tax_question_updated", `${question.text}${patch.status ? ` · ${patch.status}` : ""}`, by);
+    },
+    /** Finanzierung › Bereitschaft: "Umzug erledigt, Firma im Ausland" by hand. */
+    setMoved(moved: boolean) {
+      setFundingMoved(moved);
+      appendAdminLog("funding_moved", moved ? "erledigt" : "noch nicht", by);
+    },
+    /** Finanzierung › Unterlagen: a document's status. */
+    setFundingDocStatus(key: string, label: string, status: "missing" | "inProgress" | "done") {
+      setFundingDoc(key, status);
+      appendAdminLog("funding_doc", `${label} · ${status}`, by);
+    },
+    /** Vision › Standort: the chosen country and why. */
+    decideLocation(country: string | null, reason: string) {
+      setLocation({ country, reason });
+      appendAdminLog("location_decided", country ?? "noch offen", by);
+    },
+    /** Geld › Steuern: an export was made (format · period). */
+    logExport(label: string) {
+      appendAdminLog("export_created", label, by);
+    },
+    completeTask(id: string, label: string) {
+      setTaskState(id, { done: true });
+      appendAdminLog("task_done", label, by);
+    },
+    /** Heute: "Später" – the task comes back on `until` (tomorrow). */
+    snoozeTask(id: string, label: string, until: string) {
+      setTaskState(id, { snoozedUntil: until });
+      appendAdminLog("task_snoozed", `${label} · ${day(until)}`, by);
+    },
+    /** Heute › Geld: a nudge to the guest whose payment failed. Mock: only logged. TODO(backend): lib/notify payment_reminder. */
+    remindGuest(name: string, houseTitle: string) {
+      appendAdminLog("guest_reminded", `${name} · ${houseTitle}`, by);
     },
     /** The platform phase – the same storage as the Dev menu's switch; the page reloads with that phase's data. */
     changePhase(phase: PlatformPhase) {

@@ -28,7 +28,7 @@ export const emptyAdapter: DataAdapter = {
   // TODO(backend): the { tint, lum } stored with each photo on upload (a Cloud Function running scripts/image-meta.mjs's measure).
   getPhotoMeta: () => null,
   // TODO(firestore): the waitlist, hostApplications and adminLog collections.
-  getAdminData: () => ({ waitlist: [], applications: [], log: [], tickets: [], withdrawals: [] }),
+  getAdminData: () => ({ waitlist: [], applications: [], log: [], tickets: [], withdrawals: [], taskStates: {}, receipts: {}, taxQuestions: [], fundingMoved: false, fundingDocs: {}, location: { country: null, reason: "" } }),
   // TODO(phase 4): the Google Analytics Data API, on the server.
   getTrafficReport: () => null,
   // TODO(backend): monthly aggregates (full Houses, fees kept), from a scheduled Function.
@@ -37,4 +37,11 @@ export const emptyAdapter: DataAdapter = {
   getHypothesisResults: () => ({}),
   // TODO(phase 5): Stripe balance + payout settings (server side, the platform account).
   getPlatformPayouts: () => null,
+  // The outcomes come from the records themselves (lib/admin/metrics.ts outcomesFromRecords).
+  getHouseOutcomes: () => null,
+  // TODO(phase 5): Stripe webhook payment_intent.payment_failed, stored server side.
+  getPaymentIssues: () => null,
+  getLedger: () => null,
+  getBankBalance: () => null,
+  getHostTaxData: () => ({}),
 };

@@ -1,5 +1,6 @@
 // ⚠ MOCK: the admin collections (/admin) – waitlist sign-ups, host applications, the admin log – and the demo traffic. Deterministic: the
 // same entries every time. Only the data adapter reads this file (lib/data/mockAdapter.ts); the real source is Firestore (phase 4).
+import { MOCK_TAX_QUESTIONS } from "./mock-ledger";
 import type { AdminLogEntry, HostApplication, SupportTicket, Vibe, WaitlistEntry, Withdrawal } from "./types";
 
 /** A small seeded random: the same list on every load. */
@@ -87,6 +88,33 @@ const APPLICANTS: readonly (readonly [name: string, topic: Vibe, hub: string, ho
 const DECIDED: readonly HostApplication["status"][] = ["yes", "yes", "no", "maybe", "yes", "maybe", "no", "yes", "maybe", "yes", "no", "maybe", "yes", "maybe", "no"];
 
 /** 28 applications over eight weeks; the first 15 decided, the rest new. */
+/**
+ * ⚠ MOCK: followers across someone's links – most a few thousand, about one in 25 a creator with 100k+ (an anchor by HOST_TIER_RULES).
+ * Fixed per key, so the same person always has the same number.
+ */
+export function mockAudienceSize(key: string, hasLinks = true): number {
+  if (!hasLinks) return 0;
+  // FNV-1a, then a multiplicative mix – short keys ("u12") spread evenly.
+  let h = 2166136261;
+  for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 2246822507) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+  const r = (h >>> 0) / 4294967296;
+  const s = ((h >>> 11) % 1000) / 1000;
+  return r < 0.04 ? 120_000 + Math.round(s * 880_000) : 600 + Math.round(s * 42_000);
+}
+
+/**
+ * ⚠ MOCK: some hosts who run their Houses as pro hosts (a host fee per guest) – so the host mix reads like a real one (about 60 % share,
+ * 35 % pro, 5 % anchor; admin › Hosts). Fixed per host id.
+ */
+export function mockRunsAsPro(hostId: string): boolean {
+  let h = 2166136261;
+  for (const c of `pro-${hostId}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+  return h % 100 < 17;
+}
+
 function applications(): HostApplication[] {
   const rand = seeded(23);
   return APPLICANTS.map(([name, topic, hub, hostType, audienceLinks, pitch, userId], i): HostApplication => ({
@@ -97,6 +125,7 @@ function applications(): HostApplication[] {
     hub,
     hostType,
     audienceLinks,
+    audienceSize: mockAudienceSize(`app-${name}`, audienceLinks.length > 0),
     pitch,
     status: DECIDED[i] ?? "new",
     createdAt: iso(TODAY - Math.round(56 - i * 1.9) * DAY + Math.floor(rand() * DAY)),
@@ -124,7 +153,7 @@ export const MOCK_FOUNDING_HOST_IDS: readonly string[] = applications()
 
 export function mockAdminData() {
   const apps = applications();
-  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS };
+  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, location: { country: null, reason: "" } };
 }
 
 /** ⚠ DEMO DATA: what Google Analytics will report from phase 4 – visitors per week, countries, sources, the way to the sign-up. */
@@ -162,16 +191,78 @@ export const MOCK_METRICS_HISTORY = {
   fullHousesPerMonth: [14, 17, 19, 22, 26, 31, 36, 24, 37, 39, 41, 38].map((full, i, all) => ({ monthsAgo: all.length - 1 - i, full })),
   /** What Simpulo kept, EUR */
   profitPerMonth: [1200, 1500, 1800, 2100, 2600, 3200, 3700, 2500, 3900, 4300, 4700, 4400].map((profit, i, all) => ({ monthsAgo: all.length - 1 - i, profit })),
-} as const;
+  /**
+   * The monthly series, oldest first (the last is this month so far): shared nights ≈ full Houses × 6 people × 9–10 nights; the booking
+   * volume ≈ ten times what Simpulo keeps (guests pay rent and host fees through Simpulo, Simpulo keeps ≈ 10 %); active users well above the
+   * guests (most search and save before they ever stay); new guests ≈ the guests of the month without the returning ones.
+   */
+  series: {
+    sharedNights: [790, 980, 1110, 1290, 1520, 1830, 2140, 1390, 2190, 2330, 2470, 2240],
+    bookingVolume: [11900, 15200, 18100, 21400, 26300, 32500, 37400, 25100, 39600, 43300, 47600, 44100],
+    activeUsers: [840, 990, 1130, 1290, 1520, 1830, 2160, 1740, 2410, 2680, 2970, 2810],
+    newGuests: [58, 69, 76, 86, 99, 117, 133, 88, 136, 141, 147, 128],
+    repeatRate: [11, 12, 13, 14, 15, 16, 17, 17, 18, 19, 21, 22],
+  },
+  /**
+   * Admin › Houses: three upcoming Houses at risk (two quiet for over a week, one with a request unanswered for 61 h); the full Houses took
+   * 6–21 days to fill. Houses not listed count as active.
+   */
+  houseActivity: {
+    x47: { quietDays: 11 },
+    x45: { quietDays: 9 },
+    x23: { oldestPendingHours: 61 },
+    s9: { daysToFull: 6 },
+    s4: { daysToFull: 8 },
+    s1: { daysToFull: 9 },
+    s34: { daysToFull: 10 },
+    x19: { daysToFull: 11 },
+    s22: { daysToFull: 12 },
+    s24: { daysToFull: 14 },
+    s25: { daysToFull: 16 },
+    s54: { daysToFull: 18 },
+    x49: { daysToFull: 21 },
+  },
+  /**
+   * The overview's numbers on the same day a week, a month and a year ago (this month so far, as they stood then): a week ago fewer Houses
+   * had filled yet; on 15 Oct October stood a little higher in profit, lower in full Houses; a year ago Simpulo was small.
+   */
+  snapshots: {
+    week: { profit: 3900, fullHouses: 33, reservedShare: 49, repeatRate: 22, sharedNights: 1960 },
+    month: { profit: 4700, fullHouses: 35, reservedShare: 46, repeatRate: 20, sharedNights: 2050 },
+    year: { profit: 900, fullHouses: 9, reservedShare: 31, repeatRate: 12, sharedNights: 510 },
+  },
+  /**
+   * ⚠ Example values: what each provider cost over the last 12 months (EUR), against the year's revenue (35.900 €): Firebase ≈ 6 %, Stripe's
+   * fees ≈ 12 % (they are charged on the whole amount, Simpulo keeps only the fee), analytics free, maps ≈ 2 %, e-mail ≈ 1 %.
+   */
+  providerCosts: { firebase: 2150, stripe: 4300, analytics: 0, maps: 720, email: 260 },
+  /** Realistic for a young network: 41 % mutual pairs, 22 % repeat guests, 17 days until full (median). */
+  network: {
+    mutualPairs: 49,
+    allPairs: 120,
+    peopleWithMutual: 74,
+    guests: 312,
+    repeatGuests: 69,
+    fullHouses: 64,
+    medianDaysToFull: 17,
+    daysToFullBuckets: [
+      { key: "0-3", count: 3 },
+      { key: "4-7", count: 6 },
+      { key: "8-14", count: 17 },
+      { key: "15-30", count: 29 },
+      { key: "30+", count: 9 },
+    ],
+  },
+};
 
 /** ⚠ MOCK: what the data says about each hypothesis so far (config/hypotheses.ts) – the current value and the verdict. */
 export const MOCK_HYPOTHESIS_RESULTS = {
-  topicsFirst: { current: "41 % faster", status: "supported" },
-  proFaster: { current: "12 % faster", status: "open" },
+  topicsFirst: { current: "41 % schneller", status: "supported" },
+  proFaster: { current: "12 % schneller", status: "open" },
   reservedFill: { current: "74 %", status: "open" },
-  peopleRebook: { current: "2.1×", status: "supported" },
-  shortTrips: { current: "3 % faster", status: "rejected" },
-  tiktokConverts: { current: "1.1× (38 sign-ups)", status: "open" },
+  peopleRebook: { current: "2,1×", status: "supported" },
+  shortTrips: { current: "3 % schneller", status: "rejected" },
+  tiktokConverts: { current: "1,1× (38 Anmeldungen)", status: "open" },
 } as const;
 
 // ── Support ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -262,3 +353,9 @@ export const MOCK_PLATFORM_PAYOUTS = {
   manageUrl: "https://dashboard.stripe.com/settings/payouts",
 } as const;
 
+
+/** ⚠ MOCK: two payments that didn't go through (Admin › Heute, "Geld"). */
+export const MOCK_PAYMENT_ISSUES = [
+  { id: "pi-1", stayId: "s2", userId: "u14", amount: 6_800_000, reason: "card_declined", at: iso(TODAY - 1 * DAY) },
+  { id: "pi-2", stayId: "s16", userId: "u21", amount: 15_400, reason: "insufficient_funds", at: iso(TODAY - 2 * DAY + 5 * 3_600_000) },
+] as const;

@@ -6,7 +6,7 @@ import type { Stay } from "../types";
 import { PLATFORM_PHASES, type DataAdapter } from "./adapter";
 import type { PlatformPhase } from "../types";
 
-export { PLATFORM_PHASES, type AdminData, type AppData, type HypothesisResult, type MetricsHistory, type PhotoMeta, type PlatformPayouts, type TrafficReport } from "./adapter";
+export { PLATFORM_PHASES, type AdminData, type AppData, type HouseOutcome, type PaymentIssue, type HypothesisResult, type MetricsHistory, type OverviewSnapshot, type LedgerEntry, type LedgerKind, type BankBalance, type HostTaxData, type TaxQuestion, type PhotoMeta, type PlatformPayouts, type TrafficReport } from "./adapter";
 import type { PhotoMeta } from "./adapter";
 
 // Written out, so a production build drops the mock from its bundle: these two are decided while bundling.
@@ -46,6 +46,11 @@ export const getTrafficReport = adapter.getTrafficReport;
 export const getMetricsHistory = adapter.getMetricsHistory;
 export const getHypothesisResults = adapter.getHypothesisResults;
 export const getPlatformPayouts = adapter.getPlatformPayouts;
+export const getHouseOutcomes = adapter.getHouseOutcomes;
+export const getPaymentIssues = adapter.getPaymentIssues;
+export const getLedger = adapter.getLedger;
+export const getBankBalance = adapter.getBankBalance;
+export const getHostTaxData = adapter.getHostTaxData;
 /** A photo's { tint, lum } for the card's darkening; without a measure: tint #1A1614, lum .5. */
 export const photoMetaOf = (src: string): PhotoMeta => adapter.getPhotoMeta(src) ?? { tint: "#1a1614", lum: 0.5 };
 export type { Page, PageRequest } from "./paging";

@@ -27,6 +27,9 @@
   --hdr-corner-fg: var(--stage-text);
   --hdr-corner-hover: rgba(244, 238, 231, 0.14);
   --hdr-corner-active: rgba(244, 238, 231, 0.22);
+  /* The header's text tabs (Explore · Your houses · Messages): the one you're on a filled capsule cream 12 %, no edge; hover cream 6 %. */
+  --hdr-tab-active: rgba(244, 238, 231, 0.12);
+  --hdr-tab-hover: rgba(244, 238, 231, 0.06);
   --hdr-corner-edge: transparent;
 }
 /* The avatar in the bar (and the login circle): 40px, round, no ring or edge – the same size and line as the icon buttons. */
@@ -1609,3 +1612,4 @@ main:has([data-demo-login]) {
     animation: none;
   }
 }
+

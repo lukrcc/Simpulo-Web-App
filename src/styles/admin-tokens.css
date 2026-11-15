@@ -6,8 +6,9 @@
  * Each accent has ONE job:
  *   ember (critical) – "needs you": badges, open safety tickets, deadlines, action needed (and the critical status dot)
  *   ocean (chart-1)  – focus: the page's main number, the chosen tab (a filled capsule, ocean 12 %), a chart's main line; at most one per area
- *   the Ember stage  – the most important: one dark tile, only the Cockpit's "Profit this month" against €5,000; nothing else is dark
- *   good / warning / critical – only as small dots beside numbers (getStatus, lib/admin/metrics.ts), never a surface, bar or chart fill
+ *   no dark surface in the admin – the profit chart on the overview stands open on the light page
+ *   good / warning / critical – as small dots beside numbers (getStatus, lib/admin/metrics.ts); the one exception: the overview's profit
+ *   bars (amber below €5,000, sage from it)
  */
 .admin-scope {
   color-scheme: light;
@@ -37,23 +38,4 @@
   /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 12 %, no edge. */
   --sel-bg: var(--adm-chart-1-soft);
   --sel-border: transparent;
-}
-
-/*
- * The Ember stage (Cockpit only): #221E1B with a soft orange glow top right – the app's pre-rendered ember picture (tokens.css .ember, warm
- * bottom right) turned upside down, so no CSS gradient (no banding). Inside it the tokens turn round like every .ember tile.
- */
-.admin-scope .adm-stage {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: var(--stage-bg);
-}
-.admin-scope .adm-stage::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: url("/glow/ember-band.png") center / cover no-repeat;
-  transform: scaleY(-1);
 }

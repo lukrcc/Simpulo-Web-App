@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AdminSupport } from "@/components/admin/AdminSupport";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
-export const metadata: Metadata = { title: "Support", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Admin · Support", robots: { index: false, follow: false } };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

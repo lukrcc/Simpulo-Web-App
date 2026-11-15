@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminCockpit } from "@/components/admin/AdminCockpit";
 
-export const metadata: Metadata = { title: "Admin · Cockpit" };
+export const metadata: Metadata = { title: "Admin · Übersicht" };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

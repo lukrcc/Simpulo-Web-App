@@ -26,7 +26,7 @@ import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
-import { openHelpFeedback } from "@/lib/support/feedback";
+import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
@@ -522,9 +522,10 @@ function GeneralArea({ me }: { me: User }) {
         <SettingsRow title={tu("general.yourPeople")} chevron href="/people" />
         {!standalone && <SettingsRow title={tu("general.getApp")} chevron href="/get" />}
       </SettingsGroup>
-      {/* "Help & feedback": the one sheet (questions, bugs, ideas, safety) → Admin › Support. */}
+      {/* Support in two ways – "Get help" (question, something's broken, safety) and "Share an idea" → Admin › Support. */}
       <SettingsGroup>
-        <SettingsRow title={tu("general.help")} chevron onClick={openHelpFeedback} />
+        <SettingsRow title={tu("general.help")} chevron onClick={openGetHelp} />
+        <SettingsRow title={tu("general.idea")} chevron onClick={openShareIdea} />
       </SettingsGroup>
     </div>
   );

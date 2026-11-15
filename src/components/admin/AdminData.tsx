@@ -115,7 +115,7 @@ function Hypotheses() {
             <div className="min-w-0">
               <p className="text-body font-semibold text-ink">{h.statement}</p>
               <p className="mt-1 text-small text-muted">
-                {t("metric")}: {h.metric} · {t("target")} {h.target} · {t("current")} <span className="font-semibold text-ink">{result?.current ?? "–"}</span>
+                {t("metric")}: {h.metric ?? "–"} · {t("target")} {h.target ?? "–"} · {t("current")} <span className="font-semibold text-ink">{result?.current ?? "–"}</span>
               </p>
             </div>
             <span className="inline-flex items-center gap-2 justify-self-start text-small font-medium text-ink">

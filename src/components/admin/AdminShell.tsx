@@ -1,88 +1,94 @@
 "use client";
 
-import { BarChart3, Compass, FileText, Gauge, Home, Inbox, LifeBuoy, ListOrdered, Network, ScrollText, SlidersHorizontal, Sparkles, Tags, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { ListChecks, Compass, Landmark, FileText, Gauge, Home, Inbox, LifeBuoy, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
+import { useMemo, type ReactNode } from "react";
+import type { Locale } from "@/i18n/config";
+import { ADMIN_DE, ADMIN_UI_DE } from "@/lib/i18n/admin.de";
 import { SideNav } from "@/components/settings/SideNav";
 import { Badge } from "@/components/ui/Badge";
 import { listItemStyles } from "@/components/ui/listSelection";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
-import { isOpenTicket, type Status } from "@/lib/admin/metrics";
-import { useAdminData } from "@/lib/admin/store";
+import type { Status } from "@/lib/admin/metrics";
 import { StatusDot } from "./AdminCharts";
+import { useAdminTasks } from "@/lib/admin/useAdminTasks";
+import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "money" | "vision" | "houses" | "applications" | "waitlist" | "topics" | "data" | "traffic" | "growth" | "support" | "prepared" | "platform" | "log";
+type AreaKey = "today" | "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "vision" | "funding" | "support" | "platform" | "waitlist" | "applications";
 interface Area {
   key: AreaKey;
   href: string;
   icon: LucideIcon;
+  /** Pages without their own entry that belong here (they mark this entry): Money under the overview, Traffic under growth, Log under System */
+  also?: readonly string[];
 }
 
-/** The side list in four groups with small headings, in this order. */
-const GROUPS: readonly { key: "steer" | "market" | "intelligence" | "operate"; areas: readonly Area[] }[] = [
-  {
-    key: "steer",
-    areas: [
-      { key: "cockpit", href: "/admin", icon: Gauge },
-      { key: "money", href: "/admin/money", icon: Wallet },
-      { key: "vision", href: "/admin/vision", icon: Compass },
-    ],
-  },
+/** The side list in four groups with small headings, in this order: MARKT · WACHSTUM · BETRIEB · LAUNCH. */
+const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas: readonly Area[] }[] = [
   {
     key: "market",
     areas: [
+      { key: "today", href: "/admin/today", icon: ListChecks },
+      { key: "cockpit", href: "/admin", icon: Gauge, also: ["/admin/money"] },
       { key: "houses", href: "/admin/houses", icon: Home },
-      { key: "applications", href: "/admin/applications", icon: Inbox },
-      { key: "waitlist", href: "/admin/waitlist", icon: ListOrdered },
-      { key: "topics", href: "/admin/topics", icon: Tags },
+      { key: "hosts", href: "/admin/hosts", icon: Users },
     ],
   },
   {
-    key: "intelligence",
+    key: "growth",
     areas: [
+      { key: "growth", href: "/admin/growth", icon: TrendingUp, also: ["/admin/traffic"] },
+      { key: "topics", href: "/admin/topics", icon: Tags },
       { key: "data", href: "/admin/data", icon: Network },
-      { key: "traffic", href: "/admin/traffic", icon: BarChart3 },
-      { key: "growth", href: "/admin/growth", icon: TrendingUp },
+      { key: "vision", href: "/admin/vision", icon: Compass },
+      { key: "funding", href: "/admin/funding", icon: Landmark },
     ],
   },
   {
     key: "operate",
     areas: [
       { key: "support", href: "/admin/support", icon: LifeBuoy },
-      { key: "prepared", href: "/admin/houses/prepared", icon: Sparkles },
-      { key: "platform", href: "/admin/platform", icon: SlidersHorizontal },
-      { key: "log", href: "/admin/log", icon: ScrollText },
+      { key: "platform", href: "/admin/platform", icon: SlidersHorizontal, also: ["/admin/log"] },
+    ],
+  },
+  {
+    key: "launch",
+    areas: [
+      { key: "waitlist", href: "/admin/waitlist", icon: ListOrdered },
+      { key: "applications", href: "/admin/applications", icon: Inbox },
     ],
   },
 ];
 const AREAS: readonly Area[] = GROUPS.flatMap((g) => g.areas);
 
 /**
- * Area colours (styles/admin-tokens.css, never status, never dots): Steer → launch (neutral grey), Market → clay, Intelligence → growth
- * (plum), Operate → slate. Whole class names, so Tailwind finds them.
+ * Area colours (styles/admin-tokens.css, never status, never dots): Markt → clay, Wachstum → plum, Betrieb → slate, Launch → neutral grey.
+ * Whole class names, so Tailwind finds them.
  */
 export type AreaColor = "launch" | "market" | "growth" | "operate";
-const GROUP_COLOR: Record<(typeof GROUPS)[number]["key"], AreaColor> = { steer: "launch", market: "market", intelligence: "growth", operate: "operate" };
+const GROUP_COLOR: Record<(typeof GROUPS)[number]["key"], AreaColor> = { market: "market", growth: "growth", operate: "operate", launch: "launch" };
 export const AREA_TEXT: Record<AreaColor, string> = { launch: "text-adm-area-launch", market: "text-adm-area-market", growth: "text-adm-area-growth", operate: "text-adm-area-operate" };
 export const AREA_BG: Record<AreaColor, string> = { launch: "bg-adm-area-launch", market: "bg-adm-area-market", growth: "bg-adm-area-growth", operate: "bg-adm-area-operate" };
 
 /** The area colour of a page, by the group its side-list entry is in. */
 function areaColorOf(pathname: string): AreaColor {
   const href = activeHref(pathname);
-  return GROUP_COLOR[GROUPS.find((g) => g.areas.some((a) => a.href === href))?.key ?? "steer"];
+  return GROUP_COLOR[GROUPS.find((g) => g.areas.some((a) => a.href === href))?.key ?? "market"];
 }
 
-/** The area a path belongs to: the longest href it starts with ("/admin", the Cockpit, only for itself – every other area starts with it). */
+/**
+ * The entry a path belongs to: the longest href (or `also` path) it is or starts with – "/admin", the overview, only for itself; prepared
+ * Houses (/admin/houses/prepared) under Houses.
+ */
 function activeHref(pathname: string): string {
-  return (
-    AREAS.map((a) => a.href)
-      .filter((href) => pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`)))
-      .toSorted((a, b) => b.length - a.length)[0] ?? "/admin"
+  const matches = AREAS.flatMap((a) => [a.href, ...(a.also ?? [])].map((path) => ({ path, href: a.href }))).filter(
+    ({ path }) => pathname === path || (path !== "/admin" && pathname.startsWith(`${path}/`)),
   );
+  return matches.toSorted((a, b) => b.path.length - a.path.length)[0]?.href ?? "/admin";
 }
 
 /**
@@ -92,19 +98,37 @@ function activeHref(pathname: string): string {
  * what scrolls. Below 1024px the areas as one scrolling row of capsules.
  */
 export function AdminFrame({ children }: { children: ReactNode }) {
+  const messages = useMessages();
+  // The admin is German (lib/i18n/admin.de.ts): its own provider with locale "de" – dates and numbers follow; the app stays English.
+  const adminMessages = useMemo(
+    () => ({
+      ...messages,
+      admin: ADMIN_DE,
+      // The shared building blocks inside the admin speak German too (Sheet, dialog foot, ScrollRow, form labels).
+      common: { ...messages.common, cancel: ADMIN_UI_DE.cancel, close: ADMIN_UI_DE.close, back: ADMIN_UI_DE.back, ui: { ...messages.common.ui, form: { optional: ADMIN_UI_DE.optional, preview: ADMIN_UI_DE.preview } } },
+      explore: { ...messages.explore, collections: { ...messages.explore.collections, scrollBack: ADMIN_UI_DE.scrollBack, scrollOn: ADMIN_UI_DE.scrollOn } },
+    }),
+    [messages],
+  );
+  return (
+    <NextIntlClientProvider locale={"de" as Locale} messages={adminMessages} timeZone="UTC">
+      <AdminFrameInner>{children}</AdminFrameInner>
+    </NextIntlClientProvider>
+  );
+}
+
+function AdminFrameInner({ children }: { children: ReactNode }) {
   const t = useTranslations("admin");
   const pathname = usePathname();
   const isAdmin = useIsAdmin();
-  const data = useAdminData();
+  // "Heute": how many tasks are open – red when a safety report is among them.
+  const counts = taskCounts(useAdminTasks());
   if (isAdmin === null) return <div className="min-h-[60vh]" />;
   if (!isAdmin) notFound();
 
   const active = activeHref(pathname);
-  // What needs you, as an ember count at the entry's right: new applications, open tickets.
-  const needs: Partial<Record<AreaKey, number>> = {
-    applications: data.applications.filter((a) => a.status === "new").length,
-    support: data.tickets.filter(isOpenTicket).length,
-  };
+  // What needs you, as an ember count at the entry's right – all from the one task list (taskCounts), so they agree with "Braucht dich".
+  const needs: Partial<Record<AreaKey, number>> = { today: counts.total, applications: counts.applications, support: counts.support };
   const item = (a: Area) => ({
     key: a.key,
     href: a.href,
@@ -112,7 +136,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     icon: a.icon,
     selected: active === a.href,
     current: active === a.href,
-    badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} /> : undefined,
+    badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} urgent={a.key === "today" && counts.safetyOpen} /> : undefined,
   });
 
   return (
@@ -148,9 +172,9 @@ export function AdminFrame({ children }: { children: ReactNode }) {
 }
 
 /** A count that needs you, right-aligned in a side-list entry: ember, cream number (the admin's "needs you" colour). */
-function NavBadge({ count, label }: { count: number; label: string }) {
+function NavBadge({ count, label, urgent = false }: { count: number; label: string; /** A safety report is open: red instead of ember */ urgent?: boolean }) {
   return (
-    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-adm-critical px-1.5 text-nav-group tabular-nums tracking-normal text-on-signal">
+    <span className={cn("flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 text-nav-group tabular-nums tracking-normal text-on-signal", urgent ? "bg-danger" : "bg-adm-critical")}>
       <span aria-hidden>{count}</span>
       <span className="sr-only">{label}</span>
     </span>

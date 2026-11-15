@@ -1,4 +1,5 @@
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
+import { ACCOMMODATION_CATEGORIES, PRICE_BUDGET_EUR, accommodationOf } from "@/config/accommodation";
 import { convert } from "@/lib/currency";
 import { placeById, placeKindOf } from "@/lib/data/places";
 import { maxHostFee } from "@/lib/fees";
@@ -42,7 +43,8 @@ export const SPOTS_QUICK = [4, 6, 8, 12] as const;
 export const DEFAULT_LANGUAGE = "en";
 
 /** Required: all it takes to open a House – then "extras" (optional, skippable) and "Ready to open?". */
-export const REQUIRED_STEPS = ["vibe", "place", "where", "crew", "cover"] as const;
+/** "kind": "Where will you live?" – the kind of place (config/accommodation.ts), right after "Got a place?". */
+export const REQUIRED_STEPS = ["vibe", "place", "kind", "where", "crew", "cover"] as const;
 /** The new flow's optional step 6: "Make it stand out". */
 export const EXTRAS_STEP = "extras" as const;
 /** Before the review, only with people to invite: "Invite your crew" (Do it again) / "Invite your people". Optional. */
@@ -105,6 +107,10 @@ export interface FormState {
   totalPrice: string;
   /** placeMode "set": optional link to the listing */
   placeLink: string;
+  /** "Where will you live?": the category picked (config/accommodation.ts); "unsure" = the crew picks it together; "" = not answered */
+  accommodationCategory: string;
+  /** The type within it ("villa", "surf-camp"); "" = none yet (or "unsure") */
+  accommodationType: string;
   /** Several months in a row: the last one ("" = just `month`) */
   monthEnd: string;
   /** "mixed" (everyone) or "women" (women only) */
@@ -171,6 +177,8 @@ export const initialForm: FormState = {
   placeMode: "",
   totalPrice: "",
   placeLink: "",
+  accommodationCategory: "",
+  accommodationType: "",
   monthEnd: "",
   who: "mixed",
   ageKey: "",
@@ -222,6 +230,8 @@ export function formFromStay(stay: Stay): FormState {
     placeMode: stay.accommodationStatus === "locked" ? "set" : "together",
     totalPrice: stay.totalPrice ? String(stay.totalPrice) : "",
     placeLink: stay.accommodationLink ?? "",
+    accommodationType: accommodationOf(stay.accommodationType)?.type.id ?? "",
+    accommodationCategory: accommodationOf(stay.accommodationType)?.category.id ?? "",
     who: stay.who === "women" || stay.audience === "women" ? "women" : "mixed",
     ageKey,
     month: stay.startDate.slice(0, 7),
@@ -465,6 +475,8 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     totalPrice: set ? set.total : editing?.totalPrice,
     budgetPerPerson: locked || set ? editing?.budgetPerPerson : budgetOf(form),
     accommodationLink: set ? form.placeLink.trim() || undefined : editing?.accommodationLink,
+    // The kind of place (data point create.accommodationType); "Not sure yet" saves none.
+    accommodationType: accommodationOf(form.accommodationType)?.type.id ?? editing?.accommodationType,
     who: form.who,
     audience: form.who === "women" ? "women" : null,
     ageRange: form.ageKey ? AGE_RANGES[form.ageKey] : undefined,
@@ -502,7 +514,7 @@ export function isValidGroupUrl(raw: string): boolean {
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "placeMode" | "totalPrice" | "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
+export type FieldKey = "placeMode" | "accommodationType" | "totalPrice" | "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
@@ -510,7 +522,7 @@ export type FieldError =
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
   | { key: "spots"; min: number }
-  | { key: "placeMode" | "totalPrice" }
+  | { key: "placeMode" | "totalPrice" | "accommodationType" }
   | { key: "hostFeeTooHigh"; max: number };
 
 export type FieldErrors = Partial<Record<FieldKey, FieldError>>;
@@ -581,6 +593,10 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       break;
     case "place":
       if (!form.placeMode) errors.placeMode = { key: "placeMode" };
+      break;
+    case "kind":
+      // A type, or "Not sure yet" – a category alone isn't an answer yet.
+      if (form.accommodationCategory !== "unsure" && !accommodationOf(form.accommodationType)) errors.accommodationType = { key: "accommodationType" };
       break;
     case "crew": {
       if (!(form.spotsTotal >= Math.max(SPOTS_MIN, minSpots))) errors.spotsTotal = { key: "spots", min: Math.max(SPOTS_MIN, minSpots) };
@@ -850,4 +866,24 @@ export function nextMonthRun(clicked: string, start: string, end: string, months
   if (clicked === last && e > s) return { month: start, monthEnd: e - 1 > s ? months[e - 1] : "" };
   if (clicked === start && e > s) return { month: months[s + 1], monthEnd: e > s + 1 ? last : "" };
   return { month: clicked, monthEnd: "" };
+}
+
+/** "Where will you live?" picked: the crew size starts at the category's typical lower end (changeable on "Crew and price"). */
+export function kindPick(categoryId: string, typeId: string): Partial<FormState> {
+  const category = ACCOMMODATION_CATEGORIES.find((c) => c.id === categoryId);
+  return { accommodationCategory: categoryId, accommodationType: typeId, ...(category ? { spotsTotal: Math.max(SPOTS_MIN, category.crew.min) } : {}) };
+}
+
+/**
+ * Entering "Crew and price" with a kind of place and no budget yet: the budget per person from its price level (PRICE_BUDGET_EUR, in the
+ * House currency, rounded) – only while the crew picks the place together; changeable.
+ */
+export function kindBudget(form: FormState, currency: Currency): Partial<FormState> {
+  const category = ACCOMMODATION_CATEGORIES.find((c) => c.id === form.accommodationCategory);
+  if (!category || form.placeMode !== "together" || form.budgetMin || form.budgetMax || form.budgetTbd) return {};
+  const [min, max] = PRICE_BUDGET_EUR[category.price].map((eur) => {
+    const step = budgetScaleOf(currency).step;
+    return Math.max(step, Math.round(convert(eur, "EUR", currency) / step) * step);
+  });
+  return { budgetMin: String(min), budgetMax: String(max) };
 }

@@ -1,6 +1,8 @@
 import { CURRENT_USER_ID, joinRequests, stays, users } from "../mock";
 import { getMockDataset } from "../mock-datasets";
-import { MOCK_HYPOTHESIS_RESULTS, MOCK_METRICS_HISTORY, MOCK_PLATFORM_PAYOUTS, MOCK_TRAFFIC, mockAdminData } from "../mock-admin";
+import { mockHouseOutcomes } from "../mock-analysis";
+import { MOCK_BANK_BALANCE, mockHostTaxData, mockLedger } from "../mock-ledger";
+import { MOCK_PAYMENT_ISSUES, MOCK_HYPOTHESIS_RESULTS, MOCK_METRICS_HISTORY, MOCK_PLATFORM_PAYOUTS, MOCK_TRAFFIC, mockAdminData } from "../mock-admin";
 import { mockInstalledUsers, mockPaidUsers, mockPastEarnings, mockPreviewForUrl } from "../mock-extras";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
@@ -37,4 +39,9 @@ export const mockAdapter: DataAdapter = {
   getMetricsHistory: () => MOCK_METRICS_HISTORY,
   getHypothesisResults: () => MOCK_HYPOTHESIS_RESULTS,
   getPlatformPayouts: () => MOCK_PLATFORM_PAYOUTS,
+  getHouseOutcomes: mockHouseOutcomes,
+  getPaymentIssues: () => MOCK_PAYMENT_ISSUES.map((issue) => ({ ...issue })),
+  getLedger: mockLedger,
+  getBankBalance: () => MOCK_BANK_BALANCE,
+  getHostTaxData: mockHostTaxData,
 };

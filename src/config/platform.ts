@@ -37,6 +37,13 @@ export const phaseRules: Record<PlatformPhase, PhaseRules> = {
 export const foundingHostsSeeOthers = false;
 
 /**
+ * The public list of top ideas with voting (/ideas, components/help/IdeasBoard.tsx) – prepared, off. While false the page is a 404 and
+ * nothing links to it. TODO before switching it on: people agree that their idea may be shown (consent in "Share an idea"), and the team
+ * approves each idea before it appears (support free text is never published unchecked).
+ */
+export const ideasBoard = false;
+
+/**
  * Example Houses (pre-launch and beta): the full page with sample Houses, marked "Example", not bookable – they give way as real ones come
  * (lib/data/visibleHouses.ts getVisibleHouses): a category with this many real Houses loses its examples; at this many real Houses in all,
  * every example goes. Live never shows examples.

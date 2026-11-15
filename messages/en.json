@@ -771,6 +771,7 @@
     "search": {
       "where": "Where?",
       "when": "When?",
+      "whereNext": "Where to next?",
       "wherePlaceholder": "City, region or country",
       "anywhere": "Anywhere",
       "anyMonth": "Any month",
@@ -1225,7 +1226,8 @@
       "hostFee": "Add the amount per guest – or pick “Split the rent only”.",
       "month": "Pick a month.",
       "dateProposal": "Each proposal needs a start and an end, from tomorrow on.",
-      "placeProposal": "Each proposal needs a link and a price per person."
+      "placeProposal": "Each proposal needs a link and a price per person.",
+      "accommodationType": "Pick the kind of place – or \"Not sure yet\"."
     },
     "saved": "House saved",
     "published": "Your House is live",
@@ -1560,7 +1562,8 @@
       "languages": "Languages in the House",
       "crewGroup": "House group link",
       "invite": "Invite your people",
-      "inviteAgain": "Invite your crew"
+      "inviteAgain": "Invite your crew",
+      "kind": "Where will you live?"
     },
     "resume": {
       "untitled": "An unfinished House",
@@ -1606,7 +1609,8 @@
         "about": "About",
         "place": "Place",
         "extras": "Extras"
-      }
+      },
+      "kind": "Kind of place"
     },
     "flow": {
       "placeSetTitle": "I have a place",
@@ -1751,6 +1755,18 @@
       "add": "Add",
       "byLink": "Invite by link",
       "byLinkHint": "You get a link right after opening – it holds a spot for 48h"
+    },
+    "kind": {
+      "popular": "Popular for {topic}",
+      "crew": "crew {min}–{max}",
+      "more": "More places",
+      "less": "Fewer places",
+      "whichOne": "Which one?",
+      "unsure": "Not sure yet",
+      "unsureText": "pick it together with your crew",
+      "unsureLine": "Picked with the crew",
+      "skipper": "Usually chartered with a skipper",
+      "chosen": "Chosen"
     }
   },
   "houses": {
@@ -3093,7 +3109,11 @@
         "peopleEmpty": "After a House, everyone you both confirmed living with shows up here.",
         "peopleAll": "Open Your people",
         "admin": "Admin",
-        "adminSub": "Dashboard"
+        "adminSub": "Dashboard",
+        "help": "Help",
+        "helpSub": "Questions & safety",
+        "idea": "Share an idea",
+        "ideaSub": "Tell us what to build"
       }
     },
     "loginToMessage": "Log in to message {name}",
@@ -3200,7 +3220,8 @@
         "yourPeople": "Your people",
         "getApp": "Get the app",
         "admin": "Admin",
-        "help": "Help & feedback"
+        "help": "Get help",
+        "idea": "Share an idea"
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -3458,20 +3479,17 @@
     "adminIntro": "Help requests from Houses about to start or running (mock, this browser).",
     "adminEmpty": "No cases yet.",
     "feedback": {
-      "entry": "Help & feedback",
       "title": "How can we help?",
       "category": "What's it about?",
       "categories": {
         "question": "Question",
         "bug": "Something's broken",
-        "idea": "Idea",
         "safety": "Safety"
       },
       "message": "Your message",
       "messagePlaceholder": {
         "question": "What would you like to know?",
         "bug": "What happened, and what did you expect?",
-        "idea": "What would make Simpulo better for you?",
         "safety": "What happened? We'll get back to you quickly."
       },
       "screenshot": "Add a screenshot (optional)",
@@ -3485,7 +3503,25 @@
       "thanks": "Thanks – we read every message.",
       "close": "Close",
       "invalidEmail": "Please enter your email."
-    }
+    },
+    "getHelp": "Get help",
+    "shareIdea": "Share an idea",
+    "idea": {
+      "title": "Share an idea",
+      "idea": "Your idea",
+      "ideaPlaceholder": "What would make Simpulo better for you?",
+      "why": "Why would it help you?",
+      "whyPlaceholder": "A sentence is enough.",
+      "whyPrefix": "Why it would help:",
+      "send": "Send idea",
+      "thanks": "Thanks – we read every idea.",
+      "close": "Close"
+    },
+    "houseHelp": "Need help with this House?",
+    "somethingWrong": "Something wrong?",
+    "getHelpLink": "Get help",
+    "reportOrHelp": "Report or get help",
+    "report": "Report"
   },
   "calendar": {
     "add": "Add to calendar"
@@ -3698,77 +3734,6 @@
       "mineText": "It's a draft until you publish it.",
       "openDraft": "Open your draft",
       "explore": "Explore Houses"
-    },
-    "admin": {
-      "devOnly": "Admin · mock data",
-      "nav": {
-        "growth": "Growth",
-        "houses": "Prepared Houses",
-        "support": "Support"
-      },
-      "growthTitle": "Growth",
-      "growthIntro": "Every tracked event in this browser plus the seeded history. Revenue is Simpulo's part – the guests' service fees – in EUR.",
-      "summary": "{events} events · {visits} visits · {paid} payments",
-      "byChannel": "By channel",
-      "byRef": "By referrer",
-      "byHouse": "By House",
-      "cols": {
-        "channel": "Channel",
-        "ref": "Referrer",
-        "house": "House",
-        "visits": "Visits",
-        "requests": "Requests",
-        "accepted": "Accepted",
-        "paid": "Paid",
-        "revenue": "Revenue"
-      },
-      "direct": "(direct)",
-      "noRef": "(no ref)",
-      "unknownUser": "Unknown ({id})",
-      "showAll": "Show all {count}",
-      "showLess": "Show less",
-      "alerts": "Notify-me alerts",
-      "alertRow": "{email} · {place} · {dates}",
-      "applications": "Host applications",
-      "none": "Nothing yet.",
-      "housesTitle": "Prepared Houses",
-      "housesIntro": "Houses prepared on someone's behalf. They claim them with the link, edit and publish.",
-      "newHouse": "Prepare a House",
-      "claimed": "Claimed",
-      "unclaimed": "Unclaimed",
-      "claimedBy": "by {name} · {date}",
-      "copyLink": "Copy claim link",
-      "open": "Open",
-      "linkCopied": "Claim link copied",
-      "newTitle": "Prepare a House",
-      "newIntro": "On behalf of a creator. They claim it with the link, make it theirs and publish.",
-      "fields": {
-        "name": "Their name",
-        "photoUrl": "Photo URL",
-        "title": "House title",
-        "region": "Where",
-        "regionPlaceholder": "Lisbon, Portugal",
-        "city": "Area",
-        "cityPlaceholder": "Santos (optional)",
-        "startDate": "From",
-        "endDate": "To",
-        "spots": "Spots",
-        "pitch": "Pitch",
-        "pitchPlaceholder": "What the House is about – in their words.",
-        "sourceLink": "Source link",
-        "sourceLinkPlaceholder": "https://instagram.com/p/…"
-      },
-      "errors": {
-        "required": "Required",
-        "url": "Enter a full link (https://…)",
-        "dates": "Pick an end date after the start",
-        "spots": "2 to 12 spots"
-      },
-      "create": "Create claim link",
-      "createdTitle": "Claim link ready",
-      "createdText": "Send it to {name}. Mock data: it works in this browser.",
-      "another": "Prepare another",
-      "viewAll": "All prepared Houses"
     },
     "host": {
       "eyebrow": "Anyone can host",
@@ -4188,414 +4153,21 @@
       "capsule": "Founding House"
     }
   },
-  "admin": {
-    "title": "Admin",
-    "nav": {
-      "cockpit": "Cockpit",
-      "money": "Money",
-      "vision": "Vision",
-      "houses": "Houses",
-      "applications": "Applications",
-      "waitlist": "Waitlist",
-      "topics": "Topics",
-      "data": "Data & Algorithm",
-      "traffic": "Traffic",
-      "growth": "Growth",
-      "support": "Support",
-      "prepared": "Prepared Houses",
-      "platform": "Platform",
-      "log": "Log"
-    },
-    "demoData": "Demo data",
-    "mockData": "Mock data",
-    "empty": "Nothing here yet.",
-    "overview": {
-      "realHouses": "Real Houses",
-      "reservedShare": "With 2+ reservations",
-      "waitlist": "Waitlist",
-      "openApplications": "Open applications",
-      "launch": "Launch criteria",
-      "criteria": {
-        "houses": "Real Houses",
-        "hubs": "Hubs with {min}+ Houses",
-        "reservedShare": "Houses with {min}+ reservations",
-        "waitlist": "Waitlist sign-ups"
-      },
-      "ofTarget": "{value} of {target}",
-      "ofTargetPercent": "{value} of {target} %",
-      "hubsTarget": "{value} of {min}–{max}",
-      "move": "Full Houses per month",
-      "moveSub": "Target {target} a month – this month {current}",
-      "target": "Target"
-    },
-    "houses": {
-      "filter": "Show",
-      "all": "All",
-      "kind": {
-        "real": "Real",
-        "founding": "Founding",
-        "example": "Example"
-      },
-      "col": {
-        "house": "House",
-        "kind": "Type",
-        "category": "Category",
-        "hub": "Hub",
-        "dates": "Dates",
-        "fill": "Fill rate",
-        "reservations": "Reservations"
-      },
-      "count": "{count, plural, one {# House} other {# Houses}}",
-      "preparedLink": "Prepared Houses →",
-      "title": "How full are the Houses?"
-    },
-    "applications": {
-      "filter": "Status",
-      "status": {
-        "new": "New",
-        "yes": "Yes",
-        "maybe": "Maybe",
-        "no": "No"
-      },
-      "yes": "Yes",
-      "maybe": "Maybe",
-      "no": "No",
-      "hostType": {
-        "share": "Share host",
-        "pro": "Pro host"
-      },
-      "noLinks": "No links",
-      "foundingHost": "Founding host",
-      "applied": "Applied {date}",
-      "keys": "Keys: → Yes · ↓ Maybe · ← No (the first open card)",
-      "title": "Who wants to host?"
-    },
-    "waitlist": {
-      "total": "On the waitlist",
-      "lastWeek": "Last 7 days",
-      "wantsToHost": "Want to host",
-      "referred": "Referred",
-      "overTime": "Sign-ups over time",
-      "sources": "Sources (?src)",
-      "interests": "Interests by category",
-      "latest": "Latest sign-ups",
-      "direct": "direct",
-      "anywhere": "Anywhere",
-      "anytime": "Any time",
-      "hostTag": "Wants to host",
-      "title": "Who is waiting?"
-    },
-    "topics": {
-      "weights": "Weights: reservations {reservations} · applications {applications} · waitlist {waitlist} · host fee {hostFee}",
-      "col": {
-        "topic": "Topic",
-        "score": "Score",
-        "reservations": "Reservations",
-        "applications": "Applications",
-        "waitlist": "Waitlist",
-        "hostFee": "Host fee"
-      },
-      "title": "Which topics work?"
-    },
-    "algorithm": {
-      "intro": "How the network grows: people who lived together, who comes back, how fast Houses fill.",
-      "mutual": "Mutual Your people",
-      "mutualSub": "{mutual} of {all} pairs confirmed both ways · {people} people",
-      "repeat": "Repeat rate",
-      "repeatSub": "{repeat} of {guests} guests joined 2+ Houses",
-      "toFull": "Days until full",
-      "toFullSub": "Median over {count} full Houses",
-      "toFullChart": "Time until a House is full (days)",
-      "houses": "Houses",
-      "none": "–",
-      "title": "Network today"
-    },
-    "traffic": {
-      "visitors": "Visitors this week",
-      "visitorsChart": "Visitors per week",
-      "countries": "Countries",
-      "sources": "Sources",
-      "funnel": "Way to the sign-up",
-      "step": {
-        "visit": "Visited",
-        "house": "Opened a House",
-        "joinTapped": "Tapped Join the waitlist",
-        "signedUp": "Signed up"
-      },
-      "ofPrevious": "{percent} % of the step before",
-      "unavailable": "No traffic source connected yet.",
-      "title": "Where do visitors come from?"
-    },
-    "platform": {
-      "phase": "Phase",
-      "current": "Now: {phase}",
-      "phases": {
-        "prelaunch": "Pre-launch",
-        "beta": "Beta",
-        "live": "Live"
-      },
-      "confirmTitle": "Switch to {phase}?",
-      "confirmText": "Everyone sees what {phase} allows. The page reloads with that phase's data. This goes into the log.",
-      "confirm": "Switch to {phase}",
-      "values": "Values (config/platform.ts)",
-      "hideCategory": "Examples leave a category at",
-      "removeAll": "All examples leave at",
-      "realHouses": "{count} real Houses",
-      "launchLabel": "Launch label",
-      "launchMonth": "Launch month",
-      "rules": "What each phase allows",
-      "rule": {
-        "request": "Request to join",
-        "reserve": "Reserve a spot",
-        "pay": "Pay",
-        "openHouse": "Open a House",
-        "applyAsHost": "Apply as a host"
-      },
-      "on": "Yes",
-      "off": "–",
-      "title": "Phase and settings",
-      "tools": {
-        "title": "Tools",
-        "later": "Available from phase 4",
-        "environment": "Environment",
-        "errors": "Errors · 24h",
-        "cost": "Cost · this month",
-        "env": {
-          "dev": "Development",
-          "demo": "Demo",
-          "production": "Production"
-        },
-        "links": {
-          "firebaseStaging": "Firebase Staging",
-          "firebaseProduction": "Firebase Production",
-          "stripe": "Stripe",
-          "analytics": "Analytics",
-          "github": "GitHub"
-        },
-        "newTab": "(opens in a new tab)"
-      }
-    },
-    "log": {
-      "action": {
-        "phase_changed": "Phase changed",
-        "application_decided": "Application decided",
-        "founding_host_added": "Founding host added",
-        "ticket_replied": "Ticket answered",
-        "ticket_status": "Ticket status",
-        "ticket_tags": "Ticket tags",
-        "ticket_note": "Internal note",
-        "ticket_merged": "Tickets merged",
-        "payout_requested": "Payout requested",
-        "withdrawal_added": "Withdrawal added"
-      },
-      "by": "by {name}",
-      "title": "What changed?"
-    },
-    "status": {
-      "good": "On target",
-      "warning": "Close",
-      "critical": "Below target",
-      "none": "No target"
-    },
-    "cockpit": {
-      "move": "Profit this month",
-      "moveTarget": "of {target}",
-      "streak": "Months in a row at €5,000: {streak} / {of}",
-      "group": {
-        "supply": "Supply",
-        "demand": "Demand",
-        "quality": "Quality",
-        "money": "Money"
-      },
-      "metric": {
-        "realHouses": "Real Houses",
-        "examplesLeft": "Examples left",
-        "openApplications": "Open applications",
-        "waitlist": "Waitlist",
-        "reservedShare": "With 2+ reservations",
-        "bestSource": "Best source",
-        "mutualShare": "Mutual Your people",
-        "repeatRate": "Repeat rate",
-        "daysToFull": "Days until full",
-        "profit": "Profit this month",
-        "perHouse": "Per full House",
-        "revenueTotal": "Revenue in all",
-        "openTickets": "Open tickets",
-        "fullHouses": "Full houses this month",
-        "leftInCompany": "Left in the company"
-      },
-      "profitTarget": "of {target}",
-      "open": "Open {area}",
-      "launch": "Launch criteria",
-      "topics": "Top 5 topics",
-      "allTopics": "All topics →",
-      "signups": "{count} sign-ups",
-      "title": "Are we on track to move?"
-    },
-    "data": {
-      "title": "What do we learn from our data?",
-      "models": "Models",
-      "hypotheses": "Hypotheses",
-      "dataPoints": "Data points",
-      "inputs": "{count, plural, one {# data point} other {# data points}}",
-      "output": "Delivers",
-      "feeds": "Used for",
-      "measure": "Success measure",
-      "now": "Now: {value}",
-      "notMeasured": "Not measured yet",
-      "stage": {
-        "idea": "Idea",
-        "rules": "Rules",
-        "trained": "Trained"
-      },
-      "stageHint": "Idea → Rules → Trained",
-      "hyp": {
-        "metric": "Measured by",
-        "target": "Target",
-        "current": "Now",
-        "status": {
-          "open": "Open",
-          "supported": "Supported",
-          "rejected": "Rejected"
-        }
-      },
-      "filter": {
-        "moment": "Moment",
-        "model": "Model",
-        "status": "Status",
-        "all": "All",
-        "none": "No model"
-      },
-      "moment": {
-        "onboarding": "Onboarding",
-        "search": "Search",
-        "create": "Create",
-        "request": "Request",
-        "inTheHouse": "In the house",
-        "afterTheStay": "After the stay",
-        "marketing": "Marketing",
-        "support": "Support"
-      },
-      "dpStatus": {
-        "planned": "Planned",
-        "collecting": "Collecting",
-        "used": "Used"
-      },
-      "basis": {
-        "consent": "Consent",
-        "contract": "Contract"
-      },
-      "col": {
-        "captures": "What",
-        "moment": "Moment",
-        "purpose": "Purpose",
-        "models": "Models",
-        "basis": "Legal basis",
-        "status": "Status"
-      },
-      "count": "{shown} of {all} data points",
-      "never": "Never collected: special categories (religion, orientation, health, politics) and the content of chat messages. New data points go into config/data-points.ts first."
-    },
-    "navGroup": {
-      "steer": "Steer",
-      "market": "Market",
-      "intelligence": "Intelligence",
-      "operate": "Operate"
-    },
-    "money": {
-      "title": "Are we earning enough?",
-      "perMonth": "Profit per month",
-      "target": "Target {target} a month",
-      "note": "What Simpulo keeps: the guests' service fee and its share of host fees, in EUR.",
-      "payouts": "Payouts",
-      "schedule": "Schedule",
-      "account": "To account",
-      "nextPayout": "Next payout",
-      "available": "Available now",
-      "manage": "Manage in Stripe ↗",
-      "payNow": "Pay out now",
-      "payTitle": "Pay out {amount}?",
-      "payText": "{amount} goes to {account} – the account on file at Stripe. It can't go anywhere else.",
-      "payConfirm": "Pay out {amount}",
-      "paid": "Payout requested – {amount} to {account}",
-      "noPayouts": "Stripe isn't connected yet.",
-      "withdrawals": "My withdrawals",
-      "balanceYear": "This year ({year})",
-      "profitYear": "Profit",
-      "taxReserve": "Tax reserve ({percent} %)",
-      "withdrawn": "Withdrawn",
-      "left": "Left in the company",
-      "addWithdrawal": "Add withdrawal",
-      "date": "Date",
-      "amount": "Amount (€)",
-      "noteLabel": "Note (optional)",
-      "none": "No withdrawals yet.",
-      "added": "Withdrawal added",
-      "taxNote": "A rough reserve, not tax advice."
-    },
-    "growthTitle": "What spreads Simpulo?",
-    "supportTitle": "What do users need?",
-    "preparedTitle": "Which Houses wait for their host?",
-    "support": {
-      "views": {
-        "inbox": "Inbox",
-        "ideas": "Ideas"
-      },
-      "category": {
-        "question": "Question",
-        "bug": "Something's broken",
-        "idea": "Idea",
-        "safety": "Safety"
-      },
-      "status": {
-        "new": "New",
-        "open": "Open",
-        "answered": "Answered",
-        "closed": "Closed",
-        "planned": "Planned",
-        "done": "Done"
-      },
-      "all": "All",
-      "allTags": "All tags",
-      "search": "Search tickets",
-      "statusFilter": "Status",
-      "tagFilter": "Tag",
-      "categoryFilter": "Category",
-      "count": "{count, plural, one {# ticket} other {# tickets}}",
-      "openCount": "{count} open",
-      "none": "No tickets match.",
-      "pick": "Pick a ticket on the left.",
-      "high": "High priority",
-      "guest": "Guest",
-      "votes": "{count, plural, one {# vote} other {# votes}}",
-      "context": "Context",
-      "page": "Page",
-      "house": "House",
-      "device": "Device",
-      "screen": "Screen",
-      "phase": "Phase",
-      "attachments": "Screenshot",
-      "profile": "Profile ↗",
-      "openHouse": "House ↗",
-      "conversation": "Conversation",
-      "you": "Simpulo",
-      "them": "They wrote",
-      "reply": "Reply",
-      "replyPlaceholder": "Write an answer – it goes out by email and in the app.",
-      "send": "Send reply",
-      "sent": "Reply sent",
-      "statusLabel": "Status",
-      "tags": "Tags",
-      "addTag": "Add a tag",
-      "note": "Internal note",
-      "notePlaceholder": "Only admins see this.",
-      "merge": "Merge into…",
-      "mergeHint": "A duplicate wish: it closes and its votes go to the other.",
-      "mergedInto": "Merged into {id}",
-      "mergeButton": "Merge",
-      "ideasHint": "Feature wishes by votes – merged duplicates count for the one they went into.",
-      "back": "‹ All tickets"
-    },
-    "needsYou": "{count} need you"
+  "ideas": {
+    "title": "Top ideas",
+    "intro": "What people want next – vote for the ones you want too.",
+    "vote": "Vote",
+    "voted": "Voted",
+    "votes": "{count, plural, one {# vote} other {# votes}}",
+    "planned": "Planned",
+    "empty": "No ideas yet.",
+    "share": "Share an idea"
   }
 }
+
+
+
+
+
+
+

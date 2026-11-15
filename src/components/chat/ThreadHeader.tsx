@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { iconButtonStyles } from "@/components/ui/IconButton";
 import { useTranslations } from "next-intl";
+import { openGetHelp } from "@/lib/support/feedback";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { CrewMenu } from "@/components/stay/CrewMenu";
@@ -44,6 +45,7 @@ function BackToInbox({ embedded }: { embedded: boolean }) {
  */
 export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }) {
   const t = useTranslations("messages.thread");
+  const tHelp = useTranslations("help");
   const f = useFormat();
   const store = useStore();
   const [whosIn, setWhosIn] = useState(false);
@@ -95,7 +97,15 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           </button>
         )}
 
-        <CrewMenu stay={stay} afterLeaveHref="/messages" />
+        {/* Help in context, one click: "Report" opens "Get help" with Safety chosen, "Get help" with this House. */}
+        <CrewMenu
+          stay={stay}
+          afterLeaveHref="/messages"
+          extraItems={[
+            { label: tHelp("report"), onSelect: () => openGetHelp({ houseId: stay.id, category: "safety" }) },
+            { label: tHelp("getHelpLink"), onSelect: () => openGetHelp({ houseId: stay.id }) },
+          ]}
+        />
 
         {canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
         <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />

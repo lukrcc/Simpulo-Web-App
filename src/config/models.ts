@@ -1,3 +1,4 @@
+// Texts in German – shown only in the admin (CLAUDE.md "Admin").
 // What Simpulo learns from its data: five models, each with what it delivers, where that goes, how success is measured and how far it is.
 // Its inputs are not listed here: they are the data points that name it (config/data-points.ts inputsOf) – one source.
 
@@ -22,42 +23,42 @@ export interface Model {
 export const MODELS: readonly Model[] = [
   {
     id: "interestRanking",
-    name: "Interest ranking",
-    output: "Each person's topics in order – 1st, 2nd, 3rd …",
-    feeds: "Discovery (Explore rows) and For your next trip",
-    measure: "Click and request rate of the suggestions",
+    name: "Interessen-Ranking",
+    output: "Die Themen jeder Person in Reihenfolge – 1., 2., 3. …",
+    feeds: "Entdecken (Reihen auf Explore) und „For your next trip“",
+    measure: "Klick- und Anfragequote der Vorschläge",
     stage: "rules",
   },
   {
     id: "crewFit",
-    name: "Crew fit",
-    output: "A matching score between two people",
-    feeds: "Suggestions to hosts and in Fill your House",
-    measure: "Mutual \"Your people\" after a House",
+    name: "Crew-Passung",
+    output: "Ein Passungswert zwischen zwei Personen",
+    feeds: "Vorschläge an Hosts und in „Fill your House“",
+    measure: "Gegenseitige „Your people“ nach einem House",
     stage: "rules",
   },
   {
     id: "houseChemistry",
-    name: "House chemistry",
-    output: "The social fabric of a House, from the rating after the stay",
-    feeds: "Quality signals and Do it again",
-    measure: "Share of mutual \"with you again\", early departures, reports",
+    name: "House-Chemie",
+    output: "Das soziale Gefüge eines House, aus der Bewertung nach dem Aufenthalt",
+    feeds: "Qualitätssignale und „Do it again“",
+    measure: "Anteil gegenseitiger „wieder mit dir“, frühe Abreisen, Meldungen",
     stage: "idea",
   },
   {
     id: "demandMap",
-    name: "Demand map",
-    output: "Demand without supply, per place and topic",
-    feeds: "Where Houses should open – later Simpulo Houses",
-    measure: "Share of opened Houses that fill where the map pointed",
+    name: "Nachfrage-Karte",
+    output: "Nachfrage ohne Angebot, je Ort und Thema",
+    feeds: "Wo Houses eröffnen sollten – später Simpulo Houses",
+    measure: "Anteil eröffneter Houses, die dort voll werden, wo die Karte hinzeigte",
     stage: "rules",
   },
   {
     id: "marketingImpact",
-    name: "Marketing impact",
-    output: "From source to sign-up, per channel, series and video",
-    feeds: "Which series and which video to make more of",
-    measure: "Sign-ups per source and per video",
+    name: "Marketing-Wirkung",
+    output: "Von der Quelle bis zur Anmeldung, je Kanal, Serie und Video",
+    feeds: "Von welcher Serie und welchem Video es mehr braucht",
+    measure: "Anmeldungen je Quelle und je Video",
     stage: "idea",
   },
 ];

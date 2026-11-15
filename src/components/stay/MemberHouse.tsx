@@ -4,6 +4,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Check, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ContextHelp } from "@/components/help/HelpFeedback";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
 import { HeroPhotos } from "@/components/HeroBand";
 import { useState, type ReactNode, type Ref } from "react";
@@ -189,6 +190,7 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
  * -out, the cancellation rule, what's included). The House page's usual sections follow.
  */
 export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
+  const tHelp = useTranslations("help");
   const t = useTranslations("house.steps.sections");
   const store = useStore();
   const tPage = useTranslations("house.page");
@@ -237,6 +239,8 @@ export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
           )}
           {fact(t("included"), stay.hostFeePerPerson ? tPage("includedWithHost") : tPage("includedStay"))}
         </dl>
+        {/* Help in context: "Get help" opens with this House. */}
+        <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} className="mt-5" />
       </section>
     </>
   );

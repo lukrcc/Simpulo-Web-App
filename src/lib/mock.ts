@@ -81,7 +81,14 @@ export interface User extends Attribution {
   role?: 'user' | 'admin';
   /** A founding host of the beta (admin › Applications "Yes") */
   foundingHost?: boolean;
+  /** Admin only: the host tier set by hand (unset = the suggestion from config/admin.ts HOST_TIER_RULES) */
+  hostTier?: HostTier;
+  /** Followers across their social links (mock values; later from the platforms' APIs) – admin only */
+  audienceSize?: number;
 }
+
+/** Admin › Hosts: share (supply) · pro (core revenue) · anchor (a creator with reach) */
+export type HostTier = 'share' | 'pro' | 'anchor';
 
 /** 1 = the left word, 2 = in between, 3 = the right word (config/houseVibe.ts). */
 export interface HouseVibe {
@@ -238,6 +245,8 @@ export interface Stay {
   /** Optional host fee on top of the stay share ("Host experience": coaching, guestlists …): per person, ≤ 30 % of the
    *  share, hosts with canChargeHostFee only. Feature flag hostPremium – off, the store hides it. */
   hostFeePerPerson?: number;
+  /** The kind of place (config/accommodation.ts type id: "villa", "surf-camp" …) – admin and data only so far */
+  accommodationType?: string;
   /** What the host fee pays for – a checklist on the House page */
   hostOffer?: string[];
   /** The ages the host is aiming for ("Looking for 27–38") – shown only, no filter */
