@@ -1,5 +1,8 @@
 "use client";
 
+import { COMMUNITY_NEEDS, type CommunityNeed } from "@/config/depth";
+import { useDepthChoice } from "@/config/platform";
+import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { BackLink } from "@/components/ui/BackButton";
 import { ArrowUpRight, Check, ChevronDown, ChevronLeft, Eye, Plus, X } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +70,8 @@ interface FormState {
   socials: SocialLink[];
   /** How they live in a House (config/houseVibe.ts); unset until chosen */
   houseVibe?: HouseVibe;
+  /** "How much community do you need?" (config/depth.ts); unset until chosen */
+  communityNeed?: CommunityNeed;
 }
 
 function formOf(me: User): FormState {
@@ -80,6 +85,7 @@ function formOf(me: User): FormState {
     bio: me.bio,
     socials: me.socials ?? [],
     houseVibe: me.houseVibe,
+    communityNeed: me.communityNeed,
   };
 }
 
@@ -96,6 +102,7 @@ function draftOf(me: User, form: FormState, today: string | null): User {
     country: form.country.trim(),
     city: form.city.trim(),
     houseVibe: form.houseVibe,
+    communityNeed: form.communityNeed,
     languages: form.languages,
     bio: form.bio.trim().slice(0, BIO_MAX),
     // Empty rows are dropped; a handle is stored bare, a website as its full URL.
@@ -146,6 +153,7 @@ const patchOf = (user: User): ProfilePatch => ({
   bio: user.bio,
   socials: user.socials ?? [],
   houseVibe: user.houseVibe,
+  communityNeed: user.communityNeed,
 });
 
 /** ?setup=1 – the onboarding: read in the browser only (no Suspense boundary needed). */
@@ -228,6 +236,7 @@ function EditProfileForm({ me }: { me: User }) {
     </span>
   );
 
+  const depthOn = useDepthChoice();
   const bodyOf = (key: ProfileSectionKey): ReactNode => {
     switch (key) {
       case "photos":
@@ -240,7 +249,14 @@ function EditProfileForm({ me }: { me: User }) {
       case "basics":
         return <BasicsSection form={form} update={update} today={today} errorText={errorText} />;
       case "vibe":
-        return <VibeSection value={form.houseVibe} onChange={(houseVibe) => update("houseVibe", houseVibe)} />;
+        return (
+          <>
+            <VibeSection value={form.houseVibe} onChange={(houseVibe) => update("houseVibe", houseVibe)} />
+            {/* Onboarding's "How much community do you need?" – it moves Houses of the fitting depth up on Explore (config/depth.ts); only
+                while the depth choice is on. */}
+            {depthOn && <CommunityNeedField value={form.communityNeed} onChange={(need) => update("communityNeed", need)} />}
+          </>
+        );
       case "about":
         return (
           <>
@@ -507,6 +523,18 @@ function VibeSection({ value, onChange }: { value?: HouseVibe; onChange: (value:
         </li>
       ))}
     </ul>
+  );
+}
+
+/** "How much community do you need?" – A little · Some · A lot, one capsule group; nothing chosen until answered. */
+function CommunityNeedField({ value, onChange }: { value?: CommunityNeed; onChange: (value: CommunityNeed) => void }) {
+  const t = useTranslations("profile.edit.community");
+  return (
+    <div className="mt-6">
+      <p className="mb-3 text-body font-semibold text-ink">{t("question")}</p>
+      <CapsuleGroup size="sm" label={t("question")} value={value ? String(value) : null} onChange={(v) => onChange(Number(v) as CommunityNeed)} options={COMMUNITY_NEEDS.map((need) => ({ value: String(need), content: t(`options.${need}`) }))} />
+      <p className="mt-2 text-small text-muted">{t("hint")}</p>
+    </div>
   );
 }
 

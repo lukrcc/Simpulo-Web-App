@@ -24,7 +24,7 @@ import { OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notificatio
 import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
-import { useIsStandalone } from "@/lib/install";
+import { setInstallHintsOff, useInstallHintsOff, useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
 import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
@@ -510,6 +510,8 @@ function GeneralArea({ me }: { me: User }) {
   const tu = useTranslations("settings.ui");
   const { automatic, current } = useCurrencyState(me);
   const standalone = useIsStandalone();
+  const saved = useSaved();
+  const hintsOff = useInstallHintsOff();
   return (
     <div className="space-y-8">
       <AreaTitle title={tu("nav.general")} />
@@ -521,6 +523,23 @@ function GeneralArea({ me }: { me: User }) {
       <SettingsGroup>
         <SettingsRow title={tu("general.yourPeople")} chevron href="/people" />
         {!standalone && <SettingsRow title={tu("general.getApp")} chevron href="/get" />}
+        {/* The install hint after paying, joining a crew or opening the group chat – at most once a week, off here (lib/install.ts). */}
+        {!standalone && (
+          <SettingsRow
+            title={tu("general.installHints")}
+            subtitle={tu("general.installHintsText")}
+            control={
+              <Switch
+                on={!hintsOff}
+                label={tu("general.installHints")}
+                onChange={(on) => {
+                  setInstallHintsOff(!on);
+                  saved();
+                }}
+              />
+            }
+          />
+        )}
       </SettingsGroup>
       {/* Support in two ways – "Get help" (question, something's broken, safety) and "Share an idea" → Admin › Support. */}
       <SettingsGroup>

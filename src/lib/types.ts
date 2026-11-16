@@ -70,7 +70,7 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType">>;
+> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth">>;
 
 // Admin (/admin, lib/admin): the collections the waitlist and the host application write to. Mock through the data adapter; later Firestore.
 

@@ -1,3 +1,4 @@
+import { suggestedDepth, type Depth } from "@/config/depth";
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
 import { ACCOMMODATION_CATEGORIES, PRICE_BUDGET_EUR, accommodationOf } from "@/config/accommodation";
 import { convert } from "@/lib/currency";
@@ -44,7 +45,10 @@ export const DEFAULT_LANGUAGE = "en";
 
 /** Required: all it takes to open a House – then "extras" (optional, skippable) and "Ready to open?". */
 /** "kind": "Where will you live?" – the kind of place (config/accommodation.ts), right after "Got a place?". */
-export const REQUIRED_STEPS = ["vibe", "place", "kind", "where", "crew", "cover"] as const;
+/** "depth": "How deep should this House go?" (config/depth.ts) – only while depth choice is on (config/platform.ts), else skipped (`flowRequired`). */
+export const REQUIRED_STEPS = ["vibe", "place", "kind", "where", "crew", "depth", "cover"] as const;
+/** The required steps of this flow: without "depth" while the depth choice is off. */
+export const flowRequired = <T extends readonly string[]>(steps: T, depthOn: boolean): T[number][] => steps.filter((k) => depthOn || k !== "depth");
 /** The new flow's optional step 6: "Make it stand out". */
 export const EXTRAS_STEP = "extras" as const;
 /** Before the review, only with people to invite: "Invite your crew" (Do it again) / "Invite your people". Optional. */
@@ -53,7 +57,7 @@ export const INVITE_STEP = "invite" as const;
 export const EXTRAS = ["description", "placePhoto", "languages", "who", "age", "rules"] as const;
 export type ExtraKey = (typeof EXTRAS)[number];
 /** Editing lists these on top: a House's cover and title are details there, and older Houses may have neither. */
-export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew"] as const;
+export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew", "depth"] as const;
 /** Up to this many photos on "Pick a cover"; the first is the cover. */
 export const MAX_COVER_PHOTOS = 6;
 /** Optional, one screen each, reached from the "details" list – before or after opening. */
@@ -111,6 +115,8 @@ export interface FormState {
   accommodationCategory: string;
   /** The type within it ("villa", "surf-camp"); "" = none yet (or "unsure") */
   accommodationType: string;
+  /** "How deep should this House go?" (config/depth.ts); null = not picked – the topic's suggestion (suggestedDepth, mostly Balanced) */
+  depth: Depth | null;
   /** Several months in a row: the last one ("" = just `month`) */
   monthEnd: string;
   /** "mixed" (everyone) or "women" (women only) */
@@ -179,6 +185,7 @@ export const initialForm: FormState = {
   placeLink: "",
   accommodationCategory: "",
   accommodationType: "",
+  depth: null,
   monthEnd: "",
   who: "mixed",
   ageKey: "",
@@ -232,6 +239,7 @@ export function formFromStay(stay: Stay): FormState {
     placeLink: stay.accommodationLink ?? "",
     accommodationType: accommodationOf(stay.accommodationType)?.type.id ?? "",
     accommodationCategory: accommodationOf(stay.accommodationType)?.category.id ?? "",
+    depth: stay.depth ?? null,
     who: stay.who === "women" || stay.audience === "women" ? "women" : "mixed",
     ageKey,
     month: stay.startDate.slice(0, 7),
@@ -438,7 +446,7 @@ export function detailDone(key: DetailKey, form: FormState): boolean {
  * votes); editing keeps the stay's lock (price, link, status). With only a month, or dates still to be voted on, the dates are the
  * month's bounds and `datesOpen` shows them as the month. An empty title takes `fallbackTitle` (the first suggestion).
  */
-export function toInput(form: FormState, { me, editing, today = "", fallbackTitle = "", preferredCurrency }: { me?: User; editing?: Stay; today?: string; fallbackTitle?: string; preferredCurrency?: Currency | null } = {}): NewStayInput {
+export function toInput(form: FormState, { me, editing, today = "", fallbackTitle = "", preferredCurrency, depthOn = false }: { me?: User; editing?: Stay; today?: string; fallbackTitle?: string; preferredCurrency?: Currency | null; depthOn?: boolean } = {}): NewStayInput {
   const locked = editing?.accommodationStatus === "locked";
   // A new House with its place already found: booked from the start, the share exact.
   const set = !locked && placeShare(form);
@@ -477,6 +485,9 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     accommodationLink: set ? form.placeLink.trim() || undefined : editing?.accommodationLink,
     // The kind of place (data point create.accommodationType); "Not sure yet" saves none.
     accommodationType: accommodationOf(form.accommodationType)?.type.id ?? editing?.accommodationType,
+    // The social depth (data point create.depth): what was picked, else the topic's suggestion – only while the choice is on (otherwise nothing is
+    // saved and the House counts as Balanced); fixed after the first booking (depthLocked).
+    depth: depthOn ? (form.depth ?? editing?.depth ?? suggestedDepth(form.vibe || null)) : editing?.depth,
     who: form.who,
     audience: form.who === "women" ? "women" : null,
     ageRange: form.ageKey ? AGE_RANGES[form.ageKey] : undefined,

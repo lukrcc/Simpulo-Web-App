@@ -5,6 +5,11 @@
 export const APP_LINKS = {
   appStoreUrl: "",
   playStoreUrl: "",
+  /**
+   * The short loop video on /get for iPhone (Share → Add to Home Screen → Add), a muted mp4 in public/ (e.g. "/get/ios-install.mp4").
+   * Empty: a quiet placeholder frame instead. TODO: record it (screen recording, ~6 s, no sound).
+   */
+  iosInstallVideo: "",
 } as const;
 
 /**

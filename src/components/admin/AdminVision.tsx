@@ -4,7 +4,7 @@
 // 4 Immobilien & Ausstieg; a second, smaller row "Bausteine" to look things up (Zielgruppen · T-Modell · Kontinuum · Roadmap · Hosts ·
 // Orte & Anreise). Every text from config/vision.ts (nothing invented here); the numbers from lib/admin/metrics.ts. Graphic before text,
 // no cards; the current phase is the one ocean focus ("Du bist hier").
-import { ChevronLeft } from "lucide-react";
+import { ArrowRight, ChevronLeft, Hourglass, Network, RotateCcw, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -15,10 +15,13 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { useAdminActions } from "@/lib/admin/actions";
 import { ScrollRow } from "@/components/ui/ScrollRow";
+import { useDepthChoice } from "@/config/platform";
 import { ACCOMMODATION_CATEGORIES, PLACE_PHASES } from "@/config/accommodation";
 import { TRAVEL_OPTIONS } from "@/config/travel";
 import {
   BREADTH_DEPTH,
+  CORE,
+  MOTTO,
   BUILDING_LABEL,
   BUILDING_TABS,
   CONTINUUM,
@@ -58,10 +61,11 @@ import {
   type SourceStatus,
   type VisionTab,
 } from "@/config/vision";
-import { providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, moveProgress, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
+import { coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, moveProgress, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
-import { dec, eur, pct } from "@/lib/i18n/adminFormat";
+import { dec, eur, num, pct, share } from "@/lib/i18n/adminFormat";
+import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
 import { AdminSection, AdminShell } from "./AdminShell";
@@ -85,6 +89,7 @@ export function AdminVision() {
         {tab === "overview" && <OverviewView inputs={inputs} onOpen={setTab} />}
         {(tab === "p1" || tab === "p2" || tab === "p3") && <PhaseView phase={PHASES.find((p) => p.key === tab)!} inputs={inputs} />}
         {tab === "p4" && <Phase4View />}
+        {tab === "core" && <CoreView inputs={inputs} />}
         {tab === "segments" && <SegmentsView />}
         {tab === "tModel" && <TModelView inputs={inputs} />}
         {tab === "continuum" && <ContinuumView inputs={inputs} />}
@@ -210,7 +215,9 @@ function OverviewView({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: P
   const N = PHASE_TEXT.overviewNumbers;
   return (
     <>
-      <dl className="grid gap-y-6 sm:grid-cols-3">
+      {/* The motto, one line on top of everything. */}
+      <Motto />
+      <dl className="mt-12 grid gap-y-6 sm:grid-cols-3">
         {[
           { label: N.market.label, value: N.market.value },
           { label: N.leader.label, value: N.leader.value },
@@ -1476,5 +1483,243 @@ function LocationDecision({ inputs }: { inputs: AdminInputs }) {
         </span>
       </form>
     </AdminSection>
+  );
+}
+
+// ── Kern ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const PILLAR_ICON: Record<(typeof CORE.pillars.items)[number]["key"], LucideIcon> = { matching: Users, arc: Hourglass, network: Network };
+
+/** The motto, on top of the whole picture and of Kern. */
+function Motto() {
+  return (
+    <>
+      <p className="text-h2 text-ink text-balance">{MOTTO.line}</p>
+      <p className="mt-2 text-body text-muted">{MOTTO.sub}</p>
+    </>
+  );
+}
+
+/**
+ * Vision › Kern (config/vision.ts CORE), graphics first, no cards: the motto; (a) 200 Stunden – Alltag against House on one time scale, the
+ * House bar the one ocean focus; (b) the three pillars, each with its live number (lib/admin/metrics.ts coreMetrics); (c) the arc of a House
+ * and the three depths; (d) the network as circles, the loop and "Einladen"; the rules small underneath.
+ */
+function CoreView({ inputs }: { inputs: AdminInputs }) {
+  const live = coreMetrics(inputs);
+  const L = CORE.live;
+  const numbers: Record<(typeof CORE.pillars.items)[number]["key"], { label: string; info: string; value: string; sub?: string }> = {
+    matching: { label: L.matching.label, info: L.matching.info, value: live.again === null ? "–" : share(live.again), sub: live.again === null ? NOT_MEASURABLE : `${L.matching.sub} · ${L.matching.example}` },
+    arc: { label: L.arc.label, info: L.arc.info, value: live.closingRounds === null ? "–" : num(live.closingRounds), sub: live.closingRounds === null ? L.arc.notMeasured : undefined },
+    network: { label: L.network.label, info: L.network.info, value: num(live.yourPeoplePairs), sub: live.bookings.share === null ? undefined : L.network.share(share(live.bookings.share)) },
+  };
+  return (
+    <div className="space-y-16">
+      <section>
+        <Motto />
+      </section>
+      <CoreHours />
+      <section aria-label={CORE.pillars.title}>
+        <h3 className="mb-6 text-eyebrow uppercase text-muted">{CORE.pillars.title}</h3>
+        <div className="grid gap-y-10 md:grid-cols-3">
+          {CORE.pillars.items.map((p, i) => {
+            const Icon = PILLAR_ICON[p.key];
+            const n = numbers[p.key];
+            return (
+              <div key={p.key} className={cn("min-w-0", i > 0 && "md:border-l md:border-ink/8 md:pl-8", i < 2 && "md:pr-8")}>
+                <Icon aria-hidden className="size-7 text-ink" strokeWidth={1.5} />
+                <p className="mt-4 text-h3 text-ink">{p.title}</p>
+                <p className="text-body text-muted">{p.text}</p>
+                <dl className="mt-6">
+                  <dt className="flex items-center gap-1 text-small text-muted">
+                    {n.label}
+                    <InfoTip text={n.info} />
+                  </dt>
+                  <dd className="mt-1 text-h1 tabular-nums text-ink">{n.value}</dd>
+                  {n.sub && <dd className="mt-0.5 text-small text-muted">{n.sub}</dd>}
+                </dl>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <CoreArc />
+      <CoreNetwork viaInvite={live.bookings.viaInvite} />
+      <ul className="flex flex-wrap gap-x-6 gap-y-2 border-t border-ink/8 pt-6 text-small text-muted">
+        {CORE.rules.map((rule) => (
+          <li key={rule}>{rule}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Two bars on one time scale (0–2 years): the everyday 200 hours over 1–2 years (dark to 1 year, lighter to 2), the House in 2 weeks. */
+function CoreHours() {
+  const H = CORE.hours;
+  const at = (months: number) => `${(months / H.scaleMonths) * 100}%`;
+  return (
+    <section aria-label={H.title}>
+      <h3 className="mb-6 text-eyebrow uppercase text-muted">{H.title}</h3>
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-4 gap-y-5">
+        <span className="text-body font-semibold text-ink">{H.everyday.label}</span>
+        <div>
+          <div className="relative h-3 rounded-full bg-ink/5" role="img" aria-label={H.everyday.text}>
+            <span className="absolute inset-y-0 left-0 rounded-full bg-ink/15" style={{ width: at(H.everyday.toMonths) }} />
+            <span className="absolute inset-y-0 left-0 rounded-full bg-ink/70" style={{ width: at(H.everyday.fromMonths) }} />
+          </div>
+          <p className="mt-1.5 text-small text-muted">{H.everyday.text}</p>
+        </div>
+        <span className="text-body font-semibold text-ink">{H.house.label}</span>
+        <div>
+          <div className="relative h-3 rounded-full bg-ink/5" role="img" aria-label={H.house.text}>
+            <span className="absolute inset-y-0 left-0 min-w-3 rounded-full bg-adm-chart-1" style={{ width: at(H.house.months) }} />
+          </div>
+          <p className="mt-1.5 text-small font-semibold text-ink">{H.house.text}</p>
+        </div>
+        <span />
+        <div aria-hidden className="relative h-4 text-small text-muted">
+          {H.axis.map((label, i) => (
+            <span key={label} className={cn("absolute top-0 whitespace-nowrap", i === 0 ? "" : i === H.axis.length - 1 ? "-translate-x-full" : "-translate-x-1/2")} style={{ left: `${(i / (H.axis.length - 1)) * 100}%` }}>
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="mt-6 text-small text-muted">{H.source}</p>
+    </section>
+  );
+}
+
+/** The arc of a House: five phases on one line (from 1024px across, below that down), each with its 2–3 keywords; then the three depths. */
+function CoreArc() {
+  const A = CORE.arc;
+  const depthOn = useDepthChoice();
+  return (
+    <section aria-label={A.title}>
+      <h3 className="mb-6 text-eyebrow uppercase text-muted">{A.title}</h3>
+      <ol className="relative grid gap-y-6 lg:grid-cols-5">
+        {/* The line through the dots */}
+        <span aria-hidden className="absolute bottom-2 left-[5px] top-2 w-px bg-ink/15 lg:bottom-auto lg:left-0 lg:right-0 lg:top-[5px] lg:h-px lg:w-auto" />
+        {A.phases.map((p, i) => (
+          <li key={p.key} className="relative pl-8 lg:pl-0 lg:pr-6 lg:pt-8">
+            <span aria-hidden className="absolute left-0 top-1 size-[11px] rounded-full border-2 border-ink bg-bg lg:top-0" />
+            <p className="text-body font-semibold text-ink">
+              <span className="mr-2 tabular-nums text-muted">{i + 1}</span>
+              {p.title}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {p.points.map((point) => (
+                <li key={point} className="text-small text-muted">
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-6 text-small text-muted">{A.placeholder}</p>
+      {/* The three depths (config/depth.ts) – each level switches more of the arc on. */}
+      <div className="mt-10 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h4 className="text-eyebrow uppercase text-muted">{A.depthsTitle}</h4>
+        <span className="rounded-full border border-ink/12 px-2.5 py-0.5 text-small text-muted">{depthOn ? A.depthsOn : A.depthsOff}</span>
+      </div>
+      <ol className="mt-4 grid max-w-[880px] gap-1.5 sm:grid-cols-3">
+        {A.depths.map((d, i) => (
+          <li key={d.key} className={cn("flex min-h-20 flex-col justify-center rounded-[12px] px-5 py-3", ["bg-ink/5", "bg-ink/8", "bg-ink/12"][i])}>
+            <span className="text-body font-semibold text-ink">{d.title}</span>
+            <span className="text-small text-muted">{d.text}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/**
+ * The network: three circles inside each other – Gemerkt (private) · Lived with (automatic) · Your people (mutual), the closer the tighter –,
+ * beside them the crew as a group; underneath the loop (House → Your people → see where you go → book along → new House) and "Einladen" with
+ * its ways and the live number of bookings through invites.
+ */
+function CoreNetwork({ viaInvite }: { viaInvite: number }) {
+  const N = CORE.network;
+  const radii = [120, 84, 48];
+  const tints = ["fill-ink/4", "fill-ink/8", "fill-ink/12"];
+  return (
+    <section aria-label={N.title}>
+      <h3 className="mb-6 text-eyebrow uppercase text-muted">{N.title}</h3>
+      <div className="flex flex-wrap items-center gap-x-16 gap-y-8">
+        <figure className="flex items-center gap-8">
+          <svg viewBox="0 0 260 260" className="w-[220px] shrink-0 sm:w-[260px]" role="img" aria-label={N.circles.map((c) => `${c.title} (${c.text})`).join(" · ")}>
+            {N.circles.map((c, i) => (
+              <circle key={c.key} cx="130" cy="130" r={radii[i]} className={cn(tints[i], "stroke-ink/15")} strokeWidth="1" />
+            ))}
+            {N.circles.map((c, i) => (
+              <g key={`${c.key}-label`} className="fill-ink">
+                <text x="130" y={i === 2 ? 126 : 130 - radii[i] + 22} textAnchor="middle" className="text-small font-semibold">
+                  {c.title}
+                </text>
+                <text x="130" y={i === 2 ? 144 : 130 - radii[i] + 38} textAnchor="middle" className="fill-ink/60 text-small">
+                  {c.text}
+                </text>
+              </g>
+            ))}
+          </svg>
+          {/* The crew: one group, everyone in the same House */}
+          <div className="flex flex-col items-center gap-3">
+            <svg viewBox="0 0 96 72" className="w-24" aria-hidden>
+              {[
+                [24, 22],
+                [48, 14],
+                [72, 22],
+                [32, 50],
+                [64, 50],
+              ].map(([x, y]) => (
+                <circle key={`${x}-${y}`} cx={x} cy={y} r="11" className="fill-ink/12 stroke-ink/25" strokeWidth="1" />
+              ))}
+            </svg>
+            <div className="text-center">
+              <p className="text-body font-semibold text-ink">{N.crew.title}</p>
+              <p className="text-small text-muted">{N.crew.text}</p>
+            </div>
+          </div>
+        </figure>
+        <div className="min-w-0 flex-1 space-y-8">
+          <div>
+            <h4 className="mb-3 text-eyebrow uppercase text-muted">{N.loopTitle}</h4>
+            <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-body text-ink">
+              {N.loop.map((step, i) => (
+                <li key={step} className="flex items-center gap-2">
+                  <span className={cn("rounded-full px-3 py-1", i === 0 || i === N.loop.length - 1 ? "bg-ink/8 font-semibold" : "bg-ink/4")}>{step}</span>
+                  {i < N.loop.length - 1 && <ArrowRight aria-hidden className="size-4 text-muted" />}
+                </li>
+              ))}
+              <li aria-hidden className="flex items-center gap-1 text-small text-muted">
+                <RotateCcw className="size-4" />
+              </li>
+            </ol>
+          </div>
+          <div>
+            <h4 className="mb-3 text-eyebrow uppercase text-muted">{N.inviteTitle}</h4>
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+              <ul className="flex flex-wrap gap-2">
+                {N.invite.map((way) => (
+                  <li key={way} className="rounded-full border border-ink/12 px-3 py-1 text-small text-ink">
+                    {way}
+                  </li>
+                ))}
+              </ul>
+              <dl>
+                <dt className="flex items-center gap-1 text-small text-muted">
+                  {N.inviteLive.label}
+                  <InfoTip text={N.inviteLive.info} />
+                </dt>
+                <dd className="mt-1 text-h2 tabular-nums text-ink">{num(viaInvite)}</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

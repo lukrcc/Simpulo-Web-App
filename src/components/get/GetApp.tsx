@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Share } from "lucide-react";
 import { useEffect } from "react";
 import { AndroidInstallButton, IosInstallSteps } from "@/components/InstallHint";
 import { Wordmark } from "@/components/layout/Logo";
@@ -36,7 +37,12 @@ export function GetApp() {
   } else if (browser === "android-chrome" || browser === "android-other") {
     body = <p className="text-body text-muted">{t("getOpenChrome")}</p>;
   } else if (browser === "ios-safari") {
-    body = <IosInstallSteps className="mx-auto w-fit text-left" />;
+    body = (
+      <div className="flex flex-col items-center gap-6">
+        <IosInstallVideo />
+        <IosInstallSteps className="mx-auto w-fit text-left" />
+      </div>
+    );
   } else if (browser === "ios-other") {
     body = <p className="text-body text-muted">{t("getOpenSafari")}</p>;
   } else if (browser === "desktop") {
@@ -56,6 +62,23 @@ export function GetApp() {
         {!standalone && <p className="mt-3 text-body-lg text-muted">{t("getLead")}</p>}
         <div className="mt-10 flex min-h-11 w-full justify-center">{body}</div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The short loop showing the three taps (muted, inline, looping – APP_LINKS.iosInstallVideo). Until it's recorded a quiet phone-shaped
+ * frame with Safari's Share symbol in place of the video.
+ */
+function IosInstallVideo() {
+  const src = APP_LINKS.iosInstallVideo;
+  const frame = "aspect-[9/16] w-[104px] overflow-hidden rounded-[20px] bg-surface-2";
+  if (src) return <video src={src} className={frame} autoPlay loop muted playsInline aria-hidden />;
+  return (
+    <div aria-hidden data-video-placeholder className={`${frame} flex items-end justify-center pb-3`}>
+      <span className="flex size-10 items-center justify-center rounded-full bg-ink/6 text-ink motion-safe:animate-pulse">
+        <Share className="size-5" />
+      </span>
     </div>
   );
 }

@@ -700,8 +700,10 @@ export function byAccommodation({ stays, joinRequests, payments }: Pick<AdminInp
 // ── Analyse: money and retention by angle ───────────────────────────────────────────────────────────────────────────────────────
 
 export type AnalysisPeriod = "30d" | "year" | "all";
-export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "hub" | "tier";
-export const ANALYSIS_DIMENSIONS: readonly AnalysisDimension[] = ["topic", "length", "crew", "category", "hub", "tier"];
+export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "hub" | "tier" | "depth";
+/** "depth" (Tiefe) only while the depth choice is on (config/platform.ts) – analysisDimensions(depthOn). */
+export const ANALYSIS_DIMENSIONS: readonly AnalysisDimension[] = ["topic", "length", "crew", "category", "hub", "tier", "depth"];
+export const analysisDimensions = (depthOn: boolean) => ANALYSIS_DIMENSIONS.filter((d) => depthOn || d !== "depth");
 /** kurz ≤ 5 nights · mittel 1–3 weeks (6–27) · lang 4+ weeks (28+) */
 export const lengthBand = (nights: number) => (nights <= 5 ? "short" : nights < 28 ? "mid" : "long");
 /** 2–4 · 5–8 · 9+ (host included) */
@@ -729,6 +731,7 @@ export function outcomesFromRecords({ stays, users, joinRequests, payments, toda
         hostFeeShare: Math.round(paid.reduce((n, p) => n + toEur(((p.hostFee ?? 0) * FEE_MODEL.hostFeeCommissionPercent) / 100, stays, s.id), 0)),
         daysToFull: daysToFullOf(s, joinRequests),
         fillRate: fillRateOf(s),
+        depth: s.depth ?? "balanced",
       };
     });
 }
@@ -757,6 +760,8 @@ export interface AnalysisRow {
   repeat12: number | null;
   /** EUR: revenue per stay × stays per person in a year */
   valuePerPersonYear: number | null;
+  /** 0–1: mutual "Mit dir wieder" among the answered pairs; null without answers (the rating isn't built – mock example values only) */
+  againMutual: number | null;
   /** fewer than ANALYSIS_MIN_HOUSES */
   tooFew: boolean;
 }
@@ -785,11 +790,18 @@ function analysisRow(key: string, group: readonly HouseOutcome[], stays: Map<str
     fillRate: group.length ? group.reduce((n, o) => n + o.fillRate, 0) / group.length : null,
     repeat12: guests.length ? guests.filter((g) => (stays.get(g) ?? 0) >= 2).length / guests.length : null,
     valuePerPersonYear: perPerson === null || perYear === null ? null : Math.round(perPerson * perYear),
+    againMutual: againShare(group),
     tooFew: group.length < ANALYSIS_MIN_HOUSES,
   };
 }
 
+function againShare(group: readonly HouseOutcome[]): number | null {
+  const pairs = group.reduce((n, o) => n + (o.againPairs ?? 0), 0);
+  return pairs ? group.reduce((n, o) => n + (o.againMutual ?? 0), 0) / pairs : null;
+}
+
 function dimensionKey(dimension: AnalysisDimension, o: HouseOutcome): string {
+  if (dimension === "depth") return o.depth ?? "balanced";
   if (dimension === "topic") return o.topic;
   if (dimension === "length") return lengthBand(o.nights);
   if (dimension === "crew") return crewBand(o.crewSize);
@@ -1107,6 +1119,75 @@ export function monthKpis(inputs: AdminInputs) {
     costPerGuest: { value: cost, change: getChange("costPerGuest", cost, costBefore) },
     valueToCost: { value: ratio(cost), valuePerGuestYear, target: OVERVIEW_TARGETS.valueToCost, status: ratio(cost) === null ? null : statusAgainst(ratio(cost), OVERVIEW_TARGETS.valueToCost), change: getChange("valueToCost", ratio(cost), ratio(costBefore)) },
   };
+}
+
+/**
+ * Vision › Kern, the live numbers: mutual "Mit dir wieder" (both said "again" after the stay – the rating isn't built, so only the mock's
+ * example values; `example` says so), repeat guests (algorithmMetrics) and the shared nights of the last full month (monthlySeries).
+ */
+export function coreMetrics(inputs: AdminInputs) {
+  const n = inputs.history?.network;
+  const again = n?.againPairs ? n.againMutual! / n.againPairs : null;
+  const rows = monthlySeries(inputs);
+  const last = rows.at(-2)!;
+  const network = algorithmMetrics(inputs);
+  return {
+    again,
+    againExample: again !== null,
+    /** Houses whose closing round was done – the closing round isn't built yet: null ("noch nicht gemessen") */
+    closingRounds: null as number | null,
+    repeatRate: network.repeatRate,
+    /** Your people connections: mutual "Lived with" pairs */
+    yourPeoplePairs: network.mutualPairs,
+    bookings: networkBookings(inputs),
+    sharedNights: last.sharedNights,
+    month: last.month,
+  };
+}
+
+/**
+ * Bookings through the network: of the accepted guests in real Houses, how many came through an invite (an invite link – hinv-…, src=invite –,
+ * the invite sheet – invitedBy –, a friend's request – pairedWith) and how many through Your people (someone they lived with both ways was
+ * already in that House). From the mock's history where there is one.
+ */
+export function networkBookings(inputs: Pick<AdminInputs, "stays" | "joinRequests" | "livedWith" | "history">) {
+  const n = inputs.history?.network;
+  if (n?.bookings) {
+    const via = (n.bookingsViaInvite ?? 0) + (n.bookingsViaPeople ?? 0);
+    return { total: n.bookings, viaInvite: n.bookingsViaInvite ?? 0, viaPeople: n.bookingsViaPeople ?? 0, share: via / n.bookings };
+  }
+  const real = new Map(inputs.stays.filter(isReal).map((s) => [s.id, s]));
+  const accepted = inputs.joinRequests.filter((r) => r.status === "accepted" && real.has(r.stayId) && real.get(r.stayId)!.hostId !== r.userId).toSorted((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const confirmed = (a: string, b: string) => inputs.livedWith.some((l) => l.userId === a && l.otherUserId === b && l.confirmedAt);
+  const together = (a: string, b: string) => confirmed(a, b) && confirmed(b, a);
+  let viaInvite = 0;
+  let viaPeople = 0;
+  for (const r of accepted) {
+    if (r.invitedBy || r.id.startsWith("hinv-") || r.utmSource === "invite" || r.pairedWith) viaInvite++;
+    else {
+      const before = [real.get(r.stayId)!.hostId, ...accepted.filter((o) => o.stayId === r.stayId && o.createdAt < r.createdAt).map((o) => o.userId)];
+      if (before.some((id) => together(id, r.userId))) viaPeople++;
+    }
+  }
+  return { total: accepted.length, viaInvite, viaPeople, share: accepted.length ? (viaInvite + viaPeople) / accepted.length : null };
+}
+
+/**
+ * Wachstum: the install rate of guests with a booking (paid their share) – the share of them with Simpulo on the home screen, iPhone and
+ * Android apart; last full month against the one before (like monthKpis), in percent. null without install records (real source until the
+ * data point app.installed is collected).
+ */
+export function installRates(inputs: AdminInputs) {
+  const installs = inputs.history?.installs;
+  const months = monthlySeries(inputs).map((r) => r.month);
+  const rate = (row?: { booked: number; installed: number }) => (row && row.booked > 0 ? Math.round((row.installed / row.booked) * 1000) / 10 : null);
+  const of = (platform: "ios" | "android", metric: "installRateIos" | "installRateAndroid") => {
+    const rows = installs?.[platform];
+    const last = rows?.at(-2);
+    const value = rate(last);
+    return { value, booked: last?.booked ?? null, change: getChange(metric, value, rate(rows?.at(-3))) };
+  };
+  return { month: months.at(-2)!, monthBefore: months.at(-3)!, ios: of("ios", "installRateIos"), android: of("android", "installRateAndroid") };
 }
 
 /**

@@ -11,6 +11,7 @@ export const EMAIL_ACTION: Record<NotifyEvent, { label: string; path: string }> 
   [NotifyEvent.BookingConfirmed]: { label: "See your House", path: "/your-houses" },
   [NotifyEvent.BookingCancelled]: { label: "See what happens next", path: "/your-houses" },
   [NotifyEvent.RefundIssued]: { label: "See your refund", path: "/settings#payments" },
+  [NotifyEvent.HouseArc]: { label: "Open your House", path: "/your-houses" },
   [NotifyEvent.ChatMessage]: { label: "Reply", path: "/messages" },
   [NotifyEvent.HouseNearby]: { label: "See the House", path: "/explore" },
   [NotifyEvent.SimpuloNews]: { label: "Open Simpulo", path: "/" },

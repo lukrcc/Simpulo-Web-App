@@ -4,6 +4,7 @@
 // place · hub · host tier) and the former "Themen-Score". Every number from lib/admin/metrics.ts (analysisRows, sweetSpot, whoBringsMoney),
 // a period switch (30 Tage · Dieses Jahr · Gesamt). No cards: the sweet spot (the page's one ocean focus), the table and "Wer bringt das
 // Geld" stand free on the page, split by space and fine lines; groups under 10 Houses are grey ("zu wenig Daten").
+import { useDepthChoice } from "@/config/platform";
 import { ArrowDown, ArrowUp, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -11,7 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useFormat } from "@/i18n/format";
-import { ANALYSIS_DIMENSIONS, analysisRows, cohortReturns, sweetSpot, whoBringsMoney, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
+import { analysisDimensions, analysisRows, cohortReturns, sweetSpot, whoBringsMoney, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { days, eur, month as monthLabel, num, pct, share } from "@/lib/i18n/adminFormat";
 import type { ADMIN_DE } from "@/lib/i18n/admin.de";
@@ -31,6 +32,14 @@ const COLUMNS: readonly { key: SortKey; label: keyof typeof ADMIN_DE.analysis.co
   { key: "fillRate", label: "fill", format: (r) => share(r.fillRate) },
   { key: "repeat12", label: "repeat", format: (r) => share(r.repeat12) },
   { key: "valuePerPersonYear", label: "value", format: (r) => (r.valuePerPersonYear === null ? "–" : eur(r.valuePerPersonYear)) },
+  { key: "houses", label: "houses", format: (r) => num(r.houses) },
+];
+/** Tiefe (social depth): how each level fills, comes back and wants to live together again – Füllrate, Tage bis voll, „Mit dir wieder“, Wiederkehrer. */
+const DEPTH_COLUMNS: typeof COLUMNS = [
+  { key: "fillRate", label: "fill", format: (r) => share(r.fillRate) },
+  { key: "daysToFull", label: "daysToFull", format: (r) => (r.daysToFull === null ? "–" : days(r.daysToFull)) },
+  { key: "againMutual", label: "again", format: (r) => share(r.againMutual) },
+  { key: "repeat12", label: "repeat", format: (r) => share(r.repeat12) },
   { key: "houses", label: "houses", format: (r) => num(r.houses) },
 ];
 
@@ -54,15 +63,19 @@ function MoneyView({ period }: { period: AnalysisPeriod }) {
   const t = useTranslations("admin.analysis");
   const inputs = useAdminInputs();
   const [dimension, setDimension] = useState<AnalysisDimension>("topic");
+  // "Tiefe" only while the depth choice is on (config/platform.ts).
+  const depthOn = useDepthChoice();
+  const shown = depthOn || dimension !== "depth" ? dimension : "topic";
   return (
     <>
       <HowWeMeasure />
       <SweetSpot spot={sweetSpot(inputs, period)} />
       <AdminSection title={t("dimension.label")} className="mt-14">
         <ScrollRow label={t("dimension.label")} className="mb-6 max-w-full">
-          <CapsuleGroup size="sm" label={t("dimension.label")} value={dimension} onChange={setDimension} options={ANALYSIS_DIMENSIONS.map((value) => ({ value, content: t(`dimension.${value}`) }))} />
+          <CapsuleGroup size="sm" label={t("dimension.label")} value={shown} onChange={setDimension} options={analysisDimensions(depthOn).map((value) => ({ value, content: t(`dimension.${value}`) }))} />
         </ScrollRow>
-        <AnalysisTable dimension={dimension} rows={analysisRows(inputs, dimension, period)} />
+        <AnalysisTable dimension={shown} rows={analysisRows(inputs, shown, period)} />
+        {shown === "depth" && <p className="mt-3 text-small text-muted">{t("againExample")}</p>}
       </AdminSection>
       <WhoBringsMoney money={whoBringsMoney(inputs, period)} />
       <Cohorts />
@@ -100,6 +113,7 @@ function useGroupLabel() {
     if (dimension === "crew") return t("crew", { band: key.replace("-", "–") });
     if (dimension === "category") return key === "unset" ? t("unset") : tPlace(`category.${key as keyof typeof ADMIN_DE.accommodation.category}`);
     if (dimension === "tier") return t(`tier.${key as "share" | "pro" | "anchor"}`);
+    if (dimension === "depth") return t(`depth.${key as "easy" | "balanced" | "deep"}`);
     return key;
   };
 }
@@ -141,6 +155,7 @@ function SweetSpot({ spot }: { spot: ReturnType<typeof sweetSpot> }) {
 function AnalysisTable({ dimension, rows }: { dimension: AnalysisDimension; rows: readonly AnalysisRow[] }) {
   const t = useTranslations("admin.analysis");
   const label = useGroupLabel();
+  const columns = dimension === "depth" ? DEPTH_COLUMNS : COLUMNS;
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "valuePerPersonYear", desc: true });
   if (rows.length === 0) return <p className="text-body text-muted">{t("noData")}</p>;
   const sorted = rows.toSorted((a, b) => {
@@ -154,7 +169,7 @@ function AnalysisTable({ dimension, rows }: { dimension: AnalysisDimension; rows
         <thead className="text-small text-muted">
           <tr className="border-b border-ink/8">
             <th className="py-3 pr-4 font-medium">{t("col.group")}</th>
-            {COLUMNS.map((c) => {
+            {columns.map((c) => {
               const active = sort.key === c.key;
               return (
                 <th key={c.key} className="py-3 pr-4 text-right font-medium last:pr-0" aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"}>
@@ -179,7 +194,7 @@ function AnalysisTable({ dimension, rows }: { dimension: AnalysisDimension; rows
                 <span className={row.tooFew ? undefined : "text-ink"}>{label(dimension, row.key)}</span>
                 {row.tooFew && <span className="ml-2 text-small">· {t("tooFew")}</span>}
               </td>
-              {COLUMNS.map((c) => (
+              {columns.map((c) => (
                 <td key={c.key} className={cn("py-3 pr-4 text-right tabular-nums last:pr-0", !row.tooFew && (c.key === "valuePerPersonYear" ? "font-semibold text-ink" : "text-ink/80"))}>
                   {c.format(row)}
                 </td>

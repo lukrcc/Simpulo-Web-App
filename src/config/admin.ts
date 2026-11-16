@@ -143,6 +143,8 @@ export const CHANGE_RULES = {
   bookingVolume: { better: "higher", unit: "eur" },
   annualRevenue: { better: "higher", unit: "eur" },
   activeUsers: { better: "higher", unit: "count" },
+  installRateIos: { better: "higher", unit: "percent" },
+  installRateAndroid: { better: "higher", unit: "percent" },
   costPerGuest: { better: "lower", unit: "eur" },
   valueToCost: { better: "higher", unit: "ratio" },
   runwayMonths: { better: "higher", unit: "ratio" },

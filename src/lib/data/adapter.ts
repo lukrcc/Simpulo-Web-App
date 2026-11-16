@@ -153,6 +153,12 @@ export interface MetricsHistory {
     repeatRate: readonly number[];
   };
   /**
+   * Admin › Wachstum: per month (0 = this month so far) the guests with a booking (paid their share) and how many of them have Simpulo
+   * installed, by device – iPhone (Safari: Add to Home Screen) and Android (Chrome's install). The mock gives realistic values; the real
+   * source needs the install records per account (data point app.installed, lib/install.ts app_installed) – until then "noch nicht messbar".
+   */
+  installs?: Readonly<Record<"ios" | "android", readonly { booked: number; installed: number }[]>>;
+  /**
    * The network as it stands (Übersicht › Qualität, Algorithmus › Netzwerk heute): pairs who lived together, repeat guests, days until
    * full. The mock gives realistic values; the real source computes them from its records (lib/admin/metrics.ts algorithmMetrics).
    */
@@ -214,6 +220,11 @@ export interface HouseOutcome {
   daysToFull: number | null;
   /** 0–1 */
   fillRate: number;
+  /** Social depth (config/depth.ts); none = Balanced */
+  depth?: "easy" | "balanced" | "deep";
+  /** "Mit dir wieder" (data point after.again – the rating isn't built: only the mock's example values): crew pairs who answered, mutual "again" */
+  againPairs?: number;
+  againMutual?: number;
 }
 
 /** A guest's payment that didn't go through (Admin › Heute, "Geld"). */
@@ -238,6 +249,17 @@ export interface NetworkStats {
   fullHouses: number;
   medianDaysToFull: number | null;
   daysToFullBuckets: readonly { key: string; count: number }[];
+  /**
+   * Gegenseitiges „Mit dir wieder“ (data point after.again, the rating after the stay – not built yet): crew pairs who both answered, and
+   * those who both said "again". Only the mock has example values; the real source until the rating exists: none.
+   */
+  againPairs?: number;
+  againMutual?: number;
+  /** Bookings (accepted guests in real Houses) and how many came through an invite (link or the invite sheet) or through Your people (someone
+   *  of theirs was already in the crew) – example values in the mock; the real source counts its records (lib/admin/metrics.ts networkBookings) */
+  bookings?: number;
+  bookingsViaInvite?: number;
+  bookingsViaPeople?: number;
 }
 
 /** A hypothesis's current value and verdict (config/hypotheses.ts) */

@@ -1,7 +1,9 @@
 "use client";
 
 import { BackButton } from "@/components/ui/BackButton";
-import { ArrowRight, ArrowUpRight, Home, Languages, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Home, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
+import { depthOf } from "@/config/depth";
+import { useDepthChoice } from "@/config/platform";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CrewRow } from "@/components/CrewRow";
@@ -76,6 +78,8 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const tBack = useTranslations("common");
   const t = useTranslations("house.page");
   const tHero = useTranslations("house.page.hero");
+  const depthOn = useDepthChoice();
+  const tDepth = useTranslations("depth.capsule");
   const format = useFormat();
   const languages = [...new Set([stay.language, ...(stay.languages ?? [])].filter(Boolean).map(format.language))].slice(0, 3);
   const booked = stay.accommodationStatus === "locked";
@@ -153,6 +157,13 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
           <li className="ember-chip">
             <Venus aria-hidden className="size-3.5" />
             {tHero("womenOnly")}
+          </li>
+        )}
+        {/* The social depth (config/depth.ts) – every level here, it's one of the facts; only while the choice is on. */}
+        {depthOn && (
+          <li className="ember-chip">
+            <Layers aria-hidden className="size-3.5" />
+            {tDepth(depthOf(stay, depthOn))}
           </li>
         )}
       </ul>

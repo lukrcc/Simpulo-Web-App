@@ -544,7 +544,8 @@
         "beta": "Beta",
         "live": "Live"
       },
-      "adminRole": "Admin role"
+      "adminRole": "Admin role",
+      "depthChoice": "Depth choice"
     },
     "welcome": {
       "title": "Welcome back.",
@@ -747,6 +748,12 @@
       "accommodationOptions": {
         "booked": "Booked",
         "together": "Decided together"
+      },
+      "depth": "Depth",
+      "depthOptions": {
+        "easy": "Easy",
+        "balanced": "Balanced",
+        "deep": "Deep"
       }
     },
     "more": "More",
@@ -1125,7 +1132,7 @@
         "waitingHostLineNoTime": "You'll hear in Messages.",
         "waitingMore": "Waiting for {count} more",
         "waitingMoreLine": "You pay once the crew is complete – nothing is charged before.",
-        "inviteFriend": "Invite a friend",
+        "inviteFriend": "Invite friends",
         "pickingPlace": "Picking the place",
         "pickingPlaceLine": "The crew votes on the shortlist.",
         "vote": "Vote",
@@ -1563,7 +1570,8 @@
       "crewGroup": "House group link",
       "invite": "Invite your people",
       "inviteAgain": "Invite your crew",
-      "kind": "Where will you live?"
+      "kind": "Where will you live?",
+      "depth": "How deep should this House go?"
     },
     "resume": {
       "untitled": "An unfinished House",
@@ -1610,7 +1618,8 @@
         "place": "Place",
         "extras": "Extras"
       },
-      "kind": "Kind of place"
+      "kind": "Kind of place",
+      "depth": "Depth"
     },
     "flow": {
       "placeSetTitle": "I have a place",
@@ -1726,7 +1735,8 @@
         "lookingFor": "Who I'm looking for",
         "rules": "House rules",
         "languages": "Languages",
-        "crewGroup": "House group link"
+        "crewGroup": "House group link",
+        "depth": "Depth"
       }
     },
     "vote": {
@@ -1767,6 +1777,25 @@
       "unsureLine": "Picked with the crew",
       "skipper": "Usually chartered with a skipper",
       "chosen": "Chosen"
+    },
+    "depth": {
+      "title": "How deep should this House go?",
+      "easy": {
+        "title": "Easy",
+        "text": "Live together, no program."
+      },
+      "balanced": {
+        "title": "Balanced",
+        "text": "A few good moments to connect."
+      },
+      "deep": {
+        "title": "Deep",
+        "text": "Questions, intentions, a real closing night."
+      },
+      "suggested": "Suggested for {topic}",
+      "hint": "Guests see it on your House. Fixed once the first guest has booked.",
+      "locked": "Fixed – someone has already booked this House.",
+      "fixed": "Fixed after the first booking"
     }
   },
   "houses": {
@@ -2333,7 +2362,7 @@
         "requests": "{count, plural, one {# request is waiting} other {# requests are waiting}}",
         "seeRequests": "See requests",
         "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
-        "invite": "Invite",
+        "invite": "Invite friends",
         "voting": "The crew is voting on the place",
         "openChat": "Open chat",
         "choosePlace": "The crew is complete – choose the place",
@@ -2440,7 +2469,7 @@
         "payBy": "Pay by {date}"
       },
       "next": {
-        "invite": "Invite",
+        "invite": "Invite friends",
         "lockAccommodation": "Lock accommodation",
         "openCrewGroup": "Open House group",
         "openCrewChat": "Open House chat",
@@ -2634,7 +2663,7 @@
     },
     "invites": {
       "description": "Invite someone by name or email. Their link reserves a spot for 48 hours.",
-      "invite": "Invite",
+      "invite": "Invite friends",
       "full": "Every spot is taken or reserved – free one up to invite someone.",
       "until": "Reserved until {date}",
       "emailed": "Emailed to {email}",
@@ -2957,7 +2986,16 @@
       "verifyAction": "Verify",
       "previewInCrew": "In a crew",
       "previewInRequests": "In a host's requests",
-      "previewRequestMessage": "Hi! This House sounds great – I'd love to join."
+      "previewRequestMessage": "Hi! This House sounds great – I'd love to join.",
+      "community": {
+        "question": "How much community do you need?",
+        "options": {
+          "1": "A little",
+          "2": "Some",
+          "3": "A lot"
+        },
+        "hint": "We show you Houses that fit a little higher up – you still see them all."
+      }
     },
     "settings": "Settings",
     "crews": {
@@ -3113,34 +3151,38 @@
         "help": "Help",
         "helpSub": "Questions & safety",
         "idea": "Share an idea",
-        "ideaSub": "Tell us what to build"
+        "ideaSub": "Tell us what to build",
+        "getAppScan": "Scan with your phone to install Simpulo.",
+        "getAppOpen": "Open install page",
+        "getAppPrint": "Print cards",
+        "getAppPrintText": "Cards with this code to leave in your House."
       }
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {
       "rhythm": {
-        "scale": "Early bird ↔ Night owl",
         "1": "Early bird",
         "2": "Flexible hours",
-        "3": "Night owl"
+        "3": "Night owl",
+        "scale": "Early bird ↔ Night owl"
       },
       "social": {
-        "scale": "Quiet ↔ Social",
         "1": "Quiet",
         "2": "Balanced",
-        "3": "Social"
+        "3": "Social",
+        "scale": "Quiet ↔ Social"
       },
       "energy": {
-        "scale": "Active ↔ Chill",
         "1": "Active",
         "2": "In between",
-        "3": "Chill"
+        "3": "Chill",
+        "scale": "Active ↔ Chill"
       },
       "tidy": {
-        "scale": "Tidy ↔ Relaxed",
         "1": "Tidy",
         "2": "Fairly tidy",
-        "3": "Relaxed"
+        "3": "Relaxed",
+        "scale": "Tidy ↔ Relaxed"
       }
     }
   },
@@ -3186,7 +3228,7 @@
         "backTo": "Payments & payouts"
       },
       "notifications": {
-        "alwaysTitle": "Bookings & payments",
+        "alwaysTitle": "Bookings, payments & your Houses",
         "alwaysSub": "Always on – app, push and email.",
         "alwaysLocked": "Always on",
         "choices": {
@@ -3221,7 +3263,9 @@
         "getApp": "Get the app",
         "admin": "Admin",
         "help": "Get help",
-        "idea": "Share an idea"
+        "idea": "Share an idea",
+        "installHints": "App reminders",
+        "installHintsText": "At most once a week – after paying, joining a crew or opening the group chat."
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -3452,7 +3496,17 @@
     "joinedToast": "You're in – welcome to {title}",
     "invalid": "This invite isn't valid any more.",
     "expiredTitle": "This invite has expired",
-    "expiredText": "Invite links hold a spot for 48 hours, once. Ask the host for a new one – or have a look at the House."
+    "expiredText": "Invite links hold a spot for 48 hours, once. Ask the host for a new one – or have a look at the House.",
+    "savedYou": "{name} saved you a spot",
+    "savedYouMany": "{name} saved {count} spots for friends",
+    "left": "{hours}h left",
+    "leftMinutes": "{minutes} min left",
+    "reserve": "Reserve your spot",
+    "waitlist": "Join the waitlist",
+    "waitlistToast": "You're on the waitlist – we'll tell you when Simpulo opens.",
+    "reservedToast": "Spot reserved in {title} – no payment until launch",
+    "textBeta": "Your spot is held. Reserve it now – nothing is paid until Simpulo opens.",
+    "textPrelaunch": "Simpulo opens soon. Join the waitlist and we'll hold on to this invite for you."
   },
   "help": {
     "button": "Something went wrong",
@@ -3823,27 +3877,21 @@
     "footerScan": "Scan with your camera",
     "getTitle": "Simpulo on your phone",
     "getLead": "Get notified the moment your host says yes.",
-    "getInstall": "Install app",
+    "getInstall": "Install Simpulo",
     "getOpenChrome": "Open this page in Chrome to install",
     "getOpenSafari": "Open this page in Safari to add Simpulo",
     "getScan": "Scan with your phone",
-    "getInstalled": "You already have Simpulo",
+    "getInstalled": "Simpulo is on your home screen.",
     "getOpenExplore": "Open Explore",
-    "iosShare": "Tap Share",
-    "iosAdd": "Choose “Add to Home Screen”",
-    "iosConfirm": "Tap Add",
+    "iosShare": "Tap the Share button in Safari.",
+    "iosAdd": "Choose “Add to Home Screen”.",
+    "iosConfirm": "Tap Add – done.",
     "addToHome": "Add to Home Screen",
     "notNow": "Not now",
     "desktopScan": "Scan to get updates on your phone",
     "mockApp": "Simpulo",
     "mockTime": "now",
     "mockText": "Tom: You're in! 🎉",
-    "requestTitle": "Get notified when {name} answers",
-    "requestBenefit": "Add Simpulo to your home screen – their answer arrives like a message.",
-    "acceptedTitle": "Your crew chat is live – don't miss a message",
-    "acceptedBenefit": "With Simpulo on your home screen, your crew reaches you right away.",
-    "paymentTitle": "We'll remind you before your spot expires",
-    "paymentBenefit": "One reminder before the deadline, so your spot stays yours.",
     "inAppSafari": "For the best experience, open Simpulo in Safari",
     "inAppChrome": "For the best experience, open Simpulo in Chrome",
     "inAppHow": "Tap ••• → Open in browser",
@@ -3855,7 +3903,23 @@
     "qrHint": "Scan to open this House",
     "qrDownload": "Download PNG",
     "installToNotify": "Install to get notified – on iPhone, Simpulo can only notify you from your home screen.",
-    "installHowLink": "How →"
+    "installHowLink": "How →",
+    "joinedTitle": "Your crew chat is live – don't miss a message",
+    "joinedBenefit": "With Simpulo on your home screen, your crew reaches you right away.",
+    "paidTitle": "Your arrival details land here",
+    "paidBenefit": "Add Simpulo to your home screen – booking, address and crew in one tap.",
+    "chatTitle": "Keep your crew one tap away",
+    "chatBenefit": "With Simpulo on your home screen, new messages arrive like any other chat.",
+    "dontShowAgain": "Don't show again",
+    "emailAnyway": "Payments, deadlines and your House's updates always come by email too.",
+    "card": {
+      "pageTitle": "QR cards for your House",
+      "pageLead": "Print them and leave them in the House – your crew installs Simpulo in seconds.",
+      "print": "Print",
+      "title": "Simpulo on your phone",
+      "text": "Your crew chat, payments and arrival details in one place.",
+      "scan": "Scan with your camera"
+    }
   },
   "faq": {
     "title": "Questions",
@@ -4039,7 +4103,7 @@
     "hostTwo": "You're hosting two Houses at the same time."
   },
   "invite": {
-    "title": "Bring people",
+    "title": "Invite friends",
     "invite": "Invite",
     "inviteCount": "{count, plural, one {Invite # person} other {Invite #}}",
     "skip": "Not now",
@@ -4052,8 +4116,8 @@
     "share": "Share",
     "linkHolds": "A link holds a spot for {hours}h.",
     "linkFailed": "No spot left to hold.",
-    "copied": "Invite link copied – the spot is held for {hours}h",
-    "message": "Come to {title} with me: {url}",
+    "copied": "Copied",
+    "message": "Come with me to {title}? I saved you a spot for 48h.",
     "yourPeople": "Your people",
     "livedWith": "Lived with you",
     "saved": "Saved",
@@ -4091,7 +4155,15 @@
     "hostDot": "Host",
     "crewIn": "{in} of {total} in",
     "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
-    "full": "Full"
+    "full": "Full",
+    "inviteFriends": "Invite friends",
+    "shareTitle": "Share",
+    "spotsForFriends": "Spots for friends",
+    "spotsForFriendsText": "{count, plural, one {The link holds # spot for 48h} other {The link holds # spots for 48h}} – then {count, plural, one {it's} other {they're}} free again.",
+    "spotCount": "{count, plural, one {# spot} other {# spots}}",
+    "scanToJoin": "Scan to open the invite",
+    "yourPeopleText": "Pick several – they get it in the app and by email.",
+    "linkReady": "Link ready · {count, plural, one {# spot held} other {# spots held}} for 48h"
   },
   "inFor": {
     "title": "I'm in for",
@@ -4162,12 +4234,18 @@
     "planned": "Planned",
     "empty": "No ideas yet.",
     "share": "Share an idea"
+  },
+  "depth": {
+    "capsule": {
+      "easy": "Easy House",
+      "balanced": "Balanced House",
+      "deep": "Deep House"
+    },
+    "label": {
+      "easy": "Easy",
+      "balanced": "Balanced",
+      "deep": "Deep"
+    }
   }
 }
-
-
-
-
-
-
 

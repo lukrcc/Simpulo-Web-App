@@ -8,6 +8,8 @@
 // In dev the Dev menu's "Phase" picks it (and the mock data set that goes with it: Pre-launch → the live Houses as examples, Beta → the
 // examples + 15 founding Houses, Live → the full data); in demo and production it is "live" until the real launch switch exists.
 import { useHydrated } from "@/lib/useHydrated";
+import { APP_MODE } from "@/lib/appMode";
+import { useFeatureFlag } from "@/lib/featureFlags";
 import { PLATFORM_PHASES, readPlatformPhase, savePlatformPhase } from "@/lib/data";
 import type { PlatformPhase } from "@/lib/types";
 
@@ -42,6 +44,19 @@ export const foundingHostsSeeOthers = false;
  * approves each idea before it appears (support free text is never published unchecked).
  */
 export const ideasBoard = false;
+
+/**
+ * Social depth (config/depth.ts): hosts choose Easy · Balanced · Deep. While false every House counts as Balanced and nothing of it shows –
+ * no step in Open a House, no capsule on cards or the House page, no Explore filter, no "Tiefe" in Admin › Analyse. In dev the Dev menu
+ * switches it (Data & look › "Depth choice", feature flag depthChoice); demo and production follow this value alone.
+ */
+export const depthChoiceEnabled = false;
+
+/** Whether the depth choice is on: the config, in dev the Dev menu's switch (false on the server and while hydrating). */
+export function useDepthChoice(): boolean {
+  const dev = useFeatureFlag("depthChoice");
+  return APP_MODE === "dev" ? dev : depthChoiceEnabled;
+}
 
 /**
  * Example Houses (pre-launch and beta): the full page with sample Houses, marked "Example", not bookable – they give way as real ones come

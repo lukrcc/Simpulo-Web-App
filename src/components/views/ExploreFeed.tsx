@@ -1,5 +1,6 @@
 "use client";
 
+import { depthOf, depthShiftDays } from "@/config/depth";
 import { BarSheet } from "@/components/ui/BarSheet";
 import { blockHighlight } from "@/lib/highlight";
 import { useTodayIso } from "@/lib/birthDate";
@@ -21,7 +22,7 @@ import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/Explor
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
 import { BeFirstHere, InForTile, NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
 import { getVisibleHouses } from "@/lib/data/visibleHouses";
-import { launch, showsExamples, showsPersonalRows, usePlatformPhase } from "@/config/platform";
+import { launch, showsExamples, showsPersonalRows, useDepthChoice, usePlatformPhase } from "@/config/platform";
 import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
 import { LaunchIntro } from "@/components/explore/SpotlightIntro";
 import { MonthField, PlaceField, SearchField, ShortTripsToggle, useMonthName } from "@/components/explore/SearchFields";
@@ -47,6 +48,7 @@ import {
   ACCOMMODATION_KEYS,
   AGE_KEYS,
   HOST_EXPERIENCE_KEYS,
+  DEPTH_KEYS,
   CREW_SIZE_KEYS,
   LENGTH_KEYS,
   WHO_KEYS,
@@ -162,6 +164,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only stays and requests decide it
     [store.stays, store.joinRequests, today],
   );
+  // Interest ranking: the answer to "How much community do you need?" (User.communityNeed) moves Houses at the fitting depth up a little in the
+  // default order (config/depth.ts depthShiftDays) – a recommendation, never a filter. Only while the depth choice is on.
+  const depthOn = useDepthChoice();
+  const need = getCurrentUser(store)?.communityNeed;
+  const shiftDaysOf = useCallback(
+    (s: Stay) => (slowHosts.has(s.hostId) ? SLOW_HOST_SHIFT_DAYS : 0) + (depthOn ? depthShiftDays(depthOf(s, true), need) : 0),
+    [slowHosts, depthOn, need],
+  );
   const hostPremium = useFeatureFlag("hostPremium");
 
   // Options with how many Houses each would show alongside the other filters.
@@ -210,7 +220,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         // the open ones, each group in the chosen order.
         Number(Boolean(a.isExample)) - Number(Boolean(b.isExample)) ||
         Number(!a.acceptingRequests) - Number(!b.acceptingRequests) ||
-        compareBy(filters.sort, a, b, slowHosts),
+        compareBy(filters.sort, a, b, shiftDaysOf),
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const resultLabel = tc("houses", { count: results.length });
@@ -250,7 +260,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // The bands of the rhythm (EXPLORE_RHYTHM): in their order, empty ones skipped, never the same House in two of them.
   const bands = useMemo((): Band[] => {
     if (!browsing) return [];
-    const sorted = base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b, slowHosts));
+    const sorted = base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b, shiftDaysOf));
     const taken = new Set(showPeople ? peopleGoing.map((s) => s.id) : []);
     return EXPLORE_RHYTHM.shelves.flatMap((id): Band[] => {
       if (id === "peopleGoing") return showPeople ? [{ key: id, kind: "people" }] : [];
@@ -259,7 +269,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       shelf.stays.forEach((s) => taken.add(s.id));
       return [{ key: id, kind: "collection", shelf }];
     });
-  }, [browsing, base, slowHosts, showPeople, peopleGoing]);
+  }, [browsing, base, shiftDaysOf, showPeople, peopleGoing]);
   // What this search would be saved as ("Notify me").
   const draft = useMemo(() => ({ place: placeById(filters.place), month: filters.month, category: filters.vibes[0] ?? null }), [filters.place, filters.month, filters.vibes]);
   const searched = draft.place !== null || draft.month !== null;
@@ -282,6 +292,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     ...(filters.hostExperience ? [{ key: "xp", label: `${tf("hostExperience")} · ${tf(`hostExperienceOptions.${filters.hostExperience}`)}`, patch: { hostExperience: null } }] : []),
     ...filters.languages.map((language) => ({ key: `lang-${language}`, label: format.language(language), patch: { languages: filters.languages.filter((l) => l !== language) } })),
     ...(filters.verifiedOnly ? [{ key: "verified", label: tf("verifiedChip"), patch: { verifiedOnly: false } }] : []),
+    ...(filters.depth ? [{ key: "depth", label: `${tf("depth")} · ${tf(`depthOptions.${filters.depth}`)}`, patch: { depth: null } }] : []),
   ];
   // Browsing Explore: the grid comes in parts of two rows each, the bands between them.
   // A band after every block of EXPLORE_RHYTHM.rowsPerBlock rows (16 cards at 4 columns, 12 at 3).
@@ -436,6 +447,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
           {hostPremium && (
             <FilterDropdown icon={FILTER_ICONS.hostExperience} label={tf("hostExperience")} options={HOST_EXPERIENCE_KEYS.map((key) => ({ value: key, label: tf(`hostExperienceOptions.${key}`) }))} value={one(filters.hostExperience)} onChange={(v) => update({ hostExperience: v[0] ?? null })} />
           )}
+          {/* The social depth (config/depth.ts) – only while the depth choice is on. */}
+          {depthOn && <FilterDropdown icon={FILTER_ICONS.depth} label={tf("depth")} options={DEPTH_KEYS.map((key) => ({ value: key, label: tf(`depthOptions.${key}`) }))} value={one(filters.depth)} onChange={(v) => update({ depth: v[0] ?? null })} />}
           <ToggleChip icon={FILTER_ICONS.verified} label={tf("verifiedChip")} on={filters.verifiedOnly} onChange={(verifiedOnly) => update({ verifiedOnly })} />
         </div>
       </FilterRow>
@@ -737,11 +750,12 @@ const SLOW_HOST_SHIFT_DAYS = 7;
 
 /**
  * The chosen order: soonest start, lowest price per person (≈ EUR, Houses without a price last) or just opened. "Soonest" is the default (the
- * recommended order): a host who answers under 70 % of requests counts as starting a week later there – lower, never hidden.
+ * recommended order): a host who answers under 70 % of requests counts as starting a week later there, a House at the depth that fits the
+ * viewer a few days earlier (`shiftDays`) – higher or lower, never hidden.
  */
-function compareBy(sort: SortKey, a: Stay, b: Stay, slowHosts?: ReadonlySet<string>): number {
+function compareBy(sort: SortKey, a: Stay, b: Stay, shiftDays?: (s: Stay) => number): number {
   if (sort === "soonest") {
-    const start = (s: Stay) => Date.parse(s.startDate) + (slowHosts?.has(s.hostId) ? SLOW_HOST_SHIFT_DAYS * 86_400_000 : 0);
+    const start = (s: Stay) => Date.parse(s.startDate) + (shiftDays?.(s) ?? 0) * 86_400_000;
     return start(a) - start(b) || a.startDate.localeCompare(b.startDate);
   }
   if (sort === "newest") return b.createdAt.localeCompare(a.createdAt);

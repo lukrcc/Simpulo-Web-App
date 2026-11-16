@@ -1613,3 +1613,38 @@ main:has([data-demo-login]) {
   }
 }
 
+
+/* ── Print: the QR cards for Houses (/get/card) ─────────────────────────────────────────────────────────────────────
+   Only the cards: no header, footer, tab bar, dev menu or page head; four A6 cards fill one A4 page edge to edge. */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  :root {
+    --header-total: 0px;
+  }
+  body {
+    background: var(--surface);
+  }
+  [data-site-header],
+  header,
+  [aria-live],
+  footer,
+  nav,
+  [data-print-hide],
+  body > button {
+    display: none !important;
+  }
+  .get-card-sheet {
+    grid-template-columns: 105mm 105mm !important;
+    width: 210mm;
+  }
+  .get-card {
+    width: 105mm;
+    height: 148mm;
+    aspect-ratio: auto;
+    break-inside: avoid;
+    outline: 0.2mm dashed var(--line);
+  }
+}

@@ -203,6 +203,11 @@ export const MOCK_METRICS_HISTORY = {
     newGuests: [58, 69, 76, 86, 99, 117, 133, 88, 136, 141, 147, 128],
     repeatRate: [11, 12, 13, 14, 15, 16, 17, 17, 18, 19, 21, 22],
   },
+  /** Guests with a booking who have Simpulo installed: iPhone lower than Android (three taps in Safari against one button), both rising. */
+  installs: {
+    ios: [{ booked: 34, installed: 5 }, { booked: 40, installed: 7 }, { booked: 44, installed: 8 }, { booked: 50, installed: 10 }, { booked: 58, installed: 13 }, { booked: 68, installed: 16 }, { booked: 77, installed: 19 }, { booked: 52, installed: 12 }, { booked: 80, installed: 22 }, { booked: 83, installed: 24 }, { booked: 87, installed: 27 }, { booked: 76, installed: 25 }],
+    android: [{ booked: 24, installed: 7 }, { booked: 29, installed: 8 }, { booked: 32, installed: 10 }, { booked: 36, installed: 12 }, { booked: 41, installed: 14 }, { booked: 49, installed: 18 }, { booked: 56, installed: 21 }, { booked: 36, installed: 13 }, { booked: 56, installed: 22 }, { booked: 58, installed: 24 }, { booked: 60, installed: 26 }, { booked: 52, installed: 24 }],
+  },
   /**
    * Admin › Houses: three upcoming Houses at risk (two quiet for over a week, one with a request unanswered for 61 h); the full Houses took
    * 6–21 days to fill. Houses not listed count as active.
@@ -238,6 +243,13 @@ export const MOCK_METRICS_HISTORY = {
   providerCosts: { firebase: 2150, stripe: 4300, analytics: 0, maps: 720, email: 260 },
   /** Realistic for a young network: 41 % mutual pairs, 22 % repeat guests, 17 days until full (median). */
   network: {
+    // Example values for the rating that isn't built yet (after.again): 38 of 120 answered pairs said "again" both ways.
+    againPairs: 120,
+    againMutual: 38,
+    // Of 420 bookings 71 came through an invite, 46 through Your people (someone of theirs was already in): 28 % through the network.
+    bookings: 420,
+    bookingsViaInvite: 71,
+    bookingsViaPeople: 46,
     mutualPairs: 49,
     allPairs: 120,
     peopleWithMutual: 74,

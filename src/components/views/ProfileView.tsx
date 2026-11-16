@@ -2,7 +2,7 @@
 
 import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
-import { Bell, Bookmark, Eye, Languages, LayoutDashboard, Lock, MapPin, MoreHorizontal, Pencil, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon, LifeBuoy, Lightbulb } from "lucide-react";
+import { Bell, Bookmark, Eye, Languages, LayoutDashboard, Lock, MapPin, MoreHorizontal, Pencil, Printer, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon, LifeBuoy, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { use, useMemo, useState, type ReactNode } from "react";
@@ -17,6 +17,8 @@ import { ShareSheet } from "@/components/share/ShareSheet";
 import { SocialLinks } from "@/components/SocialLinks";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Button } from "@/components/ui/ActionButton";
+import { SimpuloQR } from "@/components/SimpuloQR";
+import { appQrLink } from "@/lib/links";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { iconButtonStyles } from "@/components/ui/IconButton";
@@ -400,6 +402,7 @@ function QuickTiles({ user }: { user: User }) {
   const people = useYourPeople();
   const standalone = useIsStandalone();
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [appOpen, setAppOpen] = useState(false);
   const notificationsOn = Object.values(settingsOf(user).notifications).some((p) => p.push);
   const saved = user.savedStayIds?.length ?? 0;
   const isAdmin = useIsAdmin() === true;
@@ -431,9 +434,9 @@ function QuickTiles({ user }: { user: User }) {
           {body(Bell, tq("notifications"), notificationsOn ? tq("on") : tq("off"))}
         </Link>
       ) : (
-        <Link href="/get" className={tile}>
+        <button type="button" onClick={() => setAppOpen(true)} className={tile}>
           {body(Smartphone, tq("getApp"), tq("getAppSub"))}
-        </Link>
+        </button>
       )}
       {/* Help and ideas, easy to find: "Get help" and "Share an idea" open their sheets. */}
       <button type="button" onClick={() => openGetHelp()} className={tile}>
@@ -448,6 +451,23 @@ function QuickTiles({ user }: { user: User }) {
           {body(LayoutDashboard, tq("admin"), tq("adminSub"))}
         </Link>
       )}
+      {/* Get the app: the QR code to /get?src=qr (installs from it are counted), the install page and the print template for Houses. */}
+      <Sheet variant="panel" open={appOpen} onClose={() => setAppOpen(false)} title={tq("getApp")}>
+        <div className="flex flex-col items-center gap-4 px-6 pb-8 text-center">
+          {appOpen && <SimpuloQR url={appQrLink()} size={200} />}
+          <p className="text-body text-muted">{tq("getAppScan")}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            <Button variant="secondary" href="/get">
+              {tq("getAppOpen")}
+            </Button>
+            <Button variant="secondary" href="/get/card">
+              <Printer aria-hidden />
+              {tq("getAppPrint")}
+            </Button>
+          </div>
+          <p className="max-w-[40ch] text-small text-muted">{tq("getAppPrintText")}</p>
+        </div>
+      </Sheet>
       <Sheet variant="panel" open={peopleOpen} onClose={() => setPeopleOpen(false)} title={tp("title")}>
         <div className="px-6 pb-6">
           {people.length === 0 ? (

@@ -1,7 +1,9 @@
 // Which channel each kind of notification takes – the one place for it. lib/notify routes by it; Settings shows the switches from it.
 import { NotifyEvent } from "@/lib/notify/events";
 
-/** The groups in Settings: "bookings" can't be switched off (money and deadlines), the others have a Push and an Email switch. */
+/**
+ * Email is the channel that always works, installed or not: everything about money, deadlines and the House's arc goes out by email,
+ * can't be switched off. The groups in Settings: "bookings" can't be switched off (money, deadlines, the arc), the others have a Push and an Email switch. */
 export type NotifyCategory = "bookings" | "messages" | "nearby" | "news";
 export type OptionalCategory = Exclude<NotifyCategory, "bookings">;
 
@@ -33,6 +35,8 @@ export const CHANNELS: Record<NotifyEvent, ChannelRule> = {
   [NotifyEvent.BookingConfirmed]: { category: "bookings", push: true, email: "instant" },
   [NotifyEvent.BookingCancelled]: { category: "bookings", push: true, email: "instant" },
   [NotifyEvent.RefundIssued]: { category: "bookings", push: true, email: "instant" },
+  // The House's arc (crew complete, arrival near, Do it again after): same as money – nobody misses it for lack of the app.
+  [NotifyEvent.HouseArc]: { category: "bookings", push: true, email: "instant" },
   // Chat: push right away; email only if still unread after an hour, collected.
   [NotifyEvent.ChatMessage]: { category: "messages", push: true, email: "unreadAfter" },
   // New Houses near a search: push; email as the weekly summary.

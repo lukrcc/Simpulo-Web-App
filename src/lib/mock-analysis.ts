@@ -2,6 +2,7 @@
 // differences: founder, creator and fitness Houses earn more per person; long stays hit the service-fee cap (max €50) but bring the most
 // per stay; short trips bring people back more often; pro and anchor hosts add a host fee and fill faster. About 60 % share, 35 % pro and
 // 5 % anchor hosts. The real source derives the same records from its Houses (lib/admin/metrics.ts outcomesFromRecords).
+import type { Depth } from "@/config/depth";
 import type { HouseOutcome } from "./data/adapter";
 import { stays as mockStays, users as mockUsers } from "./mock";
 import { mockAudienceSize, mockRunsAsPro } from "./mock-admin";
@@ -81,11 +82,20 @@ const HUBS: readonly (readonly [string, number])[] = [
   ["Tarifa", 5],
 ];
 
+/** Example "Mit dir wieder" per House: the answered pairs and those who both said "again". */
+function againOf(people: number, depth: Depth, rand: () => number): { againPairs: number; againMutual: number } {
+  const pairs = Math.round(((people * (people - 1)) / 2) * (0.5 + rand() * 0.2));
+  const base = depth === "deep" ? 0.45 : depth === "easy" ? 0.22 : 0.32;
+  return { againPairs: pairs, againMutual: Math.round(pairs * Math.min(1, Math.max(0, base + (rand() - 0.5) * 0.12))) };
+}
+
 let cache: HouseOutcome[] | null = null;
 
 export function mockHouseOutcomes(): HouseOutcome[] {
   if (cache) return cache;
   const rand = seeded(2026);
+  // The social depth and "Mit dir wieder" from their own sequence, so the rest of the mock stays as it was.
+  const rand2 = seeded(4711);
   // The app's own mock hosts (Admin › Hosts shows the same people), busiest first; their tier by the same rule as the app – 100k+ followers
   // anchor, a host fee pro (mock-admin.ts mockRunsAsPro), else share.
   const houses = new Map<string, number>();
@@ -114,18 +124,24 @@ export function mockHouseOutcomes(): HouseOutcome[] {
     const crewSize = crewBand === "small" ? 2 + Math.floor(rand() * 3) : crewBand === "mid" ? 5 + Math.floor(rand() * 4) : 9 + Math.floor(rand() * 6);
     const category = pick(rand, CATEGORIES);
 
-    // How full: pro and anchor hosts fill better, long stays and students less.
+    // The social depth (config/depth.ts): party and short trips lean Easy, founder and pro/anchor hosts Deep (as in the app's mock).
+    const d = rand2();
+    const depth: Depth =
+      topic === "party" || length === "short" ? (d < 0.65 ? "easy" : d < 0.92 ? "balanced" : "deep") : topic === "founder" || host.tier !== "share" ? (d < 0.55 ? "deep" : d < 0.9 ? "balanced" : "easy") : d < 0.15 ? "easy" : d < 0.85 ? "balanced" : "deep";
+
+    // How full: pro and anchor hosts fill better, long stays and students less; Deep a little less and slower, Easy a little more and faster.
     let fill = 0.8 + (rand() - 0.5) * 0.3;
+    fill += depth === "easy" ? 0.02 : depth === "deep" ? -0.03 : 0;
     fill += host.tier === "anchor" ? 0.14 : host.tier === "pro" ? 0.06 : 0;
     fill += topic === "fitness" || topic === "founder" ? 0.05 : topic === "students" ? -0.06 : 0;
     fill += length === "long" ? -0.08 : length === "short" ? 0.03 : 0;
     const capacity = crewSize - 1;
     const guestCount = Math.max(1, Math.min(capacity, Math.round(capacity * Math.min(1, fill))));
     const full = guestCount >= capacity;
-    const daysToFull = full ? Math.max(3, Math.round((10 + rand() * 18) * (host.tier === "anchor" ? 0.5 : host.tier === "pro" ? 0.8 : 1) * (length === "short" ? 0.75 : length === "long" ? 1.3 : 1))) : null;
+    const daysToFull = full ? Math.max(3, Math.round((10 + rand() * 18) * (host.tier === "anchor" ? 0.5 : host.tier === "pro" ? 0.8 : 1) * (length === "short" ? 0.75 : length === "long" ? 1.3 : 1) * (depth === "deep" ? 1.15 : depth === "easy" ? 0.9 : 1))) : null;
 
     // Who came: some came before (more often for short trips, fitness, social; anchors bring their people back).
-    const returning = 0.16 + (TOPIC_RETURN[topic] ?? 0) + (length === "short" ? 0.08 : length === "long" ? -0.08 : 0) + (host.tier === "anchor" ? 0.1 : 0);
+    const returning = 0.16 + (TOPIC_RETURN[topic] ?? 0) + (length === "short" ? 0.08 : length === "long" ? -0.08 : 0) + (host.tier === "anchor" ? 0.1 : 0) + (depth === "deep" ? 0.06 : depth === "easy" ? -0.03 : 0);
     const guestIds: string[] = [];
     for (let g = 0; g < guestCount; g++) {
       const sameTopic = past.filter((p) => p.topic === topic);
@@ -154,6 +170,10 @@ export function mockHouseOutcomes(): HouseOutcome[] {
       hostFeeShare: Math.round(hostFee * 0.1 * guestIds.length),
       daysToFull,
       fillRate: (guestIds.length + 1) / crewSize,
+      depth,
+      // "Mit dir wieder" (example values – the rating isn't built): about 60 % of the crew's pairs answer; mutual "again" Easy ~22 %,
+      // Balanced ~32 %, Deep ~45 %.
+      ...againOf(guestIds.length + 1, depth, rand2),
     });
   }
   cache = out.toSorted((a, b) => a.startDate.localeCompare(b.startDate));

@@ -35,6 +35,7 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "profile.languages", moment: "onboarding", captures: "Gesprochene Sprachen", purpose: "Eine Crew, die miteinander reden kann", models: ["crewFit"], legalBasis: "contract", status: "used" },
   { id: "profile.interests", moment: "onboarding", captures: "Kategorien, die sie mögen (Fitness, Founder …)", purpose: "Erste Schätzung, was wir zeigen", models: ["interestRanking", "crewFit"], legalBasis: "contract", status: "used" },
   { id: "profile.houseVibe", moment: "onboarding", captures: "Vier Regler: Frühaufsteher ↔ Nachteule, ruhig ↔ gesellig, aktiv ↔ entspannt, ordentlich ↔ locker", purpose: "Wie sie zusammenleben", models: ["crewFit"], legalBasis: "consent", status: "collecting" },
+  { id: "profile.communityNeed", moment: "onboarding", captures: "„How much community do you need?“ – wenig · etwas · viel (Edit profile › Vibe, auch im Onboarding)", purpose: "Houses in passender Tiefe höher sortieren (nie ausschließen)", models: ["interestRanking"], legalBasis: "consent", status: "planned" },
   { id: "profile.socials", moment: "onboarding", captures: "Öffentliche Social-Links, die sie eintragen", purpose: "Auf dem Profil gezeigt; Vertrauen", models: [], legalBasis: "consent", status: "collecting" },
 
   // ── Search ──
@@ -57,6 +58,7 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "host.birthDate", moment: "create", captures: "Geburtsdatum des Hosts (DAC7), bei der Einrichtung der Auszahlungen", purpose: "DAC7-Meldung an das Finanzamt", models: [], legalBasis: "contract", status: "planned" },
   { id: "create.accommodationType", moment: "create", captures: "Art des Ortes: Kategorie und Typ (Villa, Coliving, Surfcamp …, config/accommodation.ts) – in Open a House, „Where will you live?“; „Not sure yet“ speichert keinen", purpose: "Welche Orte voll werden, wo wir bauen", models: ["demandMap", "houseChemistry"], legalBasis: "contract", status: "collecting" },
   { id: "create.placeMode", moment: "create", captures: "Ort gebucht oder gemeinsam gewählt", purpose: "Welcher Weg schneller voll wird", models: [], legalBasis: "contract", status: "collecting" },
+  { id: "create.depth", moment: "create", captures: "Soziale Tiefe des House: Easy · Balanced · Deep (config/depth.ts), in Open a House; nach der ersten Buchung fest", purpose: "Passende Gäste finden; welche Tiefe voll wird und wiederkommt (Admin › Analyse › Tiefe)", models: ["interestRanking", "houseChemistry"], legalBasis: "contract", status: "planned" },
 
   // ── Request ──
   { id: "request.sent", moment: "request", captures: "Anfrage (House, Zeitpunkt, mit Freund)", purpose: "House betreiben; welche Vorschläge zu Anfragen führen", models: ["interestRanking", "crewFit"], legalBasis: "contract", status: "used" },
@@ -64,6 +66,7 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "request.reserved", moment: "request", captures: "Platz vorgemerkt (Beta, ohne Zahlung)", purpose: "Nachfrage vor dem Launch", models: ["demandMap"], legalBasis: "contract", status: "collecting" },
   { id: "request.timeToFull", moment: "request", captures: "Zeit von der Eröffnung bis zur vollen Crew", purpose: "Wie schnell Houses voll werden", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
   { id: "request.payment", moment: "request", captures: "Zahlung (Betrag, Datum – keine Kartendaten)", purpose: "House betreiben; Auszahlungen", models: [], legalBasis: "contract", status: "collecting" },
+  { id: "app.installed", moment: "inTheHouse", captures: "Simpulo installiert: Gerät (iPhone · Android), Zeitpunkt, woher (ref/src, z. B. src=qr der Karten im House) – kein Gerätekennzeichen", purpose: "Installationsrate der Gäste mit Buchung (Admin › Wachstum); welche Momente und Karten zur Installation führen", models: [], legalBasis: "contract", status: "planned" },
 
   // ── In the house ──
   { id: "stay.arrived", moment: "inTheHouse", captures: "Angekommen (Check-in bestätigt)", purpose: "Wer wirklich kam", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
@@ -86,7 +89,7 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "mkt.src", moment: "marketing", captures: "?src= des Links, über den sie kamen (erster Kontakt)", purpose: "Welcher Kanal Leute bringt", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
   { id: "mkt.utm", moment: "marketing", captures: "utm_source / medium / campaign", purpose: "Welche Kampagne Leute bringt", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
   { id: "mkt.video", moment: "marketing", captures: "Serie und Folge im Link (?src=serie-folge)", purpose: "Welche Serie und welches Video funktioniert", models: ["marketingImpact"], legalBasis: "consent", status: "planned" },
-  { id: "mkt.referral", moment: "marketing", captures: "Wer den Link geteilt hat (ref)", purpose: "Mundpropaganda; Einladungen", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
+  { id: "mkt.referral", moment: "marketing", captures: "Wer den Link geteilt hat (ref) – bei Einladungen der Ersteller des Links (?ref={userId}&src=invite), beim Beitritt an der Mitgliedschaft gespeichert", purpose: "Mundpropaganda; Einladungen", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
   { id: "mkt.waitlist", moment: "marketing", captures: "Anmeldung zur Warteliste (E-Mail, Interessen, wo, wann, will hosten)", purpose: "Nachfrage vor dem Launch; Bescheid geben, wenn es losgeht", models: ["demandMap", "marketingImpact"], legalBasis: "consent", status: "used" },
   { id: "mkt.install", moment: "marketing", captures: "App installiert (Homescreen)", purpose: "Wer erreichbar bleibt", models: [], legalBasis: "consent", status: "collecting" },
 

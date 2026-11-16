@@ -113,6 +113,8 @@ export const DIRECT_MESSAGE_POLICY = {
 export const INVITE_POLICY = {
   inviteHoldHours: 48,
   inviteNonConnectionsPerDay: 5,
+  /** "Spots for friends": one link holds 1 to this many spots (never more than are open) */
+  maxSpotsPerLink: 3,
 } as const;
 
 /** "I'm in for …" (lib/inFor.ts): at most this many running at once per person; each runs out after its last month. */

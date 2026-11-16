@@ -10,9 +10,9 @@ import { findUser, useStore } from "@/lib/store";
 import type { Currency } from "@/lib/types";
 import { AdminShell } from "./AdminShell";
 import { KeyNumbers } from "./AdminNumbers";
-import { monthKpis } from "@/lib/admin/metrics";
+import { installRates, monthKpis } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { dec, eur, monthLong, num } from "@/lib/i18n/adminFormat";
+import { dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 import { cardClass } from "@/components/ui/Card";
 
 /** One row of a growth table: a channel, a referrer or a House. */
@@ -77,6 +77,7 @@ export function AdminGrowth() {
       }
     >
       <GrowthKpis />
+      <InstallKpis />
       <p className="mt-12 text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
 
       <div className="mt-6 space-y-6">
@@ -267,5 +268,31 @@ function GrowthKpis() {
         },
       ]}
     />
+  );
+}
+
+/**
+ * The install rate of guests with a booking (lib/admin/metrics.ts installRates), iPhone and Android apart – each with its change and ⓘ.
+ * Without install records "noch nicht messbar".
+ */
+function InstallKpis() {
+  const t = useTranslations("admin.growthArea.kpis");
+  const k = installRates(useAdminInputs());
+  const month = monthLong(`${k.month}-01`);
+  const against = t("against", { month: monthLong(`${k.monthBefore}-01`) });
+  const item = (key: "installIos" | "installAndroid", r: typeof k.ios) => ({
+    key,
+    label: t("inMonth", { label: t(key), month }),
+    info: t(`info.${key}`),
+    value: r.value === null ? "–" : pct(Math.round(r.value)),
+    change: r.change,
+    against,
+    sub: r.value === null ? t("notMeasurable") : t("installSub", { count: num(r.booked ?? 0) }),
+  });
+  return (
+    <section className="mt-12">
+      <h2 className="text-eyebrow uppercase text-muted">{t("installs")}</h2>
+      <KeyNumbers className="mt-4" items={[item("installIos", k.ios), item("installAndroid", k.android)]} />
+    </section>
   );
 }

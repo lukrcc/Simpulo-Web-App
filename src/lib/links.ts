@@ -37,9 +37,20 @@ function withRef(path: string, ref?: string): string {
 
 /** /get – getting Simpulo on the phone. `ref` says where the link was found (footer, get, house-qr, …). */
 export const appLink = (ref?: string) => withRef("/get", ref);
+/** /get?src=qr – what every printed and on-screen QR code to the app leads to (the profile's "Get the app", the cards in Houses). */
+export const appQrLink = () => `${linkBase()}/get?src=qr`;
 /** /h/{slug} – a House (redirects to its page). */
 export const houseLink = (slug: string, ref?: string) => withRef(`/h/${encodeURIComponent(slug)}`, ref);
 /** /i/{code} – an invite link (the code is its token; → /invite/[token], the spot held for 48h). */
 export const inviteLink = (code: string, ref?: string) => withRef(`/i/${encodeURIComponent(code)}`, ref);
+/**
+ * A friend's invite: the House page with the token, the sharer and the channel – /house/{slug}?invite={token}&ref={userId}&src=invite. The House
+ * page's link preview (Open Graph: photo, title, dates, place, free spots) is what people see in the chat; opening it leads on to the invite
+ * (/invite/[token]) with ref and src kept (lib/growth.ts: the referrer, data point mkt.referral).
+ */
+export function friendInviteLink(slug: string, token: string, userId: string | null): string {
+  const query = new URLSearchParams({ invite: token, ...(userId && { ref: userId }), src: "invite" });
+  return `${linkBase()}/house/${encodeURIComponent(slug)}?${query.toString()}`;
+}
 /** /c/{handle} – a creator (for now: the start page). */
 export const creatorLink = (handle: string, ref?: string) => withRef(`/c/${encodeURIComponent(handle)}`, ref);

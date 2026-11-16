@@ -1,5 +1,6 @@
 "use client";
 
+import { depthLocked } from "./depth";
 import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
 import { mockInFor } from "./mock-inFor";
@@ -166,7 +167,7 @@ type StoreAction =
   | { type: "resendHouseInvite"; token: string; at: string }
   | { type: "cancelHouseInvite"; token: string }
   | { type: "expireHouseInvites"; at: string }
-  | { type: "redeemHouseInvite"; token: string; systemMessage: Pick<Message, "id" | "createdAt"> }
+  | { type: "redeemHouseInvite"; token: string; systemMessage: Pick<Message, "id" | "createdAt">; reserveOnly: boolean }
   | { type: "track"; event: GrowthEvent }
   | { type: "attributeUser"; userId: string; attribution: Attribution }
   | { type: "addAlert"; alert: DemandAlert }
@@ -250,6 +251,7 @@ export type ProfilePatch = Partial<
     | "preferredCurrency"
     | "privacy"
     | "houseVibe"
+    | "communityNeed"
   >
 >;
 
@@ -284,7 +286,8 @@ interface StoreActions {
    */
   inviteToStay: (stayId: string, userId: string) => InviteResult;
   /** Host: an invite link for someone by name or email – reserves a spot for 48h; with an email it's mailed (mock). */
-  createHouseInvite: (stayId: string, to: { name?: string; email?: string }) => HouseInvite | null;
+  /** `spots`: "Spots for friends" – how many the link holds (1–3, never more than are open) */
+  createHouseInvite: (stayId: string, to: { name?: string; email?: string; spots?: number }) => HouseInvite | null;
   /** Host: another 48h from now – and the mail again, if it has an email. */
   resendHouseInvite: (token: string) => void;
   /** Host: the link stops working and the spot is free again. */
@@ -293,7 +296,8 @@ interface StoreActions {
    * Guest with a valid invite link: joins the House. A locked place is paid first (mock card – 0000… is declined);
    * otherwise they join now and pay their share once the place is locked, like everyone.
    */
-  redeemHouseInvite: (token: string) => Promise<"joined" | "invalid">;
+  /** `reserveOnly` (beta, nothing is paid): the spot is reserved like "Reserve a spot" – no payment, no chat yet */
+  redeemHouseInvite: (token: string, options?: { reserveOnly?: boolean }) => Promise<"joined" | "invalid">;
   /** Analytics: records an event with the browser's first-touch attribution (and logs it to the console). */
   track: (name: GrowthEventName, props?: { houseId?: string; channel?: ShareChannel; userId?: string }) => void;
   /** "Notify me" on an empty Explore. */
@@ -669,7 +673,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 19;
+const MOCK_VERSION = 20;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (phase: PlatformPhase) => `${MOCK_PREFIX}v${MOCK_VERSION}:${phase}`;
 /** Saved before the phases, under the data state's old name (launch → beta, full → live): moved over once. */
@@ -1268,7 +1272,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const { invite } = action;
       const stay = state.stays.find((s) => s.id === invite.houseId);
       // The host or someone in the crew, on a House that's open to join, with a spot to reserve.
-      if (!stay || !me || !isCrewMember(state, stay, me) || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) === 0) return state;
+      if (!stay || !me || !isCrewMember(state, stay, me) || (stay.status !== "published" && stay.status !== "booked") || openSpots(stay) < (invite.spots ?? 1)) return state;
       return withInvites(state, [...state.houseInvites, invite]);
     }
 
@@ -1305,15 +1309,22 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const locked = stay.accommodationStatus === "locked" && Boolean(stay.pricePerPerson);
       const systemMessage = { ...action.systemMessage, threadId: crewThreadId(stay.id) };
       const spotsFilled = stay.spotsFilled + 1;
+      // The referrer (data point mkt.referral): whoever made the link, else the first touch – kept on the membership.
+      const attribution = attributionFor(state, me, undefined);
       const request: JoinRequest = {
-        id: `hinv-${invite.token}`,
+        id: `hinv-${invite.token}-${me}`,
         stayId: stay.id,
         userId: me,
         message: "",
         status: "accepted",
         createdAt: systemMessage.createdAt,
-        ...attributionFor(state, me, undefined),
+        ...attribution,
+        ...(invite.invitedBy && { refUserId: invite.invitedBy, utmSource: "invite" }),
+        ...(action.reserveOnly && { reserved: true as const }),
       };
+      // A link for several friends stays open until all its spots are taken (or it expires).
+      const usedByAll = [...(invite.usedByAll ?? []), me];
+      const usedUp = usedByAll.length >= (invite.spots ?? 1);
       // The reservation becomes the member: the spot moves from reserved to taken in one step.
       const joined: StoreState = withInvites(
         {
@@ -1322,9 +1333,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
           // Any earlier request or past-crew invite of theirs gives way to the membership.
           joinRequests: [...state.joinRequests.filter((r) => !(r.stayId === stay.id && r.userId === me)), request],
         },
-        state.houseInvites.map((i) => (i === invite ? { ...i, status: "used", usedBy: me } : i)),
+        state.houseInvites.map((i) => (i === invite ? { ...i, status: usedUp ? "used" : "pending", usedBy: me, usedByAll } : i)),
       );
       const name = firstNameOf(state, me);
+      // Beta: a reserved spot – no payment and no chat yet (like reserveSpot); the host hears of it.
+      if (action.reserveOnly) return { ...joined, notifications: notifyInApp(state, [stay.hostId], "inviteAccepted", { name, title: stay.title }, systemMessage.id, stay.id) };
       return {
         ...joined,
         payments:
@@ -1427,7 +1440,9 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       if (!stay || !me || stay.hostId !== me) return state;
       // Never below the people already in.
       const spotsTotal = Math.max(action.patch.spotsTotal, stay.spotsFilled);
-      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, ...action.patch, location: locationOf(action.patch.city, action.patch.region), spotsTotal } : s)) };
+      // The social depth is fixed after the first booking (lib/depth.ts).
+      const depth = depthLocked(stay, state) ? stay.depth : action.patch.depth;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, ...action.patch, location: locationOf(action.patch.city, action.patch.region), spotsTotal, depth } : s)) };
     }
 
     case "leaveStay": {
@@ -2307,9 +2322,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [state, stays, currentUserId],
   );
   const createHouseInvite = useCallback(
-    (stayId: string, to: { name?: string; email?: string }): HouseInvite | null => {
+    (stayId: string, to: { name?: string; email?: string; spots?: number }): HouseInvite | null => {
       const stay = stays.find((s) => s.id === stayId);
       if (!stay || !currentUserId || !(stay.hostId === currentUserId || state.joinRequests.some((r) => r.stayId === stayId && r.userId === currentUserId && r.status === "accepted")) || openSpots(stay) === 0) return null;
+      const spots = Math.max(1, Math.min(INVITE_POLICY.maxSpotsPerLink, to.spots ?? 1, openSpots(stay)));
       const now = new Date().toISOString();
       const email = to.email?.trim().toLowerCase() || undefined;
       const invite: HouseInvite = {
@@ -2320,6 +2336,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         createdAt: now,
         expiresAt: inviteExpiry(now),
         status: "pending",
+        invitedBy: currentUserId,
+        ...(spots > 1 && { spots }),
       };
       dispatch({ type: "createHouseInvite", invite });
       return invite;
@@ -2329,13 +2347,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resendHouseInvite = useCallback((token: string) => dispatch({ type: "resendHouseInvite", token, at: new Date().toISOString() }), []);
   const cancelHouseInvite = useCallback((token: string) => dispatch({ type: "cancelHouseInvite", token }), []);
   const redeemHouseInvite = useCallback(
-    async (token: string): Promise<"joined" | "invalid"> => {
+    async (token: string, options: { reserveOnly?: boolean } = {}): Promise<"joined" | "invalid"> => {
       const invite = houseInvites.find((i) => i.token === token && i.status === "pending");
       const stay = invite && stays.find((s) => s.id === invite.houseId);
       if (!invite || !stay || invite.expiresAt <= new Date().toISOString()) return "invalid";
       if (invite.priority && (invite.invitedUserId !== currentUserId || openSpots(stay) === 0)) return "invalid";
       const now = new Date().toISOString();
-      dispatch({ type: "redeemHouseInvite", token, systemMessage: { id: makeId("m"), createdAt: now } });
+      dispatch({ type: "redeemHouseInvite", token, systemMessage: { id: makeId("m"), createdAt: now }, reserveOnly: Boolean(options.reserveOnly) });
       return "joined";
     },
     [houseInvites, stays, currentUserId],
@@ -3033,7 +3051,8 @@ const inviteExpiry = (from: string) => new Date(new Date(from).getTime() + INVIT
 /** Every House's reserved spots, counted from its pending invite links. */
 function withReservedSpots(stays: Stay[], invites: HouseInvite[]): Stay[] {
   const reserved = new Map<string, number>();
-  for (const i of invites) if (i.status === "pending" && !i.priority) reserved.set(i.houseId, (reserved.get(i.houseId) ?? 0) + 1);
+  // A link holds its spots (1–3) minus the ones already taken through it.
+  for (const i of invites) if (i.status === "pending" && !i.priority) reserved.set(i.houseId, (reserved.get(i.houseId) ?? 0) + Math.max(0, (i.spots ?? 1) - (i.usedByAll?.length ?? 0)));
   return stays.map((s) => {
     const count = reserved.get(s.id);
     if ((s.spotsReserved ?? 0) === (count ?? 0)) return s;
@@ -3059,8 +3078,15 @@ export function validHouseInvite(store: Pick<StoreState, "houseInvites" | "curre
 /** The current user's updates chat from Simpulo. */
 export const updatesThreadId = (userId: string) => `updates-${userId}`;
 
-/** The invite link: its own page (/invite/[token]). */
-export const houseInviteUrl = (origin: string, _stay: Pick<Stay, "slug">, invite: Pick<HouseInvite, "token">) => `${origin}/invite/${invite.token}`;
+/**
+ * The invite link. A friend's invite: the House page with token, referrer and channel (/house/{slug}?invite=…&ref=…&src=invite – the chat shows
+ * the House's preview, the page leads on to /invite/[token]); a saved search's head start: its own page directly.
+ */
+export function houseInviteUrl(origin: string, stay: Pick<Stay, "slug">, invite: Pick<HouseInvite, "token" | "priority" | "invitedBy">): string {
+  if (invite.priority) return `${origin}/invite/${invite.token}`;
+  const query = new URLSearchParams({ invite: invite.token, ...(invite.invitedBy && { ref: invite.invitedBy }), src: "invite" });
+  return `${origin}/house/${encodeURIComponent(stay.slug)}?${query.toString()}`;
+}
 
 /** An unguessable token for an invite link. */
 function inviteToken(): string {

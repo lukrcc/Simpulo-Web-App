@@ -1,7 +1,7 @@
 import type { NotifyEventKey } from "@/lib/data/notifications";
 
 /**
- * The eleven kinds of notification. They decide the channels (config/notifications.ts); the detailed text of each one is its
+ * The thirteen kinds of notification. They decide the channels (config/notifications.ts); the detailed text of each one is its
  * NotifyEventKey ("waitlistOffer", "reminderPayToday" …), translated under messages.notify.
  */
 export enum NotifyEvent {
@@ -13,6 +13,8 @@ export enum NotifyEvent {
   BookingConfirmed = "booking_confirmed",
   BookingCancelled = "booking_cancelled",
   RefundIssued = "refund_issued",
+  /** The House's arc: the crew is complete, arrival is near, it's over (Do it again) – email always, also without the app */
+  HouseArc = "house_arc",
   ChatMessage = "chat_message",
   HouseNearby = "house_nearby",
   SimpuloNews = "simpulo_news",
@@ -38,7 +40,7 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   waitlistMovedUp: NotifyEvent.Accepted,
   waitlistTookSpot: NotifyEvent.Accepted,
   inviteAccepted: NotifyEvent.Accepted,
-  crewFull: NotifyEvent.Accepted,
+  crewFull: NotifyEvent.HouseArc,
   locked: NotifyEvent.PaymentDue,
   paymentDue: NotifyEvent.PaymentDue,
   paid: NotifyEvent.PaymentDue,
@@ -46,7 +48,7 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   reminderPayToday: NotifyEvent.PaymentReminder,
   reminderBookingUpload: NotifyEvent.PaymentReminder,
   bookingConfirmed: NotifyEvent.BookingConfirmed,
-  reminderArrival: NotifyEvent.BookingConfirmed,
+  reminderArrival: NotifyEvent.HouseArc,
   houseCancelled: NotifyEvent.BookingCancelled,
   paymentLapsed: NotifyEvent.BookingCancelled,
   left: NotifyEvent.BookingCancelled,
@@ -56,7 +58,7 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   hostOpened: NotifyEvent.HouseNearby,
   searchOpened: NotifyEvent.HouseNearby,
   reminderSavedSoon: NotifyEvent.HouseNearby,
-  doItAgain: NotifyEvent.SimpuloNews,
+  doItAgain: NotifyEvent.HouseArc,
   systemWelcome: NotifyEvent.SimpuloNews,
   systemVerify: NotifyEvent.SimpuloNews,
   systemPhoto: NotifyEvent.SimpuloNews,

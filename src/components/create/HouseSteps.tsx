@@ -6,6 +6,7 @@ import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPI
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
 import { FEE_MODEL } from "@/config/policies";
+import { DEFAULT_DEPTH, DEPTHS, suggestedDepth } from "@/config/depth";
 import { PlaceSearch } from "./PlaceSearch";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
@@ -165,6 +166,50 @@ export function PlaceStep({ form, patch, errorOf }: StepProps) {
         })}
       </div>
       <ErrorLine text={errorOf("placeMode")} />
+    </div>
+  );
+}
+
+/* ───────────────────────── How deep should this House go? ───────────────────────── */
+
+/**
+ * Three tiles – Easy · Balanced · Deep (config/depth.ts), one sentence each; chosen = black like every choice of yours. Preselected: the
+ * topic's suggestion (Balanced for most), marked "Suggested for {topic}" when it isn't Balanced. Only while the depth choice is on; after the
+ * first booking it's fixed (`locked`: the tiles show, can't be changed, with the reason).
+ */
+export function DepthStep({ form, patch, locked = false }: StepProps & { locked?: boolean }) {
+  const t = useTranslations("create.depth");
+  const format = useFormat();
+  const topic = form.vibe || null;
+  const suggestion = suggestedDepth(topic);
+  const value = form.depth ?? suggestion;
+  return (
+    <div className="space-y-4">
+      <div role="radiogroup" aria-label={t("title")} className="grid gap-3 sm:grid-cols-3">
+        {DEPTHS.map((depth) => {
+          const chosen = value === depth;
+          return (
+            <button
+              key={depth}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              disabled={locked}
+              onClick={() => patch({ depth })}
+              className={cn(
+                "press relative flex min-h-36 flex-col items-start gap-2 rounded-3xl border p-5 text-left transition-colors duration-150 disabled:cursor-not-allowed",
+                chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink enabled:hover:bg-ink/5",
+                locked && !chosen && "opacity-50",
+              )}
+            >
+              <span className="text-h3">{t(`${depth}.title`)}</span>
+              <span className={cn("text-body", chosen ? "text-inverse/75" : "text-muted")}>{t(`${depth}.text`)}</span>
+              {depth === suggestion && depth !== DEFAULT_DEPTH && topic && <span className={cn("mt-auto text-small font-semibold", chosen ? "text-inverse/75" : "text-muted")}>{t("suggested", { topic: format.vibe(topic) })}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-small text-muted">{locked ? t("locked") : t("hint")}</p>
     </div>
   );
 }

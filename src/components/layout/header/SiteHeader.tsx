@@ -44,7 +44,13 @@ function SiteHeaderByRoute() {
   const pathname = usePathname();
   // Open a House is a focus mode: only the logo and the way out. /get (getting the app) shows only the logo.
   if (pathname === "/create") return <FocusHeader />;
-  if (pathname === "/get") return <FocusHeader exit={false} />;
+  // Phones keep their own MobileHeader on /get – the focus header only from md (it showed the wordmark twice).
+  if (pathname === "/get" || pathname === "/get/card")
+    return (
+      <div className="hidden md:block">
+        <FocusHeader exit={false} />
+      </div>
+    );
   return <SiteHeaderView pathname={pathname} />;
 }
 

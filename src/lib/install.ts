@@ -27,7 +27,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
     notifyPrompt();
-    track("app_installed", { via: "appinstalled", ref: landingRef() });
+    track("app_installed", { via: "appinstalled", platform: detectPlatform(), ref: landingRef() });
   });
 }
 
@@ -36,13 +36,16 @@ if (typeof window !== "undefined") {
 const REF_KEY = "simpulo:ref";
 function rememberLandingRef() {
   try {
-    const ref = new URLSearchParams(window.location.search).get("ref");
+    const query = new URLSearchParams(window.location.search);
+    // ?src= (the printed and profile QR codes: src=qr; invites: src=invite) or ?ref= (where a link was seen – on an invite it's the sharer's id,
+    // so src comes first)
+    const ref = query.get("src") ?? query.get("ref");
     if (ref && !sessionStorage.getItem(REF_KEY)) sessionStorage.setItem(REF_KEY, ref);
   } catch {
     // storage blocked – no ref then
   }
 }
-/** The ?ref= this session started with ("footer", "get", "house-qr" …), or null. */
+/** The ?ref= (or ?src=) this session started with ("footer", "get", "house-qr", "qr" …), or null. */
 export function landingRef(): string | null {
   try {
     return sessionStorage.getItem(REF_KEY);
@@ -57,7 +60,7 @@ function noteFirstStandaloneStart() {
   try {
     if (!isStandalone() || localStorage.getItem(STANDALONE_SEEN_KEY)) return;
     localStorage.setItem(STANDALONE_SEEN_KEY, "1");
-    track("app_installed", { via: "first_standalone_start", ref: landingRef() });
+    track("app_installed", { via: "first_standalone_start", platform: detectPlatform(), ref: landingRef() });
   } catch {
     // storage blocked
   }
@@ -165,13 +168,13 @@ export function useIsStandalone(): boolean {
 
 // ─── When the install prompt may show ──────────────────────────────────────────────
 
-/** What made the prompt show: the first sent request, an acceptance, a payment that is due. */
-export type InstallTrigger = "request" | "accepted" | "payment";
+/** The three good moments: after paying your share, after joining the crew (accepted), when opening the House's group chat. */
+export type InstallTrigger = "paid" | "joined" | "chat";
 
-/** At most 3 showings in all, never again after 2 dismissals, at least 3 days apart, never on the first visit. */
-export const INSTALL_PROMPT_RULES = { maxShown: 3, maxDismissed: 2, minDaysBetween: 3, minVisits: 2 } as const;
+/** Never on the first visit, at most once a week, and off for good with "Don't show again" (or Settings › General). */
+export const INSTALL_PROMPT_RULES = { minDaysBetween: 7, minVisits: 2 } as const;
 
-const PROMPT_KEY = "simpulo:install-prompt:v1";
+const PROMPT_KEY = "simpulo:install-prompt:v2";
 const VISITS_KEY = "simpulo:visits";
 const VISIT_SESSION_KEY = "simpulo:visit-counted";
 
@@ -179,23 +182,27 @@ interface PromptLog {
   shown: number;
   dismissed: number;
   lastShownAt: string | null;
+  /** "Don't show again" – no install hint any more */
+  off: boolean;
 }
 
 /** Read and write in try/catch: blocked storage means no prompt at all (better never than every time). Later in the user's profile. */
 function readLog(): PromptLog | null {
   try {
     const raw = localStorage.getItem(PROMPT_KEY);
-    return raw ? (JSON.parse(raw) as PromptLog) : { shown: 0, dismissed: 0, lastShownAt: null };
+    return raw ? { ...(JSON.parse(raw) as PromptLog), off: (JSON.parse(raw) as Partial<PromptLog>).off === true } : { shown: 0, dismissed: 0, lastShownAt: null, off: false };
   } catch {
     return null;
   }
 }
+const logListeners = new Set<() => void>();
 function writeLog(log: PromptLog) {
   try {
     localStorage.setItem(PROMPT_KEY, JSON.stringify(log));
   } catch {
     // blocked
   }
+  logListeners.forEach((l) => l());
 }
 
 /** Counts visits: one per browser session. */
@@ -219,8 +226,7 @@ function visits(): number {
 /** Whether the install prompt may show now (the rules above). */
 export function mayShowInstallPrompt(now = Date.now()): boolean {
   const log = readLog();
-  if (!log || visits() < INSTALL_PROMPT_RULES.minVisits) return false;
-  if (log.shown >= INSTALL_PROMPT_RULES.maxShown || log.dismissed >= INSTALL_PROMPT_RULES.maxDismissed) return false;
+  if (!log || log.off || visits() < INSTALL_PROMPT_RULES.minVisits) return false;
   return !log.lastShownAt || now - Date.parse(log.lastShownAt) >= INSTALL_PROMPT_RULES.minDaysBetween * 86_400_000;
 }
 
@@ -234,6 +240,24 @@ export function noteInstallPromptDismissed(trigger: InstallTrigger) {
   const log = readLog();
   if (log) writeLog({ ...log, dismissed: log.dismissed + 1 });
   track("install_prompt_dismissed", { trigger, ref: landingRef() });
+}
+
+/** Install hints on or off ("Don't show again" in the sheet, the switch in Settings › General). */
+export function setInstallHintsOff(off: boolean) {
+  const log = readLog();
+  if (log) writeLog({ ...log, off });
+  if (off) track("install_prompt_turned_off", { ref: landingRef() });
+}
+function installHintsOff(): boolean {
+  return readLog()?.off ?? false;
+}
+function subscribeLog(listener: () => void) {
+  logListeners.add(listener);
+  return () => logListeners.delete(listener);
+}
+/** false on the server and while hydrating. */
+export function useInstallHintsOff(): boolean {
+  return useSyncExternalStore(subscribeLog, installHintsOff, () => false);
 }
 
 // ─── Push, asked only in the installed app ──────────────────────────────────────────

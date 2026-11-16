@@ -9,6 +9,7 @@ import { DoItAgainCard } from "@/components/chat/ChatCards";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
+import { useOfferInstall } from "@/components/installPromptContext";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -181,6 +182,13 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   useEffect(() => {
     markThreadRead(thread.id);
   }, [messageCount, thread.id, markThreadRead]);
+
+  // Opening the House's group chat is one of the three moments to offer the app (the rules decide: weekly at most, can be off).
+  const offerInstall = useOfferInstall();
+  const houseChat = thread.type === "house" && !inline;
+  useEffect(() => {
+    if (houseChat) offerInstall("chat");
+  }, [houseChat, thread.id, offerInstall]);
 
   const isHost = stay.hostId === store.currentUserId;
   const other =

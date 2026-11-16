@@ -17,6 +17,7 @@ export const PHASE_TABS = [
 ] as const;
 /** Second, smaller row "Bausteine": pages to look things up. */
 export const BUILDING_TABS = [
+  { key: "core", label: "Kern" },
   { key: "segments", label: "Zielgruppen" },
   { key: "tModel", label: "T-Modell" },
   { key: "continuum", label: "Kontinuum" },
@@ -29,6 +30,88 @@ export const BUILDING_TABS = [
 export const BUILDING_LABEL = "Bausteine";
 export type VisionTab = (typeof PHASE_TABS)[number]["key"] | (typeof BUILDING_TABS)[number]["key"];
 export type PhaseKey = "p1" | "p2" | "p3" | "p4";
+
+/** Ganz oben im Gesamtbild: der Leitsatz. */
+export const MOTTO = {
+  line: "Simpulo verkauft verdichtete Zeit mit den richtigen Menschen.",
+  sub: "Zwei Wochen, die sich anfühlen wie ein Jahr Freundschaft.",
+} as const;
+
+// ── Kern: was Simpulo verkauft ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Vision › Kern. Oben der Leitsatz (MOTTO), dann vier Teile, Grafik vor Text: (a) 200 Stunden – Alltag gegen House, (b) drei Säulen mit
+ * Live-Zahl (lib/admin/metrics.ts coreMetrics), (c) der Bogen eines House in fünf Phasen und die drei Tiefen, (d) das Netzwerk als Kreise,
+ * der Kreislauf und „Einladen“; darunter klein die Regeln.
+ */
+export const CORE = {
+  hours: {
+    title: "200 Stunden",
+    /** Monate auf der Skala der Grafik (Alltag bis 2 Jahre) */
+    scaleMonths: 24,
+    everyday: { label: "Alltag", text: "200 Stunden in 1–2 Jahren", fromMonths: 12, toMonths: 24 },
+    house: { label: "House", text: "200 Stunden in 2 Wochen", months: 0.5 },
+    axis: ["0", "6 Monate", "1 Jahr", "18 Monate", "2 Jahre"],
+    source: "Jeffrey Hall, 2018",
+  },
+  pillars: {
+    title: "Drei Säulen",
+    items: [
+      { key: "matching", title: "Matching", text: "richtige Menschen" },
+      { key: "arc", title: "Bogen eines House", text: "Zeit wirkt" },
+      { key: "network", title: "Netzwerk", text: "Verbindung bleibt" },
+    ],
+  },
+  live: {
+    matching: { label: "Matching-Erfolg", sub: "gegenseitig „Mit dir wieder“", example: "Beispielwert – Bewertung folgt", info: "Anteil der Paare aus einer Crew, die nach dem Aufenthalt beide „Mit dir wieder“ gesagt haben." },
+    arc: { label: "Houses mit Abschlussrunde", notMeasured: "noch nicht gemessen", info: "Houses, deren Abschlussrunde abgeschlossen ist – die Abschlussrunde wird noch gebaut." },
+    network: {
+      label: "Your-people-Verbindungen",
+      share: (pct: string) => `${pct} der Buchungen über Your people oder Einladung`,
+      info: "Gegenseitig bestätigte „Lived with“-Paare; darunter der Anteil der Buchungen, die über eine Einladung oder über Your people (jemand aus Your people war schon im House) kamen.",
+    },
+  },
+  arc: {
+    title: "Bogen eines House",
+    /**
+     * ⚠ Platzhalter: die Stichworte sollen aus dem Dokument kommen (lag dem Auftrag nicht bei) – bis dahin aus dem, was die App heute
+     * schon tut. Je Phase 2–3 Stichworte; hier ersetzen.
+     */
+    placeholder: "Stichworte vorläufig – aus dem Dokument übernehmen",
+    phases: [
+      { key: "before", title: "Vorher", points: ["Crew-Chat öffnet", "Ort gemeinsam wählen", "Erwartungen klären"] },
+      { key: "arrive", title: "Ankommen", points: ["Erster Abend zusammen", "Hausregeln", "Namen und Geschichten"] },
+      { key: "middle", title: "Mittendrin", points: ["Gemeinsamer Tagesrhythmus", "Eigene Projekte", "Kleine Rituale"] },
+      { key: "farewell", title: "Abschied", points: ["Letzter Abend", "Rückblick in der Crew"] },
+      { key: "after", title: "Danach", points: ["„Lived with“ bestätigen", "Your people", "Do it again"] },
+    ],
+    depthsTitle: "Drei Tiefen",
+    /** Aus config/depth.ts (dort die Bausteine je Stufe); der Hinweis, solange config/platform.ts depthChoiceEnabled aus ist */
+    depths: [
+      { key: "easy", title: "Easy", text: "Zusammen wohnen, kein Programm" },
+      { key: "balanced", title: "Balanced", text: "Ein paar gute Momente" },
+      { key: "deep", title: "Deep", text: "Fragen, Absichten, ein echter Abschlussabend" },
+    ],
+    depthsOff: "zum Launch aus",
+    depthsOn: "an",
+  },
+  network: {
+    title: "Netzwerk",
+    /** Von außen nach innen: je näher, desto enger */
+    circles: [
+      { key: "saved", title: "Gemerkt", text: "privat" },
+      { key: "livedWith", title: "Lived with", text: "automatisch" },
+      { key: "people", title: "Your people", text: "gegenseitig" },
+    ],
+    crew: { title: "Crew", text: "die Gruppe eines House" },
+    loopTitle: "Kreislauf",
+    loop: ["House", "Your people", "sehen, wohin du gehst", "buchen dazu", "neues House"],
+    inviteTitle: "Einladen",
+    invite: ["Share", "Link", "QR", "Your people", "mehrere Plätze"],
+    inviteLive: { label: "Buchungen über Einladungen", info: "Gäste, die über einen Einladungslink, die Einladung aus „Invite friends“ oder die Anfrage mit einem Freund gebucht haben." },
+  },
+  rules: ["Verbindungen nur durch gemeinsames Wohnen", "Keine Follower, kein Feed", "Listen privat, andere sehen nur Zahlen", "Gesprochenes wird nie gespeichert"],
+} as const;
 
 // ── Sources: status and measure ─────────────────────────────────────────────────────────────────────────────────────────────────
 

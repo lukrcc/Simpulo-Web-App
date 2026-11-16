@@ -10,6 +10,7 @@ export const SHARE_CHANNELS = ["whatsapp", "instagram", "tiktok", "twitch", "cop
 export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "native";
 
 export const REF_PARAM = "ref";
+export const SRC_PARAM = "src";
 const UTM_PARAMS = { utmSource: "utm_source", utmMedium: "utm_medium", utmCampaign: "utm_campaign" } as const;
 
 /** First touch of this browser: written once, on the first visit that carried a ref or UTM tags. */
@@ -22,7 +23,8 @@ const clean = (value: string | null) => value?.trim().slice(0, MAX_PARAM_LENGTH)
 export function attributionFromUrl(url: URL): Attribution | null {
   const attribution: Attribution = {
     refUserId: clean(url.searchParams.get(REF_PARAM)),
-    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource)),
+    // ?src= (an invite: src=invite, the QR cards: src=qr) counts as the source when there's no utm_source.
+    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource) ?? url.searchParams.get(SRC_PARAM)),
     utmMedium: clean(url.searchParams.get(UTM_PARAMS.utmMedium)),
     utmCampaign: clean(url.searchParams.get(UTM_PARAMS.utmCampaign)),
   };

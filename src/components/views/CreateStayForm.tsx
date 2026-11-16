@@ -1,5 +1,8 @@
 "use client";
 
+import { useDepthChoice } from "@/config/platform";
+import { depthLocked } from "@/lib/depth";
+import { suggestedDepth } from "@/config/depth";
 import { LegalLine } from "@/components/layout/LegalLine";
 import Link from "next/link";
 import { Eye, Link2, QrCode, UserPlus } from "lucide-react";
@@ -21,6 +24,7 @@ import {
   PhotosDetail,
   PlaceStep,
   KindStep,
+  DepthStep,
   ProfileNote,
   ReadySummary,
   RulesDetail,
@@ -41,6 +45,7 @@ import {
   INVITE_STEP,
   INVITE_PARAM,
   REQUIRED_STEPS,
+  flowRequired,
   againForm,
   clearDraft,
   currencyOf,
@@ -131,11 +136,16 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const tDraft = useTranslations("growth.draft");
   const tDetails = useTranslations("create.details");
   const tReady = useTranslations("create.ready");
+  const tDepth = useTranslations("create.depth");
   const format = useFormat();
   const monthName = useMonthName();
   const hostPremium = useFeatureFlag("hostPremium");
   const details = detailsFor(hostPremium);
-  const requiredSteps: readonly StepKey[] = editing ? EDIT_REQUIRED_STEPS : REQUIRED_STEPS;
+  // Social depth (config/platform.ts): its step only while the choice is on; fixed after the first booking (lib/depth.ts).
+  const depthOn = useDepthChoice();
+  const flowSteps0 = flowRequired(REQUIRED_STEPS, depthOn);
+  const requiredSteps: readonly StepKey[] = editing ? flowRequired(EDIT_REQUIRED_STEPS, depthOn) : flowSteps0;
+  const depthIsLocked = editing ? depthLocked(editing, store) : false;
   const steps: StepKey[] = [...requiredSteps, ...details];
   /** Where an optional detail leads back to: the list when editing, "Ready to open?" for a new House. */
   const home: StepKey = editing ? "details" : "ready";
@@ -227,7 +237,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const errorsOf = (key: StepKey): FieldErrors => stepErrors(key, { form, me, minSpots, today, editing, starters });
   const titleMax = titleMaxFor(editing);
   const titleIdeas = useTitleSuggestions(form, titleMax);
-  const input = () => toInput(form, { me, editing, today, fallbackTitle: titleIdeas[0] ?? "", preferredCurrency });
+  const input = () => toInput(form, { me, editing, today, fallbackTitle: titleIdeas[0] ?? "", preferredCurrency, depthOn });
   const suggestions = useMemo(() => coversFromHouses(store.stays, { vibe: form.vibe, city: form.city, region: form.region }), [store.stays, form.vibe, form.city, form.region]);
 
   // Autosave: every change is the draft (not while it's still open which one it'll be, not once opened, and never when editing).
@@ -349,7 +359,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "cover" && !editing) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
     if (step === INVITE_STEP) return open("ready");
-    const target = REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
+    const target = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
     // Into "Crew and price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
     if (target === "crew") patch(kindBudget(form, previewStay.currency));
     open(target);
@@ -363,7 +373,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "ready") return open(editing ? "cover" : hasInviteStep ? INVITE_STEP : EXTRAS_STEP);
     if (step === INVITE_STEP) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open("cover");
-    open(REQUIRED_STEPS[REQUIRED_STEPS.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1]);
+    open(flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1]);
   }
 
   /** The card needs a face photo and a name – publishing waits for them (logged out: checked after login). */
@@ -432,6 +442,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         { step: "vibe" as const, value: form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "") },
         { step: "where" as const, value: placeAndTime },
         { step: "crew" as const, value: `${format.people(form.spotsTotal)} · ${format.priceLabel(previewStay)}` },
+        // The social depth – only while the choice is on; after the first booking with "Fixed" (lib/depth.ts).
+        ...(depthOn ? [{ step: "depth" as const, value: [tDepth(`${form.depth ?? editing.depth ?? suggestedDepth(form.vibe || null)}.title`), depthIsLocked ? tDepth("fixed") : ""].filter(Boolean).join(" · ") }] : []),
       ]
     : undefined;
   const body = (
@@ -439,6 +451,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {step === "vibe" && <VibeStep {...stepProps} />}
       {step === "place" && <PlaceStep {...stepProps} />}
       {step === "kind" && <KindStep {...stepProps} />}
+      {step === "depth" && depthOn && <DepthStep {...stepProps} locked={depthIsLocked} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
@@ -481,6 +494,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
               { key: "where", label: tReady("where"), value: placeAndTime, step: "where" },
               { key: "crew", label: tReady("crew"), value: format.people(form.spotsTotal), step: "crew" },
               { key: "price", label: tReady("price"), value: format.priceLabel(previewStay), step: "crew" },
+              ...(depthOn ? [{ key: "depth", label: tReady("depth"), value: tDepth(`${form.depth ?? suggestedDepth(form.vibe || null)}.title`), step: "depth" as const }] : []),
             ]}
           />
           {/* One line instead of a list: what's optional, how much of it is there, and the way to it. */}
@@ -498,7 +512,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const canGoBack = step !== "vibe" && !(editing && step === "details");
   const onList = step === "details";
   // A new House: the progress bar over the full width under the header (the six steps and the review).
-  const flowSteps: StepKey[] = [...REQUIRED_STEPS, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
+  const flowSteps: StepKey[] = [...flowSteps0, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
   const flowIndex = flowSteps.indexOf(step);
   const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
   const actions = onList ? (

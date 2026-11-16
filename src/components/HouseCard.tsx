@@ -1,8 +1,9 @@
 "use client";
 
+import { DEPTH_CAPSULE, depthOf } from "@/config/depth";
 import { usePeopleSignal, useYourPeople } from "@/lib/useYourPeople";
 import { useTodayIso } from "@/lib/birthDate";
-import { canPay, usePlatformPhase } from "@/config/platform";
+import { canPay, useDepthChoice, usePlatformPhase } from "@/config/platform";
 import { Camera, ChevronLeft, ChevronRight, MessageCircle, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -133,8 +134,14 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   // An example House (pre-launch, beta): "Example" top left, no faces, no urgency; a founding House (beta): "Founding House".
   const example = Boolean(stay.isExample);
   const tPlatform = useTranslations("platform");
-  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : urgent ? (highlight ?? urgency) : undefined;
-  const capsuleDot = !example && !stay.isFounding;
+  // The social depth (config/depth.ts): "Easy House" / "Deep House" in the same slot, last in line – only while the choice is on, never in the
+  // Spotlight; Balanced (the default) stays quiet.
+  const depthOn = useDepthChoice();
+  const depth = depthOf(stay, depthOn);
+  const tDepth = useTranslations("depth.capsule");
+  const depthCapsule = depthOn && !spotlight && DEPTH_CAPSULE.includes(depth) ? tDepth(depth) : undefined;
+  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency) : undefined) ?? depthCapsule);
+  const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule;
   const lastSpot = urgent && !example && openSpots(stay) === 1;
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);

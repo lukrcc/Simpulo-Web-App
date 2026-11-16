@@ -15,6 +15,8 @@ export interface FeatureFlags {
   simulateShareHost: boolean;
   /** Dev menu (payments mock): the current user hosts but has no payout account yet – "Set up payouts" in Needs you, "Payouts not set up" */
   simulateHostWithoutPayouts: boolean;
+  /** Dev menu: social depth on (config/platform.ts useDepthChoice; demo and production follow depthChoiceEnabled alone) */
+  depthChoice: boolean;
 }
 
 export type FeatureFlag = keyof FeatureFlags;
@@ -25,6 +27,7 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   simulateOnboardingActionRequired: false,
   simulateShareHost: false,
   simulateHostWithoutPayouts: false,
+  depthChoice: false,
 };
 
 const FLAGS_KEY = "simpulo:flags";
@@ -105,3 +108,4 @@ export function usePayoutsSim(): PayoutsSim {
   const flags = useFeatureFlags();
   return flags.simulateHostWithoutPayouts ? "missing" : flags.simulateOnboardingActionRequired ? "action" : "ready";
 }
+

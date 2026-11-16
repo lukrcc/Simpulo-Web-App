@@ -1,6 +1,7 @@
 "use client";
 
 import { useDevSetting } from "@/lib/devSettings";
+import { firstTouch } from "@/lib/growth";
 import { paidOverlapOf } from "@/lib/overlap";
 import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
@@ -17,7 +18,6 @@ import { HOST_APPLY_HREF } from "@/components/platform/useJoinWaitlist";
 import { hasOffer, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { useOfferInstall } from "@/components/installPromptContext";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
@@ -121,7 +121,6 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const tPreview = useTranslations("common.ui.preview");
   const tCommon = useTranslations("common");
   const showToast = useToast();
-  const offerInstall = useOfferInstall();
   const requireAuth = useRequireAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
   /** The request asks for two spots ("Request with a friend") */
@@ -144,8 +143,6 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     setFocusParam(null);
     if (!sent) return; // closed mid-way: keep the message for next time
     setRequestKey((k) => k + 1);
-    // Only now, so the install prompt doesn't stack on top of the request sheet.
-    offerInstall("request", { hostName: hostFirstName });
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -704,14 +701,24 @@ function FocusParam({ onChange }: { onChange: (focus: string | null) => void }) 
   return null;
 }
 
-/** Old invite links (?invite=token on the House page) go to the invite's own page, /invite/[token]. */
+/**
+ * Invite links (?invite=token on the House page – the friends' links, so the preview is the House's) go to the invite's own page,
+ * /invite/[token]. The referrer (?ref=) and the channel (?src=invite) are taken first (lib/growth.ts firstTouch) and kept on the way.
+ */
 function InviteParam({ onChange }: { onChange: (token: string | null) => void }) {
-  const token = useSearchParams().get("invite");
+  const params = useSearchParams();
+  const token = params.get("invite");
   const router = useRouter();
   useEffect(() => {
-    if (token) router.replace(`/invite/${token}`);
-    else onChange(null);
-  }, [token, onChange, router]);
+    if (!token) return onChange(null);
+    firstTouch();
+    const keep = new URLSearchParams();
+    for (const key of ["ref", "src"]) {
+      const value = params.get(key);
+      if (value) keep.set(key, value);
+    }
+    router.replace(`/invite/${token}${keep.size ? `?${keep.toString()}` : ""}`);
+  }, [token, params, onChange, router]);
   return null;
 }
 

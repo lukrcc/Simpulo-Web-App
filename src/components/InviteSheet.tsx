@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, Link2, MessageCircle, QrCode, Search, Share } from "lucide-react";
+import { Check, ChevronRight, Link2, QrCode, Search, Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { useMonthName } from "@/components/explore/SearchFields";
@@ -15,7 +15,8 @@ import { INVITE_POLICY } from "@/config/policies";
 import { useTodayIso } from "@/lib/birthDate";
 import { inForPlaceName, isActiveInFor } from "@/lib/inFor";
 import { inviteSuggestions, searchInvitees, useCanInvite } from "@/lib/invites";
-import { inviteLink } from "@/lib/links";
+import { friendInviteLink } from "@/lib/links";
+import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { shortNameOf } from "@/lib/shortName";
 import { findUser, isConnection, useStore, type InviteResult } from "@/lib/store";
 import type { HouseInvite, Stay, User } from "@/lib/types";
@@ -24,10 +25,10 @@ import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 const isTouchDevice = () => "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
 /**
- * "Bring people" – the one way to invite into a House, from every entry (House page, crew circles, chat, Open a House, Your houses, a
- * profile). Head: the House (photo, title, "{n} spots open"). Then "Share link" (copy, WhatsApp, QR, the system's share – a link /i/{code}
- * holds a spot for INVITE_POLICY.inviteHoldHours, made on first use), and the people to pick: Your people · Saved · "In for {place} ·
- * {month}" (lib/inFor.ts) · everyone else only by search. Pick several → "Invite {n}". Mouse: the side panel; touch: a bottom sheet.
+ * "Invite friends" – the one way to invite into a House, from every entry (House page, crew circles, chat, Open a House › Fill your House,
+ * Your houses, a profile). Head: the House (photo, title, "{n} spots open"). Then "Share" (ShareLink: spots for friends 1–3, the system's
+ * share or Copy link, the QR code on a computer), and the people to pick: Your people · Saved · "In for {place} · {month}" (lib/inFor.ts) ·
+ * everyone else only by search. Pick several → "Invite {n}" (in-app + email through lib/notify). Mouse: the side panel; touch: a bottom sheet.
  * `page`: the same content on a page of its own (Open a House › "Fill your House").
  */
 export function InviteSheet({ stay, houses, open, onClose, preselect = [], title }: { stay?: Stay; /** No `stay`: pick one of these first (a profile's "Invite to your House") */ houses?: Stay[]; open: boolean; onClose: () => void; preselect?: string[]; title?: string }) {
@@ -52,7 +53,7 @@ export function InviteSheet({ stay, houses, open, onClose, preselect = [], title
       footer={
         house ? (
           <div className="flex w-full items-center justify-end">
-            <Button onClick={() => send(selected)} disabled={selected.length === 0}>
+            <Button variant={selected.length > 0 ? "primary" : "secondary"} onClick={() => send(selected)} disabled={selected.length === 0}>
               {selected.length > 0 ? t("inviteCount", { count: selected.length }) : t("invite")}
             </Button>
           </div>
@@ -80,7 +81,7 @@ export function InvitePage({ stay, preselect = [], onDone, head }: { stay: Stay;
         <Button variant="tertiary" onClick={onDone} className="-ml-4">
           {t("skip")}
         </Button>
-        <Button onClick={() => send(selected)} disabled={selected.length === 0}>
+        <Button variant={selected.length > 0 ? "primary" : "secondary"} onClick={() => send(selected)} disabled={selected.length === 0}>
           {selected.length > 0 ? t("inviteCount", { count: selected.length }) : t("invite")}
         </Button>
       </div>
@@ -174,7 +175,11 @@ function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: strin
 
       <ShareLink stay={stay} />
 
-      {people.length > 0 && <Section title={t("yourPeople")}>{people.map((u) => row(u, t("livedWith")))}</Section>}
+      {people.length > 0 && (
+        <Section title={t("yourPeople")} hint={t("yourPeopleText")}>
+          {people.map((u) => row(u, t("livedWith")))}
+        </Section>
+      )}
       {saved.length > 0 && <Section title={t("saved")}>{saved.map((u) => row(u, t("savedNote")))}</Section>}
       {inFor.length > 0 && <Section title={inForTitle}>{inFor.map((u) => row(u, t("inForNote")))}</Section>}
       {pickedElse.length > 0 && <Section title={t("picked")}>{pickedElse.map((u) => row(u, t("searchNote")))}</Section>}
@@ -199,10 +204,11 @@ function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: strin
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section>
       <h3 className="mb-2 text-eyebrow uppercase text-ink/55">{title}</h3>
+      {hint && <p className="-mt-1 mb-2 text-small text-muted">{hint}</p>}
       <ul>{children}</ul>
     </section>
   );
@@ -233,70 +239,100 @@ function PersonRow({ user, note, on, disabled, onToggle }: { user: User; note: s
   );
 }
 
-/** "Share link": copy, WhatsApp, QR, the system's share. The link (/i/{code}) is made on first use and holds a spot for 48h. */
+/**
+ * "Share": first how many spots the link holds ("Spots for friends", 1–3, never more than are open – each held for 48h, then free again), then
+ * the system's share (Web Share API: title, "Come with me to {House}? I saved you a spot for 48h." and the link) or, without it, "Copy link"
+ * ("Copied"). On a computer the link's QR code too. The link is made on first use – /house/{slug}?invite={token}&ref={me}&src=invite, so the
+ * chat shows the House's preview (lib/links.ts friendInviteLink).
+ */
 function ShareLink({ stay }: { stay: Stay }) {
   const t = useTranslations("invite");
   const tCommon = useTranslations("common");
   const store = useStore();
   const showToast = useToast();
   const [invite, setInvite] = useState<HouseInvite | null>(null);
-  const [qr, setQr] = useState(false);
-  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function" && isTouchDevice();
+  const maxSpots = Math.max(1, Math.min(INVITE_POLICY.maxSpotsPerLink, openSpots(stay)));
+  const [spots, setSpots] = useState(1);
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const desktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !isTouchDevice();
+  const urlOf = (made: HouseInvite) => friendInviteLink(stay.slug, made.token, store.currentUserId);
   const ensure = () => {
-    if (invite) return inviteLink(invite.token);
-    const made = store.createHouseInvite(stay.id, {});
+    if (invite) return urlOf(invite);
+    const made = store.createHouseInvite(stay.id, { spots: Math.min(spots, maxSpots) });
     if (!made) {
       showToast(t("linkFailed"));
       return null;
     }
     setInvite(made);
-    return inviteLink(made.token);
+    return urlOf(made);
   };
-  const text = (url: string) => t("message", { title: shortNameOf(stay), url });
   const copy = async () => {
     const url = ensure();
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
-      showToast(t("copied", { hours: INVITE_POLICY.inviteHoldHours }));
+      showToast(t("copied"));
     } catch {
       showToast(tCommon("linkCopyFailed"));
     }
   };
-  const whatsApp = () => {
-    const url = ensure();
-    if (url) window.open(`https://wa.me/?text=${encodeURIComponent(text(url))}`, "_blank", "noopener");
-  };
-  const system = async () => {
+  const share = async () => {
     const url = ensure();
     if (!url) return;
     try {
-      await navigator.share({ title: stay.title, text: text(url), url });
+      await navigator.share({ title: stay.title, text: t("message", { title: shortNameOf(stay) }), url });
     } catch {
       // Cancelled – nothing to show.
     }
   };
-  const actions = [
-    { key: "copy", icon: <Link2 aria-hidden />, label: t("copy"), onClick: copy },
-    { key: "whatsapp", icon: <MessageCircle aria-hidden />, label: t("whatsapp"), onClick: whatsApp },
-    { key: "qr", icon: <QrCode aria-hidden />, label: t("qr"), onClick: () => ensure() && setQr((q) => !q) },
-    ...(canShare ? [{ key: "share", icon: <Share aria-hidden />, label: t("share"), onClick: system }] : []),
-  ];
+  const held = invite?.spots ?? 1;
   return (
     <section>
-      <h3 className="mb-2 text-eyebrow uppercase text-ink/55">{t("shareLink")}</h3>
+      <h3 className="mb-3 text-eyebrow uppercase text-ink/55">{t("shareTitle")}</h3>
+      {/* Spots for friends: chosen before the link exists; the link then holds exactly these. */}
+      {(invite || maxSpots > 1) && (
+        <div className="mb-4">
+          <p className="mb-2 text-small font-semibold text-ink">{t("spotsForFriends")}</p>
+          {invite ? (
+            <p className="text-small text-muted">{t("linkReady", { count: held })}</p>
+          ) : (
+            <CapsuleGroup size="sm" label={t("spotsForFriends")} value={String(spots)} onChange={(v) => setSpots(Number(v))} options={Array.from({ length: maxSpots }, (_, i) => ({ value: String(i + 1), content: t("spotCount", { count: i + 1 }) }))} />
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
-        {actions.map((a) => (
-          <Button key={a.key} variant="secondary" size="sm" onClick={a.onClick} aria-pressed={a.key === "qr" ? qr : undefined}>
-            {a.icon}
-            {a.label}
+        {canShare ? (
+          <>
+            <Button size="sm" onClick={share}>
+              <Share aria-hidden />
+              {t("share")}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={copy}>
+              <Link2 aria-hidden />
+              {t("copy")}
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" onClick={copy}>
+            <Link2 aria-hidden />
+            {t("copy")}
           </Button>
-        ))}
+        )}
+        {desktop && !invite && (
+          <Button variant="secondary" size="sm" onClick={() => ensure()}>
+            <QrCode aria-hidden />
+            {t("qr")}
+          </Button>
+        )}
       </div>
-      <p className="mt-2 text-small text-muted">{t("linkHolds", { hours: INVITE_POLICY.inviteHoldHours })}</p>
-      {qr && invite && (
-        <div className="mt-4 inline-block rounded-[20px] bg-stage-text p-4">
-          <SimpuloQR url={inviteLink(invite.token)} size={160} refParam="invite-sheet" />
+      <p className="mt-2 text-small text-muted">{t("spotsForFriendsText", { count: invite ? held : Math.min(spots, maxSpots) })}</p>
+      {/* On a computer: the link's QR code, to open it on the phone. */}
+      {desktop && invite && (
+        <div className="mt-4 flex items-center gap-4">
+          <div className="rounded-[20px] bg-stage-text p-3">
+            <SimpuloQR url={urlOf(invite)} size={136} />
+          </div>
+          <p className="max-w-[24ch] text-small text-muted">{t("scanToJoin")}</p>
         </div>
       )}
     </section>
@@ -313,7 +349,7 @@ export function BringSomeone({ stay, className }: { stay: Stay; className?: stri
     <div className={cn("flex flex-wrap items-center justify-center gap-3", className)}>
       <span className="text-body text-ink">{t("bringSomeone", { count: openSpots(stay) })}</span>
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        {t("invite")}
+        {t("inviteFriends")}
       </Button>
       <InviteSheet stay={stay} open={open} onClose={() => setOpen(false)} />
     </div>

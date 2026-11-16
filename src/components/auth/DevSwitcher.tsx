@@ -67,6 +67,7 @@ function DevSwitcherInner() {
   const hostType = useHostTypeSim();
   const payoutsSim = usePayoutsSim();
   const paymentFails = useFeatureFlag("simulatePaymentFailure");
+  const depthChoice = useFeatureFlag("depthChoice");
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
   const adminRole = useDevSetting("adminRole");
@@ -86,7 +87,7 @@ function DevSwitcherInner() {
   return (
     // Bottom left, away from toasts, the floating join bar and the sheets on the right; opens upward. Phones: above the tab bar. In the
     // admin bottom right – the side list fills the left edge, and the knob must never cover it.
-    <div className={cn("fixed bottom-[calc(var(--safe-bottom)+96px)] z-50 flex flex-col gap-2 md:bottom-4", pathname.startsWith("/admin") ? "right-4 items-end" : "left-4 items-start")}>
+    <div data-print-hide className={cn("fixed bottom-[calc(var(--safe-bottom)+96px)] z-50 flex flex-col gap-2 md:bottom-4", pathname.startsWith("/admin") ? "right-4 items-end" : "left-4 items-start")}>
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
@@ -174,6 +175,10 @@ function DevSwitcherInner() {
                 </DevRow>
                 <DevRow label={t("installedApp")}>
                   <DevSwitch label={t("installedApp")} on={installedApp} onChange={(on) => setDevSetting("installedApp", on)} />
+                </DevRow>
+                {/* Social depth (config/platform.ts depthChoiceEnabled): the step, the capsule, the filter and Analyse › Tiefe. */}
+                <DevRow label={t("depthChoice")}>
+                  <DevSwitch label={t("depthChoice")} on={depthChoice} onChange={(on) => setFeatureFlag("depthChoice", on)} />
                 </DevRow>
               </DevSection>
               {panel && (

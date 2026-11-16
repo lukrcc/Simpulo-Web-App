@@ -67,6 +67,8 @@ export interface User extends Attribution {
   replyMinutes?: number[];
   /** How they live in a House, each from 1 to 3 (config/houseVibe.ts): early bird ↔ night owl, quiet ↔ social, active ↔ chill, tidy ↔ relaxed */
   houseVibe?: HouseVibe;
+  /** Onboarding / Edit profile › Vibe: "How much community do you need?" 1 a little · 2 some · 3 a lot (config/depth.ts; Explore's order) */
+  communityNeed?: 1 | 2 | 3;
   preferredCurrency?: Currency; // for approximate conversions only; unset = €
   savedStayIds?: string[];  // hearted Houses ("Saved" on the Houses page)
   hostAlerts?: string[];    // host ids: notify me when they open a House ("Notify me" on profiles; no counts anywhere)
@@ -247,6 +249,8 @@ export interface Stay {
   hostFeePerPerson?: number;
   /** The kind of place (config/accommodation.ts type id: "villa", "surf-camp" …) – admin and data only so far */
   accommodationType?: string;
+  /** Social depth (config/depth.ts): easy · balanced · deep; none = Balanced. Only counts while config/platform.ts depthChoiceEnabled is on. */
+  depth?: 'easy' | 'balanced' | 'deep';
   /** What the host fee pays for – a checklist on the House page */
   hostOffer?: string[];
   /** The ages the host is aiming for ("Looking for 27–38") – shown only, no filter */
@@ -340,7 +344,14 @@ export interface HouseInvite {
   priority?: true;
   invitedUserId?: string;
   status: HouseInviteStatus;
+  /** The last person who used it (a link for several: see `usedByAll`) */
   usedBy?: string;
+  /** "Spots for friends": how many spots this link holds (1–3, default 1); each use takes one, the rest stay held until it expires */
+  spots?: number;
+  /** Everyone who joined through it */
+  usedByAll?: string[];
+  /** Who made the link (host or crew) – "{Name} saved you a spot", and the referrer of whoever joins through it (mkt.referral) */
+  invitedBy?: string;
 }
 
 export interface Payment extends Attribution {

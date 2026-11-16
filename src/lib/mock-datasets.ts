@@ -5,6 +5,7 @@ import type { AppData } from "./data/adapter";
 import type { PlatformPhase } from "./types";
 import { joinRequests, stays as mockStays, threads, users as mockUsers, type JoinRequest, type Stay } from "./mock";
 import { mockAccommodationType } from "./mock-accommodation";
+import { mockDepth } from "./mock-depth";
 import { MOCK_FOUNDING_HOST_IDS, mockAudienceSize, mockRunsAsPro } from "./mock-admin";
 
 /** The founding hosts the admin said "Yes" to (mock-admin.ts) – in every phase, like their accounts. */
@@ -18,12 +19,15 @@ const users = mockUsers.map((u) => ({
 }));
 
 /** Every mock House with its kind of place (mock-accommodation.ts); founding copies keep their base House's. */
-const stays: Stay[] = mockStays.map((s) => ({
-  ...s,
-  accommodationType: s.accommodationType ?? mockAccommodationType(s.id),
-  // A few more pro hosts: a host fee of about 15 % of the share (admin's host mix; mock-admin.ts mockRunsAsPro).
-  ...(!s.hostFeePerPerson && mockRunsAsPro(s.hostId) ? { hostFeePerPerson: Math.max(10, Math.round(((s.pricePerPerson ?? s.budgetPerPerson?.min ?? 400) * 0.15) / 10) * 10) } : {}),
-}));
+const stays: Stay[] = mockStays
+  .map((s) => ({
+    ...s,
+    accommodationType: s.accommodationType ?? mockAccommodationType(s.id),
+    // A few more pro hosts: a host fee of about 15 % of the share (admin's host mix; mock-admin.ts mockRunsAsPro).
+    ...(!s.hostFeePerPerson && mockRunsAsPro(s.hostId) ? { hostFeePerPerson: Math.max(10, Math.round(((s.pricePerPerson ?? s.budgetPerPerson?.min ?? 400) * 0.15) / 10) * 10) } : {}),
+  }))
+  // The social depth (mock-depth.ts) – after the host fees, which lean Deep.
+  .map((s) => ({ ...s, depth: s.depth ?? mockDepth(s) }));
 
 const published = stays.filter((s) => s.status === "published");
 

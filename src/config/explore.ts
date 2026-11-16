@@ -1,4 +1,4 @@
-import { BadgeCheck, Armchair, CalendarDays, Camera, Dumbbell, GraduationCap, House, Landmark, Laptop, Leaf, MessageCircle, Mountain, PartyPopper, Rocket, Star, Sun, User, Users, WavesHorizontal, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Armchair, CalendarDays, Camera, Dumbbell, GraduationCap, House, Landmark, Laptop, Leaf, MessageCircle, Mountain, PartyPopper, Rocket, Star, Sun, User, Users, WavesHorizontal, type LucideIcon, Layers } from "lucide-react";
 import type { Vibe } from "@/lib/types";
 
 /** One line icon (16px) per category: before the words in the filter row and in the panel's category capsules. */
@@ -26,6 +26,7 @@ export const FILTER_ICONS = {
   language: MessageCircle,
   hostExperience: Star,
   verified: BadgeCheck,
+  depth: Layers,
 } satisfies Record<string, LucideIcon>;
 
 // Explore filter UI – the knobs that decide what the header's filter row shows. The side panel ("Filters") always has

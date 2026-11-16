@@ -4,7 +4,8 @@
 // control reads it with useExploreFilters() and writes it with setExploreFilters(): a change pushes a history entry, so
 // Back undoes it, and Back / Forward update every control. Server render and hydration: no filters (the URL is read
 // right after), so the feed is still prerendered.
-import { useSyncExternalStore } from "react";
+import { useDepthChoice } from "@/config/platform";
+import { useMemo, useSyncExternalStore } from "react";
 import { EMPTY_FILTERS, parseFilters, withFilters, type ExploreFilters } from "./exploreFilters";
 import { VIBES } from "./catalog";
 
@@ -29,7 +30,10 @@ function subscribe(onChange: () => void) {
 }
 
 export function useExploreFilters(): ExploreFilters {
-  return useSyncExternalStore(subscribe, snapshot, () => EMPTY_FILTERS);
+  const filters = useSyncExternalStore(subscribe, snapshot, () => EMPTY_FILTERS);
+  // ?depth= counts only while the depth choice is on (config/platform.ts).
+  const depthOn = useDepthChoice();
+  return useMemo(() => (depthOn || !filters.depth ? filters : { ...filters, depth: null }), [filters, depthOn]);
 }
 
 /** Changes to the same filter this close together share one history entry (a budget drag isn't 40 Back steps). */

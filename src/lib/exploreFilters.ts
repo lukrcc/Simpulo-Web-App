@@ -1,6 +1,7 @@
 // Explore filters: OR within one filter, AND across filters – Lisbon AND Feb 2027 AND English AND (Fitness OR Surf). The whole state
 // lives in the URL (?place=lisbon&month=2027-02&lang=en&vibe=fitness,surf&budget=200-900&sort=newest), so a filtered Explore can be
 // shared and survives a reload.
+import { DEFAULT_DEPTH, DEPTHS, type Depth } from "@/config/depth";
 import { placeById } from "./data/places";
 import { runsIn, stayInPlace } from "./savedSearches";
 import { convertApprox } from "./rates";
@@ -33,6 +34,9 @@ export const ACCOMMODATION_KEYS: readonly AccommodationKey[] = ["booked", "toget
 export type HostExperienceKey = "included" | "none";
 export const HOST_EXPERIENCE_KEYS: readonly HostExperienceKey[] = ["included", "none"];
 
+/** The social depth (config/depth.ts) – a filter only while the depth choice is on (useExploreFilters drops it otherwise). */
+export const DEPTH_KEYS: readonly Depth[] = DEPTHS;
+
 export interface ExploreFilters {
   vibes: Vibe[];
   /** Where? A place's id (data/places): Houses within 50km of a city, inside a region or country */
@@ -55,10 +59,12 @@ export interface ExploreFilters {
   hostExperience: HostExperienceKey | null;
   /** Only Houses whose host is verified */
   verifiedOnly: boolean;
+  /** Easy · Balanced · Deep (a House without one is Balanced) */
+  depth: Depth | null;
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, lengths: [], spots: null, crewSizes: [], who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, sort: "soonest" };
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, lengths: [], spots: null, crewSizes: [], who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, depth: null, sort: "soonest" };
 
 /** "Bali, Indonesia" → "Indonesia" */
 export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").at(-1)?.trim() ?? stay.region;
@@ -83,6 +89,7 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     accommodation: ACCOMMODATION_KEYS.find((key) => key === params.get("stay")) ?? null,
     hostExperience: HOST_EXPERIENCE_KEYS.find((key) => key === params.get("xp")) ?? null,
     verifiedOnly: params.get("verified") === "1",
+    depth: DEPTH_KEYS.find((key) => key === params.get("depth")) ?? null,
     sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
   };
 }
@@ -104,6 +111,7 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
   set("stay", filters.accommodation ? [filters.accommodation] : []);
   set("xp", filters.hostExperience ? [filters.hostExperience] : []);
   set("verified", filters.verifiedOnly ? ["1"] : []);
+  set("depth", filters.depth ? [filters.depth] : []);
   set("sort", filters.sort === "soonest" ? [] : [filters.sort]);
   const query = next.toString();
   return query ? `?${query.replace(/%2C/g, ",")}` : "";
@@ -124,13 +132,14 @@ export function activeCount(filters: ExploreFilters): number {
     (filters.age ? 1 : 0) +
     (filters.accommodation ? 1 : 0) +
     (filters.hostExperience ? 1 : 0) +
-    (filters.verifiedOnly ? 1 : 0)
+    (filters.verifiedOnly ? 1 : 0) +
+    (filters.depth ? 1 : 0)
   );
 }
 
 /** The filter panel's filters that are on – one each, however many values (not the category chips, not sort). */
 export function panelFilterCount(filters: ExploreFilters): number {
-  return [filters.place !== null, filters.month !== null, filters.lengths.length > 0, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSizes.length > 0, filters.who !== null, filters.age !== null, filters.accommodation !== null, filters.hostExperience !== null, filters.verifiedOnly].filter(Boolean).length;
+  return [filters.place !== null, filters.month !== null, filters.lengths.length > 0, filters.budget !== null, filters.spots !== null, filters.languages.length > 0, filters.crewSizes.length > 0, filters.who !== null, filters.age !== null, filters.accommodation !== null, filters.hostExperience !== null, filters.verifiedOnly, filters.depth !== null].filter(Boolean).length;
 }
 
 const DAY_MS = 86_400_000;
@@ -198,5 +207,6 @@ export function matchesFilters(stay: Stay, filters: ExploreFilters, except?: Fil
   if (except !== "accommodation" && filters.accommodation && (stay.accommodationStatus === "locked") !== (filters.accommodation === "booked")) return false;
   if (except !== "hostExperience" && filters.hostExperience && Boolean(stay.hostFeePerPerson) !== (filters.hostExperience === "included")) return false;
   if (except !== "verifiedOnly" && filters.verifiedOnly && verifiedHosts && !verifiedHosts.has(stay.hostId)) return false;
+  if (except !== "depth" && filters.depth && (stay.depth ?? DEFAULT_DEPTH) !== filters.depth) return false;
   return true;
 }
