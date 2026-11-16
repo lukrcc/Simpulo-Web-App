@@ -45,6 +45,8 @@ export const VISIBLE_CHIPS = 8;
 export const TOP_CATEGORIES: readonly Vibe[] = ["creator", "fitness", "remote-work", "surf-water", "founder", "wellness"];
 /** The bar shows at least this many and at most this many categories. */
 export const BAR_CATEGORIES_MIN = 2;
+/** When the header bar runs out of room, its theme capsules go in this order (Creator first); Short trips always stays. */
+export const BAR_CATEGORY_DROP_ORDER: readonly Vibe[] = ["creator", "wellness", "founder", "surf-water", "remote-work", "fitness"];
 export const BAR_CATEGORIES_MAX = 6;
 
 /** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */

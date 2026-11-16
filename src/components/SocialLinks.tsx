@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ArrowUpRight } from "lucide-react";
 import type { MouseEvent } from "react";
-import { BrandMark, SOCIAL_ICONS } from "@/components/ui/socialIcons";
+import { BrandApp, BrandMark, SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { MAX_SOCIAL_LINKS, socialHandle, socialUrl } from "@/lib/socialLinks";
 import type { SocialLink, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ export function SocialLinks({
   /** At most this many (the House page's head: 2 – the rest are on the profile) */
   max?: number;
   /** "marks": the marks alone in their own colours, 20px, no circle (the House page's host tile – the handle as the tooltip) */
-  variant?: "full" | "icons" | "rows" | "marks";
+  variant?: "full" | "icons" | "rows" | "marks" | "circles" | "apps" | "appsSmall";
   tone?: "light" | "dark";
   nested?: boolean;
   className?: string;
@@ -81,8 +81,17 @@ export function SocialLinks({
       {links.map((link) => {
         const { icon: Icon } = SOCIAL_ICONS[link.platform];
         const full = variant === "full";
-        const marks = variant === "marks";
-        const style = marks
+        const circles = variant === "circles";
+        const apps = variant === "apps" || variant === "appsSmall";
+        const small = variant === "appsSmall";
+        const marks = variant === "marks" || circles;
+        const style = apps
+          ? // The profile's stage: each link an app icon – a rounded square 44px in the brand's colour (BrandApp), lifts a little on hover.
+            cn("press flex shrink-0 overflow-hidden transition-transform duration-150 hover:-translate-y-px", small ? "size-8 rounded-[9px]" : "size-11 rounded-[12px]")
+          : circles
+          ? // The profile's stage: well clickable – each mark in its own colour in a 44px circle (plate, 1px ink 8 %), the handle as tooltip.
+            "press flex size-11 shrink-0 items-center justify-center rounded-full border border-ink/8 bg-plate transition-colors duration-150 hover:border-ink/20"
+          : marks
           ? "press flex size-6 shrink-0 items-center justify-center rounded-md transition-opacity duration-150 hover:opacity-75"
           : full
           ? cn("press inline-flex h-9 max-w-full items-center gap-2 rounded-full px-3.5 transition-colors duration-150", FULL[tone === "dark" ? "dark" : "light"])
@@ -91,8 +100,10 @@ export function SocialLinks({
           <>
             {/* With its handle (`full`: the House page's host column, profiles) the mark in its own colour, in a small white circle; the icon
                 rows (chat, lists) monochrome. */}
-            {marks ? (
-              <BrandMark platform={link.platform} className="size-5" />
+            {apps ? (
+              <BrandApp platform={link.platform} small={small} className="flex size-full items-center justify-center" />
+            ) : marks ? (
+              <BrandMark platform={link.platform} className={circles ? "size-5.5" : "size-5"} />
             ) : full ? (
               <span className="relative -ml-1.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-plate">
                 <BrandMark platform={link.platform} className="size-3.5" />

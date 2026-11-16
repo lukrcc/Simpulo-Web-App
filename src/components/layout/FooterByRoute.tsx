@@ -1,31 +1,11 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { LegalLine } from "./LegalLine";
+import { footerOf } from "@/config/footer";
 
-/** The full footer only here (Explore with its collections); every other page ends with the one line. */
-const FULL_ROUTES = ["/", "/explore"];
-
-export function FooterByRoute({ full, slim }: { full: ReactNode; slim: ReactNode }) {
-  const pathname = usePathname();
-  // Open a House: the focus mode has no footer – its legal line sits in the left column, under Back/Next (CreateStayForm).
-  if (pathname === "/create") return null;
-  // Your houses (overview, one House, editing, payouts) has no footer: the legal line, centred at the bottom.
-  if (pathname === "/your-houses" || pathname.startsWith("/your-houses/")) return <LegalLine align="center" className="pb-8 pt-2" />;
-  // A profile is one screen from 1100px, with no footer under it: the legal line in the 32px left below the bento instead.
-  if (pathname === "/profile" || pathname.startsWith("/u/")) {
-    return (
-      <>
-        <div className="split:hidden">{slim}</div>
-        <LegalLine align="center" className="hidden h-8 split:flex" />
-      </>
-    );
-  }
-  // Messages is one screen from 1100px too: the legal line sits at the bottom of its chat list (InboxList).
-  // Messages is the one dark page: no footer at all (nothing light under it).
-  if (pathname.startsWith("/messages")) return null;
-  // Admin is an internal tool with a fixed side list: no footer (it would push the list up at the end of the page).
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
-  return FULL_ROUTES.includes(pathname) || pathname.startsWith("/collections/") ? full : slim;
+/** The one footer of the route (config/footer.ts): large · slim · none. */
+export function FooterByRoute({ large, slim }: { large: ReactNode; slim: ReactNode }) {
+  const variant = footerOf(usePathname(), useSearchParams());
+  return variant === "large" ? large : variant === "slim" ? slim : null;
 }

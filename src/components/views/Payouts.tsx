@@ -5,7 +5,9 @@ import { ArrowLeft, ArrowRight, CalendarClock, Check, Download, Info, MapPin, Tr
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+
+const noSubscribe = () => () => {};
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { againHref } from "@/components/create/model";
 import { Container } from "@/components/layout/Container";
@@ -97,6 +99,17 @@ function PayoutsContent() {
   const pro = stats.type === "pro";
   const { status } = usePayoutAccount();
   const [setup, setSetup] = useState(false);
+  // ?setup=payouts (the Your houses strip's payouts status): the set-up window opens once, the parameter leaves the URL.
+  const setupParam = useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).get("setup") === "payouts", () => false);
+  const [setupRead, setSetupRead] = useState(false);
+  if (setupParam && !setupRead) {
+    setSetupRead(true);
+    setSetup(true);
+  }
+  const closeSetup = () => {
+    setSetup(false);
+    if (window.location.search.includes("setup=")) window.history.replaceState(window.history.state, "", window.location.pathname);
+  };
   return (
     <>
       {/* The way back left, the ONE payout state right (C1). */}
@@ -134,7 +147,7 @@ function PayoutsContent() {
           )}
         </div>
       </Container>
-      <PayoutSetupSheet open={setup} onClose={() => setSetup(false)} />
+      <PayoutSetupSheet open={setup} onClose={closeSetup} />
     </>
   );
 }

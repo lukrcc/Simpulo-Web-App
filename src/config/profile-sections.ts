@@ -4,6 +4,7 @@
 // "X of 6" counts the complete ones.
 import { BadgeCheck, Camera, Link2, MapPin, MessageSquareText, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import { ageOn, MIN_AGE } from "@/lib/birthDate";
+import { hasVibe } from "@/config/houseVibe";
 import type { User } from "@/lib/types";
 
 export type ProfileSectionKey = "photos" | "basics" | "vibe" | "about" | "links" | "inFor" | "verify";
@@ -28,7 +29,7 @@ export function sectionDone(key: ProfileSectionKey, user: User, today: string | 
     case "basics":
       return Boolean(user.name.trim() && user.birthDate && user.country.trim() && (!today || ageOn(user.birthDate, today) >= MIN_AGE));
     case "vibe":
-      return Boolean(user.houseVibe);
+      return hasVibe(user.houseVibe);
     case "about":
       return Boolean(user.bio.trim()) && user.languages.length > 0;
     case "links":

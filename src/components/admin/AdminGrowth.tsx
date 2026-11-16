@@ -11,7 +11,7 @@ import { findUser, useStore } from "@/lib/store";
 import type { Currency } from "@/lib/types";
 import { AdminShell } from "./AdminShell";
 import { KeyNumbers } from "./AdminNumbers";
-import { installRates, monthKpis } from "@/lib/admin/metrics";
+import { askingHostMetrics, installRates, monthKpis } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 import { cardClass } from "@/components/ui/Card";
@@ -79,6 +79,7 @@ export function AdminGrowth() {
     >
       <GrowthKpis />
       <InstallKpis />
+      <AskingKpis />
       <p className="mt-12 text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
 
       <div className="mt-6 space-y-6">
@@ -294,6 +295,30 @@ function InstallKpis() {
     <section className="mt-12">
       <h2 className="text-eyebrow uppercase text-muted">{t("installs")}</h2>
       <KeyNumbers className="mt-4" items={[item("installIos", k.ios), item("installAndroid", k.android)]} />
+    </section>
+  );
+}
+
+/**
+ * Asking the host (lib/admin/metrics.ts askingHostMetrics): messages before a request · chats that lead to a request · requests with a note.
+ * The data points are planned – the mock counts its own chats and requests; no change against a month yet.
+ */
+function AskingKpis() {
+  const t = useTranslations("admin.growthArea.kpis");
+  const k = askingHostMetrics(useAdminInputs());
+  const item = (key: "askBefore" | "askToRequest" | "askNote", value: string, sub: string) => ({ key, label: t(key), info: t(`info.${key}`), value, change: null, sub });
+  return (
+    <section className="mt-12">
+      <h2 className="text-eyebrow uppercase text-muted">{t("asking")}</h2>
+      <KeyNumbers
+        className="mt-4"
+        items={[
+          item("askBefore", k.messagesBeforeRequest === null ? "–" : dec(k.messagesBeforeRequest), t("askChats", { count: num(k.chats) })),
+          item("askToRequest", k.askedToRequest === null ? "–" : pct(Math.round(k.askedToRequest)), t("askChats", { count: num(k.chats) })),
+          item("askNote", k.requestsWithNote === null ? "–" : pct(Math.round(k.requestsWithNote)), t("askRequests", { count: num(k.requests) })),
+        ]}
+      />
+      <p className="mt-3 text-small text-muted">{t("askPlanned")}</p>
     </section>
   );
 }

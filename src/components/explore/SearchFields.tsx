@@ -2,7 +2,7 @@
 
 import { BarSheet } from "@/components/ui/BarSheet";
 import { darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
-import { CalendarDays, MapPin, Search, X, Zap } from "lucide-react";
+import { CalendarDays, MapPin, Search, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MonthName, newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
@@ -68,6 +68,7 @@ export function ShortTripsToggle({ label, active, onToggle }: { label: string; a
     <button
       type="button"
       aria-pressed={active}
+      aria-label={label}
       onClick={onToggle}
       className={cn(
         // Set apart from the rest: an orange edge and bolt. Off: transparent, ink semibold, hover a breath of orange. On: ink, white text,
@@ -76,8 +77,9 @@ export function ShortTripsToggle({ label, active, onToggle }: { label: string; a
         active ? "bg-(--pick-bg) text-(--pick-text)" : "bg-transparent text-ink hover:bg-accent/8",
       )}
     >
-      <Zap aria-hidden />
-      {label}
+      <SlimBolt />
+      {/* In a tight Explore bar only the bolt stays (globals.css, the bar's container query) – Short trips never goes. */}
+      <span className="short-trips-label">{label}</span>
     </button>
   );
 }
@@ -282,5 +284,14 @@ function MonthOptions({ value, onPick }: { value: string | null; onPick: (month:
         ))}
       </div>
     </div>
+  );
+}
+
+/** Short trips' mark: a filled, slim bolt (18px in the bar, --brand-action) – a little larger than the other icons. */
+function SlimBolt() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" fill="currentColor" className="slim-bolt">
+      <path d="M14.2 1.6 5.6 13.4a.6.6 0 0 0 .5 1h5.2l-1.6 7.5c-.1.6.6.9 1 .4l8.6-11.8a.6.6 0 0 0-.5-1h-5.2l1.6-7.5c.1-.6-.6-.9-1-.4Z" />
+    </svg>
   );
 }

@@ -3,13 +3,18 @@ import type { HypothesisStatus } from "@/config/hypotheses";
 import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
 import type { GrowthEvent } from "../growth";
-import type { HostTier, Vibe, AdminLogEntry, HostApplication, JoinRequest, SupportTicket, Withdrawal, Payment, PlatformPhase, Stay, Thread, User, WaitlistEntry } from "../types";
+import type { HostTier, Vibe, AdminLogEntry, Place, HostApplication, JoinRequest, SupportTicket, Withdrawal, Payment, PlatformPhase, Stay, Thread, User, WaitlistEntry } from "../types";
 import type { Page, PageRequest } from "./paging";
 
 /** A photo's lower third: the darkening's colour (its hue and saturation at 12 % lightness) and its mean lightness 0–1. */
 export interface PhotoMeta {
   tint: string;
   lum: number;
+  /** The whole photo's average colour (hex) – the stage's breath of colour (lib/stageTint.ts) */
+  accent?: string;
+  /** The photo's mood (hex): main – its dominant colour (the House page's stage, 5 %), dark – its dark muted colour (the run under a photo tile's
+   *  words) */
+  palette?: { main: string; dark: string };
 }
 
 /** What the app starts from. */
@@ -222,6 +227,8 @@ export interface HouseOutcome {
   fillRate: number;
   /** Social depth (config/depth.ts); none = Balanced */
   depth?: "easy" | "balanced" | "deep";
+  /** "Host from your place": the saved place it was a window of; null/unset = a place found for this House (Admin › Analyse › Ort-Herkunft) */
+  placeId?: string | null;
   /** "Mit dir wieder" (data point after.again – the rating isn't built: only the mock's example values): crew pairs who answered, mutual "again" */
   againPairs?: number;
   againMutual?: number;
@@ -290,6 +297,8 @@ export interface DataAdapter {
   pastEarnings(userId: string): PastEarning[];
   previewForUrl(url: string, fallbackTitle?: string): LinkPreview;
   withAttribution(requests: JoinRequest[], stays: Stay[]): JoinRequest[];
+  /** "Host from your place": the saved places a data state starts with, and its Houses with their `placeId` (windows) */
+  withPlaces(stays: Stay[]): { stays: Stay[]; places: Place[] };
   withChatHistory(threads: Thread[], seed: { stays: Stay[]; users: User[]; joinRequests: JoinRequest[] }): { threads: Thread[]; lastReadAt: Record<string, string> };
   growthEvents(seed: { stays: Stay[]; joinRequests: JoinRequest[]; payments: Payment[] }): GrowthEvent[];
   /**

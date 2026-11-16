@@ -23,6 +23,8 @@ interface MessageBubbleProps {
   showName: boolean;
   /** Your own message: someone wrote after it (✓✓, cream), else only sent (✓) */
   read?: boolean;
+  /** Only the last of your own messages carries the read state (✓ sent · ✓✓ read) */
+  showRead?: boolean;
   /** The message this one replies to, if it's still in the thread */
   replyTo?: { message: Message; author?: User; /** Quoted message is from someone you blocked – show no name or text */ blocked?: boolean };
   /** Action bar shown (long-press on touch devices); the emoji row open */
@@ -119,10 +121,11 @@ export function MessageBubble(props: MessageBubbleProps) {
     </button>
   );
 
-  // The time bottom right: yours cream 55 % with ✓ (sent) or ✓✓ (read, cream 90 %); theirs cream 45 %.
-  const ticks = mine && (props.read ? <CheckCheck aria-label={t("read")} className="size-3.5 text-ink/90" strokeWidth={2.25} /> : <Check aria-label={t("sent")} className="size-3.5" strokeWidth={2.25} />);
-  const timeStamp = (onBubble = true) => (
-    <span className={cn("inline-flex items-center gap-1 text-small leading-none tabular-nums", onBubble && mine ? "text-ink/55" : mine ? "text-ink/55" : "text-ink/45")}>
+  // The time only under a run's last message (same person, < 5 min apart), muted; the others' times show on hover beside their bubble. The
+  // read state (✓ sent · ✓✓ read) only at your last own message.
+  const ticks = mine && props.showRead && (props.read ? <CheckCheck aria-label={t("read")} className="size-3.5" strokeWidth={2.25} /> : <Check aria-label={t("sent")} className="size-3.5" strokeWidth={2.25} />);
+  const timeStamp = () => (
+    <span className="inline-flex items-center gap-1 text-small leading-none tabular-nums text-muted">
       {time}
       {ticks}
     </span>
@@ -136,7 +139,8 @@ export function MessageBubble(props: MessageBubbleProps) {
       // One run of the same sender: 2px apart; a new run 12px down. The avatar only at a run's last message, the name only at its first.
       className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5", reactions.length > 0 && "mb-2")}
     >
-      {!mine && <div className="w-8 shrink-0 self-end">{props.last && author && <Avatar user={author} size="sm" linked />}</div>}
+      {/* The avatar beside the run's last bubble – above its time line (13px + 4px); a placeholder of the same width keeps bubbles flush. */}
+      {!mine && <div className={cn("w-8 shrink-0 self-end", props.last && "mb-[17px]")}>{props.last && author && <Avatar user={author} size="sm" linked />}</div>}
 
       <div
         onPointerDown={onPointerDown}
@@ -161,7 +165,6 @@ export function MessageBubble(props: MessageBubbleProps) {
             // Emoji-only: no bubble, big – the time small beside it.
             <div className={cn("flex items-end gap-1.5 px-1", mine && "flex-row-reverse")}>
               <span className="text-h1 leading-[1.15] tracking-normal">{text}</span>
-              <span className="mb-1.5">{timeStamp(false)}</span>
             </div>
           )}
           {hasBubble && (
@@ -169,9 +172,9 @@ export function MessageBubble(props: MessageBubbleProps) {
               className={cn(
                 "relative max-w-full rounded-[18px] px-3.5 py-2 text-left text-body leading-5 wrap-break-word",
                 hasCard && "w-full",
-                // Your own: graphite --bubble-own (#48423E), cream words (.bubble-own turns the tokens round); the others': --bubble-other (#ECE6DF), ink. The last of a run: a small corner (the tail)
-                // on the sender's side, at the bottom.
-                mine ? "bubble-own bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink",
+                // Your own: graphite --bubble-own (#48423E), white words (.bubble-own); the others': white, opaque, a fine line black 4 %
+                // (--bubble-other, --bubble-other-line), ink. The last of a run: a small corner (the tail) on the sender's side, at the bottom.
+                mine ? "bubble-own bg-(--bubble-own) text-ink" : "bg-(--bubble-other) text-ink shadow-[inset_0_0_0_1px_var(--bubble-other-line)]",
                 props.last && (mine ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
               )}
             >
@@ -184,18 +187,7 @@ export function MessageBubble(props: MessageBubbleProps) {
               {links.map((url) => (
                 <ChatLinkCard key={url} url={url} mine={mine} />
               ))}
-              {hasCard ? (
-                <span className="mt-1 block text-right">{timeStamp()}</span>
-              ) : (
-                <>
-                  {/* WhatsApp-style time: an invisible copy reserves room at the end of the last line (or wraps to its own),
-                      the visible one sits in the bottom-right corner. */}
-                  <span className={cn("invisible ml-2 inline-block text-small leading-none", mine && "pr-5")} aria-hidden>
-                    {time}
-                  </span>
-                  <span className="absolute bottom-2 right-3.5">{timeStamp()}</span>
-                </>
-              )}
+
             </div>
           )}
           {message.contactsHidden && <p className="px-1 text-right text-small text-muted">{t("contactsHidden")}</p>}
@@ -213,9 +205,15 @@ export function MessageBubble(props: MessageBubbleProps) {
           {files.map((file) => (
             <FileRow key={file.url} file={file} mine={mine} />
           ))}
-          {/* No text bubble to carry it: the time under the photos / files. */}
-          {!hasBubble && !bigEmoji && <span className="px-1">{timeStamp(false)}</span>}
         </div>
+        {/* The time: under a run's last message; any other message shows its time on hover, beside the bubble. */}
+        {props.last ? (
+          <span className={cn("mt-1 px-1", reactions.length > 0 && "order-last")}>{timeStamp()}</span>
+        ) : (
+          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
+            {time}
+          </span>
+        )}
 
         {reactions.length > 0 && (
           // Overlaps the bubble's bottom edge (the row's bottom margin keeps it clear of the next message); under

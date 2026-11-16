@@ -4,6 +4,7 @@ import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVI
 import { FEE_MODEL } from "@/config/policies";
 import { convert, isCurrency } from "@/lib/currency";
 import { VIBES } from "@/lib/catalog";
+import type { Thread } from "@/lib/types";
 import type { HypothesisStatus } from "@/config/hypotheses";
 import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
@@ -28,6 +29,8 @@ export interface AdminInputs {
   reports: readonly Report[];
   /** The bookkeeping journal (lib/admin/ledger.ts); null without one */
   ledger: readonly LedgerEntry[] | null;
+  /** The chats (only their counts and times are read – never their content) */
+  threads?: readonly Thread[];
   phase: PlatformPhase;
   /** YYYY-MM-DD */
   today: string;
@@ -700,9 +703,10 @@ export function byAccommodation({ stays, joinRequests, payments }: Pick<AdminInp
 // ── Analyse: money and retention by angle ───────────────────────────────────────────────────────────────────────────────────────
 
 export type AnalysisPeriod = "30d" | "year" | "all";
-export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "hub" | "tier" | "depth";
-/** "depth" (Tiefe) only while the depth choice is on (config/platform.ts) – analysisDimensions(depthOn). */
-export const ANALYSIS_DIMENSIONS: readonly AnalysisDimension[] = ["topic", "length", "crew", "category", "hub", "tier", "depth"];
+export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "origin" | "hub" | "tier" | "depth";
+/** "depth" (Tiefe) only while the depth choice is on (config/platform.ts) – analysisDimensions(depthOn). "origin" (Ort-Herkunft): the host's own
+ *  saved place (a window, HouseOutcome.placeId) or a place found for the House. */
+export const ANALYSIS_DIMENSIONS: readonly AnalysisDimension[] = ["topic", "length", "crew", "category", "origin", "hub", "tier", "depth"];
 export const analysisDimensions = (depthOn: boolean) => ANALYSIS_DIMENSIONS.filter((d) => depthOn || d !== "depth");
 /** kurz ≤ 5 nights · mittel 1–3 weeks (6–27) · lang 4+ weeks (28+) */
 export const lengthBand = (nights: number) => (nights <= 5 ? "short" : nights < 28 ? "mid" : "long");
@@ -732,6 +736,7 @@ export function outcomesFromRecords({ stays, users, joinRequests, payments, toda
         daysToFull: daysToFullOf(s, joinRequests),
         fillRate: fillRateOf(s),
         depth: s.depth ?? "balanced",
+        placeId: s.placeId ?? null,
       };
     });
 }
@@ -806,6 +811,7 @@ function dimensionKey(dimension: AnalysisDimension, o: HouseOutcome): string {
   if (dimension === "length") return lengthBand(o.nights);
   if (dimension === "crew") return crewBand(o.crewSize);
   if (dimension === "category") return o.category ?? "unset";
+  if (dimension === "origin") return o.placeId ? "own" : "new";
   if (dimension === "hub") return o.hub;
   return o.tier;
 }
@@ -825,6 +831,29 @@ export function analysisRows(inputs: AdminInputs, dimension: AnalysisDimension, 
     groups.set(key, [...(groups.get(key) ?? []), o]);
   }
   return [...groups.entries()].map(([key, group]) => analysisRow(key, group, stays)).toSorted((a, b) => (b.valuePerPersonYear ?? -1) - (a.valuePerPersonYear ?? -1));
+}
+
+/**
+ * Ort-Herkunft › Fenster pro Ort: the saved places whose windows started in the period – how many places, how many windows on average, and
+ * how many places had 1 · 2 · 3+ windows. Counted from the outcomes (HouseOutcome.placeId), all Houses that started in the period.
+ */
+export function windowsPerPlace(inputs: AdminInputs, period: AnalysisPeriod): { places: number; windows: number; average: number | null; buckets: readonly { key: "1" | "2" | "3+"; places: number }[] } {
+  const outcomes = outcomesOf(inputs);
+  const { from } = periodRange(period, inputs.today, outcomes);
+  const counts = new Map<string, number>();
+  for (const o of outcomes) if (o.placeId && o.startDate >= from && o.startDate <= inputs.today) counts.set(o.placeId, (counts.get(o.placeId) ?? 0) + 1);
+  const values = [...counts.values()];
+  const windows = values.reduce((n, v) => n + v, 0);
+  return {
+    places: values.length,
+    windows,
+    average: values.length ? windows / values.length : null,
+    buckets: [
+      { key: "1", places: values.filter((v) => v === 1).length },
+      { key: "2", places: values.filter((v) => v === 2).length },
+      { key: "3+", places: values.filter((v) => v >= 3).length },
+    ],
+  };
 }
 
 /** The sweet spot: the topic × length × crew size × host tier with the highest value per person per year – only from combinations with enough Houses. */
@@ -1265,5 +1294,34 @@ export function valuationRange(inputs: AdminInputs) {
     revenue: { runRate, band, low: runRate * band.low, high: runRate * band.high },
     profit: profit !== null && profit > 0 ? { profit, low: profit * VALUATION.profitMultiple.low, high: profit * VALUATION.profitMultiple.high } : null,
     drivers: { growth, repeat: repeat === null ? null : Math.round(repeat * 100), margin },
+  };
+}
+
+/**
+ * Asking the host before a request (Admin › Wachstum; data points ask.beforeRequest, ask.toRequest, request.note – planned): from the direct
+ * chats (guest ↔ host about a House) and the requests. Only counts and times are read, never what was written.
+ *   messagesBeforeRequest – of the chats that led to a request: the guest's messages before it, on average
+ *   askedToRequest        – the share of those chats whose guest later asked to join that House (percent)
+ *   requestsWithNote      – the share of requests (not the host's own invites) that carry a note for the host (percent)
+ */
+export function askingHostMetrics(inputs: AdminInputs) {
+  const direct = (inputs.threads ?? []).filter((t) => t.type === "direct" && t.houseId);
+  const pairs = direct.flatMap((t) => {
+    const stay = inputs.stays.find((s) => s.id === t.houseId);
+    const guest = stay && t.participantIds.find((id) => id !== stay.hostId);
+    if (!stay || !guest) return [];
+    const request = inputs.joinRequests.find((r) => r.stayId === stay.id && r.userId === guest && r.status !== "invited");
+    const before = request ? t.messages.filter((m) => m.senderId === guest && m.createdAt < request.createdAt).length : 0;
+    return [{ requested: Boolean(request), before }];
+  });
+  const led = pairs.filter((p) => p.requested);
+  const requests = inputs.joinRequests.filter((r) => r.status !== "invited");
+  const share = (part: number, all: number) => (all > 0 ? Math.round((part / all) * 1000) / 10 : null);
+  return {
+    chats: pairs.length,
+    messagesBeforeRequest: led.length > 0 ? Math.round((led.reduce((sum, p) => sum + p.before, 0) / led.length) * 10) / 10 : null,
+    askedToRequest: share(led.length, pairs.length),
+    requests: requests.length,
+    requestsWithNote: share(requests.filter((r) => r.message.trim() !== "").length, requests.length),
   };
 }

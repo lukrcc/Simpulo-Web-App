@@ -14,11 +14,17 @@ import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { crewThreadId, findUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
+import { chatThemeOf, crewThreadId, findUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import Link from "next/link";
 import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { useIsDesktop } from "@/lib/useIsDesktop";
+import { addTicketFollowUp } from "@/lib/admin/store";
+import { SUPPORT_THREAD_ID, useSupportThread } from "@/lib/support/conversation";
+import { chatHouseShare, stayAccentOf } from "@/lib/stageTint";
+import { chatThemeStyle } from "@/config/chat-themes";
+import { housePhotos } from "@/lib/utils";
+import { LifeBuoy } from "lucide-react";
 
 /** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
@@ -47,6 +53,54 @@ export function ThreadPanel({ threadId, inline = false }: { threadId: string; in
 }
 
 function ThreadGate({ threadId, embedded, inline = false }: { threadId: string; embedded: boolean; inline?: boolean }) {
+  if (threadId === SUPPORT_THREAD_ID) return <SupportContent embedded={embedded} />;
+  return <ChatGate threadId={threadId} embedded={embedded} inline={inline} />;
+}
+
+/**
+ * "Simpulo Support": the person's requests and ideas (each after a small line saying what it was about) and Simpulo's answers, built from
+ * their tickets (lib/support/conversation.ts). Writing here follows up on the latest one. No House, no crew.
+ */
+function SupportContent({ embedded }: { embedded: boolean }) {
+  const t = useTranslations("help.conversation");
+  const { markThreadRead } = useStore();
+  const { thread, latestTicketId } = useSupportThread();
+  const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
+  const last = thread?.messages.at(-1)?.createdAt;
+  useEffect(() => {
+    if (last) markThreadRead(SUPPORT_THREAD_ID, last);
+  }, [last, markThreadRead]);
+  if (!thread) return <ThreadNotFound embedded={embedded} />;
+  return (
+    <ThreadFrame
+      embedded={embedded}
+      head={
+        <div className="flex h-16 items-center gap-3 px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
+            <LifeBuoy aria-hidden className="size-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-body font-semibold text-ink">{t("title")}</span>
+            <span className="block truncate text-small text-muted">{t("subtitle")}</span>
+          </span>
+        </div>
+      }
+      composer={
+        <Composer
+          threadId={SUPPORT_THREAD_ID}
+          placeholder={t("composer")}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          onSend={(text) => latestTicketId && addTicketFollowUp(latestTicketId, text)}
+        />
+      }
+    >
+      <MessageList thread={thread} emptyText="" onReply={() => {}} />
+    </ThreadFrame>
+  );
+}
+
+function ChatGate({ threadId, embedded, inline = false }: { threadId: string; embedded: boolean; inline?: boolean }) {
   const t = useTranslations("messages.thread");
   const store = useStore();
   const thread = store.threads.find((t) => t.id === threadId);
@@ -124,7 +178,11 @@ function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolea
  * The chat: messages over the whole height, the glass head and the floating glass composer over them. Both can grow (a pinned vote, a reply
  * being written), so their heights are measured and the messages keep clear of them (--chat-top, --chat-bottom).
  */
-function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean; head: ReactNode; composer?: ReactNode; children: ReactNode }) {
+function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, children }: { embedded: boolean; head: ReactNode; /** Later: Chat · Crew · Plan · Moments · Me – a row under the head, inside the glass (not built yet) */ tabs?: ReactNode; composer?: ReactNode; /** The House's colour – the "house" chat background mixes it in */ accent?: string; /** The chat, for its background (config/chat-themes.ts) */ threadId?: string; children: ReactNode }) {
+  const store = useStore();
+  // The chat background this person chose (this chat, else all chats, else "house" – a breath of the House's colour over the cream).
+  const theme = threadId ? chatThemeOf(store, threadId) : "cream";
+  const tint = chatThemeStyle(theme, accent, chatHouseShare(accent));
   const stageRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -143,8 +201,11 @@ function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean
   }, []);
   const stage = (
     <div ref={stageRef} className="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div ref={headRef} className="chat-glass absolute inset-x-0 top-0 z-20">
+      {/* The head as glass (half see-through, blur 20px) – the messages scroll under it. It's a column: the 64px row, then room for the
+          House's tabs later (Chat · Crew · Plan · Moments · Me); its height is measured, so the messages keep clear of whatever it holds. */}
+      <div ref={headRef} className="chat-glass absolute inset-x-0 top-0 z-20 flex flex-col">
         {head}
+        {tabs && <div data-chat-tabs>{tabs}</div>}
       </div>
       {children}
       {composer && (
@@ -159,13 +220,18 @@ function ThreadFrame({ embedded, head, composer, children }: { embedded: boolean
   );
   // Desktop: the right column, a little lighter than the page, nothing around it.
   // Desktop: the right column on the page's ground (.chat-dark keeps the chat's own small rules, light now).
-  if (embedded) return <div className="chat-dark h-full min-h-0 bg-bg">{stage}</div>;
+  if (embedded)
+    return (
+      <div style={tint} data-chat-theme={theme} className="chat-dark h-full min-h-0 bg-(--chat-bg)">
+        {stage}
+      </div>
+    );
 
   // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
   // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
   // itself never scrolls.
   return (
-    <div data-app-pane="always" className="chat-dark relative z-41 bg-bg h-dvh overflow-hidden md:h-[calc(100dvh-var(--header-total))]">
+    <div data-app-pane="always" style={tint} data-chat-theme={theme} className="chat-dark relative z-41 h-dvh overflow-hidden bg-(--chat-bg) md:h-[calc(100dvh-var(--header-total))]">
       <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--header-h) md:pt-0">{stage}</div>
     </div>
   );
@@ -206,9 +272,11 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   return (
     <ThreadFrame
       embedded={embedded}
+      accent={stayAccentOf(stay, housePhotos(stay, findUser(store, stay.hostId))[0])}
+      threadId={thread.id}
       head={
         <>
-          {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} /> : <DirectHeader stay={stay} other={other} embedded={embedded} />}
+          {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />}
           {thread.type === "house" && <CrewVotes stay={stay} pinned />}
         </>
       }

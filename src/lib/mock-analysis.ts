@@ -89,6 +89,30 @@ function againOf(people: number, depth: Depth, rand: () => number): { againPairs
   return { againPairs: pairs, againMutual: Math.round(pairs * Math.min(1, Math.max(0, base + (rand() - 0.5) * 0.12))) };
 }
 
+/**
+ * Ort-Herkunft ("Host from your place"), from its own sequence so the rest stays as it was: about a third of the hosts have a place of their
+ * own (one each, in the hub of their first window there), and about half of their Houses with up to 6 people are windows of it – so a place
+ * has 1 to many windows over two years. Those fill a little faster (the place is set, the host is there) and keep a little less per person
+ * (rent instead of a holiday price).
+ */
+function withPlaceOrigin(out: HouseOutcome[]): HouseOutcome[] {
+  const rand = seeded(1312);
+  const homeHub = new Map<string, string>();
+  const hasHome = (hostId: string) => [...hostId].reduce((n, c) => n + c.charCodeAt(0), 0) % 3 === 0;
+  return out.map((o) => {
+    if (!hasHome(o.hostId) || o.crewSize > 6 || rand() >= 0.5) return o;
+    const hub = homeHub.get(o.hostId) ?? o.hub;
+    homeHub.set(o.hostId, hub);
+    return {
+      ...o,
+      hub,
+      placeId: `pl-${o.hostId}`,
+      daysToFull: o.daysToFull === null ? null : Math.max(2, Math.round(o.daysToFull * 0.8)),
+      serviceFee: Math.round(o.serviceFee * 0.9),
+    };
+  });
+}
+
 let cache: HouseOutcome[] | null = null;
 
 export function mockHouseOutcomes(): HouseOutcome[] {
@@ -176,6 +200,6 @@ export function mockHouseOutcomes(): HouseOutcome[] {
       ...againOf(guestIds.length + 1, depth, rand2),
     });
   }
-  cache = out.toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+  cache = withPlaceOrigin(out).toSorted((a, b) => a.startDate.localeCompare(b.startDate));
   return cache;
 }

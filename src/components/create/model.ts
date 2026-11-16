@@ -7,7 +7,9 @@ import { maxHostFee } from "@/lib/fees";
 import { openVote } from "@/lib/crewVotes";
 import type { SearchPlace } from "@/lib/savedSearches";
 import type { PersonEntry } from "@/lib/store";
-import type { CrewVote, Currency, NewStayInput, Stay, User, Vibe, VoteOption } from "@/lib/types";
+import type { CrewVote, Currency, NewStayInput, Place, Stay, User, Vibe, VoteOption } from "@/lib/types";
+import { insideRental, maxCrewOf } from "@/lib/ownPlaces";
+import { windowRent } from "@/lib/price";
 import { LANGUAGES, VIBES, addDays, currencyForCountry, findUrls, languageCode, nightsBetween } from "@/lib/utils";
 
 /*
@@ -62,7 +64,13 @@ export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew", "depth"] as const;
 export const MAX_COVER_PHOTOS = 6;
 /** Optional, one screen each, reached from the "details" list – before or after opening. */
 export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
-export const STEPS = [...REQUIRED_STEPS, EXTRAS_STEP, INVITE_STEP, "ready", "details", ...DETAIL_STEPS] as const;
+/**
+ * "Host from your place": before step 1, only for hosts with saved places – "Use a place you live in" (one of them: kind, photos, crew size,
+ * rules and price are filled in, the flow starts at the first step still open) or "New place" (the flow as always). Not a required step: it
+ * has no answer to check later.
+ */
+export const SOURCE_STEP = "source" as const;
+export const STEPS = [SOURCE_STEP, ...REQUIRED_STEPS, EXTRAS_STEP, INVITE_STEP, "ready", "details", ...DETAIL_STEPS] as const;
 export type StepKey = (typeof STEPS)[number];
 export type DetailKey = (typeof DETAIL_STEPS)[number];
 
@@ -176,6 +184,21 @@ export interface FormState {
   inviteLink: boolean;
   /** "Open again": the completed House this one repeats ("" = a new one) */
   againFrom: string;
+  /** "Host from your place": the first step's answer – "own" a saved place, "new" a new one; "" = not asked (no saved places) or not answered */
+  source: "" | "own" | "new";
+  /** The saved place this House is a window of ("" = none) – Stay.placeId */
+  placeId: string;
+  /** "I have a place" + "I live here": save it to Your places on publish (with the rental period, the rent and the statement below) */
+  savePlace: boolean;
+  /** "I'm allowed to host guests here (sublet or guests allowed by my landlord and local rules)" – required to save a place */
+  allowedToHost: boolean;
+  /** The host's rental period (YYYY-MM-DD) of a place to save */
+  rentFrom: string;
+  rentTo: string;
+  /** The host's rent per month for a place to save, as typed (in the House currency) */
+  monthlyRent: string;
+  /** The window's rent as last filled in from the place's rent ("" = none): while the price still equals it, it follows the dates */
+  autoTotal: string;
 }
 
 export const initialForm: FormState = {
@@ -223,6 +246,14 @@ export const initialForm: FormState = {
   inviteIds: [],
   inviteLink: false,
   againFrom: "",
+  source: "",
+  placeId: "",
+  savePlace: false,
+  allowedToHost: false,
+  rentFrom: "",
+  rentTo: "",
+  monthlyRent: "",
+  autoTotal: "",
 };
 
 /** The edit page (and "Open again") start from the House as it is. */
@@ -275,6 +306,8 @@ export function formFromStay(stay: Stay): FormState {
     dayText: stay.dayText,
     hostNote: stay.hostNote ?? "",
     crewGroupUrl: stay.crewGroupUrl ?? "",
+    placeId: stay.placeId ?? "",
+    source: stay.placeId ? "own" : "",
   };
 }
 
@@ -306,6 +339,58 @@ export function againForm(source: Stay, crewIds: string[]): FormState {
     inviteIds: crewIds.slice(0, Math.max(0, source.spotsTotal - 1)),
     againFrom: source.id,
   };
+}
+
+/**
+ * "Host from your place" – "Use a place you live in" and "Open a window": the place's kind, photos, rules, city and currency, its crew size
+ * (the free rooms + the host), the place as set. With an earlier window, also its theme, title and texts. Dates, spots and price stay to
+ * set (the price fills in from the rent once the dates are known: placeRent).
+ */
+export function placeForm(place: Place, last?: Stay): FormState {
+  const base: FormState = last ? { ...againForm(last, []), title: last.title.slice(0, TITLE_MAX_NEW), againFrom: "" } : initialForm;
+  const kind = accommodationOf(place.accommodationType);
+  return {
+    ...base,
+    source: "own",
+    placeId: place.id,
+    placeMode: "set",
+    accommodationType: kind?.type.id ?? "",
+    accommodationCategory: kind?.category.id ?? "unsure",
+    spotsTotal: maxCrewOf(place),
+    photos: place.photos.slice(0, MAX_COVER_PHOTOS),
+    region: place.address.region,
+    city: place.address.city,
+    rulesText: place.rules.join("\n"),
+    currency: place.currency,
+    totalPrice: "",
+    autoTotal: "",
+    placeLink: "",
+    budgetMin: "",
+    budgetMax: "",
+    budgetTbd: false,
+    savePlace: false,
+    allowedToHost: false,
+  };
+}
+
+/** Where the window's rent comes from: the saved place, or the place being saved in this flow (its typed rent and rental period). */
+export function rentSourceOf(form: FormState, place?: Place): Pick<Place, "monthlyRent" | "rentFrom" | "rentTo"> | null {
+  if (form.placeId) return place ?? null;
+  const monthlyRent = Math.round(Number(form.monthlyRent));
+  if (form.placeMode !== "set" || !form.savePlace || !(monthlyRent > 0)) return null;
+  return { monthlyRent, rentFrom: form.rentFrom, rentTo: form.rentTo };
+}
+
+/**
+ * Into "Crew and price" with a rent behind the place: the window's total from the rent, pro rata by nights (lib/price.ts windowRent – the one
+ * rounding rule). Only while the price is empty or still the one filled in before (a typed price is the host's); changeable.
+ */
+export function placeRent(form: FormState, today: string, place?: Place): Partial<FormState> {
+  const source = rentSourceOf(form, place);
+  if (!source || (form.totalPrice !== "" && form.totalPrice !== form.autoTotal)) return {};
+  const { start, end } = form.datesMode === "exact" ? { start: form.startDate, end: form.endDate } : monthBounds(form.month, today, form.monthEnd);
+  const total = windowRent(source, start, end);
+  return total > 0 ? { totalPrice: String(total), autoTotal: String(total) } : {};
 }
 
 /** The invites as they'll go out: only people offered (the host's People), no more than the spots besides the host's. */
@@ -499,6 +584,8 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     lookingForText: form.lookingForText.trim(),
     hostNote: form.hostNote.trim() || undefined,
     hostFeePerPerson: hostFeeOf(form),
+    // "Host from your place": the window's place (a place saved on publish gets its id there, CreateStayForm).
+    placeId: form.placeId || editing?.placeId || undefined,
     interests: editing?.interests ?? [],
     houseRules: form.rulesText.split("\n").map((rule) => rule.trim()).filter(Boolean),
   };
@@ -525,7 +612,7 @@ export function isValidGroupUrl(raw: string): boolean {
 }
 
 /** Fields that can be invalid – also their DOM ids (`create-<key>`) for jumping to them. */
-export type FieldKey = "placeMode" | "accommodationType" | "totalPrice" | "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
+export type FieldKey = "source" | "rentPeriod" | "monthlyRent" | "allowedToHost" | "placeMode" | "accommodationType" | "totalPrice" | "photos" | "vibe" | "region" | "month" | "startDate" | "endDate" | "spotsTotal" | "budget" | "title" | "lookingForText" | "hostFee" | "crewGroupUrl" | "dateProposals" | "placeProposals";
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
@@ -533,6 +620,8 @@ export type FieldError =
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
   | { key: "spots"; min: number }
+  | { key: "source" | "rentPeriod" | "monthlyRent" | "allowedToHost" | "outsideRental" }
+  | { key: "spotsRooms"; max: number }
   | { key: "placeMode" | "totalPrice" | "accommodationType" }
   | { key: "hostFeeTooHigh"; max: number };
 
@@ -550,6 +639,8 @@ export interface ValidationContext {
   editing?: Stay;
   /** The tap-to-insert starters of "Who I'm looking for" – a starter alone isn't a pitch yet */
   starters?: string[];
+  /** "Host from your place": the saved place picked (form.placeId) – its rental period and free rooms bound the window */
+  place?: Place;
 }
 
 /** "Who I'm looking for" without the starters it begins with – what the host wrote themselves. */
@@ -591,19 +682,35 @@ function datesErrors({ form, today, editing }: ValidationContext): FieldErrors {
 
 /** What blocks leaving a step, per field. Details never block – unless what's typed is wrong. */
 export function stepErrors(step: StepKey, context: ValidationContext): FieldErrors {
-  const { form, minSpots, today, editing, starters = [] } = context;
+  const { form, minSpots, today, editing, starters = [], place } = context;
   const errors: FieldErrors = {};
   switch (step) {
+    case SOURCE_STEP:
+      if (!form.source) errors.source = { key: "source" };
+      break;
     case "vibe":
       if (form.customVibe !== null ? !form.customVibe.trim() : !form.vibe) errors.vibe = { key: "vibe" };
       break;
-    case "where":
+    case "where": {
       if (!form.region.trim()) errors.region = { key: "region" };
       if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
       else if (!form.month) errors.month = { key: "month" };
+      // A window of the host's own place lies inside their rental period.
+      const rental = rentSourceOf(form, place);
+      const { start, end } = form.datesMode === "exact" ? { start: form.startDate, end: form.endDate } : monthBounds(form.month, today, form.monthEnd);
+      if (rental?.rentFrom && rental.rentTo && start && end && !errors.month && !errors.startDate && !errors.endDate && !insideRental(rental, start, end)) {
+        errors[form.datesMode === "exact" ? "startDate" : "month"] = { key: "outsideRental" };
+      }
       break;
+    }
     case "place":
       if (!form.placeMode) errors.placeMode = { key: "placeMode" };
+      // A place to save: the rental period, the rent and the host's statement that they may host guests there.
+      if (form.placeMode === "set" && form.savePlace && !form.placeId) {
+        if (!form.rentFrom || !form.rentTo || form.rentTo <= form.rentFrom) errors.rentPeriod = { key: "rentPeriod" };
+        if (!(Number(form.monthlyRent) > 0)) errors.monthlyRent = { key: "monthlyRent" };
+        if (!form.allowedToHost) errors.allowedToHost = { key: "allowedToHost" };
+      }
       break;
     case "kind":
       // A type, or "Not sure yet" – a category alone isn't an answer yet.
@@ -611,6 +718,8 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       break;
     case "crew": {
       if (!(form.spotsTotal >= Math.max(SPOTS_MIN, minSpots))) errors.spotsTotal = { key: "spots", min: Math.max(SPOTS_MIN, minSpots) };
+      // The host lives there and counts as one of the crew: at most the free rooms + the host.
+      else if (form.placeId && place && form.spotsTotal > maxCrewOf(place)) errors.spotsTotal = { key: "spotsRooms", max: maxCrewOf(place) };
       // The optional host fee: at most the share itself.
       const hostFee = Math.round(Number(form.hostFee));
       const feeBase = hostFeeBase(form, editing);
@@ -742,7 +851,7 @@ export interface HouseTemplate {
   form: FormState;
 }
 
-const withoutDates = (form: FormState): FormState => ({ ...form, month: "", datesMode: "month", startDate: "", endDate: "", dateProposals: [], datesDeadline: "", photos: [], inviteIds: [], inviteLink: false, againFrom: "" });
+const withoutDates = (form: FormState): FormState => ({ ...form, totalPrice: form.autoTotal && form.totalPrice === form.autoTotal ? "" : form.totalPrice, autoTotal: "", savePlace: false, allowedToHost: false, month: "", datesMode: "month", startDate: "", endDate: "", dateProposals: [], datesDeadline: "", photos: [], inviteIds: [], inviteLink: false, againFrom: "" });
 
 export function readTemplates(): HouseTemplate[] {
   try {
@@ -831,6 +940,12 @@ export function formPlaceOf(place: SearchPlace): Pick<FormState, "region" | "cit
 }
 
 export const INVITE_PARAM = "invite";
+
+/** "Open a window" (Your houses › Your places): /create?window=<place id> – Open a House filled in from that place (placeForm). */
+export const WINDOW_PARAM = "window";
+export function windowHref(placeId: string): string {
+  return `/create?${WINDOW_PARAM}=${encodeURIComponent(placeId)}`;
+}
 
 /**
  * What a /create link fills in: ?place=<id>&month=YYYY-MM&category=<vibe> (from a search) or ?region=…&city=…&from=…&to=…&vibe=… (the same

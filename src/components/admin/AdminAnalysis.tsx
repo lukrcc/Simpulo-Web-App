@@ -12,9 +12,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useFormat } from "@/i18n/format";
-import { analysisDimensions, analysisRows, cohortReturns, sweetSpot, whoBringsMoney, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
+import { analysisDimensions, analysisRows, cohortReturns, sweetSpot, whoBringsMoney, windowsPerPlace, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { days, eur, month as monthLabel, num, pct, share } from "@/lib/i18n/adminFormat";
+import { days, dec, eur, month as monthLabel, num, pct, share } from "@/lib/i18n/adminFormat";
 import type { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { findUser, useStore } from "@/lib/store";
 import type { Vibe } from "@/lib/types";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { ThemeScore } from "./AdminDashboard";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { LinesChart } from "./AdminCharts";
+import { InfoTip } from "./AdminNumbers";
 
 const PERIODS: readonly AnalysisPeriod[] = ["30d", "year", "all"];
 type SortKey = Exclude<keyof AnalysisRow, "key" | "tooFew">;
@@ -76,6 +77,7 @@ function MoneyView({ period }: { period: AnalysisPeriod }) {
         </ScrollRow>
         <AnalysisTable dimension={shown} rows={analysisRows(inputs, shown, period)} />
         {shown === "depth" && <p className="mt-3 text-small text-muted">{t("againExample")}</p>}
+        {shown === "origin" && <WindowsPerPlace stats={windowsPerPlace(inputs, period)} />}
       </AdminSection>
       <WhoBringsMoney money={whoBringsMoney(inputs, period)} />
       <Cohorts />
@@ -111,6 +113,7 @@ function useGroupLabel() {
     if (dimension === "topic") return f.vibe(key as Vibe);
     if (dimension === "length") return t(`length.${key as "short" | "mid" | "long"}`);
     if (dimension === "crew") return t("crew", { band: key.replace("-", "–") });
+    if (dimension === "origin") return t(`origin.${key as "own" | "new"}`);
     if (dimension === "category") return key === "unset" ? t("unset") : tPlace(`category.${key as keyof typeof ADMIN_DE.accommodation.category}`);
     if (dimension === "tier") return t(`tier.${key as "share" | "pro" | "anchor"}`);
     if (dimension === "depth") return t(`depth.${key as "easy" | "balanced" | "deep"}`);
@@ -203,6 +206,50 @@ function AnalysisTable({ dimension, rows }: { dimension: AnalysisDimension; rows
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Ort-Herkunft › Fenster pro Ort: how many own places had windows in the period, the windows, the average per place (the number in ink, no
+ * focus – the sweet spot keeps the page's one ocean) and how many places had 1 · 2 · 3+ windows, as a small table free on the page.
+ */
+function WindowsPerPlace({ stats }: { stats: ReturnType<typeof windowsPerPlace> }) {
+  const t = useTranslations("admin.analysis.origin");
+  return (
+    <div className="mt-8">
+      <h3 className="flex items-center gap-2 text-small font-semibold text-ink">
+        {t("windowsTitle")}
+        <InfoTip text={t("windowsInfo")} />
+      </h3>
+      {stats.places === 0 ? (
+        <p className="mt-2 text-body text-muted">{t("none")}</p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-x-12 gap-y-6">
+          <dl className="flex gap-8">
+            {[
+              { label: t("places"), value: num(stats.places) },
+              { label: t("windows"), value: num(stats.windows) },
+              { label: t("average"), value: stats.average === null ? "–" : dec(Math.round(stats.average * 10) / 10) },
+            ].map((s, i) => (
+              <div key={s.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-8")}>
+                <dt className="text-small text-muted">{s.label}</dt>
+                <dd className="mt-1 text-h2 tabular-nums text-ink">{s.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <table className="min-w-60 text-left text-body">
+            <tbody>
+              {stats.buckets.map((b) => (
+                <tr key={b.key} className="border-b border-ink/8">
+                  <th scope="row" className="py-2 pr-6 font-normal text-ink">{t(`bucket.${b.key}`)}</th>
+                  <td className="py-2 text-right tabular-nums text-ink/80">{num(b.places)} {t("places")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

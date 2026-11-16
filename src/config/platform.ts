@@ -27,12 +27,16 @@ export interface PhaseRules {
   openHouse: boolean;
   /** Apply as a host (instead of opening a House) */
   applyAsHost: boolean;
+  /** "Join the waitlist" as the large footer's first button */
+  waitlist: boolean;
+  /** "Founding Hosts" in the large footer's Host column */
+  foundingHosts: boolean;
 }
 
 export const phaseRules: Record<PlatformPhase, PhaseRules> = {
-  prelaunch: { request: false, reserve: false, pay: false, openHouse: false, applyAsHost: true },
-  beta: { request: false, reserve: true, pay: false, openHouse: true, applyAsHost: false },
-  live: { request: true, reserve: false, pay: true, openHouse: true, applyAsHost: false },
+  prelaunch: { request: false, reserve: false, pay: false, openHouse: false, applyAsHost: true, waitlist: true, foundingHosts: true },
+  beta: { request: false, reserve: true, pay: false, openHouse: true, applyAsHost: false, waitlist: false, foundingHosts: true },
+  live: { request: true, reserve: false, pay: true, openHouse: true, applyAsHost: false, waitlist: false, foundingHosts: false },
 };
 
 /** Whether the founding hosts see each other's Houses during the beta. Open – a decision for the founders. */
@@ -85,6 +89,8 @@ export const canReserve = (phase: PlatformPhase) => phaseRules[phase].reserve;
 export const canPay = (phase: PlatformPhase) => phaseRules[phase].pay;
 export const canOpenHouse = (phase: PlatformPhase) => phaseRules[phase].openHouse;
 export const canApplyAsHost = (phase: PlatformPhase) => phaseRules[phase].applyAsHost;
+export const showsWaitlist = (phase: PlatformPhase) => phaseRules[phase].waitlist;
+export const showsFoundingHosts = (phase: PlatformPhase) => phaseRules[phase].foundingHosts;
 
 /** The current phase; "live" on the server and in the first render (useHydrated), then the browser's choice – never localStorage in the first
  *  render. */

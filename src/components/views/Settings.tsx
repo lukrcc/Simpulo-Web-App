@@ -1,7 +1,7 @@
 "use client";
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
-import { Bell, Check, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import { LegalLine } from "@/components/layout/LegalLine";
 import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/PayoutSetup";
 import { RefundLine } from "@/components/payments/Refund";
 import { IconTile, RowSelect, SettingsGroup, SettingsRow } from "@/components/settings/SettingsList";
+import { ChatBackgroundPicker } from "@/components/chat/ChatBackground";
 import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
@@ -35,7 +36,7 @@ import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** The areas, in the side list's order; each is its URL hash (#payments), a page behind one is "#payments/history". */
-const SECTIONS = ["account", "payments", "notifications", "privacy", "general"] as const;
+const SECTIONS = ["account", "payments", "notifications", "chats", "privacy", "general"] as const;
 type Section = (typeof SECTIONS)[number];
 const SUBPAGES = ["payments/history", "general/currency", "general/language"] as const;
 type Subpage = (typeof SUBPAGES)[number];
@@ -48,6 +49,7 @@ const SECTION_ICONS: Record<Section, LucideIcon> = {
   account: CircleUser,
   payments: CreditCard,
   notifications: Bell,
+  chats: MessageCircle,
   privacy: ShieldCheck,
   general: Settings2,
 };
@@ -155,6 +157,7 @@ function SettingsContent({ me }: { me: User }) {
           {shown === "account" && <AccountArea me={me} />}
           {shown === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
           {shown === "notifications" && <NotificationsArea me={me} />}
+          {shown === "chats" && <ChatsArea />}
           {shown === "privacy" && <PrivacyArea me={me} />}
           {shown === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" ? <LanguagePage /> : <GeneralArea me={me} />)}
         </div>
@@ -232,6 +235,16 @@ function AccountArea({ me }: { me: User }) {
               {t("logOut")}
             </Button>
           }
+        />
+        {/* Every device at once (the mock: this one – there is no other session yet). A session otherwise stays signed in. */}
+        <SettingsRow
+          title={t("logOutAll")}
+          subtitle={t("logOutAllSub")}
+          onClick={() => {
+            store.logout();
+            showToast(t("loggedOutAll"));
+            router.push("/");
+          }}
         />
       </SettingsGroup>
       {/* Its own card at the very bottom, 40px under the last group. */}
@@ -380,6 +393,23 @@ type Delivery = "both" | "push" | "email" | "off";
 const deliveryOf = ({ push, email }: { push: boolean; email: boolean }): Delivery => (push && email ? "both" : push ? "push" : email ? "email" : "off");
 
 /** "Bookings & payments" always on (a lock, no control); then one choice per switchable group – push and email in one menu. */
+/** Chats: the background every chat starts with (config/chat-themes.ts); a chat's own "…" › Chat background goes over it. */
+function ChatsArea() {
+  const t = useTranslations("messages.chatTheme");
+  const tNav = useTranslations("settings.ui.nav");
+  const saved = useSaved();
+  return (
+    <div className="space-y-8">
+      <AreaTitle title={tNav("chats")} />
+      <SettingsGroup title={t("allChats")} footer={t("allChatsHint")}>
+        <div className="p-4">
+          <ChatBackgroundPicker threadId={null} onPicked={saved} />
+        </div>
+      </SettingsGroup>
+    </div>
+  );
+}
+
 function NotificationsArea({ me }: { me: User }) {
   const t = useTranslations("settings.notifications");
   const tu = useTranslations("settings.ui.notifications");
@@ -518,6 +548,7 @@ function useCurrencyState(me: User) {
 
 function GeneralArea({ me }: { me: User }) {
   const tu = useTranslations("settings.ui");
+  const tFooter = useTranslations("footer");
   const { automatic, current } = useCurrencyState(me);
   const standalone = useIsStandalone();
   const saved = useSaved();
@@ -529,7 +560,7 @@ function GeneralArea({ me }: { me: User }) {
         <SettingsRow title={tu("general.currency")} value={automatic ? tu("general.automaticValue", { label: currencyLabel(current) }) : currencyLabel(current)} chevron onClick={() => go("general/currency")} />
         <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron onClick={() => go("general/language")} />
       </SettingsGroup>
-      {/* What the avatar menu held: Your people and – not in the installed app – Get the app (Log out sits in Account › Devices). */}
+      {/* Your people and – not in the installed app – Get the app, as in the avatar menu (Log out also sits in Account › Devices). */}
       <SettingsGroup>
         <SettingsRow title={tu("general.yourPeople")} chevron href="/people" />
         {!standalone && <SettingsRow title={tu("general.getApp")} chevron href="/get" />}
@@ -555,6 +586,13 @@ function GeneralArea({ me }: { me: User }) {
       <SettingsGroup>
         <SettingsRow title={tu("general.help")} chevron onClick={openGetHelp} />
         <SettingsRow title={tu("general.idea")} chevron onClick={openShareIdea} />
+      </SettingsGroup>
+      {/* Legal: Impressum, Privacy, Terms, Cookies – reachable from every page without a footer (Messages, Admin) via the avatar menu › Settings. */}
+      <SettingsGroup title={tu("general.legal")}>
+        <SettingsRow title={tFooter("links.impressum")} chevron href="/impressum" />
+        <SettingsRow title={tFooter("links.privacy")} chevron href="/privacy" />
+        <SettingsRow title={tFooter("links.terms")} chevron href="/terms" />
+        <SettingsRow title={tFooter("links.cookies")} chevron href="/privacy#cookies" />
       </SettingsGroup>
     </div>
   );

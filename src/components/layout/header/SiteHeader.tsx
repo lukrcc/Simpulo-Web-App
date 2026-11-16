@@ -9,7 +9,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { Avatar } from "@/components/ui/Avatar";
 import { headerActionStyles } from "@/components/ui/ActionButton";
 import { SearchField } from "@/components/explore/SearchFields";
 import { Logo } from "@/components/layout/Logo";
@@ -17,6 +16,10 @@ import { isNavActive, navItemsFor } from "@/components/layout/nav";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { NavIcon } from "./FilledNavIcons";
+import { useNeedsYou } from "@/lib/needsYou";
+import { TODO_GROUP, type TodoKind } from "@/config/todo";
+import { useNow } from "@/lib/useNow";
+import { AvatarMenu } from "./AvatarMenu";
 
 /*
  * Header sizes – do not change without explicit instruction.
@@ -24,9 +27,9 @@ import { NavIcon } from "./FilledNavIcons";
  * ONE bar, 64px on every page, fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
  * its foot, above the page (only dialogs go over it); the content gets its 64px as padding-top. It never moves while scrolling. The same on
  * every page: the wordmark (→ Explore) · in the middle Explore's quick search, elsewhere the capsule "Where to next?" (the same Where/When
- * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar (→ /me) and "Open a House" as a
- * thin outline button. The tab you're on a filled capsule cream 12 % (no edge). Below 1100px the tabs are icons with a tooltip and "Open a
- * House" only its "+". No avatar menu.
+ * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar (its account menu, AvatarMenu)
+ * and "Open a House" as a thin outline button. The tab you're on a filled capsule cream 12 % (no edge). Below 1100px the tabs are icons
+ * with a tooltip and "Open a House" only its "+".
  */
 import { FocusHeader } from "./FocusHeader";
 
@@ -68,6 +71,13 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const unreadIn = useMessagesUnread();
   // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
   const unread = unreadIn.chats;
+  // "Your houses": no sign in the bar – the count (only what's time-critical) is for its aria-label: open payments and what you must answer (Pay + Reply), from the same list as the page
+  // (lib/needsYou.ts, columns from config/todo.ts). "Set up" doesn't count.
+  const nowMs = useNow();
+  const tasks = useNeedsYou(nowMs === null ? null : new Date(nowMs).toISOString()).filter((task) => {
+    const group = TODO_GROUP[task.kind as TodoKind];
+    return group === "pay" || group === "reply";
+  }).length;
   const explorePage = pathname === "/" || pathname === "/explore";
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
   // the colour changes (200ms), never the height or the place.
@@ -82,12 +92,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
     };
   }, []);
 
-  // The avatar: a link to your profile (/me) – no menu (Saved is a row in Your houses, Settings the gear on your profile, Log out and Get the
-  // app in Settings). Logged out a person in a circle opening the login.
+  // The avatar: the account menu (AvatarMenu – Your profile · Saved · Your people · Settings · Help · Share an idea · Get the app · Admin ·
+  // Log out). Logged out a person in a circle opening the login.
   const profile = me ? (
-    <Link href="/me" aria-label={t("profile")} data-header-avatar className="press flex size-10 shrink-0 overflow-hidden rounded-full">
-      <Avatar user={me} size="md" className="max-w-none" />
-    </Link>
+    <AvatarMenu me={me} />
   ) : (
     <button
       type="button"
@@ -121,14 +129,15 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-[rgba(244,238,231,0.15)]" />}
           {navItemsFor(me !== undefined, "header").map((item) => {
             const label = t(`items.${item.headerLabelKey ?? item.labelKey}`);
-            const showUnread = me !== undefined && item.labelKey === "messages" && unread > 0;
+            // A small number in the capsule: Messages – unread chats (not messages); Your houses – open tasks. None at 0.
+            const count = me === undefined ? 0 : item.labelKey === "messages" ? unread : item.labelKey === "houses" ? tasks : 0;
             const gated = me === undefined && item.audience === "member";
             const current = isNavActive(item.href, pathname);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                aria-label={showUnread ? t("itemUnread", { label, count: unread }) : label}
+                aria-label={count > 0 ? t(item.labelKey === "messages" ? "itemUnread" : "itemTasks", { label, count }) : label}
                 aria-current={current ? "page" : undefined}
                 onClick={
                   gated
@@ -138,14 +147,18 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                       }
                     : undefined
                 }
-                className={cn(tab, current ? "bg-(--hdr-tab-active) font-semibold" : "hover:bg-(--hdr-tab-hover)")}
+                className={cn(tab, current ? "bg-(--hdr-tab-active) font-semibold" : "bg-(--hdr-tab-bg) hover:bg-(--hdr-tab-hover)")}
               >
                 <span className="hidden max-[1099px]:contents">
                   <NavIcon item={item} active={current} line />
                 </span>
                 <span className="max-[1099px]:hidden">{label}</span>
-                {/* Unread chats: the orange dot (a signal), 8px, at the capsule's top right. */}
-                {showUnread && <span aria-hidden className="absolute right-0.5 top-0.5 size-2 rounded-full bg-accent" />}
+                {/* No numbers in the header. Messages only: unread chats show a 6px dot in --brand-action inside the capsule, 6px after the word
+                    (the tab's 8px gap − 2px), centred on the text. Below 1100px (icons) the same dot inside the circle, top right of the icon.
+                    Your houses shows nothing; both keep the count in their aria-label. */}
+                {count > 0 && item.labelKey === "messages" && (
+                  <span aria-hidden data-unread-dot className="-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action) max-[1099px]:absolute max-[1099px]:right-2 max-[1099px]:top-2 max-[1099px]:ml-0" />
+                )}
               </Link>
             );
           })}

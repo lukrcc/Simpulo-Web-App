@@ -1,1438 +1,4745 @@
 {
+  "/destinations/canggu.jpg": {
+    "tint": "#2c3508",
+    "lum": 0.394,
+    "accent": "#7c8843",
+    "palette": {
+      "main": "#6a850a",
+      "dark": "#373816"
+    }
+  },
+  "/destinations/chiang-mai.jpg": {
+    "tint": "#262117",
+    "lum": 0.468,
+    "accent": "#7b8891",
+    "palette": {
+      "main": "#5894e4",
+      "dark": "#453a37"
+    }
+  },
+  "/destinations/ericeira.jpg": {
+    "tint": "#1c2120",
+    "lum": 0.518,
+    "accent": "#4b708d",
+    "palette": {
+      "main": "#024699",
+      "dark": "#29371a"
+    }
+  },
+  "/destinations/funchal-madeira.jpg": {
+    "tint": "#172327",
+    "lum": 0.228,
+    "accent": "#62777e",
+    "palette": {
+      "main": "#98b7ca",
+      "dark": "#252a27"
+    }
+  },
+  "/destinations/krabi.jpg": {
+    "tint": "#20231a",
+    "lum": 0.426,
+    "accent": "#798981",
+    "palette": {
+      "main": "#565a36",
+      "dark": "#565a36"
+    }
+  },
+  "/destinations/lisbon.jpg": {
+    "tint": "#231d1a",
+    "lum": 0.479,
+    "accent": "#728589",
+    "palette": {
+      "main": "#038acc",
+      "dark": "#181618"
+    }
+  },
+  "/destinations/palma-mallorca.jpg": {
+    "tint": "#272716",
+    "lum": 0.246,
+    "accent": "#727567",
+    "palette": {
+      "main": "#575736",
+      "dark": "#282816"
+    }
+  },
+  "/destinations/tarifa.jpg": {
+    "tint": "#22211b",
+    "lum": 0.554,
+    "accent": "#748f9a",
+    "palette": {
+      "main": "#2979ba",
+      "dark": "#5b5639"
+    }
+  },
+  "/destinations/tbilisi.jpg": {
+    "tint": "#1a2421",
+    "lum": 0.183,
+    "accent": "#69706a",
+    "palette": {
+      "main": "#68777a",
+      "dark": "#151b15"
+    }
+  },
   "/mock/houses/s1/1.webp": {
     "tint": "#1d1d20",
-    "lum": 0.172
+    "lum": 0.172,
+    "accent": "#313438",
+    "palette": {
+      "main": "#374856",
+      "dark": "#242828"
+    }
   },
   "/mock/houses/s1/2.webp": {
     "tint": "#262117",
-    "lum": 0.297
+    "lum": 0.297,
+    "accent": "#767257",
+    "palette": {
+      "main": "#968859",
+      "dark": "#1a1817"
+    }
   },
   "/mock/houses/s1/3.webp": {
     "tint": "#2c1712",
-    "lum": 0.553
+    "lum": 0.553,
+    "accent": "#d6a690",
+    "palette": {
+      "main": "#d9756a",
+      "dark": "#4a3324"
+    }
   },
   "/mock/houses/s10/1.webp": {
     "tint": "#231f1a",
-    "lum": 0.496
+    "lum": 0.496,
+    "accent": "#a49f90",
+    "palette": {
+      "main": "#94a3a5",
+      "dark": "#594636"
+    }
   },
   "/mock/houses/s10/2.webp": {
     "tint": "#1b2221",
-    "lum": 0.57
+    "lum": 0.57,
+    "accent": "#466161",
+    "palette": {
+      "main": "#374649",
+      "dark": "#183437"
+    }
   },
   "/mock/houses/s10/3.webp": {
     "tint": "#1f1e1e",
-    "lum": 0.573
+    "lum": 0.573,
+    "accent": "#646563",
+    "palette": {
+      "main": "#b9b3ab",
+      "dark": "#171916"
+    }
   },
   "/mock/houses/s11/1.webp": {
     "tint": "#241919",
-    "lum": 0.883
+    "lum": 0.883,
+    "accent": "#efe7e4",
+    "palette": {
+      "main": "#d6a989",
+      "dark": "#332a2c"
+    }
   },
   "/mock/houses/s11/2.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.366
+    "lum": 0.366,
+    "accent": "#4d4b4c",
+    "palette": {
+      "main": "#46454a",
+      "dark": "#161516"
+    }
   },
   "/mock/houses/s11/3.webp": {
     "tint": "#1b2022",
-    "lum": 0.23
+    "lum": 0.23,
+    "accent": "#6a727a",
+    "palette": {
+      "main": "#5c7893",
+      "dark": "#151818"
+    }
   },
   "/mock/houses/s12/1.webp": {
     "tint": "#221d1c",
-    "lum": 0.269
+    "lum": 0.269,
+    "accent": "#675a56",
+    "palette": {
+      "main": "#c7b9b7",
+      "dark": "#161615"
+    }
   },
   "/mock/houses/s12/2.webp": {
     "tint": "#2b121d",
-    "lum": 0.204
+    "lum": 0.204,
+    "accent": "#805062",
+    "palette": {
+      "main": "#662b44",
+      "dark": "#662b44"
+    }
   },
   "/mock/houses/s12/3.webp": {
     "tint": "#201f1d",
-    "lum": 0.563
+    "lum": 0.563,
+    "accent": "#7a756c",
+    "palette": {
+      "main": "#676767",
+      "dark": "#191919"
+    }
   },
   "/mock/houses/s13/1.webp": {
     "tint": "#221e1c",
-    "lum": 0.257
+    "lum": 0.257,
+    "accent": "#81463d",
+    "palette": {
+      "main": "#77221e",
+      "dark": "#151b1b"
+    }
   },
   "/mock/houses/s13/2.webp": {
     "tint": "#282216",
-    "lum": 0.66
+    "lum": 0.66,
+    "accent": "#9b9579",
+    "palette": {
+      "main": "#999ca3",
+      "dark": "#485829"
+    }
   },
   "/mock/houses/s13/3.webp": {
     "tint": "#211e1c",
-    "lum": 0.748
+    "lum": 0.748,
+    "accent": "#c4bfbc",
+    "palette": {
+      "main": "#494646",
+      "dark": "#14151a"
+    }
   },
   "/mock/houses/s14/1.webp": {
     "tint": "#1e1d20",
-    "lum": 0.28
+    "lum": 0.28,
+    "accent": "#614f54",
+    "palette": {
+      "main": "#454645",
+      "dark": "#171717"
+    }
   },
   "/mock/houses/s14/2.webp": {
     "tint": "#261d17",
-    "lum": 0.243
+    "lum": 0.243,
+    "accent": "#918373",
+    "palette": {
+      "main": "#b9b5a9",
+      "dark": "#231d1a"
+    }
   },
   "/mock/houses/s14/3.webp": {
     "tint": "#211d1f",
-    "lum": 0.565
+    "lum": 0.565,
+    "accent": "#9d8e95",
+    "palette": {
+      "main": "#b7abb4",
+      "dark": "#4e4242"
+    }
   },
   "/mock/houses/s15/1.webp": {
     "tint": "#211e1c",
-    "lum": 0.302
+    "lum": 0.302,
+    "accent": "#6f6d64",
+    "palette": {
+      "main": "#5a5c63",
+      "dark": "#372718"
+    }
   },
   "/mock/houses/s15/2.webp": {
     "tint": "#241e19",
-    "lum": 0.538
+    "lum": 0.538,
+    "accent": "#867461",
+    "palette": {
+      "main": "#b9b5b6",
+      "dark": "#2b352b"
+    }
   },
   "/mock/houses/s15/3.webp": {
     "tint": "#261f17",
-    "lum": 0.254
+    "lum": 0.254,
+    "accent": "#3b3b39",
+    "palette": {
+      "main": "#475967",
+      "dark": "#584638"
+    }
   },
   "/mock/houses/s16/1.webp": {
     "tint": "#22201b",
-    "lum": 0.527
+    "lum": 0.527,
+    "accent": "#9d9785",
+    "palette": {
+      "main": "#9a8769",
+      "dark": "#33374b"
+    }
   },
   "/mock/houses/s16/2.webp": {
     "tint": "#30190d",
-    "lum": 0.282
+    "lum": 0.282,
+    "accent": "#5f4235",
+    "palette": {
+      "main": "#484958",
+      "dark": "#362b23"
+    }
   },
   "/mock/houses/s16/3.webp": {
     "tint": "#211e1c",
-    "lum": 0.321
+    "lum": 0.321,
+    "accent": "#564f4b",
+    "palette": {
+      "main": "#5a5854",
+      "dark": "#191616"
+    }
   },
   "/mock/houses/s17/1.webp": {
     "tint": "#251f18",
-    "lum": 0.19
+    "lum": 0.19,
+    "accent": "#403624",
+    "palette": {
+      "main": "#65472c",
+      "dark": "#39181a"
+    }
   },
   "/mock/houses/s17/2.webp": {
     "tint": "#2a1f13",
-    "lum": 0.371
+    "lum": 0.371,
+    "accent": "#7f5434",
+    "palette": {
+      "main": "#684638",
+      "dark": "#49332b"
+    }
   },
   "/mock/houses/s17/3.webp": {
     "tint": "#1c1f21",
-    "lum": 0.228
+    "lum": 0.228,
+    "accent": "#4e555c",
+    "palette": {
+      "main": "#3a4346",
+      "dark": "#2a3538"
+    }
   },
   "/mock/houses/s18/1.webp": {
     "tint": "#1d1f20",
-    "lum": 0.687
+    "lum": 0.687,
+    "accent": "#a6aaac",
+    "palette": {
+      "main": "#b6b8b8",
+      "dark": "#171817"
+    }
   },
   "/mock/houses/s18/2.webp": {
     "tint": "#1c2518",
-    "lum": 0.534
+    "lum": 0.534,
+    "accent": "#508488",
+    "palette": {
+      "main": "#0977ba",
+      "dark": "#484927"
+    }
   },
   "/mock/houses/s18/3.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.846
+    "lum": 0.846,
+    "accent": "#bcbcba",
+    "palette": {
+      "main": "#b9b5a8",
+      "dark": "#191817"
+    }
   },
   "/mock/houses/s19/1.webp": {
     "tint": "#1b1d22",
-    "lum": 0.622
+    "lum": 0.622,
+    "accent": "#80878f",
+    "palette": {
+      "main": "#98a7c5",
+      "dark": "#151916"
+    }
   },
   "/mock/houses/s19/2.webp": {
     "tint": "#201e1d",
-    "lum": 0.309
+    "lum": 0.309,
+    "accent": "#4a555e",
+    "palette": {
+      "main": "#2b4359",
+      "dark": "#2b4359"
+    }
   },
   "/mock/houses/s19/3.webp": {
     "tint": "#151528",
-    "lum": 0.55
+    "lum": 0.55,
+    "accent": "#908cb4",
+    "palette": {
+      "main": "#7783cc",
+      "dark": "#463b48"
+    }
   },
   "/mock/houses/s2/1.webp": {
     "tint": "#1e1d20",
-    "lum": 0.22
+    "lum": 0.22,
+    "accent": "#454643",
+    "palette": {
+      "main": "#49454a",
+      "dark": "#232524"
+    }
   },
   "/mock/houses/s2/2.webp": {
     "tint": "#251f18",
-    "lum": 0.403
+    "lum": 0.403,
+    "accent": "#7b7a6c",
+    "palette": {
+      "main": "#879b97",
+      "dark": "#563b24"
+    }
   },
   "/mock/houses/s2/3.webp": {
     "tint": "#242019",
-    "lum": 0.585
+    "lum": 0.585,
+    "accent": "#c1bdac",
+    "palette": {
+      "main": "#89a8c7",
+      "dark": "#4a463b"
+    }
   },
   "/mock/houses/s20/1.webp": {
     "tint": "#202518",
-    "lum": 0.228
+    "lum": 0.228,
+    "accent": "#5b6b31",
+    "palette": {
+      "main": "#6ba439",
+      "dark": "#151817"
+    }
   },
   "/mock/houses/s20/2.webp": {
     "tint": "#251d18",
-    "lum": 0.473
+    "lum": 0.473,
+    "accent": "#b58966",
+    "palette": {
+      "main": "#c6a988",
+      "dark": "#574638"
+    }
   },
   "/mock/houses/s20/3.webp": {
     "tint": "#1e1c21",
-    "lum": 0.515
+    "lum": 0.515,
+    "accent": "#9b9bad",
+    "palette": {
+      "main": "#a7a6ba",
+      "dark": "#272d4a"
+    }
   },
   "/mock/houses/s21/1.webp": {
     "tint": "#0d2130",
-    "lum": 0.11
+    "lum": 0.11,
+    "accent": "#181c21",
+    "palette": {
+      "main": "#68553a",
+      "dark": "#231c15"
+    }
   },
   "/mock/houses/s21/2.webp": {
     "tint": "#211924",
-    "lum": 0.454
+    "lum": 0.454,
+    "accent": "#9773a2",
+    "palette": {
+      "main": "#b789c5",
+      "dark": "#4a3647"
+    }
   },
   "/mock/houses/s21/3.webp": {
     "tint": "#271e16",
-    "lum": 0.485
+    "lum": 0.485,
+    "accent": "#8e6b4b",
+    "palette": {
+      "main": "#987657",
+      "dark": "#6a4529"
+    }
   },
   "/mock/houses/s22/1.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.264
+    "lum": 0.264,
+    "accent": "#696360",
+    "palette": {
+      "main": "#b8b9b5",
+      "dark": "#464a47"
+    }
   },
   "/mock/houses/s22/2.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.474
+    "lum": 0.474,
+    "accent": "#8f8f8f",
+    "palette": {
+      "main": "#777777",
+      "dark": "#484848"
+    }
   },
   "/mock/houses/s22/3.webp": {
     "tint": "#231a1a",
-    "lum": 0.331
+    "lum": 0.331,
+    "accent": "#7c5448",
+    "palette": {
+      "main": "#745857",
+      "dark": "#272528"
+    }
   },
   "/mock/houses/s23/1.webp": {
     "tint": "#1f1e1f",
-    "lum": 0.368
+    "lum": 0.368,
+    "accent": "#707071",
+    "palette": {
+      "main": "#454547",
+      "dark": "#454547"
+    }
   },
   "/mock/houses/s23/2.webp": {
     "tint": "#292215",
-    "lum": 0.356
+    "lum": 0.356,
+    "accent": "#817250",
+    "palette": {
+      "main": "#b9bab5",
+      "dark": "#191916"
+    }
   },
   "/mock/houses/s23/3.webp": {
     "tint": "#1e1f1e",
-    "lum": 0.518
+    "lum": 0.518,
+    "accent": "#828781",
+    "palette": {
+      "main": "#aaa69c",
+      "dark": "#253939"
+    }
   },
   "/mock/houses/s24/1.webp": {
     "tint": "#261f17",
-    "lum": 0.506
+    "lum": 0.506,
+    "accent": "#a69d8e",
+    "palette": {
+      "main": "#b78a57",
+      "dark": "#271814"
+    }
   },
   "/mock/houses/s24/2.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.351
+    "lum": 0.351,
+    "accent": "#6c6c6c",
+    "palette": {
+      "main": "#777777",
+      "dark": "#181818"
+    }
   },
   "/mock/houses/s24/3.webp": {
     "tint": "#282115",
-    "lum": 0.513
+    "lum": 0.513,
+    "accent": "#678f92",
+    "palette": {
+      "main": "#0294d3",
+      "dark": "#594626"
+    }
   },
   "/mock/houses/s25/1.webp": {
     "tint": "#20201d",
-    "lum": 0.59
+    "lum": 0.59,
+    "accent": "#b2b3a3",
+    "palette": {
+      "main": "#94a9ab",
+      "dark": "#161716"
+    }
   },
   "/mock/houses/s25/2.webp": {
     "tint": "#272016",
-    "lum": 0.542
+    "lum": 0.542,
+    "accent": "#b4833f",
+    "palette": {
+      "main": "#cd841a",
+      "dark": "#382915"
+    }
   },
   "/mock/houses/s25/3.webp": {
     "tint": "#252618",
-    "lum": 0.355
+    "lum": 0.355,
+    "accent": "#586d61",
+    "palette": {
+      "main": "#7896a4",
+      "dark": "#151b17"
+    }
   },
   "/mock/houses/s26/1.webp": {
     "tint": "#221c1c",
-    "lum": 0.548
+    "lum": 0.548,
+    "accent": "#a09da2",
+    "palette": {
+      "main": "#a6bac9",
+      "dark": "#57473c"
+    }
   },
   "/mock/houses/s26/2.webp": {
     "tint": "#192423",
-    "lum": 0.099
+    "lum": 0.099,
+    "accent": "#777a75",
+    "palette": {
+      "main": "#484637",
+      "dark": "#182525"
+    }
   },
   "/mock/houses/s26/3.webp": {
     "tint": "#201d1e",
-    "lum": 0.408
+    "lum": 0.408,
+    "accent": "#6f696a",
+    "palette": {
+      "main": "#b5b9a9",
+      "dark": "#181726"
+    }
   },
   "/mock/houses/s27/1.webp": {
     "tint": "#242518",
-    "lum": 0.061
+    "lum": 0.061,
+    "accent": "#201d13",
+    "palette": {
+      "main": "#685837",
+      "dark": "#27281a"
+    }
   },
   "/mock/houses/s27/2.webp": {
     "tint": "#201e1d",
-    "lum": 0.553
+    "lum": 0.553,
+    "accent": "#aba6a2",
+    "palette": {
+      "main": "#c5bcb6",
+      "dark": "#1a1714"
+    }
   },
   "/mock/houses/s27/3.webp": {
     "tint": "#251e18",
-    "lum": 0.332
+    "lum": 0.332,
+    "accent": "#7e7468",
+    "palette": {
+      "main": "#887668",
+      "dark": "#574638"
+    }
   },
   "/mock/houses/s28/1.webp": {
     "tint": "#201e1e",
-    "lum": 0.47
+    "lum": 0.47,
+    "accent": "#705d60",
+    "palette": {
+      "main": "#b9b8b7",
+      "dark": "#15141b"
+    }
   },
   "/mock/houses/s28/2.webp": {
     "tint": "#1d2020",
-    "lum": 0.534
+    "lum": 0.534,
+    "accent": "#657f9d",
+    "palette": {
+      "main": "#a6bad8",
+      "dark": "#2b4665"
+    }
   },
   "/mock/houses/s28/3.webp": {
     "tint": "#201f1d",
-    "lum": 0.424
+    "lum": 0.424,
+    "accent": "#47433e",
+    "palette": {
+      "main": "#7a7a76",
+      "dark": "#161615"
+    }
   },
   "/mock/houses/s29/1.webp": {
     "tint": "#1b1e22",
-    "lum": 0.378
+    "lum": 0.378,
+    "accent": "#757f87",
+    "palette": {
+      "main": "#596577",
+      "dark": "#273638"
+    }
   },
   "/mock/houses/s29/2.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.566
+    "lum": 0.566,
+    "accent": "#8a8281",
+    "palette": {
+      "main": "#979da3",
+      "dark": "#161719"
+    }
   },
   "/mock/houses/s29/3.webp": {
     "tint": "#291e14",
-    "lum": 0.332
+    "lum": 0.332,
+    "accent": "#7d5838",
+    "palette": {
+      "main": "#69442a",
+      "dark": "#573825"
+    }
   },
   "/mock/houses/s3/1.webp": {
     "tint": "#1f1e20",
-    "lum": 0.471
+    "lum": 0.471,
+    "accent": "#7b7780",
+    "palette": {
+      "main": "#783629",
+      "dark": "#14121b"
+    }
   },
   "/mock/houses/s3/2.webp": {
     "tint": "#1f201e",
-    "lum": 0.474
+    "lum": 0.474,
+    "accent": "#95968c",
+    "palette": {
+      "main": "#b7b9b8",
+      "dark": "#282726"
+    }
   },
   "/mock/houses/s3/3.webp": {
     "tint": "#2b1d12",
-    "lum": 0.521
+    "lum": 0.521,
+    "accent": "#b29b87",
+    "palette": {
+      "main": "#b67744",
+      "dark": "#15191a"
+    }
   },
   "/mock/houses/s30/1.webp": {
     "tint": "#1f231a",
-    "lum": 0.542
+    "lum": 0.542,
+    "accent": "#868f57",
+    "palette": {
+      "main": "#779769",
+      "dark": "#454937"
+    }
   },
   "/mock/houses/s30/2.webp": {
     "tint": "#20201d",
-    "lum": 0.521
+    "lum": 0.521,
+    "accent": "#a9ab92",
+    "palette": {
+      "main": "#b6bab8",
+      "dark": "#2a3528"
+    }
   },
   "/mock/houses/s30/3.webp": {
     "tint": "#282b12",
-    "lum": 0.149
+    "lum": 0.149,
+    "accent": "#4e6360",
+    "palette": {
+      "main": "#abb7b7",
+      "dark": "#363918"
+    }
   },
   "/mock/houses/s31/1.webp": {
     "tint": "#1f1e1f",
-    "lum": 0.526
+    "lum": 0.526,
+    "accent": "#545e6a",
+    "palette": {
+      "main": "#969798",
+      "dark": "#252837"
+    }
   },
   "/mock/houses/s31/2.webp": {
     "tint": "#191e24",
-    "lum": 0.745
+    "lum": 0.745,
+    "accent": "#9fb8d6",
+    "palette": {
+      "main": "#5c87c4",
+      "dark": "#464b51"
+    }
   },
   "/mock/houses/s31/3.webp": {
     "tint": "#251e18",
-    "lum": 0.298
+    "lum": 0.298,
+    "accent": "#7b6653",
+    "palette": {
+      "main": "#a58c74",
+      "dark": "#58463a"
+    }
   },
   "/mock/houses/s32/1.webp": {
     "tint": "#082935",
-    "lum": 0.19
+    "lum": 0.19,
+    "accent": "#144b5a",
+    "palette": {
+      "main": "#037897",
+      "dark": "#161819"
+    }
   },
   "/mock/houses/s32/2.webp": {
     "tint": "#0a2533",
-    "lum": 0.432
+    "lum": 0.432,
+    "accent": "#1070c1",
+    "palette": {
+      "main": "#0266c9",
+      "dark": "#2a6566"
+    }
   },
   "/mock/houses/s32/3.webp": {
     "tint": "#1c2221",
-    "lum": 0.693
+    "lum": 0.693,
+    "accent": "#5eacc6",
+    "palette": {
+      "main": "#0365aa",
+      "dark": "#573926"
+    }
   },
   "/mock/houses/s33/1.webp": {
     "tint": "#262017",
-    "lum": 0.376
+    "lum": 0.376,
+    "accent": "#7a6956",
+    "palette": {
+      "main": "#685848",
+      "dark": "#574838"
+    }
   },
   "/mock/houses/s33/2.webp": {
     "tint": "#22201b",
-    "lum": 0.68
+    "lum": 0.68,
+    "accent": "#9fa2a0",
+    "palette": {
+      "main": "#b9b5a8",
+      "dark": "#181916"
+    }
   },
   "/mock/houses/s33/3.webp": {
     "tint": "#271a16",
-    "lum": 0.523
+    "lum": 0.523,
+    "accent": "#c28d78",
+    "palette": {
+      "main": "#c78a76",
+      "dark": "#281417"
+    }
   },
   "/mock/houses/s34/1.webp": {
     "tint": "#241b19",
-    "lum": 0.046
+    "lum": 0.046,
+    "accent": "#160e0d",
+    "palette": {
+      "main": "#794835",
+      "dark": "#271715"
+    }
   },
   "/mock/houses/s34/2.webp": {
     "tint": "#271716",
-    "lum": 0.03
+    "lum": 0.03,
+    "accent": "#130c0a",
+    "palette": {
+      "main": "#b67957",
+      "dark": "#191516"
+    }
   },
   "/mock/houses/s34/3.webp": {
     "tint": "#261f17",
-    "lum": 0.252
+    "lum": 0.252,
+    "accent": "#665c4a",
+    "palette": {
+      "main": "#caa36b",
+      "dark": "#272824"
+    }
   },
   "/mock/houses/s35/1.webp": {
     "tint": "#231d1a",
-    "lum": 0.672
+    "lum": 0.672,
+    "accent": "#9a9483",
+    "palette": {
+      "main": "#c5bbb6",
+      "dark": "#252729"
+    }
   },
   "/mock/houses/s35/2.webp": {
     "tint": "#2a1d13",
-    "lum": 0.403
+    "lum": 0.403,
+    "accent": "#a07d64",
+    "palette": {
+      "main": "#985727",
+      "dark": "#583924"
+    }
   },
   "/mock/houses/s35/3.webp": {
     "tint": "#281b15",
-    "lum": 0.782
+    "lum": 0.782,
+    "accent": "#c19b8d",
+    "palette": {
+      "main": "#a9b9b7",
+      "dark": "#161716"
+    }
   },
   "/mock/houses/s36/1.webp": {
     "tint": "#1f1e20",
-    "lum": 0.768
+    "lum": 0.768,
+    "accent": "#9b9a9e",
+    "palette": {
+      "main": "#bab6b7",
+      "dark": "#15161a"
+    }
   },
   "/mock/houses/s36/2.webp": {
     "tint": "#1b1e23",
-    "lum": 0.395
+    "lum": 0.395,
+    "accent": "#62686f",
+    "palette": {
+      "main": "#464a56",
+      "dark": "#262838"
+    }
   },
   "/mock/houses/s36/3.webp": {
     "tint": "#2c2112",
-    "lum": 0.463
+    "lum": 0.463,
+    "accent": "#aa9a7f",
+    "palette": {
+      "main": "#f9d578",
+      "dark": "#684729"
+    }
   },
   "/mock/houses/s37/1.webp": {
     "tint": "#251c18",
-    "lum": 0.257
+    "lum": 0.257,
+    "accent": "#5a4942",
+    "palette": {
+      "main": "#594a46",
+      "dark": "#1a1514"
+    }
   },
   "/mock/houses/s37/2.webp": {
     "tint": "#211d1f",
-    "lum": 0.449
+    "lum": 0.449,
+    "accent": "#7d6068",
+    "palette": {
+      "main": "#583632",
+      "dark": "#583632"
+    }
   },
   "/mock/houses/s37/3.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.409
+    "lum": 0.409,
+    "accent": "#666563",
+    "palette": {
+      "main": "#787778",
+      "dark": "#282826"
+    }
   },
   "/mock/houses/s38/1.webp": {
     "tint": "#271c17",
-    "lum": 0.071
+    "lum": 0.071,
+    "accent": "#403c4a",
+    "palette": {
+      "main": "#465778",
+      "dark": "#151528"
+    }
   },
   "/mock/houses/s38/2.webp": {
     "tint": "#162127",
-    "lum": 0.808
+    "lum": 0.808,
+    "accent": "#9ea9a1",
+    "palette": {
+      "main": "#867b65",
+      "dark": "#46593b"
+    }
   },
   "/mock/houses/s38/3.webp": {
     "tint": "#1e1f20",
-    "lum": 0.157
+    "lum": 0.157,
+    "accent": "#6f7478",
+    "palette": {
+      "main": "#9ba8b3",
+      "dark": "#171717"
+    }
   },
   "/mock/houses/s39/1.webp": {
     "tint": "#1f201d",
-    "lum": 0.627
+    "lum": 0.627,
+    "accent": "#9fa59d",
+    "palette": {
+      "main": "#54463c",
+      "dark": "#54463c"
+    }
   },
   "/mock/houses/s39/2.webp": {
     "tint": "#181b26",
-    "lum": 0.53
+    "lum": 0.53,
+    "accent": "#939ab4",
+    "palette": {
+      "main": "#749ce5",
+      "dark": "#583728"
+    }
   },
   "/mock/houses/s39/3.webp": {
     "tint": "#282015",
-    "lum": 0.792
+    "lum": 0.792,
+    "accent": "#bcb4a8",
+    "palette": {
+      "main": "#cabaa7",
+      "dark": "#574837"
+    }
   },
   "/mock/houses/s4/1.webp": {
     "tint": "#1d1f20",
-    "lum": 0.389
+    "lum": 0.389,
+    "accent": "#686467",
+    "palette": {
+      "main": "#45484a",
+      "dark": "#45484a"
+    }
   },
   "/mock/houses/s4/2.webp": {
     "tint": "#231d1a",
-    "lum": 0.2
+    "lum": 0.2,
+    "accent": "#413832",
+    "palette": {
+      "main": "#584439",
+      "dark": "#272724"
+    }
   },
   "/mock/houses/s4/3.webp": {
     "tint": "#292214",
-    "lum": 0.226
+    "lum": 0.226,
+    "accent": "#58542e",
+    "palette": {
+      "main": "#665929",
+      "dark": "#383817"
+    }
   },
   "/mock/houses/s40/1.webp": {
     "tint": "#2d1e10",
-    "lum": 0.212
+    "lum": 0.212,
+    "accent": "#392618",
+    "palette": {
+      "main": "#644728",
+      "dark": "#261a14"
+    }
   },
   "/mock/houses/s40/2.webp": {
     "tint": "#22211b",
-    "lum": 0.534
+    "lum": 0.534,
+    "accent": "#99967c",
+    "palette": {
+      "main": "#b8ba89",
+      "dark": "#191916"
+    }
   },
   "/mock/houses/s40/3.webp": {
     "tint": "#261d17",
-    "lum": 0.67
+    "lum": 0.67,
+    "accent": "#a99285",
+    "palette": {
+      "main": "#aca49b",
+      "dark": "#583824"
+    }
   },
   "/mock/houses/s41/1.webp": {
     "tint": "#211e1c",
-    "lum": 0.322
+    "lum": 0.322,
+    "accent": "#8e8884",
+    "palette": {
+      "main": "#494a46",
+      "dark": "#494a46"
+    }
   },
   "/mock/houses/s41/2.webp": {
     "tint": "#211d1c",
-    "lum": 0.198
+    "lum": 0.198,
+    "accent": "#4a3828",
+    "palette": {
+      "main": "#674927",
+      "dark": "#382517"
+    }
   },
   "/mock/houses/s41/3.webp": {
     "tint": "#211f1d",
-    "lum": 0.349
+    "lum": 0.349,
+    "accent": "#74777b",
+    "palette": {
+      "main": "#4986c6",
+      "dark": "#393836"
+    }
   },
   "/mock/houses/s42/1.webp": {
     "tint": "#2a2a13",
-    "lum": 0.236
+    "lum": 0.236,
+    "accent": "#425044",
+    "palette": {
+      "main": "#584828",
+      "dark": "#273539"
+    }
   },
   "/mock/houses/s42/2.webp": {
     "tint": "#2a1c13",
-    "lum": 0.212
+    "lum": 0.212,
+    "accent": "#806b58",
+    "palette": {
+      "main": "#d4c4a9",
+      "dark": "#47291c"
+    }
   },
   "/mock/houses/s42/3.webp": {
     "tint": "#211f1c",
-    "lum": 0.446
+    "lum": 0.446,
+    "accent": "#817f79",
+    "palette": {
+      "main": "#756958",
+      "dark": "#393835"
+    }
   },
   "/mock/houses/s43/1.webp": {
     "tint": "#262017",
-    "lum": 0.211
+    "lum": 0.211,
+    "accent": "#5b5a47",
+    "palette": {
+      "main": "#485837",
+      "dark": "#3d3625"
+    }
   },
   "/mock/houses/s43/2.webp": {
     "tint": "#211e1d",
-    "lum": 0.344
+    "lum": 0.344,
+    "accent": "#5e5b5b",
+    "palette": {
+      "main": "#484645",
+      "dark": "#171516"
+    }
   },
   "/mock/houses/s43/3.webp": {
     "tint": "#2b2212",
-    "lum": 0.45
+    "lum": 0.45,
+    "accent": "#727a70",
+    "palette": {
+      "main": "#987647",
+      "dark": "#375857"
+    }
   },
   "/mock/houses/s44/1.webp": {
     "tint": "#201d20",
-    "lum": 0.037
+    "lum": 0.037,
+    "accent": "#222038",
+    "palette": {
+      "main": "#353959",
+      "dark": "#151728"
+    }
   },
   "/mock/houses/s44/2.webp": {
     "tint": "#201e1d",
-    "lum": 0.142
+    "lum": 0.142,
+    "accent": "#242423",
+    "palette": {
+      "main": "#2b4955",
+      "dark": "#221d1b"
+    }
   },
   "/mock/houses/s44/3.webp": {
     "tint": "#231f1a",
-    "lum": 0.491
+    "lum": 0.491,
+    "accent": "#858887",
+    "palette": {
+      "main": "#7799b8",
+      "dark": "#494849"
+    }
   },
   "/mock/houses/s45/1.webp": {
     "tint": "#181d26",
-    "lum": 0.543
+    "lum": 0.543,
+    "accent": "#8b9cba",
+    "palette": {
+      "main": "#798aaa",
+      "dark": "#333b47"
+    }
   },
   "/mock/houses/s45/2.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.578
+    "lum": 0.578,
+    "accent": "#929498",
+    "palette": {
+      "main": "#777b85",
+      "dark": "#45464a"
+    }
   },
   "/mock/houses/s45/3.webp": {
     "tint": "#1c1c21",
-    "lum": 0.868
+    "lum": 0.868,
+    "accent": "#c0c3ce",
+    "palette": {
+      "main": "#3a5d8b",
+      "dark": "#161924"
+    }
   },
   "/mock/houses/s46/1.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.759
+    "lum": 0.759,
+    "accent": "#bdc1bb",
+    "palette": {
+      "main": "#b8bab7",
+      "dark": "#232828"
+    }
   },
   "/mock/houses/s46/2.webp": {
     "tint": "#271b17",
-    "lum": 0.405
+    "lum": 0.405,
+    "accent": "#6b7bad",
+    "palette": {
+      "main": "#2668e9",
+      "dark": "#57472b"
+    }
   },
   "/mock/houses/s46/3.webp": {
     "tint": "#1f1e1e",
-    "lum": 0.533
+    "lum": 0.533,
+    "accent": "#9a9798",
+    "palette": {
+      "main": "#776658",
+      "dark": "#27261a"
+    }
   },
   "/mock/houses/s47/1.webp": {
     "tint": "#251e18",
-    "lum": 0.614
+    "lum": 0.614,
+    "accent": "#cabeb2",
+    "palette": {
+      "main": "#b59c85",
+      "dark": "#161616"
+    }
   },
   "/mock/houses/s47/2.webp": {
     "tint": "#24201a",
-    "lum": 0.495
+    "lum": 0.495,
+    "accent": "#7a828a",
+    "palette": {
+      "main": "#476787",
+      "dark": "#382716"
+    }
   },
   "/mock/houses/s47/3.webp": {
     "tint": "#1d1f20",
-    "lum": 0.398
+    "lum": 0.398,
+    "accent": "#575958",
+    "palette": {
+      "main": "#56585a",
+      "dark": "#262729"
+    }
   },
   "/mock/houses/s48/1.webp": {
     "tint": "#1f211d",
-    "lum": 0.323
+    "lum": 0.323,
+    "accent": "#5f5a50",
+    "palette": {
+      "main": "#5a5b54",
+      "dark": "#352b25"
+    }
   },
   "/mock/houses/s48/2.webp": {
     "tint": "#1e1f1e",
-    "lum": 0.459
+    "lum": 0.459,
+    "accent": "#6f7c84",
+    "palette": {
+      "main": "#969699",
+      "dark": "#484748"
+    }
   },
   "/mock/houses/s48/3.webp": {
     "tint": "#14232a",
-    "lum": 0.261
+    "lum": 0.261,
+    "accent": "#465e65",
+    "palette": {
+      "main": "#657b96",
+      "dark": "#293824"
+    }
   },
   "/mock/houses/s49/1.webp": {
     "tint": "#1d1e20",
-    "lum": 0.475
+    "lum": 0.475,
+    "accent": "#798696",
+    "palette": {
+      "main": "#4575ba",
+      "dark": "#1c232c"
+    }
   },
   "/mock/houses/s49/2.webp": {
     "tint": "#131d2a",
-    "lum": 0.713
+    "lum": 0.713,
+    "accent": "#95a1af",
+    "palette": {
+      "main": "#99b2d4",
+      "dark": "#363937"
+    }
   },
   "/mock/houses/s49/3.webp": {
     "tint": "#1a1e23",
-    "lum": 0.44
+    "lum": 0.44,
+    "accent": "#617287",
+    "palette": {
+      "main": "#667587",
+      "dark": "#273448"
+    }
   },
   "/mock/houses/s5/1.webp": {
     "tint": "#282215",
-    "lum": 0.497
+    "lum": 0.497,
+    "accent": "#735d3d",
+    "palette": {
+      "main": "#886728",
+      "dark": "#392516"
+    }
   },
   "/mock/houses/s5/2.webp": {
     "tint": "#231f1b",
-    "lum": 0.525
+    "lum": 0.525,
+    "accent": "#a69c8d",
+    "palette": {
+      "main": "#b4aa99",
+      "dark": "#262828"
+    }
   },
   "/mock/houses/s5/3.webp": {
     "tint": "#172027",
-    "lum": 0.086
+    "lum": 0.086,
+    "accent": "#6e746a",
+    "palette": {
+      "main": "#96cbc9",
+      "dark": "#15181a"
+    }
   },
   "/mock/houses/s50/1.webp": {
     "tint": "#221b1c",
-    "lum": 0.717
+    "lum": 0.717,
+    "accent": "#d2cec9",
+    "palette": {
+      "main": "#c9a7c8",
+      "dark": "#414e44"
+    }
   },
   "/mock/houses/s50/2.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.392
+    "lum": 0.392,
+    "accent": "#8c8a88",
+    "palette": {
+      "main": "#bbb8b5",
+      "dark": "#484846"
+    }
   },
   "/mock/houses/s50/3.webp": {
     "tint": "#1e1f1e",
-    "lum": 0.441
+    "lum": 0.441,
+    "accent": "#6c7375",
+    "palette": {
+      "main": "#a7a8a7",
+      "dark": "#171918"
+    }
   },
   "/mock/houses/s51/1.webp": {
     "tint": "#211e1d",
-    "lum": 0.401
+    "lum": 0.401,
+    "accent": "#777f79",
+    "palette": {
+      "main": "#878987",
+      "dark": "#39241b"
+    }
   },
   "/mock/houses/s51/2.webp": {
     "tint": "#131d2a",
-    "lum": 0.168
+    "lum": 0.168,
+    "accent": "#333755",
+    "palette": {
+      "main": "#454757",
+      "dark": "#171619"
+    }
   },
   "/mock/houses/s51/3.webp": {
     "tint": "#231726",
-    "lum": 0.262
+    "lum": 0.262,
+    "accent": "#52416e",
+    "palette": {
+      "main": "#373567",
+      "dark": "#1b1d25"
+    }
   },
   "/mock/houses/s52/1.webp": {
     "tint": "#1f1e1f",
-    "lum": 0.564
+    "lum": 0.564,
+    "accent": "#919090",
+    "palette": {
+      "main": "#999796",
+      "dark": "#161517"
+    }
   },
   "/mock/houses/s52/2.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.486
+    "lum": 0.486,
+    "accent": "#92a0a1",
+    "palette": {
+      "main": "#979898",
+      "dark": "#484636"
+    }
   },
   "/mock/houses/s52/3.webp": {
     "tint": "#1d201e",
-    "lum": 0.688
+    "lum": 0.688,
+    "accent": "#c4c9c4",
+    "palette": {
+      "main": "#b6bcb7",
+      "dark": "#2a5d62"
+    }
   },
   "/mock/houses/s53/1.webp": {
     "tint": "#2d1b11",
-    "lum": 0.662
+    "lum": 0.662,
+    "accent": "#a38776",
+    "palette": {
+      "main": "#46433a",
+      "dark": "#252924"
+    }
   },
   "/mock/houses/s53/2.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.568
+    "lum": 0.568,
+    "accent": "#716962",
+    "palette": {
+      "main": "#564638",
+      "dark": "#38251a"
+    }
   },
   "/mock/houses/s53/3.webp": {
     "tint": "#261e17",
-    "lum": 0.429
+    "lum": 0.429,
+    "accent": "#6f5f4a",
+    "palette": {
+      "main": "#335834",
+      "dark": "#335834"
+    }
   },
   "/mock/houses/s6/1.webp": {
     "tint": "#262217",
-    "lum": 0.458
+    "lum": 0.458,
+    "accent": "#535141",
+    "palette": {
+      "main": "#37464a",
+      "dark": "#151917"
+    }
   },
   "/mock/houses/s6/2.webp": {
     "tint": "#1b1e22",
-    "lum": 0.417
+    "lum": 0.417,
+    "accent": "#809ab0",
+    "palette": {
+      "main": "#697688",
+      "dark": "#3a434b"
+    }
   },
   "/mock/houses/s6/3.webp": {
     "tint": "#201f1d",
-    "lum": 0.148
+    "lum": 0.148,
+    "accent": "#252221",
+    "palette": {
+      "main": "#484549",
+      "dark": "#171518"
+    }
   },
   "/mock/houses/s7/1.webp": {
     "tint": "#093409",
-    "lum": 0.207
+    "lum": 0.207,
+    "accent": "#1e5425",
+    "palette": {
+      "main": "#048805",
+      "dark": "#265926"
+    }
   },
   "/mock/houses/s7/2.webp": {
     "tint": "#282615",
-    "lum": 0.297
+    "lum": 0.297,
+    "accent": "#4d535d",
+    "palette": {
+      "main": "#354669",
+      "dark": "#283758"
+    }
   },
   "/mock/houses/s7/3.webp": {
     "tint": "#201f1d",
-    "lum": 0.432
+    "lum": 0.432,
+    "accent": "#81848a",
+    "palette": {
+      "main": "#79a4d8",
+      "dark": "#494747"
+    }
   },
   "/mock/houses/s8/1.webp": {
     "tint": "#1f1e1e",
-    "lum": 0.634
+    "lum": 0.634,
+    "accent": "#959191",
+    "palette": {
+      "main": "#b9b8b7",
+      "dark": "#16151a"
+    }
   },
   "/mock/houses/s8/2.webp": {
     "tint": "#2d1810",
-    "lum": 0.307
+    "lum": 0.307,
+    "accent": "#a55e3c",
+    "palette": {
+      "main": "#b88866",
+      "dark": "#583728"
+    }
   },
   "/mock/houses/s8/3.webp": {
     "tint": "#1e211c",
-    "lum": 0.338
+    "lum": 0.338,
+    "accent": "#575d41",
+    "palette": {
+      "main": "#575639",
+      "dark": "#373826"
+    }
   },
   "/mock/houses/s9/1.webp": {
     "tint": "#21231a",
-    "lum": 0.576
+    "lum": 0.576,
+    "accent": "#879171",
+    "palette": {
+      "main": "#889798",
+      "dark": "#375448"
+    }
   },
   "/mock/houses/s9/2.webp": {
     "tint": "#1e221b",
-    "lum": 0.434
+    "lum": 0.434,
+    "accent": "#7c96ab",
+    "palette": {
+      "main": "#8cb4e6",
+      "dark": "#131416"
+    }
   },
   "/mock/houses/s9/3.webp": {
     "tint": "#272017",
-    "lum": 0.253
+    "lum": 0.253,
+    "accent": "#866035",
+    "palette": {
+      "main": "#564436",
+      "dark": "#181513"
+    }
   },
   "/mock/houses/x1/1.webp": {
     "tint": "#2c2811",
-    "lum": 0.394
+    "lum": 0.394,
+    "accent": "#6e7e60",
+    "palette": {
+      "main": "#376567",
+      "dark": "#296568"
+    }
   },
   "/mock/houses/x1/2.webp": {
     "tint": "#360814",
-    "lum": 0.117
+    "lum": 0.117,
+    "accent": "#660b40",
+    "palette": {
+      "main": "#870828",
+      "dark": "#412422"
+    }
   },
   "/mock/houses/x1/3.webp": {
     "tint": "#0c3130",
-    "lum": 0.69
+    "lum": 0.69,
+    "accent": "#33d2d5",
+    "palette": {
+      "main": "#28d7d7",
+      "dark": "#244242"
+    }
   },
   "/mock/houses/x1/4.webp": {
     "tint": "#1e1f1e",
-    "lum": 0.205
+    "lum": 0.205,
+    "accent": "#4d4743",
+    "palette": {
+      "main": "#796765",
+      "dark": "#372518"
+    }
   },
   "/mock/houses/x10/1.webp": {
     "tint": "#1d1d20",
-    "lum": 0.317
+    "lum": 0.317,
+    "accent": "#9b9592",
+    "palette": {
+      "main": "#d59557",
+      "dark": "#141619"
+    }
   },
   "/mock/houses/x10/2.webp": {
     "tint": "#22201b",
-    "lum": 0.306
+    "lum": 0.306,
+    "accent": "#6b5e46",
+    "palette": {
+      "main": "#474748",
+      "dark": "#474748"
+    }
   },
   "/mock/houses/x10/3.webp": {
     "tint": "#1f201e",
-    "lum": 0.282
+    "lum": 0.282,
+    "accent": "#727065",
+    "palette": {
+      "main": "#686858",
+      "dark": "#181d1d"
+    }
   },
   "/mock/houses/x10/4.webp": {
     "tint": "#21201d",
-    "lum": 0.512
+    "lum": 0.512,
+    "accent": "#a1886e",
+    "palette": {
+      "main": "#a98868",
+      "dark": "#232b34"
+    }
   },
   "/mock/houses/x11/1.webp": {
     "tint": "#261e18",
-    "lum": 0.23
+    "lum": 0.23,
+    "accent": "#6a5441",
+    "palette": {
+      "main": "#674728",
+      "dark": "#382518"
+    }
   },
   "/mock/houses/x11/2.webp": {
     "tint": "#211e1c",
-    "lum": 0.459
+    "lum": 0.459,
+    "accent": "#685c54",
+    "palette": {
+      "main": "#968877",
+      "dark": "#161817"
+    }
   },
   "/mock/houses/x11/3.webp": {
     "tint": "#0e1b2f",
-    "lum": 0.343
+    "lum": 0.343,
+    "accent": "#3d587f",
+    "palette": {
+      "main": "#0757d6",
+      "dark": "#343926"
+    }
   },
   "/mock/houses/x11/4.webp": {
     "tint": "#23211a",
-    "lum": 0.865
+    "lum": 0.865,
+    "accent": "#d5be9c",
+    "palette": {
+      "main": "#ebc489",
+      "dark": "#67482a"
+    }
   },
   "/mock/houses/x12/1.webp": {
     "tint": "#241f19",
-    "lum": 0.719
+    "lum": 0.719,
+    "accent": "#8b98a4",
+    "palette": {
+      "main": "#c7b9aa",
+      "dark": "#694729"
+    }
   },
   "/mock/houses/x12/2.webp": {
     "tint": "#1d201d",
-    "lum": 0.605
+    "lum": 0.605,
+    "accent": "#9ca393",
+    "palette": {
+      "main": "#87988c",
+      "dark": "#254759"
+    }
   },
   "/mock/houses/x12/3.webp": {
     "tint": "#23211b",
-    "lum": 0.334
+    "lum": 0.334,
+    "accent": "#72807d",
+    "palette": {
+      "main": "#8ab2b9",
+      "dark": "#354738"
+    }
   },
   "/mock/houses/x12/4.webp": {
     "tint": "#291f14",
-    "lum": 0.262
+    "lum": 0.262,
+    "accent": "#645a4c",
+    "palette": {
+      "main": "#575758",
+      "dark": "#161d26"
+    }
   },
   "/mock/houses/x13/1.webp": {
     "tint": "#1c1f21",
-    "lum": 0.423
+    "lum": 0.423,
+    "accent": "#728ea5",
+    "palette": {
+      "main": "#97a8b7",
+      "dark": "#191416"
+    }
   },
   "/mock/houses/x13/2.webp": {
     "tint": "#1d1e21",
-    "lum": 0.355
+    "lum": 0.355,
+    "accent": "#767b7f",
+    "palette": {
+      "main": "#474b55",
+      "dark": "#43464b"
+    }
   },
   "/mock/houses/x13/3.webp": {
     "tint": "#291e14",
-    "lum": 0.2
+    "lum": 0.2,
+    "accent": "#453522",
+    "palette": {
+      "main": "#683b26",
+      "dark": "#151619"
+    }
   },
   "/mock/houses/x13/4.webp": {
     "tint": "#2d1d10",
-    "lum": 0.364
+    "lum": 0.364,
+    "accent": "#6a4b30",
+    "palette": {
+      "main": "#870305",
+      "dark": "#282915"
+    }
   },
   "/mock/houses/x14/1.webp": {
     "tint": "#1d1f20",
-    "lum": 0.613
+    "lum": 0.613,
+    "accent": "#8f969d",
+    "palette": {
+      "main": "#959da2",
+      "dark": "#2d4362"
+    }
   },
   "/mock/houses/x14/2.webp": {
     "tint": "#211f1c",
-    "lum": 0.309
+    "lum": 0.309,
+    "accent": "#6c6461",
+    "palette": {
+      "main": "#a797a8",
+      "dark": "#272817"
+    }
   },
   "/mock/houses/x14/3.webp": {
     "tint": "#211f1c",
-    "lum": 0.478
+    "lum": 0.478,
+    "accent": "#7e7a77",
+    "palette": {
+      "main": "#c3bcb9",
+      "dark": "#191816"
+    }
   },
   "/mock/houses/x14/4.webp": {
     "tint": "#211e1c",
-    "lum": 0.308
+    "lum": 0.308,
+    "accent": "#403a33",
+    "palette": {
+      "main": "#6b7576",
+      "dark": "#282417"
+    }
   },
   "/mock/houses/x15/1.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.471
+    "lum": 0.471,
+    "accent": "#51584b",
+    "palette": {
+      "main": "#898989",
+      "dark": "#181a15"
+    }
   },
   "/mock/houses/x15/2.webp": {
     "tint": "#1d221b",
-    "lum": 0.183
+    "lum": 0.183,
+    "accent": "#20241b",
+    "palette": {
+      "main": "#57594a",
+      "dark": "#171a12"
+    }
   },
   "/mock/houses/x15/3.webp": {
     "tint": "#271f16",
-    "lum": 0.397
+    "lum": 0.397,
+    "accent": "#a3654a",
+    "palette": {
+      "main": "#a69b95",
+      "dark": "#582729"
+    }
   },
   "/mock/houses/x15/4.webp": {
     "tint": "#1a2123",
-    "lum": 0.416
+    "lum": 0.416,
+    "accent": "#5c7d90",
+    "palette": {
+      "main": "#6996b5",
+      "dark": "#2e4b67"
+    }
   },
   "/mock/houses/x16/1.webp": {
     "tint": "#211f1c",
-    "lum": 0.49
+    "lum": 0.49,
+    "accent": "#a7a8a4",
+    "palette": {
+      "main": "#b8b9b7",
+      "dark": "#4d4a44"
+    }
   },
   "/mock/houses/x16/2.webp": {
     "tint": "#21201d",
-    "lum": 0.415
+    "lum": 0.415,
+    "accent": "#818074",
+    "palette": {
+      "main": "#898678",
+      "dark": "#242b27"
+    }
   },
   "/mock/houses/x16/3.webp": {
     "tint": "#221d1b",
-    "lum": 0.326
+    "lum": 0.326,
+    "accent": "#6b676f",
+    "palette": {
+      "main": "#8999bb",
+      "dark": "#191817"
+    }
   },
   "/mock/houses/x16/4.webp": {
     "tint": "#320d0b",
-    "lum": 0.033
+    "lum": 0.033,
+    "accent": "#251612",
+    "palette": {
+      "main": "#996848",
+      "dark": "#261a15"
+    }
   },
   "/mock/houses/x17/1.webp": {
     "tint": "#262118",
-    "lum": 0.338
+    "lum": 0.338,
+    "accent": "#5b718a",
+    "palette": {
+      "main": "#437cc6",
+      "dark": "#191913"
+    }
   },
   "/mock/houses/x17/2.webp": {
     "tint": "#262117",
-    "lum": 0.418
+    "lum": 0.418,
+    "accent": "#76827b",
+    "palette": {
+      "main": "#866849",
+      "dark": "#494638"
+    }
   },
   "/mock/houses/x17/3.webp": {
     "tint": "#282115",
-    "lum": 0.32
+    "lum": 0.32,
+    "accent": "#897f70",
+    "palette": {
+      "main": "#977939",
+      "dark": "#241b16"
+    }
   },
   "/mock/houses/x17/4.webp": {
     "tint": "#242319",
-    "lum": 0.375
+    "lum": 0.375,
+    "accent": "#647373",
+    "palette": {
+      "main": "#4986c6",
+      "dark": "#595638"
+    }
   },
   "/mock/houses/x18/1.webp": {
     "tint": "#2a1d13",
-    "lum": 0.441
+    "lum": 0.441,
+    "accent": "#a77857",
+    "palette": {
+      "main": "#c89977",
+      "dark": "#573828"
+    }
   },
   "/mock/houses/x18/2.webp": {
     "tint": "#2b1d12",
-    "lum": 0.336
+    "lum": 0.336,
+    "accent": "#8a6c56",
+    "palette": {
+      "main": "#865939",
+      "dark": "#583a28"
+    }
   },
   "/mock/houses/x18/3.webp": {
     "tint": "#2a2113",
-    "lum": 0.593
+    "lum": 0.593,
+    "accent": "#66648e",
+    "palette": {
+      "main": "#2939a6",
+      "dark": "#5a362a"
+    }
   },
   "/mock/houses/x18/4.webp": {
     "tint": "#241a19",
-    "lum": 0.195
+    "lum": 0.195,
+    "accent": "#3b5168",
+    "palette": {
+      "main": "#386588",
+      "dark": "#274c67"
+    }
   },
   "/mock/houses/x19/1.webp": {
     "tint": "#201d1d",
-    "lum": 0.526
+    "lum": 0.526,
+    "accent": "#9d9b99",
+    "palette": {
+      "main": "#a8a6b8",
+      "dark": "#664a27"
+    }
   },
   "/mock/houses/x19/2.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.413
+    "lum": 0.413,
+    "accent": "#b4b4b4",
+    "palette": {
+      "main": "#a7a7a7",
+      "dark": "#181818"
+    }
   },
   "/mock/houses/x19/3.webp": {
     "tint": "#2a1913",
-    "lum": 0.278
+    "lum": 0.278,
+    "accent": "#75543c",
+    "palette": {
+      "main": "#d6b898",
+      "dark": "#27261a"
+    }
   },
   "/mock/houses/x19/4.webp": {
     "tint": "#261918",
-    "lum": 0.346
+    "lum": 0.346,
+    "accent": "#917568",
+    "palette": {
+      "main": "#c6b6a8",
+      "dark": "#281814"
+    }
   },
   "/mock/houses/x2/1.webp": {
     "tint": "#20201d",
-    "lum": 0.298
+    "lum": 0.298,
+    "accent": "#6b5447",
+    "palette": {
+      "main": "#c57b58",
+      "dark": "#2a1912"
+    }
   },
   "/mock/houses/x2/2.webp": {
     "tint": "#1d201e",
-    "lum": 0.372
+    "lum": 0.372,
+    "accent": "#44504f",
+    "palette": {
+      "main": "#575955",
+      "dark": "#1a3336"
+    }
   },
   "/mock/houses/x2/3.webp": {
     "tint": "#1c211f",
-    "lum": 0.248
+    "lum": 0.248,
+    "accent": "#949996",
+    "palette": {
+      "main": "#babcb6",
+      "dark": "#283633"
+    }
   },
   "/mock/houses/x2/4.webp": {
     "tint": "#261c17",
-    "lum": 0.101
+    "lum": 0.101,
+    "accent": "#342a26",
+    "palette": {
+      "main": "#484647",
+      "dark": "#393637"
+    }
   },
   "/mock/houses/x20/1.webp": {
     "tint": "#2c1e11",
-    "lum": 0.336
+    "lum": 0.336,
+    "accent": "#ae9c88",
+    "palette": {
+      "main": "#664829",
+      "dark": "#483926"
+    }
   },
   "/mock/houses/x20/2.webp": {
     "tint": "#221f1b",
-    "lum": 0.333
+    "lum": 0.333,
+    "accent": "#969493",
+    "palette": {
+      "main": "#979798",
+      "dark": "#2a231a"
+    }
   },
   "/mock/houses/x20/3.webp": {
     "tint": "#261a18",
-    "lum": 0.488
+    "lum": 0.488,
+    "accent": "#857471",
+    "palette": {
+      "main": "#b8c689",
+      "dark": "#151b26"
+    }
   },
   "/mock/houses/x20/4.webp": {
     "tint": "#27161e",
-    "lum": 0.265
+    "lum": 0.265,
+    "accent": "#603340",
+    "palette": {
+      "main": "#974659",
+      "dark": "#271518"
+    }
   },
   "/mock/houses/x21/1.webp": {
     "tint": "#2f250e",
-    "lum": 0.391
+    "lum": 0.391,
+    "accent": "#806a2d",
+    "palette": {
+      "main": "#d7a877",
+      "dark": "#29241b"
+    }
   },
   "/mock/houses/x21/2.webp": {
     "tint": "#341e0a",
-    "lum": 0.131
+    "lum": 0.131,
+    "accent": "#583715",
+    "palette": {
+      "main": "#75471a",
+      "dark": "#583c24"
+    }
   },
   "/mock/houses/x21/3.webp": {
     "tint": "#221d1c",
-    "lum": 0.733
+    "lum": 0.733,
+    "accent": "#bab2b1",
+    "palette": {
+      "main": "#979696",
+      "dark": "#261a18"
+    }
   },
   "/mock/houses/x21/4.webp": {
     "tint": "#1d1e20",
-    "lum": 0.408
+    "lum": 0.408,
+    "accent": "#8c9ba5",
+    "palette": {
+      "main": "#89b9e3",
+      "dark": "#46494a"
+    }
   },
   "/mock/houses/x22/1.webp": {
     "tint": "#20211d",
-    "lum": 0.058
+    "lum": 0.058,
+    "accent": "#1c1b18",
+    "palette": {
+      "main": "#867769",
+      "dark": "#171816"
+    }
   },
   "/mock/houses/x22/2.webp": {
     "tint": "#2c2511",
-    "lum": 0.38
+    "lum": 0.38,
+    "accent": "#87795c",
+    "palette": {
+      "main": "#584836",
+      "dark": "#584836"
+    }
   },
   "/mock/houses/x22/3.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.316
+    "lum": 0.316,
+    "accent": "#7a7571",
+    "palette": {
+      "main": "#686967",
+      "dark": "#131b19"
+    }
   },
   "/mock/houses/x22/4.webp": {
     "tint": "#1f1e1e",
-    "lum": 0.458
+    "lum": 0.458,
+    "accent": "#877e7b",
+    "palette": {
+      "main": "#889ba5",
+      "dark": "#494a48"
+    }
   },
   "/mock/houses/x23/1.webp": {
     "tint": "#222419",
-    "lum": 0.239
+    "lum": 0.239,
+    "accent": "#6d828e",
+    "palette": {
+      "main": "#7db7fe",
+      "dark": "#3a3835"
+    }
   },
   "/mock/houses/x23/2.webp": {
     "tint": "#262217",
-    "lum": 0.554
+    "lum": 0.554,
+    "accent": "#a3ac9e",
+    "palette": {
+      "main": "#a88958",
+      "dark": "#484638"
+    }
   },
   "/mock/houses/x23/3.webp": {
     "tint": "#171e26",
-    "lum": 0.831
+    "lum": 0.831,
+    "accent": "#c4cad2",
+    "palette": {
+      "main": "#564b44",
+      "dark": "#453c36"
+    }
   },
   "/mock/houses/x23/4.webp": {
     "tint": "#211e1c",
-    "lum": 0.705
+    "lum": 0.705,
+    "accent": "#d0c6c1",
+    "palette": {
+      "main": "#673a27",
+      "dark": "#573526"
+    }
   },
   "/mock/houses/x24/1.webp": {
     "tint": "#1b2122",
-    "lum": 0.315
+    "lum": 0.315,
+    "accent": "#5a83a0",
+    "palette": {
+      "main": "#0696f3",
+      "dark": "#384957"
+    }
   },
   "/mock/houses/x24/2.webp": {
     "tint": "#2e190f",
-    "lum": 0.148
+    "lum": 0.148,
+    "accent": "#502514",
+    "palette": {
+      "main": "#f77836",
+      "dark": "#2a1911"
+    }
   },
   "/mock/houses/x24/3.webp": {
     "tint": "#262217",
-    "lum": 0.624
+    "lum": 0.624,
+    "accent": "#ac927a",
+    "palette": {
+      "main": "#b8b788",
+      "dark": "#494a48"
+    }
   },
   "/mock/houses/x24/4.webp": {
     "tint": "#281815",
-    "lum": 0.249
+    "lum": 0.249,
+    "accent": "#5a362f",
+    "palette": {
+      "main": "#585858",
+      "dark": "#292726"
+    }
   },
   "/mock/houses/x25/1.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.738
+    "lum": 0.738,
+    "accent": "#7e767b",
+    "palette": {
+      "main": "#825c66",
+      "dark": "#282628"
+    }
   },
   "/mock/houses/x25/2.webp": {
     "tint": "#291e14",
-    "lum": 0.611
+    "lum": 0.611,
+    "accent": "#9a7d69",
+    "palette": {
+      "main": "#b89776",
+      "dark": "#494449"
+    }
   },
   "/mock/houses/x25/3.webp": {
     "tint": "#31180c",
-    "lum": 0.287
+    "lum": 0.287,
+    "accent": "#8b3415",
+    "palette": {
+      "main": "#97290b",
+      "dark": "#281918"
+    }
   },
   "/mock/houses/x25/4.webp": {
     "tint": "#241d19",
-    "lum": 0.45
+    "lum": 0.45,
+    "accent": "#857362",
+    "palette": {
+      "main": "#c6b599",
+      "dark": "#1b1c1a"
+    }
   },
   "/mock/houses/x26/1.webp": {
     "tint": "#2a1614",
-    "lum": 0.247
+    "lum": 0.247,
+    "accent": "#674743",
+    "palette": {
+      "main": "#474948",
+      "dark": "#474948"
+    }
   },
   "/mock/houses/x26/2.webp": {
     "tint": "#231f1a",
-    "lum": 0.466
+    "lum": 0.466,
+    "accent": "#908985",
+    "palette": {
+      "main": "#a6b8d4",
+      "dark": "#584a3a"
+    }
   },
   "/mock/houses/x26/3.webp": {
     "tint": "#241e19",
-    "lum": 0.577
+    "lum": 0.577,
+    "accent": "#8a7363",
+    "palette": {
+      "main": "#876a56",
+      "dark": "#48342b"
+    }
   },
   "/mock/houses/x26/4.webp": {
     "tint": "#2e180f",
-    "lum": 0.465
+    "lum": 0.465,
+    "accent": "#723f2b",
+    "palette": {
+      "main": "#d96a45",
+      "dark": "#281815"
+    }
   },
   "/mock/houses/x27/1.webp": {
     "tint": "#1e1d20",
-    "lum": 0.696
+    "lum": 0.696,
+    "accent": "#c3babc",
+    "palette": {
+      "main": "#b7b6bb",
+      "dark": "#2a2729"
+    }
   },
   "/mock/houses/x27/2.webp": {
     "tint": "#1a1e23",
-    "lum": 0.306
+    "lum": 0.306,
+    "accent": "#587a9d",
+    "palette": {
+      "main": "#458bcc",
+      "dark": "#141925"
+    }
   },
   "/mock/houses/x27/3.webp": {
     "tint": "#181f25",
-    "lum": 0.402
+    "lum": 0.402,
+    "accent": "#5a6879",
+    "palette": {
+      "main": "#6888a4",
+      "dark": "#373538"
+    }
   },
   "/mock/houses/x27/4.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.333
+    "lum": 0.333,
+    "accent": "#81735b",
+    "palette": {
+      "main": "#9b731a",
+      "dark": "#171616"
+    }
   },
   "/mock/houses/x28/1.webp": {
     "tint": "#19241e",
-    "lum": 0.586
+    "lum": 0.586,
+    "accent": "#98b8a9",
+    "palette": {
+      "main": "#a8c6b6",
+      "dark": "#296b53"
+    }
   },
   "/mock/houses/x28/2.webp": {
     "tint": "#1c211f",
-    "lum": 0.518
+    "lum": 0.518,
+    "accent": "#4b708d",
+    "palette": {
+      "main": "#024699",
+      "dark": "#283617"
+    }
   },
   "/mock/houses/x28/3.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.465
+    "lum": 0.465,
+    "accent": "#9f9f9f",
+    "palette": {
+      "main": "#989898",
+      "dark": "#494949"
+    }
   },
   "/mock/houses/x28/4.webp": {
     "tint": "#21211c",
-    "lum": 0.36
+    "lum": 0.36,
+    "accent": "#626253",
+    "palette": {
+      "main": "#656a5c",
+      "dark": "#161915"
+    }
   },
   "/mock/houses/x29/1.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.498
+    "lum": 0.498,
+    "accent": "#949fac",
+    "palette": {
+      "main": "#869ab4",
+      "dark": "#394548"
+    }
   },
   "/mock/houses/x29/2.webp": {
     "tint": "#1b1e22",
-    "lum": 0.594
+    "lum": 0.594,
+    "accent": "#7b8c95",
+    "palette": {
+      "main": "#99a6b9",
+      "dark": "#171518"
+    }
   },
   "/mock/houses/x29/3.webp": {
     "tint": "#221f1b",
-    "lum": 0.479
+    "lum": 0.479,
+    "accent": "#888b8c",
+    "palette": {
+      "main": "#7ab2de",
+      "dark": "#494646"
+    }
   },
   "/mock/houses/x29/4.webp": {
     "tint": "#261d17",
-    "lum": 0.659
+    "lum": 0.659,
+    "accent": "#c4ac92",
+    "palette": {
+      "main": "#d3aa9a",
+      "dark": "#373819"
+    }
   },
   "/mock/houses/x3/1.webp": {
     "tint": "#171b26",
-    "lum": 0.327
+    "lum": 0.327,
+    "accent": "#303d5f",
+    "palette": {
+      "main": "#383755",
+      "dark": "#161b29"
+    }
   },
   "/mock/houses/x3/2.webp": {
     "tint": "#2a2c11",
-    "lum": 0.131
+    "lum": 0.131,
+    "accent": "#57747d",
+    "palette": {
+      "main": "#57b7e9",
+      "dark": "#382817"
+    }
   },
   "/mock/houses/x3/3.webp": {
     "tint": "#1e1f1f",
-    "lum": 0.532
+    "lum": 0.532,
+    "accent": "#929195",
+    "palette": {
+      "main": "#b5b7bb",
+      "dark": "#26282a"
+    }
   },
   "/mock/houses/x3/4.webp": {
     "tint": "#261e17",
-    "lum": 0.416
+    "lum": 0.416,
+    "accent": "#7e695b",
+    "palette": {
+      "main": "#594435",
+      "dark": "#594435"
+    }
   },
   "/mock/houses/x30/1.webp": {
     "tint": "#093533",
-    "lum": 0.449
+    "lum": 0.449,
+    "accent": "#289d9f",
+    "palette": {
+      "main": "#17c9fc",
+      "dark": "#264739"
+    }
   },
   "/mock/houses/x30/2.webp": {
     "tint": "#231e1b",
-    "lum": 0.514
+    "lum": 0.514,
+    "accent": "#7a6f69",
+    "palette": {
+      "main": "#d4b9a8",
+      "dark": "#372618"
+    }
   },
   "/mock/houses/x30/3.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.048
+    "lum": 0.048,
+    "accent": "#351d15",
+    "palette": {
+      "main": "#772719",
+      "dark": "#161414"
+    }
   },
   "/mock/houses/x30/4.webp": {
     "tint": "#21201c",
-    "lum": 0.713
+    "lum": 0.713,
+    "accent": "#a3aba6",
+    "palette": {
+      "main": "#aac8c7",
+      "dark": "#273937"
+    }
   },
   "/mock/houses/x31/1.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.434
+    "lum": 0.434,
+    "accent": "#a5a5a7",
+    "palette": {
+      "main": "#565659",
+      "dark": "#383737"
+    }
   },
   "/mock/houses/x31/2.webp": {
     "tint": "#2f160e",
-    "lum": 0.165
+    "lum": 0.165,
+    "accent": "#643c27",
+    "palette": {
+      "main": "#696767",
+      "dark": "#1a131a"
+    }
   },
   "/mock/houses/x31/3.webp": {
     "tint": "#1d1f20",
-    "lum": 0.438
+    "lum": 0.438,
+    "accent": "#808793",
+    "palette": {
+      "main": "#b7bac6",
+      "dark": "#3c5358"
+    }
   },
   "/mock/houses/x31/4.webp": {
     "tint": "#1f1c21",
-    "lum": 0.465
+    "lum": 0.465,
+    "accent": "#a9b5ca",
+    "palette": {
+      "main": "#b7abc8",
+      "dark": "#25344b"
+    }
   },
   "/mock/houses/x32/1.webp": {
     "tint": "#201f1d",
-    "lum": 0.737
+    "lum": 0.737,
+    "accent": "#c5c7c6",
+    "palette": {
+      "main": "#b6bbb7",
+      "dark": "#282629"
+    }
   },
   "/mock/houses/x32/2.webp": {
     "tint": "#20241a",
-    "lum": 0.426
+    "lum": 0.426,
+    "accent": "#798981",
+    "palette": {
+      "main": "#565a36",
+      "dark": "#565a36"
+    }
   },
   "/mock/houses/x32/3.webp": {
     "tint": "#101b2d",
-    "lum": 0.183
+    "lum": 0.183,
+    "accent": "#183965",
+    "palette": {
+      "main": "#04438a",
+      "dark": "#161f32"
+    }
   },
   "/mock/houses/x32/4.webp": {
     "tint": "#1b2222",
-    "lum": 0.553
+    "lum": 0.553,
+    "accent": "#b1bcc1",
+    "palette": {
+      "main": "#a9c6c8",
+      "dark": "#453a36"
+    }
   },
   "/mock/houses/x33/1.webp": {
     "tint": "#1c1925",
-    "lum": 0.268
+    "lum": 0.268,
+    "accent": "#676ca2",
+    "palette": {
+      "main": "#7998e5",
+      "dark": "#35272a"
+    }
   },
   "/mock/houses/x33/2.webp": {
     "tint": "#1c1d21",
-    "lum": 0.451
+    "lum": 0.451,
+    "accent": "#66748e",
+    "palette": {
+      "main": "#5b79a5",
+      "dark": "#273a59"
+    }
   },
   "/mock/houses/x33/3.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.485
+    "lum": 0.485,
+    "accent": "#838474",
+    "palette": {
+      "main": "#888588",
+      "dark": "#586627"
+    }
   },
   "/mock/houses/x33/4.webp": {
     "tint": "#221e1b",
-    "lum": 0.374
+    "lum": 0.374,
+    "accent": "#867869",
+    "palette": {
+      "main": "#978b88",
+      "dark": "#261c18"
+    }
   },
   "/mock/houses/x34/1.webp": {
     "tint": "#1b1e22",
-    "lum": 0.155
+    "lum": 0.155,
+    "accent": "#494c59",
+    "palette": {
+      "main": "#485875",
+      "dark": "#14161a"
+    }
   },
   "/mock/houses/x34/2.webp": {
     "tint": "#191d24",
-    "lum": 0.691
+    "lum": 0.691,
+    "accent": "#9ea5b3",
+    "palette": {
+      "main": "#a8b4c9",
+      "dark": "#3b3736"
+    }
   },
   "/mock/houses/x34/3.webp": {
     "tint": "#1b1c22",
-    "lum": 0.254
+    "lum": 0.254,
+    "accent": "#393f4c",
+    "palette": {
+      "main": "#464857",
+      "dark": "#383946"
+    }
   },
   "/mock/houses/x34/4.webp": {
     "tint": "#221f1b",
-    "lum": 0.21
+    "lum": 0.21,
+    "accent": "#3d3a35",
+    "palette": {
+      "main": "#554939",
+      "dark": "#181816"
+    }
   },
   "/mock/houses/x35/1.webp": {
     "tint": "#1d201f",
-    "lum": 0.133
+    "lum": 0.133,
+    "accent": "#68676c",
+    "palette": {
+      "main": "#b7b5b9",
+      "dark": "#171918"
+    }
   },
   "/mock/houses/x35/2.webp": {
     "tint": "#161f27",
-    "lum": 0.706
+    "lum": 0.706,
+    "accent": "#758fa9",
+    "palette": {
+      "main": "#4678e6",
+      "dark": "#384727"
+    }
   },
   "/mock/houses/x35/3.webp": {
     "tint": "#221f1b",
-    "lum": 0.449
+    "lum": 0.449,
+    "accent": "#89887b",
+    "palette": {
+      "main": "#988877",
+      "dark": "#273936"
+    }
   },
   "/mock/houses/x35/4.webp": {
     "tint": "#171d26",
-    "lum": 0.518
+    "lum": 0.518,
+    "accent": "#8293bd",
+    "palette": {
+      "main": "#8895c7",
+      "dark": "#24435d"
+    }
   },
   "/mock/houses/x36/1.webp": {
     "tint": "#231e1a",
-    "lum": 0.58
+    "lum": 0.58,
+    "accent": "#7a7b77",
+    "palette": {
+      "main": "#62737b",
+      "dark": "#364837"
+    }
   },
   "/mock/houses/x36/2.webp": {
     "tint": "#20211d",
-    "lum": 0.194
+    "lum": 0.194,
+    "accent": "#736062",
+    "palette": {
+      "main": "#c9a6b7",
+      "dark": "#252a27"
+    }
   },
   "/mock/houses/x36/3.webp": {
     "tint": "#1f1f1f",
-    "lum": 0.539
+    "lum": 0.539,
+    "accent": "#8e8e8e",
+    "palette": {
+      "main": "#676767",
+      "dark": "#4a4a4a"
+    }
   },
   "/mock/houses/x36/4.webp": {
     "tint": "#221f1b",
-    "lum": 0.495
+    "lum": 0.495,
+    "accent": "#897155",
+    "palette": {
+      "main": "#99999b",
+      "dark": "#372519"
+    }
   },
   "/mock/houses/x37/1.webp": {
     "tint": "#390f04",
-    "lum": 0.104
+    "lum": 0.104,
+    "accent": "#793f21",
+    "palette": {
+      "main": "#663829",
+      "dark": "#663829"
+    }
   },
   "/mock/houses/x37/2.webp": {
     "tint": "#2e1c0f",
-    "lum": 0.254
+    "lum": 0.254,
+    "accent": "#8d7357",
+    "palette": {
+      "main": "#663b24",
+      "dark": "#593824"
+    }
   },
   "/mock/houses/x37/3.webp": {
     "tint": "#2c1113",
-    "lum": 0.332
+    "lum": 0.332,
+    "accent": "#ac5b5a",
+    "palette": {
+      "main": "#a9333a",
+      "dark": "#2c4625"
+    }
   },
   "/mock/houses/x37/4.webp": {
     "tint": "#262117",
-    "lum": 0.102
+    "lum": 0.102,
+    "accent": "#343527",
+    "palette": {
+      "main": "#444a38",
+      "dark": "#2b3426"
+    }
   },
   "/mock/houses/x38/1.webp": {
     "tint": "#1b1c22",
-    "lum": 0.122
+    "lum": 0.122,
+    "accent": "#494443",
+    "palette": {
+      "main": "#acb6b4",
+      "dark": "#161718"
+    }
   },
   "/mock/houses/x38/2.webp": {
     "tint": "#111d2c",
-    "lum": 0.706
+    "lum": 0.706,
+    "accent": "#8caed9",
+    "palette": {
+      "main": "#0269d7",
+      "dark": "#151a28"
+    }
   },
   "/mock/houses/x38/3.webp": {
     "tint": "#241a19",
-    "lum": 0.412
+    "lum": 0.412,
+    "accent": "#958e96",
+    "palette": {
+      "main": "#876967",
+      "dark": "#2a3629"
+    }
   },
   "/mock/houses/x38/4.webp": {
     "tint": "#271d16",
-    "lum": 0.518
+    "lum": 0.518,
+    "accent": "#906135",
+    "palette": {
+      "main": "#b77819",
+      "dark": "#261a11"
+    }
   },
   "/mock/houses/x39/1.webp": {
     "tint": "#292215",
-    "lum": 0.653
+    "lum": 0.653,
+    "accent": "#b09e67",
+    "palette": {
+      "main": "#d9b797",
+      "dark": "#181817"
+    }
   },
   "/mock/houses/x39/2.webp": {
     "tint": "#222f0e",
-    "lum": 0.326
+    "lum": 0.326,
+    "accent": "#6c8538",
+    "palette": {
+      "main": "#48681d",
+      "dark": "#1c2c11"
+    }
   },
   "/mock/houses/x39/3.webp": {
     "tint": "#242e0f",
-    "lum": 0.405
+    "lum": 0.405,
+    "accent": "#53672c",
+    "palette": {
+      "main": "#659801",
+      "dark": "#152816"
+    }
   },
   "/mock/houses/x39/4.webp": {
     "tint": "#151d28",
-    "lum": 0.81
+    "lum": 0.81,
+    "accent": "#bbbaca",
+    "palette": {
+      "main": "#89a7d7",
+      "dark": "#582735"
+    }
   },
   "/mock/houses/x4/1.webp": {
     "tint": "#1f1e1e",
-    "lum": 0.515
+    "lum": 0.515,
+    "accent": "#9c8c86",
+    "palette": {
+      "main": "#a59c95",
+      "dark": "#593b34"
+    }
   },
   "/mock/houses/x4/2.webp": {
     "tint": "#2b2112",
-    "lum": 0.311
+    "lum": 0.311,
+    "accent": "#5c6364",
+    "palette": {
+      "main": "#2674da",
+      "dark": "#172815"
+    }
   },
   "/mock/houses/x4/3.webp": {
     "tint": "#242219",
-    "lum": 0.436
+    "lum": 0.436,
+    "accent": "#585c4e",
+    "palette": {
+      "main": "#4985dc",
+      "dark": "#262817"
+    }
   },
   "/mock/houses/x4/4.webp": {
     "tint": "#211f1c",
-    "lum": 0.395
+    "lum": 0.395,
+    "accent": "#746f5a",
+    "palette": {
+      "main": "#989788",
+      "dark": "#181815"
+    }
   },
   "/mock/houses/x40/1.webp": {
     "tint": "#2b2b12",
-    "lum": 0.514
+    "lum": 0.514,
+    "accent": "#838f6d",
+    "palette": {
+      "main": "#99a756",
+      "dark": "#57573a"
+    }
   },
   "/mock/houses/x40/2.webp": {
     "tint": "#22211b",
-    "lum": 0.308
+    "lum": 0.308,
+    "accent": "#4a556a",
+    "palette": {
+      "main": "#385797",
+      "dark": "#283846"
+    }
   },
   "/mock/houses/x40/3.webp": {
     "tint": "#271623",
-    "lum": 0.789
+    "lum": 0.789,
+    "accent": "#d7becf",
+    "palette": {
+      "main": "#b9b5c5",
+      "dark": "#3b373a"
+    }
   },
   "/mock/houses/x40/4.webp": {
     "tint": "#242419",
-    "lum": 0.361
+    "lum": 0.361,
+    "accent": "#606a56",
+    "palette": {
+      "main": "#686947",
+      "dark": "#363937"
+    }
   },
   "/mock/houses/x41/1.webp": {
     "tint": "#251e18",
-    "lum": 0.475
+    "lum": 0.475,
+    "accent": "#c3a896",
+    "palette": {
+      "main": "#d9b39b",
+      "dark": "#584739"
+    }
   },
   "/mock/houses/x41/2.webp": {
     "tint": "#1f1e1f",
-    "lum": 0.21
+    "lum": 0.21,
+    "accent": "#514940",
+    "palette": {
+      "main": "#494546",
+      "dark": "#241a14"
+    }
   },
   "/mock/houses/x41/3.webp": {
     "tint": "#181c25",
-    "lum": 0.43
+    "lum": 0.43,
+    "accent": "#7a819f",
+    "palette": {
+      "main": "#385687",
+      "dark": "#151b26"
+    }
   },
   "/mock/houses/x41/4.webp": {
     "tint": "#281b15",
-    "lum": 0.34
+    "lum": 0.34,
+    "accent": "#8b4d35",
+    "palette": {
+      "main": "#f98706",
+      "dark": "#1a1518"
+    }
   },
   "/mock/houses/x42/1.webp": {
     "tint": "#25181c",
-    "lum": 0.231
+    "lum": 0.231,
+    "accent": "#57444b",
+    "palette": {
+      "main": "#584648",
+      "dark": "#1a151b"
+    }
   },
   "/mock/houses/x42/2.webp": {
     "tint": "#281d15",
-    "lum": 0.225
+    "lum": 0.225,
+    "accent": "#413b34",
+    "palette": {
+      "main": "#876747",
+      "dark": "#181516"
+    }
   },
   "/mock/houses/x42/3.webp": {
     "tint": "#20221b",
-    "lum": 0.285
+    "lum": 0.285,
+    "accent": "#596143",
+    "palette": {
+      "main": "#47553a",
+      "dark": "#38362a"
+    }
   },
   "/mock/houses/x42/4.webp": {
     "tint": "#211e1c",
-    "lum": 0.519
+    "lum": 0.519,
+    "accent": "#8b7d71",
+    "palette": {
+      "main": "#776d62",
+      "dark": "#393735"
+    }
   },
   "/mock/houses/x43/1.webp": {
     "tint": "#221e1b",
-    "lum": 0.3
+    "lum": 0.3,
+    "accent": "#767169",
+    "palette": {
+      "main": "#675649",
+      "dark": "#191715"
+    }
   },
   "/mock/houses/x43/2.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.28
+    "lum": 0.28,
+    "accent": "#515152",
+    "palette": {
+      "main": "#777576",
+      "dark": "#383738"
+    }
   },
   "/mock/houses/x43/3.webp": {
     "tint": "#231c1a",
-    "lum": 0.456
+    "lum": 0.456,
+    "accent": "#a17b67",
+    "palette": {
+      "main": "#e9b787",
+      "dark": "#151518"
+    }
   },
   "/mock/houses/x43/4.webp": {
     "tint": "#251d18",
-    "lum": 0.217
+    "lum": 0.217,
+    "accent": "#695349",
+    "palette": {
+      "main": "#886559",
+      "dark": "#282824"
+    }
   },
   "/mock/houses/x44/1.webp": {
     "tint": "#261d17",
-    "lum": 0.164
+    "lum": 0.164,
+    "accent": "#6b6462",
+    "palette": {
+      "main": "#b5b6ba",
+      "dark": "#362b25"
+    }
   },
   "/mock/houses/x44/2.webp": {
     "tint": "#2b2112",
-    "lum": 0.445
+    "lum": 0.445,
+    "accent": "#92774e",
+    "palette": {
+      "main": "#aa8648",
+      "dark": "#5b4425"
+    }
   },
   "/mock/houses/x44/3.webp": {
     "tint": "#2e1a0f",
-    "lum": 0.209
+    "lum": 0.209,
+    "accent": "#653b20",
+    "palette": {
+      "main": "#763b16",
+      "dark": "#583625"
+    }
   },
   "/mock/houses/x44/4.webp": {
     "tint": "#211f1c",
-    "lum": 0.351
+    "lum": 0.351,
+    "accent": "#736150",
+    "palette": {
+      "main": "#775839",
+      "dark": "#65492b"
+    }
   },
   "/mock/houses/x45/1.webp": {
     "tint": "#271916",
-    "lum": 0.212
+    "lum": 0.212,
+    "accent": "#664e4e",
+    "palette": {
+      "main": "#885946",
+      "dark": "#593629"
+    }
   },
   "/mock/houses/x45/2.webp": {
     "tint": "#21201c",
-    "lum": 0.348
+    "lum": 0.348,
+    "accent": "#817e75",
+    "palette": {
+      "main": "#696557",
+      "dark": "#171819"
+    }
   },
   "/mock/houses/x45/3.webp": {
     "tint": "#2b1612",
-    "lum": 0.255
+    "lum": 0.255,
+    "accent": "#705443",
+    "palette": {
+      "main": "#474639",
+      "dark": "#474639"
+    }
   },
   "/mock/houses/x45/4.webp": {
     "tint": "#291c14",
-    "lum": 0.44
+    "lum": 0.44,
+    "accent": "#66442d",
+    "palette": {
+      "main": "#ac630c",
+      "dark": "#2a1912"
+    }
   },
   "/mock/houses/x46/1.webp": {
     "tint": "#231d1a",
-    "lum": 0.297
+    "lum": 0.297,
+    "accent": "#6c5e4a",
+    "palette": {
+      "main": "#584639",
+      "dark": "#453529"
+    }
   },
   "/mock/houses/x46/2.webp": {
     "tint": "#2f250e",
-    "lum": 0.333
+    "lum": 0.333,
+    "accent": "#8f6032",
+    "palette": {
+      "main": "#996603",
+      "dark": "#382715"
+    }
   },
   "/mock/houses/x46/3.webp": {
     "tint": "#21211c",
-    "lum": 0.389
+    "lum": 0.389,
+    "accent": "#665745",
+    "palette": {
+      "main": "#c6bab6",
+      "dark": "#161616"
+    }
   },
   "/mock/houses/x46/4.webp": {
     "tint": "#181925",
-    "lum": 0.746
+    "lum": 0.746,
+    "accent": "#aaabad",
+    "palette": {
+      "main": "#b7b9a7",
+      "dark": "#1b1515"
+    }
   },
   "/mock/houses/x47/1.webp": {
     "tint": "#241b19",
-    "lum": 0.163
+    "lum": 0.163,
+    "accent": "#6f5953",
+    "palette": {
+      "main": "#a58b73",
+      "dark": "#191515"
+    }
   },
   "/mock/houses/x47/2.webp": {
     "tint": "#271f16",
-    "lum": 0.557
+    "lum": 0.557,
+    "accent": "#ac967c",
+    "palette": {
+      "main": "#c6b7a8",
+      "dark": "#584429"
+    }
   },
   "/mock/houses/x47/3.webp": {
     "tint": "#201e1d",
-    "lum": 0.774
+    "lum": 0.774,
+    "accent": "#7b7977",
+    "palette": {
+      "main": "#b8b7b8",
+      "dark": "#18191a"
+    }
   },
   "/mock/houses/x47/4.webp": {
     "tint": "#211e1c",
-    "lum": 0.439
+    "lum": 0.439,
+    "accent": "#8e8274",
+    "palette": {
+      "main": "#988778",
+      "dark": "#574739"
+    }
   },
   "/mock/houses/x48/1.webp": {
     "tint": "#251b18",
-    "lum": 0.67
+    "lum": 0.67,
+    "accent": "#b49986",
+    "palette": {
+      "main": "#c7b9b7",
+      "dark": "#372815"
+    }
   },
   "/mock/houses/x48/2.webp": {
     "tint": "#211c1e",
-    "lum": 0.776
+    "lum": 0.776,
+    "accent": "#c4b4bb",
+    "palette": {
+      "main": "#662847",
+      "dark": "#662847"
+    }
   },
   "/mock/houses/x48/3.webp": {
     "tint": "#221c1b",
-    "lum": 0.401
+    "lum": 0.401,
+    "accent": "#945958",
+    "palette": {
+      "main": "#e91837",
+      "dark": "#1b1318"
+    }
   },
   "/mock/houses/x48/4.webp": {
     "tint": "#23201a",
-    "lum": 0.254
+    "lum": 0.254,
+    "accent": "#5e5b45",
+    "palette": {
+      "main": "#b8b8a6",
+      "dark": "#1d1410"
+    }
   },
   "/mock/houses/x49/1.webp": {
     "tint": "#2a2013",
-    "lum": 0.736
+    "lum": 0.736,
+    "accent": "#ceb795",
+    "palette": {
+      "main": "#c89747",
+      "dark": "#393535"
+    }
   },
   "/mock/houses/x49/2.webp": {
     "tint": "#22201c",
-    "lum": 0.621
+    "lum": 0.621,
+    "accent": "#908e7f",
+    "palette": {
+      "main": "#bab5a6",
+      "dark": "#484736"
+    }
   },
   "/mock/houses/x49/3.webp": {
     "tint": "#252915",
-    "lum": 0.367
+    "lum": 0.367,
+    "accent": "#81852a",
+    "palette": {
+      "main": "#c9c602",
+      "dark": "#161918"
+    }
   },
   "/mock/houses/x49/4.webp": {
     "tint": "#20211c",
-    "lum": 0.437
+    "lum": 0.437,
+    "accent": "#a5a69f",
+    "palette": {
+      "main": "#999896",
+      "dark": "#474c34"
+    }
   },
   "/mock/houses/x5/1.webp": {
     "tint": "#1e1e20",
-    "lum": 0.354
+    "lum": 0.354,
+    "accent": "#575555",
+    "palette": {
+      "main": "#3b4449",
+      "dark": "#14181a"
+    }
   },
   "/mock/houses/x5/2.webp": {
     "tint": "#241c19",
-    "lum": 0.275
+    "lum": 0.275,
+    "accent": "#3f2727",
+    "palette": {
+      "main": "#663929",
+      "dark": "#171716"
+    }
   },
   "/mock/houses/x5/3.webp": {
     "tint": "#231a1b",
-    "lum": 0.352
+    "lum": 0.352,
+    "accent": "#854e6c",
+    "palette": {
+      "main": "#f548e9",
+      "dark": "#172816"
+    }
   },
   "/mock/houses/x5/4.webp": {
     "tint": "#181e25",
-    "lum": 0.027
+    "lum": 0.027,
+    "accent": "#141b20",
+    "palette": {
+      "main": "#3a5469",
+      "dark": "#182836"
+    }
   },
   "/mock/houses/x50/1.webp": {
     "tint": "#281f16",
-    "lum": 0.743
+    "lum": 0.743,
+    "accent": "#adb5b7",
+    "palette": {
+      "main": "#78b9c7",
+      "dark": "#361836"
+    }
   },
   "/mock/houses/x50/2.webp": {
     "tint": "#262317",
-    "lum": 0.249
+    "lum": 0.249,
+    "accent": "#67683d",
+    "palette": {
+      "main": "#576818",
+      "dark": "#181913"
+    }
   },
   "/mock/houses/x50/3.webp": {
     "tint": "#182225",
-    "lum": 0.167
+    "lum": 0.167,
+    "accent": "#4e4e4b",
+    "palette": {
+      "main": "#677778",
+      "dark": "#182529"
+    }
   },
   "/mock/houses/x50/4.webp": {
     "tint": "#21201c",
-    "lum": 0.424
+    "lum": 0.424,
+    "accent": "#717264",
+    "palette": {
+      "main": "#b5a79a",
+      "dark": "#182619"
+    }
   },
   "/mock/houses/x6/1.webp": {
     "tint": "#370f06",
-    "lum": 0.182
+    "lum": 0.182,
+    "accent": "#661f0e",
+    "palette": {
+      "main": "#861d09",
+      "dark": "#422a24"
+    }
   },
   "/mock/houses/x6/2.webp": {
     "tint": "#1b1c22",
-    "lum": 0.379
+    "lum": 0.379,
+    "accent": "#928c9a",
+    "palette": {
+      "main": "#484657",
+      "dark": "#383746"
+    }
   },
   "/mock/houses/x6/3.webp": {
     "tint": "#1e1d20",
-    "lum": 0.208
+    "lum": 0.208,
+    "accent": "#89848f",
+    "palette": {
+      "main": "#9ab3da",
+      "dark": "#262529"
+    }
   },
   "/mock/houses/x6/4.webp": {
     "tint": "#23201a",
-    "lum": 0.428
+    "lum": 0.428,
+    "accent": "#726b59",
+    "palette": {
+      "main": "#4a4437",
+      "dark": "#393528"
+    }
   },
   "/mock/houses/x7/1.webp": {
     "tint": "#31220d",
-    "lum": 0.444
+    "lum": 0.444,
+    "accent": "#a97d37",
+    "palette": {
+      "main": "#b98438",
+      "dark": "#664d33"
+    }
   },
   "/mock/houses/x7/2.webp": {
     "tint": "#0c2d31",
-    "lum": 0.402
+    "lum": 0.402,
+    "accent": "#67a7b5",
+    "palette": {
+      "main": "#268797",
+      "dark": "#343a3a"
+    }
   },
   "/mock/houses/x7/3.webp": {
     "tint": "#201e1d",
-    "lum": 0.686
+    "lum": 0.686,
+    "accent": "#b5b2a9",
+    "palette": {
+      "main": "#a8b7a5",
+      "dark": "#2c3738"
+    }
   },
   "/mock/houses/x7/4.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.746
+    "lum": 0.746,
+    "accent": "#a2acbe",
+    "palette": {
+      "main": "#879ab9",
+      "dark": "#454649"
+    }
   },
   "/mock/houses/x8/1.webp": {
     "tint": "#261b17",
-    "lum": 0.044
+    "lum": 0.044,
+    "accent": "#884d30",
+    "palette": {
+      "main": "#fd7736",
+      "dark": "#1a1615"
+    }
   },
   "/mock/houses/x8/2.webp": {
     "tint": "#201d1e",
-    "lum": 0.542
+    "lum": 0.542,
+    "accent": "#a49290",
+    "palette": {
+      "main": "#e4aa89",
+      "dark": "#2a2429"
+    }
   },
   "/mock/houses/x8/3.webp": {
     "tint": "#10232d",
-    "lum": 0.679
+    "lum": 0.679,
+    "accent": "#9fbacb",
+    "palette": {
+      "main": "#87cbea",
+      "dark": "#565938"
+    }
   },
   "/mock/houses/x8/4.webp": {
     "tint": "#211c1c",
-    "lum": 0.19
+    "lum": 0.19,
+    "accent": "#7d7069",
+    "palette": {
+      "main": "#978a87",
+      "dark": "#2a2526"
+    }
   },
   "/mock/houses/x9/1.webp": {
     "tint": "#1d2020",
-    "lum": 0.589
+    "lum": 0.589,
+    "accent": "#8cb3b9",
+    "palette": {
+      "main": "#57a8b9",
+      "dark": "#372619"
+    }
   },
   "/mock/houses/x9/2.webp": {
     "tint": "#1f1f1e",
-    "lum": 0.293
+    "lum": 0.293,
+    "accent": "#83807b",
+    "palette": {
+      "main": "#b8b9b7",
+      "dark": "#171817"
+    }
   },
   "/mock/houses/x9/3.webp": {
     "tint": "#272716",
-    "lum": 0.246
+    "lum": 0.246,
+    "accent": "#727567",
+    "palette": {
+      "main": "#575729",
+      "dark": "#282816"
+    }
   },
   "/mock/houses/x9/4.webp": {
     "tint": "#1e1e1f",
-    "lum": 0.172
+    "lum": 0.172,
+    "accent": "#54483d",
+    "palette": {
+      "main": "#464547",
+      "dark": "#161515"
+    }
+  },
+  "/mock/users/p1/2.webp": {
+    "tint": "#271716",
+    "lum": 0.101,
+    "accent": "#491a12",
+    "palette": {
+      "main": "#790909",
+      "dark": "#261317"
+    }
+  },
+  "/mock/users/p1/3.webp": {
+    "tint": "#2c1f11",
+    "lum": 0.291,
+    "accent": "#876d44",
+    "palette": {
+      "main": "#664a29",
+      "dark": "#664a29"
+    }
+  },
+  "/mock/users/p1/face.webp": {
+    "tint": "#201f1d",
+    "lum": 0.31,
+    "accent": "#5e564a",
+    "palette": {
+      "main": "#c8aa97",
+      "dark": "#1b1917"
+    }
+  },
+  "/mock/users/p10/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.263,
+    "accent": "#555555",
+    "palette": {
+      "main": "#585858",
+      "dark": "#151515"
+    }
+  },
+  "/mock/users/p10/3.webp": {
+    "tint": "#251b18",
+    "lum": 0.434,
+    "accent": "#976156",
+    "palette": {
+      "main": "#7988b7",
+      "dark": "#593a36"
+    }
+  },
+  "/mock/users/p10/face.webp": {
+    "tint": "#2d1f11",
+    "lum": 0.448,
+    "accent": "#a87f57",
+    "palette": {
+      "main": "#dbb388",
+      "dark": "#261b1a"
+    }
+  },
+  "/mock/users/p11/2.webp": {
+    "tint": "#20201d",
+    "lum": 0.551,
+    "accent": "#7c7c64",
+    "palette": {
+      "main": "#858989",
+      "dark": "#484825"
+    }
+  },
+  "/mock/users/p11/3.webp": {
+    "tint": "#231e1a",
+    "lum": 0.161,
+    "accent": "#656c77",
+    "palette": {
+      "main": "#8797a8",
+      "dark": "#38465b"
+    }
+  },
+  "/mock/users/p11/face.webp": {
+    "tint": "#1b1d22",
+    "lum": 0.084,
+    "accent": "#2e2a28",
+    "palette": {
+      "main": "#544337",
+      "dark": "#171616"
+    }
+  },
+  "/mock/users/p12/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.364,
+    "accent": "#626262",
+    "palette": {
+      "main": "#676767",
+      "dark": "#363636"
+    }
+  },
+  "/mock/users/p12/3.webp": {
+    "tint": "#2e2110",
+    "lum": 0.382,
+    "accent": "#8d6631",
+    "palette": {
+      "main": "#b78846",
+      "dark": "#251c12"
+    }
+  },
+  "/mock/users/p12/face.webp": {
+    "tint": "#211c1c",
+    "lum": 0.56,
+    "accent": "#aa9d9c",
+    "palette": {
+      "main": "#c5b9b7",
+      "dark": "#372a28"
+    }
+  },
+  "/mock/users/p13/2.webp": {
+    "tint": "#1f201d",
+    "lum": 0.377,
+    "accent": "#3c4141",
+    "palette": {
+      "main": "#96a989",
+      "dark": "#1a1a1a"
+    }
+  },
+  "/mock/users/p13/3.webp": {
+    "tint": "#1f1e1f",
+    "lum": 0.511,
+    "accent": "#8d7f8a",
+    "palette": {
+      "main": "#888689",
+      "dark": "#292629"
+    }
+  },
+  "/mock/users/p13/face.webp": {
+    "tint": "#211e1c",
+    "lum": 0.464,
+    "accent": "#756a63",
+    "palette": {
+      "main": "#898a86",
+      "dark": "#262828"
+    }
+  },
+  "/mock/users/p14/2.webp": {
+    "tint": "#24191e",
+    "lum": 0.593,
+    "accent": "#a7788d",
+    "palette": {
+      "main": "#b6abc8",
+      "dark": "#392a18"
+    }
+  },
+  "/mock/users/p14/3.webp": {
+    "tint": "#23201a",
+    "lum": 0.384,
+    "accent": "#7d8361",
+    "palette": {
+      "main": "#a7b778",
+      "dark": "#473926"
+    }
+  },
+  "/mock/users/p14/face.webp": {
+    "tint": "#211f1d",
+    "lum": 0.327,
+    "accent": "#807160",
+    "palette": {
+      "main": "#494946",
+      "dark": "#494946"
+    }
+  },
+  "/mock/users/p15/2.webp": {
+    "tint": "#1a231c",
+    "lum": 0.292,
+    "accent": "#3e6e77",
+    "palette": {
+      "main": "#46bafb",
+      "dark": "#182617"
+    }
+  },
+  "/mock/users/p15/3.webp": {
+    "tint": "#211e1c",
+    "lum": 0.631,
+    "accent": "#797774",
+    "palette": {
+      "main": "#454959",
+      "dark": "#3c4358"
+    }
+  },
+  "/mock/users/p15/face.webp": {
+    "tint": "#161e27",
+    "lum": 0.118,
+    "accent": "#3c484d",
+    "palette": {
+      "main": "#3a5359",
+      "dark": "#161c25"
+    }
+  },
+  "/mock/users/p16/2.webp": {
+    "tint": "#272416",
+    "lum": 0.082,
+    "accent": "#1f262a",
+    "palette": {
+      "main": "#2c3657",
+      "dark": "#12172d"
+    }
+  },
+  "/mock/users/p16/3.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.434,
+    "accent": "#717781",
+    "palette": {
+      "main": "#666868",
+      "dark": "#494646"
+    }
+  },
+  "/mock/users/p16/face.webp": {
+    "tint": "#241d19",
+    "lum": 0.489,
+    "accent": "#a08e87",
+    "palette": {
+      "main": "#b2bbca",
+      "dark": "#583927"
+    }
+  },
+  "/mock/users/p17/2.webp": {
+    "tint": "#231d1a",
+    "lum": 0.259,
+    "accent": "#727270",
+    "palette": {
+      "main": "#b5b6ba",
+      "dark": "#1b1715"
+    }
+  },
+  "/mock/users/p17/3.webp": {
+    "tint": "#241e19",
+    "lum": 0.178,
+    "accent": "#443831",
+    "palette": {
+      "main": "#684b34",
+      "dark": "#272627"
+    }
+  },
+  "/mock/users/p17/face.webp": {
+    "tint": "#1f1a23",
+    "lum": 0.075,
+    "accent": "#302423",
+    "palette": {
+      "main": "#583738",
+      "dark": "#181719"
+    }
+  },
+  "/mock/users/p18/2.webp": {
+    "tint": "#1d1f20",
+    "lum": 0.465,
+    "accent": "#989b9b",
+    "palette": {
+      "main": "#b7b9b7",
+      "dark": "#384648"
+    }
+  },
+  "/mock/users/p18/3.webp": {
+    "tint": "#2a1413",
+    "lum": 0.115,
+    "accent": "#5f3c37",
+    "palette": {
+      "main": "#663a36",
+      "dark": "#361818"
+    }
+  },
+  "/mock/users/p18/face.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.291,
+    "accent": "#676864",
+    "palette": {
+      "main": "#bab9b7",
+      "dark": "#181917"
+    }
+  },
+  "/mock/users/p19/2.webp": {
+    "tint": "#281b15",
+    "lum": 0.237,
+    "accent": "#46332c",
+    "palette": {
+      "main": "#57372b",
+      "dark": "#272423"
+    }
+  },
+  "/mock/users/p19/3.webp": {
+    "tint": "#211f1d",
+    "lum": 0.571,
+    "accent": "#8c8b7f",
+    "palette": {
+      "main": "#c7baa7",
+      "dark": "#1d2523"
+    }
+  },
+  "/mock/users/p19/face.webp": {
+    "tint": "#221c1b",
+    "lum": 0.094,
+    "accent": "#292424",
+    "palette": {
+      "main": "#464958",
+      "dark": "#251b17"
+    }
+  },
+  "/mock/users/p2/2.webp": {
+    "tint": "#1c2120",
+    "lum": 0.263,
+    "accent": "#586a65",
+    "palette": {
+      "main": "#465a56",
+      "dark": "#1a2628"
+    }
+  },
+  "/mock/users/p2/3.webp": {
+    "tint": "#271b16",
+    "lum": 0.373,
+    "accent": "#746465",
+    "palette": {
+      "main": "#034a87",
+      "dark": "#483838"
+    }
+  },
+  "/mock/users/p2/face.webp": {
+    "tint": "#25181a",
+    "lum": 0.211,
+    "accent": "#3d3332",
+    "palette": {
+      "main": "#583638",
+      "dark": "#141c1e"
+    }
+  },
+  "/mock/users/p20/2.webp": {
+    "tint": "#331b0a",
+    "lum": 0.271,
+    "accent": "#4d2d17",
+    "palette": {
+      "main": "#d96815",
+      "dark": "#392417"
+    }
+  },
+  "/mock/users/p20/3.webp": {
+    "tint": "#181d25",
+    "lum": 0.353,
+    "accent": "#5b6673",
+    "palette": {
+      "main": "#3a4448",
+      "dark": "#151819"
+    }
+  },
+  "/mock/users/p20/face.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.452,
+    "accent": "#76766d",
+    "palette": {
+      "main": "#585846",
+      "dark": "#474837"
+    }
+  },
+  "/mock/users/p21/2.webp": {
+    "tint": "#083530",
+    "lum": 0.447,
+    "accent": "#0d7e76",
+    "palette": {
+      "main": "#02857a",
+      "dark": "#395a59"
+    }
+  },
+  "/mock/users/p21/3.webp": {
+    "tint": "#271617",
+    "lum": 0.257,
+    "accent": "#905c59",
+    "palette": {
+      "main": "#87565b",
+      "dark": "#3b1724"
+    }
+  },
+  "/mock/users/p21/face.webp": {
+    "tint": "#221f1b",
+    "lum": 0.608,
+    "accent": "#a1a087",
+    "palette": {
+      "main": "#d9b6a5",
+      "dark": "#464949"
+    }
+  },
+  "/mock/users/p22/2.webp": {
+    "tint": "#182225",
+    "lum": 0.32,
+    "accent": "#465849",
+    "palette": {
+      "main": "#374956",
+      "dark": "#262625"
+    }
+  },
+  "/mock/users/p22/3.webp": {
+    "tint": "#291c14",
+    "lum": 0.691,
+    "accent": "#91a096",
+    "palette": {
+      "main": "#dcb39c",
+      "dark": "#275447"
+    }
+  },
+  "/mock/users/p22/face.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.246,
+    "accent": "#666966",
+    "palette": {
+      "main": "#68737b",
+      "dark": "#171916"
+    }
+  },
+  "/mock/users/p23/2.webp": {
+    "tint": "#12252b",
+    "lum": 0.871,
+    "accent": "#9db7cf",
+    "palette": {
+      "main": "#8799b8",
+      "dark": "#152832"
+    }
+  },
+  "/mock/users/p23/3.webp": {
+    "tint": "#171e26",
+    "lum": 0.335,
+    "accent": "#7093bb",
+    "palette": {
+      "main": "#366899",
+      "dark": "#171626"
+    }
+  },
+  "/mock/users/p23/face.webp": {
+    "tint": "#191e24",
+    "lum": 0.637,
+    "accent": "#acaeb8",
+    "palette": {
+      "main": "#aaaab6",
+      "dark": "#163439"
+    }
+  },
+  "/mock/users/p24/2.webp": {
+    "tint": "#1e1c21",
+    "lum": 0.276,
+    "accent": "#76717a",
+    "palette": {
+      "main": "#383947",
+      "dark": "#383947"
+    }
+  },
+  "/mock/users/p24/3.webp": {
+    "tint": "#1b2223",
+    "lum": 0.565,
+    "accent": "#7e9eaf",
+    "palette": {
+      "main": "#79b4e5",
+      "dark": "#474638"
+    }
+  },
+  "/mock/users/p24/face.webp": {
+    "tint": "#272116",
+    "lum": 0.28,
+    "accent": "#8f887f",
+    "palette": {
+      "main": "#87989b",
+      "dark": "#161a14"
+    }
+  },
+  "/mock/users/p25/2.webp": {
+    "tint": "#292c11",
+    "lum": 0.561,
+    "accent": "#84905c",
+    "palette": {
+      "main": "#8a9735",
+      "dark": "#192714"
+    }
+  },
+  "/mock/users/p25/3.webp": {
+    "tint": "#202816",
+    "lum": 0.392,
+    "accent": "#6f8981",
+    "palette": {
+      "main": "#1a63b6",
+      "dark": "#385728"
+    }
+  },
+  "/mock/users/p25/face.webp": {
+    "tint": "#221f1c",
+    "lum": 0.418,
+    "accent": "#574e45",
+    "palette": {
+      "main": "#584638",
+      "dark": "#1a1815"
+    }
+  },
+  "/mock/users/p26/2.webp": {
+    "tint": "#211c1e",
+    "lum": 0.383,
+    "accent": "#6f515b",
+    "palette": {
+      "main": "#673838",
+      "dark": "#583637"
+    }
+  },
+  "/mock/users/p26/3.webp": {
+    "tint": "#22201c",
+    "lum": 0.381,
+    "accent": "#6f746c",
+    "palette": {
+      "main": "#575757",
+      "dark": "#484848"
+    }
+  },
+  "/mock/users/p26/face.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.359,
+    "accent": "#737373",
+    "palette": {
+      "main": "#bababa",
+      "dark": "#181818"
+    }
+  },
+  "/mock/users/p27/2.webp": {
+    "tint": "#201d1d",
+    "lum": 0.363,
+    "accent": "#8e8d90",
+    "palette": {
+      "main": "#595557",
+      "dark": "#463938"
+    }
+  },
+  "/mock/users/p27/3.webp": {
+    "tint": "#1e1f1e",
+    "lum": 0.297,
+    "accent": "#6d7782",
+    "palette": {
+      "main": "#979899",
+      "dark": "#272925"
+    }
+  },
+  "/mock/users/p27/face.webp": {
+    "tint": "#221b1d",
+    "lum": 0.06,
+    "accent": "#1b191a",
+    "palette": {
+      "main": "#563b37",
+      "dark": "#171617"
+    }
+  },
+  "/mock/users/p28/2.webp": {
+    "tint": "#261b17",
+    "lum": 0.328,
+    "accent": "#6d4e42",
+    "palette": {
+      "main": "#57362b",
+      "dark": "#372824"
+    }
+  },
+  "/mock/users/p28/3.webp": {
+    "tint": "#201e1e",
+    "lum": 0.334,
+    "accent": "#57504f",
+    "palette": {
+      "main": "#4a4646",
+      "dark": "#352926"
+    }
+  },
+  "/mock/users/p28/face.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.547,
+    "accent": "#6a6b67",
+    "palette": {
+      "main": "#a4a8a9",
+      "dark": "#393628"
+    }
+  },
+  "/mock/users/p29/2.webp": {
+    "tint": "#251918",
+    "lum": 0.311,
+    "accent": "#735858",
+    "palette": {
+      "main": "#4a383d",
+      "dark": "#4a383d"
+    }
+  },
+  "/mock/users/p29/3.webp": {
+    "tint": "#2a1b13",
+    "lum": 0.667,
+    "accent": "#d0c0b7",
+    "palette": {
+      "main": "#d6aa96",
+      "dark": "#584939"
+    }
+  },
+  "/mock/users/p29/face.webp": {
+    "tint": "#221b1e",
+    "lum": 0.056,
+    "accent": "#1d1a1a",
+    "palette": {
+      "main": "#563a35",
+      "dark": "#171516"
+    }
+  },
+  "/mock/users/p3/2.webp": {
+    "tint": "#1f201d",
+    "lum": 0.133,
+    "accent": "#192523",
+    "palette": {
+      "main": "#485659",
+      "dark": "#151515"
+    }
+  },
+  "/mock/users/p3/3.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.511,
+    "accent": "#5a5a5b",
+    "palette": {
+      "main": "#a7a7a7",
+      "dark": "#161719"
+    }
+  },
+  "/mock/users/p3/face.webp": {
+    "tint": "#23231a",
+    "lum": 0.182,
+    "accent": "#433f2f",
+    "palette": {
+      "main": "#355855",
+      "dark": "#141b14"
+    }
+  },
+  "/mock/users/p30/2.webp": {
+    "tint": "#211e1c",
+    "lum": 0.477,
+    "accent": "#87807c",
+    "palette": {
+      "main": "#57453b",
+      "dark": "#57453b"
+    }
+  },
+  "/mock/users/p30/3.webp": {
+    "tint": "#1e1f20",
+    "lum": 0.414,
+    "accent": "#90999d",
+    "palette": {
+      "main": "#adc2ce",
+      "dark": "#282925"
+    }
+  },
+  "/mock/users/p30/face.webp": {
+    "tint": "#201e1d",
+    "lum": 0.477,
+    "accent": "#7a716b",
+    "palette": {
+      "main": "#7a736a",
+      "dark": "#1c222e"
+    }
+  },
+  "/mock/users/p31/2.webp": {
+    "tint": "#221f1b",
+    "lum": 0.506,
+    "accent": "#836e5e",
+    "palette": {
+      "main": "#b7a999",
+      "dark": "#171717"
+    }
+  },
+  "/mock/users/p31/3.webp": {
+    "tint": "#241c19",
+    "lum": 0.28,
+    "accent": "#6b7071",
+    "palette": {
+      "main": "#58859c",
+      "dark": "#151526"
+    }
+  },
+  "/mock/users/p31/face.webp": {
+    "tint": "#2e0836",
+    "lum": 0.058,
+    "accent": "#1d0d22",
+    "palette": {
+      "main": "#73126b",
+      "dark": "#672b65"
+    }
+  },
+  "/mock/users/p32/2.webp": {
+    "tint": "#211f1c",
+    "lum": 0.74,
+    "accent": "#9a9d9b",
+    "palette": {
+      "main": "#9aa5b8",
+      "dark": "#275964"
+    }
+  },
+  "/mock/users/p32/3.webp": {
+    "tint": "#241e1a",
+    "lum": 0.555,
+    "accent": "#a9a49f",
+    "palette": {
+      "main": "#584639",
+      "dark": "#393635"
+    }
+  },
+  "/mock/users/p32/face.webp": {
+    "tint": "#232519",
+    "lum": 0.051,
+    "accent": "#1b1b15",
+    "palette": {
+      "main": "#45473b",
+      "dark": "#161a14"
+    }
+  },
+  "/mock/users/p33/2.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.551,
+    "accent": "#9e9e9e",
+    "palette": {
+      "main": "#585858",
+      "dark": "#373737"
+    }
+  },
+  "/mock/users/p33/3.webp": {
+    "tint": "#211e1c",
+    "lum": 0.386,
+    "accent": "#918984",
+    "palette": {
+      "main": "#554839",
+      "dark": "#554839"
+    }
+  },
+  "/mock/users/p33/face.webp": {
+    "tint": "#2f0e19",
+    "lum": 0.559,
+    "accent": "#d27c99",
+    "palette": {
+      "main": "#f4759a",
+      "dark": "#3b2218"
+    }
+  },
+  "/mock/users/p34/2.webp": {
+    "tint": "#271d16",
+    "lum": 0.443,
+    "accent": "#836552",
+    "palette": {
+      "main": "#885537",
+      "dark": "#583727"
+    }
+  },
+  "/mock/users/p34/3.webp": {
+    "tint": "#2a2e0f",
+    "lum": 0.445,
+    "accent": "#6f7e62",
+    "palette": {
+      "main": "#465869",
+      "dark": "#36485a"
+    }
+  },
+  "/mock/users/p34/face.webp": {
+    "tint": "#242019",
+    "lum": 0.181,
+    "accent": "#584637",
+    "palette": {
+      "main": "#796555",
+      "dark": "#1a1a15"
+    }
+  },
+  "/mock/users/p35/2.webp": {
+    "tint": "#1b2419",
+    "lum": 0.251,
+    "accent": "#3e4637",
+    "palette": {
+      "main": "#474937",
+      "dark": "#474937"
+    }
+  },
+  "/mock/users/p35/3.webp": {
+    "tint": "#21221b",
+    "lum": 0.257,
+    "accent": "#6b6f71",
+    "palette": {
+      "main": "#474838",
+      "dark": "#474838"
+    }
+  },
+  "/mock/users/p35/face.webp": {
+    "tint": "#211c1c",
+    "lum": 0.279,
+    "accent": "#7d655e",
+    "palette": {
+      "main": "#c98876",
+      "dark": "#13141a"
+    }
+  },
+  "/mock/users/p36/2.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.561,
+    "accent": "#959691",
+    "palette": {
+      "main": "#848a8c",
+      "dark": "#1a1a1b"
+    }
+  },
+  "/mock/users/p36/3.webp": {
+    "tint": "#201e1d",
+    "lum": 0.182,
+    "accent": "#695748",
+    "palette": {
+      "main": "#574436",
+      "dark": "#2e2c2b"
+    }
+  },
+  "/mock/users/p36/face.webp": {
+    "tint": "#1b1e23",
+    "lum": 0.39,
+    "accent": "#424e54",
+    "palette": {
+      "main": "#a7bad7",
+      "dark": "#132828"
+    }
+  },
+  "/mock/users/p37/2.webp": {
+    "tint": "#201e1d",
+    "lum": 0.379,
+    "accent": "#7a6f6d",
+    "palette": {
+      "main": "#a6a8a9",
+      "dark": "#171617"
+    }
+  },
+  "/mock/users/p37/3.webp": {
+    "tint": "#1d2020",
+    "lum": 0.835,
+    "accent": "#9cbfd3",
+    "palette": {
+      "main": "#47a9ea",
+      "dark": "#311c1b"
+    }
+  },
+  "/mock/users/p37/face.webp": {
+    "tint": "#251919",
+    "lum": 0.38,
+    "accent": "#a78e8e",
+    "palette": {
+      "main": "#868989",
+      "dark": "#484847"
+    }
+  },
+  "/mock/users/p4/2.webp": {
+    "tint": "#23201a",
+    "lum": 0.475,
+    "accent": "#938068",
+    "palette": {
+      "main": "#574736",
+      "dark": "#382a26"
+    }
+  },
+  "/mock/users/p4/3.webp": {
+    "tint": "#251f18",
+    "lum": 0.411,
+    "accent": "#a99b88",
+    "palette": {
+      "main": "#c9baa7",
+      "dark": "#574837"
+    }
+  },
+  "/mock/users/p4/face.webp": {
+    "tint": "#1e1f1f",
+    "lum": 0.584,
+    "accent": "#999695",
+    "palette": {
+      "main": "#a4a7ab",
+      "dark": "#2b2924"
+    }
+  },
+  "/mock/users/p5/2.webp": {
+    "tint": "#251d18",
+    "lum": 0.173,
+    "accent": "#6c6461",
+    "palette": {
+      "main": "#b5b6ba",
+      "dark": "#1b1715"
+    }
+  },
+  "/mock/users/p5/3.webp": {
+    "tint": "#1d2020",
+    "lum": 0.705,
+    "accent": "#c0c4c9",
+    "palette": {
+      "main": "#565866",
+      "dark": "#37393a"
+    }
+  },
+  "/mock/users/p5/face.webp": {
+    "tint": "#1c1f21",
+    "lum": 0.44,
+    "accent": "#5a6466",
+    "palette": {
+      "main": "#a8b9c9",
+      "dark": "#192625"
+    }
+  },
+  "/mock/users/p6/2.webp": {
+    "tint": "#23211b",
+    "lum": 0.362,
+    "accent": "#756655",
+    "palette": {
+      "main": "#b6bbb6",
+      "dark": "#171916"
+    }
+  },
+  "/mock/users/p6/3.webp": {
+    "tint": "#1f201d",
+    "lum": 0.172,
+    "accent": "#525450",
+    "palette": {
+      "main": "#47443a",
+      "dark": "#272b25"
+    }
+  },
+  "/mock/users/p6/face.webp": {
+    "tint": "#1e2419",
+    "lum": 0.279,
+    "accent": "#546049",
+    "palette": {
+      "main": "#475837",
+      "dark": "#374827"
+    }
+  },
+  "/mock/users/p7/2.webp": {
+    "tint": "#1c1e21",
+    "lum": 0.713,
+    "accent": "#8892a4",
+    "palette": {
+      "main": "#b8bdc4",
+      "dark": "#38435b"
+    }
+  },
+  "/mock/users/p7/3.webp": {
+    "tint": "#282315",
+    "lum": 0.293,
+    "accent": "#655f3e",
+    "palette": {
+      "main": "#67653b",
+      "dark": "#5b5834"
+    }
+  },
+  "/mock/users/p7/face.webp": {
+    "tint": "#281f16",
+    "lum": 0.513,
+    "accent": "#836b54",
+    "palette": {
+      "main": "#b68759",
+      "dark": "#272519"
+    }
+  },
+  "/mock/users/p8/2.webp": {
+    "tint": "#1c1d21",
+    "lum": 0.723,
+    "accent": "#6a8a95",
+    "palette": {
+      "main": "#266975",
+      "dark": "#274b54"
+    }
+  },
+  "/mock/users/p8/3.webp": {
+    "tint": "#242219",
+    "lum": 0.577,
+    "accent": "#aeb5a6",
+    "palette": {
+      "main": "#acc3c9",
+      "dark": "#342819"
+    }
+  },
+  "/mock/users/p8/face.webp": {
+    "tint": "#1c1d21",
+    "lum": 0.381,
+    "accent": "#767784",
+    "palette": {
+      "main": "#47648a",
+      "dark": "#262a37"
+    }
+  },
+  "/mock/users/p9/2.webp": {
+    "tint": "#2b2513",
+    "lum": 0.391,
+    "accent": "#726d51",
+    "palette": {
+      "main": "#8388a4",
+      "dark": "#595637"
+    }
+  },
+  "/mock/users/p9/3.webp": {
+    "tint": "#201d20",
+    "lum": 0.377,
+    "accent": "#7b685d",
+    "palette": {
+      "main": "#684828",
+      "dark": "#684828"
+    }
+  },
+  "/mock/users/p9/face.webp": {
+    "tint": "#231e1b",
+    "lum": 0.279,
+    "accent": "#594e47",
+    "palette": {
+      "main": "#474539",
+      "dark": "#383836"
+    }
+  },
+  "/mock/users/u1/face.webp": {
+    "tint": "#2b1912",
+    "lum": 0.26,
+    "accent": "#795b3e",
+    "palette": {
+      "main": "#584638",
+      "dark": "#191715"
+    }
+  },
+  "/mock/users/u10/face.webp": {
+    "tint": "#2a1314",
+    "lum": 0.297,
+    "accent": "#3e2221",
+    "palette": {
+      "main": "#986957",
+      "dark": "#161515"
+    }
+  },
+  "/mock/users/u11/face.webp": {
+    "tint": "#22201b",
+    "lum": 0.391,
+    "accent": "#535045",
+    "palette": {
+      "main": "#278385",
+      "dark": "#161715"
+    }
+  },
+  "/mock/users/u12/face.webp": {
+    "tint": "#251a18",
+    "lum": 0.277,
+    "accent": "#7c665d",
+    "palette": {
+      "main": "#c6aaa6",
+      "dark": "#47362a"
+    }
+  },
+  "/mock/users/u13/face.webp": {
+    "tint": "#2f0f0f",
+    "lum": 0.568,
+    "accent": "#b88f8b",
+    "palette": {
+      "main": "#e9aa87",
+      "dark": "#271718"
+    }
+  },
+  "/mock/users/u14/face.webp": {
+    "tint": "#1e1e1f",
+    "lum": 0.577,
+    "accent": "#8c8d8a",
+    "palette": {
+      "main": "#95adb9",
+      "dark": "#454824"
+    }
+  },
+  "/mock/users/u15/face.webp": {
+    "tint": "#221f1c",
+    "lum": 0.468,
+    "accent": "#6f7166",
+    "palette": {
+      "main": "#67868a",
+      "dark": "#383827"
+    }
+  },
+  "/mock/users/u16/face.webp": {
+    "tint": "#2d1015",
+    "lum": 0.393,
+    "accent": "#b38183",
+    "palette": {
+      "main": "#b9c6b7",
+      "dark": "#464438"
+    }
+  },
+  "/mock/users/u17/face.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.492,
+    "accent": "#9d9592",
+    "palette": {
+      "main": "#c6bab8",
+      "dark": "#141718"
+    }
+  },
+  "/mock/users/u18/face.webp": {
+    "tint": "#1f1f1f",
+    "lum": 0.314,
+    "accent": "#828282",
+    "palette": {
+      "main": "#b7b7b7",
+      "dark": "#181818"
+    }
+  },
+  "/mock/users/u19/face.webp": {
+    "tint": "#261c17",
+    "lum": 0.368,
+    "accent": "#5c5044",
+    "palette": {
+      "main": "#76573b",
+      "dark": "#232724"
+    }
+  },
+  "/mock/users/u2/face.webp": {
+    "tint": "#232716",
+    "lum": 0.449,
+    "accent": "#6a7644",
+    "palette": {
+      "main": "#688946",
+      "dark": "#495928"
+    }
+  },
+  "/mock/users/u20/face.webp": {
+    "tint": "#192224",
+    "lum": 0.318,
+    "accent": "#47544c",
+    "palette": {
+      "main": "#1c3374",
+      "dark": "#273818"
+    }
+  },
+  "/mock/users/u21/face.webp": {
+    "tint": "#251b18",
+    "lum": 0.411,
+    "accent": "#6e5651",
+    "palette": {
+      "main": "#675957",
+      "dark": "#17141a"
+    }
+  },
+  "/mock/users/u22/face.webp": {
+    "tint": "#251a18",
+    "lum": 0.698,
+    "accent": "#b1938f",
+    "palette": {
+      "main": "#d6aca4",
+      "dark": "#2a2626"
+    }
+  },
+  "/mock/users/u23/face.webp": {
+    "tint": "#201d20",
+    "lum": 0.184,
+    "accent": "#5a4e4d",
+    "palette": {
+      "main": "#66656a",
+      "dark": "#181924"
+    }
+  },
+  "/mock/users/u24/face.webp": {
+    "tint": "#281519",
+    "lum": 0.384,
+    "accent": "#975663",
+    "palette": {
+      "main": "#783754",
+      "dark": "#56264d"
+    }
+  },
+  "/mock/users/u25/face.webp": {
+    "tint": "#261a17",
+    "lum": 0.491,
+    "accent": "#8a6c5e",
+    "palette": {
+      "main": "#635b55",
+      "dark": "#253416"
+    }
+  },
+  "/mock/users/u26/face.webp": {
+    "tint": "#1b1a23",
+    "lum": 0.081,
+    "accent": "#2e201d",
+    "palette": {
+      "main": "#663a26",
+      "dark": "#14151b"
+    }
+  },
+  "/mock/users/u27/face.webp": {
+    "tint": "#221b1c",
+    "lum": 0.462,
+    "accent": "#776363",
+    "palette": {
+      "main": "#47553a",
+      "dark": "#272a25"
+    }
+  },
+  "/mock/users/u28/face.webp": {
+    "tint": "#281f16",
+    "lum": 0.513,
+    "accent": "#886f58",
+    "palette": {
+      "main": "#b68759",
+      "dark": "#272519"
+    }
+  },
+  "/mock/users/u29/face.webp": {
+    "tint": "#221c1d",
+    "lum": 0.583,
+    "accent": "#b0a7a5",
+    "palette": {
+      "main": "#b5bbb8",
+      "dark": "#6a2e65"
+    }
+  },
+  "/mock/users/u3/face.webp": {
+    "tint": "#093433",
+    "lum": 0.528,
+    "accent": "#739c94",
+    "palette": {
+      "main": "#c2bdb3",
+      "dark": "#252728"
+    }
+  },
+  "/mock/users/u30/face.webp": {
+    "tint": "#1f1c21",
+    "lum": 0.166,
+    "accent": "#33313e",
+    "palette": {
+      "main": "#3b3c51",
+      "dark": "#343649"
+    }
+  },
+  "/mock/users/u31/face.webp": {
+    "tint": "#231e1b",
+    "lum": 0.307,
+    "accent": "#695242",
+    "palette": {
+      "main": "#79543a",
+      "dark": "#191815"
+    }
+  },
+  "/mock/users/u32/face.webp": {
+    "tint": "#1b2022",
+    "lum": 0.183,
+    "accent": "#5a666d",
+    "palette": {
+      "main": "#a8b8c6",
+      "dark": "#161718"
+    }
+  },
+  "/mock/users/u33/face.webp": {
+    "tint": "#291415",
+    "lum": 0.377,
+    "accent": "#6f504d",
+    "palette": {
+      "main": "#b7a797",
+      "dark": "#24292b"
+    }
+  },
+  "/mock/users/u34/face.webp": {
+    "tint": "#341809",
+    "lum": 0.69,
+    "accent": "#c38a74",
+    "palette": {
+      "main": "#f7b688",
+      "dark": "#181518"
+    }
+  },
+  "/mock/users/u35/face.webp": {
+    "tint": "#1f1f1e",
+    "lum": 0.132,
+    "accent": "#2b2a27",
+    "palette": {
+      "main": "#4a4945",
+      "dark": "#282826"
+    }
+  },
+  "/mock/users/u36/face.webp": {
+    "tint": "#212518",
+    "lum": 0.257,
+    "accent": "#5d5a49",
+    "palette": {
+      "main": "#959896",
+      "dark": "#262918"
+    }
+  },
+  "/mock/users/u37/face.webp": {
+    "tint": "#1f1e1e",
+    "lum": 0.559,
+    "accent": "#8f9394",
+    "palette": {
+      "main": "#b8b9b8",
+      "dark": "#3a4449"
+    }
+  },
+  "/mock/users/u38/face.webp": {
+    "tint": "#242119",
+    "lum": 0.42,
+    "accent": "#827b65",
+    "palette": {
+      "main": "#454839",
+      "dark": "#454839"
+    }
+  },
+  "/mock/users/u39/face.webp": {
+    "tint": "#23211a",
+    "lum": 0.4,
+    "accent": "#969381",
+    "palette": {
+      "main": "#655738",
+      "dark": "#544828"
+    }
+  },
+  "/mock/users/u4/face.webp": {
+    "tint": "#211e1c",
+    "lum": 0.38,
+    "accent": "#807a73",
+    "palette": {
+      "main": "#969798",
+      "dark": "#261a17"
+    }
+  },
+  "/mock/users/u40/face.webp": {
+    "tint": "#1d1e21",
+    "lum": 0.402,
+    "accent": "#776d6d",
+    "palette": {
+      "main": "#565856",
+      "dark": "#1b1915"
+    }
+  },
+  "/mock/users/u41/face.webp": {
+    "tint": "#271a16",
+    "lum": 0.347,
+    "accent": "#817a6e",
+    "palette": {
+      "main": "#a8a898",
+      "dark": "#2d3235"
+    }
+  },
+  "/mock/users/u42/face.webp": {
+    "tint": "#251e18",
+    "lum": 0.358,
+    "accent": "#745a4b",
+    "palette": {
+      "main": "#b77a46",
+      "dark": "#261a16"
+    }
+  },
+  "/mock/users/u43/face.webp": {
+    "tint": "#31220d",
+    "lum": 0.611,
+    "accent": "#d4a156",
+    "palette": {
+      "main": "#fbc978",
+      "dark": "#251a19"
+    }
+  },
+  "/mock/users/u44/face.webp": {
+    "tint": "#1b1f22",
+    "lum": 0.34,
+    "accent": "#595654",
+    "palette": {
+      "main": "#a3a9a4",
+      "dark": "#171616"
+    }
+  },
+  "/mock/users/u45/face.webp": {
+    "tint": "#1d201d",
+    "lum": 0.447,
+    "accent": "#687a6c",
+    "palette": {
+      "main": "#464948",
+      "dark": "#162819"
+    }
+  },
+  "/mock/users/u46/face.webp": {
+    "tint": "#241b19",
+    "lum": 0.377,
+    "accent": "#6a5754",
+    "palette": {
+      "main": "#766968",
+      "dark": "#181419"
+    }
+  },
+  "/mock/users/u47/face.webp": {
+    "tint": "#281519",
+    "lum": 0.57,
+    "accent": "#b8949e",
+    "palette": {
+      "main": "#b59a99",
+      "dark": "#3d292e"
+    }
+  },
+  "/mock/users/u48/face.webp": {
+    "tint": "#1b2322",
+    "lum": 0.219,
+    "accent": "#2d362d",
+    "palette": {
+      "main": "#465758",
+      "dark": "#273636"
+    }
+  },
+  "/mock/users/u5/face.webp": {
+    "tint": "#1c211e",
+    "lum": 0.537,
+    "accent": "#859a84",
+    "palette": {
+      "main": "#434749",
+      "dark": "#36383b"
+    }
+  },
+  "/mock/users/u6/face.webp": {
+    "tint": "#31260d",
+    "lum": 0.566,
+    "accent": "#c7a033",
+    "palette": {
+      "main": "#eac32a",
+      "dark": "#35271a"
+    }
+  },
+  "/mock/users/u7/face.webp": {
+    "tint": "#2a1914",
+    "lum": 0.073,
+    "accent": "#2e2523",
+    "palette": {
+      "main": "#494648",
+      "dark": "#3a3539"
+    }
+  },
+  "/mock/users/u8/face.webp": {
+    "tint": "#231d1a",
+    "lum": 0.482,
+    "accent": "#7a6051",
+    "palette": {
+      "main": "#b49889",
+      "dark": "#473c33"
+    }
+  },
+  "/mock/users/u9/face.webp": {
+    "tint": "#211c1c",
+    "lum": 0.457,
+    "accent": "#b7a8a1",
+    "palette": {
+      "main": "#c5bba9",
+      "dark": "#1e1c2d"
+    }
   }
 }

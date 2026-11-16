@@ -37,6 +37,7 @@ export const previewForUrl = adapter.previewForUrl;
 /** Preview of a House's accommodation link (the booked place once it's locked). */
 export const stayLinkPreview = (stay: Pick<Stay, "accommodationLink" | "title">) => (stay.accommodationLink ? adapter.previewForUrl(stay.accommodationLink, stay.title) : null);
 export const withAttribution = adapter.withAttribution;
+export const withPlaces = adapter.withPlaces;
 export const withChatHistory = adapter.withChatHistory;
 export const growthEventsFor = adapter.growthEvents;
 /** The next page of a list after a cursor (src/lib/data/paging.ts). */

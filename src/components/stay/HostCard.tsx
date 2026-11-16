@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialLinks } from "@/components/SocialLinks";
-import { ProHostBadge } from "@/components/ui/ProHostLabel";
+import { HostsBadge } from "@/components/ui/ProHostLabel";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { User } from "@/lib/types";
 
@@ -26,7 +26,7 @@ export function HostCard({ host, action }: { host: User; /** Beside "View profil
           </Link>
           {host.verified && <VerifiedBadge />}
         </div>
-        <ProHostBadge user={host} tone="light" tagline className="mt-1" />
+        <HostsBadge user={host} tone="light" tagline className="mt-1" />
         {host.languages.length > 0 && <p className="mt-0.5 text-small text-muted">{t("speaks", { languages: host.languages.join(", ") })}</p>}
         <SocialLinks user={host} variant="icons" className="mt-3" />
         {host.bio && <p className="mt-3 line-clamp-2 text-body text-ink">{host.bio}</p>}

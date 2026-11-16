@@ -52,5 +52,7 @@ export function friendInviteLink(slug: string, token: string, userId: string | n
   const query = new URLSearchParams({ invite: token, ...(userId && { ref: userId }), src: "invite" });
   return `${linkBase()}/house/${encodeURIComponent(slug)}?${query.toString()}`;
 }
+/** Simpulo itself, from someone: the start page with who shared it and the channel – /?ref={userId}&src=friend (the profile's "Invite friends"). */
+export const simpuloInviteLink = (userId: string) => `${linkBase()}/?${new URLSearchParams({ ref: userId, src: "friend" }).toString()}`;
 /** /c/{handle} – a creator (for now: the start page). */
 export const creatorLink = (handle: string, ref?: string) => withRef(`/c/${encodeURIComponent(handle)}`, ref);

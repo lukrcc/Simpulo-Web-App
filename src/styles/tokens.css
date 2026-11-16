@@ -20,10 +20,19 @@
   --graphite-line: rgba(251, 247, 242, 0.08);
   /* The header's one bar: transparent graphite glass .40 over blur 28px + saturate 180 %, a 1px line white 10 % at its foot. Its words cream
      100 % (inactive 85 %) with a soft text shadow – on dark ground 11.9 : 1, over the light page only 2.0 : 1 (see CLAUDE.md). */
-  --graphite-glass: rgba(72, 66, 62, 0.4);
+  /* The header: dark glass – graphite .88 over blur 20px + saturate 1.4, the same tone as the menus and sheets opened from it, so bar and
+     menus read as one surface (no in-between tone, no lighter state at the top). Its capsules white 8 %, hover 12 %, active 16 % – the
+     same values in the menus. Words white. */
+  --header-bg: rgba(72, 66, 62, 0.88);
+  --header-filter: blur(20px) saturate(1.4);
+  --header-fg: #ffffff;
+  --header-pill: rgba(255, 255, 255, 0.08);
+  --header-pill-hover: rgba(255, 255, 255, 0.12);
+  --header-pill-active: rgba(255, 255, 255, 0.16);
+  --graphite-glass: var(--header-bg);
   /* At the very top of a page (scrollY < 8): a little more opaque. Only this colour changes, in 200ms. */
-  --graphite-glass-top: rgba(72, 66, 62, 0.62);
-  --graphite-glass-filter: blur(28px) saturate(1.8);
+  --graphite-glass-top: var(--header-bg);
+  --graphite-glass-filter: var(--header-filter);
   --graphite-glass-line: rgba(255, 255, 255, 0.1);
   /* The big filter sheet in the header. */
   --graphite-sheet: rgba(72, 66, 62, 0.92);
@@ -37,7 +46,9 @@
   --chat-bg: #f3efea;
   --chat-input: #fbf8f4;
   --bubble-own: #48423e;
-  --bubble-other: #ece6df;
+  /* The others' bubble: white, opaque, a fine line black 4 % – the most contrast on the warm beige chat. */
+  --bubble-other: #ffffff;
+  --bubble-other-line: rgba(0, 0, 0, 0.04);
   /* On a photo (cards, Up next, the gallery): white words and controls, in every mode – the photo is the ground. */
   --on-image: #ffffff;
   /* Controls on a photo: dark glass (IconButton onImage, "N photos"), the card's arrows a little darker, the heart's fill. */
@@ -131,7 +142,9 @@
 .bubble-own,
 [data-site-header],
 .bar-sheet,
-.bar-menu {
+.bar-menu,
+.footer-dark,
+[data-chat-theme="night"] {
   color-scheme: dark;
   --bg: var(--stage-bg);
   --surface: rgba(244, 238, 231, 0.06);
@@ -175,14 +188,16 @@
 [data-site-header] {
   --bg: var(--graphite);
   --line: var(--graphite-line);
-  /* 85 % on the glass: 4.67 : 1 even over the light page. */
-  --text-muted: rgba(244, 238, 231, 0.85);
+  /* White words on the dark glass; muted white 85 %. */
+  --text: var(--header-fg);
+  --text-muted: rgba(255, 255, 255, 0.85);
   --input-border: rgba(244, 238, 231, 0.15);
 }
 /* The bar's sheets (ui/BarSheet) and the menus opened from them (ui/DarkMenu): the bar's graphite, denser; muted cream 65 %, fields cream 10 %
    with a 1px cream 20 % edge, capsules cream 8 % (chosen 26 %). */
 .bar-sheet,
-.bar-menu {
+.bar-menu,
+.footer-dark {
   --bg: var(--graphite);
   --line: rgba(244, 238, 231, 0.1);
   --text-muted: rgba(244, 238, 231, 0.65);
@@ -198,7 +213,9 @@
 .bubble-own,
 [data-site-header],
 .bar-sheet,
-.bar-menu {
+.bar-menu,
+.footer-dark,
+[data-chat-theme="night"] {
   --focus-ring: color-mix(in srgb, var(--text) 25%, transparent);
   --action-bg: var(--text);
   --action-text: var(--text-inverse);
@@ -226,7 +243,7 @@
    last 20 %) a light warmth to #2A1E18, no brown across it (public/glow/ember-strip.png, scripts/make-glow.mjs). The bands keep ember-band.png.
    Header glass → light band (#EAE4DD) → this strip: light, middle, dark. */
 .ember.ember-strip {
-  background: #141110 url("/glow/ember-strip.png") center / 100% 100% no-repeat;
+  background: var(--stage-bar-bg) url("/glow/ember-strip.png") center / 100% 100% no-repeat;
 }
 /* A band beside a photo (components/HeroBand: Your houses, the profile): the tint, light – words in ink. */
 .stage {
@@ -360,4 +377,175 @@ html[data-bar-sheet] [data-bar] {
   outline-offset: 2px;
   box-shadow: none;
 }
+
+
+/* The stage's breath of colour (lib/stageTint.ts – the share there keeps every text at 4.5 : 1): a section with .stage-tinted and
+   --stage-accent (the cover's / Up next's / the first photo's colour) gives the light surface right of the photo a soft run – the photo's
+   colour (about 16 %) top left into the cream bottom right. The dark strip never takes the colour: it stays the Ember strip picture
+   (graphite with a warm run into brown, --stage-bar-bg). Mixed in OKLab, not OKLCH: with a nearly grey photo Chromium's OKLCH mix takes the
+   hue as "none" (= 0°) and turns the cream pink (measured). Colours with a meaning (status) are never used as decoration. */
+:root {
+  --stage-bar-bg: #141110;
+}
+.stage-tinted {
+  --stage-tint: color-mix(in oklab, var(--band) calc(100% - var(--stage-tint-share, 0%)), var(--stage-accent, var(--band)) var(--stage-tint-share, 0%));
+}
+.stage-tinted .stage {
+  background-color: var(--band);
+  background-image: linear-gradient(135deg, var(--stage-tint) 0%, var(--band) 100%);
+}
+
+/* The House page's cards on the stage: ONE material – white 55 % over the tinted surface, a fine line, radius 20. No colours of their own. */
+:root {
+  --stage-card: rgba(255, 255, 255, 0.55);
+  --stage-card-line: rgba(34, 30, 27, 0.08);
+}
+.stage-card {
+  background-color: var(--stage-card);
+  box-shadow: inset 0 0 0 1px var(--stage-card-line);
+  border-radius: 20px;
+}
+
+
+/* Messages' list (views/InboxList.tsx): the chosen chat is a soft fill of its House's colour – no edge –, the hover half of it; fully round
+   like every list choice. The shares (--row-share ~14 %, --row-hover-share) come from lib/stageTint.ts listFillStyle (muted text ≥ 4.5 : 1). */
+.chat-row {
+  border-radius: 9999px;
+  transition: background-color 150ms ease-out;
+}
+.chat-row:hover {
+  background-color: color-mix(in oklab, var(--surface) calc(100% - var(--row-hover-share, 4%)), var(--row-accent, var(--text)) var(--row-hover-share, 4%));
+}
+.chat-row[aria-current="page"] {
+  background-color: color-mix(in oklab, var(--surface) calc(100% - var(--row-share, 8%)), var(--row-accent, var(--text)) var(--row-share, 8%));
+}
+
+/* A House's chat (views/ThreadView.tsx): its ground is the stage's tint of the House's colour (--stage-tint, .stage-tinted); the composer's
+   ground and its fade follow (--chat-bg). */
+.chat-tinted {
+  --chat-bg: var(--stage-tint);
+}
+
+
+/* The large footer (layout/Footer.tsx, Explore and the place pages): dark – the strips' graphite (--stage-bar-bg without a photo's colour)
+   with a warm run to the right, a few steps only (no banding). No Ember picture as a surface. Words cream, the tokens turned like every
+   dark ground. */
+.footer-dark {
+  background-color: var(--graphite);
+  background-image: linear-gradient(100deg, var(--graphite) 45%, color-mix(in oklab, var(--graphite) 95%, var(--signal) 5%));
+  color: var(--text);
+}
+
+
+
+/* ── Colours with a meaning (CLAUDE.md "Orange heißt mach mit") ──
+   --brand-action: the logo dot's orange – "join in": the one main button and the join-in card. White words on it need a deeper step of the
+   same orange (--brand-action-fill, 4.7 : 1 with white; the logo orange itself is 3.2 : 1). Blue means trust – people (--card-host). Places
+   show photos. Status colours stay small dots and signals. */
+:root {
+  --brand-action: var(--signal);
+  --brand-action-fill: #c84a24;
+  --brand-action-fill-hover: #b5401c;
+  /* The host tile without a photo: a lighter, slightly petrol blue on top to a calm indigo below – muted. */
+  --card-host-top: #3e6c7d;
+  --card-host-bottom: #3a3f6b;
+  --card-host-deep: #2c3358;
+  /* The spots tile, the strongest one: a lighter apricot orange on top to the full action orange below; ink words (white on the logo orange
+     would hold only 3.2 : 1). */
+  --card-spots-top: #f8a77c;
+  --card-spots-bottom: var(--brand-action);
+  /* The stage's light surface on the House page and Your houses: a light warm cream, lighter than the band. */
+  --stage-cream: #f9f4ed;
+}
+.stage.stage-cream {
+  background-color: var(--stage-cream);
+  background-image: none;
+}
+/* The House page's tiles (stay/HouseHero.tsx): Host – the host's photo (.tile-photo), without one a muted petrol → indigo run (.card-host),
+   white words; Spots – apricot → the action orange, ink words; Place – a photo of the surroundings (.tile-photo), without one the deep indigo. */
+.card-host,
+.card-spots,
+.card-place {
+  --text: var(--on-image);
+  color: var(--on-image);
+}
+.card-host {
+  --text-muted: rgba(255, 255, 255, 0.8);
+  background-image: linear-gradient(to bottom, var(--card-host-top), var(--card-host-bottom));
+}
+.card-spots {
+  --text: var(--stage-bg);
+  --text-muted: var(--stage-bg);
+  color: var(--stage-bg);
+  background-image: linear-gradient(to bottom, var(--card-spots-top), var(--card-spots-bottom));
+  --tile-shadow: color-mix(in srgb, var(--brand-action) 35%, transparent);
+  --tile-shadow-hover: color-mix(in srgb, var(--brand-action) 45%, transparent);
+}
+.card-place {
+  --text-muted: rgba(255, 255, 255, 0.85);
+  background-color: var(--card-host-deep);
+}
+
+
+
+/* The House page's photo tiles (stay/HouseHero.tsx): the photo fills the tile, under the words a run of the photo's own dark colour
+   (--tile-shade, lib/stageTint.ts tileShade – opaque enough for 4.5 : 1 over a white photo), white words. One look for all three tiles: a
+   light edge on top, a soft shadow (the orange tile in its own colour), 2px up on hover. */
+.stage-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 12px 32px -12px var(--tile-shadow, rgba(20, 18, 16, 0.45));
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+}
+.stage-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+.stage-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px -12px var(--tile-shadow-hover, rgba(20, 18, 16, 0.6));
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-tile,
+  .stage-tile:hover {
+    transform: none;
+    transition: none;
+  }
+}
+.tile-photo {
+  --text: var(--on-image);
+  --text-muted: rgba(255, 255, 255, 0.85);
+  color: var(--on-image);
+  background-color: var(--graphite);
+}
+.tile-photo-shade {
+  background-image: linear-gradient(to top, var(--tile-shade, rgba(72, 66, 62, 0.8)) 0%, var(--tile-shade, rgba(72, 66, 62, 0.8)) 55%, transparent 100%);
+}
+/* The stage on the House page: the cover's main colour, about 5 %, over the cream (stageMoodStyle). */
+.stage.stage-cream.stage-mood {
+  background-color: color-mix(in oklab, var(--stage-cream) calc(100% - var(--stage-main-share, 0%)), var(--stage-main, var(--stage-cream)) var(--stage-main-share, 0%));
+}
+
+
+/* Your own bubble in a chat: its words as the chat background says (config/chat-themes.ts) – white on graphite by default. */
+.bubble-own {
+  --text: var(--bubble-own-text, #ffffff);
+  --text-muted: color-mix(in srgb, var(--bubble-own-text, #ffffff) 72%, transparent);
+}
+
+
+/* "Ask {host} a question →" on the House page (stay/HouseSections.tsx AskLink): graphite at the lowest opacity that keeps 4.5 : 1 on the page
+   (78 %: 4.8 : 1 – 70 % would be 3.9 : 1); hover graphite 100 %. */
+:root {
+  --ask-link: rgba(72, 66, 62, 0.78);
+  --ask-link-hover: var(--graphite);
+}
+
+
+
 

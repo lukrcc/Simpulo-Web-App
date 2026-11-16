@@ -64,3 +64,12 @@ export function knownThrough(data: PeopleData, hostId: string, guestId: string):
     .map((p) => p.user)
     .filter((u) => u.id !== guestId && livedTogether(data, guestId, u.id));
 }
+
+/**
+ * "Would live again": how many housemates said after the House they'd live with this person again (the rating after a stay, data point
+ * after.liveAgain – planned). TODO(backend): count the ratings. Mock: a fixed share of the confirmed housemates, by id.
+ */
+export function liveAgainCount(userId: string, housemateIds: readonly string[]): number {
+  const seed = (s: string) => [...s].reduce((sum, c) => sum + c.charCodeAt(0), 0);
+  return housemateIds.filter((id) => seed(userId + id) % 4 !== 0).length;
+}

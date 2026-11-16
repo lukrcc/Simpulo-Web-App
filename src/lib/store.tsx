@@ -24,8 +24,9 @@ import {
 import { VOTE_FIELD, paymentWaitsForCrew, voteOutcome } from "./crewVotes";
 import { BOOKING_WINDOW_HOURS, PAYMENT_WINDOW_HOURS } from "./joinFlow";
 import { locationOf } from "./catalog";
+import type { ChatThemeId } from "@/config/chat-themes";
 import type { HostTier, PlatformPhase } from "./types";
-import { defaultUserId, getClaimableHouses, getData, getSavedSearches, growthEventsFor, paidUsersOf, previewForUrl, readPlatformPhase, withAttribution, withChatHistory, type AppData } from "./data";
+import { defaultUserId, getClaimableHouses, getData, getSavedSearches, growthEventsFor, paidUsersOf, previewForUrl, readPlatformPhase, withAttribution, withChatHistory, withPlaces, type AppData } from "./data";
 import { contactsAllowed, maskContacts } from "./contactFilter";
 import { withLaunchVisibility } from "./launch";
 import { crewThreadId } from "./links";
@@ -45,6 +46,7 @@ import type {
   Message,
   MessageType,
   NewStayInput,
+  Place,
   NotificationGroup,
   Payment,
   PaymentStatus,
@@ -106,6 +108,8 @@ interface StoreState {
   supportCases: SupportCase[];
   /** "I'm in for …" signals (lib/inFor.ts) – running and run out */
   inFor: InFor[];
+  /** "Host from your place": the places hosts live in and saved (Your houses › Your places); their Houses carry `placeId` */
+  places: Place[];
 }
 
 export type SupportCategory = "place" | "host" | "safety" | "payment" | "other";
@@ -201,6 +205,7 @@ type StoreAction =
   | { type: "sendMessage"; threadId: string; message: Omit<Message, "senderId" | "threadId"> }
   | { type: "createThread"; thread: Thread }
   | { type: "markThreadRead"; threadId: string; at: string }
+  | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
   | {
       type: "lockAccommodation";
       stayId: string;
@@ -223,6 +228,7 @@ type StoreAction =
   | { type: "removePerson"; userId: string }
   | { type: "addInFor"; signal: InFor }
   | { type: "removeInFor"; id: string }
+  | { type: "addPlace"; place: Place }
   | { type: "toggleSavedPerson"; userId: string }
   | { type: "stopInvitesFrom"; userId: string }
   | { type: "report"; report: Omit<Report, "reporterId"> }
@@ -242,10 +248,10 @@ export type ProfilePatch = Partial<
     | "age"
     | "birthDate"
     | "country"
-    | "city"
     | "bio"
     | "languages"
     | "photos"
+    | "photoCaptions"
     | "socials"
     | "verified"
     | "preferredCurrency"
@@ -355,7 +361,9 @@ interface StoreActions {
    * Pass `asUserId` when calling right after login (e.g. from a requireAuth callback), before the new user is in state.
    */
   openDirectThread: (stayId: string, userId: string, asUserId?: string) => string;
-  markThreadRead: (threadId: string) => void;
+  markThreadRead: (threadId: string, at?: string) => void;
+  /** The chat background (config/chat-themes.ts): `threadId` null – for all chats; a chat's own; `theme` null – that chat follows the one for all */
+  setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
   /**
    * Host locks a link: total split across `spots` → per person. Creates a pending payment for every crew member
    * and posts the lock card into the crew chat. Resolves after a mock delay.
@@ -396,6 +404,8 @@ interface StoreActions {
   /** "I'm in for …": false when IN_FOR_POLICY.maxActive are already running. */
   addInFor: (draft: InForDraft) => boolean;
   removeInFor: (id: string) => void;
+  /** "Host from your place": saves a place the current user lives in – only with `allowedToHost` (their own statement). The new id, or null. */
+  addPlace: (draft: Omit<Place, "id" | "ownerId" | "createdAt">) => string | null;
   /** "Save" on a profile – or unsave. Private, nobody is told. */
   toggleSavedPerson: (userId: string) => void;
   /** "Don't invite me again": no more invites from this person (an open one from them is declined). */
@@ -619,7 +629,9 @@ function crewRecord(stay: Stay, requests: JoinRequest[], endedAt: string): Crew 
 const MOCK_PREVIEWS = ["Who's bringing the speaker?", "Landing at 14:20, anyone around?", "Booked my flight 🎉", "Can we push dinner to 8?", "Found a great coworking spot nearby"];
 
 /** The store's starting state for the data source's data (in dev: the Dev menu's data state). */
-function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, threads }: AppData, phase: PlatformPhase = "live"): StoreState {
+function buildInitialState({ stays: unplaced, users, joinRequests: rawRequests, threads }: AppData, phase: PlatformPhase = "live"): StoreState {
+  // "Host from your place": the saved places, and the Houses opened in them carry their placeId.
+  const { stays: rawStays, places } = withPlaces(unplaced);
   const joinRequests = withAttribution(rawRequests, rawStays);
   const stays = seedLockedStays(rawStays);
   const payments = seedPayments(stays, joinRequests, users);
@@ -630,7 +642,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     // Houses waiting to be claimed have no host and no crew thread until someone claims them.
     stays: withLaunchVisibility([...stays, ...getClaimableHouses()]),
     joinRequests,
-    threads: chat.threads,
+    threads: withChatMeta(chat.threads),
     currentUserId: null,
     sessionRestored: false,
     lastReadAt: chat.lastReadAt,
@@ -646,6 +658,7 @@ function buildInitialState({ stays: rawStays, users, joinRequests: rawRequests, 
     houseInvites: [],
     supportCases: [],
     inFor: mockInFor(stays, users),
+    places,
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -673,7 +686,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 20;
+const MOCK_VERSION = 21;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (phase: PlatformPhase) => `${MOCK_PREFIX}v${MOCK_VERSION}:${phase}`;
 /** Saved before the phases, under the data state's old name (launch → beta, full → live): moved over once. */
@@ -694,7 +707,7 @@ function readPersistedMock(phase: PlatformPhase): StoreState | null {
     // House): it's dropped, like the request could never have been sent.
     const stayOf = (id: string) => saved.stays.find((s) => s.id === id);
     const userOf = (id: string) => saved.users.find((u) => u.id === id);
-    return { ...saved, joinRequests: saved.joinRequests.filter((r) => { const stay = stayOf(r.stayId); return !stay || audienceFit(stay, userOf(r.userId)) !== "blocked"; }) };
+    return { ...saved, places: Array.isArray(saved.places) ? saved.places : [], joinRequests: saved.joinRequests.filter((r) => { const stay = stayOf(r.stayId); return !stay || audienceFit(stay, userOf(r.userId)) !== "blocked"; }) };
   } catch {
     return null;
   }
@@ -905,6 +918,33 @@ function userStorage(): Storage {
   return sessionStorage.getItem(TAB_USER_KEY) !== null ? sessionStorage : localStorage;
 }
 
+/**
+ * Keeps each chat's lastMessageAt (its newest message) and lastReadAt per member (whoever writes has read what came before) in step with its
+ * messages – after every store action, for the threads that changed (types: Thread in lib/mock.ts). Unread = lastMessageAt > lastReadAt[me]
+ * (isThreadUnread). TODO(firestore): the same as a Function on each new message.
+ */
+export function withChatMeta(threads: Thread[]): Thread[] {
+  let changed = false;
+  const next = threads.map((thread) => {
+    const last = thread.messages.at(-1);
+    if (!last || (thread.lastMessageAt !== undefined && thread.lastMessageAt >= last.createdAt)) return thread;
+    changed = true;
+    const lastReadAt = { ...thread.lastReadAt };
+    for (const message of thread.messages) {
+      if (message.senderId === "system") continue;
+      if (!lastReadAt[message.senderId] || lastReadAt[message.senderId] < message.createdAt) lastReadAt[message.senderId] = message.createdAt;
+    }
+    return { ...thread, lastMessageAt: last.createdAt, lastReadAt };
+  });
+  return changed ? next : threads;
+}
+
+/** A chat's newest message time (the stored field, else its last message). */
+export const lastMessageAtOf = (thread: Thread): string | undefined => {
+  const last = thread.messages.at(-1)?.createdAt;
+  return thread.lastMessageAt && (!last || thread.lastMessageAt > last) ? thread.lastMessageAt : last;
+};
+
 function updateThread(threads: Thread[], threadId: string, update: (t: Thread) => Thread): Thread[] {
   return threads.map((t) => (t.id === threadId ? update(t) : t));
 }
@@ -1066,7 +1106,13 @@ function syncWaitlist(state: StoreState, at: string): StoreState {
 }
 
 /** Whatever changed the Houses: their visibility follows how many are published (src/lib/launch.ts). */
+/** Every action, then the chats' lastMessageAt / lastReadAt brought in step (withChatMeta) – only when the threads changed. */
 function reducer(state: StoreState, action: StoreAction): StoreState {
+  const next = reduce(state, action);
+  return next.threads === state.threads ? next : { ...next, threads: withChatMeta(next.threads) };
+}
+
+function reduce(state: StoreState, action: StoreAction): StoreState {
   const applied = applyAction(state, action);
   const moved = action.type === "settlePayments" || applied.stays !== state.stays || applied.payments !== state.payments;
   // The clock's own tick only finds Houses that were already complete when the data loaded: nothing new to tell anyone.
@@ -1096,30 +1142,33 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "createStay": {
       if (!me) return state;
+      // A window of a saved place: only the host's own place, and never more people than its free rooms + the host.
+      const ownPlace = action.stay.placeId ? state.places.find((p) => p.id === action.stay.placeId && p.ownerId === me) : undefined;
+      const created = action.stay.placeId && (!ownPlace || action.stay.spotsTotal > ownPlace.freeSpots + 1) ? { ...action.stay, placeId: undefined } : action.stay;
       // No thread yet: it starts with the first confirmed join (the host's accommodation ideas open it).
       // Only the host's people (lived together, both confirmed – lib/yourPeople.ts), never more than the spots besides the host's own.
       // Each holds a spot for 48h ("Reserved for Anna"); unanswered by then it's open to anyone (expireInvites).
       const people = new Set(yourPeople(state, me).map((p) => p.user.id));
-      const invited = [...new Set(action.invite)].filter((id) => people.has(id)).slice(0, Math.max(0, action.stay.spotsTotal - 1));
-      const reservedUntil = inviteExpiry(action.stay.createdAt);
+      const invited = [...new Set(action.invite)].filter((id) => people.has(id)).slice(0, Math.max(0, created.spotsTotal - 1));
+      const reservedUntil = inviteExpiry(created.createdAt);
       const invites = invited.map<JoinRequest>((userId) => ({
-        id: `inv-${action.stay.id}-${userId}`,
-        stayId: action.stay.id,
+        id: `inv-${created.id}-${userId}`,
+        stayId: created.id,
         userId,
         message: "",
         status: "invited",
-        createdAt: action.stay.createdAt,
+        createdAt: created.createdAt,
         reservedUntil,
       }));
       // "Invite by link": one link made with the House, holding a spot for 48h like any invite link.
-      const link: HouseInvite[] = action.linkToken && invited.length < action.stay.spotsTotal - 1
-        ? [{ token: action.linkToken, houseId: action.stay.id, createdAt: action.stay.createdAt, expiresAt: reservedUntil, status: "pending" }]
+      const link: HouseInvite[] = action.linkToken && invited.length < created.spotsTotal - 1
+        ? [{ token: action.linkToken, houseId: created.id, createdAt: created.createdAt, expiresAt: reservedUntil, status: "pending" }]
         : [];
       const withInvites: StoreState = {
         ...state,
-        notifications: notifyInApp(state, invited, "crewInvite", { name: firstNameOf(state, me), title: action.stay.title }, `${action.stay.id}-crew`, action.stay.id),
+        notifications: notifyInApp(state, invited, "crewInvite", { name: firstNameOf(state, me), title: created.title }, `${created.id}-crew`, created.id),
       };
-      const announced = announceToSearches({ ...withInvites, notifications: notifyHostAlerts(withInvites, me, action.stay) }, { ...action.stay, hostId: me });
+      const announced = announceToSearches({ ...withInvites, notifications: notifyHostAlerts(withInvites, me, created) }, { ...created, hostId: me });
       return {
         ...state,
         stays: withReservedSpots([{ ...announced.stay, ...(invited.length > 0 && { spotsInvited: invited.length }) }, ...state.stays], [...announced.houseInvites, ...link]),
@@ -1130,7 +1179,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         savedSearches: announced.savedSearches,
         events: [
           ...state.events,
-          event(action.stay.id, "house_published", action.stay.createdAt, { houseId: action.stay.id, userId: me, ...attributionFor(state, me, action.attribution) }),
+          event(created.id, "house_published", created.createdAt, { houseId: created.id, userId: me, ...attributionFor(state, me, action.attribution) }),
         ],
       };
     }
@@ -1234,6 +1283,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "removeInFor":
       return { ...state, inFor: state.inFor.filter((s) => !(s.id === action.id && s.userId === me)) };
+
+    case "addPlace":
+      // Only the person themselves, and only with their statement that they may host guests there.
+      if (!me || action.place.ownerId !== me || !action.place.allowedToHost) return state;
+      return { ...state, places: [...state.places, action.place] };
 
     case "toggleSavedPerson": {
       if (!me || action.userId === me) return state;
@@ -1749,10 +1803,31 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "createThread":
       return { ...state, threads: [...state.threads, action.thread] };
 
+    case "setChatTheme": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          if (action.threadId === null) return { ...u, settings: { ...settings, chatTheme: action.theme ?? undefined } };
+          const chatThemes = { ...settings.chatThemes };
+          if (action.theme === null) delete chatThemes[action.threadId];
+          else chatThemes[action.threadId] = action.theme;
+          return { ...u, settings: { ...settings, chatThemes } };
+        }),
+      };
+    }
+
     case "markThreadRead": {
       const current = state.lastReadAt[action.threadId];
       if (current && current >= action.at) return state;
-      return { ...state, lastReadAt: { ...state.lastReadAt, [action.threadId]: action.at } };
+      return {
+        ...state,
+        lastReadAt: { ...state.lastReadAt, [action.threadId]: action.at },
+        // The member's own read mark on the chat (Firebase: threads/{id}/members/{uid}.lastReadAt).
+        threads: me ? updateThread(state.threads, action.threadId, (t) => ({ ...t, lastReadAt: { ...t.lastReadAt, [me]: action.at } })) : state.threads,
+      };
     }
 
     case "sessionRestored":
@@ -2540,12 +2615,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const declineRequest = useCallback((requestId: string) => dispatch({ type: "declineRequest", requestId }), []);
   const markThreadRead = useCallback(
-    (threadId: string) => {
-      const last = threads.find((t) => t.id === threadId)?.messages.at(-1);
-      if (last) dispatch({ type: "markThreadRead", threadId, at: last.createdAt });
+    (threadId: string, at?: string) => {
+      // `at`: a conversation that isn't a stored thread (Simpulo Support) says itself up to when it's read.
+      const last = at ?? threads.find((t) => t.id === threadId)?.messages.at(-1)?.createdAt;
+      if (last) dispatch({ type: "markThreadRead", threadId, at: last });
     },
     [threads],
   );
+  const setChatTheme = useCallback((threadId: string | null, theme: ChatThemeId | null) => dispatch({ type: "setChatTheme", threadId, theme }), []);
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
   const setHostTier = useCallback((userId: string, tier: HostTier) => dispatch({ type: "setHostTier", userId, tier }), []);
   const setAcceptingRequests = useCallback(
@@ -2616,6 +2693,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [currentUserId, state.inFor],
   );
   const removeInFor = useCallback((id: string) => dispatch({ type: "removeInFor", id }), []);
+  const addPlace = useCallback(
+    (draft: Omit<Place, "id" | "ownerId" | "createdAt">) => {
+      if (!currentUserId || !draft.allowedToHost) return null;
+      const id = makeId("pl");
+      dispatch({ type: "addPlace", place: { ...draft, id, ownerId: currentUserId, createdAt: new Date().toISOString() } });
+      return id;
+    },
+    [currentUserId],
+  );
   const toggleSavedPerson = useCallback((userId: string) => dispatch({ type: "toggleSavedPerson", userId }), []);
   const stopInvitesFrom = useCallback((userId: string) => dispatch({ type: "stopInvitesFrom", userId }), []);
   const report = useCallback(
@@ -2697,6 +2783,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sendMessage,
       openDirectThread,
       markThreadRead,
+      setChatTheme,
       toggleReaction,
       lockAccommodation,
       payShare,
@@ -2716,6 +2803,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removePerson,
       addInFor,
       removeInFor,
+      addPlace,
       toggleSavedPerson,
       stopInvitesFrom,
       report,
@@ -2723,7 +2811,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2776,6 +2864,8 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     removedPeopleIds: user?.settings?.removedPeopleIds ?? [],
     savedPeopleIds: user?.settings?.savedPeopleIds ?? [],
     noInvitesFrom: user?.settings?.noInvitesFrom ?? [],
+    chatTheme: user?.settings?.chatTheme,
+    chatThemes: user?.settings?.chatThemes ?? {},
   };
 }
 
@@ -2831,11 +2921,16 @@ export function getCrewThread(store: Pick<StoreState, "threads">, stayId: string
 }
 
 /** Unread = the newest message is from someone else (or the system) and newer than the last read mark. */
+/** Unread = the chat's lastMessageAt is after my lastReadAt (and the newest message isn't my own). */
 export function isThreadUnread(store: Pick<StoreState, "lastReadAt" | "currentUserId">, thread: Thread): boolean {
   const last = thread.messages.at(-1);
-  if (!last || last.senderId === store.currentUserId) return false;
-  const readAt = store.lastReadAt[thread.id];
-  return !readAt || readAt < last.createdAt;
+  const me = store.currentUserId;
+  if (!last || !me || last.senderId === me) return false;
+  const lastMessageAt = lastMessageAtOf(thread)!;
+  // The member's mark on the chat, or this browser's (a support conversation isn't a stored thread).
+  const marks = [thread.lastReadAt?.[me], store.lastReadAt[thread.id]].filter((m): m is string => Boolean(m));
+  const readAt = marks.sort().at(-1);
+  return !readAt || lastMessageAt > readAt;
 }
 
 /** How many of the current user's threads have unread messages (direct chats with people they blocked don't count). */
@@ -3092,4 +3187,10 @@ export function houseInviteUrl(origin: string, stay: Pick<Stay, "slug">, invite:
 function inviteToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** The chat background the signed-in person sees in a chat: its own choice, else theirs for all chats, else "house". */
+export function chatThemeOf(store: Pick<StoreState, "users" | "currentUserId">, threadId: string): ChatThemeId {
+  const settings = settingsOf(store.users.find((u) => u.id === store.currentUserId));
+  return settings.chatThemes?.[threadId] ?? settings.chatTheme ?? "house";
 }

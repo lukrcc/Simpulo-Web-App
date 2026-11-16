@@ -341,6 +341,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   /** The category chips – the filter row's (32px) or the compact bar's (32px); one choice in the row (several only
    *  in the panel), a pick from More takes the last slot. */
+  const tHeaderThemes = useTranslations("explore.barThemes");
   const vibeRow = {
     label: t("filterByVibe"),
     allLabel: t("all"),
@@ -521,7 +522,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               active={filters.lengths.includes("weekend")}
               onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
             />
-            {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [] })} />}
+            {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} themesLabel={tHeaderThemes("themes")} moreThemesLabel={tHeaderThemes("moreThemes")} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [] })} />}
             {/* All filters: the bar's one capsule, only a chevron after the words – flush right, just before the right group (what the
                 categories leave stays before it). */}
             <span ref={setFiltersEl} className="contents [&>*]:ml-auto">

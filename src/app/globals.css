@@ -13,8 +13,8 @@
   /* The header and Explore's filter strip and compact bar: graphite glass. */
   --hdr-bg: var(--graphite-glass);
   --hdr-solid: var(--graphite);
-  --hdr-fg: var(--stage-text);
-  --hdr-muted: rgba(244, 238, 231, 0.85);
+  --hdr-fg: var(--header-fg);
+  --hdr-muted: rgba(255, 255, 255, 0.85);
   --hdr-line: var(--graphite-line);
   /* The tab group's track: cream 5 %. */
   --hdr-pill: rgba(244, 238, 231, 0.05);
@@ -23,13 +23,15 @@
   --hdr-avatar-ring-w: 1px;
   /* "All filters" (the tab's corner block and the compact bar): glass on graphite – cream 16 % over blur 12px, a 1px cream 28 % edge, cream
      semibold words; hover 22 %, pressed 26 % (FiltersButton in the header bar). */
-  --hdr-corner-bg: rgba(244, 238, 231, 0.08);
-  --hdr-corner-fg: var(--stage-text);
-  --hdr-corner-hover: rgba(244, 238, 231, 0.14);
-  --hdr-corner-active: rgba(244, 238, 231, 0.22);
-  /* The header's text tabs (Explore · Your houses · Messages): the one you're on a filled capsule cream 12 %, no edge; hover cream 6 %. */
-  --hdr-tab-active: rgba(244, 238, 231, 0.12);
-  --hdr-tab-hover: rgba(244, 238, 231, 0.06);
+  --hdr-corner-bg: var(--header-pill);
+  --hdr-corner-fg: var(--header-fg);
+  --hdr-corner-hover: var(--header-pill-hover);
+  --hdr-corner-active: var(--header-pill-active);
+  /* The header's text tabs (Explore · Your houses · Messages): capsules like every one in the bar – white 8 %, hover 12 %, the one you're on
+     16 % and semibold, no edge. */
+  --hdr-tab-bg: var(--header-pill);
+  --hdr-tab-active: var(--header-pill-active);
+  --hdr-tab-hover: var(--header-pill-hover);
   --hdr-corner-edge: transparent;
 }
 /* The avatar in the bar (and the login circle): 40px, round, no ring or edge – the same size and line as the icon buttons. */
@@ -42,8 +44,8 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 /* ONE capsule in the bar and its sheets (Where · When, Short trips, the categories, More, All filters; in a sheet the chips, the panel's
-   options and fields): 40px, padding 0 16px, 15px medium, icon 16px in the words' colour, fully round, cream 8 %, no edge; hover 14 %;
-   chosen (or open) cream 22 % and semibold. No orange here – only the unread dot and the active-filter count. */
+   options and fields): 40px, padding 0 16px, 15px medium, icon 16px in the words' colour, fully round, white 8 % (--header-pill), no edge;
+   hover 12 %; chosen (or open) 16 % and semibold (--header-pill-active) – the same values in the bar and in its menus. No orange here – only the unread dot and the active-filter count. */
 [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)),
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) {
   height: 40px;
@@ -51,7 +53,7 @@
   gap: 8px;
   border: 0;
   border-radius: 999px;
-  background-color: rgba(244, 238, 231, 0.08);
+  background-color: var(--header-pill);
   box-shadow: none;
   color: var(--text);
   font-size: var(--text-nav-main);
@@ -60,9 +62,12 @@
 [data-site-header] .chip-row [role="radiogroup"] {
   gap: 8px;
 }
-/* Short trips: its bolt a soft orange (rgba(240,99,58,.75)), the words cream like the others (specific enough to beat the capsule's icon rule). */
+/* Short trips: its bolt filled and slim in the action orange (--brand-action), 18px – a little larger than the other icons; the words white like
+   the others (specific enough to beat the capsule's icon rule). */
 [data-site-header] button.short-trips.short-trips.short-trips.short-trips svg {
-  color: rgba(240, 99, 58, 0.75);
+  width: 18px;
+  height: 18px;
+  color: var(--brand-action);
 }
 /* Icon → words exactly 8px (the capsule's gap): no extra margin on an icon of its own. */
 [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) > [aria-hidden],
@@ -88,11 +93,11 @@
 }
 [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):hover,
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field):hover {
-  background-color: rgba(244, 238, 231, 0.14);
+  background-color: var(--header-pill-hover);
 }
-[data-site-header] :is(.search-capsule[data-active], .short-trips[aria-pressed="true"], .bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"])),
+[data-site-header] :is(.search-capsule[data-active], .short-trips[aria-pressed="true"], .bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"], [data-picked])),
 :is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .pick-option[aria-expanded="true"], .filters-capsule.panel-field[data-active]) {
-  background-color: rgba(244, 238, 231, 0.22);
+  background-color: var(--header-pill-active);
   font-weight: 600;
 }
 [data-site-header] .pick-option,
@@ -152,9 +157,15 @@
   /* The House page's title: 52px at 1440, two lines at most. */
   /* The House page's title in its bento's main tile: 44px at 1440px. */
   --text-hero: clamp(32px, 2vw + 16px, 44px);
-  --text-hero--line-height: 1.05;
+  /* At least 1.08 – descenders (g, y, p) are never cut. */
+  --text-hero--line-height: 1.1;
   --text-hero--font-weight: 700;
   --text-hero--letter-spacing: -0.03em;
+  /* The House page's quote, the stage's centre: 36–40px, regular weight, three lines at most. */
+  --text-stage-quote: clamp(30px, 1.2vw + 20px, 40px);
+  --text-stage-quote--line-height: 1.2;
+  --text-stage-quote--font-weight: 500;
+  --text-stage-quote--letter-spacing: -0.015em;
   /* The House page's price in its main tile: 48px from 1440px. */
   --text-price: clamp(36px, 2vw + 20px, 48px);
   --text-price--line-height: 1.05;
@@ -202,6 +213,15 @@
   --text-subhead--font-weight: 600;
   --text-subhead--letter-spacing: -0.01em;
   /* One big figure on a dark strip (Payouts: "Earnings this year"): 72px, display face. */
+  /* The dark strip under every stage (House page, Your houses, profile): ONE scale – the number --stage-bar-num (30px semibold), its label
+     --stage-bar-label (14px, ink 60 % on the strip). Every number in a strip uses these. */
+  --text-bar-num: var(--stage-bar-num);
+  --text-bar-num--line-height: 1.1;
+  --text-bar-num--font-weight: 600;
+  --text-bar-num--letter-spacing: -0.02em;
+  --text-bar-label: var(--stage-bar-label);
+  --text-bar-label--line-height: 1.3;
+  --text-bar-label--font-weight: 500;
   --text-figure: clamp(48px, 3vw + 28px, 72px);
   --text-figure--line-height: 1;
   --text-figure--font-weight: 700;
@@ -438,6 +458,22 @@ html.sim-standalone {
   /* The one head height for Your houses and the House page: the tallest House head (eyebrow, title on two lines, host – two social capsules
      with handles – · crew · place, the dark action strip) measured over all mock Houses is 729px – 736px fits it on a 900px-high window. */
   --hero-h: 736px;
+  /* The stage rule (House page and Your houses): the image column – the same width, clamp(360px, 30 %, 640px) – and the right side are
+     --stage-image-h high, object-fit: cover, whatever the content; under both the dark strip across the full width, --stage-bar-h high
+     (room for the House page's three lines: price, the currency line, the note), its content centred. Under the strip --stage-peek of the
+     next section stays in the window: its heading, at most the top edge of images – never a line of text. */
+  --stage-bar-h: 120px;
+  /* The footer: the slim one's fixed height and inner padding, the same on every page; the room above any footer (--footer-gap) – 64px after
+     a light last section, 0 after a dark one (a page's last section says so: data-last-tone="dark", see below). */
+  --footer-slim-h: 72px;
+  --footer-slim-pad: 12px;
+  --footer-gap: 64px;
+  --stage-bar-num: 30px;
+  /* The House page's stage: one spacing – to the photo, to the right edge, between the cards, cards → the strip, and on top to the category. */
+  --stage-pad: 40px;
+  --stage-bar-label: 14px;
+  --stage-peek: 70px;
+  --stage-image-h: clamp(380px, calc(100svh - var(--header-total) - var(--stage-bar-h) - var(--stage-peek)), 640px);
 }
 @media (min-width: 40rem) {
   :root {
@@ -558,6 +594,11 @@ html.sim-standalone {
       padding-left: 56px;
       padding-right: var(--band-edge);
     }
+    /* A strip across the whole width (under the image too): its content on the page's grid on both sides. */
+    .band-inset-full {
+      padding-left: var(--band-edge);
+      padding-right: var(--band-edge);
+    }
   }
   .my-slide {
     width: calc((var(--explore-w) - (var(--my-cols) - 1) * var(--explore-gap)) / var(--my-cols));
@@ -619,10 +660,11 @@ html.sim-standalone {
   box-shadow: var(--glass-edge), 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 /* The chat's head: messages scroll under it. */
+/* The chat's head: glass – the chat's own ground, half see-through, blur 20px; the messages scroll under it. */
 .chat-glass {
-  background-color: var(--glass-bg);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background-color: color-mix(in oklab, var(--chat-bg) 62%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }
 /* Hover actions, the reaction picker, the emoji picker in the chat: a light glass. */
 .chat-dark .glass-panel {
@@ -998,12 +1040,9 @@ body:has([data-app-pane="always"]) footer {
 main:has([data-app-pane="always"]) {
   padding-bottom: 0;
 }
-main:has([data-explore-blocks]) {
-  padding-bottom: 0;
-}
+/* The room before the footer is set in one place (--footer-gap on main) – no page zeroes or styles its own. */
 @media (min-width: 68.75rem) {
-  main:has([data-app-pane="desktop"]),
-  main:has([data-profile-bento]) {
+  main:has([data-app-pane="desktop"]) {
     padding-bottom: 0;
   }
 }
@@ -1648,3 +1687,75 @@ main:has([data-demo-login]) {
     outline: 0.2mm dashed var(--line);
   }
 }
+
+
+
+/* The House page's host quote between the facts and the cards (stay/HouseHero.tsx HostQuote): from 1100px a size container – when the room
+   there is too low for two lines and the name, the quote isn't shown (the air stays, no cut text). */
+@media (min-width: 68.75rem) {
+  .stage-quote-slot {
+    container-type: size;
+  }
+}
+@container (max-height: 132px) {
+  .stage-quote {
+    display: none;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* Explore's quick search in the header bar shortens by its room (a container query on the slot, layout/header/SiteHeader.tsx
+   data-explore-slot), in this order – all of it needs about 604px: first the theme capsules go (BarCategories, config/explore.ts
+   BAR_CATEGORY_DROP_ORDER: Creator first); under 604px "Where | When" shrinks to its magnifier (a set place or month stays written); under
+   474px the theme button goes too (the themes stay in All filters › Category); under 340px Short trips keeps only its bolt. Short trips is
+   always there; nothing ever overlaps. */
+[data-explore-slot] {
+  container: bar / inline-size;
+}
+@container bar (max-width: 603px) {
+  [data-explore-slot] .search-capsule:not([data-active]) > button:first-child > span,
+  [data-explore-slot] .search-capsule:not([data-active]) > span[aria-hidden],
+  [data-explore-slot] .search-capsule:not([data-active]) > button:nth-of-type(2) {
+    display: none;
+  }
+  [data-explore-slot] .search-capsule:not([data-active]) > button:first-child {
+    padding-inline: 12px;
+    border-radius: 999px;
+  }
+}
+@container bar (max-width: 473px) {
+  [data-explore-slot] .chip-row {
+    display: none;
+  }
+}
+@container bar (max-width: 339px) {
+  [data-explore-slot] .short-trips-label {
+    display: none;
+  }
+  [data-explore-slot] .short-trips {
+    padding-inline: 11px;
+  }
+}
+
+
+/* The room above the footer, worked out in one place from the page's last section: a dark one ends right on the footer (0). The dark large
+   footer still keeps 64px of light before it (it never runs into a dark section). */
+body:has([data-last-tone="dark"]) {
+  --footer-gap: 0px;
+}
+body:has([data-last-tone="dark"]) footer.footer-dark {
+  margin-top: 64px;
+}
+
+
+

@@ -25,23 +25,25 @@ import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { ProfilePreviewBody } from "@/components/views/ProfileView";
 import { InForEditor, useInForLine } from "@/components/InFor";
 import { activeInForOf } from "@/lib/inFor";
-import { HOUSE_VIBE_SCALES, HOUSE_VIBE_STEPS } from "@/config/houseVibe";
+import { HOUSE_VIBE_SCALES, HOUSE_VIBE_STEPS, hasVibe } from "@/config/houseVibe";
 import { PROFILE_SECTIONS, sectionStatus, type ProfileSectionKey, type ProfileSectionStatus } from "@/config/profile-sections";
 import { MIN_AGE, ageOn, isoOf, partsOf, useTodayIso, type DateParts } from "@/lib/birthDate";
 import { useIdentity } from "@/lib/payments/hooks";
-import { COUNTRIES, PLACES } from "@/lib/places";
+import { COUNTRIES } from "@/lib/places";
 import { HANDLE_PREFIX, MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS, isValidHandle, isValidWebsite, normalizeSocialValue, socialHandle } from "@/lib/socialLinks";
 import { getCurrentUser, useStore, type ProfilePatch } from "@/lib/store";
 import type { HouseVibe, JoinRequest, SocialLink, SocialPlatform, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MAX_PHOTOS = 5;
-const BIO_MAX = 600;
+/** The profile's stage shows 2–4 photos. */
+const MAX_PHOTOS = 4;
+/** The short text on the profile's stage. */
+const BIO_MAX = 160;
+/** One line per photo, at the bottom of it on the profile. */
+export const CAPTION_MAX = 40;
 /** The preview renders the real profile at this width, then scales it to its column. */
 const PREVIEW_DESIGN_W = 1100;
 
-/** "Based in" suggestions – a mock list now, Google Places later; anything else typed is kept. */
-const CITY_OPTIONS: ComboOption[] = PLACES.map((p) => ({ value: p.name, label: p.name, hint: p.country }));
 
 export function EditProfile() {
   const t = useTranslations("profile.edit");
@@ -60,10 +62,11 @@ function EditProfileGate() {
 
 interface FormState {
   photos: string[];
+  /** One line per photo (index-aligned) */
+  photoCaptions: string[];
   name: string;
   birth: DateParts;
   country: string;
-  city: string;
   languages: string[];
   bio: string;
   /** Public links as typed, in the order they were added (at most MAX_SOCIAL_LINKS) */
@@ -77,10 +80,10 @@ interface FormState {
 function formOf(me: User): FormState {
   return {
     photos: me.photos,
+    photoCaptions: me.photos.map((_, i) => me.photoCaptions?.[i] ?? ""),
     name: me.name,
     birth: partsOf(me.birthDate),
     country: me.country,
-    city: me.city,
     languages: me.languages,
     bio: me.bio,
     socials: me.socials ?? [],
@@ -95,16 +98,17 @@ function draftOf(me: User, form: FormState, today: string | null): User {
   return {
     ...me,
     photos: form.photos,
+    photoCaptions: form.photos.map((_, i) => (form.photoCaptions[i] ?? "").trim().slice(0, CAPTION_MAX)),
     name: form.name.trim() || me.name,
     // Only a date that's fully set counts – none, and there's no age (the preview leaves it out).
     birthDate: birthDate ?? undefined,
     age: birthDate && today ? ageOn(birthDate, today) : me.age,
     country: form.country.trim(),
-    city: form.city.trim(),
     houseVibe: form.houseVibe,
     communityNeed: form.communityNeed,
     languages: form.languages,
-    bio: form.bio.trim().slice(0, BIO_MAX),
+    // An older, longer bio stays as it is until it's edited (the profile shows its first 160 characters).
+    bio: form.bio === me.bio ? me.bio : form.bio.trim().slice(0, BIO_MAX),
     // Empty rows are dropped; a handle is stored bare, a website as its full URL.
     socials: form.socials
       .map((link) => ({ platform: link.platform, value: normalizeSocialValue(link.platform, link.value) }))
@@ -120,9 +124,6 @@ function linkError(link: SocialLink): "website" | "handle" | null {
   if (link.platform === "website") return isValidWebsite(value) ? null : "website";
   return isValidHandle(value) ? null : "handle";
 }
-
-/** Picking the first scale: the others start in the middle. */
-const DEFAULT_HOUSE_VIBE: HouseVibe = { rhythm: 2, social: 2, energy: 2, tidy: 2 };
 
 type FormError = "photo" | "name" | "birthDate" | "underAge" | "country" | "links";
 
@@ -144,11 +145,11 @@ const AUTOSAVE_MS = 600;
 /** The part of the profile this page edits – what's compared to tell "saved" from "saving". */
 const patchOf = (user: User): ProfilePatch => ({
   photos: user.photos,
+  photoCaptions: user.photos.map((_, i) => user.photoCaptions?.[i] ?? ""),
   name: user.name,
   age: user.age,
   birthDate: user.birthDate,
   country: user.country,
-  city: user.city,
   languages: user.languages,
   bio: user.bio,
   socials: user.socials ?? [],
@@ -160,6 +161,12 @@ const patchOf = (user: User): ProfilePatch => ({
 const noSubscribe = () => () => {};
 function useSetupParam(): boolean {
   return useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).get("setup") === "1", () => false);
+}
+
+/** ?section=vibe – the own profile's sections open their editing here directly. */
+function useSectionParam(): ProfileSectionKey | null {
+  const raw = useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).get("section"), () => null);
+  return PROFILE_SECTIONS.some((s) => s.key === raw) ? (raw as ProfileSectionKey) : null;
 }
 
 /**
@@ -209,7 +216,14 @@ function EditProfileForm({ me }: { me: User }) {
   // Onboarding: asked for (?setup=1), or a new account (no photo yet).
   const [setup] = useState(() => setupParam || me.photos.length === 0);
   const firstOpen = PROFILE_SECTIONS.find(({ key }) => statuses[key] !== "complete")?.key ?? null;
+  const sectionParam = useSectionParam();
   const [open, setOpen] = useState<ProfileSectionKey | null>(() => (setup ? firstOpen : null));
+  // Opened from a section of the own profile (?section=…): that one, once the browser's URL is read.
+  const [paramUsed, setParamUsed] = useState(false);
+  if (sectionParam && !paramUsed) {
+    setParamUsed(true);
+    setOpen(sectionParam);
+  }
   const order = PROFILE_SECTIONS.map((s) => s.key);
   /** "Done": closes this one and opens the next section still to do (after it, then from the top); none left: all closed. */
   const done = (key: ProfileSectionKey) => {
@@ -242,8 +256,32 @@ function EditProfileForm({ me }: { me: User }) {
       case "photos":
         return (
           <>
-            <PhotoUploader photos={form.photos} onChange={(photos) => update("photos", photos)} slots={MAX_PHOTOS} labels="profile" />
+            <PhotoUploader
+              photos={form.photos}
+              onChange={(photos) => {
+                // A caption follows its photo when photos are moved or removed.
+                const byPhoto = new Map(form.photos.map((src, i) => [src, form.photoCaptions[i] ?? ""]));
+                setForm((current) => ({ ...current, photos, photoCaptions: photos.map((src) => byPhoto.get(src) ?? "") }));
+              }}
+              slots={MAX_PHOTOS}
+              labels="profile"
+            />
             <p className={cn("text-small", errorText("photo") ? "text-danger" : "text-muted")}>{errorText("photo") ?? t("photosHint", { max: MAX_PHOTOS })}</p>
+            {/* One short line per photo, shown at the bottom of it on the profile (optional, 40 characters). */}
+            {form.photos.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {form.photos.map((src, i) => (
+                  <FormField key={src} label={t("captionLabel", { number: i + 1 })} optional>
+                    <Input
+                      value={form.photoCaptions[i] ?? ""}
+                      maxLength={CAPTION_MAX}
+                      placeholder={t("captionPlaceholder")}
+                      onChange={(e) => update("photoCaptions", form.photos.map((_, j) => (j === i ? e.target.value : (form.photoCaptions[j] ?? ""))))}
+                    />
+                  </FormField>
+                ))}
+              </div>
+            )}
           </>
         );
       case "basics":
@@ -297,8 +335,8 @@ function EditProfileForm({ me }: { me: User }) {
                   <span className="block text-body font-semibold text-ink">{t(`sections.${key}.title`)}</span>
                   {!isOpen && (
                     <span className="block truncate text-small text-muted">
-                      {key === "vibe" && draft.houseVibe
-                        ? HOUSE_VIBE_SCALES.map(({ key: k }) => tVibe(`${k}.${draft.houseVibe![k]}`)).join(" · ")
+                      {key === "vibe" && hasVibe(draft.houseVibe)
+                        ? HOUSE_VIBE_SCALES.flatMap(({ key: k }) => (draft.houseVibe?.[k] ? [tVibe(`${k}.${draft.houseVibe[k]}`)] : [])).join(" · ")
                         : key === "inFor"
                           ? myInFor.length > 0
                             ? myInFor.map(inForLine).join(", ")
@@ -345,6 +383,10 @@ function EditProfileForm({ me }: { me: User }) {
           <h1 className="text-h1 text-ink">{t("title")}</h1>
           <div className="flex items-center gap-5">
             {statusLine}
+            {/* The profile as others see it (the same page in its preview, /profile?preview=1). */}
+            <Link href="/profile?preview=1" className="text-body font-semibold text-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
+              {t("previewAsOthers")}
+            </Link>
             <Link href="/profile" className="inline-flex items-center gap-1 text-body font-semibold text-ink underline-offset-4 hover:underline">
               {t("viewProfile")}
               <ArrowUpRight aria-hidden className="size-4" />
@@ -417,7 +459,7 @@ function summaryOf(key: ProfileSectionKey, user: User, t: ReturnType<typeof useT
     case "basics":
       return [user.name.split(" ")[0], ageKnown ? String(user.age) : null, user.country || null].filter(Boolean).join(" · ") || t("sections.basics.empty");
     case "vibe":
-      return user.houseVibe ? t("sections.vibe.summary") : t("sections.vibe.empty");
+      return hasVibe(user.houseVibe) ? t("sections.vibe.summary") : t("sections.vibe.empty");
     case "about":
       return user.bio.trim() || (user.languages.length > 0 ? user.languages.join(", ") : t("sections.about.empty"));
     case "links":
@@ -456,18 +498,6 @@ function BasicsSection({ form, update, today, errorText }: { form: FormState; up
             aria-label={t("country")}
           />
         </FormField>
-        <FormField label={t("basedIn")} optional group>
-          <Combobox
-            value={form.city}
-            options={CITY_OPTIONS}
-            onPick={(option) => update("city", option.value)}
-            onFreeText={(text) => update("city", text)}
-            isSelected={(option) => option.value === form.city}
-            placeholder={t("basedInPlaceholder")}
-            empty={t("noPlace")}
-            aria-label={t("basedIn")}
-          />
-        </FormField>
       </div>
     </>
   );
@@ -491,17 +521,20 @@ function BirthField({ value, onChange, invalid }: { value: DateParts; onChange: 
 }
 
 /** Vibe: four scales of three steps – the left word, three dots (the chosen one orange), the right word. */
-function VibeSection({ value, onChange }: { value?: HouseVibe; onChange: (value: HouseVibe) => void }) {
+function VibeSection({ value, onChange }: { value?: HouseVibe; onChange: (value: HouseVibe | undefined) => void }) {
   const tVibe = useTranslations("profile.vibe");
+  const t = useTranslations("profile.edit.vibeQuestions");
+  // Four questions, three tiles each; a tile chosen again is taken back – every question can be skipped.
   return (
-    <ul className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      <p className="text-small text-muted">{t("hint")}</p>
       {HOUSE_VIBE_SCALES.map(({ key, icon: Icon }) => (
-        <li key={key} role="radiogroup" aria-label={tVibe(`${key}.scale`)} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-          <span className="flex min-w-0 items-center gap-2 text-body text-ink">
+        <fieldset key={key} className="min-w-0">
+          <legend className="mb-2 flex items-center gap-2 text-body font-semibold text-ink">
             <Icon aria-hidden className="size-4 shrink-0 text-ink/60" />
-            <span className="truncate">{tVibe(`${key}.1`)}</span>
-          </span>
-          <span className="flex items-center gap-1">
+            {t(key)}
+          </legend>
+          <div role="radiogroup" aria-label={t(key)} className="grid grid-cols-3 gap-2">
             {HOUSE_VIBE_STEPS.map((step) => {
               const on = value?.[key] === step;
               return (
@@ -510,19 +543,23 @@ function VibeSection({ value, onChange }: { value?: HouseVibe; onChange: (value:
                   type="button"
                   role="radio"
                   aria-checked={on}
-                  aria-label={tVibe(`${key}.${step}`)}
-                  onClick={() => onChange({ ...(value ?? DEFAULT_HOUSE_VIBE), [key]: step })}
-                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-ink/5"
+                  onClick={() => {
+                    const next: HouseVibe = { ...value, [key]: on ? undefined : step };
+                    onChange(hasVibe(next) ? next : undefined);
+                  }}
+                  className={cn(
+                    "flex min-h-14 items-center justify-center rounded-2xl px-3 py-2 text-center text-body transition-colors duration-150",
+                    on ? "bg-ink font-semibold text-inverse" : "border border-ink/10 text-ink/80 hover:bg-ink/5",
+                  )}
                 >
-                  <span className={cn("block size-3.5 rounded-full transition-colors duration-150", on ? "bg-accent" : "bg-ink/15")} />
+                  {tVibe(`${key}.${step}`)}
                 </button>
               );
             })}
-          </span>
-          <span className="truncate text-right text-body text-ink">{tVibe(`${key}.3`)}</span>
-        </li>
+          </div>
+        </fieldset>
       ))}
-    </ul>
+    </div>
   );
 }
 

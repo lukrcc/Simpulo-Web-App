@@ -1,8 +1,8 @@
 "use client";
 
-import { listItemStyles } from "@/components/ui/listSelection";
+import { listFillStyle, stayAccentOf } from "@/lib/stageTint";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
-import { ChevronRight, MessageCircle, Search } from "lucide-react";
+import { ChevronRight, LifeBuoy, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,10 +17,10 @@ import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
-import { crewInOf, findUser, isBlocked, isThreadUnread, useStore } from "@/lib/store";
+import { crewInOf, findUser, isBlocked, isThreadUnread, lastMessageAtOf, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
+import { useSupportThread } from "@/lib/support/conversation";
 import { useIsDesktop } from "@/lib/useIsDesktop";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { DIRECT_MESSAGE_POLICY } from "@/config/policies";
 import { shortNameOf } from "@/lib/shortName";
 import { cn, housePhotos } from "@/lib/utils";
@@ -36,9 +36,11 @@ interface ThreadRow {
   cover?: string;
   /** Houses: the House is over. Questions: no new message for DIRECT_MESSAGE_POLICY.archiveAfterDays, or the House is over. */
   past: boolean;
+  /** Simpulo Support: its mark in a circle instead of a photo */
+  support?: boolean;
+  /** The House's colour – the chosen row's soft fill (lib/stageTint.ts listFillStyle) */
+  accent?: string;
 }
-
-type Filter = "all" | "unread";
 
 export function InboxList() {
   const t = useTranslations("messages.inbox");
@@ -49,8 +51,8 @@ export function InboxList() {
   );
 }
 
-const newestFirst = (a: ThreadRow, b: ThreadRow) =>
-  (b.thread.messages.at(-1)?.createdAt ?? "").localeCompare(a.thread.messages.at(-1)?.createdAt ?? "");
+/** By the chat's lastMessageAt (lib/store.tsx), the newest first. */
+const newestFirst = (a: ThreadRow, b: ThreadRow) => (lastMessageAtOf(b.thread) ?? "").localeCompare(lastMessageAtOf(a.thread) ?? "");
 
 /** More chats than this, and the search shows (as a magnifier beside the tabs). */
 const SEARCH_FROM = 16;
@@ -85,24 +87,26 @@ function InboxContent() {
     const over = stay.endDate !== "" && stay.endDate < today;
     const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
     if (thread.type === "house") {
-      return [{ thread, title: stay.title, cover, subtitle: t("houseLine", { dates: f.shortRange(stay.startDate, stay.endDate), filled: crewInOf(store, stay), total: stay.spotsTotal }), past: over }];
+      return [{ thread, title: stay.title, cover, accent: stayAccentOf(stay, cover), subtitle: t("houseLine", { dates: f.shortRange(stay.startDate, stay.endDate), filled: crewInOf(store, stay), total: stay.spotsTotal }), past: over }];
     }
     const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
     // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
     if (other && isBlocked(store, other.id)) return [];
     const last = thread.messages.at(-1)?.createdAt;
     const quiet = last !== undefined && now - Date.parse(last) > DIRECT_MESSAGE_POLICY.archiveAfterDays * DAY_MS;
-    return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, past: over || quiet }];
+    return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, accent: stayAccentOf(stay, cover), past: over || quiet }];
   });
 
-  const isUnread = (r: ThreadRow) => !r.past && isThreadUnread(store, r.thread);
-  const unreadCount = rows.filter(isUnread).length;
-  const [filter, setFilter] = useState<Filter>("all");
+  // Simpulo Support: the person's requests and ideas with the answers – one row, there once something was sent (lib/support/conversation.ts).
+  const { thread: supportThread } = useSupportThread();
+  const tSupport = useTranslations("help.conversation");
+  if (supportThread) rows.push({ thread: supportThread, title: tSupport("title"), support: true, past: false });
+
 
   const canSearch = rows.length >= SEARCH_FROM;
   const q = canSearch ? query.trim().toLowerCase() : "";
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
-  const inTab = rows.filter(matches).filter((r) => filter === "all" || isUnread(r));
+  const inTab = rows.filter(matches);
   const current = inTab.filter((r) => !r.past).toSorted(newestFirst);
   const past = inTab.filter((r) => r.past).toSorted(newestFirst);
   const ordered = [...current, ...past];
@@ -137,7 +141,7 @@ function InboxContent() {
     ) : (
       <>
         {current.length > 0 && <div className="mt-4">{list(current)}</div>}
-        {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t(filter === "unread" ? "unreadEmpty" : "housesEmpty")}</p>}
+        {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t("housesEmpty")}</p>}
         {past.length > 0 && (
           <section className="mt-5">
             <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 text-small uppercase text-muted hover:text-ink">
@@ -157,24 +161,8 @@ function InboxContent() {
       fullHeight
       list={
         <>
-          <div className="flex shrink-0 items-center justify-between gap-2">
-            <CapsuleGroup
-              label={t("filterLabel")}
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "all", content: t("filterAll") },
-                {
-                  value: "unread",
-                  content: (
-                    <span className="inline-flex items-center gap-1.5">
-                      {t("filterUnread")}
-                      {unreadCount > 0 && <span className="inline-flex size-4.5 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">{unreadCount}</span>}
-                    </span>
-                  ),
-                },
-              ]}
-            />
+          {/* No All / Unread – one list by the newest message, unread in bold with the dot; the search only with many chats. */}
+          <div className="flex shrink-0 items-center justify-end gap-2 empty:hidden">
             {canSearch && (
               <IconButton size="sm" aria-label={t("searchLabel")} aria-expanded={searching} onClick={() => setSearching((open) => !open)}>
                 <Search className="size-4" aria-hidden />
@@ -239,10 +227,16 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       scroll={false}
       aria-current={active ? "page" : undefined}
       // Chosen: the outline capsule in ink (ui/listSelection) – Messages is light like every page.
-      className={listItemStyles(active, "block px-4")}
+      // Chosen: a soft fill of the House colour (no edge), hover half of it (tokens.css .chat-row).
+      className="chat-row block px-4"
+      style={listFillStyle(row.accent)}
     >
       <span className="flex items-center gap-3 py-3">
-        {avatar ? (
+        {row.support ? (
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
+            <LifeBuoy aria-hidden className="size-6" />
+          </span>
+        ) : avatar ? (
           // Questions: the person in a circle 56px, the House as a rounded-square badge 22px at the bottom right (a 2px edge in the chat's ground).
           <span className="relative size-14 shrink-0">
             <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={56} className="size-14 bg-line" />

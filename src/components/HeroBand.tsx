@@ -5,6 +5,7 @@ import type { HTMLAttributes, ReactNode, Ref } from "react";
 import { Img } from "@/components/ui/Img";
 import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
+import { stageTintStyle } from "@/lib/stageTint";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,6 +22,9 @@ export function HeroBand({
   height = "split:h-(--hero-h)",
   mediaWidth = "split:w-[clamp(360px,30%,640px)]",
   footer,
+  fullStrip = false,
+  accent,
+  stagePad = false,
   stageClassName,
   bodyClassName,
   ref,
@@ -35,12 +39,41 @@ export function HeroBand({
   mediaWidth?: string;
   /** Across the whole Ember at its foot, its content on the grid (`band-inset` gives the inner edges) */
   footer?: ReactNode;
+  /**
+   * The stage rule (House page, Your houses): the image and the right side in one row, the image --stage-image-h high (object-cover, not
+   * from the content); the footer as a strip across the FULL width under both (its content `band-inset-full`). `height` is then the row's.
+   */
+  fullStrip?: boolean;
+  /** The photo's colour (hex): the stage's surface and strip take a breath of it (lib/stageTint.ts, tokens.css .stage-tinted) */
+  accent?: string;
+  /** One spacing on the stage (--stage-pad): to the photo, to the right edge, on top and to the strip (the House page) */
+  stagePad?: boolean;
   /** The surface right of the photo (default the tint, .stage) */
   stageClassName?: string;
   /** The content's box (e.g. no bottom padding, so the last line sits on the footer) */
   bodyClassName?: string;
   ref?: Ref<HTMLElement>;
 } & Omit<HTMLAttributes<HTMLElement>, "children">) {
+  if (fullStrip) {
+    const tint = stageTintStyle(accent);
+    return (
+      <section ref={ref} {...rest} style={{ ...rest.style, ...tint }} className={cn("scroll-mt-14", tint && "stage-tinted", rest.className)}>
+        <div className={cn("split:flex", height)}>
+          <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+          <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
+            <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col split:flex-row", !stagePad && "split:pr-(--band-edge)")}>
+              <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col px-6 py-8 sm:px-10", stagePad ? "split:p-(--stage-pad)" : cn("split:py-10 split:pl-14", rightColumn !== undefined ? "split:pr-10" : "split:pr-0"), bodyClassName)}>{children}</div>
+              {rightColumn !== undefined && (
+                <div className="flex min-w-0 shrink-0 flex-col border-t border-ink/10 px-6 py-8 sm:px-10 split:w-90 split:border-l split:border-t-0 split:py-10 split:pl-10 split:pr-0">{rightColumn}</div>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* The strip across the full width – under the image too; the image ends on top of it. */}
+        {footer}
+      </section>
+    );
+  }
   return (
     <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, rest.className)}>
       {/* Stretched to the band's height (also when the band is only as high as its content, with a min-height – height: 100 % would collapse). */}
@@ -66,7 +99,7 @@ export function HeroBand({
  * The band's photos: they fill the media area (object-cover), swipe or drag, the dots at the bottom; `onOpen`: a click opens the gallery.
  * No name and no rounding on them.
  */
-export function HeroPhotos({ photos, onOpen, eager = true }: { photos: string[]; onOpen?: (index: number) => void; eager?: boolean }) {
+export function HeroPhotos({ photos, onOpen, eager = true, captions }: { photos: string[]; onOpen?: (index: number) => void; eager?: boolean; /** One short line per photo, at its bottom (the profile) */ captions?: readonly string[] }) {
   const t = useTranslations("profile");
   const tv = useTranslations("profile.view");
   const { ref, active, onScroll, scrollTo } = useSnapCarousel<HTMLDivElement>(photos.length);
@@ -86,6 +119,12 @@ export function HeroPhotos({ photos, onOpen, eager = true }: { photos: string[];
             className="relative block h-full w-full shrink-0 snap-center snap-always outline-none"
           >
             <Img src={src} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" loading={eager && i === 0 ? "eager" : undefined} className="object-cover object-[center_30%]" />
+            {captions?.[i] && (
+              // The photo's line: bottom left over a soft shade of the photo (photo gradients are allowed), white, above the dots.
+              <span className="absolute inset-x-0 bottom-0 flex h-28 items-end bg-linear-to-t from-shade/55 to-transparent px-5 pb-10 text-left">
+                <span className="line-clamp-1 text-body font-semibold text-on-image [text-shadow:0_1px_2px_rgba(0,0,0,.25)]">{captions[i]}</span>
+              </span>
+            )}
           </button>
         ))}
       </div>

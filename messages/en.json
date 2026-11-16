@@ -242,14 +242,21 @@
     "yourProfile": "Your profile",
     "home": "Simpulo – home",
     "menu": {
-      "profile": "Profile",
+      "profile": "Your profile",
       "viewProfile": "View profile",
-      "saved": "Saved houses",
+      "saved": "Saved",
       "settings": "Settings",
       "getTheApp": "Get the app",
       "logOut": "Log out",
       "close": "Close menu",
-      "people": "Your people"
+      "people": "Your people",
+      "label": "Account menu",
+      "help": "Help",
+      "idea": "Share an idea",
+      "app": "Get the app",
+      "admin": "Admin",
+      "loggedOut": "Logged out",
+      "preview": "Preview as others see it"
     },
     "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}",
     "compactLabel": "Main",
@@ -259,7 +266,8 @@
     "dragFilters": "Drag or click for filters",
     "closeFilters": "Hide categories",
     "whereNext": "Where to next?",
-    "profile": "Your profile"
+    "profile": "Your profile",
+    "itemTasks": "{label}, {count, plural, one {# to do} other {# to do}}"
   },
   "footer": {
     "label": "Footer",
@@ -324,7 +332,26 @@
     },
     "legalLabel": "Legal",
     "coLivingIn": "Co-living in {city}",
-    "vibeHouses": "{vibe} houses"
+    "vibeHouses": "{vibe} houses",
+    "large": {
+      "tagline": "Find your people.",
+      "discover": "Discover",
+      "places": "Places",
+      "themes": "Themes",
+      "theme": {
+        "creator": "Creator",
+        "fitness": "Fitness",
+        "founder": "Founder",
+        "remote-work": "Remote work",
+        "surf-water": "Surf"
+      },
+      "host": "Host",
+      "howHosting": "How hosting works",
+      "foundingHosts": "Founding Hosts",
+      "hostSafety": "Host safety",
+      "waitlist": "Join the waitlist",
+      "waitlistLine": "Simpulo opens soon. Be the first to know."
+    }
   },
   "legal": {
     "lastUpdated": "Last updated: {date}",
@@ -820,6 +847,10 @@
       },
       "whereShort": "Where",
       "whenShort": "When"
+    },
+    "barThemes": {
+      "themes": "Themes",
+      "moreThemes": "More themes"
     }
   },
   "house": {
@@ -1066,7 +1097,9 @@
         "crewLabel": "Crew",
         "spotsLeftOf": "{open} of {total} spots left",
         "crewComplete": "Crew complete",
-        "bringFriend": "Bring a friend – request together"
+        "bringFriend": "Bring a friend – request together",
+        "quote": "“{text}”",
+        "quoteBy": "{name}, host"
       },
       "where2": {
         "around": "Around {area}",
@@ -1103,13 +1136,16 @@
         "pickedTogether": "Picked together",
         "viewListing": "View listing",
         "openMaps": "Open in Maps",
-        "profile": "{name}'s profile"
+        "profile": "{name}'s profile",
+        "spotsLeftRich": "<n>{count}</n> {count, plural, one {spot} other {spots}} left",
+        "whosIn": "Who's in"
       },
       "phase": {
         "noPaymentUntilLaunch": "No payment until launch",
         "waitlistToast": "You're on the list – we'll let you know when Simpulo opens.",
         "reservedToast": "Spot reserved – no payment until launch."
-      }
+      },
+      "askHost": "Ask {name} a question"
     },
     "headStartHint": "Your House is live. For the first {hours}h only the people who searched for this see it, then it's on Explore.",
     "steps": {
@@ -1205,7 +1241,10 @@
     "messageLabel": "Your message to {name} (optional)",
     "send": "Send request",
     "continue": "Continue",
-    "sentTo": "Request sent to {name} – you'll hear back in Messages"
+    "sentTo": "Request sent to {name} – you'll hear back in Messages",
+    "noteLabel": "Add a note for {name}",
+    "noteCounter": "{count} / {max}",
+    "notePlaceholder": "Anything {name} should know, or a question?"
   },
   "create": {
     "title": {
@@ -1234,7 +1273,13 @@
       "month": "Pick a month.",
       "dateProposal": "Each proposal needs a start and an end, from tomorrow on.",
       "placeProposal": "Each proposal needs a link and a price per person.",
-      "accommodationType": "Pick the kind of place – or \"Not sure yet\"."
+      "accommodationType": "Pick the kind of place – or \"Not sure yet\".",
+      "source": "Pick a place – or a new one.",
+      "rentPeriod": "Add your rental period – the end after the start.",
+      "monthlyRent": "Add your rent per month.",
+      "allowedToHost": "Confirm that you're allowed to host guests here.",
+      "outsideRental": "These dates are outside your rental period.",
+      "spotsRooms": "Your place has room for {max} people, you included."
     },
     "saved": "House saved",
     "published": "Your House is live",
@@ -1551,6 +1596,7 @@
     },
     "questions": {
       "vibe": "What's the House about?",
+      "source": "Host from your place?",
       "place": "Got a place?",
       "where": "Where and when?",
       "crew": "Crew and price",
@@ -1620,6 +1666,23 @@
       },
       "kind": "Kind of place",
       "depth": "Depth"
+    },
+    "home": {
+      "ownTitle": "Use a place you live in",
+      "newTitle": "New place",
+      "newText": "Bring a place you found – or pick one with your crew.",
+      "placeMeta": "{rooms, plural, one {# free room} other {# free rooms}} · {city}",
+      "windows": "{count, plural, =0 {no windows yet} one {# window} other {# windows}}",
+      "liveHere": "I live here – save it to Your places",
+      "liveHereText": "Open more windows from it later: only dates, spots and price to set.",
+      "rentPeriod": "Your rental period",
+      "monthlyRent": "Your rent per month",
+      "allowed": "I'm allowed to host guests here (sublet or guests allowed by my landlord and local rules)",
+      "whatThisMeans": "What this means",
+      "rental": "Your rental: {range}",
+      "fromRent": "From your rent: {rent} a month · {nights, plural, one {# night} other {# nights}}",
+      "placeName": "{kind} in {city}",
+      "placeFallback": "Place"
     },
     "flow": {
       "placeSetTitle": "I have a place",
@@ -1963,7 +2026,25 @@
         },
         "sheetTitle": "{group} · {count}",
         "nothingPlanned": "Nothing planned yet",
-        "explore": "Explore"
+        "explore": "Explore",
+        "stage": {
+          "next": "Next: {house} in {count, plural, one {# day} other {# days}}",
+          "now": "Now: {house}",
+          "nothingNext": "Nothing planned yet",
+          "livedIn": "{count, plural, one {House lived in} other {Houses lived in}}",
+          "people": "Your people",
+          "fill": "filled",
+          "payoutsReady": "Payouts ready",
+          "payoutsChecking": "Payouts being checked",
+          "payoutsAction": "Payouts need you",
+          "payoutsSetUp": "Set up payouts",
+          "openHost": "Hosting and payouts",
+          "openProfile": "Your profile",
+          "thisMonth": "this month",
+          "thisYear": "{amount} this year",
+          "payoutsLabel": "payouts",
+          "countries": "{count, plural, one {country} other {countries}}"
+        }
       },
       "tabsLabel": "Show",
       "tabs": {
@@ -2504,7 +2585,8 @@
       "decline": "Decline",
       "reply": "Reply",
       "knownThrough": "{others, plural, =0 {Lived with {name}, who you know} other {Lived with {name} and # more you know}}",
-      "message": "Message"
+      "message": "Message",
+      "note": "Note"
     },
     "crew": {
       "title": "In this House",
@@ -2696,6 +2778,18 @@
     },
     "rows": {
       "savedPeople": "Saved people"
+    },
+    "places": {
+      "title": "Your places",
+      "meta": "{kind} · {rooms, plural, one {# free room} other {# free rooms}} · {rent} a month",
+      "rental": "Rented {range}",
+      "openWindow": "Open a window",
+      "openAgain": "Open again",
+      "openAgainLabel": "Open {title} again",
+      "calendar": "Windows in {name}",
+      "window": "{title}: {dates}",
+      "today": "Today",
+      "noWindows": "No windows yet – open the first one."
     }
   },
   "messages": {
@@ -2844,6 +2938,22 @@
       "sent": "Sent",
       "aboutShort": "about {name}",
       "viewRequest": "View request"
+    },
+    "chatTheme": {
+      "menu": "Chat background",
+      "title": "Chat background",
+      "forThisChat": "For this chat",
+      "sameAsAll": "Same as all chats",
+      "allChats": "Default for all chats",
+      "allChatsHint": "Your choice – only you see it, on every device.",
+      "names": {
+        "house": "House",
+        "cream": "Cream",
+        "stone": "Stone",
+        "mist": "Mist",
+        "sand": "Sand",
+        "night": "Night"
+      }
     }
   },
   "profile": {
@@ -2995,7 +3105,17 @@
           "3": "A lot"
         },
         "hint": "We show you Houses that fit a little higher up – you still see them all."
-      }
+      },
+      "captionLabel": "Line for photo {number}",
+      "captionPlaceholder": "A few words about this photo",
+      "vibeQuestions": {
+        "hint": "Four quick questions – skip any you like. Hosts see how you'd live together.",
+        "rhythm": "When are you at your best?",
+        "social": "How social are you at home?",
+        "energy": "How do you spend your days?",
+        "tidy": "How tidy are you?"
+      },
+      "previewAsOthers": "Preview as others see it"
     },
     "settings": "Settings",
     "crews": {
@@ -3066,7 +3186,7 @@
       "confirmCount": "{count, plural, one {# housemate to confirm} other {# housemates to confirm}}",
       "confirmTitle": "Did you live together?",
       "more": "+{count}",
-      "livedWithLine": "Lived with <b>{people}</b> {people, plural, one {person} other {people}} in <b>{houses}</b> {houses, plural, one {House} other {Houses}}",
+      "livedWithLine": "Lived with {count} · {again} would live again",
       "livedInLine": "Lived in <b>{houses}</b> {houses, plural, one {House} other {Houses}}",
       "places": "Places",
       "confirmLink": "{count, plural, one {# housemate to confirm} other {# housemates to confirm}} →",
@@ -3087,7 +3207,7 @@
       "speaksOne": "Speaks {language}",
       "bothInto": "Both into {interest}",
       "seeHouse": "See {name}",
-      "inviteToHouse": "Invite to your House",
+      "inviteToHouse": "Invite to a House",
       "invitedToast": "{name} is invited to {house} – the spot is held for 48h",
       "rowVibe": "Vibe",
       "rowHostingNow": "Hosting now",
@@ -3161,13 +3281,62 @@
       "interestsLabel": "Interests",
       "basicNumbers": "{houses, plural, one {# House} other {# Houses}} · lived with {people}",
       "basicNote": "You see the full profile once you're in the same House.",
-      "privateTitle": "A Simpulo member"
+      "privateTitle": "A Simpulo member",
+      "hostsHouses": "Hosts {count, plural, one {# House} other {# Houses}}",
+      "numAgain": "would live again",
+      "nowIn": "now in {city}",
+      "editPart": "Edit {part}",
+      "partBasics": "name, age and place",
+      "partAbout": "short text",
+      "partLinks": "links",
+      "inviteFriends": "Invite friends",
+      "inviteFriendsText": "Come find your people on Simpulo.",
+      "inviteFriendsCopied": "Link copied",
+      "stripPreview": "How others see your profile",
+      "shareHostPage": "Share host page",
+      "livedTogether": "You lived together in {house}",
+      "moreInYourHouses": "{count} more in Your houses →",
+      "yourPeople": "Your people",
+      "livedWithHead": "People",
+      "seeAllPeople": "See all {count} →",
+      "inForMark": "In for · {when}",
+      "placesAdd": "Add where you're in for",
+      "bothVibe": {
+        "rhythm": {
+          "1": "You're both early birds",
+          "3": "You're both night owls"
+        },
+        "social": {
+          "1": "You both like it quiet",
+          "3": "You're both social"
+        },
+        "energy": {
+          "1": "You're both active",
+          "3": "You're both chill"
+        },
+        "tidy": {
+          "1": "You're both tidy",
+          "3": "You're both relaxed"
+        }
+      },
+      "moreHousesLink": "{count} more →",
+      "vibeAddQuick": "Add your vibe – 15 seconds",
+      "bothKnowOne": "You both know {name}",
+      "bothKnowMore": "You both know {name} and {count, plural, one {# other} other {# others}}",
+      "nowInHouse": "Now in {place}",
+      "barHouses": "{count, plural, one {House} other {Houses}}",
+      "barLivedWith": "Lived with",
+      "barAgainValue": "{x} of {y}",
+      "barReplies": "Replies within",
+      "barRepliesValue": "{h} h",
+      "editWithProgress": "Edit profile · {done} of {total}",
+      "bothKnowTwo": "You both know {a} and {b}"
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {
       "rhythm": {
         "1": "Early bird",
-        "2": "Flexible hours",
+        "2": "In between",
         "3": "Night owl",
         "scale": "Early bird ↔ Night owl"
       },
@@ -3202,7 +3371,8 @@
         "payments": "Payments & payouts",
         "notifications": "Notifications",
         "privacy": "Privacy & safety",
-        "general": "General"
+        "general": "General",
+        "chats": "Chats"
       },
       "account": {
         "groupSignIn": "Sign-in",
@@ -3270,7 +3440,8 @@
         "help": "Get help",
         "idea": "Share an idea",
         "installHints": "App reminders",
-        "installHintsText": "At most once a week – after paying, joining a crew or opening the group chat."
+        "installHintsText": "At most once a week – after paying, joining a crew or opening the group chat.",
+        "legal": "Legal"
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -3292,7 +3463,10 @@
       "passkey": "Passkey",
       "passkeyAdd": "Add",
       "passkeyOn": "On",
-      "comesSoon": "This comes with the real login – soon."
+      "comesSoon": "This comes with the real login – soon.",
+      "logOutAll": "Log out of all devices",
+      "logOutAllSub": "You stay signed in on this device until you log out.",
+      "loggedOutAll": "Logged out of all devices"
     },
     "notifications": {
       "title": "Notifications",
@@ -3584,7 +3758,21 @@
     "somethingWrong": "Something wrong?",
     "getHelpLink": "Get help",
     "reportOrHelp": "Report or get help",
-    "report": "Report"
+    "report": "Report",
+    "conversation": {
+      "title": "Simpulo Support",
+      "subtitle": "Your questions and ideas",
+      "composer": "Write to Simpulo Support",
+      "sentHint": "It's in Messages now – our answer comes there.",
+      "open": "Open in Messages",
+      "close": "Close",
+      "about": {
+        "question": "Question",
+        "bug": "Something's broken",
+        "safety": "Safety",
+        "idea": "Idea"
+      }
+    }
   },
   "calendar": {
     "add": "Add to calendar"
@@ -3982,7 +4170,8 @@
         "requests": "Hosts choose who joins their House",
         "payments": "Paying safely",
         "onSite": "At the House",
-        "reporting": "Reporting a problem"
+        "reporting": "Reporting a problem",
+        "hosts": "For hosts"
       }
     },
     "pages": {
@@ -4063,14 +4252,27 @@
   "people": {
     "page": {
       "title": "Your people",
-      "description": "Everyone you lived with in a House – once you both confirmed it.",
+      "tabsLabel": "People",
+      "tabs": {
+        "people": "Your people",
+        "lived": "Lived with",
+        "saved": "Saved profiles"
+      },
       "search": "Search by name or House",
       "livedIn": "Lived together in {place}",
       "remove": "Remove",
       "removed": "{name} is no longer in Your people",
+      "unsaved": "{name} removed from saved profiles",
       "noMatch": "Nobody by that name.",
-      "emptyTitle": "Your people live here.",
-      "emptyDescription": "After a House, everyone you both confirmed living with shows up here.",
+      "nowIn": "Now in {city}",
+      "invite": "Invite to a House",
+      "inFor": "In for {line}",
+      "hint": "{a} and {b} are in for {place} in {month} – <link>open a House?</link>",
+      "emptyPeople": "Your people appear after you live together.",
+      "emptyPeopleDescription": "After a House, everyone you both confirm living with shows up here.",
+      "emptyLived": "Nobody yet – everyone from your past crews shows up here.",
+      "emptySaved": "No saved profiles yet.",
+      "emptySavedDescription": "Save a profile with the bookmark on it – only you see this list.",
       "explore": "Find a House",
       "loginTitle": "Your people",
       "loginDescription": "Log in to see the people you lived with."
@@ -4233,6 +4435,9 @@
     },
     "founding": {
       "capsule": "Founding House"
+    },
+    "ownPlace": {
+      "capsule": "Host lives here"
     }
   },
   "ideas": {

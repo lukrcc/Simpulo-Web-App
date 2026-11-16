@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Section keys under seo.safety.sections – placeholder copy until the real page is written. */
-const SECTIONS = ["profiles", "requests", "payments", "onSite", "reporting"] as const;
+const SECTIONS = ["profiles", "requests", "payments", "onSite", "hosts", "reporting"] as const;
 
 export default async function SafetyPage() {
   const t = await getTranslations("seo.safety");

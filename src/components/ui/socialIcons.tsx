@@ -71,3 +71,30 @@ export function BrandMark({ platform, className }: { platform: SocialPlatform; c
     </>
   );
 }
+
+/** The app icons' grounds (brand colours – a brand mark, like the marks above): Instagram its gradient, the website neutral. */
+const APP_GROUND: Record<SocialPlatform, string> = {
+  instagram: "linear-gradient(45deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%)",
+  tiktok: "#000000",
+  youtube: "#FF0000",
+  twitch: "#9146FF",
+  kick: "#53FC18",
+  x: "#000000",
+  linkedin: "#0A66C2",
+  website: "var(--surface-2)",
+};
+/** The glyph on it: white, but dark on Kick's light green and on the neutral website ground. */
+const APP_GLYPH: Partial<Record<SocialPlatform, string>> = { kick: "#000000", website: "var(--text)" };
+
+/**
+ * A link as an app icon (the profile's stage): a rounded square in the brand's own colour (Instagram its gradient, TikTok black, YouTube
+ * red, the website neutral), the mark white on it. No white circle.
+ */
+export function BrandApp({ platform, small = false, className }: { platform: SocialPlatform; small?: boolean; className?: string }) {
+  const { icon: Icon } = SOCIAL_ICONS[platform];
+  return (
+    <span aria-hidden className={className} style={{ background: APP_GROUND[platform] }}>
+      <Icon className={small ? "size-4" : "size-5.5"} color={APP_GLYPH[platform] ?? "#FFFFFF"} />
+    </span>
+  );
+}

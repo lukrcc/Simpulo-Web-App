@@ -1,5 +1,5 @@
 // Domain types live next to the mock data in ./mock.ts (the data contract). App-only types are added here.
-import type { HostTier, Stay, Thread, Vibe } from "./mock";
+import type { Currency, HostTier, Stay, Thread, Vibe } from "./mock";
 
 export type {
   AccommodationStatus,
@@ -70,7 +70,39 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth">>;
+> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth" | "placeId">>;
+
+/**
+ * "Host from your place": a place the host lives in and saved (Your houses › Your places). Each House opened from it is a "window" in
+ * the host's rental period (`Stay.placeId`); the host lives there and counts as one of the crew, so a window has at most `freeSpots` + 1
+ * people. Saved only with `allowedToHost` (the host's own statement – Simpulo checks nothing). Data points place.* (config/data-points.ts).
+ */
+export interface Place {
+  id: string;
+  ownerId: string;
+  /** "Apartment in Barceloneta" – only the host sees it */
+  name: string;
+  /** The kind of place: a type id from config/accommodation.ts ("large-apartment", "villa") */
+  accommodationType: string;
+  photos: string[];
+  /** All rooms, the host's own included */
+  rooms: number;
+  /** Rooms guests can have – a window's crew is at most this + the host */
+  freeSpots: number;
+  /** One rule per entry */
+  rules: string[];
+  /** City and region as Open a House stores them on a House; the street only for the host (shared with the crew after booking, later) */
+  address: { city: string; region: string; street?: string };
+  /** The host's rental period (YYYY-MM-DD): windows lie inside it */
+  rentFrom: string;
+  rentTo: string;
+  /** The host's rent for the whole place per month, in `currency` – a window's price starts from it pro rata (lib/price.ts) */
+  monthlyRent: number;
+  currency: Currency;
+  /** "I'm allowed to host guests here (sublet or guests allowed by my landlord and local rules)" – required to save */
+  allowedToHost: boolean;
+  createdAt: string;
+}
 
 // Admin (/admin, lib/admin): the collections the waitlist and the host application write to. Mock through the data adapter; later Firestore.
 

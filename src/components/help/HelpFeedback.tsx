@@ -1,19 +1,21 @@
 "use client";
 
-// Support in two ways (mounted once in AppShell), both in the manner of the InviteSheet – a panel, its body 24px in, the action in its foot:
+// Support in two ways (mounted once in AppShell), both a centred dialog (the one dialog pattern: Cancel left, the action right):
 // "Get help" – what it's about as capsules (Question · Something's broken · Safety), the message, an optional screenshot, the email
 // (prefilled when logged in, else required); the page, House and device go along and are shown before sending. Safety: the emergency line
 // and high priority. "Share an idea" – light: "Your idea", optional "Why would it help you?", optional screenshot; a ticket with category
-// "idea". Both land in Admin › Support (lib/admin/store.ts addSupportTicket).
+// "idea". Both land in Admin › Support (lib/admin/store.ts addSupportTicket) and, signed in, in Messages as the conversation "Simpulo
+// Support" (lib/support/conversation.ts), where the answers come.
 import { Check, ImagePlus, Info, ShieldAlert, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { FormField } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { Chip } from "@/components/ui/Chip";
 import { Input, Textarea } from "@/components/ui/Input";
-import { Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { SUPPORT_THREAD_ID } from "@/lib/support/conversation";
 import { usePlatformPhase } from "@/config/platform";
 import { addSupportTicket } from "@/lib/admin/store";
 import { getCurrentUser, useStore } from "@/lib/store";
@@ -43,7 +45,7 @@ export function HelpFeedbackSheet() {
   if (open === "help") return <FeedbackSheet key="help" onClose={closeSupportSheet} />;
   if (open === "idea") return <IdeaSheet key="idea" onClose={closeSupportSheet} />;
   return (
-    <Sheet variant="panel" open={false} onClose={closeSupportSheet} title={t("title")}>
+    <Sheet open={false} onClose={closeSupportSheet} title={t("title")}>
       {null}
     </Sheet>
   );
@@ -74,33 +76,10 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Sheet
-      variant="panel"
-      open
-      onClose={onClose}
-      title={t("title")}
-      footer={
-        <div className="flex w-full items-center justify-end">
-          {sent ? (
-            <Button variant="secondary" onClick={onClose}>
-              {t("close")}
-            </Button>
-          ) : (
-            <Button onClick={send} disabled={!ready}>
-              {t("send")}
-            </Button>
-          )}
-        </div>
-      }
-    >
-      <div className="px-6 pb-6 pt-2">
+    <Sheet open onClose={onClose} title={t("title")} focusOverlay>
+      <div>
         {sent ? (
-          <div className="flex flex-col items-start gap-4 py-8">
-            <span className="flex size-12 items-center justify-center rounded-full bg-ink text-inverse">
-              <Check className="size-6 motion-safe:animate-check-in" strokeWidth={2.5} aria-hidden />
-            </span>
-            <p className="text-h3 text-ink">{t("thanks")}</p>
-          </div>
+          <Sent text={t("thanks")} signedIn={me !== null} onClose={onClose} />
         ) : (
           <div className="flex flex-col gap-6">
             <div>
@@ -136,10 +115,49 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
               <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
               {t("context", { page: pathname, device: deviceLabel(), width: window.innerWidth })}
             </p>
+            <ModalFooter onCancel={onClose} className="mt-2">
+              <Button onClick={send} disabled={!ready}>
+                {t("send")}
+              </Button>
+            </ModalFooter>
           </div>
         )}
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * After sending: the check and the thanks; signed in, the request now stands in Messages as "Simpulo Support" (lib/support/conversation.ts) –
+ * the answers come there. No chat bubble in a corner.
+ */
+function Sent({ text, signedIn, onClose }: { text: string; signedIn: boolean; onClose: () => void }) {
+  const t = useTranslations("help.conversation");
+  const router = useRouter();
+  return (
+    <div className="flex flex-col items-start gap-4 py-4">
+      <span className="flex size-12 items-center justify-center rounded-full bg-ink text-inverse">
+        <Check className="size-6 motion-safe:animate-check-in" strokeWidth={2.5} aria-hidden />
+      </span>
+      <p className="text-h3 text-ink">{text}</p>
+      {signedIn && <p className="text-body text-muted">{t("sentHint")}</p>}
+      <ModalFooter onCancel={signedIn ? onClose : undefined} className="mt-4 w-full">
+        {signedIn ? (
+          <Button
+            onClick={() => {
+              onClose();
+              router.push(`/messages?id=${SUPPORT_THREAD_ID}`);
+            }}
+          >
+            {t("open")}
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={onClose}>
+            {t("close")}
+          </Button>
+        )}
+      </ModalFooter>
+    </div>
   );
 }
 
@@ -211,33 +229,10 @@ function IdeaSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Sheet
-      variant="panel"
-      open
-      onClose={onClose}
-      title={t("title")}
-      footer={
-        <div className="flex w-full items-center justify-end">
-          {sent ? (
-            <Button variant="secondary" onClick={onClose}>
-              {t("close")}
-            </Button>
-          ) : (
-            <Button onClick={send} disabled={!ready}>
-              {t("send")}
-            </Button>
-          )}
-        </div>
-      }
-    >
-      <div className="px-6 pb-6 pt-2">
+    <Sheet open onClose={onClose} title={t("title")} focusOverlay>
+      <div>
         {sent ? (
-          <div className="flex flex-col items-start gap-4 py-8">
-            <span className="flex size-12 items-center justify-center rounded-full bg-ink text-inverse">
-              <Check className="size-6 motion-safe:animate-check-in" strokeWidth={2.5} aria-hidden />
-            </span>
-            <p className="text-h3 text-ink">{t("thanks")}</p>
-          </div>
+          <Sent text={t("thanks")} signedIn={me !== null} onClose={onClose} />
         ) : (
           <div className="flex flex-col gap-6">
             <FormField label={t("idea")}>
@@ -247,6 +242,11 @@ function IdeaSheet({ onClose }: { onClose: () => void }) {
               <Textarea value={why} onChange={(e) => setWhy(e.target.value)} placeholder={t("whyPlaceholder")} className="min-h-24" maxLength={1000} />
             </FormField>
             <ScreenshotField file={file} onChange={setFile} />
+            <ModalFooter onCancel={onClose} className="mt-2">
+              <Button onClick={send} disabled={!ready}>
+                {t("send")}
+              </Button>
+            </ModalFooter>
           </div>
         )}
       </div>

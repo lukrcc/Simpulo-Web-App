@@ -1,5 +1,6 @@
 "use client";
 
+import { hostLivesHere } from "@/lib/ownPlaces";
 import { DEPTH_CAPSULE, depthOf } from "@/config/depth";
 import { usePeopleSignal, useYourPeople } from "@/lib/useYourPeople";
 import { useTodayIso } from "@/lib/birthDate";
@@ -140,8 +141,11 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const depth = depthOf(stay, depthOn);
   const tDepth = useTranslations("depth.capsule");
   const depthCapsule = depthOn && !spotlight && DEPTH_CAPSULE.includes(depth) ? tDepth(depth) : undefined;
-  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency) : undefined) ?? depthCapsule);
-  const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule;
+  // "Host from your place" (lib/ownPlaces.ts): "Host lives here" in the same slot, after the urgency and before the depth – never in the
+  // Spotlight (like the depth capsule).
+  const homeCapsule = !spotlight && hostLivesHere(stay) ? tPlatform("ownPlace.capsule") : undefined;
+  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency) : undefined) ?? homeCapsule ?? depthCapsule);
+  const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule && capsule !== homeCapsule;
   const lastSpot = urgent && !example && openSpots(stay) === 1;
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);

@@ -1,11 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { LanguageChips } from "@/components/ui/LanguageChips";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { SocialLinks } from "@/components/SocialLinks";
-import { ProHostBadge } from "@/components/ui/ProHostLabel";
+import { HostsBadge } from "@/components/ui/ProHostLabel";
 import { cardClass } from "@/components/ui/Card";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { useFormat } from "@/i18n/format";
@@ -24,7 +23,6 @@ interface ProfileCardProps {
 
 /** The compact profile card – on /profile and, fed with the draft, as the live preview on Edit profile. */
 export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
-  const t = useTranslations("profile");
   const f = useFormat();
 
   return (
@@ -39,10 +37,9 @@ export function ProfileCard({ user, stats, crews, actions }: ProfileCardProps) {
           </h1>
           <p className="mt-0.5 text-small text-muted">
             {f.ageAndCountry(user, true)}
-            {user.city && ` · ${t("basedIn", { city: user.city })}`}
           </p>
           {stats && <p className="mt-0.5 text-small text-muted">{stats}</p>}
-          <ProHostBadge user={user} tone="light" tagline className="mt-1.5" />
+          <HostsBadge user={user} tone="light" tagline className="mt-1.5" />
         </div>
       </div>
 

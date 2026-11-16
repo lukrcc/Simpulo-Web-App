@@ -1,4 +1,5 @@
 import { HelpFeedbackSheet } from "@/components/help/HelpFeedback";
+import { GetAppDialog } from "@/components/GetAppDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { Suspense, type ReactNode } from "react";
 import { DemoBand } from "@/components/demo/DemoBand";
@@ -20,6 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Tooltip />
       {/* "Help & feedback": one sheet for the whole app, opened from the footer and Settings (lib/support/feedback.ts). */}
       <HelpFeedbackSheet />
+      <GetAppDialog />
       <Suspense fallback={null}>
         <HouseTransitions />
       </Suspense>
@@ -34,13 +36,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
       <SiteHeader />
       <MobileHeader />
-      {/* From md the header is fixed: the content starts 16px below its bar (72px), and its tab hangs into that space.
-          Every scrolling page ends with the same space before the footer: 96px mobile, --space-section desktop. Full-height
-          app pages drop that padding and the footer via data-app-pane (globals.css). */}
-      <main className="flex-1 pb-24 md:pt-16 md:pb-(--space-section)">{children}</main>
+      {/* From md the header is fixed: the content starts below its bar. Every scrolling page ends with the same room before the footer:
+          --footer-gap (64px after a light last section, 0 after a dark one – globals.css); phones 96px for the tab bar. Full-height app pages
+          drop that padding and the footer via data-app-pane (globals.css). */}
+      <main className="flex-1 pb-24 md:pt-16 md:pb-(--footer-gap)">{children}</main>
       {/* usePathname suspends on dynamic routes during prerender. */}
       <Suspense fallback={<SlimFooter />}>
-        <FooterByRoute full={<Footer />} slim={<SlimFooter />} />
+        <FooterByRoute large={<Footer />} slim={<SlimFooter />} />
       </Suspense>
       <Suspense fallback={null}>
         <BottomTabBar />

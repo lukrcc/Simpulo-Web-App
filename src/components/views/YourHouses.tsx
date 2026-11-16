@@ -3,11 +3,13 @@
 import { profileHref } from "@/lib/privacy";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { BackLink } from "@/components/ui/BackButton";
-import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useYourPeople } from "@/lib/useYourPeople";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { YourPlaces } from "@/components/places/YourPlaces";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { clearDraft, readDraft, toInput } from "@/components/create/model";
 import { CardStatusChip, HouseCard } from "@/components/HouseCard";
@@ -18,7 +20,7 @@ import { CrewRow } from "@/components/CrewRow";
 import { UP_NEXT_EMPTY_IMAGE, upNextOf } from "@/config/upnext";
 import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
-import { CardTaskAction, cardTaskOf } from "@/components/stay/CardTask";
+import { CardTaskAction } from "@/components/stay/CardTask";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { againHref } from "@/components/create/model";
 import { TODO_GROUP, TODO_GROUPS, TODO_URGENT_HOURS, type TodoGroup, type TodoKind } from "@/config/todo";
@@ -44,10 +46,12 @@ import { useFormat } from "@/i18n/format";
 import { locationOf } from "@/lib/catalog";
 import { earningsFor, type Earnings } from "@/lib/earnings";
 import { hostStatsFor } from "@/lib/hostStats";
-import { focusOfTask, manageHref, needsFill, stepHref } from "@/lib/houseTasks";
+import { focusOfTask, manageHref, stepHref } from "@/lib/houseTasks";
 import { daysUntil, timelineFor, type TimelineEvent } from "@/lib/timeline";
 import { Avatar } from "@/components/ui/Avatar";
 import { acceptedOverlaps } from "@/lib/overlap";
+import { useCardTask, useNeedsYou } from "@/lib/needsYou";
+import { StripFig } from "@/components/StripFig";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
@@ -127,6 +131,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const hasHosted = hosts || earnings.any || past.some((s) => s.hostId === me);
 
   const taskOf = useCardTask();
+  const needsYou = useNeedsYou(now, Boolean(ownLocalDraft));
   // Before the launch and in the beta nothing is paid (config/platform.ts): no Pay column, no Payouts strip.
   const payOk = canPay(usePlatformPhase());
   const waits = (s: Stay) => taskOf(s, now) !== null;
@@ -193,69 +198,62 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
       </>
     );
-  // Every open task across your Houses, the payout account and the profile to set up (ordered in TodoTile, config/todo.ts).
-  // No payout account yet (or Stripe still needs something): then, and only then, "Set up payouts".
-  const payoutSetup = payOk && hasHosted && (payout.status === "none" || payout.status === "action_required");
-  const profileSetup = meUser !== undefined && (!meUser.bio.trim() || meUser.photos.length < 2);
+  // Every open task across your Houses, the payout account and the profile to set up – from lib/needsYou.ts, the same list as the header's
+  // number on "Your houses" (ordered in TodoTile, config/todo.ts).
   const overlaps = acceptedOverlaps(store);
-  const todo: TodoEntry[] = [
-    ...items
-      .filter((item) => item.kind === "hosting" || item.kind === "joined")
-      .flatMap((item): TodoEntry[] => {
-        const task = taskOf(item.stay, now);
-        if (!task) return [];
+  const todo: TodoEntry[] = needsYou.map((entry): TodoEntry => {
+    switch (entry.kind) {
+      case "overlap":
+        // Two acceptances on the same nights, neither paid: pick one (PARALLEL_POLICY). Several: ONE entry that opens all of them.
+        return {
+          key: entry.key,
+          kind: "overlap",
+          title: tDash("todo.overlap", { count: entry.overlaps.length }),
+          sub: entry.overlaps.map(([a, b]) => `${a.title} · ${b.title}`).join(" · "),
+          what: tDash("need.overlap", { count: entry.overlaps.length, amount: "" }),
+          short: [...new Set(entry.overlaps.flat().map(shortNameOf))].join(" · "),
+          photo: housePhotos(entry.overlaps[0][0], findUser(store, entry.overlaps[0][0].hostId))[0],
+          onClick: () => setPicking(entry.overlaps),
+        };
+      case "fill":
+        // A House of yours starting within 30 days and under half full: "Fill 3 spots" – the invite sheet (Reply).
+        return {
+          key: entry.key,
+          kind: "fill",
+          title: tDash("todo.fill", { count: openSpots(entry.stay) }),
+          sub: entry.stay.title,
+          what: tDash("need.fill", { count: openSpots(entry.stay), amount: "" }),
+          short: shortNameOf(entry.stay),
+          photo: housePhotos(entry.stay, findUser(store, entry.stay.hostId))[0],
+          href: stepHref(entry.stay, "invite"),
+        };
+      case "payouts":
+        // Payouts only while no payout account is set up; the ID check is part of it ("Bank account + ID check, 5 min").
+        return { key: "payouts", kind: "payouts", title: tDash("todo.payouts"), sub: tDash("setUpText"), what: tDash("need.payouts", { count: 0, amount: "" }), short: tDash("payoutsSetupSub"), icon: <Wallet aria-hidden />, onClick: () => setPayoutSheet(true) };
+      case "verify":
+        // "Verify your ID" on its own only for guests who don't host – and only as an option.
+        return { key: "verify", kind: "verify", title: tDash("todo.verify"), sub: tDash("setupWhere"), what: tDash("need.verify", { count: 0, amount: "" }), short: tDash("optional"), icon: <ShieldCheck aria-hidden />, href: "/settings#payments" };
+      case "profile":
+        return { key: "profile", kind: "profile", title: tDash("todo.profile"), sub: tDash("profileText"), what: tDash("need.profile", { count: 0, amount: "" }), short: tDash("setupWhere"), icon: <UserRound aria-hidden />, href: "/settings/profile" };
+      default: {
+        const { stay, task } = entry;
         // Pay: the own share in the viewer's currency ("Pay €315", ≈ when the House's currency differs).
-        const share = task.kind === "pay" ? (getMyPayment(store, item.stay.id)?.total ?? item.stay.pricePerPerson ?? 0) : 0;
-        const amount = `${item.stay.currency === viewer ? "" : "≈ "}${f.price(Math.round(convertApprox(share, item.stay.currency, viewer)), viewer)}`;
-        return [
-          {
-            key: item.key,
-            kind: task.kind,
-            title: tDash(`todo.${task.kind}`, { count: task.count ?? 0 }),
-            sub: item.stay.title,
-            what: tDash(`need.${task.kind}`, { count: task.count ?? 0, amount }),
-            short: shortNameOf(item.stay),
-            due: task.date,
-            photo: housePhotos(item.stay, findUser(store, item.stay.hostId))[0],
-            href: stepHref(item.stay, focusOfTask(task.kind)),
-          },
-        ];
-      }),
-    // Two acceptances on the same nights, neither paid: pick one (PARALLEL_POLICY) – the other spot is given up. Several: ONE entry, "Sort 3
-    // overlaps", that opens all of them.
-    ...(overlaps.length > 0
-      ? [
-          {
-            key: "overlaps",
-            kind: "overlap" as const,
-            title: tDash("todo.overlap", { count: overlaps.length }),
-            sub: overlaps.map(([a, b]) => `${a.title} · ${b.title}`).join(" · "),
-            what: tDash("need.overlap", { count: overlaps.length, amount: "" }),
-            short: [...new Set(overlaps.flat().map(shortNameOf))].join(" · "),
-            photo: housePhotos(overlaps[0][0], findUser(store, overlaps[0][0].hostId))[0],
-            onClick: () => setPicking(overlaps),
-          },
-        ]
-      : []),
-    // A House of yours starting within 30 days and under half full: "Fill 3 spots" – the invite sheet (Reply).
-    ...hosting
-      .filter((stay) => needsFill(stay, now.slice(0, 10)))
-      .map((stay) => ({
-        key: `${stay.id}-fill`,
-        kind: "fill" as const,
-        title: tDash("todo.fill", { count: openSpots(stay) }),
-        sub: stay.title,
-        what: tDash("need.fill", { count: openSpots(stay), amount: "" }),
-        short: shortNameOf(stay),
-        photo: housePhotos(stay, findUser(store, stay.hostId))[0],
-        href: stepHref(stay, "invite"),
-      })),
-    // Payouts only while no payout account is set up; the ID check is part of it ("Bank account + ID check, 5 min").
-    ...(payoutSetup ? [{ key: "payouts", kind: "payouts" as const, title: tDash("todo.payouts"), sub: tDash("setUpText"), what: tDash("need.payouts", { count: 0, amount: "" }), short: tDash("payoutsSetupSub"), icon: <Wallet aria-hidden />, onClick: () => setPayoutSheet(true) }] : []),
-    // "Verify your ID" on its own only for guests who don't host – and only as an option.
-    ...(meUser && !meUser.verified && !hasHosted ? [{ key: "verify", kind: "verify" as const, title: tDash("todo.verify"), sub: tDash("setupWhere"), what: tDash("need.verify", { count: 0, amount: "" }), short: tDash("optional"), icon: <ShieldCheck aria-hidden />, href: "/settings#payments" }] : []),
-    ...(profileSetup ? [{ key: "profile", kind: "profile" as const, title: tDash("todo.profile"), sub: tDash("profileText"), what: tDash("need.profile", { count: 0, amount: "" }), short: tDash("setupWhere"), icon: <UserRound aria-hidden />, href: "/settings/profile" }] : []),
-  ];
+        const share = task.kind === "pay" ? (getMyPayment(store, stay.id)?.total ?? stay.pricePerPerson ?? 0) : 0;
+        const amount = `${stay.currency === viewer ? "" : "≈ "}${f.price(Math.round(convertApprox(share, stay.currency, viewer)), viewer)}`;
+        return {
+          key: entry.key,
+          kind: task.kind,
+          title: tDash(`todo.${task.kind}`, { count: task.count ?? 0 }),
+          sub: stay.title,
+          what: tDash(`need.${task.kind}`, { count: task.count ?? 0, amount }),
+          short: shortNameOf(stay),
+          due: task.date,
+          photo: housePhotos(stay, findUser(store, stay.hostId))[0],
+          href: stepHref(stay, focusOfTask(task.kind)),
+        };
+      }
+    }
+  });
 
   // Your houses in three groups (empty ones hidden): Hosting (yours, drafts too), Going (accepted – paid and booked as well), Waiting
   // (requested, invited, on the waitlist). In each, what asks something of you first, then by start date.
@@ -309,25 +307,45 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
           right Ember to the window's edge: Needs you (the fixed columns), Coming up and the Payouts footer, --hero-h high. */}
       <HeroBand
         aria-labelledby="todo"
-        // Right of the photo: the band tone (#EAE4DD, like the House page's head); Coming up sits right on the dark Payouts strip (no padding under it).
+        // The stage rule (globals.css --stage-image-h): Up next's photo and the right side in one row of that height; the dark strip
+        // across the full width under both – the photo ends on top of it. Coming up sits right on the strip (no padding under it).
+        fullStrip
+        // A breath of Up next's colour on the surface and the strip (lib/stageTint.ts); nothing planned: the plain tokens.
+        height="split:h-(--stage-image-h)"
         bodyClassName="split:pb-0"
-        footer={payOk && <PayoutsFooter hosts={hasHosted} earnings={earnings} hostingCount={hosting.length} setUp={payout.status === null || !payoutSetup} hasRequests={store.joinRequests.some((r) => store.stays.some((s) => s.id === r.stayId && s.hostId === me))} openRequests={store.joinRequests.filter((r) => r.status === "pending" && store.stays.some((s) => s.id === r.stayId && s.hostId === me)).length} />}
+        stageClassName="stage-cream"
+        footer={
+          <StageStrip
+            today={today}
+            host={hasHosted}
+            earnings={earnings}
+            payoutStatus={payout.status}
+            hostingCount={hosting.length}
+            livedIn={livedIn}
+            payOk={payOk}
+          />
+        }
         media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
         <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
       </HeroBand>
     <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
-      {/* Calm rows, no heading over them: 48px under the band, 40px apart. For your next trip is the dark band after them. */}
-      <div className="mt-12 flex flex-col gap-10">
+      {/* Calm rows, no heading over them: 32px under the band – the window's edge (--stage-peek) cuts under the first row's title, at most
+          through the top of its images –, 40px apart. For your next trip is the dark band after them. */}
+      <div className="mt-8 flex flex-col gap-10">
+        {/* "Your places" (Host from your place) right after Hosting – first, when there's no Hosting row. */}
+        {!shown.some((row) => row.key === "hosting") && <YourPlaces today={today} />}
         {shown.map((row, i) => (
-          <YourRow
-            key={row.key}
-            id={row.key}
-            title={tDash(`rows.${row.key}`)}
-            cards={row.cards}
-            extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "saved" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
-            cols={row.key === "nextTrip" || row.key === "saved" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
-          />
+          <Fragment key={row.key}>
+            <YourRow
+              id={row.key}
+              title={tDash(`rows.${row.key}`)}
+              cards={row.cards}
+              extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "saved" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
+              cols={row.key === "nextTrip" || row.key === "saved" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
+            />
+            {row.key === "hosting" && <YourPlaces today={today} />}
+          </Fragment>
         ))}
         <SavedPeople />
       </div>
@@ -345,7 +363,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
  */
 function NextTripBand({ cards, cols, title }: { cards: { key: string; node: ReactNode }[]; cols: number; title: string }) {
   return (
-    <DarkBand className="mb-0 mt-16">
+    <DarkBand className="mb-0 mt-16" pageEnd>
       <CardRow id="nextTrip" title={title} cards={cards} cols={cols} showCount={false} seeAll="/your-houses/all/nextTrip" />
     </DarkBand>
   );
@@ -362,19 +380,6 @@ function YourRow({ id, title, cards, extra, cols }: { id: YourRowKey; title: str
  * The card pill's text when nothing is asked of you – short, so it never needs an ellipsis: "Cancelled", "Didn't work out", "Waiting for host",
  * "Waitlist #2", "Happening now", "Booked", "You're in", "2 spots left", "Crew complete".
  */
-/**
- * A House's open task for its card and Needs you (lib/houseTasks cardTaskOf) – before the launch and in the beta without the paying ones
- * (config/platform.ts canPay): no "Pay · 48h" anywhere then.
- */
-function useCardTask() {
-  const store = useStore();
-  const payOk = canPay(usePlatformPhase());
-  return (stay: Stay, now: string) => {
-    const task = cardTaskOf(store, stay, now);
-    return task && task.kind === "pay" && !payOk ? null : task;
-  };
-}
-
 function useStatusText() {
   const t = useTranslations("houses.home");
   const store = useStore();
@@ -677,6 +682,8 @@ function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }:
                   <Icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
                   <span className="text-body-lg font-semibold">{td(`group.${group}`)}</span>
                   {items.length > 0 && <span className="text-body-lg tabular-nums text-ink/60">{items.length}</span>}
+                  {/* Pay and Reply waiting: a small dot in the action orange ("join in") beside the number. */}
+                  {items.length > 0 && (group === "pay" || group === "reply") && <span aria-hidden className="size-2 rounded-full bg-(--brand-action)" />}
                 </h3>
                 {items.length === 0 ? (
                   <p className="mt-2 flex items-center gap-1.5 text-small text-ink/60">
@@ -835,64 +842,58 @@ function TodoRow({ entry, now, onDone, dark = false }: { entry: TodoEntry; now: 
  * "100 % full" – and the arrow on the right; the whole footer opens Payouts (hover: a little lighter). Never hosted: "Host your own House ·
  * Your crew chips in for the stay" and the outline button "Open a House".
  */
-function PayoutsFooter({ hosts, earnings, hostingCount, setUp, hasRequests, openRequests }: { hosts: boolean; earnings: Earnings; hostingCount: number; /** A payout account exists: else "Payouts not set up" instead of the next payout */ setUp: boolean; /** Anyone ever asked to join one of the Houses */ hasRequests: boolean; /** Requests waiting for an answer now */ openRequests: number }) {
+/**
+ * The dark strip under Up next and the right side, across the full width (the stage rule), at most five values with lines between:
+ * left always "Next: {House} in {X} days" (a link to the House); a guest adds Houses lived in · Your people; a host earned this year · the
+ * payouts status (with its dot) · Houses hosting · fill rate (before the launch and in the beta no money values); someone who's both keeps the
+ * host values and Your people. The whole strip opens the host area (Payouts) or, for a guest, the profile; an arrow on the right. Phones: two
+ * lines (Next, then the values).
+ */
+function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn, payOk }: { today: string; host: boolean; earnings: Earnings; payoutStatus: string | null; hostingCount: number; livedIn: Stay[]; payOk: boolean }) {
   const td = useTranslations("houses.home.dash");
-  const t = useTranslations("houses.home");
+  const ts = useTranslations("houses.home.dash.stage");
   const f = useFormat();
   const store = useStore();
   const viewer = usePreferredCurrency();
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
-  // A dark strip (the global Ember: ember-band.png) across the whole band from the photo's edge to the window's, a hard edge on top, 120px,
-  // its foot flush with the photo's; numbers cream 40px, labels cream 65 %, dividers cream 12 %, the arrow cream. The content on the grid.
-  const foot = "ember ember-strip band-inset flex h-30 shrink-0 items-center gap-6 text-left";
-  if (!hosts) {
-    return (
-      <div className={foot}>
-        <p className="min-w-0 flex-1 truncate text-body text-muted">
-          <span className="font-semibold text-ink">{td("hostOwnTitle")}</span> · {t("openHouseText")}
-        </p>
-        <Button variant="creamOutline" href="/create">
-          <Plus aria-hidden />
-          {td("hostOwnAction")}
-        </Button>
-      </div>
-    );
-  }
-  const stats = hostStatsFor(store, earnings, store.currentUserId ?? "", today);
-  const pro = stats.type === "pro";
+  const people = useYourPeople();
   const money = (eur: number) => f.price(Math.round(convertApprox(eur, "EUR", viewer)), viewer);
-  // One line always: below 1280px the values a step smaller and "N % full" left out.
-  // `words`: a phrase in the value's place ("Next payout · Feb 13", "Open for requests") – a step smaller than the 40px numbers.
-  const figures: { key: string; value: string; label: string; big?: boolean; wide?: boolean; dot?: boolean; words?: boolean }[] = [
-    pro ? { key: "earned", value: money(stats.earningsThisYear), label: td("strip.earned"), big: true } : { key: "paid", value: money(earnings.thisYear), label: td("strip.paidOut"), big: true },
-    // The next payout: the same number as on Payouts (lib/earnings next – everything still to be paid out, with the next date).
-    ...(!setUp ? [{ key: "next", value: td("payoutsNotSetUp"), label: "", dot: true, words: true }] : earnings.next ? [{ key: "next", value: money(earnings.next.amount), label: td("nextPayoutChip", { date: f.day(earnings.next.date) }) }] : []),
-    { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }) },
-    // Never "0 % full": with nobody in yet "Open for requests" (no request at all) or "{n} requests" (some waiting); "N % full" once anyone's in.
-    ...(stats.houses > 0
-      ? [
-          stats.fullShare > 0
-            ? { key: "full", value: `${Math.round(stats.fullShare * 100)} %`, label: td("strip.full"), wide: true }
-            : hasRequests && openRequests > 0
-              ? { key: "full", value: String(openRequests), label: td("strip.requests", { count: openRequests }), wide: true }
-              : { key: "full", value: td("openForRequests"), label: "", wide: true, words: true },
-        ]
-      : []),
-  ];
+  const stats = host ? hostStatsFor(store, earnings, store.currentUserId ?? "", today) : null;
+  // The strip carries the numbers – "Next" is in the photo already. One scale: the number --stage-bar-num, its label --stage-bar-label.
+  type Fig = { key: string; value: string; label: string; sub?: string; dot?: boolean; href?: string };
+  const month = earnings.months.find((m) => m.month === today.slice(0, 7))?.amount ?? 0;
+  const year = stats?.type === "pro" ? stats.earningsThisYear : earnings.thisYear;
+  // Payouts only when something is to do: not set up, or Stripe needs a step.
+  const payoutsFig: Fig | null =
+    payOk && (payoutStatus === "action_required" || payoutStatus === "none" || payoutStatus === null)
+      ? { key: "payouts", value: payoutStatus === "action_required" ? ts("payoutsAction") : ts("payoutsSetUp"), label: ts("payoutsLabel"), dot: true, href: "/your-houses/payouts?setup=payouts" }
+      : null;
+  const peopleFig: Fig = { key: "people", value: String(people.length), label: ts("people"), href: "/people" };
+  const hostFigs: Fig[] = stats
+    ? [
+        ...(payOk ? [{ key: "month", value: money(month), label: ts("thisMonth"), sub: ts("thisYear", { amount: money(year) }), href: "/your-houses/payouts" }] : []),
+        ...(payoutsFig ? [payoutsFig] : []),
+        { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }), href: "/your-houses#row-hosting" },
+        // Never "0 % full": only once anyone's in.
+        ...(stats.houses > 0 && stats.fullShare > 0 ? [{ key: "fill", value: `${Math.round(stats.fullShare * 100)} %`, label: ts("fill"), href: "/your-houses#row-hosting" }] : []),
+        peopleFig,
+      ]
+    : [];
+  const countries = new Set(livedIn.map((s) => s.location.country).filter(Boolean)).size;
+  const figs: Fig[] = host
+    ? hostFigs.slice(0, 5)
+    : [
+        { key: "livedIn", value: String(livedIn.length), label: ts("livedIn", { count: livedIn.length }) },
+        peopleFig,
+        { key: "countries", value: String(countries), label: ts("countries", { count: countries }) },
+      ];
   return (
-    <Link href="/your-houses/payouts" aria-label={td("payoutsTitle")} className={cn(foot, "transition-[filter] duration-150 hover:brightness-110")}>
-      <span className="flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap">
-        {figures.map((fig, i) => (
-          <span key={fig.key} className={cn("flex shrink-0 items-baseline gap-2 px-4 first:pl-0 xl:px-6", i > 0 && "border-l border-ink/12", fig.wide && "hidden xl:flex")}>
-            {fig.dot && <span aria-hidden className="size-2 shrink-0 self-center rounded-full bg-accent" />}
-            {/* Numbers 40px (h1); words in the value's place ("Next payout · Feb 13", "Open for requests") a step smaller. */}
-            <span className={cn("tabular-nums text-ink", fig.words ? "text-h3" : "text-h1")}>{fig.value}</span>
-            {fig.label && <span className="text-small text-muted">{fig.label}</span>}
-          </span>
-        ))}
-      </span>
-      <ArrowUpRight aria-hidden className="size-5 shrink-0 text-ink" />
-    </Link>
+    // Never the whole strip a link: each number is its own (→ after its label) – earnings and payouts to the Earnings page (payouts with its
+    // set-up window open), hosting and fill rate to the Hosting row, Your people to /people.
+    <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center gap-y-3 py-5 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
+      {figs.map((fig) => (
+        <StripFig key={fig.key} value={fig.value} label={fig.label} sub={fig.sub} dot={fig.dot} href={fig.href} />
+      ))}
+    </div>
   );
 }
 

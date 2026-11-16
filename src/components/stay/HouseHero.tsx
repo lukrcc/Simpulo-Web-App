@@ -2,7 +2,8 @@
 
 import { profileHref } from "@/lib/privacy";
 import { BackButton } from "@/components/ui/BackButton";
-import { ArrowRight, ArrowUpRight, Home, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Home, KeyRound, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
+import { hostLivesHere } from "@/lib/ownPlaces";
 import { depthOf } from "@/config/depth";
 import { useDepthChoice } from "@/config/platform";
 import Link from "next/link";
@@ -11,7 +12,7 @@ import { CrewRow } from "@/components/CrewRow";
 import { ContextHelp } from "@/components/help/HelpFeedback";
 import { HeroBand, HeroPhotos } from "@/components/HeroBand";
 import { SaveButton } from "@/components/ui/SaveButton";
-import { useState, type ReactNode, type Ref } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { showsAge } from "@/config/privacy";
 import { CurrencySheet, currencyLabel } from "@/components/layout/CurrencyPicker";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
@@ -28,6 +29,7 @@ import { crewInOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { usePeopleSignal } from "@/lib/useYourPeople";
+import { stageMoodStyle, tileShade } from "@/lib/stageTint";
 import { cn, firstName, googleMapsUrl, housePhotos, openSpots, stayNights, stayPrice } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { Sheet } from "@/components/ui/Sheet";
@@ -81,6 +83,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const tHero = useTranslations("house.page.hero");
   const depthOn = useDepthChoice();
   const tDepth = useTranslations("depth.capsule");
+  const tPlatform = useTranslations("platform");
   const format = useFormat();
   const languages = [...new Set([stay.language, ...(stay.languages ?? [])].filter(Boolean).map(format.language))].slice(0, 3);
   const booked = stay.accommodationStatus === "locked";
@@ -90,32 +93,42 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const city = stay.location.city || stay.city || stay.region.split(",")[0];
   const placeShort = stay.location.area ? `${stay.location.area}, ${city}` : city;
   const strip = (
-    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset max-md:fixed max-md:inset-x-0 max-md:bottom-(--tabbar-clear) max-md:z-30 max-md:px-4 max-md:py-3 flex shrink-0 flex-col justify-center gap-2 py-6 md:min-h-30">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <HeroPrice stay={stay} />
+    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-(--tabbar-clear) max-md:z-30 max-md:px-4 max-md:py-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
+      {/* Left: the price in the strip's number size (--stage-bar-num), under it small the currency and the way in ("Free to request · …").
+          Right: the actions – Request to join · Request with a friend · "Message {host}". */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <HeroPrice stay={stay} />
+          <div className="mt-1 flex flex-col gap-0.5 max-md:hidden">
+            {note && <p className="text-small text-muted">{note}</p>}
+            {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
+            {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
+            {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
+            {showSteps && <WayIn />}
+          </div>
+        </div>
         <div className="flex min-w-0 flex-col items-end gap-2">
           {notice && <p className="text-small text-muted max-md:hidden">{notice}</p>}
           <div className="flex flex-wrap items-center justify-end gap-2">
             <div className="flex min-w-0 gap-2 *:whitespace-nowrap">{cta}</div>
-            <div className="flex gap-2 max-md:hidden">{secondary}</div>
+            <div className="flex gap-2 *:whitespace-nowrap max-md:hidden">{secondary}</div>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col gap-1 max-md:hidden">
-        {note && <p className="text-small text-muted">{note}</p>}
-        {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
-        {openVote(stay, "accommodation") && <p className="text-small text-muted">{t("crewVoting")}</p>}
-        {openVote(stay, "dates") && <p className="text-small text-muted">{t("crewVotingDates")}</p>}
-        {showSteps && <WayIn />}
       </div>
     </div>
   );
   return (
     <HeroBand
       aria-labelledby="house-title"
-      // As high as its content – the band ends under the tiles, no empty field before the strip; the photo as high as the right side incl. the
-      // strip. The same photo width and band tone (#EAE4DD) as Your houses.
-      height=""
+      // The stage rule (globals.css --stage-image-h), like Your houses: the photo and the right side in one row of that height, whatever the
+      // content (the same photo width and band tone #EAE4DD); the dark action strip (--stage-bar-h) across the full width under both.
+      fullStrip
+      // The light warm cream, no photo tint – the cards carry the colour; one spacing (--stage-pad) to the photo, the right edge, on top,
+      // between the cards and to the strip.
+      stagePad
+      stageClassName="stage-cream stage-mood"
+      style={stageMoodStyle(housePhotos(stay, host)[0])}
+      height="split:h-(--stage-image-h)"
       media={
         <>
           <HeroPhotos photos={housePhotos(stay, host)} />
@@ -134,7 +147,8 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
         </p>
         {actions}
       </div>
-      <h1 id="house-title" className="mt-2 line-clamp-2 text-hero text-ink">
+      {/* Descenders (g, y, p) are never cut: no line-clamp (it hides the overflow), line-height 1.1 (the token), 0.1em under the last line. */}
+      <h1 id="house-title" className="mt-2 pb-[0.1em] text-hero text-ink [text-wrap:balance]">
         {stay.title}
       </h1>
       {/* One line: the dates, the nights and where – the area and the city, no country. */}
@@ -160,6 +174,13 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
             {tHero("womenOnly")}
           </li>
         )}
+        {/* "Host from your place": the host lives here and is one of the crew (lib/ownPlaces.ts). */}
+        {hostLivesHere(stay) && (
+          <li className="ember-chip">
+            <KeyRound aria-hidden className="size-3.5" />
+            {tPlatform("ownPlace.capsule")}
+          </li>
+        )}
         {/* The social depth (config/depth.ts) – every level here, it's one of the facts; only while the choice is on. */}
         {depthOn && (
           <li className="ember-chip">
@@ -168,19 +189,78 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
           </li>
         )}
       </ul>
-      {/* The facts as a bento, 24px under the chips (no line): three equal tiles, gap 12, radius 20, the same height (~168px), 20px inside,
-          no edge or shadow – Host, Crew, Place. Phones: one under the other. */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        {/* An example House (pre-launch, beta): no host and no crew – a neutral host tile, empty circles. */}
+      {/* Between the facts on top and the cards at the foot: the first sentence of "Why I'm hosting" as a quote – large, in quotation marks, two
+          lines at most, the host's name small under it. Without a text (or without room: a low window) the air stays. */}
+      <HostQuote stay={stay} host={host} />
+      {/* The facts as a bento at the foot, --stage-pad over the strip: three equal cards with colours that mean something – Host blue (trust,
+          a person), Spots the action orange (join in), Place a photo of the surroundings –, the same height (~168px), 20px inside, each
+          clickable as a whole. */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {/* An example House (pre-launch, beta): no host and no crew – a neutral host card, empty circles. */}
         {stay.isExample ? <ExampleHostTile /> : host && <HostTile host={host} stay={stay} />}
-        {stay.isExample ? <ExampleCrewTile stay={stay} /> : <CrewTile stay={stay} crew={crew} onRequestWithFriend={onRequestWithFriend} />}
-        <PlaceTile stay={stay} />
+        {stay.isExample ? <ExampleCrewTile stay={stay} /> : <CrewTile stay={stay} crew={crew} cta={cta} onRequestWithFriend={onRequestWithFriend} />}
+        <PlaceTile stay={stay} host={host} />
       </div>
       {showHelp && <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} className="mt-4" />}
     </HeroBand>
   );
 }
 
+
+/** Longer first sentences don't fit three lines – the House's short line instead (measured over the mock Houses). */
+const QUOTE_MAX = 150;
+/** The quote's sizes, largest first (of text-stage-quote), and the air it keeps above and below in the stage's middle. */
+const QUOTE_STEPS = [1, 0.9, 0.8, 0.7];
+const QUOTE_AIR = 16;
+
+/** The first sentence of a text ("Why I'm hosting"): up to the first . ! or ? followed by a space or the end. */
+const firstSentence = (text: string) => (text.trim().match(/^[\s\S]*?[.!?](?=\s|$)/)?.[0] ?? text.trim());
+
+/**
+ * The stage's centre: the host's voice – the first sentence of "Why I'm hosting" (too long, or none: the House's short line, its tagline),
+ * in quotation marks, large (text-stage-quote, 36–40px), three lines at most, left on the title's edge, vertically in the middle of the room
+ * between the facts and the tiles; "{Host}, host" small under it. Nothing to say, or no room for all of it (a low window – measured, never
+ * cut): the middle stays empty.
+ */
+function HostQuote({ stay, host }: { stay: Stay; host?: User }) {
+  const t = useTranslations("house.page.hero");
+  const sentence = stay.isExample ? "" : firstSentence(stay.whyText ?? "");
+  const text = sentence && sentence.length <= QUOTE_MAX ? sentence : stay.isExample ? "" : (stay.hostNote ?? "").trim();
+  const slotRef = useRef<HTMLDivElement>(null);
+  const figRef = useRef<HTMLElement>(null);
+  const [fits, setFits] = useState(true);
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const fig = figRef.current;
+    if (!slot || !fig) return;
+    // The largest step (40 → 36 → 32 → 28px at 1440) that leaves at least 16px of air above and below; none does: the middle stays empty.
+    const measure = () => {
+      for (const scale of QUOTE_STEPS) {
+        fig.style.setProperty("--quote-scale", String(scale));
+        if (fig.offsetHeight + 2 * QUOTE_AIR <= slot.clientHeight) return setFits(true);
+      }
+      setFits(false);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, [text]);
+  return (
+    <div ref={slotRef} className="relative min-h-6 split:min-h-0 split:flex-1">
+      {text && host && (
+        <figure ref={figRef} aria-hidden={!fits || undefined} className={cn("py-6 split:absolute split:inset-x-0 split:top-1/2 split:-translate-y-1/2 split:py-0", !fits && "invisible")}>
+          {/* The measure in the quote's own size: about 46 characters a line – most first sentences take two lines. */}
+          <blockquote className="max-w-[46ch] text-stage-quote text-ink [font-size:calc(var(--text-stage-quote)*var(--quote-scale,1))]">{t("quote", { text })}</blockquote>
+          <figcaption className="mt-2 text-small text-muted">{t("quoteBy", { name: firstName(host) })}</figcaption>
+        </figure>
+      )}
+    </div>
+  );
+}
+
+/** A text link in the dark strip: 70 % → 100 % on hover, underlined then, 150ms; a visible ring for the keyboard. */
+const STRIP_LINK = "rounded-sm text-ink/70 underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline focus-visible:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
 
 /** "≈ €1,300 pp" large; under it "AED 5,300 · Change" (the House's own amount when it differs, else the currency shown). */
 function HeroPrice({ stay }: { stay: Stay }) {
@@ -197,12 +277,12 @@ function HeroPrice({ stay }: { stay: Stay }) {
   return (
     <div className="min-w-0">
       <p className="flex items-baseline gap-1.5">
-        <span className="text-price text-ink">{perPerson ? perPerson[1] : label}</span>
-        {perPerson && <span className="text-body text-muted">{perPerson[2]}</span>}
+        <span className="text-bar-num tabular-nums text-ink">{perPerson ? perPerson[1] : label}</span>
+        {perPerson && <span className="text-bar-label text-ink/60">{perPerson[2]}</span>}
       </p>
       <p className="mt-0.5 text-small text-muted">
         {original} ·{" "}
-        <button type="button" onClick={() => setOpen(true)} className="text-ink underline-offset-4 hover:underline">
+        <button type="button" onClick={() => setOpen(true)} className={STRIP_LINK}>
           {tCurrency("change")}
         </button>
       </p>
@@ -218,7 +298,7 @@ function WayIn() {
   return (
     <p className="text-small text-muted">
       {tHero("wayIn")} ·{" "}
-      <Link href="/faq#cancellation" className="underline-offset-4 hover:text-ink hover:underline">
+      <Link href="/faq#cancellation" className={STRIP_LINK}>
         {tPolicy("link")}
       </Link>
     </p>
@@ -263,45 +343,59 @@ function InCommon({ host, stay }: { host: User; stay: Stay }) {
   );
 }
 
-const TILE = "relative flex h-42 min-w-0 flex-col overflow-hidden rounded-[20px] p-5";
+/** The three tiles: the same height (a little taller than before – 168 to 200px with the window), radius 20, 20px inside; one look (.stage-tile:
+ *  a light edge on top, a soft shadow, 2px up on hover – tokens.css). */
+const TILE = "stage-tile flex h-[clamp(168px,22vh,200px)] min-w-0 flex-col p-5 text-left";
+/** Every tile is clickable as a whole: the pointer and a visible ring for the keyboard. */
+const CARD_ACTION = "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--focus-ring)";
+
 
 /**
- * Host (#E4DDD4): the avatar 48px, the name 20px semibold + Verified; under it the country, muted, and the socials as marks in their own
- * colours (20px, no handle – it's the tooltip); then one thing in common ("Speaks German · English"). The whole tile opens the profile, ↗ top
- * right; no "View profile" text, no capsules.
+ * Host: the host's photo filling the tile (object-cover, the face at the top), under the words a run of the photo's own dark colour
+ * (tileShade – 4.5 : 1 for white even over a white photo); white words: name + Verified, "{age} · {country}", one thing in common, the socials
+ * white. Without a photo the muted petrol → indigo (.card-host). The whole tile opens the profile, ↗ top right.
  */
 function HostTile({ host, stay }: { host: User; stay: Stay }) {
   const tTiles = useTranslations("house.page.tiles");
   const format = useFormat();
   const store = useStore();
+  const photo = host.photos[0];
   return (
-    <Link href={profileHref(host.id)} aria-label={tTiles("profile", { name: firstName(host) })} className={cn(TILE, "group bg-(--tile-host) transition-[filter] duration-150 hover:brightness-[0.98]")}>
-      <ArrowUpRight aria-hidden className="absolute right-4 top-4 size-4 text-ink/50 transition-colors group-hover:text-ink" />
-      <span className="flex min-w-0 items-center gap-3 pr-6">
-        <PersonPhoto src={host.photos[0]} alt="" size={48} className="size-12 shrink-0" />
+    <Link
+      href={profileHref(host.id)}
+      aria-label={tTiles("profile", { name: firstName(host) })}
+      style={photo ? ({ "--tile-shade": tileShade(photo) } as CSSProperties) : undefined}
+      className={cn(TILE, CARD_ACTION, "group", photo ? "tile-photo" : "card-host")}
+    >
+      {photo && (
+        <>
+          <Img src={photo} alt="" fill sizes="(min-width: 1100px) 360px, 100vw" className="object-cover object-[center_22%]" />
+          <span aria-hidden className="tile-photo-shade absolute inset-0" />
+        </>
+      )}
+      <ArrowUpRight aria-hidden className="absolute right-4 top-4 size-4 text-ink/80 transition-colors group-hover:text-ink" />
+      <span className="relative mt-auto flex min-w-0 flex-col gap-1">
         <span className="flex min-w-0 items-center gap-1 text-h3 text-ink">
           <span className="truncate">{firstName(host)}</span>
           {host.verified && <VerifiedBadge />}
         </span>
-      </span>
-      <span className="mt-3 flex min-w-0 items-center gap-2">
-        <span className="truncate text-small text-muted">{format.ageAndCountry(host, showsAge(host, store.currentUserId))}</span>
-        <SocialLinks user={host} variant="marks" nested />
-      </span>
-      <span className="mt-auto">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-small text-muted">{format.ageAndCountry(host, showsAge(host, store.currentUserId))}</span>
+          <SocialLinks user={host} variant="icons" tone="dark" nested />
+        </span>
         <InCommon host={host} stay={stay} />
       </span>
     </Link>
   );
 }
 
-/** An example's host tile: "Example House", no face, no name, no link. */
+/** An example's host card: "Example House", no face, no name, no link. */
 function ExampleHostTile() {
   const t = useTranslations("platform.example");
   return (
-    <div className={cn(TILE, "bg-(--tile-host)")}>
+    <div className={cn(TILE, "card-host")}>
       <span className="flex items-center gap-3">
-        <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-ink/25 text-ink/40">
+        <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-ink/25 text-muted">
           <Home className="size-5" strokeWidth={1.75} />
         </span>
         <span className="text-h3 text-ink">{t("house")}</span>
@@ -311,15 +405,15 @@ function ExampleHostTile() {
   );
 }
 
-/** An example's crew tile: "Up to 5 people", the circles all empty. */
+/** An example's crew card: "Up to 5 people", the circles all empty. */
 function ExampleCrewTile({ stay }: { stay: Stay }) {
   const t = useTranslations("platform.example");
   return (
-    <div className={cn(TILE, "bg-(--tile-crew)")}>
+    <div className={cn(TILE, "card-spots")}>
       <p className="text-h2 text-ink">{t("upTo", { count: stay.spotsTotal })}</p>
       <ul aria-hidden className="mt-auto flex -space-x-1">
         {Array.from({ length: Math.min(stay.spotsTotal, 8) }, (_, i) => (
-          <li key={i} className="size-8 rounded-full border-[1.5px] border-dashed border-ink/25 bg-(--tile-crew)" />
+          <li key={i} className="size-8 rounded-full border-[1.5px] border-dashed border-ink/60" />
         ))}
       </ul>
     </div>
@@ -327,86 +421,126 @@ function ExampleCrewTile({ stay }: { stay: Stay }) {
 }
 
 /**
- * Crew (#EADFD2): "2 spots left" large, "of 4" muted under it (and who waits); at the foot the faces 32px overlapping and an empty circle per
- * free spot (components/CrewRow – "+" for the host and members); "Bring a friend →" bottom right when two or more spots are open.
+ * Spots (the action orange – join in: .card-spots, white words): "2 spots left" large, "of 4" under it (and who waits); at the foot the faces
+ * and an empty circle per free spot (components/CrewRow). The whole card opens "Who's in" – the crew with their names and the main action
+ * (Request to join …). "Bring a friend" is its own light button in the card (its click doesn't open the window).
  */
-function CrewTile({ stay, crew, onRequestWithFriend }: { stay: Stay; crew: User[]; onRequestWithFriend?: () => void }) {
+function CrewTile({ stay, crew, cta, onRequestWithFriend }: { stay: Stay; crew: User[]; cta?: ReactNode; onRequestWithFriend?: () => void }) {
   const tTiles = useTranslations("house.page.tiles");
   const store = useStore();
   const faceOf = useCrewFaceOf(stay);
+  const [open, setOpen] = useState(false);
   const shown = crew.filter((member) => faceOf(member) !== "hidden");
   const hidden = crew.length - shown.length;
   const left = Math.max(0, Math.min(openSpots(stay), stay.spotsTotal - crewInOf(store, stay)));
   const waiting = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "waitlisted").length;
   return (
-    <div className={cn(TILE, "bg-(--tile-crew)")}>
-      <p className="text-h2 text-ink">{left > 0 ? tTiles("spotsLeft", { count: left }) : tTiles("full")}</p>
-      <p className="mt-0.5 text-small text-muted">{waiting > 0 ? tTiles("ofWaitlist", { total: stay.spotsTotal, waiting }) : tTiles("of", { total: stay.spotsTotal })}</p>
-      <div className="mt-auto flex items-end justify-between gap-3">
-        <CrewRow stay={stay} crew={shown} size="sm" max={6} hiddenCount={hidden} />
-        {onRequestWithFriend && left >= 2 && (
-          <button type="button" onClick={onRequestWithFriend} data-preview-action className="group inline-flex shrink-0 items-center gap-1 text-small font-semibold text-ink transition-colors hover:text-ink/75">
-            {tTiles("bringFriend")}
-            <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-          </button>
-        )}
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-haspopup="dialog"
+        aria-label={tTiles("whosIn")}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          setOpen(true);
+        }}
+        className={cn(TILE, CARD_ACTION, "card-spots")}
+      >
+        <p className="text-h2 text-ink">
+          {left > 0
+            ? tTiles("spotsLeft", { count: left })
+            : tTiles("full")}
+        </p>
+        <p className="mt-0.5 text-small text-muted">{waiting > 0 ? tTiles("ofWaitlist", { total: stay.spotsTotal, waiting }) : tTiles("of", { total: stay.spotsTotal })}</p>
+        <div className="mt-auto flex items-end justify-between gap-3">
+          <CrewRow stay={stay} crew={shown} size="sm" max={4} hiddenCount={hidden} className="min-w-0 flex-nowrap" />
+          {onRequestWithFriend && left >= 2 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                // Its own action – the card's window doesn't open.
+                e.stopPropagation();
+                onRequestWithFriend();
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
+              data-preview-action
+              className="group inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-stage px-3 text-small font-semibold text-on-image transition-transform duration-150 hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stage"
+            >
+              {tTiles("bringFriend")}
+              <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+      {/* "Who's in": the crew with their names, the count, and the main action. */}
+      <Sheet open={open} onClose={() => setOpen(false)} title={tTiles("whosIn")}>
+        <div className="flex flex-col gap-6 pb-2">
+          <CrewRow stay={stay} crew={shown} size="lg" names hiddenCount={hidden} />
+          <p className="text-body text-muted">{left > 0 ? tTiles("spotsLeft", { count: left }) : tTiles("full")} · {tTiles("of", { total: stay.spotsTotal })}</p>
+          {cta && <div className="flex flex-wrap gap-2 *:whitespace-nowrap">{cta}</div>}
+        </div>
+      </Sheet>
+    </>
   );
 }
 
 /**
- * Place: the place's photo as the tile's ground (object-cover, config/place-images.ts – the area, else the city), a dark gradient only at its
- * foot, white words: "Around Tonsai" and one link – "Picked together →" (a small sheet with the three steps), "View listing ↗" (the host's own
- * place), "Open in Maps ↗" (booked). Without a photo: #DED6CC with the pin.
+ * Place (places show photos): a photo of the surroundings as the card's ground – the House's second photo, else the place's own (config/
+ * place-images.ts) – with a dark run from the bottom, white words "Around Tonsai" and what the card does; without a photo the deeper blue.
+ * The whole card: "Open in Maps ↗" (booked), "View listing ↗" (the host's own place), else "Picked together →" (a small window).
  */
-function PlaceTile({ stay }: { stay: Stay }) {
+function PlaceTile({ stay, host }: { stay: Stay; host?: User }) {
   const tTiles = useTranslations("house.page.tiles");
   const tPlace = useTranslations("house.page.place");
   const tWhere = useTranslations("house.page.where2");
   const [how, setHow] = useState(false);
   const area = stay.location.area ?? stay.location.city ?? stay.region;
-  const placeId = (stay.location.area && cityPlaceIdOf(stay.location.area)) || cityPlaceIdOf(stay.location.city || stay.city || "");
-  const photo = placeId ? placeImageOf(placeId) : null;
   const booked = Boolean(stay.bookingConfirmedAt);
   // The host's own place (booked when opened): its listing; found together: how it's picked.
   const listing = stay.accommodationStatus === "locked" && stay.accommodationLink ? stay.accommodationLink : null;
-  const words = photo ? "text-on-image [text-shadow:0_1px_2px_rgba(0,0,0,0.25)]" : "text-ink";
-  const link = cn("group inline-flex items-center gap-1 self-start text-small font-semibold transition-opacity hover:opacity-80", words);
-  return (
-    <div className={cn(TILE, "justify-end", photo ? "bg-band" : "bg-(--tile-place)")}>
+  const placeId = (stay.location.area && cityPlaceIdOf(stay.location.area)) || cityPlaceIdOf(stay.location.city || stay.city || "");
+  const photo = housePhotos(stay, host)[1] ?? (placeId ? placeImageOf(placeId) : null);
+  // Under the words a run of the photo's own dark colour (tileShade – 4.5 : 1 for white even over a white photo).
+  const shade = photo ? ({ "--tile-shade": tileShade(photo) } as CSSProperties) : undefined;
+  const body = (label: string, external: boolean) => (
+    <>
       {photo ? (
         <>
-          <Img src={photo} alt="" fill sizes="(min-width: 1100px) 320px, 100vw" className="object-cover" />
-          <span aria-hidden className="absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(to_top,rgba(20,16,14,0.7),transparent)]" />
+          <Img src={photo} alt="" fill sizes="(min-width: 1100px) 360px, 100vw" className="object-cover" />
+          <span aria-hidden className="tile-photo-shade absolute inset-0" />
         </>
       ) : (
-        <MapPin aria-hidden className="absolute left-5 top-5 size-6 text-ink/50" strokeWidth={1.75} />
+        <MapPin aria-hidden className="absolute left-5 top-5 size-6 text-muted" strokeWidth={1.75} />
       )}
-      <div className="relative flex flex-col gap-1">
-        <p className={cn("text-body-lg font-semibold", words)}>{tWhere("around", { area })}</p>
-        {booked ? (
-          <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className={link}>
-            {tTiles("openMaps")}
-            <ArrowUpRight aria-hidden className="size-3.5" />
-          </a>
-        ) : listing ? (
-          <a href={listing} target="_blank" rel="noopener noreferrer" className={link}>
-            {tTiles("viewListing")}
-            <ArrowUpRight aria-hidden className="size-3.5" />
-          </a>
-        ) : (
-          <button type="button" onClick={() => setHow(true)} className={link}>
-            {tTiles("pickedTogether")}
-            <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-          </button>
-        )}
-      </div>
+      <span className="relative mt-auto flex flex-col gap-1">
+        <span className="text-body-lg font-semibold text-ink">{tWhere("around", { area })}</span>
+        <span className="group inline-flex items-center gap-1 text-small font-semibold text-ink">
+          {label}
+          {external ? <ArrowUpRight aria-hidden className="size-3.5" /> : <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />}
+        </span>
+      </span>
+    </>
+  );
+  const className = cn(TILE, CARD_ACTION, photo ? "tile-photo" : "card-place");
+  if (booked || listing)
+    return (
+      <a href={booked ? googleMapsUrl(stay) : listing!} target="_blank" rel="noopener noreferrer" style={shade} className={className}>
+        {body(booked ? tTiles("openMaps") : tTiles("viewListing"), true)}
+      </a>
+    );
+  return (
+    <>
+      <button type="button" onClick={() => setHow(true)} aria-haspopup="dialog" style={shade} className={className}>
+        {body(tTiles("pickedTogether"), false)}
+      </button>
       <Sheet open={how} onClose={() => setHow(false)} title={tPlace("howTitle")}>
         <div className="pb-2">
           <HowPicked title={false} />
         </div>
       </Sheet>
-    </div>
+    </>
   );
 }

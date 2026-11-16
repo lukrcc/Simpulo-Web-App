@@ -573,7 +573,13 @@ export function RequestRow({ request, applicant, stay }: { request: JoinRequest;
             {t("knownThrough", { name: known[0].name.split(" ")[0], others: known.length - 1 })}
           </p>
         )}
-        {request.message.trim() && <p className="mt-2 max-w-[640px] text-body text-ink">{request.message}</p>}
+        {/* The guest's note for the host (from the request window). */}
+        {request.message.trim() && (
+          <div className="mt-2 max-w-[640px]">
+            <p className="text-eyebrow uppercase text-muted">{t("note")}</p>
+            <p className="mt-1 text-body text-ink">{request.message}</p>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           {!isFull && (
             <Button

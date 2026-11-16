@@ -2,7 +2,7 @@
 
 import { profileHref } from "@/lib/privacy";
 import { useBack } from "@/components/ui/BackButton";
-import { ArrowLeft, ArrowUpRight, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { iconButtonStyles } from "@/components/ui/IconButton";
@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { openGetHelp } from "@/lib/support/feedback";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
+import { ChatBackgroundSheet } from "@/components/chat/ChatBackground";
 import { CrewMenu } from "@/components/stay/CrewMenu";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
@@ -44,7 +45,9 @@ function BackToInbox({ embedded }: { embedded: boolean }) {
  * Pinned on every House thread: the cover, the House, its dates and who's in; once the crew is complete the host's group chat.
  * Payment and booking status stay on the House page.
  */
-export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }) {
+export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded: boolean; threadId: string }) {
+  const tTheme = useTranslations("messages.chatTheme");
+  const [theming, setTheming] = useState(false);
   const t = useTranslations("messages.thread");
   const tHelp = useTranslations("help");
   const f = useFormat();
@@ -56,7 +59,6 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
   const tInvite = useTranslations("invite");
   const crew = getCrew(store, stay);
   const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
-  const groupChat = stay.spotsFilled >= stay.spotsTotal ? stay.crewGroupUrl : undefined;
 
   return (
     <>
@@ -75,12 +77,10 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.stayDates(stay), filled: crewInOf(store, stay), total: stay.spotsTotal })}</p>
         </div>
 
-        {groupChat && (
-          <Button variant="secondary" size="sm" href={groupChat} external className="max-md:hidden">
-            {t("openGroupChat")}
-            <ArrowUpRight aria-hidden />
-          </Button>
-        )}
+        {/* "View House": the House's own page (members see their way there). */}
+        <Button variant="secondary" size="sm" href={`/h/${stay.id}`} className="max-md:hidden">
+          {t("viewHouse")}
+        </Button>
 
         <button
           type="button"
@@ -103,6 +103,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
           stay={stay}
           afterLeaveHref="/messages"
           extraItems={[
+            { label: tTheme("menu"), onSelect: () => setTheming(true) },
             { label: tHelp("report"), onSelect: () => openGetHelp({ houseId: stay.id, category: "safety" }) },
             { label: tHelp("getHelpLink"), onSelect: () => openGetHelp({ houseId: stay.id }) },
           ]}
@@ -110,6 +111,7 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
 
         {canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
         <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
+        <ChatBackgroundSheet threadId={threadId} open={theming} onClose={() => setTheming(false)} />
       </header>
 
       {stay.status === "closed" && (
@@ -123,8 +125,10 @@ export function CrewHeader({ stay, embedded }: { stay: Stay; embedded: boolean }
  * A question (1:1 thread): the person's avatar, their first name and muted "about {shortName}" (a link to the House – every direct chat has
  * one); right "…" (Report, Block). The host also gets "View request" when this person asked to join.
  */
-export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: User; embedded: boolean }) {
+export function DirectHeader({ stay, other, embedded, threadId }: { stay: Stay; other?: User; embedded: boolean; threadId: string }) {
   const t = useTranslations("messages.thread");
+  const tTheme = useTranslations("messages.chatTheme");
+  const [theming, setTheming] = useState(false);
   const router = useRouter();
   const store = useStore();
   const hosting = stay.hostId === store.currentUserId;
@@ -151,7 +155,8 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
         </Button>
       )}
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
-      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} className="shrink-0" />}
+      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} extraItems={[{ label: tTheme("menu"), onSelect: () => setTheming(true) }]} className="shrink-0" />}
+      <ChatBackgroundSheet threadId={threadId} open={theming} onClose={() => setTheming(false)} />
     </header>
   );
 }

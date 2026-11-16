@@ -1,5 +1,5 @@
-// How someone lives in a House: four scales, each 1–3 (User.houseVibe). Shown on the profile (Vibe row: icon + where they lean, three dots),
-// set in Edit profile › About you. Words in messages (profile.vibe.{key}.{1|2|3}).
+// How someone lives in a House: four questions, each 1–3 (User.houseVibe), each can be skipped. Shown on the profile as words ("Night owl ·
+// Balanced · Active · Tidy"), answered in Edit profile › Vibe and the onboarding with three tiles per question. Read by the Crew fit model. Words in messages (profile.vibe.{key}.{1|2|3}).
 import { Moon, Sparkles, Users, Zap, type LucideIcon } from "lucide-react";
 import type { HouseVibe } from "@/lib/types";
 
@@ -14,3 +14,6 @@ export const HOUSE_VIBE_SCALES: readonly { key: HouseVibeKey; icon: LucideIcon }
 ];
 
 export const HOUSE_VIBE_STEPS = [1, 2, 3] as const;
+
+/** At least one question answered. */
+export const hasVibe = (vibe: HouseVibe | undefined): vibe is HouseVibe => vibe !== undefined && HOUSE_VIBE_SCALES.some(({ key }) => vibe[key] !== undefined);

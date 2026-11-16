@@ -9,6 +9,8 @@ interface FullBleedSectionProps {
   className?: string;
   /** Classes on the inner Container (Explore: its 1440px width) */
   inner?: string;
+  /** The page's last section and dark: the footer follows right on it (globals.css --footer-gap) */
+  lastTone?: "dark";
 }
 
 /**
@@ -16,9 +18,9 @@ interface FullBleedSectionProps {
  * Container – for what runs edge to edge, like the carousels. Transparent (or a dark band with hard edges), and
  * sections are told apart by their spacing and SectionHeader alone.
  */
-export function FullBleedSection({ children, padding, className, inner }: FullBleedSectionProps) {
+export function FullBleedSection({ children, padding, className, inner, lastTone }: FullBleedSectionProps) {
   return (
-    <div data-glow-section className={cn("relative w-[calc(100vw-var(--scrollbar-w,0px))]", "mx-[calc(50%_-_(100vw_-_var(--scrollbar-w,0px))/2)]", padding, className)}>
+    <div data-glow-section data-last-tone={lastTone} className={cn("relative w-[calc(100vw-var(--scrollbar-w,0px))]", "mx-[calc(50%_-_(100vw_-_var(--scrollbar-w,0px))/2)]", padding, className)}>
       <Container className={inner}>{children}</Container>
     </div>
   );

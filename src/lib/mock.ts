@@ -3,6 +3,7 @@ import { shortNameOf } from './shortName';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
+import type { ChatThemeId } from "@/config/chat-themes";
 import { FACE_QUERIES, isWoman, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
 import { extraHosts, extraHouses, type ExtraHost, type ExtraHouse } from './mock-houses-extra';
 import { VIBES, locationOf } from './catalog';
@@ -43,10 +44,13 @@ export interface User extends Attribution {
   /** YYYY-MM-DD, private – Edit profile asks for it and derives `age` (the only thing shown) */
   birthDate?: string;
   country: string;          // plain text, no flag
-  city: string;             // current base
   languages: string[];      // ISO-ish labels shown as text: "English", "German"
   bio: string;
   photos: string[];         // [0] = face, then the theme photos of their House (see the photo pass at the end)
+  /** One short line per photo, shown at the bottom of it on the profile (index-aligned with photos, at most 40 characters each) */
+  photoCaptions?: string[];
+  /** Each photo's colour (hex, index-aligned) – computed on upload (TODO backend); the mock reads it from data/image-meta.json */
+  photoAccents?: string[];
   facePhotoQuery?: string;  // Pixabay search for the face photo (mock only)
   imageQueries?: string[];  // Pixabay searches (mock only): [0] portrait (= facePhotoQuery), [1..2] lifestyle photos
   verified: boolean;
@@ -94,11 +98,12 @@ export interface User extends Attribution {
 export type HostTier = 'share' | 'pro' | 'anchor';
 
 /** 1 = the left word, 2 = in between, 3 = the right word (config/houseVibe.ts). */
+/** Each question can be skipped (onboarding): an unanswered one is simply missing. */
 export interface HouseVibe {
-  rhythm: 1 | 2 | 3;
-  social: 1 | 2 | 3;
-  energy: 1 | 2 | 3;
-  tidy: 1 | 2 | 3;
+  rhythm?: 1 | 2 | 3;
+  social?: 1 | 2 | 3;
+  energy?: 1 | 2 | 3;
+  tidy?: 1 | 2 | 3;
 }
 
 export type ReportReason = 'spam' | 'harassment' | 'fake' | 'unsafe' | 'other';
@@ -126,6 +131,10 @@ export interface UserSettings {
   savedPeopleIds?: string[];
   /** "Don't invite me again": invites from these people don't reach me */
   noInvitesFrom?: string[];
+  /** Chat background for every chat (config/chat-themes.ts; none: "house") – this person's only, on every device */
+  chatTheme?: ChatThemeId;
+  /** …and per chat ({ [threadId]: theme }), over the one for all */
+  chatThemes?: Record<string, ChatThemeId>;
 }
 
 /** The platforms a profile can link to. */
@@ -225,6 +234,12 @@ export interface Stay {
   featured: boolean;        // shown in Spotlight (later: boosted)
   /** Pre-launch and beta (config/platform.ts): a sample House that shows what Simpulo looks like – no host, no crew, not bookable. Absent: false. */
   isExample?: boolean;
+  /** The cover photo's colour (hex) – the stage takes a breath of it (lib/stageTint.ts). Computed on upload (TODO backend); the mock reads it
+   *  from data/image-meta.json. */
+  accentColor?: string;
+  /** The cover's palette { main, dark } (hex) – the House page's mood (lib/stageTint.ts). Computed by a Cloud Function on upload (TODO
+   *  backend); the mock reads it from data/image-meta.json. */
+  accentPalette?: { main: string; dark: string };
   /** Beta: a real House of a founding host. Absent: false. */
   isFounding?: boolean;
   /** Reserved: a manual Spotlight pick. No effect yet – the hero rotation picks by its own rules (src/lib/heroRotation.ts). */
@@ -281,6 +296,8 @@ export interface Stay {
   verifiedGuestsOnly?: boolean;
   /** The host's own photo of the place – the accommodation tile uses it when the link has no picture */
   accommodationPhoto?: string;
+  /** "Host from your place": the saved Place (lib/types.ts) this House is a window of – the host lives there ("Host lives here") */
+  placeId?: string;
 }
 
 /**
@@ -450,14 +467,24 @@ export interface MessageEvent {
  * house: the House's group chat – created with the first confirmed join; host + confirmed crew.
  * direct: one guest and the host, about a House ("Message host").
  * updates: Simpulo to one person, about their saved searches: system lines only, no House, nothing to answer.
+ * support: "Simpulo Support" – one person's help requests and ideas with Simpulo's answers; never stored as a thread, built from the
+ * person's tickets (lib/support/conversation.ts).
  */
 export interface Thread {
   id: string;
-  type: 'house' | 'direct' | 'updates';
+  type: 'house' | 'direct' | 'updates' | 'support';
   /** The House it's about (house and direct are tied to one) */
   houseId?: string;
   participantIds: string[];
   messages: Message[];
+  /**
+   * Shaped as Firebase will keep a chat: lastMessageAt – its newest message (ISO), on the thread document; lastReadAt – per member, up to
+   * when they've read ({ [userId]: ISO }), later threads/{id}/members/{uid}. Unread for a member = lastMessageAt > lastReadAt[member] (and
+   * the newest isn't their own). The store keeps both in step (lib/store.tsx withChatMeta). TODO(firestore): lastMessageAt set by a
+   * Function on each new message; lastReadAt written when the member opens the chat.
+   */
+  lastMessageAt?: string;
+  lastReadAt?: Record<string, string>;
 }
 
 const map = (seed: string) => `https://picsum.photos/seed/map-${seed}/800/500?grayscale`;
@@ -467,7 +494,7 @@ export const CURRENT_USER_ID = 'u1';
 /** The original people; isPro / canChargeHostFee are filled in below (see `users`). */
 const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
   {
-    id: 'u1', role: 'admin', name: 'Lukas', age: 30, birthDate: '1996-05-14', country: 'Germany', city: 'Osaka',
+    id: 'u1', role: 'admin', name: 'Lukas', age: 30, birthDate: '1996-05-14', country: 'Germany', 
     languages: ['German', 'English'],
     bio: 'Remote app-dev teacher. Train every morning, work German hours, free before 3 pm.',
     photos: [userFace('u1')],
@@ -481,297 +508,297 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
    
   },
   {
-    id: 'u2', name: 'Mara', age: 27, country: 'Netherlands', city: 'Canggu',
+    id: 'u2', name: 'Mara', age: 27, country: 'Netherlands', 
     languages: ['Dutch', 'English', 'Spanish'],
     bio: 'Travel creator, 18k on TikTok. Filming a Bali series this winter.',
     photos: [userFace('u2')],
     verified: true, socials: [{ platform: 'instagram', value: 'mara.goes' }, { platform: 'tiktok', value: 'mara.goes' }, { platform: 'youtube', value: 'maragoes' }, { platform: 'x', value: 'maragoes' }],
   },
   {
-    id: 'u3', name: 'Tom', age: 33, country: 'United Kingdom', city: 'Lisbon',
+    id: 'u3', name: 'Tom', age: 33, country: 'United Kingdom', 
     languages: ['English', 'Portuguese'],
     bio: 'Building a fintech side project. Surf before standup.',
     photos: [userFace('u3')],
     verified: true, socials: [{ platform: 'x', value: 'tomellis' }, { platform: 'website', value: 'https://tomellis.dev' }],
   },
   {
-    id: 'u4', name: 'Aisha', age: 29, country: 'Australia', city: 'Melbourne',
+    id: 'u4', name: 'Aisha', age: 29, country: 'Australia', 
     languages: ['English'],
     bio: 'Physio & Muay Thai nerd. Looking for people who train seriously and eat well.',
     photos: [userFace('u4')],
     verified: true, socials: [{ platform: 'instagram', value: 'aisha.fights' }, { platform: 'youtube', value: 'aishafights' }, { platform: 'tiktok', value: 'aisha.fights' }],
   },
   {
-    id: 'u5', name: 'Jonas', age: 25, country: 'Sweden', city: 'Chiang Mai',
+    id: 'u5', name: 'Jonas', age: 25, country: 'Sweden', 
     languages: ['Swedish', 'English', 'German'],
     bio: 'Freelance motion designer. Night owl, coffee snob, always up for a hike.',
     photos: [userFace('u5')],
     verified: false, socials: [{ platform: 'instagram', value: 'jonas.motion' }],
   },
   {
-    id: 'u6', name: 'Priya', age: 31, country: 'India', city: 'Bangkok',
+    id: 'u6', name: 'Priya', age: 31, country: 'India', 
     languages: ['Hindi', 'English'],
     bio: 'Product manager on a 6-month sabbatical. Yoga, markets, slow mornings.',
     photos: [userFace('u6')],
     verified: true, socials: [{ platform: 'instagram', value: 'priya.slow' }],
   },
   {
-    id: 'u7', name: 'Diego', age: 28, country: 'Mexico', city: 'Da Nang',
+    id: 'u7', name: 'Diego', age: 28, country: 'Mexico', 
     languages: ['Spanish', 'English'],
     bio: 'Streams indie game dev on Twitch. Need a house with fast wifi and a pool.',
     photos: [userFace('u7')],
     verified: true, socials: [{ platform: 'twitch', value: 'diegobuilds' }, { platform: 'x', value: 'diegobuilds' }, { platform: 'website', value: 'https://diegobuilds.gg' }],
   },
   {
-    id: 'u8', name: 'Lena', age: 24, country: 'Austria', city: 'Berlin',
+    id: 'u8', name: 'Lena', age: 24, country: 'Austria', 
     languages: ['German', 'English', 'French'],
     bio: 'Medical student on a gap semester. First solo trip – want a house, not a hostel.',
     photos: [userFace('u8')],
     verified: false, socials: [{ platform: 'instagram', value: 'lena.wanders' }, { platform: 'tiktok', value: 'lena.wanders' }],
   },
-  { id: 'u9', name: 'Sofia', age: 26, country: 'Italy', city: 'Canggu',
+  { id: 'u9', name: 'Sofia', age: 26, country: 'Italy', 
     languages: ['Italian', 'English'],
     bio: 'Pilates instructor and sunrise person. Teaching at two studios in Canggu this season.',
     photos: [userFace('u9')],
     verified: true, socials: [{ platform: 'instagram', value: 'sofia.flows' }, { platform: 'tiktok', value: 'sofia.flows' }, { platform: 'youtube', value: 'sofiaflows' }],
   },
-  { id: 'u10', name: 'Ben', age: 35, country: 'Canada', city: 'Mexico City',
+  { id: 'u10', name: 'Ben', age: 35, country: 'Canada', 
     languages: ['English', 'French', 'Spanish'],
     bio: 'Ex-agency, now solo consultant. Cooking is how I make friends.',
     photos: [userFace('u10')],
     verified: true, socials: [{ platform: 'website', value: 'https://bencarter.co' }],
   },
-  { id: 'u11', name: 'Yuki', age: 28, country: 'Japan', city: 'Osaka',
+  { id: 'u11', name: 'Yuki', age: 28, country: 'Japan', 
     languages: ['Japanese', 'English'],
     bio: 'UX designer, first long trip outside Japan. Quiet, tidy, loves a good café.',
     photos: [userFace('u11')],
     verified: true, socials: [{ platform: 'instagram', value: 'yuki.makes' }],
   },
-  { id: 'u12', name: 'Marco', age: 32, country: 'Brazil', city: 'Florianópolis',
+  { id: 'u12', name: 'Marco', age: 32, country: 'Brazil', 
     languages: ['Portuguese', 'English', 'Spanish'],
     bio: 'Jiu-jitsu brown belt, runs a small SaaS. Looking for mats and a pool.',
     photos: [userFace('u12')],
     verified: true, socials: [{ platform: 'instagram', value: 'marco.rolls' }, { platform: 'youtube', value: 'marcorolls' }, { platform: 'x', value: 'marcorolls' }],
   },
-  { id: 'u13', name: 'Hannah', age: 29, country: 'Ireland', city: 'Lisbon',
+  { id: 'u13', name: 'Hannah', age: 29, country: 'Ireland', 
     languages: ['English'],
     bio: 'Writes a newsletter about slow travel (9k subs). Tea, books, long walks.',
     photos: [userFace('u13')],
     verified: true, socials: [{ platform: 'instagram', value: 'hannah.slowly' }, { platform: 'website', value: 'https://slowly.substack.com' }],
   },
-  { id: 'u14', name: 'Karim', age: 27, country: 'France', city: 'Bangkok',
+  { id: 'u14', name: 'Karim', age: 27, country: 'France', 
     languages: ['French', 'English', 'Arabic'],
     bio: 'Runs a Shopify store from anywhere with wifi. Gym at 6, calls at 15.',
     photos: [userFace('u14')],
     verified: false, socials: [{ platform: 'instagram', value: 'karim.ships' }, { platform: 'tiktok', value: 'karim.ships' }],
   },
-  { id: 'u15', name: 'Emma', age: 24, country: 'Denmark', city: 'Copenhagen',
+  { id: 'u15', name: 'Emma', age: 24, country: 'Denmark', 
     languages: ['Danish', 'English', 'German'],
     bio: 'Nursing degree done, three months off before the first job. First time in Asia.',
     photos: [userFace('u15')],
     verified: false, socials: [{ platform: 'instagram', value: 'emma.away' }, { platform: 'tiktok', value: 'emma.away' }],
   },
-  { id: 'u16', name: 'Raj', age: 31, country: 'Singapore', city: 'Singapore',
+  { id: 'u16', name: 'Raj', age: 31, country: 'Singapore', 
     languages: ['English', 'Tamil', 'Mandarin'],
     bio: 'Backend engineer, remote for a US startup. Nights are free, days are mine.',
     photos: [userFace('u16')],
     verified: true, socials: [{ platform: 'x', value: 'rajbuilds' }, { platform: 'twitch', value: 'rajbuilds' }],
   },
   // No photos yet – exercises the "No photo yet" / "Add a photo" paths.
-  { id: 'u17', name: 'Noah', age: 26, country: 'Belgium', city: 'Ghent',
+  { id: 'u17', name: 'Noah', age: 26, country: 'Belgium', 
     languages: ['Dutch', 'English', 'French'],
     bio: 'Just signed up – looking for my first shared house.',
     photos: [], verified: false, socials: [{ platform: 'instagram', value: 'noah.ghent' }],
   },
   // A brand-new account: nothing hosted, nothing joined (Dev menu › Your houses › New).
-  { id: 'u90', name: 'Emma', age: 24, country: 'Ireland', city: 'Dublin',
+  { id: 'u90', name: 'Emma', age: 24, country: 'Ireland', 
     languages: ['English'],
     bio: '',
     photos: [], verified: false, socials: [],
   },
   // Streaming hosts
-  { id: 'u18', name: 'Nico', age: 29, country: 'Germany', city: 'Lisbon',
+  { id: 'u18', name: 'Nico', age: 29, country: 'Germany', 
     languages: ['German', 'English', 'Portuguese'],
     bio: 'Twitch variety streamer, 40k followers. Live most evenings, always up for a raid.',
     photos: [userFace('u17')],
     verified: true, socials: [{ platform: 'twitch', value: 'nicoplays' }, { platform: 'kick', value: 'nicoplays' }, { platform: 'youtube', value: 'nicoplays' }, { platform: 'instagram', value: 'nico.plays' }],
   },
-  { id: 'u19', name: 'Sasha', age: 26, country: 'Ukraine', city: 'Bangkok',
+  { id: 'u19', name: 'Sasha', age: 26, country: 'Ukraine', 
     languages: ['Ukrainian', 'English', 'Russian'],
     bio: 'IRL and travel streamer. Street food, night markets and a backpack full of batteries.',
     photos: [userFace('u19')],
     verified: true, socials: [{ platform: 'kick', value: 'sashairl' }, { platform: 'twitch', value: 'sashairl' }, { platform: 'tiktok', value: 'sasha.irl' }],
   },
-  { id: 'u20', name: 'Leo', age: 31, country: 'Spain', city: 'Canggu',
+  { id: 'u20', name: 'Leo', age: 31, country: 'Spain', 
     languages: ['Spanish', 'English', 'Catalan'],
     bio: 'Chess and cozy-games streamer. Works EU evenings, surfs in the morning.',
     photos: [userFace('u20')],
     verified: true, socials: [{ platform: 'twitch', value: 'leomoves' }, { platform: 'kick', value: 'leomoves' }, { platform: 'x', value: 'leomoves' }],
   },
   // ── 20 more hosts, one per community House (s26–s45) ──
-  { id: 'u21', name: 'Arjun', age: 31, country: 'India', city: 'Bangkok',
+  { id: 'u21', name: 'Arjun', age: 31, country: 'India', 
     languages: ['English', 'Hindi'],
     bio: 'Futures day trader for six years. Trades the US open from Bangkok at night, gym and sleep by day.',
     photos: [userFace('u21')],
     verified: true, socials: [{ platform: 'x', value: 'arjuntrades' }, { platform: 'youtube', value: 'arjunmehta' }], 
    },
-  { id: 'u22', name: 'Sven', age: 29, country: 'Norway', city: 'Lisbon',
+  { id: 'u22', name: 'Sven', age: 29, country: 'Norway', 
     languages: ['Norwegian', 'English'],
     bio: 'Solidity dev, shipped two DeFi protocols. Now building wallet UX that normal people can use.',
     photos: [userFace('u22')],
     verified: true, socials: [{ platform: 'x', value: 'svenbuilds' }, { platform: 'website', value: 'https://svenolsen.xyz' }], 
    },
-  { id: 'u23', name: 'Omar', age: 34, country: 'Jordan', city: 'Dubai',
+  { id: 'u23', name: 'Omar', age: 34, country: 'Jordan', 
     languages: ['Arabic', 'English'],
     bio: 'Funded FX trader, trains twice a day, asleep by ten. London session is my office.',
     photos: [userFace('u23')],
     verified: true, socials: [{ platform: 'instagram', value: 'omar.trades' }, { platform: 'x', value: 'omarhaddadfx' }], 
    },
-  { id: 'u24', name: 'Lucía', age: 28, country: 'Spain', city: 'Sevilla',
+  { id: 'u24', name: 'Lucía', age: 28, country: 'Spain', 
     languages: ['Spanish', 'English', 'French'],
     bio: 'Spanish teacher and DELE examiner. I run immersion weeks in my city.',
     photos: [userFace('u24')],
     verified: true, socials: [{ platform: 'instagram', value: 'lucia.habla' }, { platform: 'tiktok', value: 'luciahabla' }, { platform: 'youtube', value: 'luciahabla' }], 
    },
-  { id: 'u25', name: 'Freya', age: 30, country: 'Sweden', city: 'Ubud',
+  { id: 'u25', name: 'Freya', age: 30, country: 'Sweden', 
     languages: ['Swedish', 'English'],
     bio: 'Yoga teacher (E-RYT 500). I mentor people through their first 200-hour training.',
     photos: [userFace('u25')],
     verified: true, socials: [{ platform: 'instagram', value: 'freya.flows' }, { platform: 'website', value: 'https://freyaflows.com' }], 
    },
-  { id: 'u26', name: 'João', age: 33, country: 'Portugal', city: 'Ericeira',
+  { id: 'u26', name: 'João', age: 33, country: 'Portugal', 
     languages: ['Portuguese', 'English', 'Spanish'],
     bio: 'ISA-certified surf coach, 15 winters in Ericeira. Video analysis nerd.',
     photos: [userFace('u26')],
     verified: true, socials: [{ platform: 'instagram', value: 'joao.surfcoach' }, { platform: 'youtube', value: 'joaosurfcoach' }], 
    },
-  { id: 'u27', name: 'Maya', age: 27, country: 'Australia', city: 'Gili Air',
+  { id: 'u27', name: 'Maya', age: 27, country: 'Australia', 
     languages: ['English', 'Indonesian'],
     bio: 'PADI Course Director. Took 300 people from their first breath underwater to Divemaster.',
     photos: [userFace('u27')],
     verified: true, socials: [{ platform: 'instagram', value: 'maya.dives' }, { platform: 'tiktok', value: 'mayadives' }, { platform: 'youtube', value: 'mayadives' }], 
    },
-  { id: 'u28', name: 'Tomáš', age: 32, country: 'Czech Republic', city: 'Krabi',
+  { id: 'u28', name: 'Tomáš', age: 32, country: 'Czech Republic', 
     languages: ['Czech', 'English'],
     bio: 'Climbing guide, 8a on a good day. Every dry season in Tonsai since 2018.',
     photos: [userFace('u28')],
     verified: true, socials: [{ platform: 'instagram', value: 'tomas.climbs' }, { platform: 'website', value: 'https://tomasclimbs.cz' }], 
    },
-  { id: 'u29', name: 'Carla', age: 29, country: 'Spain', city: 'Barcelona',
+  { id: 'u29', name: 'Carla', age: 29, country: 'Spain', 
     languages: ['Spanish', 'Catalan', 'English'],
     bio: 'Hyrox Elite athlete and coach. Programming for 40 members at my box in Poblenou.',
     photos: [userFace('u29')],
     verified: true, socials: [{ platform: 'instagram', value: 'carla.hyrox' }, { platform: 'tiktok', value: 'carlahyrox' }, { platform: 'youtube', value: 'carlahyrox' }], 
    },
-  { id: 'u30', name: 'Thabo', age: 35, country: 'South Africa', city: 'Cape Town',
+  { id: 'u30', name: 'Thabo', age: 35, country: 'South Africa', 
     languages: ['English', 'Zulu', 'Afrikaans'],
     bio: '2:38 marathoner and run coach. Knows every hill on the Atlantic seaboard.',
     photos: [userFace('u30')],
     verified: true, socials: [{ platform: 'instagram', value: 'thabo.runs' }, { platform: 'x', value: 'thaboruns' }, { platform: 'website', value: 'https://thaboruns.co.za' }], 
    },
-  { id: 'u31', name: 'Nora', age: 38, country: 'Ireland', city: 'Tbilisi',
+  { id: 'u31', name: 'Nora', age: 38, country: 'Ireland', 
     languages: ['English', 'Russian'],
     bio: 'Novelist – two books out, the third in edits. I host a quiet residency for people finishing a draft.',
     photos: [userFace('u31')],
     verified: true, socials: [{ platform: 'website', value: 'https://norahayes.com' }, { platform: 'instagram', value: 'nora.writes' }], 
    },
-  { id: 'u32', name: 'Jannik', age: 27, country: 'Germany', city: 'Berlin',
+  { id: 'u32', name: 'Jannik', age: 27, country: 'Germany', 
     languages: ['German', 'English'],
     bio: 'Producer and mixing engineer, techno and leftfield. Studio in Kreuzberg.',
     photos: [userFace('u32')],
     verified: true, socials: [{ platform: 'instagram', value: 'jannik.wav' }, { platform: 'youtube', value: 'jannikwav' }, { platform: 'website', value: 'https://jannikwav.de' }], 
    },
-  { id: 'u33', name: 'Ingrid', age: 36, country: 'Norway', city: 'Reine',
+  { id: 'u33', name: 'Ingrid', age: 36, country: 'Norway', 
     languages: ['Norwegian', 'English', 'German'],
     bio: 'Landscape photographer and aurora guide. Shoots for Nordic tourism boards.',
     photos: [userFace('u33')],
     verified: true, socials: [{ platform: 'instagram', value: 'ingrid.north' }, { platform: 'website', value: 'https://ingridnorth.no' }, { platform: 'youtube', value: 'ingridnorth' }], 
    },
-  { id: 'u34', name: 'Priyanka', age: 24, country: 'United Kingdom', city: 'Cape Town',
+  { id: 'u34', name: 'Priyanka', age: 24, country: 'United Kingdom', 
     languages: ['English', 'Hindi'],
     bio: 'Final-year medical student at UCL, doing my surgery elective at Groote Schuur.',
     photos: [userFace('u34')],
     verified: true, socials: [{ platform: 'instagram', value: 'priya.med' }], 
    },
-  { id: 'u35', name: 'Daniel', age: 22, country: 'Canada', city: 'Seoul',
+  { id: 'u35', name: 'Daniel', age: 22, country: 'Canada', 
     languages: ['English', 'Korean'],
     bio: 'Exchange semester at Yonsei, studying CS. Already knows every late-night jjigae spot.',
     photos: [userFace('u35')],
     verified: false, socials: [{ platform: 'instagram', value: 'dan.in.seoul' }, { platform: 'tiktok', value: 'daninseoul' }], 
    },
-  { id: 'u36', name: 'Valeria', age: 31, country: 'Mexico', city: 'Mexico City',
+  { id: 'u36', name: 'Valeria', age: 31, country: 'Mexico', 
     languages: ['Spanish', 'English'],
     bio: 'Product designer, remote for a Berlin startup. Building the house I wish I had on my first solo trip.',
     photos: [userFace('u36')],
     verified: true, socials: [{ platform: 'instagram', value: 'vale.designs' }, { platform: 'x', value: 'valeruiz' }], 
    },
-  { id: 'u37', name: 'Richard', age: 44, country: 'United Kingdom', city: 'Funchal',
+  { id: 'u37', name: 'Richard', age: 44, country: 'United Kingdom', 
     languages: ['English', 'Portuguese'],
     bio: 'Second-time founder (exited a logistics SaaS), now building in climate. Dad of two.',
     photos: [userFace('u37')],
     verified: true, socials: [{ platform: 'x', value: 'richhale' }, { platform: 'website', value: 'https://richardhale.co' }], 
    },
-  { id: 'u38', name: 'Ava', age: 34, country: 'New Zealand', city: 'Koh Phangan',
+  { id: 'u38', name: 'Ava', age: 34, country: 'New Zealand', 
     languages: ['English'],
     bio: 'Breathwork facilitator, five years sober. Koh Phangan is more than full-moon parties.',
     photos: [userFace('u38')],
     verified: true, socials: [{ platform: 'instagram', value: 'ava.breathes' }, { platform: 'tiktok', value: 'avabreathes' }, { platform: 'website', value: 'https://avabreathes.com' }], 
    },
-  { id: 'u39', name: 'Bram', age: 26, country: 'Belgium', city: 'Antwerp',
+  { id: 'u39', name: 'Bram', age: 26, country: 'Belgium', 
     languages: ['Dutch', 'English', 'French'],
     bio: 'Tomorrowland every year since 2017. Plans the timetable in a spreadsheet.',
     photos: [userFace('u39')],
     verified: false, socials: [{ platform: 'instagram', value: 'bram.festivals' }, { platform: 'tiktok', value: 'bramfestivals' }], 
    },
-  { id: 'u40', name: 'Chloé', age: 29, country: 'France', city: 'Chamonix',
+  { id: 'u40', name: 'Chloé', age: 29, country: 'France', 
     languages: ['French', 'English'],
     bio: 'Ski instructor (ESF) and backcountry splitboarder. Fifth winter in Chamonix.',
     photos: [userFace('u40')],
     verified: true, socials: [{ platform: 'instagram', value: 'chloe.peaks' }, { platform: 'youtube', value: 'chloepeaks' }, { platform: 'tiktok', value: 'chloepeaks' }], 
    },
-  { id: 'u41', name: 'Marta', age: 32, country: 'Spain', city: 'Las Palmas',
+  { id: 'u41', name: 'Marta', age: 32, country: 'Spain', 
     languages: ['Spanish', 'English', 'German'],
     bio: 'Canarian product designer, remote for a Munich scale-up. Knows every coworking and every quiet beach on Gran Canaria.',
     photos: [userFace('u41')],
     verified: true, socials: [{ platform: 'instagram', value: 'marta.remote' }, { platform: 'website', value: 'https://martasuarez.design' }], 
    },
-  { id: 'u42', name: 'Felix', age: 29, country: 'Germany', city: 'El Médano',
+  { id: 'u42', name: 'Felix', age: 29, country: 'Germany', 
     languages: ['German', 'English', 'Spanish'],
     bio: 'Data analyst, four hours of overlap with Berlin, the rest belongs to the ocean. Surfing El Médano since 2021.',
     photos: [userFace('u42')],
     verified: true, socials: [{ platform: 'instagram', value: 'felix.surfs.data' }, { platform: 'youtube', value: 'felixsurfsdata' }], 
    },
-  { id: 'u43', name: 'Inês', age: 34, country: 'Portugal', city: 'Ponta do Sol',
+  { id: 'u43', name: 'Inês', age: 34, country: 'Portugal', 
     languages: ['Portuguese', 'English', 'French'],
     bio: 'Community lead for remote workers on Madeira. Sunset at the pier, levada hikes on Sundays, cake in between.',
     photos: [userFace('u43')],
     verified: true, socials: [{ platform: 'instagram', value: 'ines.madeira' }, { platform: 'tiktok', value: 'inesonmadeira' }], 
    },
-  { id: 'u44', name: 'Moritz', age: 27, country: 'Austria', city: 'Innsbruck',
+  { id: 'u44', name: 'Moritz', age: 27, country: 'Austria', 
     languages: ['German', 'English'],
     bio: 'Civil engineer, on the slopes every winter weekend. Sorts the chalet, the après-ski playlist and the breakfast shopping.',
     photos: [userFace('u44')],
     verified: false, socials: [{ platform: 'instagram', value: 'moritz.powder' }, { platform: 'tiktok', value: 'moritzpowder' }], 
    },
-  { id: 'u45', name: 'Clara', age: 26, country: 'Germany', city: 'Berlin',
+  { id: 'u45', name: 'Clara', age: 26, country: 'Germany', 
     languages: ['German', 'English', 'Italian'],
     bio: 'Moved to Berlin a year ago for my first job and spent the first weeks alone in a shared-flat room. Nobody should have to do that again.',
     photos: [userFace('u45')],
     verified: true, socials: [{ platform: 'instagram', value: 'clara.inberlin' }], 
    },
-  { id: 'u46', name: 'Minjun', age: 24, country: 'South Korea', city: 'Seoul',
+  { id: 'u46', name: 'Minjun', age: 24, country: 'South Korea', 
     languages: ['Korean', 'English'],
     bio: 'Former semi-pro Valorant player, now coaching and streaming. Knows the best PC bangs in Hongdae and where to eat at 3 am.',
     photos: [userFace('u46')],
     verified: true, socials: [{ platform: 'twitch', value: 'minjungg' }, { platform: 'youtube', value: 'minjungg' }, { platform: 'x', value: 'minjun_gg' }, { platform: 'kick', value: 'minjungg' }], 
    },
-  { id: 'u47', name: 'Alba', age: 30, country: 'Spain', city: 'Tarifa',
+  { id: 'u47', name: 'Alba', age: 30, country: 'Spain', 
     languages: ['Spanish', 'English', 'Italian'],
     bio: 'IKO kite instructor, eight seasons in Tarifa. Reads the Levante forecast like other people read the news.',
     photos: [userFace('u47')],
     verified: true, socials: [{ platform: 'instagram', value: 'alba.kites' }, { platform: 'youtube', value: 'albakites' }], 
    },
-  { id: 'u48', name: 'James', age: 36, country: 'United Kingdom', city: 'Marbella',
+  { id: 'u48', name: 'James', age: 36, country: 'United Kingdom', 
     languages: ['English', 'Spanish'],
     bio: 'Ex-tennis coach turned padel coach. Runs a club academy in Marbella, drinks his coffee courtside.',
     photos: [userFace('u48')],

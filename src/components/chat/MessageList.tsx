@@ -127,6 +127,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
 
   const closePicker = useCallback(() => setPickerId(null), []);
   // Read (✓✓): someone other than you wrote after it – the mock has no receipts of its own.
+  // The read state only at your last own message.
+  const lastOwnId = thread.messages.findLast((m) => m.senderId === me)?.id ?? null;
   const lastOtherAt = thread.messages.filter((m) => m.senderId !== me && m.senderId !== "system").reduce<string | null>((latest, m) => (latest === null || m.createdAt > latest ? m.createdAt : latest), null);
 
   function reply(message: Message) {
@@ -169,6 +171,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
               last={row.last}
               showName={thread.type === "house" && message.senderId !== me}
               read={message.senderId === me && lastOtherAt !== null && message.createdAt <= lastOtherAt}
+              showRead={message.id === lastOwnId}
               replyTo={
                 original && {
                   message: original,

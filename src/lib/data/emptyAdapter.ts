@@ -20,6 +20,8 @@ export const emptyAdapter: DataAdapter = {
   pastEarnings: () => [],
   previewForUrl: (url, fallbackTitle) => ({ title: fallbackTitle ?? linkDomain(url), imageUrl: "", domain: linkDomain(url) }),
   withAttribution: (requests) => requests,
+  // TODO(firestore): the places collection (by owner), and the Houses carry their placeId.
+  withPlaces: (stays) => ({ stays, places: [] }),
   withChatHistory: (threads) => ({ threads, lastReadAt: {} }),
   growthEvents: () => [],
   // TODO(firestore): run the list's query – orderBy(…), startAfter(the cursor's document), limit(request.limit) – and the total from

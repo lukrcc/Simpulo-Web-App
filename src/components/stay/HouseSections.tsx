@@ -1,7 +1,7 @@
 "use client";
 
 import { profileHref } from "@/lib/privacy";
-import { ArrowUpRight, Check, Lightbulb, MapPin, Plus, UserPlus, Vote } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Lightbulb, MapPin, Plus, UserPlus, Vote } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { EXPLORE_SPACING } from "@/config/explore";
@@ -208,7 +208,7 @@ export function HouseDay({ stay }: { stay: Stay }) {
 
 /** Who I'm looking for, then House rules: two short blocks, no cards. */
 /** Who I'm looking for (and the crew's age), in the left column. Text at most 64 characters a line. */
-export function HouseLooking({ stay }: { stay: Stay }) {
+export function HouseLooking({ stay, ask }: { stay: Stay; ask?: AskHost }) {
   const t = useTranslations("house.page");
   const tFacts = useTranslations("house.facts");
   const looking = stay.lookingForText.trim();
@@ -218,7 +218,28 @@ export function HouseLooking({ stay }: { stay: Stay }) {
       <SectionHead id="house-looking" title={t("lookingFor")} />
       {looking && <p className={cn(ROW, "max-w-[60ch] whitespace-pre-line text-body-lg text-ink")}>{looking}</p>}
       {stay.ageRange && <p className="mt-3 text-small text-muted">{tFacts("ageRange", { min: stay.ageRange.min, max: stay.ageRange.max })}</p>}
+      {ask && <AskLink ask={ask} />}
     </section>
+  );
+}
+
+/** "Ask {host} a question →": opens the message to the host about this House (visitors only). */
+export interface AskHost {
+  name: string;
+  onClick: () => void;
+}
+
+/**
+ * The one quiet link under "Who I'm looking for" – the way to ask the host, now that the strip has only the request buttons: graphite 78 %
+ * (--ask-link; 70 % would hold only 3.9 : 1 on the page, 78 % holds 4.8 : 1), hover graphite 100 % and underlined, the arrow 2px to the right.
+ */
+function AskLink({ ask }: { ask: AskHost }) {
+  const t = useTranslations("house.page");
+  return (
+    <button type="button" onClick={ask.onClick} data-preview-action className="group mt-4 inline-flex items-center gap-1 rounded-sm text-body font-semibold text-(--ask-link) underline-offset-4 transition-colors duration-150 hover:text-(--ask-link-hover) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)">
+      {t("askHost", { name: ask.name })}
+      <ArrowRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
@@ -436,7 +457,7 @@ export function HouseMore({ stay }: { stay: Stay }) {
   return (
     // The last section: a dark band like Explore's and Your houses' (ui/DarkBand – hard edges, 64px inside, the words cream), the same shelf
     // (Shelf flat, a card exactly one grid column wide – .explore-slide), arrows as there.
-    <DarkBand className="mb-0 mt-16">
+    <DarkBand className="mb-0 mt-16" pageEnd>
       <section aria-labelledby="house-more" className="explore-root">
         {/* "See all →": Explore filtered to this category. */}
         <RowHead id="house-more" title={t("more")} seeAll={`/explore?vibe=${stay.vibe}`} />

@@ -28,6 +28,7 @@ import {
   ProfileNote,
   ReadySummary,
   RulesDetail,
+  SourceStep,
   TemplatePicker,
   extrasAdded,
   TitleDetail,
@@ -45,6 +46,12 @@ import {
   INVITE_STEP,
   INVITE_PARAM,
   REQUIRED_STEPS,
+  SOURCE_STEP,
+  WINDOW_PARAM,
+  placeForm,
+  placeRent,
+  rentSourceOf,
+  monthBounds,
   flowRequired,
   againForm,
   clearDraft,
@@ -95,6 +102,8 @@ import { useFormat } from "@/i18n/format";
 import { accommodationOf } from "@/config/accommodation";
 import { getCrew, getCurrentUser, houseInviteUrl, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
 import { yourPeople } from "@/lib/yourPeople";
+import { maxCrewOf, placeById, placesOf, windowsOf } from "@/lib/ownPlaces";
+import { nightsBetween } from "@/lib/utils";
 import { locationOf } from "@/lib/catalog";
 import { coversFromHouses } from "@/lib/coverSuggestions";
 import type { Stay, User } from "@/lib/types";
@@ -137,6 +146,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const tDetails = useTranslations("create.details");
   const tReady = useTranslations("create.ready");
   const tDepth = useTranslations("create.depth");
+  const tHome = useTranslations("create.home");
   const format = useFormat();
   const monthName = useMonthName();
   const hostPremium = useFeatureFlag("hostPremium");
@@ -156,7 +166,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [starters] = useState(() => Object.values(messages.create.starters).flatMap((s) => s.lookingFor));
   const me = getCurrentUser(store);
   /** A link's answers count as done: the flow starts at the first step that isn't. */
-  const startFor = (filled: FormState) => firstOpenStep({ form: filled, me, minSpots, today: todayString(), starters });
+  const startFor = (filled: FormState) => firstOpenStep({ form: filled, me, minSpots, today: todayString(), starters, place: store.places.find((p) => p.id === filled.placeId) });
 
   // Coming back: straight into the flow, where it was left off. A link with its own answers asks which it'll be, right in the flow.
   const [draft] = useState(() => (restore && !editing ? readDraft() : null));
@@ -182,11 +192,17 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "Invite to a House" from People (/create?invite=<user>): that person is invited on publish, once they're known.
   const [inviteId, setInviteId] = useState<string | null>(null);
   const [inviteApplied, setInviteApplied] = useState(false);
+  // "Open a window" (/create?window=<place>): applied once the user and their place are known, over any draft.
+  const [windowId, setWindowId] = useState<string | null>(null);
+  const [windowApplied, setWindowApplied] = useState(false);
+  // "Host from your place": a new flow of a host with saved places starts with the choice (once, before step 1).
+  const [sourceAsked, setSourceAsked] = useState(false);
   // A field to focus once the step it is on has rendered (set from event handlers).
   const pendingFocus = useRef<string | null>(null);
   function readLinkParams(params: URLSearchParams) {
     setAgainId(params.get(AGAIN_PARAM));
     setInviteId(params.get(INVITE_PARAM));
+    setWindowId(params.get(WINDOW_PARAM));
     // "Add a host fee" (Payouts, share hosts): straight to "Crew and price", the host fee field focused.
     if (params.get("step") === "price" && !editing) {
       pendingFocus.current = fieldId("hostFee");
@@ -216,6 +232,13 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // Who can be invited on publish: the host's people (lived together, both confirmed; not removed or blocked – lib/yourPeople.ts).
   const yours = useMemo(() => (!me || editing ? [] : yourPeople(store, me.id)), [store, me, editing]);
   const invitePeople: PersonEntry[] = yours.map((p) => ({ user: p.user, houses: [p.house] }));
+  // "Host from your place": the host's saved places, and how many windows each has had.
+  const placeRecords = { places: store.places, stays: store.stays };
+  const myPlaces = editing ? [] : placesOf(placeRecords, me?.id);
+  const hasSource = myPlaces.length > 0;
+  const windowCounts = Object.fromEntries(myPlaces.map((p) => [p.id, windowsOf(placeRecords, p.id).length]));
+  /** The newest window of a place – "Open a window" starts from its theme, title and texts. */
+  const lastWindowOf = (placeId: string) => windowsOf(placeRecords, placeId).at(-1);
   // Inviting happens after publishing, in "Fill your House" (components/InviteSheet: Your people, Saved, who's in for it, search, the link);
   // the old crew of "Do it again" and a ?invite= person are picked there already. No invite step inside the flow any more.
   const hasInviteStep = false;
@@ -228,13 +251,29 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     setConflict(null);
     setStep("where");
   }
+  const windowPlace = windowId && me ? myPlaces.find((p) => p.id === windowId) : undefined;
+  if (windowPlace && !windowApplied) {
+    setWindowApplied(true);
+    const filled = placeForm(windowPlace, lastWindowOf(windowPlace.id));
+    setForm(filled);
+    setContinuing(null);
+    setConflict(null);
+    setSourceAsked(true);
+    setStep(startFor(filled));
+  }
+  if (restore && !editing && !sourceAsked && !windowId && !againId && myPlaces.length > 0 && step === "vibe" && !hasContent(form)) {
+    setSourceAsked(true);
+    setStep(SOURCE_STEP);
+  }
   if (inviteId && !inviteApplied && invitePeople.some((p) => p.user.id === inviteId)) {
     setInviteApplied(true);
     setForm((f) => ({ ...f, inviteIds: f.inviteIds.includes(inviteId) ? f.inviteIds : [inviteId, ...f.inviteIds] }));
   }
   // Who "Fill your House" starts with picked: the old crew (Do it again) or the ?invite= person.
   const preselect = invitesOf(form, invitePeople);
-  const errorsOf = (key: StepKey): FieldErrors => stepErrors(key, { form, me, minSpots, today, editing, starters });
+  // The saved place this House is a window of (form.placeId) – its rental period, rent and free rooms.
+  const ownPlace = placeById(placeRecords, form.placeId);
+  const errorsOf = (key: StepKey): FieldErrors => stepErrors(key, { form, me, minSpots, today, editing, starters, place: ownPlace });
   const titleMax = titleMaxFor(editing);
   const titleIdeas = useTitleSuggestions(form, titleMax);
   const input = () => toInput(form, { me, editing, today, fallbackTitle: titleIdeas[0] ?? "", preferredCurrency, depthOn });
@@ -280,6 +319,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   function errorText(error: FieldError): string {
     if (error.key === "spots") return tErrors("spots", { min: error.min });
+    if (error.key === "spotsRooms") return tErrors("spotsRooms", { max: error.max });
     if (error.key === "tooLong") return tErrors("tooLong", { max: error.max });
     if (error.key === "titleLength") return tErrors("titleLength", { min: error.min, max: error.max });
     if (error.key === "hostFeeTooHigh") return tErrors("hostFeeTooHigh", { max: format.price(error.max, previewStay.currency) });
@@ -340,7 +380,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (!profileReady || !validateAll()) return;
     // Logged out: log in first, then publish – the draft is still in state, nothing is lost.
     requireAuth(() => {
-      const { id, linkToken } = store.createStay(input(), [], { invite: [], againFrom: form.againFrom || undefined, link: false });
+      // "I live here": the place is saved to Your places first (only with the host's statement), and this House is its first window.
+      const savedPlaceId = form.placeMode === "set" && form.savePlace && !form.placeId && form.allowedToHost ? savePlace() : null;
+      const { id, linkToken } = store.createStay({ ...input(), ...(savedPlaceId && { placeId: savedPlaceId }) }, [], { invite: [], againFrom: form.againFrom || undefined, link: false });
       setLinkToken(linkToken ?? null);
       clearDraft();
       setNotified(demand.count);
@@ -349,8 +391,38 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     }, { reason: "open" });
   }
 
+  /** The place found for this House, saved as the host's own: kind, photos, rooms (free spots + the host's), rules, city, rental, rent. */
+  function savePlace(): string | null {
+    const kind = accommodationOf(form.accommodationType);
+    const where = form.city.trim() || form.region.split(",")[0].trim();
+    const label = kind ? kind.type.label.charAt(0).toUpperCase() + kind.type.label.slice(1) : tHome("placeFallback");
+    return store.addPlace({
+      name: tHome("placeName", { kind: label, city: where }),
+      accommodationType: kind?.type.id ?? "",
+      photos: [...form.photos, ...(form.accommodationPhoto ? [form.accommodationPhoto] : [])].filter((photo) => !photo.startsWith("blob:")),
+      rooms: form.spotsTotal,
+      freeSpots: Math.max(1, form.spotsTotal - 1),
+      rules: form.rulesText.split("\n").map((rule) => rule.trim()).filter(Boolean),
+      address: { city: form.city.trim(), region: form.region.trim() },
+      rentFrom: form.rentFrom,
+      rentTo: form.rentTo,
+      monthlyRent: Math.round(Number(form.monthlyRent)),
+      currency: previewStay.currency,
+      allowedToHost: form.allowedToHost,
+    });
+  }
+
   function next() {
     if (Object.keys(currentErrors).length > 0) return showProblems(step, currentErrors);
+    // "Host from your place": a saved place fills in what it knows – the flow goes on at the first step still open.
+    if (step === SOURCE_STEP) {
+      const place = form.source === "own" ? placeById(placeRecords, form.placeId) : undefined;
+      if (!place) return open("vibe");
+      const filled = placeForm(place, lastWindowOf(place.id));
+      const target = startFor(filled);
+      setForm(target === "crew" ? { ...filled, ...placeRent(filled, today, place) } : filled);
+      return open(target);
+    }
     if (isDetail(step) || fromList) {
       setFromList(false);
       return open(home);
@@ -359,9 +431,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "cover" && !editing) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
     if (step === INVITE_STEP) return open("ready");
-    const target = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
+    const following = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
+    // A window of the host's own place: the place and its kind are known – straight on to "Where and when?".
+    const target: StepKey = form.placeId && (following === "place" || following === "kind") ? "where" : following;
     // Into "Crew and price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
-    if (target === "crew") patch(kindBudget(form, previewStay.currency));
+    // A place with a rent behind it ("Host from your place"): the price from the rent, pro rata by nights (lib/price.ts).
+    if (target === "crew") patch({ ...kindBudget(form, previewStay.currency), ...placeRent(form, today, ownPlace) });
     open(target);
   }
 
@@ -373,7 +448,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "ready") return open(editing ? "cover" : hasInviteStep ? INVITE_STEP : EXTRAS_STEP);
     if (step === INVITE_STEP) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open("cover");
-    open(flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1]);
+    if (step === "vibe" && hasSource) return open(SOURCE_STEP);
+    const previous = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1];
+    open(form.placeId && (previous === "place" || previous === "kind") ? "vibe" : previous);
   }
 
   /** The card needs a face photo and a name – publishing waits for them (logged out: checked after login). */
@@ -411,6 +488,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const tFlow = useTranslations("create.flow");
   const share = placeShare(form);
   const tKind = useTranslations("create.kind");
+  // "Host from your place": the rental period on "Where and when?", what the price came from on "Crew and price".
+  const rentSource = rentSourceOf(form, ownPlace);
+  const windowBounds = form.datesMode === "exact" ? { start: form.startDate, end: form.endDate } : monthBounds(form.month, today, form.monthEnd);
+  const windowNights = windowBounds.start && windowBounds.end ? nightsBetween(windowBounds.start, windowBounds.end) : 0;
+  const rentalNote = rentSource?.rentFrom && rentSource.rentTo ? tHome("rental", { range: format.longRange(rentSource.rentFrom, rentSource.rentTo) ?? "" }) : undefined;
+  const rentNote = rentSource && windowNights > 0 ? tHome("fromRent", { rent: format.price(rentSource.monthlyRent, ownPlace?.currency ?? previewStay.currency), nights: windowNights }) : undefined;
   const kindPlace = accommodationOf(form.accommodationType);
   // "Villa" – or "Picked with the crew" for "Not sure yet".
   const kindLine = kindPlace ? kindPlace.type.label.charAt(0).toUpperCase() + kindPlace.type.label.slice(1) : form.accommodationCategory === "unsure" ? tKind("unsureLine") : "";
@@ -448,14 +531,15 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     : undefined;
   const body = (
     <>
+      {step === SOURCE_STEP && <SourceStep {...stepProps} places={myPlaces} windows={windowCounts} />}
       {step === "vibe" && <VibeStep {...stepProps} />}
-      {step === "place" && <PlaceStep {...stepProps} />}
+      {step === "place" && <PlaceStep {...stepProps} currency={previewStay.currency} />}
       {step === "kind" && <KindStep {...stepProps} />}
       {step === "depth" && depthOn && <DepthStep {...stepProps} locked={depthIsLocked} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
-      {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} />}
+      {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} rentalNote={rentalNote} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
-      {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} />}
+      {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} rentNote={rentNote} maxSpots={form.placeId && ownPlace ? maxCrewOf(ownPlace) : undefined} />}
       {step === "title" && <TitleDetail {...stepProps} titleMax={titleMax} />}
       {step === "photos" && <PhotosDetail {...stepProps} />}
       {step === "why" && <WhyDetail {...stepProps} />}
@@ -509,7 +593,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
 
   const tVerify = useTranslations("verification");
   const stepValid = Object.keys(currentErrors).length === 0;
-  const canGoBack = step !== "vibe" && !(editing && step === "details");
+  const canGoBack = step !== SOURCE_STEP && (step !== "vibe" || hasSource) && !(editing && step === "details");
   const onList = step === "details";
   // A new House: the progress bar over the full width under the header (the six steps and the review).
   const flowSteps: StepKey[] = [...flowSteps0, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];

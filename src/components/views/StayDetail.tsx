@@ -5,7 +5,7 @@ import { firstTouch } from "@/lib/growth";
 import { paidOverlapOf } from "@/lib/overlap";
 import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
-import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, MessageCircle, Plus, RotateCcw, SearchX, Share, UserPlus, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, Plus, RotateCcw, SearchX, Share, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
@@ -270,6 +270,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const hostFirstName = host?.name.split(" ")[0] ?? t("theHost");
 
   /** Closed Houses: talk to the host directly (log in first if needed). */
+  // "Ask {host} a question →" in the text: the existing message to the host about this House – for visitors only.
+  const askHost = !isHost && !stay.isExample && host ? { name: hostFirstName, onClick: messageHost } : undefined;
+
   function messageHost() {
     if (previewing) return showToast(tPreview("noChanges"));
     requireAuth((userId) => {
@@ -451,17 +454,12 @@ function StayDetailContent({ stay }: { stay: Stay }) {
               </Button>
             ) : (
             <>
-              {/* One row for visitors: "Request to join" (cream) · "Request with a friend" (outline) · Message host as a round 48px icon.
-                  The host and crew invite through the crew's "+" circles (components/CrewRow); sharing sits top right beside "…". */}
+              {/* One row for visitors: "Request to join" (orange) · "Request with a friend" (outline). Asking the host lives in the text
+                  ("Ask {host} a question →" under Who I'm looking for and House rules); the host and crew invite through the crew's "+". */}
               {!isHost && canJoin && !myRequest && requestsOpen && (
                 <Button variant="creamOutline" size="lg" onClick={startRequestWithFriend} data-preview-action>
                   <UserPlus aria-hidden />
                   {tInvite("requestWithFriend")}
-                </Button>
-              )}
-              {!isHost && (
-                <Button variant="creamOutline" size="lg" icon onClick={messageHost} data-preview-action aria-label={t("messageHost", { name: hostFirstName })}>
-                  <MessageCircle aria-hidden />
                 </Button>
               )}
             </>
@@ -494,8 +492,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         />
       )}
     <Container className="explore-width">
-      {/* Under the band, 48px down: the sections in one order, 40px apart, right on the page's background. Text reads at most 760px wide. */}
-      <div className="mt-12 flex flex-col gap-10">
+      {/* Under the band, 32px down – so the window's edge (--stage-peek) cuts under the headings, never through a line of text: the sections
+          in one order, 40px apart, right on the page's background. Text reads at most 760px wide. */}
+      <div className="mt-8 flex flex-col gap-10">
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
         {role === "member" && <MemberSections stay={stay} crew={crew} />}
         <div className="flex max-w-[760px] flex-col gap-6 empty:hidden">
@@ -505,10 +504,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           {/* Invited from a past crew: who asked, and that the spot waits for the answer (the buttons are the CTA). */}
           {myRequest?.status === "invited" && (
             <div className="flex items-start gap-4">
-              <MailOpen className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+              <MailOpen className="mt-1 size-5 shrink-0 text-muted" aria-hidden />
               <div className="min-w-0 text-body">
-                <p className="font-semibold text-ink">{t("invite.title", { name: inviterName })}</p>
-                <p className="mt-0.5 text-muted">{t("invite.text")}</p>
+                {/* A heading like the sections' (text-subhead, 12px to the text): the window's edge under the band cuts under it. */}
+                <h2 className="text-subhead text-ink">{t("invite.title", { name: inviterName })}</h2>
+                <p className="mt-3 text-muted">{t("invite.text")}</p>
                 {/* "Don't invite me again": no more invites from this person – this one is declined, nobody is told. */}
                 <button
                   type="button"
@@ -561,7 +561,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             </div>
             {!lookingRight && (
               <div className="empty:hidden">
-                <HouseLooking stay={stay} />
+                <HouseLooking stay={stay} ask={askHost} />
               </div>
             )}
             {/* The crew's vote on the place or the dates (the crew itself is in the head). */}
@@ -583,7 +583,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             </div>
             {lookingRight && (
               <div className="empty:hidden">
-                <HouseLooking stay={stay} />
+                <HouseLooking stay={stay} ask={askHost} />
               </div>
             )}
           </div>
@@ -730,8 +730,9 @@ function OpenYourOwn({ stay, declined }: { stay: Stay; declined: boolean }) {
   const place = format.placeName(stay);
   return (
     <div>
-      <p className="font-semibold">{declined ? t("titleDeclined") : t("titleFull")}</p>
-      <p className="mt-1 text-small text-muted">
+      {/* A heading like the sections' (text-subhead, 12px to the text): the window's edge under the band cuts under it, never through text. */}
+      <h2 className="text-subhead text-ink">{declined ? t("titleDeclined") : t("titleFull")}</h2>
+      <p className="mt-3 text-small text-muted">
         {stay.startDate && stay.endDate ? t("text", { dates, place }) : t("textNoDates", { place })}
       </p>
       <Button variant="secondary" href={createHref({ region: stay.region, from: stay.startDate, to: stay.endDate })} className="mt-4">
@@ -779,9 +780,9 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   const tVerifyCta = useTranslations("verification");
   // Today only in the browser: the server (and the prerender) must not read the clock – "" there, so nothing has ended yet.
   const today = useSyncExternalStore(noSubscribe, todayIso, () => "");
-  // Exactly one main action on the page: whichever state the CTA is in replaces "Request to join" (the default below). In the head (Ember) it's
-  // cream with ink words, a second choice beside it a cream outline; in the floating glass bar ink, the usual primary.
-  const variant = big ? "cream" : "primary";
+  // Exactly one main action on the page: whichever state the CTA is in replaces "Request to join" (the default below). In the head's strip it's
+  // the one orange button ("join in", --brand-action), a second choice beside it a light outline; in the floating glass bar ink, the usual primary.
+  const variant = big ? "brand" : "primary";
   const outline = big ? "creamOutline" : "secondary";
   const size = big ? "lg" : "md";
   // An example House: always the waitlist – it can't be over, full or asked for.
@@ -1004,6 +1005,9 @@ const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
  * One fixed-size modal, three steps sliding horizontally: message → (logged out) login → sent.
  * The message lives here, so going back from the login step – or closing mid-way – never loses it.
  */
+/** A request's note for the host: at most this many characters. */
+const NOTE_MAX = 300;
+
 function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn, onClose, onSend, blockedNote }: RequestSheetProps) {
   const t = useTranslations("request");
   const tAge = useTranslations("age");
@@ -1093,13 +1097,19 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                 </p>
               )}
               <div>
+                {/* An optional note for the host (300 characters) – it shows with the request in the host's list. */}
+                <label htmlFor="request-note" className="mb-2 flex items-baseline justify-between gap-3 text-small font-semibold text-ink">
+                  {t("noteLabel", { name: hostName })}
+                  <span className="font-normal tabular-nums text-muted">{t("noteCounter", { count: message.length, max: NOTE_MAX })}</span>
+                </label>
                 <textarea
+                  id="request-note"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => setMessage(e.target.value.slice(0, NOTE_MAX))}
+                  maxLength={NOTE_MAX}
                   rows={4}
                   autoFocus
-                  aria-label={t("messageLabel", { name: hostName })}
-                  placeholder={t("placeholder")}
+                  placeholder={t("notePlaceholder", { name: hostName })}
                   className={cn(formTextarea, "min-h-30")}
                 />
                 <p className="mt-2 text-small text-muted">{waitlist ? t("waitlistNote", { name: hostName }) : t("optionalNote")}</p>

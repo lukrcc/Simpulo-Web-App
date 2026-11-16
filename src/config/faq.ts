@@ -39,6 +39,12 @@ export const FAQ: Record<FaqRole, readonly FaqItem[]> = {
     { id: "not-full", question: "What if my House doesn't fill up?", answer: "Nobody pays until the crew is complete. If it doesn't fill by your deadline, the House closes and nobody is charged." },
     { id: "who-joins", question: "Who decides who joins?", answer: "You. Nobody is in without your yes." },
     { id: "place-host", question: "Do I need a place already?", answer: "No. Bring a place you've found – or just a city, dates and a budget and pick the place together with your crew." },
+    {
+      id: "host-at-home",
+      question: "Can I host where I live?",
+      answer:
+        "Yes – save the place you live in and open Houses in it for a few weeks at a time. You live there too and count as one of the crew, so the spots are your free rooms. Only do it if you're allowed to: renting rooms out or having paying guests usually needs your landlord's permission, and some cities have their own rules for short stays. Simpulo doesn't check this for you – when you save the place, you confirm it yourself.",
+    },
     { id: "verify", question: "Do I need to verify?", answer: "Only when you receive money: setting up payouts includes an ID check by our payment partner. Hosts with payouts get the Verified badge automatically." },
   ],
 };

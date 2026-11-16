@@ -2,15 +2,23 @@
 //   tint: the lower third's average colour, kept in hue and saturation, its lightness set to 12 % (HSL) – the card darkens in the photo's own
 //         colour, not in grey.
 //   lum:  the lower third's mean lightness 0–1 (luma of the sRGB values) – bright photos get a stronger darkening.
+//   accent: the whole photo's average colour (hex) – the stage takes a breath of it (lib/stageTint.ts: House page, Your houses, the profile).
+//   palette: { main, dark } (hex) like node-vibrant's swatches – the House page's mood: main tints the stage (cover), dark carries the
+//            photo tiles' run under their words (host photo, place photo). Our own small quantiser (sharp is here already): the photo at
+//            64px, colours bucketed by 4 bits a channel; main = the most common bucket of middle lightness (.25–.75), dark = the most common
+//            dark muted bucket (saturation < .45, lightness .08–.30); an empty band takes the average, moved into the band.
+// Photos: the House photos, the profile photos and the place images (public/destinations).
+
 // The mock adapter hands these to the cards (getPhotoMeta in src/lib/data); without an entry: tint #1A1614, lum .5.
-// TODO(backend): run the same as a Cloud Function on upload and store { tint, lum } with the photo.
+// TODO(backend): a Cloud Function computes the same on upload and stores { tint, lum, accent, palette } with the photo (House.accentColor,
+// House.accentPalette, User.photoAccents).
 // Run: node scripts/image-meta.mjs
 import sharp from "sharp";
 import { readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = "public";
-const DIRS = ["public/mock/houses"];
+const DIRS = ["public/mock/houses", "public/mock/users", "public/destinations"];
 const IMAGE = /\.(webp|jpe?g|png|avif)$/i;
 
 const walk = (dir) => readdirSync(dir).flatMap((name) => {
@@ -59,7 +67,43 @@ for (const file of DIRS.flatMap(walk).sort()) {
     luma += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
   }
   const [h, s] = toHsl([r / n, g / n, b / n]);
-  meta[`/${relative(ROOT, file)}`] = { tint: hex(toRgb([h, s, 0.12])), lum: Math.round((luma / n) * 1000) / 1000 };
+  // The whole photo's average colour.
+  const whole = await sharp(file).resize(64).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  let ar = 0, ag = 0, ab = 0;
+  const wn = whole.info.width * whole.info.height;
+  for (let i = 0; i < whole.data.length; i += whole.info.channels) {
+    ar += whole.data[i];
+    ag += whole.data[i + 1];
+    ab += whole.data[i + 2];
+  }
+  const avg = [ar / wn, ag / wn, ab / wn];
+  // The palette: buckets of 4 bits a channel, counted.
+  const buckets = new Map();
+  for (let i = 0; i < whole.data.length; i += whole.info.channels) {
+    const key = ((whole.data[i] >> 4) << 8) | ((whole.data[i + 1] >> 4) << 4) | (whole.data[i + 2] >> 4);
+    const bucket = buckets.get(key) ?? { r: 0, g: 0, b: 0, n: 0 };
+    bucket.r += whole.data[i];
+    bucket.g += whole.data[i + 1];
+    bucket.b += whole.data[i + 2];
+    bucket.n += 1;
+    buckets.set(key, bucket);
+  }
+  const swatches = [...buckets.values()].map((bk) => {
+    const rgb = [bk.r / bk.n, bk.g / bk.n, bk.b / bk.n];
+    const [hh, ss, ll] = toHsl(rgb);
+    return { rgb, h: hh, s: ss, l: ll, n: bk.n };
+  });
+  const pick = (test, score, fallback) => {
+    const inBand = swatches.filter(test);
+    if (inBand.length === 0) return hex(toRgb(fallback));
+    return hex(inBand.toSorted((x, y) => score(y) - score(x))[0].rgb.map(Math.round));
+  };
+  const [ah, as, al] = toHsl(avg);
+  const palette = {
+    main: pick((c) => c.l >= 0.25 && c.l <= 0.75, (c) => c.n, [ah, as, Math.min(Math.max(al, 0.35), 0.65)]),
+    dark: pick((c) => c.s < 0.45 && c.l >= 0.08 && c.l < 0.3, (c) => c.n, [ah, Math.min(as, 0.3), 0.2]),
+  };
+  meta[`/${relative(ROOT, file)}`] = { tint: hex(toRgb([h, s, 0.12])), lum: Math.round((luma / n) * 1000) / 1000, accent: hex(avg.map(Math.round)), palette };
 }
 writeFileSync("data/image-meta.json", `${JSON.stringify(meta, null, 2)}\n`);
 console.log("data/image-meta.json", Object.keys(meta).length, "photos");

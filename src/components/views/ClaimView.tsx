@@ -70,7 +70,6 @@ function ClaimOffer({ stay }: { stay: Stay }) {
     name: claim.name,
     age: 0,
     country: "",
-    city: "",
     languages: [],
     bio: "",
     photos: claim.photoUrl ? [claim.photoUrl] : [],

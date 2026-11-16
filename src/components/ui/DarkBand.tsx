@@ -8,9 +8,9 @@ import { FullBleedSection } from "./FullBleedSection";
  * the title and from the cards to its foot (no eyebrow) – the cards and their host tabs never touch its edge. Its words turn cream by
  * themselves (subtitle 65 %, "See all"); the shelf's arrows cream 12 % circles.
  */
-export function DarkBand({ children, className }: { children: ReactNode; /** Instead of the 64px before and after it (e.g. "mt-16 mb-0" at a page's end) */ className?: string }) {
+export function DarkBand({ children, className, pageEnd = false }: { children: ReactNode; /** Instead of the 64px before and after it (e.g. "mt-16 mb-0" at a page's end) */ className?: string; /** The page's last section: the footer follows right on it (--footer-gap 0) */ pageEnd?: boolean }) {
   return (
-    <FullBleedSection inner="explore-width" padding="py-16" className={cn("band-dark", className ?? "my-16")}>
+    <FullBleedSection inner="explore-width" padding="py-16" className={cn("band-dark", className ?? "my-16")} lastTone={pageEnd ? "dark" : undefined}>
       {children}
     </FullBleedSection>
   );

@@ -6,6 +6,7 @@ import { MOCK_PAYMENT_ISSUES, MOCK_HYPOTHESIS_RESULTS, MOCK_METRICS_HISTORY, MOC
 import { mockInstalledUsers, mockPaidUsers, mockPastEarnings, mockPreviewForUrl } from "../mock-extras";
 import { mockClaimableStays, mockGrowthEvents, withMockAttribution } from "../mock-growth";
 import { withMockHistory } from "../mock-chat";
+import { withMockPlaces } from "../mock-places";
 import { MOCK_SEARCHES, MOCK_SEARCHES_LIVE } from "../mock-saved-searches";
 import type { DataAdapter } from "./adapter";
 import { delayedPageOfList } from "./paging";
@@ -29,6 +30,7 @@ export const mockAdapter: DataAdapter = {
   pastEarnings: (userId) => mockPastEarnings[userId] ?? [],
   previewForUrl: mockPreviewForUrl,
   withAttribution: withMockAttribution,
+  withPlaces: withMockPlaces,
   withChatHistory: withMockHistory,
   growthEvents: mockGrowthEvents,
   loadPage: (list, keyOf, request) => delayedPageOfList(list, keyOf, request),

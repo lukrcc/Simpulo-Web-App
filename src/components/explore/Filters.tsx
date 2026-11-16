@@ -10,7 +10,8 @@ import { Chip, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
 import { BarSheet } from "@/components/ui/BarSheet";
-import { BAR_CATEGORIES_MAX, BAR_CATEGORIES_MIN } from "@/config/explore";
+import { BAR_CATEGORIES_MAX, BAR_CATEGORIES_MIN, BAR_CATEGORY_DROP_ORDER } from "@/config/explore";
+import type { Vibe } from "@/lib/types";
 import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { convertApprox } from "@/lib/rates";
@@ -320,12 +321,13 @@ function MoreGrid({ options, value, onPick, countOf }: { options: ReadonlyArray<
  * category picked from More (or one that doesn't fit) comes first in the group, with a × that clears it. Single choice; a click on the chosen
  * one clears it.
  */
-export function BarCategories({ label, moreLabel, top, all, value, onSelect, countOf }: { label: string; moreLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** Open Houses per category, shown in More */ countOf?: (value: string) => number }) {
+export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, top, all, value, onSelect, countOf }: { label: string; moreLabel: string; /** The button's words with no theme capsule shown: "Themes" */ themesLabel: string; /** …with some shown: "More themes" */ moreThemesLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** Open Houses per category, shown in More */ countOf?: (value: string) => number }) {
   const moreRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [layout, setLayout] = useState<{ n: number; first: boolean }>({ n: BAR_CATEGORIES_MIN, first: false });
+  // Which of the bar's themes are shown (keys, in their order) – the rest dropped in BAR_CATEGORY_DROP_ORDER (Creator first) until it fits.
+  const [shownKeys, setShownKeys] = useState<readonly string[]>(() => top.slice(0, BAR_CATEGORIES_MIN));
   const active = value.length === 1 ? value[0] : null;
   const option = (key: string) => all.find((o) => o.value === key);
   const candidates = useMemo(() => top.slice(0, BAR_CATEGORIES_MAX), [top]);
@@ -347,36 +349,25 @@ export function BarCategories({ label, moreLabel, top, all, value, onSelect, cou
       const chips = Array.from(measure.children) as HTMLElement[];
       const more = chips.at(-1)!.offsetWidth;
       const widthOf = (key: string) => chips.find((c) => c.dataset.key === key)?.offsetWidth ?? 0;
-      const pickedWidth = chips.find((c) => c.dataset.key === "picked")?.offsetWidth ?? 0;
-      const fit = (widths: number[]) => {
-        let n = 0;
-        let used = more;
-        for (const w of widths.slice(0, BAR_CATEGORIES_MAX)) {
-          if (used + w + 8 > room) break;
-          used += w + 8;
-          n += 1;
-        }
-        // At least BAR_CATEGORIES_MIN – unless even those would push All filters into the right group (narrow windows): then only what fits.
-        const minWidth = more + widths.slice(0, BAR_CATEGORIES_MIN).reduce((sum, w) => sum + w + 8, 0);
-        return minWidth <= room ? Math.max(BAR_CATEGORIES_MIN, n) : n;
-      };
-      let n = fit(candidates.map(widthOf));
-      let first = false;
-      // The chosen one isn't among them: it comes first (with its ×), the others after it.
-      if (active && !candidates.slice(0, n).includes(active)) {
-        first = true;
-        n = fit([pickedWidth, ...candidates.filter((k) => k !== active).map(widthOf)]);
+      // Drop capsules in the set order (config/explore.ts BAR_CATEGORY_DROP_ORDER: Creator first, then the others) until the rest and the
+      // theme button fit between Short trips and All filters; Short trips always stays. Never overlapping.
+      const order = [...BAR_CATEGORY_DROP_ORDER.filter((k) => candidates.includes(k as Vibe)), ...candidates.filter((k) => !BAR_CATEGORY_DROP_ORDER.includes(k as Vibe))];
+      let keep: string[] = [...candidates];
+      for (let drops = 0; drops <= order.length; drops += 1) {
+        keep = candidates.filter((k) => !order.slice(0, drops).includes(k));
+        const used = more + keep.reduce((sum, k) => sum + widthOf(k) + 8, 0);
+        if (used <= room) break;
       }
-      setLayout((l) => (l.n === n && l.first === first ? l : { n, first }));
+      setShownKeys((current) => (current.length === keep.length && current.every((k, i) => k === keep[i]) ? current : keep));
     };
     count();
     const observer = new ResizeObserver(count);
     observer.observe(slot);
     for (const el of others()) observer.observe(el);
     return () => observer.disconnect();
-  }, [active, candidates]);
+  }, [candidates]);
 
-  const shown = layout.first && active ? [active, ...candidates.filter((k) => k !== active)].slice(0, layout.n) : candidates.slice(0, layout.n);
+  const shown = shownKeys;
   const visible = shown.map(option).filter((o): o is ChipOption => Boolean(o));
   const more = all.filter((o) => !shown.includes(o.value));
   const pick = (key: string) => onSelect(value.length === 1 && value[0] === key ? null : key);
@@ -397,14 +388,9 @@ export function BarCategories({ label, moreLabel, top, all, value, onSelect, cou
       {o.label}
     </Chip>
   );
-  const moreWords = (
-    <>
-      {moreLabel}
-      <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
-    </>
-  );
   const moreClass = chipStyles(false, { variant: "bare", size: "lg" });
-  const activeOption = active ? option(active) : undefined;
+  // A theme chosen that has no capsule shown: the theme button carries its name.
+  const hiddenActive = active && !shown.includes(active) ? option(active) : undefined;
   return (
     <div ref={rootRef} className="chip-row relative flex shrink-0 items-center">
       {/* The hidden copies the count is measured from – same classes, so the same sizes. */}
@@ -414,17 +400,19 @@ export function BarCategories({ label, moreLabel, top, all, value, onSelect, cou
             const o = option(key);
             return o ? chip(o, false, false) : null;
           })}
-          {activeOption && chip(activeOption, true, true, "picked")}
           <button type="button" tabIndex={-1} className={moreClass}>
-            {moreWords}
+            {hiddenActive ? hiddenActive.label : moreThemesLabel}
+            <ChevronDown className="size-3.5" aria-hidden />
           </button>
         </div>
       </div>
       <div role="radiogroup" aria-label={label} className="flex items-center">
-        {visible.map((o) => chip(o, value.includes(o.value), layout.first && o.value === active))}
+        {visible.map((o) => chip(o, value.includes(o.value), false))}
         {more.length > 0 && (
-          <button ref={moreRef} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog" className={moreClass}>
-            {moreWords}
+          // Its words by what's shown: a theme chosen from it – its name (the chosen look); no capsules – "Themes"; some – "More themes".
+          <button ref={moreRef} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog" data-picked={hiddenActive ? "" : undefined} className={moreClass}>
+            {hiddenActive ? hiddenActive.label : visible.length === 0 ? themesLabel : moreThemesLabel}
+            <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
         )}
       </div>

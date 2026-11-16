@@ -33,13 +33,15 @@ interface ComposerProps {
   placeholder: string;
   replyTo: ReplyDraft | null;
   onCancelReply: () => void;
+  /** Instead of the store's sendMessage (Simpulo Support: a follow-up to the ticket); text only */
+  onSend?: (text: string) => void;
 }
 
 /**
  * Paperclip (photos, PDFs), emoji, auto-growing textarea, send. Enter sends, Shift+Enter adds a line.
  * Pasting a link previews it above the textarea before sending.
  */
-export function Composer({ threadId, placeholder, replyTo, onCancelReply }: ComposerProps) {
+export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend }: ComposerProps) {
   const t = useTranslations("messages.thread");
   const locale = useLocale();
   const { sendMessage } = useStore();
@@ -72,7 +74,9 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
       name: file.name,
       size: file.size,
     }));
-    sendMessage(threadId, text, { ...(attachments.length > 0 && { attachments }), ...(replyTo && { replyToId: replyTo.id }) });
+    if (onSend) {
+      if (text.trim()) onSend(text.trim());
+    } else sendMessage(threadId, text, { ...(attachments.length > 0 && { attachments }), ...(replyTo && { replyToId: replyTo.id }) });
     setText("");
     setFiles([]);
     setPastedUrl(null);
@@ -204,15 +208,15 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply }: Comp
           aria-label={t("messageLabel")}
           className="ml-1 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-input text-ink outline-none placeholder:text-ink/45"
         />
-        {/* The chat's one main action, 40px: empty cream 8 % with a cream 40 % arrow; with something to send cream with an ink arrow. Enter sends,
-            Shift+Enter a new line. */}
+        {/* The chat's one main action, 40px: empty grey and disabled; with something to send the action orange (--brand-action, "join in")
+            with a white arrow (an icon: 3 : 1 is enough). Enter sends, Shift+Enter a new line. */}
         <button
           type="submit"
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse transition-[background-color,color,transform] hover:bg-(--action-hover) active:scale-95",
-            "disabled:pointer-events-none disabled:bg-ink/8 disabled:text-ink/40",
+            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-(--brand-action) text-on-signal transition-[background-color,color,transform] hover:bg-(--brand-action-fill) active:scale-95",
+            "disabled:pointer-events-none disabled:bg-ink/8 disabled:text-ink/35",
           )}
         >
           <ArrowUp className="size-[18px]" strokeWidth={2.25} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { Check, ChevronRight, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
+import { Check, ChevronRight, Home, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
 import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPIC, TYPE_IMAGE, accommodationOf, livingCategoriesFor, type AccommodationCategoryId } from "@/config/accommodation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
@@ -26,7 +26,8 @@ import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
 import { hostProgrammeEarning } from "@/lib/fees";
 import { linkDomain } from "@/lib/links";
-import type { Currency, User, Vibe } from "@/lib/types";
+import type { Currency, Place, User, Vibe } from "@/lib/types";
+import Link from "next/link";
 import { CURRENCIES, VIBES, cn, nightsBetween } from "@/lib/utils";
 import { InForHint, SearchDemandHint } from "./SearchDemandHint";
 import {
@@ -129,13 +130,122 @@ export function VibeStep({ form, patch, errorOf }: StepProps) {
   );
 }
 
+/* ───────────────────────── 0 · Host from your place ───────────────────────── */
+
+/**
+ * Before step 1, only for hosts with saved places: each place as a large choice (photo, name, free rooms · city, how many windows) and
+ * "New place". Chosen = black like every choice of yours; Next fills in what the place knows (CreateStayForm).
+ */
+export function SourceStep({ form, patch, errorOf, places, windows }: StepProps & { places: readonly Place[]; /** Windows per place id */ windows: Readonly<Record<string, number>> }) {
+  const t = useTranslations("create.home");
+  const choice = (chosen: boolean) =>
+    cn(
+      "press flex min-h-44 flex-col items-start gap-3 overflow-hidden rounded-3xl border text-left transition-colors duration-150",
+      chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5",
+    );
+  return (
+    <div id={fieldId("source")} className="space-y-3">
+      <p className="text-small text-muted">{t("ownTitle")}</p>
+      <div role="radiogroup" aria-label={t("ownTitle")} className="grid gap-3 sm:grid-cols-2">
+        {places.map((place) => {
+          const chosen = form.source === "own" && form.placeId === place.id;
+          return (
+            <button key={place.id} type="button" role="radio" aria-checked={chosen} onClick={() => patch({ source: "own", placeId: place.id })} className={choice(chosen)}>
+              <span className="relative block aspect-[16/7] w-full bg-ink/5">
+                {place.photos[0] && <Img src={place.photos[0]} alt="" fill sizes="360px" className="object-cover" />}
+              </span>
+              <span className="flex flex-col gap-1 px-6 pb-5">
+                <span className="text-h3">{place.name}</span>
+                <span className={cn("text-small", chosen ? "text-inverse/75" : "text-muted")}>
+                  {t("placeMeta", { rooms: place.freeSpots, city: place.address.city || regionShortName(place.address.region) })} · {t("windows", { count: windows[place.id] ?? 0 })}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        <button type="button" role="radio" aria-checked={form.source === "new"} onClick={() => patch({ source: "new", placeId: "" })} className={cn(choice(form.source === "new"), "p-6")}>
+          <Plus className={cn("size-6", form.source === "new" ? "text-inverse" : "text-muted")} aria-hidden />
+          <span className="text-h3">{t("newTitle")}</span>
+          <span className={cn("text-body", form.source === "new" ? "text-inverse/75" : "text-muted")}>{t("newText")}</span>
+        </button>
+      </div>
+      <ErrorLine text={errorOf("source")} />
+    </div>
+  );
+}
+
+/**
+ * "I live here – save it to Your places" under "I have a place" (a new place only): the rental period, the rent per month and the required
+ * statement "I'm allowed to host guests here …" with "What this means" (the Hosting FAQ, #host-at-home). Saved on publish.
+ */
+function SavePlace({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
+  const t = useTranslations("create.home");
+  const rentError = errorOf("rentPeriod");
+  return (
+    <div className="space-y-5 pt-2">
+      <div>
+        <CheckRow label={t("liveHere")} checked={form.savePlace} onChange={(savePlace) => patch({ savePlace, ...(!savePlace && { allowedToHost: false }) })} />
+        <p className="pl-8 text-small text-muted">{t("liveHereText")}</p>
+      </div>
+      {form.savePlace && (
+        <div className="space-y-5 pl-8">
+          <div id={fieldId("rentPeriod")}>
+            <Group label={t("rentPeriod")}>
+              <DateRangePicker
+                start={form.rentFrom}
+                end={form.rentTo}
+                // A rental may have started long ago: no earliest day (the calendar opens on this month).
+                min=""
+                maxNights={RENT_MAX_NIGHTS}
+                invalid={Boolean(rentError)}
+                onChange={(rentFrom, rentTo) => {
+                  patch({ rentFrom, rentTo });
+                  if (rentTo) touch("rentPeriod");
+                }}
+                onClose={() => touch("rentPeriod")}
+              />
+            </Group>
+            {rentError && <div className="mt-2"><ErrorLine text={rentError} /></div>}
+          </div>
+          <div id={fieldId("monthlyRent")} className="max-w-80">
+            <FormField label={t("monthlyRent")} error={errorOf("monthlyRent")}>
+              <AmountInput value={form.monthlyRent} onChange={(monthlyRent) => patch({ monthlyRent })} currency={currency} label={t("monthlyRent")} invalid={Boolean(errorOf("monthlyRent"))} onBlur={() => touch("monthlyRent")} />
+            </FormField>
+          </div>
+          <div id={fieldId("allowedToHost")}>
+            <label className="flex cursor-pointer items-start gap-3 text-body text-ink">
+              <Checkbox
+                checked={form.allowedToHost}
+                aria-invalid={Boolean(errorOf("allowedToHost")) || undefined}
+                onChange={(e) => {
+                  patch({ allowedToHost: e.target.checked });
+                  touch("allowedToHost");
+                }}
+                className="mt-0.5"
+              />
+              <span>{t("allowed")}</span>
+            </label>
+            <Link href="/faq#host-at-home" target="_blank" rel="noopener noreferrer" className="ml-8 mt-1 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+              {t("whatThisMeans")} ↗
+            </Link>
+            {errorOf("allowedToHost") && <div className="ml-8 mt-2"><ErrorLine text={errorOf("allowedToHost")} /></div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A rental period may run for years (the date picker's limit, in nights). */
+const RENT_MAX_NIGHTS = 3660;
+
 /* ───────────────────────── 2 · Got a place? ───────────────────────── */
 
 /**
  * Two large choices: "I have a place" (the host found it, the crew splits it, an exact price) or "Let's find it together" (a city and a
  * budget, the crew picks the place). Chosen = black, like every choice of yours.
  */
-export function PlaceStep({ form, patch, errorOf }: StepProps) {
+export function PlaceStep({ form, patch, errorOf, touch, currency }: StepProps & { /** The House currency – the rent of a place to save */ currency: Currency }) {
   const t = useTranslations("create.flow");
   const options = [
     { value: "set" as const, icon: KeyRound, title: t("placeSetTitle"), text: t("placeSetText") },
@@ -152,7 +262,8 @@ export function PlaceStep({ form, patch, errorOf }: StepProps) {
               type="button"
               role="radio"
               aria-checked={chosen}
-              onClick={() => patch({ placeMode: value, ...(value === "set" ? { budgetTbd: false } : {}) })}
+              // "Let's find it together" isn't the host's own place any more.
+              onClick={() => patch({ placeMode: value, ...(value === "set" ? { budgetTbd: false } : { placeId: "", savePlace: false, allowedToHost: false }) })}
               className={cn(
                 "press flex min-h-44 flex-col items-start gap-3 rounded-3xl border p-6 text-left transition-colors duration-150",
                 chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5",
@@ -166,6 +277,8 @@ export function PlaceStep({ form, patch, errorOf }: StepProps) {
         })}
       </div>
       <ErrorLine text={errorOf("placeMode")} />
+      {/* A place found for this House can be saved as the host's own ("Host from your place") – never a saved one again. */}
+      {form.placeMode === "set" && !form.placeId && <SavePlace form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />}
     </div>
   );
 }
@@ -327,7 +440,7 @@ export function KindStep({ form, patch, errorOf }: StepProps) {
 /* ───────────────────────── 4 · Where + when ───────────────────────── */
 
 /** The place search; once there's a place, it stands as a chip (a tap searches again). The months follow. */
-export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepProps & { /** "" before hydration */ today: string; editing: boolean }) {
+export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalNote }: StepProps & { /** "" before hydration */ today: string; editing: boolean; /** A window of the host's own place: "Your rental: …" */ rentalNote?: string }) {
   const t = useTranslations("create.house");
   const tFlow = useTranslations("create.flow");
   const format = useFormatter();
@@ -340,7 +453,15 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepP
   return (
     <div className="space-y-6">
       <div id={fieldId("region")}>
-        {form.region.trim() ? (
+        {form.region.trim() && form.placeId ? (
+          // A window of the host's own place: the place is where they live.
+          <Chip active size="lg" aria-label={placeName} className="pointer-events-none">
+            <span className="flex items-center gap-1.5">
+              <Home className="size-4" aria-hidden />
+              {placeName}
+            </span>
+          </Chip>
+        ) : form.region.trim() ? (
           <Chip active size="lg" onClick={() => patch({ region: "", city: "" })} aria-label={tFlow("changePlace", { place: placeName })}>
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4" aria-hidden />
@@ -385,6 +506,7 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing }: StepP
             </div>
           )}
           <div className="mt-2 space-y-2">
+            {rentalNote && <p className="text-small text-muted">{rentalNote}</p>}
             <ErrorLine text={errorOf("month")} />
             {form.datesMode !== "crew" && (
               <Button variant="tertiary" className="-ml-4" onClick={() => patch({ datesMode: exact ? "month" : "exact" })}>
@@ -443,7 +565,7 @@ const earliest = (today: string) => {
  * How many people, including the host: 2–10, the exact number (crewSize = spotsTotal, the host counts). Editing never goes below who's in, and
  * adds how many may wait on the waitlist once it's full.
  */
-export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing }: StepProps & { currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
+export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpots, editing, rentNote, maxSpots }: StepProps & { /** "From your rent: …" – a window of the host's own place */ rentNote?: string; /** The host's own place: its free rooms + the host */ maxSpots?: number; currency: Currency; /** Editing a locked place: price and currency live on the Manage page */ locked: boolean; /** The crew already in (editing), host included */ minSpots: number; editing: boolean }) {
   const t = useTranslations("create.house");
   const tKind = useTranslations("create.kind");
   const tVerify = useTranslations("verification");
@@ -451,7 +573,7 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
   const hostFees = useFeatureFlag("hostPremium");
   return (
     <div className="space-y-8">
-      <CrewSize form={form} patch={patch} minSpots={minSpots} />
+      <CrewSize form={form} patch={patch} minSpots={minSpots} maxSpots={maxSpots} />
       {errorOf("spotsTotal") && <ErrorLine text={errorOf("spotsTotal")} />}
       {/* Boats: the step's one nudge. */}
       {form.accommodationCategory === CHARTERED_CATEGORY && <p className="-mt-6 text-small text-muted">{tKind("skipper")}</p>}
@@ -480,7 +602,7 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
       {locked ? (
         <p className="text-body text-muted">{t("lockedNote")}</p>
       ) : form.placeMode === "set" ? (
-        <SetPrice form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />
+        <SetPrice form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} rentNote={rentNote} />
       ) : (
         <BudgetFields form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} locked={locked} allowOpen={editing} />
       )}
@@ -523,9 +645,9 @@ function HostFeeField({ form, patch, errorOf, touch, currency }: StepProps & { c
  * "People, including you": chips 2–8 and "More", which opens a number field without an upper limit. From 20 people a quiet hint (it
  * blocks nothing). Editing never goes below who's in.
  */
-function CrewSize({ form, patch, minSpots }: { form: FormState; patch: Patch; minSpots: number }) {
+function CrewSize({ form, patch, minSpots, maxSpots }: { form: FormState; patch: Patch; minSpots: number; /** The host's own place: no more than its free rooms + the host */ maxSpots?: number }) {
   const t = useTranslations("create.flow");
-  const chips = Array.from({ length: SPOTS_CHIPS_MAX - SPOTS_MIN + 1 }, (_, i) => SPOTS_MIN + i).filter((n) => n >= minSpots);
+  const chips = Array.from({ length: SPOTS_CHIPS_MAX - SPOTS_MIN + 1 }, (_, i) => SPOTS_MIN + i).filter((n) => n >= minSpots && (maxSpots === undefined || n <= maxSpots));
   const [more, setMore] = useState(form.spotsTotal > SPOTS_CHIPS_MAX);
   return (
     <div id={fieldId("spotsTotal")}>
@@ -546,9 +668,11 @@ function CrewSize({ form, patch, minSpots }: { form: FormState; patch: Patch; mi
               {n}
             </Chip>
           ))}
-          <Chip role="radio" aria-checked={more} active={more} onClick={() => setMore(true)}>
-            {t("more")}
-          </Chip>
+          {(maxSpots === undefined || maxSpots > SPOTS_CHIPS_MAX) && (
+            <Chip role="radio" aria-checked={more} active={more} onClick={() => setMore(true)}>
+              {t("more")}
+            </Chip>
+          )}
           {more && (
             <input
               autoFocus
@@ -567,7 +691,7 @@ function CrewSize({ form, patch, minSpots }: { form: FormState; patch: Patch; mi
 }
 
 /** "I have a place": the total and (optional) the listing; live under it the equal share, and what a guest adds (config/policies). */
-function SetPrice({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
+function SetPrice({ form, patch, errorOf, touch, currency, rentNote }: StepProps & { currency: Currency; rentNote?: string }) {
   const t = useTranslations("create.flow");
   const format = useFormat();
   const share = placeShare(form);
@@ -578,6 +702,7 @@ function SetPrice({ form, patch, errorOf, touch, currency }: StepProps & { curre
         <FormField label={t("totalPrice")} error={errorOf("totalPrice")}>
           <AmountInput value={form.totalPrice} onChange={(v) => patch({ totalPrice: v })} currency={currency} label={t("totalPrice")} invalid={Boolean(errorOf("totalPrice"))} onBlur={() => touch("totalPrice")} />
         </FormField>
+        {rentNote && <p className="col-span-2 -mt-1 text-small text-muted">{rentNote}</p>}
         <FormField label={t("currency")}>
           <Combobox aria-label={t("currency")} value={currency} options={CURRENCIES.map((code) => ({ value: code, label: code }))} onPick={(option) => patch({ currency: option.value as Currency })} />
         </FormField>

@@ -75,3 +75,32 @@ export function peopleInFor(list: readonly InFor[], house: InForQuery, today: st
   const ids = list.filter((s) => isActiveInFor(s, today) && !exclude.has(s.userId) && inForMatches(s, house)).map((s) => s.userId);
   return [...new Set(ids)];
 }
+
+export interface SharedInFor {
+  /** The two people, in the order they were passed in */
+  userIds: [string, string];
+  placeId: string;
+  /** The first month both are in for (YYYY-MM, not before this month) */
+  month: string;
+}
+
+/**
+ * Two of these people in for the same place in overlapping months ("Mara and Jonas are in for Lisbon in March – open a House?"): the
+ * first such pair in the order of `userIds`, or null. Running signals only.
+ */
+export function sharedInFor(list: readonly InFor[], userIds: readonly string[], today: string): SharedInFor | null {
+  const now = today.slice(0, 7);
+  const signals = userIds.map((id) => activeInForOf(list, id, today));
+  for (let i = 0; i < userIds.length; i++) {
+    for (let j = i + 1; j < userIds.length; j++) {
+      for (const a of signals[i]) {
+        for (const b of signals[j]) {
+          if (a.placeId !== b.placeId) continue;
+          const month = [a.monthFrom, b.monthFrom, now].toSorted().at(-1)!;
+          if (month <= a.monthTo && month <= b.monthTo) return { userIds: [userIds[i], userIds[j]], placeId: a.placeId, month };
+        }
+      }
+    }
+  }
+  return null;
+}

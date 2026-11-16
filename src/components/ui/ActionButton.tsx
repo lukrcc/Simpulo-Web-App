@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "soft" | "onImage" | "cream" | "creamOutline";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "soft" | "onImage" | "cream" | "creamOutline" | "brand";
 /** md 44px, the standard · sm 36px · lg 48px (a list's "Show more"). */
 export type ButtonSize = "md" | "sm" | "lg";
 
@@ -23,6 +23,8 @@ const variants: Record<ButtonVariant, string> = {
   cream: primaryLook,
   // The stage's other actions: a 1px outline in the words' colour at 25 %.
   creamOutline: "border border-ink/25 text-ink hover:-translate-y-px hover:bg-ink/6 disabled:translate-y-0 disabled:text-ink/50",
+  // "Join in": the one orange button of an area (the House page's strip) – the action orange's deep step with white words (4.7 : 1).
+  brand: "bg-(--brand-action-fill) text-on-signal shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-(--brand-action-fill-hover) hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
 };
 
 const sizes: Record<ButtonSize, string> = { md: "h-11 px-5", sm: "h-9 px-4", lg: "h-12 px-6" };
@@ -86,5 +88,5 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
  * fully round, the plus a 16px block on the text's centre line. Below 768px only the plus, a circle of the same height.
  */
 export const headerActionStyles = cn(
-  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-ink/25 bg-transparent px-4 text-nav-main font-semibold text-ink transition-colors duration-150 hover:bg-ink/6 max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
+  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-(--header-pill) px-4 text-nav-main font-semibold text-ink transition-colors duration-150 hover:bg-(--header-pill-hover) max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
 );

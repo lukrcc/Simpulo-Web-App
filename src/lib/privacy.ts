@@ -83,3 +83,12 @@ export function publicProfileMeta(user: Pick<User, "id" | "privacy" | "hostTier"
   const host = hostsPublicly({ stays: stays as Stay[] }, user.id);
   return { host, index: host && hostPageInSearch(user) };
 }
+
+/**
+ * The Houses someone hosts that this viewer may see (open or coming, published or booked, never unlisted) – from the profile's own view
+ * (lib/profilePrivacy.ts profileViewFor, which already leaves out what this viewer mustn't see). The ONE count behind "Hosts {n} Houses"
+ * on the profile and the hosted rows of its "Hosting & going" – so the two always agree.
+ */
+export function visibleHostedHouses(view: { hostingNow: readonly Stay[] }, userId: string, today: string): Stay[] {
+  return view.hostingNow.filter((s) => s.hostId === userId && (s.status === "published" || s.status === "booked") && s.visibility !== "unlisted" && s.endDate >= today);
+}

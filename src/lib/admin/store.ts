@@ -85,6 +85,22 @@ export function addSupportTicket(ticket: Omit<SupportTicket, "id" | "createdAt" 
 }
 
 /**
+ * The person's own follow-up in Messages › Simpulo Support: added to the ticket's replies (from "user"); an answered ticket is open again.
+ * TODO(backend): server side, with the team told.
+ */
+export function addTicketFollowUp(ticketId: string, text: string) {
+  const at = new Date().toISOString();
+  write({
+    ...read(),
+    tickets: read().tickets.map((t) =>
+      t.id === ticketId
+        ? { ...t, replies: [...t.replies, { id: newId("r"), from: "user" as const, text, createdAt: at }], status: t.status === "answered" || t.status === "closed" ? "open" : t.status }
+        : t,
+    ),
+  });
+}
+
+/**
  * The public ideas board (config/platform.ts ideasBoard, off): one vote per idea and browser – the ids voted for stay in this browser.
  * TODO(backend): one vote per account, server side.
  */
