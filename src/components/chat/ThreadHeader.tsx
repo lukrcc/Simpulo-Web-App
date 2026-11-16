@@ -10,13 +10,14 @@ import { useTranslations } from "next-intl";
 import { openGetHelp } from "@/lib/support/feedback";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
-import { ChatBackgroundSheet } from "@/components/chat/ChatBackground";
+import { ChatThemeDots, ChatThemeHint } from "@/components/chat/ChatBackground";
+import { CHAT_THEMES } from "@/config/chat-themes";
 import { CrewMenu } from "@/components/stay/CrewMenu";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Img } from "@/components/ui/Img";
 import { useFormat } from "@/i18n/format";
-import { crewInOf, findUser, getCrew, useStore } from "@/lib/store";
+import { crewInOf, findUser, getCrew, useStore, chatThemeOf } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
 import { shortNameOf } from "@/lib/shortName";
@@ -46,8 +47,7 @@ function BackToInbox({ embedded }: { embedded: boolean }) {
  * Payment and booking status stay on the House page.
  */
 export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded: boolean; threadId: string }) {
-  const tTheme = useTranslations("messages.chatTheme");
-  const [theming, setTheming] = useState(false);
+  const { dark, seeHint } = useChatMenu(threadId);
   const t = useTranslations("messages.thread");
   const tHelp = useTranslations("help");
   const f = useFormat();
@@ -99,19 +99,24 @@ export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded:
         )}
 
         {/* Help in context, one click: "Report" opens "Get help" with Safety chosen, "Get help" with this House. */}
-        <CrewMenu
-          stay={stay}
-          afterLeaveHref="/messages"
-          extraItems={[
-            { label: tTheme("menu"), onSelect: () => setTheming(true) },
-            { label: tHelp("report"), onSelect: () => openGetHelp({ houseId: stay.id, category: "safety" }) },
-            { label: tHelp("getHelpLink"), onSelect: () => openGetHelp({ houseId: stay.id }) },
-          ]}
-        />
+        {/* The "…": Chat background (dots, stays open) · the House's entries · Get help · Report · the one red entry at the bottom. */}
+        <span className="relative flex">
+          <CrewMenu
+            stay={stay}
+            afterLeaveHref="/messages"
+            top={<ChatThemeDots threadId={threadId} />}
+            dark={dark}
+            onOpen={seeHint}
+            helpItems={[
+              { label: tHelp("getHelpLink"), onSelect: () => openGetHelp({ houseId: stay.id }) },
+              { label: tHelp("report"), onSelect: () => openGetHelp({ houseId: stay.id, category: "safety" }) },
+            ]}
+          />
+          <ChatThemeHint />
+        </span>
 
         {canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
         <WhosInSheet stay={stay} open={whosIn} onClose={() => setWhosIn(false)} />
-        <ChatBackgroundSheet threadId={threadId} open={theming} onClose={() => setTheming(false)} />
       </header>
 
       {stay.status === "closed" && (
@@ -127,8 +132,7 @@ export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded:
  */
 export function DirectHeader({ stay, other, embedded, threadId }: { stay: Stay; other?: User; embedded: boolean; threadId: string }) {
   const t = useTranslations("messages.thread");
-  const tTheme = useTranslations("messages.chatTheme");
-  const [theming, setTheming] = useState(false);
+  const { dark, seeHint } = useChatMenu(threadId);
   const router = useRouter();
   const store = useStore();
   const hosting = stay.hostId === store.currentUserId;
@@ -155,8 +159,20 @@ export function DirectHeader({ stay, other, embedded, threadId }: { stay: Stay; 
         </Button>
       )}
       {/* Blocking ends the chat – it's gone from the inbox, so go back there. */}
-      {other && <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} extraItems={[{ label: tTheme("menu"), onSelect: () => setTheming(true) }]} className="shrink-0" />}
-      <ChatBackgroundSheet threadId={threadId} open={theming} onClose={() => setTheming(false)} />
+      {other && (
+        <span className="relative flex shrink-0">
+          <SafetyMenu target={{ kind: "user", id: other.id }} user={other} onBlocked={() => router.push("/messages")} top={<ChatThemeDots threadId={threadId} />} dark={dark} onOpen={seeHint} />
+          <ChatThemeHint />
+        </span>
+      )}
     </header>
   );
+}
+
+/** The chat's "…": dark when the chat's background is (Night – menus take the tone of the surface they come from); opening it ends the hint. */
+function useChatMenu(threadId: string) {
+  const store = useStore();
+  const dark = CHAT_THEMES[chatThemeOf(store, threadId)].dark;
+  const seeHint = () => store.markHintSeen("chatTheme");
+  return { dark, seeHint };
 }

@@ -1,41 +1,191 @@
 /*
- * Admin-only colours (/admin, CLAUDE.md "Admin"). They exist only inside .admin-scope (AdminFrame) – outside /admin these variables are
- * unset, so nothing in the app can take on an admin colour. The admin is light only; every colour in its components is a token (these and
- * the app's in tokens.css), never a hex value – a dark mode later only redefines tokens.
+ * Admin-only tokens (/admin, CLAUDE.md "Admin"). They exist only inside .admin-scope (AdminFrame) – and on <body> while an admin page is open
+ * (body:has(.admin-scope)), so its sheets and menus (portalled to <body>) are dark too. Outside /admin none of this applies.
  *
- * Each accent has ONE job:
- *   ember (critical) – "needs you": badges, open safety tickets, deadlines, action needed (and the critical status dot)
- *   ocean (chart-1)  – focus: the page's main number, the chosen tab (a filled capsule, ocean 12 %), a chart's main line; at most one per area
- *   no dark surface in the admin – the profit chart on the overview stands open on the light page
- *   good / warning / critical – as small dots beside numbers (getStatus, lib/admin/metrics.ts); the one exception: the overview's profit
- *   bars (amber below €5,000, sage from it)
+ * Admin only dark: warm graphite ground, surfaces a step lighter, lines white 8 %; text white 92 % · secondary 60 % · labels 45 %.
+ * Colour with meaning only: at most three status colours per screen (sage · amber · ember, brightened for the dark ground) plus ocean for
+ * focus; everything else neutral (white steps). Area colours (market · growth · operate · launch) only as the 2px line over an area and as
+ * icon colour, muted (70 %), never as dots.
+ * Compact: page margin 32 · between sections 40 · inside 16; type: page title 28 · big number 48 · figure 32 · text 15 · label 12 caps;
+ * table rows 44 · capsules 32 · side list 34 per entry.
  */
-.admin-scope {
-  color-scheme: light;
+.admin-scope,
+body:has(.admin-scope) {
+  color-scheme: dark;
 
-  --adm-good: #6f9a7e; /* sage */
-  --adm-warning: #d9a441; /* amber */
-  --adm-critical: #f0633a; /* ember – the app's orange */
-  --adm-chart-1: #4f7ea8; /* ocean */
-  --adm-chart-2: #8a6a9e; /* plum */
-  --adm-chart-3: #b9785a; /* clay */
-  --adm-neutral: rgb(34 30 27 / 0.25); /* no target: a quiet dot */
+  /* The ground and its tokens (the app's names, so every shared component turns dark with it). */
+  --bg: #141210;
+  --surface: #1c1a17;
+  --surface-2: #24211e;
+  --card: #1c1a17;
+  --band: #1c1a17;
+  --text: rgb(255 255 255 / 0.92);
+  --text-muted: rgb(255 255 255 / 0.6);
+  --text-faint: rgb(255 255 255 / 0.45);
+  --adm-label: rgb(255 255 255 / 0.45);
+  --line: rgb(255 255 255 / 0.08);
+  --input-border: rgb(255 255 255 / 0.14);
+  --text-inverse: #141210;
+  --chip-bg: rgb(255 255 255 / 0.06);
+  --chip-bg-hover: rgb(255 255 255 / 0.1);
+  --card-soft: #1c1a17;
+  --card-soft-edge: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  --card-soft-shadow: none;
+  --glass-bg: rgb(28 26 23 / 0.94);
+  --glass-edge: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --tooltip-bg: rgb(52 48 44 / 0.96);
+  --danger: #f07c56;
 
-  --adm-good-soft: rgb(111 154 126 / 0.12);
-  --adm-warning-soft: rgb(217 164 65 / 0.12);
-  --adm-critical-soft: rgb(240 99 58 / 0.12);
-  --adm-chart-1-soft: rgb(79 126 168 / 0.12);
-  --adm-chart-2-soft: rgb(138 106 158 / 0.12);
-  --adm-chart-3-soft: rgb(185 120 90 / 0.12);
+  /* Status, brightened for the dark ground – the only colours with meaning. */
+  --adm-good: #8fc29c; /* sage */
+  --adm-warning: #e3b354; /* amber */
+  --adm-critical: #f07c56; /* ember */
+  --adm-chart-1: #72aadf; /* ocean – focus: the page's main number, the chosen tab, a chart's one colour */
+  /* Comparison lines and second series: white steps, not more colours. */
+  --adm-chart-2: rgb(255 255 255 / 0.62);
+  --adm-chart-3: rgb(255 255 255 / 0.38);
+  --adm-chart-4: rgb(255 255 255 / 0.24);
+  /* A fifth comparison line: dashed white (the line itself), not another colour. */
+  --adm-chart-5: rgb(255 255 255 / 0.14);
+  --adm-neutral: rgb(255 255 255 / 0.28); /* no target: a quiet dot */
 
-  /* Area colours (NOT status): which part of the admin something belongs to – side-list icons, the 2px line under a page's title, the 2px
-     line atop a Cockpit tile (the area it leads to). Never as dots – dots are status only. */
-  --adm-area-market: #b9785a; /* clay */
-  --adm-area-growth: #8a6a9e; /* plum */
-  --adm-area-operate: #6e7781; /* slate */
-  --adm-area-launch: #9b948e; /* neutral grey – Steer: Cockpit, Money, Vision, the launch criteria */
+  --adm-good-soft: rgb(143 194 156 / 0.14);
+  --adm-warning-soft: rgb(227 179 84 / 0.14);
+  --adm-critical-soft: rgb(240 124 86 / 0.14);
+  --adm-chart-1-soft: rgb(114 170 223 / 0.16);
+  --adm-chart-2-soft: rgb(255 255 255 / 0.08);
+  --adm-chart-3-soft: rgb(255 255 255 / 0.06);
 
-  /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 12 %, no edge. */
+  /* Area colours (NOT status – never sage, amber, ember): Markt blue · Wachstum violet · Betrieb turquoise · Launch rosé. The side list's icons
+     and headings, the 2px line over an area. Headings: the colour 16 % behind – the only colour surface in the side list. */
+  --adm-area-market: #7fa6e8;
+  --adm-area-growth: #b092e0;
+  --adm-area-operate: #5fc3c0;
+  --adm-area-launch: #e89ab4;
+  --adm-area-market-chip: rgb(127 166 232 / 0.16);
+  --adm-area-growth-chip: rgb(176 146 224 / 0.16);
+  --adm-area-operate-chip: rgb(95 195 192 / 0.16);
+  --adm-area-launch-chip: rgb(232 154 180 / 0.16);
+
+  /* Vision › Zeitleiste: the current phase, ocean 10 %. */
+  --adm-here: rgb(114 170 223 / 0.1);
+  /* BlockMap's connection lines: white 15 %, lit white 80 %. */
+  --adm-link: rgb(255 255 255 / 0.15);
+  --adm-link-on: rgb(255 255 255 / 0.8);
+  /* BlockMap: a block white 4 %, hover 7 %. */
+  --adm-block: rgb(255 255 255 / 0.04);
+  --adm-block-hover: rgb(255 255 255 / 0.07);
+
+  /* "Needs you" capsules: white 6 %, only the dot coloured. */
+  --adm-pill: rgb(255 255 255 / 0.06);
+  --adm-pill-hover: rgb(255 255 255 / 0.1);
+
+  /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 16 %, no edge. */
   --sel-bg: var(--adm-chart-1-soft);
   --sel-border: transparent;
+
+  /* The active state: bold, white, underlined; idle tabs white 60 %, idle side-list entries white 70 %, hover 90 %. */
+  --adm-active: #ffffff;
+  --adm-idle: rgb(255 255 255 / 0.6);
+  --adm-idle-nav: rgb(255 255 255 / 0.7);
+  --adm-hover: rgb(255 255 255 / 0.9);
+
+  /* Compact spacing. */
+  --adm-page: 32px;
+  /* The page top padding: content and side list start on the same line. */
+  --admin-page-pad: 32px;
+  --adm-section: 40px;
+  --adm-inner: 16px;
+  --adm-row-h: 44px;
+  --adm-capsule-h: 32px;
+  /* The side list: entries follow the window's height (13 entries + 4 area capsules ≈ 17 rows under the header), 34–48px. */
+  --sidebar-item-h: clamp(34px, calc((100svh - var(--header-h) - 140px) / 17), 48px);
+  --adm-nav-h: var(--sidebar-item-h);
+
+  /* Compact type: page title 28 · big number 48 · figure 32 · text 15 · label 12 caps. */
+  --text-h2: 28px; /* the page title (AdminShell) */
+  --text-display: 48px; /* the one big number */
+  --text-h1: 32px; /* figures */
+  --text-h3: 20px;
+  --text-body: 15px;
+  --text-body-lg: 15px;
+  --text-eyebrow: 12px;
 }
+body:has(.admin-scope) {
+  background-color: var(--bg);
+}
+.admin-scope {
+  background-color: var(--bg);
+  color: var(--text);
+}
+/* Table rows 44px (every admin table). */
+.admin-scope :is(td, th) {
+  height: var(--adm-row-h);
+  padding-block: 0;
+}
+
+
+
+/*
+ * The active state in the admin (rule): bold, white, underlined – no surface for a choice anywhere; colour surfaces only in the area headings.
+ * Side list: the active entry white 100 % semibold, its word underlined (2px, 4px below, only as wide as the word), its icon white; the
+ * others white 70 % regular, their icon the area colour muted; hover white 90 %, no surface. The counts stay as they are.
+ */
+.admin-scope [data-admin-nav] nav a,
+.admin-scope [data-admin-nav] nav a:hover {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--adm-idle-nav);
+  font-weight: 400;
+}
+.admin-scope [data-admin-nav] nav a:hover {
+  color: var(--adm-hover);
+}
+.admin-scope [data-admin-nav] nav a svg {
+  opacity: 0.7;
+}
+.admin-scope [data-admin-nav] nav a[aria-current="page"] {
+  color: var(--adm-active);
+  font-weight: 600;
+}
+.admin-scope [data-admin-nav] nav a[aria-current="page"] svg {
+  color: var(--adm-active);
+  opacity: 1;
+}
+.admin-scope [data-admin-nav] nav a[aria-current="page"] > span.truncate {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+/* Every choice row in the admin (CapsuleGroup – period, chart switch, filters, statuses): no track, no capsule; chosen bold, white,
+   underlined; the others white 60 %. */
+.admin-scope [data-capsule-group] {
+  background-color: transparent;
+  padding: 0;
+  gap: 4px;
+}
+.admin-scope [data-capsule-group] > div > span[aria-hidden] {
+  display: none;
+}
+.admin-scope [data-capsule-group] > div > :is(button, a),
+.admin-scope [data-capsule-group] > div > :is(button, a):hover {
+  background-color: transparent;
+  box-shadow: none;
+  padding-inline: 8px;
+  color: var(--adm-idle);
+}
+.admin-scope [data-capsule-group] > div > :is(button, a):hover {
+  color: var(--adm-hover);
+}
+.admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]) {
+  color: var(--adm-active);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+
+
+
+

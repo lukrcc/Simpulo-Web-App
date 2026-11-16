@@ -135,6 +135,8 @@ export interface UserSettings {
   chatTheme?: ChatThemeId;
   /** …and per chat ({ [threadId]: theme }), over the one for all */
   chatThemes?: Record<string, ChatThemeId>;
+  /** One-time hints this person has seen ("chatTheme": "New: pick your chat background") – never shown again, on any device */
+  seenHints?: string[];
 }
 
 /** The platforms a profile can link to. */

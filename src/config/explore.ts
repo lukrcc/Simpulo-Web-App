@@ -40,13 +40,11 @@ export const VISIBLE_CHIPS = 8;
 
 
 
-/** The bar's categories on Explore, in this order: as many as fit between Short trips and All filters (at least 2, at most 6); the rest under
- *  "More". Later personalised. */
+/** The header bar's theme capsules on Explore, in this order: as many as fit after Short trips (before the theme button and All filters),
+ *  filled from the first, at most 6; the rest under "More themes". Later personalised. */
 export const TOP_CATEGORIES: readonly Vibe[] = ["creator", "fitness", "remote-work", "surf-water", "founder", "wellness"];
 /** The bar shows at least this many and at most this many categories. */
 export const BAR_CATEGORIES_MIN = 2;
-/** When the header bar runs out of room, its theme capsules go in this order (Creator first); Short trips always stays. */
-export const BAR_CATEGORY_DROP_ORDER: readonly Vibe[] = ["creator", "wellness", "founder", "surf-water", "remote-work", "fitness"];
 export const BAR_CATEGORIES_MAX = 6;
 
 /** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */

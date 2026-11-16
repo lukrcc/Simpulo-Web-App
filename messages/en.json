@@ -2953,7 +2953,9 @@
         "mist": "Mist",
         "sand": "Sand",
         "night": "Night"
-      }
+      },
+      "hint": "New: pick your chat background",
+      "hintClose": "Got it"
     }
   },
   "profile": {
@@ -3283,7 +3285,6 @@
       "basicNote": "You see the full profile once you're in the same House.",
       "privateTitle": "A Simpulo member",
       "hostsHouses": "Hosts {count, plural, one {# House} other {# Houses}}",
-      "numAgain": "would live again",
       "nowIn": "now in {city}",
       "editPart": "Edit {part}",
       "partBasics": "name, age and place",
@@ -3326,11 +3327,10 @@
       "nowInHouse": "Now in {place}",
       "barHouses": "{count, plural, one {House} other {Houses}}",
       "barLivedWith": "Lived with",
-      "barAgainValue": "{x} of {y}",
-      "barReplies": "Replies within",
-      "barRepliesValue": "{h} h",
       "editWithProgress": "Edit profile · {done} of {total}",
-      "bothKnowTwo": "You both know {a} and {b}"
+      "bothKnowTwo": "You both know {a} and {b}",
+      "barCountries": "{count, plural, one {Country} other {Countries}}",
+      "barHosted": "Hosted"
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {

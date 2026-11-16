@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
+import { grouped, MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { useStore } from "@/lib/store";
@@ -19,12 +19,19 @@ interface CrewMenuProps {
   minimal?: boolean;
   /** More entries first (the detail page puts "Edit" here) */
   extraItems?: MoreMenuItem[];
+  /** A group of its own after the House's entries (the chat: Get help · Report) */
+  helpItems?: MoreMenuItem[];
+  /** Above everything, not an entry (the chat: its background dots) */
+  top?: React.ReactNode;
+  onOpen?: () => void;
+  /** From a dark surface: the dark menu */
+  dark?: boolean;
   /** The trigger's look (on the detail page's photo banner: onImage) */
   buttonClassName?: string;
 }
 
 /** ⋯ menu for a crew: members can leave; the host can't – they edit or close the House instead. */
-export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [], buttonClassName }: CrewMenuProps) {
+export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [], helpItems = [], top, onOpen, dark, buttonClassName }: CrewMenuProps) {
   const t = useTranslations("houses");
   const store = useStore();
   const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = store;
@@ -51,7 +58,9 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [
     showToast(t("detail.closedToast"));
   }
 
-  const items: MoreMenuItem[] = [...extraItems, ...(isHost
+  // Groups, a fine line between them: the House (host: Manage · Edit · Stop taking requests; member: View House) · help (Get help · Report) ·
+  // the one red entry at the very bottom (host: Cancel this House; member: Leave).
+  const houseItems: MoreMenuItem[] = [...extraItems, ...(isHost
     ? [
         ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/h/${stay.id}/manage` }]),
         ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/your-houses/${stay.id}/edit` }]),
@@ -64,16 +73,18 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [
               },
             ]
           : []),
-        ...(stay.status === "closed" ? [] : [{ label: t("crewMenu.close"), onSelect: () => setConfirm("close"), danger: true }]),
       ]
-    : [
-        ...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }]),
-        { label: t("crewMenu.leave"), onSelect: () => setConfirm("leave"), danger: true },
-      ])];
+    : [...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }])])];
+  const dangerItems: MoreMenuItem[] = isHost
+    ? stay.status === "closed"
+      ? []
+      : [{ label: t("crewMenu.close"), onSelect: () => setConfirm("close"), danger: true }]
+    : [{ label: t("crewMenu.leave"), onSelect: () => setConfirm("leave"), danger: true }];
+  const items = grouped(houseItems, helpItems, dangerItems);
 
   return (
     <>
-      <MoreMenu items={items} buttonClassName={buttonClassName} />
+      <MoreMenu items={items} buttonClassName={buttonClassName} top={top} onOpen={onOpen} dark={dark} />
       <ConfirmSheet
         open={confirm === "leave"}
         title={t("crewMenu.leaveTitle")}

@@ -39,7 +39,7 @@ export function SideNav({
   top?: ReactNode;
   hash?: boolean;
   plain?: boolean;
-  /** Admin: entries 36px, icon 18px, words 14px, 2px apart – the whole list fits without scrolling */
+  /** Admin: entries --sidebar-item-h (34–48px with the window's height), icon 20px, words 16–17px – the whole list fills the height */
   compact?: boolean;
   /** The icons' colour class (Admin: the area colour); the words stay ink */
   iconClass?: string;
@@ -48,17 +48,17 @@ export function SideNav({
   return (
     <nav aria-label={label} className={className}>
       {top}
-      <ul className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1", top ? "mt-4" : null)}>
+      <ul className={cn("flex flex-col", compact ? "gap-0" : "gap-1", top ? "mt-4" : null)}>
         {items.map(({ key, href, label: text, icon: Icon, selected, current, badge }) => {
           const linkClass = cn(
             listItemStyles(selected),
-            compact ? "flex h-9 items-center gap-2.5 px-3 text-nav" : "flex h-11 items-center gap-3 px-4 text-body",
+            compact ? "flex h-(--sidebar-item-h,36px) items-center gap-3 px-3 text-nav-side" : "flex h-11 items-center gap-3 px-4 text-body",
             selected ? "font-semibold text-ink" : "text-ink/70",
             plain && "max-lg:border-transparent max-lg:font-normal max-lg:text-ink/70",
           );
           const body = (
             <>
-              <Icon aria-hidden className={cn("shrink-0", compact ? "size-[18px]" : "size-5", iconClass)} strokeWidth={1.75} />
+              <Icon aria-hidden className={cn("shrink-0", "size-5", iconClass)} strokeWidth={1.75} />
               <span className="min-w-0 flex-1 truncate">{text}</span>
               {badge}
               <ChevronLeft aria-hidden className="size-4 rotate-180 text-ink/30 lg:hidden" />

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminMoney } from "@/components/admin/AdminCockpit";
 
-export const metadata: Metadata = { title: "Admin · Geld" };
+export const metadata: Metadata = { title: "Geld · Admin" };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

@@ -54,9 +54,10 @@ export function CapsuleGroup<T extends string>({
       ref={ref as Ref<HTMLDivElement>}
       aria-label={label}
       role={as === "group" ? "radiogroup" : undefined}
+      data-capsule-group
       className={cn(
         "relative flex items-center rounded-full bg-ink/5",
-        size === "sm" ? "h-9 p-0.5" : "h-11 p-1",
+        size === "sm" ? "h-(--adm-capsule-h,36px) p-0.5" : "h-11 p-1",
         className,
       )}
     >

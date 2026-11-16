@@ -23,9 +23,8 @@ export type AdminTask =
 const DAY_MS = 86_400_000;
 const daysBefore = (today: string, days: number) => new Date(Date.parse(`${today}T12:00:00Z`) - days * DAY_MS).toISOString();
 
-/** Every open task, in order; done ones and the ones put off until after today left out. */
-export function adminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[]): AdminTask[] {
-  const open = inputs.admin.tickets.filter(isOpenTicket);
+/** Every task from every source, the tickets given (open ones, or the finished ones), in the list's order. */
+function buildTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[], open: readonly SupportTicket[]): AdminTask[] {
   const tasks: AdminTask[] = [
     ...open.filter((t) => t.category === "safety").map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: "safety", createdAt: ticket.createdAt, ticket })),
     ...paymentIssues.map((issue): AdminTask => ({ id: `payment:${issue.id}`, kind: "money", createdAt: issue.at, issue, stay: inputs.stays.find((s) => s.id === issue.stayId) })),
@@ -43,10 +42,24 @@ export function adminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentI
       .map((host): AdminTask => ({ id: `host:${host.user.id}`, kind: "hostWarning", createdAt: host.newest || daysBefore(inputs.today, 0), host })),
     ...open.filter((t) => t.category !== "safety").map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: "support", createdAt: ticket.createdAt, ticket })),
   ];
+  return tasks.toSorted(byKindThenAge);
+}
+
+const byKindThenAge = (a: AdminTask, b: AdminTask) => TASK_KINDS.indexOf(a.kind) - TASK_KINDS.indexOf(b.kind) || a.createdAt.localeCompare(b.createdAt);
+
+/** Every open task, in order; done ones and the ones put off until after today left out. */
+export function adminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[]): AdminTask[] {
   const state = inputs.admin.taskStates;
-  return tasks
-    .filter((task) => !state[task.id]?.done && !(state[task.id]?.snoozedUntil && state[task.id]!.snoozedUntil! > inputs.today))
-    .toSorted((a, b) => TASK_KINDS.indexOf(a.kind) - TASK_KINDS.indexOf(b.kind) || a.createdAt.localeCompare(b.createdAt));
+  return buildTasks(inputs, paymentIssues, inputs.admin.tickets.filter(isOpenTicket)).filter((task) => !state[task.id]?.done && !(state[task.id]?.snoozedUntil && state[task.id]!.snoozedUntil! > inputs.today));
+}
+
+/** Posteingang › Erledigt: tasks marked done and the finished tickets (answered, closed, done – not merged duplicates), in the same order. */
+export function doneAdminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[]): AdminTask[] {
+  const state = inputs.admin.taskStates;
+  const finished = inputs.admin.tickets.filter((t) => !t.mergedInto && !isOpenTicket(t));
+  const marked = buildTasks(inputs, paymentIssues, inputs.admin.tickets.filter(isOpenTicket)).filter((task) => state[task.id]?.done);
+  const tickets = finished.map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: ticket.category === "safety" ? "safety" : "support", createdAt: ticket.createdAt, ticket }));
+  return [...marked, ...tickets].toSorted(byKindThenAge);
 }
 
 /** The day after today (YYYY-MM-DD) – "Später" shows a task again then. */

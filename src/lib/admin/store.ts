@@ -23,7 +23,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, location: saved.location ?? seed.location }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location }
       : seed;
   } catch {
     current = seed;
@@ -164,6 +164,11 @@ export function setFundingMoved(moved: boolean) {
 /** Internal – lib/admin/actions.ts sets a data-room document's status (Finanzierung › Unterlagen) and logs it. */
 export function setFundingDoc(key: string, status: AdminData["fundingDocs"][string]) {
   write({ ...read(), fundingDocs: { ...read().fundingDocs, [key]: status } });
+}
+
+/** Internal – lib/admin/actions.ts sets a backlog item's status (System › Backlog) and logs it. */
+export function setBacklog(id: string, status: AdminData["backlog"][string]) {
+  write({ ...read(), backlog: { ...read().backlog, [id]: status } });
 }
 
 /** Internal – lib/admin/actions.ts saves the location decision (Vision › Standort) and logs it. */

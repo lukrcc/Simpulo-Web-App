@@ -10,8 +10,7 @@ import { Chip, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
 import { Anchored } from "@/components/ui/Anchored";
 import { BarSheet } from "@/components/ui/BarSheet";
-import { BAR_CATEGORIES_MAX, BAR_CATEGORIES_MIN, BAR_CATEGORY_DROP_ORDER } from "@/config/explore";
-import type { Vibe } from "@/lib/types";
+import { BAR_CATEGORIES_MAX, BAR_CATEGORIES_MIN } from "@/config/explore";
 import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 import { convertApprox } from "@/lib/rates";
@@ -150,11 +149,11 @@ export function PriceFilter({
     <div className="flex items-center gap-6">
       <div className="min-w-0 flex-1">
         {/* Over the slider's track (12px in from either side, like the track). */}
-        <div aria-hidden className="mx-3 flex h-10 items-end gap-px">
+        <div aria-hidden data-histogram className="mx-3 flex h-10 items-end gap-px">
           {bars.map((count, i) => {
             const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
             const inRange = at >= current.min && at <= current.max;
-            return <span key={i} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink/55" : "bg-ink/14")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+            return <span key={i} data-in={inRange || undefined} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink/55" : "bg-ink/14")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
           })}
         </div>
         <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
@@ -326,7 +325,7 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  // Which of the bar's themes are shown (keys, in their order) – the rest dropped in BAR_CATEGORY_DROP_ORDER (Creator first) until it fits.
+  // Which of the bar's themes are shown: the first ones of TOP_CATEGORIES (config order) that fit the room left in the bar.
   const [shownKeys, setShownKeys] = useState<readonly string[]>(() => top.slice(0, BAR_CATEGORIES_MIN));
   const active = value.length === 1 ? value[0] : null;
   const option = (key: string) => all.find((o) => o.value === key);
@@ -349,14 +348,14 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
       const chips = Array.from(measure.children) as HTMLElement[];
       const more = chips.at(-1)!.offsetWidth;
       const widthOf = (key: string) => chips.find((c) => c.dataset.key === key)?.offsetWidth ?? 0;
-      // Drop capsules in the set order (config/explore.ts BAR_CATEGORY_DROP_ORDER: Creator first, then the others) until the rest and the
-      // theme button fit between Short trips and All filters; Short trips always stays. Never overlapping.
-      const order = [...BAR_CATEGORY_DROP_ORDER.filter((k) => candidates.includes(k as Vibe)), ...candidates.filter((k) => !BAR_CATEGORY_DROP_ORDER.includes(k as Vibe))];
-      let keep: string[] = [...candidates];
-      for (let drops = 0; drops <= order.length; drops += 1) {
-        keep = candidates.filter((k) => !order.slice(0, drops).includes(k));
-        const used = more + keep.reduce((sum, k) => sum + widthOf(k) + 8, 0);
-        if (used <= room) break;
+      // Fill in config order (config/explore.ts TOP_CATEGORIES): as many capsules as fit together with the theme button in the room the
+      // other items leave (Where | When, Short trips, All filters); Short trips always stays. Never overlapping.
+      const keep: string[] = [];
+      let used = more;
+      for (const key of candidates) {
+        used += widthOf(key) + 8;
+        if (used > room) break;
+        keep.push(key);
       }
       setShownKeys((current) => (current.length === keep.length && current.every((k, i) => k === keep[i]) ? current : keep));
     };
@@ -416,7 +415,7 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
           </button>
         )}
       </div>
-      <BarSheet open={open} onClose={() => setOpen(false)} anchor={moreRef} align="end" label={moreLabel} className="p-5">
+      <BarSheet open={open} onClose={() => setOpen(false)} anchor={moreRef} label={moreLabel} className="p-5">
         <MoreGrid
           countOf={countOf}
           options={more}

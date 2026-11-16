@@ -153,7 +153,7 @@ export const MOCK_FOUNDING_HOST_IDS: readonly string[] = applications()
 
 export function mockAdminData() {
   const apps = applications();
-  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, location: { country: null, reason: "" } };
+  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, backlog: {}, location: { country: null, reason: "" } };
 }
 
 /** ⚠ DEMO DATA: what Google Analytics will report from phase 4 – visitors per week, countries, sources, the way to the sign-up. */

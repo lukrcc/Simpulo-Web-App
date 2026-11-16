@@ -4,7 +4,7 @@
 // founder (greyed until the move is set, no export, no PDF); nowhere else in the admin.
 // The live values come from lib/admin/metrics.ts fundingReadiness – never from here.
 
-export const FUNDING_TITLE = "Wann und wofür holen wir Geld?";
+export const FUNDING_TITLE = "Finanzierung";
 export const FUNDING_NOTE = "Thesen zur Orientierung, keine Finanzberatung. Vor dem Umzug keine Investoren und keine Bewertung.";
 export const OPEN = "noch offen";
 export const YOU_ARE_HERE = "Du bist hier";

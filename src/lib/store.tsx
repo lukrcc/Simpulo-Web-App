@@ -104,7 +104,7 @@ interface StoreState {
   livedWith: LivedWith[];
   /** Hosts' invite links (/invite/[token]) – kept in this browser across reloads, so a copied link still opens */
   houseInvites: HouseInvite[];
-  /** "Something went wrong" during a stay – /admin/support (mock) */
+  /** "Something went wrong" during a stay – /admin/posteingang (mock) */
   supportCases: SupportCase[];
   /** "I'm in for …" signals (lib/inFor.ts) – running and run out */
   inFor: InFor[];
@@ -206,6 +206,7 @@ type StoreAction =
   | { type: "createThread"; thread: Thread }
   | { type: "markThreadRead"; threadId: string; at: string }
   | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
+  | { type: "markHintSeen"; hint: string }
   | {
       type: "lockAccommodation";
       stayId: string;
@@ -326,7 +327,7 @@ interface StoreActions {
   deleteDraft: (stayId: string) => void;
   /** Takes back the current user's open request (to join or for the waitlist); the host is told. */
   withdrawRequest: (stayId: string) => void;
-  /** "Something went wrong": a case for support (mock: /admin/support). Returns its number. */
+  /** "Something went wrong": a case for support (mock: /admin/posteingang). Returns its number. */
   addSupportCase: (input: Pick<SupportCase, "stayId" | "category" | "text" | "photo">) => string;
   /** A full House: asks the host for a place on its waitlist (optional message). Accept/decline as with requests. */
   requestWaitlist: (stayId: string, message: string) => void;
@@ -364,6 +365,8 @@ interface StoreActions {
   markThreadRead: (threadId: string, at?: string) => void;
   /** The chat background (config/chat-themes.ts): `threadId` null – for all chats; a chat's own; `theme` null – that chat follows the one for all */
   setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
+  /** A one-time hint seen – on the account, so it never comes back */
+  markHintSeen: (hint: string) => void;
   /**
    * Host locks a link: total split across `spots` → per person. Creates a pending payment for every crew member
    * and posts the lock card into the crew chat. Resolves after a mock delay.
@@ -1803,6 +1806,18 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "createThread":
       return { ...state, threads: [...state.threads, action.thread] };
 
+    case "markHintSeen": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          return settings.seenHints?.includes(action.hint) ? u : { ...u, settings: { ...settings, seenHints: [...(settings.seenHints ?? []), action.hint] } };
+        }),
+      };
+    }
+
     case "setChatTheme": {
       if (!me) return state;
       return {
@@ -2622,6 +2637,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [threads],
   );
+  const markHintSeen = useCallback((hint: string) => dispatch({ type: "markHintSeen", hint }), []);
   const setChatTheme = useCallback((threadId: string | null, theme: ChatThemeId | null) => dispatch({ type: "setChatTheme", threadId, theme }), []);
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
   const setHostTier = useCallback((userId: string, tier: HostTier) => dispatch({ type: "setHostTier", userId, tier }), []);
@@ -2784,6 +2800,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openDirectThread,
       markThreadRead,
       setChatTheme,
+      markHintSeen,
       toggleReaction,
       lockAccommodation,
       payShare,
@@ -2811,7 +2828,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2866,6 +2883,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     noInvitesFrom: user?.settings?.noInvitesFrom ?? [],
     chatTheme: user?.settings?.chatTheme,
     chatThemes: user?.settings?.chatThemes ?? {},
+    seenHints: user?.settings?.seenHints ?? [],
   };
 }
 

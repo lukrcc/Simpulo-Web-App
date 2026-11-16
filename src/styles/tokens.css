@@ -29,6 +29,9 @@
   --header-pill: rgba(255, 255, 255, 0.08);
   --header-pill-hover: rgba(255, 255, 255, 0.12);
   --header-pill-active: rgba(255, 255, 255, 0.16);
+  /* A chosen capsule in the header's menus (Sort, Category, Length, Crew size, the months, a set dropdown): white, graphite words. */
+  --menu-pick-bg: #ffffff;
+  --menu-pick-text: var(--graphite);
   --graphite-glass: var(--header-bg);
   /* At the very top of a page (scrollY < 8): a little more opaque. Only this colour changes, in 200ms. */
   --graphite-glass-top: var(--header-bg);
@@ -144,7 +147,9 @@
 .bar-sheet,
 .bar-menu,
 .footer-dark,
-[data-chat-theme="night"] {
+[data-chat-theme="night"],
+.admin-scope,
+body:has(.admin-scope) {
   color-scheme: dark;
   --bg: var(--stage-bg);
   --surface: rgba(244, 238, 231, 0.06);
@@ -215,7 +220,9 @@
 .bar-sheet,
 .bar-menu,
 .footer-dark,
-[data-chat-theme="night"] {
+[data-chat-theme="night"],
+.admin-scope,
+body:has(.admin-scope) {
   --focus-ring: color-mix(in srgb, var(--text) 25%, transparent);
   --action-bg: var(--text);
   --action-text: var(--text-inverse);
@@ -263,13 +270,14 @@
 /* ── The bar's flyouts (ui/BarSheet): Where · When, More, All filters – one piece with the bar. Its graphite glass, denser: rgba(72,66,62,.90)
    + blur 32px saturate 160 %; it hangs right on the bar's foot (0px), square on top, radius 24 below; it grows downwards out of the bar
    (clip-path, 260ms cubic-bezier(.2,.8,.2,1)), its content fades in 80ms later; closing the other way. Reduced motion: only the fade. ── */
+/* The header's menus (Where · When, Themes, All filters): the header's own graphite glass (--header-bg, --header-filter), 8px under the bar,
+   every corner round (24), a soft shadow all round. */
 .bar-sheet {
-  background-color: rgba(72, 66, 62, 0.9);
-  -webkit-backdrop-filter: blur(32px) saturate(1.6);
-  backdrop-filter: blur(32px) saturate(1.6);
-  border-radius: 0 0 24px 24px;
-  /* Only below: offset 32 − blur 48 + spread 16 = nothing above its top edge (no seam on the bar). */
-  box-shadow: 0 32px 48px -16px rgba(20, 18, 16, 0.32);
+  background-color: var(--header-bg);
+  -webkit-backdrop-filter: var(--header-filter);
+  backdrop-filter: var(--header-filter);
+  border-radius: 24px;
+  box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08), 0 24px 60px rgba(20, 18, 16, 0.28);
   color: var(--text);
   overflow: hidden;
   animation: bar-sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -288,12 +296,13 @@
     clip-path: inset(0 0 100% 0);
   }
   to {
-    clip-path: inset(0 0 0 0);
+    /* Open: the clip reaches past the edges, so the shadow all round stays. */
+    clip-path: inset(-80px -80px -120px -80px);
   }
 }
 @keyframes bar-sheet-out {
   from {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(-80px -80px -120px -80px);
   }
   to {
     clip-path: inset(0 0 100% 0);
@@ -331,16 +340,11 @@
     animation: none;
   }
 }
-/* While a sheet hangs from the bar, the bar has no foot line: bar and sheet are one surface. */
-html[data-bar-sheet] .header-glass,
-html[data-bar-sheet] [data-bar] {
-  box-shadow: none;
-}
 /* A menu opened from inside a sheet (the dropdowns of All filters, the sort): the same dark glass, round, 12px inside. */
 .bar-menu {
-  background-color: rgba(72, 66, 62, 0.9);
-  -webkit-backdrop-filter: blur(32px) saturate(1.6);
-  backdrop-filter: blur(32px) saturate(1.6);
+  background-color: var(--header-bg);
+  -webkit-backdrop-filter: var(--header-filter);
+  backdrop-filter: var(--header-filter);
   border-radius: 20px;
   padding: 12px;
   box-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08), 0 24px 60px rgba(20, 18, 16, 0.28);
@@ -548,4 +552,26 @@ html[data-bar-sheet] [data-bar] {
 
 
 
+
+
+/* The price histogram in the header's All filters: bars in the chosen range white 80 %, the rest white 25 % – no other colour. */
+.bar-sheet [data-histogram] > [data-in] {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.bar-sheet [data-histogram] > :not([data-in]) {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+/* No other colours in the menus: the panel's counts beside a label calm (white 16 %, white number), the category icons in the words' colour. */
+.bar-sheet [data-filter-count] {
+  background-color: var(--header-pill-active);
+  color: var(--header-fg);
+}
+
+
+/* The one-time hint bubble at a button (the chat's "…"): the tooltip's dark glass. */
+.tooltip-bubble {
+  background-color: var(--tooltip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
 

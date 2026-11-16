@@ -184,7 +184,7 @@ export function AdminNewHouse() {
     const link = claimLink(created.token);
     return (
       <AdminShell title={t("createdTitle")}>
-        <p className="mb-6 max-w-2xl text-body text-muted">{t("createdText", { name: created.name })}</p>
+        <p className="mb-(--adm-inner) max-w-2xl text-body text-muted">{t("createdText", { name: created.name })}</p>
         <section className={cn("max-w-2xl", cardClass)}>
           <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-body">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">

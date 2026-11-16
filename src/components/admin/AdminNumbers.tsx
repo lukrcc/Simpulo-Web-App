@@ -13,10 +13,26 @@ import { cn } from "@/lib/utils";
 
 const TREND_TEXT = { better: "text-adm-good", worse: "text-adm-critical", same: "text-muted", neutral: "text-ink" } as const;
 
-/** "▲ +3 (+8,6 %)" · "▼ −300 € (−6,4 %)" · "▲ +3 Pkt." · "±0" – coloured by better/worse; `against` follows ("ggü. Oktober"). */
-export function ChangeLine({ change, against, className }: { change: Change | null; against?: string; className?: string }) {
+/**
+ * "▲ +3 (+8,6 %)" · "▼ −300 € (−6,4 %)" · "▲ +3 Pkt." · "±0" – coloured by better/worse; `against` follows ("ggü. Oktober"). With `target`
+ * change and target share one line: "▲ +3 · Ziel 44" (the target with its status dot).
+ */
+export function ChangeLine({ change, against, target, className }: { change: Change | null; against?: string; target?: { text: string; status: Status | null }; className?: string }) {
   const t = useTranslations("admin.cockpit.change");
-  if (!change) return <span className={cn("text-small text-muted", className)}>{t("none")}</span>;
+  const goal = target && (
+    <span className="text-muted">
+      {" · "}
+      <StatusDot status={target.status} className="mr-1 inline-block align-middle" />
+      {target.text}
+    </span>
+  );
+  if (!change)
+    return (
+      <span className={cn("text-small text-muted", className)}>
+        {t("none")}
+        {goal}
+      </span>
+    );
   const arrow = change.delta > 0 ? "▲ " : change.delta < 0 ? "▼ " : "";
   const amount =
     change.delta === 0
@@ -32,6 +48,7 @@ export function ChangeLine({ change, against, className }: { change: Change | nu
       </span>
       {(change.trend === "better" || change.trend === "worse") && <span className="sr-only"> ({t(change.trend)})</span>}
       {against && <span className="text-muted"> {against}</span>}
+      {goal}
     </span>
   );
 }
@@ -47,8 +64,9 @@ export function InfoTip({ text }: { text: string }) {
 
 
 /**
- * A row of main numbers on the page (no cards): each its label with ⓘ, the number, the change (getChange) against `against`, and – where it
- * has one – the target in grey with its status dot. Columns split by 1px ink 8 %.
+ * A row of main numbers on the page (no cards): each its short label (at most three words, caps) with ⓘ, the number, and ONE line "▲ +3 ·
+ * Ziel 44" (the change from getChange, the target with its status dot). An explaining sentence never stands under the number – it goes
+ * into the ⓘ (a text `sub` is added to it). Columns split by a 1px line.
  */
 export function KeyNumbers({
   items,
@@ -58,24 +76,18 @@ export function KeyNumbers({
   className?: string;
 }) {
   return (
-    <dl className={cn("grid grid-cols-2 gap-y-8 lg:grid-cols-3", className)}>
+    <dl className={cn("grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-3", className)}>
       {items.map((n, i) => (
         <div key={n.key} className={cn("min-w-0 pr-4 lg:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
-          <dt className="flex items-center gap-1 text-small text-muted">
+          <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
             {n.label}
-            <InfoTip text={n.info} />
+            <InfoTip text={typeof n.sub === "string" ? `${n.info} ${n.sub}` : n.info} />
           </dt>
           <dd className="mt-1 text-h1 tabular-nums text-ink">{n.value}</dd>
           <dd className="mt-1">
-            <ChangeLine change={n.change} against={n.against} className="block" />
+            <ChangeLine change={n.change} target={n.target} className="block" />
           </dd>
-          {n.target && (
-            <dd className="mt-1 flex items-center gap-2 text-small text-muted">
-              <StatusDot status={n.target.status} />
-              {n.target.text}
-            </dd>
-          )}
-          {n.sub && <dd className="mt-1 text-small text-muted">{n.sub}</dd>}
+          {n.sub && typeof n.sub !== "string" && <dd className="mt-1 text-small text-muted">{n.sub}</dd>}
         </div>
       ))}
     </dl>

@@ -50,7 +50,7 @@ export function AdminFunding() {
     <AdminShell title={FUNDING_TITLE}>
       {/* "Bewertung & Anteile" has its own note (a private orientation); every other part the tab's. */}
       <p className="text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>
-      <ScrollRow label={FUNDING_TITLE} className="mb-10 mt-6 max-w-full">
+      <ScrollRow label={FUNDING_TITLE} className="mb-10 mt-(--adm-inner) max-w-full">
         <CapsuleGroup label={FUNDING_TITLE} value={tab} onChange={setTab} options={FUNDING_TABS.map((t) => ({ value: t.key, content: t.label }))} />
       </ScrollRow>
       {tab === "readiness" && <Readiness inputs={inputs} />}
@@ -97,9 +97,9 @@ function Readiness({ inputs }: { inputs: AdminInputs }) {
           <span key={item.key} className={cn("h-1.5 flex-1 rounded-full", item.met ? "bg-adm-good" : "bg-ink/10")} />
         ))}
       </div>
-      {!r.moved && <p className="mt-6 text-h3 text-ink">{READINESS_TEXT.moveFirst}</p>}
+      {!r.moved && <p className="mt-(--adm-inner) text-h3 text-ink">{READINESS_TEXT.moveFirst}</p>}
 
-      <ol className="mt-10 divide-y divide-ink/8 border-y border-ink/8">
+      <ol className="mt-(--adm-section) divide-y divide-ink/8 border-y border-ink/8">
         {r.items.map((item) => (
           <li key={item.key} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
             <MetMark met={item.met} />
@@ -131,7 +131,7 @@ function Thesis() {
   const max = Math.max(...ALLOCATION.map((a) => a.percent), 1);
   return (
     <AdminSection title={THESIS_TEXT.title}>
-      {sum !== 100 && <p className="mb-6 text-body font-semibold text-adm-critical">{fill(THESIS_TEXT.sumWarning, { sum })}</p>}
+      {sum !== 100 && <p className="mb-(--adm-inner) text-body font-semibold text-adm-critical">{fill(THESIS_TEXT.sumWarning, { sum })}</p>}
       <ul className="flex flex-col gap-5">
         {ALLOCATION.map((a) => (
           <li key={a.key} className="grid items-center gap-x-6 gap-y-1 sm:grid-cols-[200px_minmax(0,1fr)_56px]">
@@ -146,7 +146,7 @@ function Thesis() {
           </li>
         ))}
       </ul>
-      <div className="mt-12 flex flex-col gap-2">
+      <div className="mt-(--adm-section) flex flex-col gap-2">
         {THESIS_TEXT.rules.map((rule) => (
           <p key={rule} className="text-body-lg text-ink">
             {rule}
@@ -175,9 +175,9 @@ function Rounds() {
                   {round.optional && <span className="ml-2 text-small font-normal text-muted">{ROUNDS_TEXT.optional}</span>}
                 </p>
                 {round.amount && <p className="mt-0.5 text-body tabular-nums text-ink">{round.amount}</p>}
-                <p className="mt-3 text-eyebrow uppercase text-muted">{ROUNDS_TEXT.proof}</p>
+                <p className="mt-3 text-eyebrow uppercase text-(--adm-label)">{ROUNDS_TEXT.proof}</p>
                 <p className={cn("mt-0.5 text-small", round.proof ? "text-ink" : "text-ink/40")}>{round.proof ?? OPEN}</p>
-                <p className="mt-3 text-eyebrow uppercase text-muted">{ROUNDS_TEXT.use}</p>
+                <p className="mt-3 text-eyebrow uppercase text-(--adm-label)">{ROUNDS_TEXT.use}</p>
                 <p className={cn("mt-0.5 text-small", round.use ? "text-ink" : "text-ink/40")}>{round.use ?? OPEN}</p>
               </div>
               <span aria-hidden className={cn("block rounded-t-[12px] max-lg:hidden", here ? "bg-adm-chart-1-soft" : "bg-ink/8")} style={{ height: 24 + i * 32 }} />
@@ -206,7 +206,7 @@ function ShareCalculator() {
     [{ key: "start", label: ROUNDS_TEXT.start, founders: 100 }],
   );
   return (
-    <AdminSection title={ROUNDS_TEXT.calculator} className="mt-16" aside={<span className="text-small text-muted">{ROUNDS_TEXT.calculatorNote}</span>}>
+    <AdminSection title={ROUNDS_TEXT.calculator} className="mt-(--adm-section)" aside={<span className="text-small text-muted">{ROUNDS_TEXT.calculatorNote}</span>}>
       <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
         {dilutive.map((r) => {
           const off = r.optional && !withPreSeed;
@@ -236,7 +236,7 @@ function ShareCalculator() {
           </li>
         ))}
       </ul>
-      <p className="mt-10 text-h3 text-ink">{ROUNDS_TEXT.question}</p>
+      <p className="mt-(--adm-section) text-h3 text-ink">{ROUNDS_TEXT.question}</p>
     </AdminSection>
   );
 }
@@ -244,7 +244,7 @@ function ShareCalculator() {
 /** Later, after the move: the investor list – greyed, not usable yet (Name · Fonds · Stufe · Letzter Kontakt · Notiz). */
 function InvestorsPlaceholder() {
   return (
-    <AdminSection title={ROUNDS_TEXT.investorsTitle} className="mt-16" aside={<span className="text-small text-muted">{ROUNDS_TEXT.later}</span>}>
+    <AdminSection title={ROUNDS_TEXT.investorsTitle} className="mt-(--adm-section)" aside={<span className="text-small text-muted">{ROUNDS_TEXT.later}</span>}>
       <div aria-disabled className="pointer-events-none select-none overflow-x-auto opacity-40">
         <table className="w-full min-w-[560px] border-collapse text-left text-body">
           <thead>
@@ -302,7 +302,7 @@ function Documents({ inputs }: { inputs: AdminInputs }) {
   return (
     <>
       <AdminSection title={DOCUMENTS_TEXT.title} aside={<span className="text-small text-muted">{fill(DOCUMENTS_TEXT.done, { done, total: DOCUMENTS.length })}</span>}>
-        <div className="mb-6 flex max-w-md gap-1.5" aria-hidden>
+        <div className="mb-(--adm-inner) flex max-w-md gap-1.5" aria-hidden>
           {DOCUMENTS.map((d) => (
             <span key={d.key} className={cn("h-1.5 flex-1 rounded-full", statusOf(d.key) === "done" ? "bg-ink/70" : statusOf(d.key) === "inProgress" ? "bg-ink/30" : "bg-ink/10")} />
           ))}
@@ -325,7 +325,7 @@ function Documents({ inputs }: { inputs: AdminInputs }) {
           ))}
         </ul>
       </AdminSection>
-      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="mt-(--adm-section) flex flex-wrap items-center gap-x-6 gap-y-3">
         <Button variant="secondary" onClick={kpis}>
           {DOCUMENTS_TEXT.kpiPdf}
         </Button>
@@ -364,7 +364,7 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
   return (
     <>
       <AdminSection title={t.rangeTitle}>
-        {!moved && <p className="mb-6 text-h3 text-ink">{VALUATION.beforeMove}</p>}
+        {!moved && <p className="mb-(--adm-inner) text-h3 text-ink">{VALUATION.beforeMove}</p>}
         {/* Two range bars on one scale: the span from low to high, the two ends written under it. */}
         <ul className={cn("flex flex-col gap-8", !moved && "opacity-40")} aria-disabled={!moved || undefined}>
           {ranges.map((r) => (
@@ -386,7 +386,7 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
         </ul>
       </AdminSection>
 
-      <AdminSection title={t.driversTitle} className="mt-14">
+      <AdminSection title={t.driversTitle} className="mt-(--adm-section)">
         <dl className="grid grid-cols-3 gap-y-6">
           {drivers.map((d, i) => (
             <div key={d.key} className={cn("min-w-0 pr-4", i > 0 && "border-l border-ink/8 pl-4 lg:pl-6")}>
@@ -398,10 +398,10 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
             </div>
           ))}
         </dl>
-        <p className="mt-6 text-body-lg text-ink">{t.driversSentence}</p>
+        <p className="mt-(--adm-inner) text-body-lg text-ink">{t.driversSentence}</p>
       </AdminSection>
 
-      <AdminSection title={t.compareTitle} className="mt-14">
+      <AdminSection title={t.compareTitle} className="mt-(--adm-section)">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-left text-body">
             <thead>
@@ -427,7 +427,7 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
 
       <CapTable />
 
-      <AdminSection title={t.glossaryTitle} className="mt-14">
+      <AdminSection title={t.glossaryTitle} className="mt-(--adm-section)">
         <ul className="divide-y divide-ink/8 border-y border-ink/8">
           {VALUATION.glossary.map((g) => (
             <li key={g.term}>
@@ -478,7 +478,7 @@ function CapTable() {
   const set = (i: number, field: "pre" | "amount" | "pool", value: string) => setRounds((list) => list.map((r, j) => (j === i ? { ...r, [field]: value } : r)));
   const share = (x: number) => pct(Math.round(x * 1000) / 10);
   return (
-    <AdminSection title={t.capTitle} className="mt-14" aside={<span className="text-small text-muted">{t.capNote}</span>}>
+    <AdminSection title={t.capTitle} className="mt-(--adm-section)" aside={<span className="text-small text-muted">{t.capNote}</span>}>
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-3">
         {rounds.map((r, i) => (
           <fieldset key={i} className="flex min-w-0 flex-col gap-3">
@@ -499,7 +499,7 @@ function CapTable() {
         ))}
       </div>
 
-      <ul className="mt-10 flex flex-col gap-5">
+      <ul className="mt-(--adm-section) flex flex-col gap-5">
         {steps.map((s) => (
           <li key={s.key} className="grid items-center gap-x-6 gap-y-2 lg:grid-cols-[120px_minmax(0,1fr)_minmax(0,420px)]">
             <span className="text-body font-semibold text-ink">{s.label}</span>

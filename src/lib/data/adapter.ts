@@ -56,6 +56,8 @@ export interface AdminData {
   fundingMoved: boolean;
   /** Finanzierung › Unterlagen: each document's status by key (config/funding.ts DOCUMENTS); missing = "missing" */
   fundingDocs: Record<string, "missing" | "inProgress" | "done">;
+  /** Admin › System › Backlog: each item's status (config/backlog.ts ids), over the start value there */
+  backlog: Record<string, "open" | "inProgress" | "done">;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
   location: { country: string | null; reason: string };
 }

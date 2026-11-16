@@ -1,12 +1,13 @@
 "use client";
 
-// /admin/vision – "Wohin geht Simpulo?": the strategy in phases. First row: Gesamtbild · 1 Deutschland · 2 Ausland · 3 Nach der Runde ·
-// 4 Immobilien & Ausstieg; a second, smaller row "Bausteine" to look things up (Zielgruppen · T-Modell · Kontinuum · Roadmap · Hosts ·
-// Orte & Anreise). Every text from config/vision.ts (nothing invented here); the numbers from lib/admin/metrics.ts. Graphic before text,
-// no cards; the current phase is the one ocean focus ("Du bist hier").
-import { ArrowRight, ChevronLeft, Hourglass, Network, RotateCcw, Users, type LucideIcon } from "lucide-react";
+// /admin/vision – Vision as a map of building blocks (Warum · Wie · Wohin) with zoom and a timeline. The click row: Karte · Zeitleiste,
+// right the status "● Phase 1 · 0/6 Monate bei 5.000 €"; under it the motto (20px) and three numbers. Karte: BlockMap; a block zooms in
+// (?block=<id>, breadcrumb "Vision › <Name>", "← Karte") to its content – the former tabs – under a one-line summary. Zeitleiste: the four
+// phases as columns, the lanes as rows of capsules (folded "+N"); a phase's head zooms into the phase. Every text from config/vision.ts,
+// every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier").
+import { ArrowRight, Building2, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
@@ -22,8 +23,13 @@ import {
   BREADTH_DEPTH,
   CORE,
   MOTTO,
-  BUILDING_LABEL,
-  BUILDING_TABS,
+  BLOCK_MAP,
+  BLOCK_MAP_TEXT,
+  TIMELINE_TEXT,
+  VISION_VIEWS,
+  type BlockId,
+  type LaneKey,
+  type VisionView,
   CONTINUUM,
   HOST_PHASE_LABEL,
   HOST_PHASE_NOW,
@@ -32,7 +38,6 @@ import {
   NOT_MEASURABLE,
   PHASE4,
   PHASE_NOW,
-  PHASE_TABS,
   PHASE_TEXT,
   PHASES,
   PLACES,
@@ -59,9 +64,8 @@ import {
   type SegmentPhase,
   type Source,
   type SourceStatus,
-  type VisionTab,
 } from "@/config/vision";
-import { coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, moveProgress, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
+import { fundingReadiness, coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, moveProgress, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { dec, eur, num, pct, share } from "@/lib/i18n/adminFormat";
@@ -69,37 +73,271 @@ import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
 import { AdminSection, AdminShell } from "./AdminShell";
+import { AdminTabs } from "./AdminLayout";
+import { BlockMap, type BlockStatus } from "./BlockMap";
+import { MODELS } from "@/config/models";
 
 export function AdminVision() {
   const inputs = useAdminInputs();
-  const [tab, setTab] = useState<VisionTab>("overview");
-  const isPhase = PHASE_TABS.some((t) => t.key === tab);
+  const { view, block, go, back } = useVisionUrl();
+  const move = moveProgress(inputs);
+  const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
+  const zoomed = block ? zoomOf(block) : null;
   return (
-    <AdminShell title={VISION_TITLE}>
-      <ScrollRow label={VISION_TITLE} className="max-w-full">
-        <CapsuleGroup label={VISION_TITLE} value={isPhase ? tab : null} onChange={setTab} options={PHASE_TABS.map((t) => ({ value: t.key, content: t.label }))} />
-      </ScrollRow>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="text-eyebrow uppercase text-muted">{BUILDING_LABEL}</span>
-        <ScrollRow label={BUILDING_LABEL} className="max-w-full">
-          <CapsuleGroup size="sm" label={BUILDING_LABEL} value={isPhase ? null : tab} onChange={setTab} options={BUILDING_TABS.map((t) => ({ value: t.key, content: t.label }))} />
-        </ScrollRow>
-      </div>
-      <div className="mt-12">
-        {tab === "overview" && <OverviewView inputs={inputs} onOpen={setTab} />}
-        {(tab === "p1" || tab === "p2" || tab === "p3") && <PhaseView phase={PHASES.find((p) => p.key === tab)!} inputs={inputs} />}
-        {tab === "p4" && <Phase4View />}
-        {tab === "core" && <CoreView inputs={inputs} />}
-        {tab === "segments" && <SegmentsView />}
-        {tab === "tModel" && <TModelView inputs={inputs} />}
-        {tab === "continuum" && <ContinuumView inputs={inputs} />}
-        {tab === "roadmap" && <RoadmapView />}
-        {tab === "hosts" && <HostsView inputs={inputs} />}
-        {tab === "places" && <PlacesView inputs={inputs} />}
-        {tab === "location" && <LocationView inputs={inputs} />}
-        {tab === "tech" && <TechView inputs={inputs} />}
-      </div>
+    <AdminShell
+      title={VISION_TITLE}
+      tabs={!zoomed ? <AdminTabs label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))} /> : <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back} />}
+      aside={
+        <span className="inline-flex items-center gap-2 text-body text-ink">
+          <StatusDot status={getStatus("profitPerMonth", move.current)} />
+          {BLOCK_MAP_TEXT.status(phase.number, move.streak, move.streakOf, eur(move.target))}
+        </span>
+      }
+    >
+      {zoomed ? (
+        <section aria-label={zoomed.title}>
+          {/* One line summary (at most 12 words), then the block's content. */}
+          <p className="mb-(--adm-section) text-body-lg text-ink/80">{zoomed.summary}</p>
+          {zoomed.content(inputs)}
+        </section>
+      ) : (
+        <>
+          {/* The motto (20px) and the three numbers, compact. */}
+          <p className="text-adm-motto text-ink">{MOTTO.line}</p>
+          <OverviewNumbers inputs={inputs} />
+          <div className="mt-(--adm-section)">{view === "timeline" ? <Timeline inputs={inputs} onOpenPhase={(key) => go({ view: "timeline", block: key })} /> : <VisionMap inputs={inputs} onZoom={(id) => go({ view: "map", block: id })} />}</div>
+        </>
+      )}
     </AdminShell>
+  );
+}
+
+// ── URL: ?view=map|timeline and ?block=<id> (a deep link; the browser's back goes one step back) ───────────────────────────────────
+
+const noop = () => () => {};
+const VISION_NAV = "vision-nav";
+function subscribeUrl(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  window.addEventListener(VISION_NAV, callback);
+  return () => {
+    window.removeEventListener("popstate", callback);
+    window.removeEventListener(VISION_NAV, callback);
+  };
+}
+function useVisionUrl() {
+  const search = useSyncExternalStore(subscribeUrl, () => window.location.search, () => "");
+  void noop;
+  const params = new URLSearchParams(search);
+  const view: VisionView = params.get("view") === "timeline" ? "timeline" : "map";
+  const block = params.get("block");
+  const go = (next: { view: VisionView; block: string | null }) => {
+    const p = new URLSearchParams();
+    if (next.view === "timeline") p.set("view", "timeline");
+    if (next.block) p.set("block", next.block);
+    const q = p.toString();
+    window.history.pushState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
+    window.dispatchEvent(new Event(VISION_NAV));
+  };
+  const back = () => {
+    // Back to the map (or the timeline a phase was opened from): the browser's own back when we came from there, else push it.
+    if (window.history.state === null && window.history.length > 1) window.history.back();
+    else go({ view, block: null });
+  };
+  return { view, block, go, back };
+}
+
+/** "Vision › <Name>" and "← Karte" in the click row while zoomed. */
+function Crumbs({ title, onBack, backLabel }: { title: string; onBack: () => void; backLabel: string }) {
+  return (
+    <span className="flex items-center gap-4 text-body">
+      <button type="button" onClick={onBack} className="font-semibold text-ink hover:underline">
+        {backLabel}
+      </button>
+      <span className="text-ink/60">
+        {BLOCK_MAP_TEXT.crumb} › <span className="text-ink">{title}</span>
+      </span>
+    </span>
+  );
+}
+
+/** Gesamtmarkt · Kategorie-Führer · Simpulo heute – one compact row. */
+function OverviewNumbers({ inputs }: { inputs: AdminInputs }) {
+  const N = PHASE_TEXT.overviewNumbers;
+  return (
+    <dl className="mt-(--adm-inner) flex flex-wrap gap-x-8 gap-y-2">
+      {[
+        { label: N.market.label, value: N.market.value },
+        { label: N.leader.label, value: N.leader.value },
+        { label: N.today.label, value: eur(revenueLast12(inputs)), info: N.today.sub },
+      ].map((n, i) => (
+        <div key={n.label} className={cn("flex items-baseline gap-2", i > 0 && "border-l border-ink/8 pl-8")}>
+          <dt className="text-small text-ink/60">{n.label}</dt>
+          <dd className="text-body font-semibold tabular-nums text-ink">{n.value}</dd>
+          {n.info && <InfoTip text={n.info} />}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+const BLOCK_ICONS: Record<BlockId, LucideIcon> = {
+  core: Hourglass,
+  segments: Users,
+  hosts: House,
+  places: MapPin,
+  tech: Layers,
+  algorithm: Network,
+  phases: Milestone,
+  tModel: Shapes,
+  continuum: Coins,
+  roadmap: Route,
+  location: Globe,
+  funding: Landmark,
+};
+
+/** The map: Warum · Wie · Wohin (config/vision.ts BLOCK_MAP), each block with its live number from lib/admin/metrics.ts. */
+function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: BlockId) => void }) {
+  const T = BLOCK_MAP_TEXT;
+  const mix = hostMix(inputs);
+  const providers = providerCosts(inputs);
+  const tooCostly = Object.values(providers.shares).some((p) => p.level !== null);
+  const ready = fundingReadiness(inputs);
+  const again = coreMetrics(inputs).again;
+  const country = inputs.admin.location?.country ?? null;
+  const metric: Record<BlockId, { value?: ReactNode; status: BlockStatus }> = {
+    core: { value: again === null ? NOT_MEASURABLE : T.again(share(again)), status: "none" },
+    segments: { value: PHASE_TEXT.overviewNumbers.market.value.replace(" pro Jahr", ""), status: "none" },
+    hosts: { value: T.hosts(mix.counts.share + mix.counts.pro + mix.counts.anchor, mix.counts.pro), status: "none" },
+    places: { value: T.kinds(ACCOMMODATION_CATEGORIES.length), status: "none" },
+    tech: { value: T.providers(Object.keys(providers.shares).length), status: tooCostly ? "warn" : "ok" },
+    algorithm: { value: T.models(MODELS.length), status: "none" },
+    phases: { value: T.phaseOf(PHASES.find((p) => p.key === PHASE_NOW)!.number, PHASES.length), status: "open" },
+    tModel: { status: "none" },
+    continuum: { value: T.sources(CONTINUUM.groups.reduce((n, g) => n + g.sources.length, 0)), status: "none" },
+    roadmap: { value: T.stages(ROADMAP.stages.length), status: "none" },
+    location: { value: country ?? T.open, status: country ? "ok" : "open" },
+    funding: { value: T.ready(ready.met, ready.total), status: ready.met === ready.total ? "ok" : "open" },
+  };
+  return (
+    <BlockMap
+      label={VISION_TITLE}
+      columns={BLOCK_MAP.map((col) => ({
+        key: col.key,
+        label: col.label,
+        blocks: col.blocks.map((b) => ({
+          id: b.id,
+          icon: BLOCK_ICONS[b.id],
+          title: b.title,
+          subtitle: b.subtitle,
+          metric: metric[b.id].value,
+          status: metric[b.id].status,
+          ...(b.external ? { externalTab: b.external } : { href: `?block=${b.id}`, onOpen: () => onZoom(b.id) }),
+        })),
+      }))}
+    />
+  );
+}
+
+/** What a zoom shows: its title, the one summary line and the block's content (the former tabs) – the phases open the timeline's phase. */
+function zoomOf(id: string): { title: string; summary: string; fromTimeline: boolean; content: (inputs: AdminInputs) => ReactNode } | null {
+  const phase = PHASES.find((p) => p.key === id);
+  if (phase) return { title: `${PHASE_TEXT.phase(phase.number)} · ${phase.title}`, summary: phase.goal ? `${PHASE_TEXT.goal}: ${phase.goal}` : phase.title, fromTimeline: true, content: (inputs) => (phase.key === "p4" ? <Phase4View /> : <PhaseView phase={phase} inputs={inputs} />) };
+  const def = BLOCK_MAP.flatMap((c) => c.blocks).find((b) => b.id === id);
+  if (!def || def.external) return null;
+  const views: Partial<Record<BlockId, (inputs: AdminInputs) => ReactNode>> = {
+    core: (inputs) => <CoreView inputs={inputs} />,
+    segments: () => <SegmentsView />,
+    hosts: (inputs) => <HostsView inputs={inputs} />,
+    places: (inputs) => <PlacesView inputs={inputs} />,
+    tech: (inputs) => <TechView inputs={inputs} />,
+    phases: (inputs) => <Timeline inputs={inputs} onOpenPhase={() => undefined} />,
+    tModel: (inputs) => <TModelView inputs={inputs} />,
+    continuum: (inputs) => <ContinuumView inputs={inputs} />,
+    roadmap: () => <RoadmapView />,
+    location: (inputs) => <LocationView inputs={inputs} />,
+  };
+  const content = views[def.id];
+  return content ? { title: def.title, summary: def.summary, fromTimeline: false, content } : null;
+}
+
+const LANE_ICONS: Record<LaneKey | "unlock", LucideIcon> = { segments: Users, revenue: Coins, places: MapPin, hosts: House, structure: Building2, unlock: Diamond };
+
+/**
+ * The timeline: the four phases as columns (the current one ocean 10 % with "Du bist hier"), the lanes as rows with their icon –
+ * Zielgruppen · Einnahmen · Orte · Hosts · Struktur · Freigabe. Each cell capsules, folded to "+N" (what comes new); a click on a row opens
+ * every cell of it. Freigabe: the diamond, the goal in short, its progress (segments) or "noch nicht messbar". A click on a phase's head
+ * zooms into the phase.
+ */
+function Timeline({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (key: PhaseKey) => void }) {
+  const [open, setOpen] = useState<ReadonlySet<LaneKey>>(new Set());
+  const toggle = (lane: LaneKey) => setOpen((now) => {
+    const next = new Set(now);
+    if (next.has(lane)) next.delete(lane);
+    else next.add(lane);
+    return next;
+  });
+  return (
+    <div data-timeline className="grid grid-cols-[140px_repeat(4,minmax(0,1fr))] max-lg:overflow-x-auto">
+      <span />
+      {PHASES.map((phase) => {
+        const here = phase.key === PHASE_NOW;
+        return (
+          <button key={phase.key} type="button" onClick={() => onOpenPhase(phase.key)} aria-label={TIMELINE_TEXT.openPhase(phase.title)} className={cn("border-l border-ink/8 px-4 pb-3 pt-3 text-left", here && "bg-(--adm-here)")}>
+            <span className="flex items-center gap-2">
+              <span className={cn("flex size-6 items-center justify-center rounded-full text-small tabular-nums", here ? "bg-adm-chart-1 text-on-signal" : "border-[1.5px] border-ink/25 text-muted")}>{phase.number}</span>
+              {here && <Here />}
+            </span>
+            <span className="mt-1.5 block text-adm-block text-ink hover:underline">{phase.title}</span>
+            {phase.goal && <span className="block text-small text-ink/60">{phase.goal}</span>}
+          </button>
+        );
+      })}
+      {LANES.map((lane) => {
+        const Icon = LANE_ICONS[lane.key];
+        const expanded = open.has(lane.key);
+        return (
+          <div key={lane.key} role="row" className="contents">
+            <button type="button" onClick={() => toggle(lane.key)} aria-expanded={expanded} className="flex items-start gap-2 border-t border-ink/8 py-3 pr-3 text-left text-body text-ink">
+              <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-ink/70" />
+              {lane.label}
+            </button>
+            {PHASES.map((phase, i) => {
+              const cell = phase.lanes[lane.key];
+              const plus = i > 0 && cell.plus;
+              return (
+                <button key={phase.key} type="button" onClick={() => toggle(lane.key)} aria-label={`${lane.label} · ${phase.title}: ${expanded ? TIMELINE_TEXT.collapse : TIMELINE_TEXT.expand}`} className={cn("flex items-start border-l border-t border-ink/8 px-4 py-3 text-left", phase.key === PHASE_NOW && "bg-(--adm-here)")}>
+                  {cell.items.length === 0 ? (
+                    <span className="text-small text-muted">{PHASE_TEXT.none}</span>
+                  ) : expanded ? (
+                    <span className="flex flex-wrap gap-1.5">
+                      {cell.items.map((item) => (
+                        <span key={item.label} className="inline-flex h-7 items-center rounded-full bg-ink/6 px-2.5 text-small text-ink">
+                          {plus && <span className="mr-1 text-ink/50">+</span>}
+                          {item.label}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="inline-flex h-7 items-center rounded-full bg-ink/6 px-2.5 text-small tabular-nums text-ink">{plus ? BLOCK_MAP_TEXT.more(cell.items.length) : BLOCK_MAP_TEXT.count(cell.items.length)}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+      <div role="row" className="contents">
+        <span className="flex items-start gap-2 border-t border-ink/8 py-3 pr-3 text-body text-ink">
+          <Diamond aria-hidden className="mt-0.5 size-4 shrink-0 text-ink/70" />
+          {UNLOCK_LANE_LABEL}
+        </span>
+        {PHASES.map((phase) => (
+          <div key={phase.key} className={cn("border-l border-t border-ink/8 px-4 py-3", phase.key === PHASE_NOW && "bg-(--adm-here)")}>
+            <UnlockMark phase={phase} inputs={inputs} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -167,21 +405,6 @@ function SourceRow({ source, number, revenue }: { source: Source; number?: numbe
 
 // ── Gesamtbild ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** A lane's entries as lines; "+" before additions after the first phase. */
-function LaneItems({ items, plus, className }: { items: readonly LaneItem[]; plus: boolean; className?: string }) {
-  if (items.length === 0) return <p className={cn("text-small text-muted", className)}>{PHASE_TEXT.none}</p>;
-  return (
-    <ul className={cn("flex flex-col gap-1 text-small text-ink", className)}>
-      {items.map((item) => (
-        <li key={item.label}>
-          {plus && <span className="text-muted">+ </span>}
-          {item.label}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** The diamond with what opens the next phase, and how far it is: the move as six segments, the others "noch nicht messbar". */
 function UnlockMark({ phase, inputs, wide = false }: { phase: Phase; inputs: AdminInputs; wide?: boolean }) {
   if (!phase.unlock) return <p className="text-small text-muted">{PHASE_TEXT.none}</p>;
@@ -205,118 +428,6 @@ function UnlockMark({ phase, inputs, wide = false }: { phase: Phase; inputs: Adm
       </div>
     </div>
   );
-}
-
-/**
- * The whole picture: three numbers on top, then the four phases as columns and the lanes (Zielgruppen · Einnahmen · Orte · Hosts · Struktur ·
- * Freigabe) as rows; the diamonds between the phases carry what opens the next one and how far it is. A click on a column opens its phase.
- */
-function OverviewView({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: PhaseKey) => void }) {
-  const N = PHASE_TEXT.overviewNumbers;
-  return (
-    <>
-      {/* The motto, one line on top of everything. */}
-      <Motto />
-      <dl className="mt-12 grid gap-y-6 sm:grid-cols-3">
-        {[
-          { label: N.market.label, value: N.market.value },
-          { label: N.leader.label, value: N.leader.value },
-          { label: N.today.label, value: eur(revenueLast12(inputs)), sub: N.today.sub },
-        ].map((n, i) => (
-          <div key={n.label} className={cn("min-w-0", i > 0 && "sm:border-l sm:border-ink/8 sm:pl-6", i < 2 && "sm:pr-6")}>
-            <dt className="text-small text-muted">{n.label}</dt>
-            <dd className="mt-1 text-h2 tabular-nums text-ink">{n.value}</dd>
-            {n.sub && <dd className="mt-0.5 text-small text-muted">{n.sub}</dd>}
-          </div>
-        ))}
-      </dl>
-
-      {/* From 1024px: the grid of phases × lanes. */}
-      <div className="mt-12 grid grid-cols-[120px_repeat(4,minmax(0,1fr))] max-lg:hidden">
-        <span />
-        {PHASES.map((phase) => {
-          const here = phase.key === PHASE_NOW;
-          return (
-            <button
-              key={phase.key}
-              type="button"
-              onClick={() => onOpen(phase.key)}
-              aria-label={PHASE_TEXT.open(phase.title)}
-              className={cn("group border-l border-ink/8 px-4 pb-4 text-left transition-colors duration-150 hover:bg-ink/4", here && "bg-adm-chart-1-soft hover:bg-adm-chart-1-soft")}
-            >
-              <span className="flex items-center gap-2 pt-3">
-                <span className={cn("flex size-6 items-center justify-center rounded-full text-small tabular-nums", here ? "bg-adm-chart-1 text-on-signal" : "border-[1.5px] border-ink/25 text-muted")}>{phase.number}</span>
-                {here && <Here />}
-              </span>
-              <span className="mt-2 block text-h3 text-ink group-hover:underline">{phase.title}</span>
-              {phase.goal && <span className="block text-small text-muted">„{phase.goal}“</span>}
-            </button>
-          );
-        })}
-        {LANES.map((lane) => (
-          <LaneRow key={lane.key} label={lane.label}>
-            {PHASES.map((phase, i) => (
-              <Cell key={phase.key} here={phase.key === PHASE_NOW}>
-                <LaneItems items={phase.lanes[lane.key].items} plus={i > 0 && phase.lanes[lane.key].plus} />
-              </Cell>
-            ))}
-          </LaneRow>
-        ))}
-        <LaneRow label={UNLOCK_LANE_LABEL}>
-          {PHASES.map((phase) => (
-            <Cell key={phase.key} here={phase.key === PHASE_NOW}>
-              <UnlockMark phase={phase} inputs={inputs} />
-            </Cell>
-          ))}
-        </LaneRow>
-      </div>
-
-      {/* Phones and tablets: the phases one under the other. */}
-      <ol className="mt-10 flex flex-col gap-10 lg:hidden">
-        {PHASES.map((phase, i) => (
-          <li key={phase.key}>
-            <button type="button" onClick={() => onOpen(phase.key)} className="text-left">
-              <span className="flex items-center gap-2 text-eyebrow uppercase text-muted">
-                {PHASE_TEXT.phase(phase.number)}
-                {phase.key === PHASE_NOW && <Here />}
-              </span>
-              <span className="mt-1 block text-h3 text-ink underline-offset-4 hover:underline">{phase.title}</span>
-              {phase.goal && <span className="block text-small text-muted">„{phase.goal}“</span>}
-            </button>
-            <dl className="mt-3 divide-y divide-ink/8 border-y border-ink/8">
-              {LANES.map((lane) => (
-                <div key={lane.key} className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 py-2.5">
-                  <dt className="text-small text-muted">{lane.label}</dt>
-                  <dd>
-                    <LaneItems items={phase.lanes[lane.key].items} plus={i > 0 && phase.lanes[lane.key].plus} />
-                  </dd>
-                </div>
-              ))}
-              <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 py-2.5">
-                <dt className="text-small text-muted">{UNLOCK_LANE_LABEL}</dt>
-                <dd>
-                  <UnlockMark phase={phase} inputs={inputs} />
-                </dd>
-              </div>
-            </dl>
-          </li>
-        ))}
-      </ol>
-    </>
-  );
-}
-
-function LaneRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <>
-      <span className="border-t border-ink/8 py-3 pr-3 text-small text-muted">{label}</span>
-      {children}
-    </>
-  );
-}
-
-function Cell({ here, children }: { here: boolean; children: ReactNode }) {
-  return <div className={cn("min-w-0 border-l border-t border-ink/8 px-4 py-3", here && "bg-adm-chart-1-soft")}>{children}</div>;
 }
 
 // ── Phase 1–3 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -345,7 +456,7 @@ function PhaseView({ phase, inputs }: { phase: Phase; inputs: AdminInputs }) {
     <>
       <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-eyebrow uppercase text-muted">
+          <p className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
             {PHASE_TEXT.phase(phase.number)} · {phase.title}
             {here && <Here />}
           </p>
@@ -363,7 +474,7 @@ function PhaseView({ phase, inputs }: { phase: Phase; inputs: AdminInputs }) {
 
       {phase.metrics.length > 0 && <PhaseMetrics metrics={phase.metrics} inputs={inputs} />}
 
-      <AdminSection title={PHASE_TEXT.lanes} className="mt-14">
+      <AdminSection title={PHASE_TEXT.lanes} className="mt-(--adm-section)">
         <dl className="grid gap-x-10 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
           {LANES.map((lane) => {
             const { items, plus } = phase.lanes[lane.key];
@@ -397,7 +508,7 @@ function PhaseView({ phase, inputs }: { phase: Phase; inputs: AdminInputs }) {
       </AdminSection>
 
       {takt.length > 0 && (
-        <AdminSection title={PHASE_TEXT.takt} className="mt-14">
+        <AdminSection title={PHASE_TEXT.takt} className="mt-(--adm-section)">
           <ol className="flex flex-wrap gap-x-10 gap-y-6">
             {takt.map((step) => {
               const unlock = "unlock" in step ? step.unlock : null;
@@ -426,7 +537,7 @@ function PhaseView({ phase, inputs }: { phase: Phase; inputs: AdminInputs }) {
               );
             })}
           </ol>
-          <p className="mt-6 max-w-2xl text-small text-muted">{PHASE_TEXT.taktNote}</p>
+          <p className="mt-(--adm-inner) max-w-2xl text-small text-muted">{PHASE_TEXT.taktNote}</p>
         </AdminSection>
       )}
     </>
@@ -445,7 +556,7 @@ function PhaseMetrics({ metrics, inputs }: { metrics: Phase["metrics"]; inputs: 
     repeat: { value: repeatPct === null ? "–" : pct(repeatPct), sub: undefined, status: getStatus("repeatRate", repeatPct) },
   };
   return (
-    <AdminSection title={PHASE_TEXT.metrics} className="mt-14">
+    <AdminSection title={PHASE_TEXT.metrics} className="mt-(--adm-section)">
       <dl className="grid gap-y-6 sm:grid-cols-3">
         {metrics.map((key, i) => (
           <div key={key} className={cn("min-w-0", i > 0 && "sm:border-l sm:border-ink/8 sm:pl-6")}>
@@ -483,7 +594,7 @@ function Phase4View() {
         <p className="mt-5 max-w-2xl text-body-lg text-ink">{P.separation.sentence}</p>
       </AdminSection>
 
-      <AdminSection title={P.village.title} className="mt-16">
+      <AdminSection title={P.village.title} className="mt-(--adm-section)">
         <ol className="grid max-w-4xl grid-cols-3 items-end gap-3">
           {P.village.steps.map((step, i) => (
             <li key={step.title} className="flex min-w-0 flex-col">
@@ -494,7 +605,7 @@ function Phase4View() {
             </li>
           ))}
         </ol>
-        <p className="mb-2 mt-10 text-small text-muted">{P.village.candidatesTitle}</p>
+        <p className="mb-2 mt-(--adm-section) text-small text-muted">{P.village.candidatesTitle}</p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] max-w-4xl text-left text-small">
             <thead className="text-muted">
@@ -520,7 +631,7 @@ function Phase4View() {
         </div>
       </AdminSection>
 
-      <AdminSection title={P.exit.title} className="mt-16">
+      <AdminSection title={P.exit.title} className="mt-(--adm-section)">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] max-w-4xl text-left text-small">
             <thead>
@@ -563,7 +674,7 @@ function TModelView({ inputs }: { inputs: AdminInputs }) {
   const phase = visionPhase(inputs);
   return (
     <>
-      <p className="text-eyebrow uppercase text-muted">{breadth.title}</p>
+      <p className="text-eyebrow uppercase text-(--adm-label)">{breadth.title}</p>
       {/* The top bar: one surface, its five fields split by 1px lines. */}
       <ol className="mt-3 grid rounded-[24px] bg-surface max-md:divide-y max-md:divide-ink/8 md:grid-cols-5 md:divide-x md:divide-ink/8">
         {breadth.fields.map((field) => (
@@ -596,7 +707,7 @@ function TModelView({ inputs }: { inputs: AdminInputs }) {
               </li>
             ))}
           </ol>
-          <p className="mt-3 text-center text-eyebrow uppercase text-muted">{depth.title}</p>
+          <p className="mt-3 text-center text-eyebrow uppercase text-(--adm-label)">{depth.title}</p>
           {/* From the bar down the stem's right side, then left into step 6. */}
           <div aria-hidden className="absolute left-full top-0 ml-6 max-xl:hidden" style={{ height: STEP_H * (arrow.toStep - 0.5) }}>
             <div className="relative h-full w-10 rounded-br-xl border-b-[1.5px] border-r-[1.5px] border-dashed border-ink/40">
@@ -608,7 +719,7 @@ function TModelView({ inputs }: { inputs: AdminInputs }) {
       </div>
 
       {/* The matrix: five phases × five rows; the current phase's column in ocean 12 % under "You are here". */}
-      <div className="mt-16 overflow-x-auto">
+      <div className="mt-(--adm-section) overflow-x-auto">
         <table className="w-full min-w-[820px] table-fixed text-left">
           <thead>
             <tr>
@@ -649,7 +760,7 @@ function ContinuumView({ inputs }: { inputs: AdminInputs }) {
   return (
     <>
       <Legend sources={all} />
-      <div className="mt-10 grid gap-y-10 lg:grid-cols-3">
+      <div className="mt-(--adm-section) grid gap-y-10 lg:grid-cols-3">
         {CONTINUUM.groups.map((group, i) => (
           <section key={group.title} className={cn("min-w-0", i > 0 && "lg:border-l lg:border-ink/8 lg:pl-8", i < 2 && "lg:pr-8")}>
             <h2 className="text-h3 text-ink">{group.title}</h2>
@@ -661,7 +772,7 @@ function ContinuumView({ inputs }: { inputs: AdminInputs }) {
           </section>
         ))}
       </div>
-      <div className="mt-12 flex flex-col gap-4 text-small font-semibold text-ink">
+      <div className="mt-(--adm-section) flex flex-col gap-4 text-small font-semibold text-ink">
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-ink/30" />
           <span className="shrink-0">{CONTINUUM.arrows.right}</span>
@@ -692,7 +803,7 @@ function RoadmapView() {
                 <p className="text-small tabular-nums text-muted">{i + 1}</p>
                 <p className="text-h3 text-ink">{stage.title}</p>
                 <p className="mt-1 text-small text-muted">{stage.text}</p>
-                <p className="mt-3 text-eyebrow uppercase text-muted">{ROADMAP.revenueLabel}</p>
+                <p className="mt-3 text-eyebrow uppercase text-(--adm-label)">{ROADMAP.revenueLabel}</p>
                 <p className="mt-0.5 text-small font-semibold text-ink">{stage.revenue}</p>
               </div>
               {/* The step itself: each one higher than the last. */}
@@ -702,7 +813,7 @@ function RoadmapView() {
         })}
       </ol>
 
-      <AdminSection title={ROADMAP.partnerTitle} className="mt-14">
+      <AdminSection title={ROADMAP.partnerTitle} className="mt-(--adm-section)">
         <div className="relative lg:grid lg:grid-cols-6 lg:gap-x-3">
           <span aria-hidden className="absolute inset-x-0 top-1.5 h-px bg-ink/15 max-lg:hidden" />
           {Array.from({ length: cols }, (_, c) => {
@@ -755,7 +866,7 @@ function HostsView({ inputs }: { inputs: AdminInputs }) {
                 </div>
               </div>
               <div className="min-w-0">
-                <p className="text-eyebrow uppercase text-muted">{HOSTS.lookForLabel}</p>
+                <p className="text-eyebrow uppercase text-(--adm-label)">{HOSTS.lookForLabel}</p>
                 {tier.lookFor.length > 0 ? <p className="mt-1 text-small text-ink">{tier.lookFor.join(" · ")}</p> : <p className="mt-1 text-small text-muted">{HOSTS.lookForEmpty}</p>}
               </div>
             </li>
@@ -763,7 +874,7 @@ function HostsView({ inputs }: { inputs: AdminInputs }) {
         </ol>
       </AdminSection>
 
-      <AdminSection title={HOSTS.gapTitle} className="mt-16">
+      <AdminSection title={HOSTS.gapTitle} className="mt-(--adm-section)">
         <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           {[HOSTS.gap.left, null, HOSTS.gap.right].map((side, i) =>
             side ? (
@@ -786,7 +897,7 @@ function HostsView({ inputs }: { inputs: AdminInputs }) {
         { title: HOSTS.formatsTitle, items: HOSTS.formats.map((f) => ({ key: f.title, title: f.title, text: undefined as string | undefined, phase: f.phase })) },
         { title: HOSTS.circleTitle, items: HOSTS.circle.map((c) => ({ key: c.title, title: c.title, text: c.text as string | undefined, phase: c.phase })) },
       ].map((block, b) => (
-        <AdminSection key={block.title} title={block.title} className="mt-16">
+        <AdminSection key={block.title} title={block.title} className="mt-(--adm-section)">
           <div className="grid gap-y-8 md:grid-cols-2">
             {HOST_PHASES.map((phase, i) => {
               const now = phase === HOST_PHASE_NOW;
@@ -864,7 +975,7 @@ function PlacesView({ inputs }: { inputs: AdminInputs }) {
     </ol>
 
     {/* Getting there (config/travel.ts): how the crew travels together – under the same phases, with how Simpulo takes part. */}
-    <AdminSection title={PLACES.travelTitle} className="mt-16">
+    <AdminSection title={PLACES.travelTitle} className="mt-(--adm-section)">
       <ul className="divide-y divide-ink/8 border-y border-ink/8">
         {TRAVEL_OPTIONS.map((option) => (
           <li key={option.id} className="grid gap-x-6 gap-y-1 py-4 md:grid-cols-[minmax(0,1fr)_140px_minmax(0,220px)] md:items-baseline">
@@ -893,8 +1004,8 @@ const PHASE_BG: Record<SegmentPhase, string> = {
   early: "bg-adm-chart-3",
   afterLaunch: "bg-adm-chart-3",
   growth: "bg-adm-chart-2",
-  scale: "bg-adm-area-operate",
-  abroad: "bg-adm-area-launch",
+  scale: "bg-adm-chart-4",
+  abroad: "bg-adm-chart-5",
 };
 /** The legend: one entry per colour (early and "kurz nach Launch" share one). */
 const PHASE_LEGEND: readonly SegmentPhase[] = ["launch", "early", "growth", "scale", "abroad"];
@@ -915,7 +1026,7 @@ function SegmentsView() {
   return (
     <>
       <section aria-label={T.graphTitle}>
-        <h2 className="text-eyebrow uppercase text-muted">{T.graphTitle}</h2>
+        <h2 className="text-eyebrow uppercase text-(--adm-label)">{T.graphTitle}</h2>
         <ul className="mt-4 flex flex-col gap-3">
           {SEGMENTS.map((s) => {
             const here = s.phase === SEGMENT_PHASE_NOW;
@@ -937,7 +1048,7 @@ function SegmentsView() {
         <PhaseLegend phaseName={phaseName} extra={T.rangeHint} />
       </section>
 
-      <AdminSection title={T.seasonTitle} className="mt-14">
+      <AdminSection title={T.seasonTitle} className="mt-(--adm-section)">
         <div className="overflow-x-auto">
           <div className="grid min-w-[720px] grid-cols-[minmax(0,200px)_repeat(12,minmax(0,1fr))] gap-x-1 gap-y-1.5">
             <span />
@@ -954,7 +1065,7 @@ function SegmentsView() {
         <p className="mt-3 text-small text-muted">{T.seasonLegend}</p>
       </AdminSection>
 
-      <AdminSection title={T.tableTitle} className="mt-14">
+      <AdminSection title={T.tableTitle} className="mt-(--adm-section)">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] text-left text-small">
             <thead className="text-muted">
@@ -1060,7 +1171,7 @@ function TechLayers() {
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-2">
       <section aria-label={TECH.foundation.title} className="min-w-0">
-        <h3 className="mb-4 text-eyebrow uppercase text-muted">{TECH.foundation.title}</h3>
+        <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{TECH.foundation.title}</h3>
         <ol className="flex flex-col-reverse gap-1.5">
           {TECH.foundation.layers.map((l) => (
             <li key={l.title} className="flex min-h-16 flex-col justify-center rounded-[12px] bg-ink/5 px-5 py-3">
@@ -1071,7 +1182,7 @@ function TechLayers() {
         </ol>
       </section>
       <section aria-label={TECH.own.title} className="min-w-0">
-        <h3 className="mb-4 text-eyebrow uppercase text-muted">{TECH.own.title}</h3>
+        <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{TECH.own.title}</h3>
         <ol className="flex flex-col-reverse gap-1.5">
           {TECH.own.layers.map((l) => (
             <li key={l.n} className="flex min-h-16 items-center gap-4 rounded-[12px] bg-ink/10 px-5 py-3">
@@ -1110,7 +1221,7 @@ function TechBuild() {
   const b = TECH.build;
   return (
     <>
-      <ul className="mb-6 flex flex-wrap gap-x-6 gap-y-2 text-small text-muted">
+      <ul className="mb-(--adm-inner) flex flex-wrap gap-x-6 gap-y-2 text-small text-muted">
         {(["own", "mixed", "buy"] as const).map((k) => (
           <li key={k} className="flex items-center gap-2">
             <BuildGlyph kind={k} />
@@ -1143,7 +1254,7 @@ function TechBuild() {
           </tbody>
         </table>
       </div>
-      <AdminSection title={b.conditionsTitle} className="mt-12">
+      <AdminSection title={b.conditionsTitle} className="mt-(--adm-section)">
         <ol className="flex flex-wrap gap-x-10 gap-y-3">
           {b.conditions.map((c, i) => (
             <li key={c} className="flex items-baseline gap-3">
@@ -1152,7 +1263,7 @@ function TechBuild() {
             </li>
           ))}
         </ol>
-        <p className="mt-6 text-body-lg text-ink">{b.sentence}</p>
+        <p className="mt-(--adm-inner) text-body-lg text-ink">{b.sentence}</p>
       </AdminSection>
     </>
   );
@@ -1176,7 +1287,7 @@ function TechInterfaces() {
           </li>
         ))}
       </ol>
-      <p className="mt-10 text-body text-ink">{TECH.interfaces.note}</p>
+      <p className="mt-(--adm-section) text-body text-ink">{TECH.interfaces.note}</p>
     </>
   );
 }
@@ -1241,7 +1352,7 @@ function LocationView({ inputs }: { inputs: AdminInputs }) {
   const [section, setSection] = useState<LocationSection>("why");
   return (
     <>
-      <p className="mb-6 text-body text-muted">{LOCATION.note}</p>
+      <p className="mb-(--adm-inner) text-body text-muted">{LOCATION.note}</p>
       <ScrollRow label="Standort" className="mb-10 max-w-full">
         <CapsuleGroup size="sm" label="Standort" value={section} onChange={setSection} options={LOCATION.sections.map((s) => ({ value: s.key, content: s.label }))} />
       </ScrollRow>
@@ -1260,7 +1371,7 @@ function LocationWhy() {
     <>
       <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className="min-w-0">
-          <h3 className="mb-4 text-eyebrow uppercase text-muted">{w.againstTitle}</h3>
+          <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{w.againstTitle}</h3>
           <ol className="flex flex-col gap-4">
             {w.against.map((text, i) => (
               <li key={text} className="flex gap-4 text-body text-ink">
@@ -1271,7 +1382,7 @@ function LocationWhy() {
           </ol>
         </section>
         <section className="min-w-0 border-ink/8 lg:border-l lg:pl-12">
-          <h3 className="mb-4 text-eyebrow uppercase text-muted">{w.forTitle}</h3>
+          <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{w.forTitle}</h3>
           <ul className="flex flex-col gap-4">
             {w.for.map((text) => (
               <li key={text} className="flex items-center gap-3 text-body text-ink">
@@ -1283,7 +1394,7 @@ function LocationWhy() {
         </section>
       </div>
       {/* The line: three stops on one rail; the first is where Simpulo stands. */}
-      <ol className="relative mt-14 grid grid-cols-3 gap-x-4">
+      <ol className="relative mt-(--adm-section) grid grid-cols-3 gap-x-4">
         <span aria-hidden className="absolute left-1.5 right-1.5 top-1.5 h-px bg-ink/20" />
         {w.path.map((step, i) => (
           <li key={step} className="relative flex flex-col gap-3">
@@ -1349,7 +1460,7 @@ function LocationCandidates() {
           </table>
         </div>
       </AdminSection>
-      <div className="mt-12 overflow-x-auto">
+      <div className="mt-(--adm-section) overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-left text-body">
           <thead>
             <tr className="border-b border-ink/8 text-small text-muted">
@@ -1390,7 +1501,7 @@ function LocationWindow({ inputs }: { inputs: AdminInputs }) {
   return (
     <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
       <figure className="min-w-0">
-        <figcaption className="mb-3 text-eyebrow uppercase text-muted">{w.chartTitle}</figcaption>
+        <figcaption className="mb-3 text-eyebrow uppercase text-(--adm-label)">{w.chartTitle}</figcaption>
         <svg viewBox="0 0 480 220" role="img" aria-label={w.chartTitle} className="h-auto w-full max-w-[560px]">
           <rect x={20 + 34 * 4.4} y={20} width={(62 - 34) * 4.4} height={180} rx={8} className="fill-adm-chart-1-soft" />
           <text x={20 + 48 * 4.4} y={38} textAnchor="middle" className="fill-adm-chart-1 text-small font-semibold">
@@ -1452,7 +1563,7 @@ function LocationDecision({ inputs }: { inputs: AdminInputs }) {
   const [reason, setReason] = useState(saved.reason);
   const options = LOCATION.candidates.rows.map((r) => r.country);
   return (
-    <AdminSection title={d.title} className="mt-16" aside={<span className="text-small text-muted">{saved.country ?? d.open}</span>}>
+    <AdminSection title={d.title} className="mt-(--adm-section)" aside={<span className="text-small text-muted">{saved.country ?? d.open}</span>}>
       <form
         className="grid max-w-3xl gap-4 sm:grid-cols-[240px_minmax(0,1fr)]"
         onSubmit={(e) => {
@@ -1520,7 +1631,7 @@ function CoreView({ inputs }: { inputs: AdminInputs }) {
       </section>
       <CoreHours />
       <section aria-label={CORE.pillars.title}>
-        <h3 className="mb-6 text-eyebrow uppercase text-muted">{CORE.pillars.title}</h3>
+        <h3 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{CORE.pillars.title}</h3>
         <div className="grid gap-y-10 md:grid-cols-3">
           {CORE.pillars.items.map((p, i) => {
             const Icon = PILLAR_ICON[p.key];
@@ -1530,7 +1641,7 @@ function CoreView({ inputs }: { inputs: AdminInputs }) {
                 <Icon aria-hidden className="size-7 text-ink" strokeWidth={1.5} />
                 <p className="mt-4 text-h3 text-ink">{p.title}</p>
                 <p className="text-body text-muted">{p.text}</p>
-                <dl className="mt-6">
+                <dl className="mt-(--adm-inner)">
                   <dt className="flex items-center gap-1 text-small text-muted">
                     {n.label}
                     <InfoTip text={n.info} />
@@ -1560,7 +1671,7 @@ function CoreHours() {
   const at = (months: number) => `${(months / H.scaleMonths) * 100}%`;
   return (
     <section aria-label={H.title}>
-      <h3 className="mb-6 text-eyebrow uppercase text-muted">{H.title}</h3>
+      <h3 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{H.title}</h3>
       <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-4 gap-y-5">
         <span className="text-body font-semibold text-ink">{H.everyday.label}</span>
         <div>
@@ -1586,7 +1697,7 @@ function CoreHours() {
           ))}
         </div>
       </div>
-      <p className="mt-6 text-small text-muted">{H.source}</p>
+      <p className="mt-(--adm-inner) text-small text-muted">{H.source}</p>
     </section>
   );
 }
@@ -1597,7 +1708,7 @@ function CoreArc() {
   const depthOn = useDepthChoice();
   return (
     <section aria-label={A.title}>
-      <h3 className="mb-6 text-eyebrow uppercase text-muted">{A.title}</h3>
+      <h3 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{A.title}</h3>
       <ol className="relative grid gap-y-6 lg:grid-cols-5">
         {/* The line through the dots */}
         <span aria-hidden className="absolute bottom-2 left-[5px] top-2 w-px bg-ink/15 lg:bottom-auto lg:left-0 lg:right-0 lg:top-[5px] lg:h-px lg:w-auto" />
@@ -1618,10 +1729,10 @@ function CoreArc() {
           </li>
         ))}
       </ol>
-      <p className="mt-6 text-small text-muted">{A.placeholder}</p>
+      <p className="mt-(--adm-inner) text-small text-muted">{A.placeholder}</p>
       {/* The three depths (config/depth.ts) – each level switches more of the arc on. */}
-      <div className="mt-10 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h4 className="text-eyebrow uppercase text-muted">{A.depthsTitle}</h4>
+      <div className="mt-(--adm-section) flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h4 className="text-eyebrow uppercase text-(--adm-label)">{A.depthsTitle}</h4>
         <span className="rounded-full border border-ink/12 px-2.5 py-0.5 text-small text-muted">{depthOn ? A.depthsOn : A.depthsOff}</span>
       </div>
       <ol className="mt-4 grid max-w-[880px] gap-1.5 sm:grid-cols-3">
@@ -1647,7 +1758,7 @@ function CoreNetwork({ viaInvite }: { viaInvite: number }) {
   const tints = ["fill-ink/4", "fill-ink/8", "fill-ink/12"];
   return (
     <section aria-label={N.title}>
-      <h3 className="mb-6 text-eyebrow uppercase text-muted">{N.title}</h3>
+      <h3 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{N.title}</h3>
       <div className="flex flex-wrap items-center gap-x-16 gap-y-8">
         <figure className="flex items-center gap-8">
           <svg viewBox="0 0 260 260" className="w-[220px] shrink-0 sm:w-[260px]" role="img" aria-label={N.circles.map((c) => `${c.title} (${c.text})`).join(" · ")}>
@@ -1686,7 +1797,7 @@ function CoreNetwork({ viaInvite }: { viaInvite: number }) {
         </figure>
         <div className="min-w-0 flex-1 space-y-8">
           <div>
-            <h4 className="mb-3 text-eyebrow uppercase text-muted">{N.loopTitle}</h4>
+            <h4 className="mb-3 text-eyebrow uppercase text-(--adm-label)">{N.loopTitle}</h4>
             <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-body text-ink">
               {N.loop.map((step, i) => (
                 <li key={step} className="flex items-center gap-2">
@@ -1700,7 +1811,7 @@ function CoreNetwork({ viaInvite }: { viaInvite: number }) {
             </ol>
           </div>
           <div>
-            <h4 className="mb-3 text-eyebrow uppercase text-muted">{N.inviteTitle}</h4>
+            <h4 className="mb-3 text-eyebrow uppercase text-(--adm-label)">{N.inviteTitle}</h4>
             <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
               <ul className="flex flex-wrap gap-2">
                 {N.invite.map((way) => (

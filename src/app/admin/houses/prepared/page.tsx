@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AdminHouses } from "@/components/admin/AdminHouses";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
-export const metadata: Metadata = { title: "Admin · Vorbereitete Houses", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Vorbereitete Houses · Admin", robots: { index: false, follow: false } };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

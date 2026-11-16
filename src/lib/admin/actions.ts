@@ -7,7 +7,7 @@ import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
 import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
-import { appendAdminLog, patchApplication, patchTaxQuestion, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { TaxQuestion } from "@/lib/data";
 
 export function useAdminActions() {
@@ -93,6 +93,14 @@ export function useAdminActions() {
     remindHost(stay: { title: string }, hostName: string) {
       appendAdminLog("host_reminded", `${hostName} · ${stay.title}`, by);
     },
+    /** Houses › Host helfen: suggestions to the host (price, photos, text). Mock: only logged. */
+    sendHostSuggestions(stay: { title: string }, hostName: string) {
+      appendAdminLog("host_suggestions", `${hostName} · ${stay.title}`, by);
+    },
+    /** Houses › Ausweichen: suggest moving the dates or merging crews. Mock: only logged. */
+    proposeAlternative(stay: { title: string }, hostName: string) {
+      appendAdminLog("alternative_proposed", `${hostName} · ${stay.title}`, by);
+    },
     /** Heute: a task done (it's gone) – `label` is how it reads in the log. */
     /** Geld › Steuern: a receipt for a cost (the mock keeps only the file name). */
     attachReceipt(receiptNo: string, fileName: string) {
@@ -114,6 +122,11 @@ export function useAdminActions() {
     setFundingDocStatus(key: string, label: string, status: "missing" | "inProgress" | "done") {
       setFundingDoc(key, status);
       appendAdminLog("funding_doc", `${label} · ${status}`, by);
+    },
+    /** System › Backlog: an item's status. */
+    setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done", statusLabel: string) {
+      setBacklog(id, status);
+      appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
     },
     /** Vision › Standort: the chosen country and why. */
     decideLocation(country: string | null, reason: string) {

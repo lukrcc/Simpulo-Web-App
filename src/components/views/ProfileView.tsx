@@ -186,7 +186,6 @@ function ProfileBody({ user, isMe, previewing, onExitPreview }: ProfileBodyProps
 }
 
 /** A section's heading under the stage: like the House page's section heads (text-subhead) – the window's edge cuts under it, never text. */
-const COLUMN_HEAD = "text-subhead text-ink";
 
 interface BentoProps {
   user: User;
@@ -243,18 +242,23 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
           </div>
         }
         // The stage's right column: "Hosting & going" (only when there's something this viewer may see, or it's yours).
-        rightColumn={!preview && (isMe || houses.length > 0) ? <HostingGoing user={user} isMe={isMe} houses={houses} today={today} /> : undefined}
+        // The stage's right column, a column with space between: "Hosting & going" on top (when there's something this viewer may see, or
+        // it's yours), "Places" at its foot.
+        rightColumn={
+          !preview && (isMe || houses.length > 0 || hasPlaces(store, view, user.id, today)) ? (
+            <div className="flex h-full min-h-0 flex-col justify-between gap-8">
+              {isMe || houses.length > 0 ? <HostingGoing user={user} isMe={isMe} houses={houses} today={today} /> : <span />}
+              <PlacesSection user={user} isMe={isMe} view={view} today={today} />
+            </div>
+          ) : undefined
+        }
         footer={<ProfileStrip user={user} isMe={isMe} previewing={previewing} viewerId={viewerId} today={today} preview={preview} />}
       >
         <IdentityStage user={user} isMe={isMe} previewing={previewing} view={view} houses={houses} hosted={hosted} viewerId={viewerId} today={today} preview={preview} hideAge={hideAge} />
       </HeroBand>
-      <Container className={cn("explore-width explore-root", preview ? "pb-8" : "pb-12")}>
-        {/* 32px under the strip (the peek rule): Your people (wider) · Places. */}
-        <div className="mt-8 grid grid-cols-1 gap-10 split:grid-cols-[3fr_2fr] split:gap-16">
-          <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
-          <PlacesSection user={user} isMe={isMe} view={view} today={today} />
-        </div>
-      </Container>
+      {/* Everything is on the stage: after the strip only the slim footer, one --stage-peek of light below it (header + image + strip +
+          peek = the window), so the footer comes only after scrolling. The strip is the last dark part: no further gap (--footer-gap 0). */}
+      {!preview && <div aria-hidden data-last-tone="dark" className="hidden h-(--stage-peek) split:block" />}
     </div>
   );
 }
@@ -295,7 +299,9 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
   const editable = isMe && !preview;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
+    // A column with space between: on top the person (name, facts, short text, vibe, links), at its foot "Your people".
+    <div className="flex h-full min-h-0 min-w-0 flex-col justify-between gap-8">
+      <div className="flex min-w-0 flex-col">
       <div className="flex items-start justify-between gap-4">
         {/* The way back: phones and the installed app. */}
         <BackButton fallback="/" label={tBack("back")} className="mt-1" />
@@ -349,6 +355,8 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
           </div>
         </Editable>
       )}
+      </div>
+      {!preview && <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />}
       {shareable && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
     </div>
   );
@@ -382,8 +390,8 @@ function VibeLine({ user, isMe, viewerId, preview, editable }: { user: User; isM
 }
 
 /**
- * The dark strip under the stage (the House page's: --stage-bar-h, the strip's type scale): the numbers left – Houses · Lived with · "{x} of
- * {y} would live again", hosts also "Replies within {h} h" (lib/metrics/profile.ts); the buttons right. Your own: Edit profile (its "5 of 6"
+ * The dark strip under the stage (the House page's: --stage-bar-h, the strip's type scale): the numbers left – Houses · Lived with → (a link
+ * only for the owner) · Countries · Hosted (hosts only) (lib/metrics/profile.ts) – counts without any rating; the buttons right. Your own: Edit profile (its "5 of 6"
  * ring inside) · Invite friends (the one orange button, --brand-action) · Share host page (hosts, outline). Someone else's: "Invite to a
  * House" only when you're each other's people (and you have a House with room); else no buttons – no free messages.
  */
@@ -401,8 +409,9 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
     { key: "houses", value: String(m.houses), label: tv("barHouses", { count: m.houses }) },
     // Your own: the people behind the numbers are on /people; visitors see the numbers only.
     { key: "lived", value: String(m.livedWith), label: tv("barLivedWith"), href: isMe && !preview ? "/people" : undefined },
-    { key: "again", value: tv("barAgainValue", { x: m.wouldLiveAgain, y: m.livedWith }), label: tv("numAgain"), href: isMe && !preview ? "/people" : undefined },
-    ...(hosts && m.replyHours !== null ? [{ key: "replies", value: tv("barRepliesValue", { h: m.replyHours }), label: tv("barReplies") }] : []),
+    { key: "countries", value: String(m.countries), label: tv("barCountries", { count: m.countries }) },
+    // Hosts only: the Houses they host or hosted. ("would live again" and "Replies within" stay internal – lib/metrics/profile.ts.)
+    ...(hosts ? [{ key: "hosted", value: String(m.hosted), label: tv("barHosted") }] : []),
   ];
   const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
   const done = counted.filter((s) => sectionDone(s.key, user, today)).length;
@@ -484,22 +493,6 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** A section's heading; your own: a link to where it's edited (a pencil on hover). */
-function ColumnHead({ id, title, href }: { id: string; title: string; href?: string }) {
-  return (
-    <h2 id={id} className={COLUMN_HEAD}>
-      {href ? (
-        <Link href={href} className="group inline-flex items-center gap-2 underline-offset-4 hover:underline">
-          {title}
-          <Pencil aria-hidden className="size-4 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100" />
-        </Link>
-      ) : (
-        title
-      )}
-    </h2>
-  );
-}
-
 /** Days from today to a date (0: today). */
 const daysFrom = (today: string, date: string) => Math.max(0, Math.round((Date.parse(date) - Date.parse(today)) / 86_400_000));
 
@@ -515,7 +508,7 @@ function visibleHouses(view: ProfileVisibility, userId: string, today: string): 
 }
 
 /**
- * "HOSTING & GOING", the stage's right column (360px): at most three rows of 64px – photo 48px (rounded square), the title, the state muted
+ * "HOSTING & GOING", the top of the stage's right column (360px): at most three rows of 56px – photo 48px (rounded square), the title, the state muted
  * ("Day 3 of 14" · "Next · in 78 days" · "Hosting · Mar 20" · "Going · Jan 17"), by date; a row opens the House (/h/[id]); then "X more →"
  * (your own: to Your houses; someone else's: a sheet with all). Your own empty: "Open to Houses" + "Your houses →".
  */
@@ -533,7 +526,7 @@ function HostingGoing({ user, isMe, houses, today }: { user: User; isMe: boolean
   const row = (stay: Stay) => {
     const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
     return (
-      <Link href={`/h/${stay.id}`} className="-mx-2 flex h-16 items-center gap-3 rounded-xl px-2 transition-colors duration-150 hover:bg-ink/5">
+      <Link href={`/h/${stay.id}`} className="-mx-2 flex h-14 items-center gap-3 rounded-xl px-2 transition-colors duration-150 hover:bg-ink/5">
         <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-ink/6">{photo && <Img src={photo} alt="" fill sizes="48px" className="object-cover" />}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-body font-semibold text-ink">{stay.title}</span>
@@ -584,14 +577,14 @@ function HostingGoing({ user, isMe, houses, today }: { user: User; isMe: boolean
   );
 }
 
-/** Your own: at most this many faces. */
-const PEOPLE_FACES = 8;
+/** Your own: at most this many faces (small, on the stage). */
+const PEOPLE_FACES = 6;
 /** Visitors: at most this many faces of people you both know. */
 const KNOWN_FACES = 5;
 
 /**
- * Your people (the wider section). Your own: faces (56px) with first names, eight at most, "See all {n} →" to /people, "1 housemate to
- * confirm". Anyone else's (lib/privacy.ts – the list stays theirs): only "You both know Mara and Jonas" with the faces of the people you
+ * Your people, at the foot of the stage's middle column. Your own: small faces (40px), six at most, "See all {n} →" to /people, "1 housemate
+ * to confirm →". Anyone else's (lib/privacy.ts – the list stays theirs): only "You both know Mara and Jonas" with the faces of the people you
  * share (your people who lived with them too); nobody shared – no section.
  */
 function PeopleSection({ user, isMe, view, viewerId }: { user: User; isMe: boolean; view: ProfileVisibility; viewerId: string | null }) {
@@ -613,31 +606,38 @@ function PeopleSection({ user, isMe, view, viewerId }: { user: User; isMe: boole
         : tv("bothKnowMore", { name: firstName(known[0]), count: known.length - 1 });
   return (
     <section aria-labelledby="col-people" className="min-w-0">
-      <ColumnHead id="col-people" title={isMe ? tv("yourPeople") : knownTitle} href={isMe ? "/people" : undefined} />
+      <h2 id="col-people" className="mb-2.5 text-eyebrow uppercase text-ink/60">
+        {isMe ? (
+          <Link href="/people" className="underline-offset-4 hover:underline">
+            {tv("yourPeople")}
+          </Link>
+        ) : (
+          knownTitle
+        )}
+      </h2>
       {isMe ? (
         people.length > 0 ? (
-          <>
-            <ul className="mt-3 grid grid-cols-4 gap-x-3 gap-y-4 sm:grid-cols-8">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <ul className="flex -space-x-2">
               {people.slice(0, PEOPLE_FACES).map((person) => (
-                <li key={person.id} className="min-w-0">
-                  <Link href={profileHref(person.id)} className="flex flex-col items-center gap-1.5 text-center">
-                    <PersonPhoto src={person.photos[0]} alt="" size={56} className="size-14" />
-                    <span className="w-full truncate text-small text-ink">{firstName(person)}</span>
+                <li key={person.id}>
+                  <Link href={profileHref(person.id)} aria-label={firstName(person)} data-tooltip={firstName(person)} className="block rounded-full">
+                    <PersonPhoto src={person.photos[0]} alt="" size={40} className="size-10 ring-2 ring-(--band)" />
                   </Link>
                 </li>
               ))}
             </ul>
-            <Link href="/people" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+            <Link href="/people" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
               {tv("seeAllPeople", { count: people.length })}
             </Link>
-          </>
+          </div>
         ) : (
-          <p className="mt-3 text-body text-muted">{tv("peopleEmpty")}</p>
+          <p className="text-body text-muted">{tv("peopleEmpty")}</p>
         )
       ) : (
-        <span className="mt-3 flex -space-x-2">
+        <span className="flex -space-x-2">
           {known.slice(0, KNOWN_FACES).map((person) => (
-            <PersonPhoto key={person.id} src={person.photos[0]} alt="" size={48} className="size-12 ring-2 ring-(--bg)" />
+            <PersonPhoto key={person.id} src={person.photos[0]} alt="" size={40} className="size-10 ring-2 ring-(--band)" />
           ))}
         </span>
       )}
@@ -664,8 +664,13 @@ function PeopleSection({ user, isMe, view, viewerId }: { user: User; isMe: boole
   );
 }
 
-/** At most this many places with a photo, then "+N". */
-const PLACES_SHOWN = 6;
+/** At most this many places with a photo (small, on the stage), then "+N". */
+const PLACES_SHOWN = 3;
+
+/** Whether "Places" has anything for this viewer: lived-in places or active "I'm in for". */
+function hasPlaces(store: { inFor: Parameters<typeof activeInForOf>[0] }, view: ProfileVisibility, userId: string, today: string) {
+  return view.places.length > 0 || activeInForOf(store.inFor, userId, today).length > 0;
+}
 
 /**
  * Places: where they lived (past Houses), each with a photo – from a House at that place (the one they lived in, else any House there), else
@@ -685,16 +690,24 @@ function PlacesSection({ user, isMe, view, today }: { user: User; isMe: boolean;
   if (lived.length === 0 && inFor.length === 0 && !isMe) return null;
   return (
     <section aria-labelledby="col-places" className="min-w-0">
-      <ColumnHead id="col-places" title={tv("placesLabel")} href={isMe ? editHref("inFor") : undefined} />
+      <h2 id="col-places" className="mb-2.5 text-eyebrow uppercase text-ink/60">
+        {isMe ? (
+          <Link href={editHref("inFor")} className="underline-offset-4 hover:underline">
+            {tv("placesLabel")}
+          </Link>
+        ) : (
+          tv("placesLabel")
+        )}
+      </h2>
       {lived.length > 0 && (
-        <ul className="mt-3 grid grid-cols-3 gap-x-3 gap-y-4">
+        <ul className="grid grid-cols-3 gap-x-2.5">
           {lived.slice(0, PLACES_SHOWN).map((place) => {
             const body = (
               <>
-                <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-surface-2 px-2 text-center">
-                  {place.image ? <Img src={place.image} alt="" fill sizes="120px" className="object-cover" /> : <span className="line-clamp-2 text-small font-semibold text-ink/70">{place.name}</span>}
+                <span className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-surface-2 px-2 text-center">
+                  {place.image ? <Img src={place.image} alt="" fill sizes="110px" className="object-cover" /> : <span className="line-clamp-2 text-small font-semibold text-ink/70">{place.name}</span>}
                 </span>
-                <span className="mt-1.5 block truncate text-small text-ink">{place.name}</span>
+                <span className="mt-1 block truncate text-small text-ink">{place.name}</span>
               </>
             );
             return (
@@ -714,7 +727,7 @@ function PlacesSection({ user, isMe, view, today }: { user: User; isMe: boolean;
       {lived.length > PLACES_SHOWN && <p className="mt-2 text-small text-muted">+{lived.length - PLACES_SHOWN}</p>}
       {/* Where they're in for, as capsules: "Lisbon · March". */}
       {inFor.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label={tv("inForLabel")}>
+        <ul className={cn("flex flex-wrap gap-2", lived.length > 0 && "mt-3")} aria-label={tv("inForLabel")}>
           {inFor.map((signal) => (
             <li key={signal.id} className="inline-flex h-8 items-center rounded-full border border-ink/12 px-3 text-small font-medium text-ink">
               {lineOf(signal)}
@@ -723,7 +736,7 @@ function PlacesSection({ user, isMe, view, today }: { user: User; isMe: boolean;
         </ul>
       )}
       {lived.length === 0 && inFor.length === 0 && (
-        <Link href={editHref("inFor")} className="mt-3 inline-block text-body font-semibold text-ink underline-offset-4 hover:underline">
+        <Link href={editHref("inFor")} className="inline-block text-body font-semibold text-ink underline-offset-4 hover:underline">
           {tv("placesAdd")}
         </Link>
       )}

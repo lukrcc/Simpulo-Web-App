@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
       // Earnings has its own page.
       { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/payouts", permanent: true },
       { source: "/your-houses/earnings", destination: "/your-houses/payouts", permanent: true },
+      // Admin: "Heute" and "Support" became the Posteingang.
+      { source: "/admin/today", destination: "/admin/posteingang", permanent: true },
+      { source: "/admin/heute", destination: "/admin/posteingang", permanent: true },
+      { source: "/admin/support", destination: "/admin/posteingang", permanent: true },
       // The sections are tabs now (one grid).
       { source: "/your-houses/hosting", destination: "/your-houses/all/hosting", permanent: true },
       { source: "/your-houses/joined", destination: "/your-houses/all/going", permanent: true },

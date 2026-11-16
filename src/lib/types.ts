@@ -175,6 +175,8 @@ export type AdminAction =
   | "withdrawal_added"
   | "host_tier_changed"
   | "house_highlighted"
+  | "host_suggestions"
+  | "alternative_proposed"
   | "waitlist_notified"
   | "host_reminded"
   | "guest_reminded"
@@ -185,6 +187,7 @@ export type AdminAction =
   | "export_created"
   | "funding_moved"
   | "funding_doc"
+  | "backlog_status"
   | "location_decided";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).

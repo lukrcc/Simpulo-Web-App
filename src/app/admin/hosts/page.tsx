@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminHosts } from "@/components/admin/AdminAreas";
 
-export const metadata: Metadata = { title: "Admin · Hosts" };
+export const metadata: Metadata = { title: "Hosts · Admin" };
 
 /** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
 export const instant = false;

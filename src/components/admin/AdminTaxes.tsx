@@ -81,7 +81,7 @@ export function AdminTaxes() {
     <>
       <p className="text-body text-muted">{t("disclaimer")}</p>
       {/* The period: its kind and which one (‹ ›), never past today's. */}
-      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="mt-(--adm-inner) flex flex-wrap items-center gap-x-4 gap-y-3">
         <CapsuleGroup
           size="sm"
           label={t("periodKind.label")}
@@ -105,7 +105,7 @@ export function AdminTaxes() {
       </div>
 
       {/* The main numbers: each with ⓘ, its change against the period before; missing receipts against 0. */}
-      <dl className="mt-10 grid grid-cols-2 gap-y-8 lg:grid-cols-5">
+      <dl className="mt-(--adm-section) grid grid-cols-2 gap-y-8 lg:grid-cols-5">
         {numbers.map((n, i) => (
           <div key={n.key} className={cn("min-w-0 pr-4 lg:px-5 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
             <dt className="flex items-center gap-1 text-small text-muted">
@@ -408,7 +408,7 @@ function Dac7Section({ entries, year, taxData }: { entries: ReturnType<typeof in
               <dd className="mt-1 text-h1 tabular-nums text-ink">{num(d.incomplete)}</dd>
             </div>
           </dl>
-          <div className="mt-6 overflow-x-auto">
+          <div className="mt-(--adm-inner) overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-body">
               <thead>
                 <tr className="border-b border-ink/8">

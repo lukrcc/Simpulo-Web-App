@@ -1,275 +1,227 @@
 "use client";
 
-import { profileHref } from "@/lib/privacy";
+// Admin › Wachstum (/admin/growth): no visible title (the side list shows where you are). The click row: tabs Kanäle · Empfehler · Houses ·
+// Verhalten, right Zeitraum ▾ and "Analytics ↗". Above the tabs, always: Besucher · Anfragen · Bezahlt · Wert ÷ Kosten, each with its change
+// (getChange) and ⓘ. Kanäle, Empfehler, Houses: rows without a frame – an icon or photo, the name, a mini bar visits → requests → paid with the
+// three numbers, the revenue right; the top 10, "Alle zeigen" opens the full list in the detail. Verhalten: app installs and asking the host.
+// Every number from lib/admin/metrics.ts (later from the pre-computed statistics, see there).
+import { Link2, MessageCircle, MousePointerClick, Search, Globe, ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { useFormat } from "@/i18n/format";
-import type { GrowthEvent } from "@/lib/growth";
-import { convertApprox } from "@/lib/rates";
 import { findUser, useStore } from "@/lib/store";
-import type { Currency } from "@/lib/types";
+import { profileHref } from "@/lib/privacy";
+import { housePhotos, cn } from "@/lib/utils";
+import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
+import { Img } from "@/components/ui/Img";
+import { TOOL_LINKS } from "@/config/app-links";
 import { AdminShell } from "./AdminShell";
-import { KeyNumbers } from "./AdminNumbers";
-import { askingHostMetrics, installRates, monthKpis } from "@/lib/admin/metrics";
+import { AdminSort, AdminTabs } from "./AdminLayout";
+import { ChangeLine, InfoTip, KeyNumbers } from "./AdminNumbers";
+import { askingHostMetrics, growthFunnel, growthRows, installRates, monthKpis, GROWTH_PERIODS, type GrowthPeriod, type GrowthRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
-import { cardClass } from "@/components/ui/Card";
-
-/** One row of a growth table: a channel, a referrer or a House. */
-interface Row {
-  key: string;
-  visits: number;
-  requests: number;
-  accepted: number;
-  paid: number;
-  /** Simpulo's part, ≈ EUR */
-  revenue: number;
-}
-
-/** Visits = house_viewed, requests = request_sent, accepted = request_accepted, paid = payment_completed. */
-function aggregate(events: GrowthEvent[], keyOf: (e: GrowthEvent) => string | undefined): Row[] {
-  const rows = new Map<string, Row>();
-  for (const e of events) {
-    const key = keyOf(e);
-    if (key === undefined) continue;
-    const row = rows.get(key) ?? { key, visits: 0, requests: 0, accepted: 0, paid: 0, revenue: 0 };
-    if (e.name === "house_viewed") row.visits++;
-    else if (e.name === "request_sent") row.requests++;
-    else if (e.name === "request_accepted") row.accepted++;
-    else if (e.name === "payment_completed") {
-      row.paid++;
-      row.revenue += convertApprox(e.revenue ?? 0, (e.currency ?? "EUR") as Currency, "EUR");
-    }
-    rows.set(key, row);
-  }
-  return [...rows.values()]
-    .filter((r) => r.visits + r.requests + r.accepted + r.paid > 0)
-    .toSorted((a, b) => b.revenue - a.revenue || b.visits - a.visits || a.key.localeCompare(b.key));
-}
+import { dec, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
 const DIRECT = "\u0000direct";
 const NO_REF = "\u0000none";
-const COLLAPSED_ROWS = 10;
+const TOP = 10;
 
-/** /admin/growth – tracked events per channel, per referrer and per House. */
+type GrowthTab = "channels" | "referrers" | "houses" | "behaviour";
+const TABS: readonly GrowthTab[] = ["channels", "referrers", "houses", "behaviour"];
+
+/** A channel's icon: the platforms' own marks (monochrome), else a line icon. */
+const CHANNEL_ICONS: Record<string, ComponentType<{ className?: string }> | LucideIcon> = {
+  instagram: SOCIAL_ICONS.instagram.icon,
+  tiktok: SOCIAL_ICONS.tiktok.icon,
+  youtube: SOCIAL_ICONS.youtube.icon,
+  twitch: SOCIAL_ICONS.twitch.icon,
+  whatsapp: MessageCircle,
+  copy: Link2,
+  google: Search,
+  [DIRECT]: MousePointerClick,
+};
+
 export function AdminGrowth() {
   const t = useTranslations("admin.growthArea");
   const tAdmin = useTranslations("admin");
   const store = useStore();
   const { events } = store;
+  const { today } = useAdminInputs();
+  const [tab, setTab] = useState<GrowthTab>("channels");
+  const [period, setPeriod] = useState<GrowthPeriod>("30");
+  const [all, setAll] = useState(false);
 
-  const byChannel = useMemo(() => aggregate(events, (e) => e.utmSource ?? DIRECT), [events]);
-  const byRef = useMemo(() => aggregate(events, (e) => e.refUserId ?? NO_REF), [events]);
-  const byHouse = useMemo(() => aggregate(events, (e) => e.houseId), [events]);
-  const visits = events.filter((e) => e.name === "house_viewed").length;
-  const paid = events.filter((e) => e.name === "payment_completed").length;
+  const byChannel = useMemo(() => growthRows(events, (e) => e.utmSource ?? DIRECT, period, today), [events, period, today]);
+  const byRef = useMemo(() => growthRows(events, (e) => e.refUserId ?? NO_REF, period, today).filter((r) => r.key !== NO_REF), [events, period, today]);
+  const byHouse = useMemo(() => growthRows(events, (e) => e.houseId, period, today), [events, period, today]);
+  const analytics = TOOL_LINKS.find((l) => l.key === "analytics")?.url;
 
-  const userName = (id: string) => findUser(store, id)?.name ?? t("unknownUser", { id });
-  const stayOf = (id: string) => store.stays.find((s) => s.id === id);
+  const channelName = (key: string) => (key === DIRECT ? t("channel.direct") : t.has(`channel.${key}` as Parameters<typeof t>[0]) ? t(`channel.${key}` as Parameters<typeof t>[0]) : key);
+  const rowsOf = tab === "channels" ? byChannel : tab === "referrers" ? byRef : byHouse;
+  const visual = (key: string): ReactNode => {
+    if (tab === "channels") {
+      const Icon = CHANNEL_ICONS[key] ?? Globe;
+      return (
+        <span className="flex size-10 items-center justify-center rounded-full bg-ink/6 text-ink/80">
+          <Icon className="size-4.5" />
+        </span>
+      );
+    }
+    if (tab === "referrers") {
+      const user = findUser(store, key);
+      // A preview image 40px, loaded lazily (long lists).
+      return user?.photos[0] ? <Img src={user.photos[0]} alt="" width={40} height={40} loading="lazy" className="size-10 rounded-full object-cover" /> : <span className="size-10 rounded-full bg-ink/6" />;
+    }
+    const stay = store.stays.find((st) => st.id === key);
+    const photo = stay ? housePhotos(stay, findUser(store, stay.hostId))[0] : undefined;
+    return photo ? <Img src={photo} alt="" width={40} height={40} loading="lazy" className="size-10 rounded-lg object-cover" /> : <span className="size-10 rounded-lg bg-ink/6" />;
+  };
+  const nameOf = (key: string): ReactNode => {
+    if (tab === "channels") return channelName(key);
+    if (tab === "referrers") {
+      const user = findUser(store, key);
+      return (
+        <Link href={profileHref(key)} className="hover:underline">
+          {user?.name ?? t("unknownUser", { id: key })}
+        </Link>
+      );
+    }
+    const stay = store.stays.find((st) => st.id === key);
+    return stay ? (
+      <Link href={`/house/${stay.slug}`} className="hover:underline">
+        {stay.title}
+      </Link>
+    ) : (
+      key
+    );
+  };
 
   return (
     <AdminShell
       title={tAdmin("growthTitle")}
+      tabs={
+        <AdminTabs
+          label={t("tabsLabel")}
+          value={tab}
+          onChange={(next) => (setTab(next), setAll(false))}
+          tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), info: key === "channels" ? t("channelsInfo") : undefined }))}
+        />
+      }
       aside={
-        <Link href="/admin/traffic" className="text-body font-semibold text-ink hover:underline">
-          {tAdmin("traffic.trafficLink")}
-        </Link>
+        <>
+          <AdminSort label={t("period.label")} value={period} onChange={setPeriod} options={GROWTH_PERIODS.map((value) => ({ value, label: t(`period.${value}`) }))} />
+          {analytics && (
+            <a href={analytics} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-body font-semibold text-ink hover:underline">
+              {t("analytics")}
+              <ArrowUpRight aria-hidden className="size-4" />
+            </a>
+          )}
+        </>
       }
     >
-      <GrowthKpis />
-      <InstallKpis />
-      <AskingKpis />
-      <p className="mt-12 text-small font-medium tabular-nums text-muted">{t("summary", { events: events.length, visits, paid })}</p>
-
-      <div className="mt-6 space-y-6">
-        <GrowthTable title={t("byChannel")} keyLabel={t("cols.channel")} rows={byChannel} label={(key) => (key === DIRECT ? t("direct") : key)} />
-        <GrowthTable
-          title={t("byRef")}
-          keyLabel={t("cols.ref")}
-          rows={byRef}
-          label={(key) =>
-            key === NO_REF ? (
-              t("noRef")
-            ) : (
-              <Link href={profileHref(key)} className="hover:underline">
-                {userName(key)}
-              </Link>
-            )
-          }
-        />
-        <GrowthTable
-          title={t("byHouse")}
-          keyLabel={t("cols.house")}
-          rows={byHouse}
-          label={(key) => {
-            const stay = stayOf(key);
-            if (!stay) return key;
-            return (
-              <Link href={`/house/${stay.slug}`} className="hover:underline">
-                {stay.title}
-              </Link>
-            );
-          }}
-        />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <AlertsCard />
-          <ApplicationsCard />
-        </div>
+      <FunnelKpis period={period} />
+      <div className="mt-(--adm-section)">
+        {tab === "behaviour" ? (
+          <>
+            <InstallKpis />
+            <AskingKpis />
+          </>
+        ) : (
+          <div className={cn("grid gap-x-10 gap-y-6", all && "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]")}>
+            <FunnelList rows={rowsOf.slice(0, TOP)} visual={visual} name={nameOf} empty={t("none")} />
+            {all && (
+              <section aria-label={t("allTitle")} className="min-w-0 lg:sticky lg:top-[calc(var(--header-h)+var(--adm-page))] lg:max-h-[calc(100svh-var(--header-h)-2*var(--adm-page))] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-eyebrow uppercase text-(--adm-label)">{t("allTitle")}</h2>
+                  <button type="button" onClick={() => setAll(false)} className="text-small font-semibold text-ink hover:underline">
+                    {t("showLess")}
+                  </button>
+                </div>
+                <FunnelList rows={rowsOf} visual={visual} name={nameOf} empty={t("none")} />
+              </section>
+            )}
+            {!all && rowsOf.length > TOP && (
+              <button type="button" onClick={() => setAll(true)} className="justify-self-start text-small font-semibold text-ink hover:underline">
+                {t("showAll", { count: rowsOf.length })}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </AdminShell>
   );
 }
 
-function GrowthTable({ title, keyLabel, rows, label }: { title: string; keyLabel: string; rows: Row[]; label: (key: string) => ReactNode }) {
+/**
+ * Always on top: Besucher · Anfragen · Bezahlt in the period (each with its change against the period before) · Wert ÷ Kosten (the last full
+ * month, target ≥ 3) – one row, each with ⓘ.
+ */
+function FunnelKpis({ period }: { period: GrowthPeriod }) {
   const t = useTranslations("admin.growthArea");
-  const f = useFormat();
-  const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
-  const total = rows.reduce(
-    (sum, r) => ({ visits: sum.visits + r.visits, requests: sum.requests + r.requests, accepted: sum.accepted + r.accepted, paid: sum.paid + r.paid, revenue: sum.revenue + r.revenue }),
-    { visits: 0, requests: 0, accepted: 0, paid: 0, revenue: 0 },
-  );
-  const num = "py-2.5 pl-4 text-right tabular-nums";
-
+  const tk = useTranslations("admin.growthArea.kpis");
+  const store = useStore();
+  const inputs = useAdminInputs();
+  const f = growthFunnel(store.events, period, inputs.today);
+  const k = monthKpis(inputs);
+  const periodText = t(`period.${period}`);
   return (
-    <section className={cardClass}>
-      <h2 className="mb-4 text-body-lg font-semibold">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="text-small text-muted">{t("none")}</p>
-      ) : (
-        // Scrolls inside the card on narrow screens – the page itself never scrolls sideways.
-        <div className="-mx-6 overflow-x-auto px-6">
-          <table className="w-full min-w-[560px] text-left text-body">
-            <thead className="text-small text-muted">
-              <tr>
-                <th scope="col" className="pb-2 font-medium">{keyLabel}</th>
-                <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.visits")}</th>
-                <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.requests")}</th>
-                <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.accepted")}</th>
-                <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.paid")}</th>
-                <th scope="col" className="pb-2 pl-4 text-right font-medium">{t("cols.revenue")}</th>
-              </tr>
-            </thead>
-            <tbody className="">
-              {shown.map((row) => (
-                <tr key={row.key}>
-                  <td className="max-w-64 truncate py-2.5 font-medium">{label(row.key)}</td>
-                  <td className={num}>{row.visits}</td>
-                  <td className={num}>{row.requests}</td>
-                  <td className={num}>{row.accepted}</td>
-                  <td className={num}>{row.paid}</td>
-                  <td className={num}>{f.price(Math.round(row.revenue), "EUR")}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="font-semibold">
-              <tr>
-                <td className="py-2.5" />
-                <td className={num}>{total.visits}</td>
-                <td className={num}>{total.requests}</td>
-                <td className={num}>{total.accepted}</td>
-                <td className={num}>{total.paid}</td>
-                <td className={num}>{f.price(Math.round(total.revenue), "EUR")}</td>
-              </tr>
-            </tfoot>
-          </table>
+    <dl className="grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
+      {[
+        { key: "visitors", label: t("funnel.visitors"), info: `${t("funnel.info.visitors")} (${periodText})`, value: num(f.visitors.value), change: f.visitors.change },
+        { key: "requests", label: t("funnel.requests"), info: `${t("funnel.info.requests")} (${periodText})`, value: num(f.requests.value), change: f.requests.change },
+        { key: "paid", label: t("funnel.paid"), info: `${t("funnel.info.paid")} (${periodText})`, value: num(f.paid.value), change: f.paid.change },
+        {
+          key: "valueToCost",
+          label: tk("valueToCost"),
+          info: `${tk("info.valueToCost")} (${monthLong(`${k.month}-01`)})`,
+          value: k.valueToCost.value === null ? "–" : `${dec(k.valueToCost.value)} ×`,
+          change: k.valueToCost.change,
+          target: { text: tk("target", { target: k.valueToCost.target }), status: k.valueToCost.status },
+        },
+      ].map((n, i) => (
+        <div key={n.key} className={cn("min-w-0 pr-4 lg:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
+          <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+            {n.label}
+            <InfoTip text={n.info} />
+          </dt>
+          <dd className="mt-1 text-adm-figure tabular-nums text-ink">{n.value}</dd>
+          <dd className="mt-1">
+            <ChangeLine change={n.change} target={"target" in n ? n.target : undefined} className="block" />
+          </dd>
         </div>
-      )}
-      {rows.length > COLLAPSED_ROWS && (
-        <button type="button" onClick={() => setExpanded((e) => !e)} className="mt-3 text-small font-medium text-muted underline underline-offset-2 hover:text-ink">
-          {expanded ? t("showLess") : t("showAll", { count: rows.length })}
-        </button>
-      )}
-    </section>
-  );
-}
-
-function AlertsCard() {
-  const t = useTranslations("admin.growthArea");
-  const tAlert = useTranslations("growth.alert");
-  const f = useFormat();
-  const { alerts } = useStore();
-  return (
-    <section className={cardClass}>
-      <h2 className="mb-4 text-body-lg font-semibold">{t("alerts")}</h2>
-      {alerts.length === 0 ? (
-        <p className="text-small text-muted">{t("none")}</p>
-      ) : (
-        <ul className="text-body">
-          {alerts.toReversed().map((a) => (
-            <li key={a.id} className="py-2.5">
-              {t("alertRow", {
-                email: a.email,
-                place: a.region || tAlert("anywhere"),
-                dates: a.from && a.to ? f.longRange(a.from, a.to) : tAlert("anyDates"),
-              })}
-              <span className="block text-small text-muted">{f.day(a.createdAt)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function ApplicationsCard() {
-  const t = useTranslations("admin.growthArea");
-  const tHost = useTranslations("growth.host");
-  const f = useFormat();
-  const { applications } = useStore();
-  return (
-    <section className={cardClass}>
-      <h2 className="mb-4 text-body-lg font-semibold">{t("applications")}</h2>
-      {applications.length === 0 ? (
-        <p className="text-small text-muted">{t("none")}</p>
-      ) : (
-        <ul className="text-body">
-          {applications.toReversed().map((a) => (
-            <li key={a.id} className="py-3">
-              <p className="font-medium">
-                {a.name} · <span className="font-normal text-muted">{a.email}</span>
-              </p>
-              <p className="mt-0.5 text-muted">
-                {tHost(`audienceSizes.${a.audienceSize}`)} · {a.place}
-                {a.from && a.to && ` · ${f.longRange(a.from, a.to)}`}
-              </p>
-              <p className="mt-1 text-ink">{a.idea}</p>
-              <p className="mt-1 break-all text-small text-muted">{a.platformLinks.join(" · ")}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+      ))}
+    </dl>
   );
 }
 
 /**
- * On top: active users of the last full month, the cost per guest won (marketing ÷ new guests) and what a guest is worth in a year over that
- * cost (target ≥ 3) – each with its change against the month before and ⓘ (lib/admin/metrics.ts monthKpis).
+ * Rows without a frame: icon/photo · name · a mini bar visits → requests → paid (one track per row, as wide as its visits against the most
+ * visits in the list; requests and paid inside it) with the three numbers · revenue right.
  */
-function GrowthKpis() {
-  const t = useTranslations("admin.growthArea.kpis");
-  const k = monthKpis(useAdminInputs());
-  const month = monthLong(`${k.month}-01`);
-  const against = t("against", { month: monthLong(`${k.monthBefore}-01`) });
+function FunnelList({ rows, visual, name, empty }: { rows: readonly GrowthRow[]; visual: (key: string) => ReactNode; name: (key: string) => ReactNode; empty: string }) {
+  const t = useTranslations("admin.growthArea");
+  const f = useFormat();
+  if (rows.length === 0) return <p className="text-body text-muted">{empty}</p>;
+  const most = Math.max(1, ...rows.map((r) => r.visits));
   return (
-    <KeyNumbers
-      items={[
-        { key: "activeUsers", label: t("inMonth", { label: t("activeUsers"), month }), info: t("info.activeUsers"), value: num(k.activeUsers.value), change: k.activeUsers.change, against },
-        { key: "costPerGuest", label: t("costPerGuest"), info: t("info.costPerGuest"), value: k.costPerGuest.value === null ? "–" : eur(k.costPerGuest.value), change: k.costPerGuest.change, against },
-        {
-          key: "valueToCost",
-          label: t("valueToCost"),
-          info: t("info.valueToCost"),
-          value: k.valueToCost.value === null ? "–" : `${dec(k.valueToCost.value)} ×`,
-          change: k.valueToCost.change,
-          against,
-          target: { text: t("target", { target: k.valueToCost.target }), status: k.valueToCost.status },
-          sub: k.valueToCost.valuePerGuestYear === null ? undefined : t("valueSub", { value: eur(k.valueToCost.valuePerGuestYear) }),
-        },
-      ]}
-    />
+    <ul className="divide-y divide-ink/8">
+      {rows.map((row) => (
+        <li key={row.key} className="flex min-h-14 items-center gap-4 py-2">
+          <span className="shrink-0">{visual(row.key)}</span>
+          <span className="w-44 shrink-0 truncate text-body font-semibold text-ink">{name(row.key)}</span>
+          <span className="min-w-0 flex-1">
+            <span aria-hidden className="relative block h-2 rounded-full bg-ink/6">
+              <span className="absolute inset-y-0 left-0 rounded-full bg-ink/18" style={{ width: `${(row.visits / most) * 100}%` }} />
+              <span className="absolute inset-y-0 left-0 rounded-full bg-ink/45" style={{ width: `${(row.requests / most) * 100}%` }} />
+              <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-1" style={{ width: `${(row.paid / most) * 100}%` }} />
+            </span>
+            <span className="mt-1 block text-small tabular-nums text-muted">{t("funnelLine", { visits: num(row.visits), requests: num(row.requests), paid: num(row.paid) })}</span>
+          </span>
+          <span className="w-24 shrink-0 text-right text-body font-semibold tabular-nums text-ink">{f.price(Math.round(row.revenue), "EUR")}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -284,16 +236,16 @@ function InstallKpis() {
   const against = t("against", { month: monthLong(`${k.monthBefore}-01`) });
   const item = (key: "installIos" | "installAndroid", r: typeof k.ios) => ({
     key,
-    label: t("inMonth", { label: t(key), month }),
-    info: t(`info.${key}`),
+    label: t(key),
+    info: `${t(`info.${key}`)} (${month})`,
     value: r.value === null ? "–" : pct(Math.round(r.value)),
     change: r.change,
     against,
     sub: r.value === null ? t("notMeasurable") : t("installSub", { count: num(r.booked ?? 0) }),
   });
   return (
-    <section className="mt-12">
-      <h2 className="text-eyebrow uppercase text-muted">{t("installs")}</h2>
+    <section>
+      <h2 className="text-eyebrow uppercase text-(--adm-label)">{t("installs")}</h2>
       <KeyNumbers className="mt-4" items={[item("installIos", k.ios), item("installAndroid", k.android)]} />
     </section>
   );
@@ -306,10 +258,11 @@ function InstallKpis() {
 function AskingKpis() {
   const t = useTranslations("admin.growthArea.kpis");
   const k = askingHostMetrics(useAdminInputs());
-  const item = (key: "askBefore" | "askToRequest" | "askNote", value: string, sub: string) => ({ key, label: t(key), info: t(`info.${key}`), value, change: null, sub });
+  // The note "data points planned" belongs in the ⓘ, not under the numbers.
+  const item = (key: "askBefore" | "askToRequest" | "askNote", value: string, sub: string) => ({ key, label: t(key), info: `${t(`info.${key}`)} ${t("askPlanned")}`, value, change: null, sub });
   return (
-    <section className="mt-12">
-      <h2 className="text-eyebrow uppercase text-muted">{t("asking")}</h2>
+    <section className="mt-(--adm-section)">
+      <h2 className="text-eyebrow uppercase text-(--adm-label)">{t("asking")}</h2>
       <KeyNumbers
         className="mt-4"
         items={[
@@ -318,7 +271,6 @@ function AskingKpis() {
           item("askNote", k.requestsWithNote === null ? "–" : pct(Math.round(k.requestsWithNote)), t("askRequests", { count: num(k.requests) })),
         ]}
       />
-      <p className="mt-3 text-small text-muted">{t("askPlanned")}</p>
     </section>
   );
 }

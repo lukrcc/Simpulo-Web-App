@@ -2,8 +2,11 @@
 // are counts, never people); the server computes the same later.
 //   houses        – completed Houses: over (status "completed", or the last night passed), hosted or lived in as crew
 //   livedWith     – unique people from all those Houses (host and crew, everyone once, never the person)
-//   wouldLiveAgain – of them, how many chose "with you again" after the House (incoming; the rating after a stay – data point after.*,
-//                    planned; the mock: lib/yourPeople.ts liveAgainCount) – shown "{x} of {y} would live again", y = livedWith
+//   countries     – unique countries of those Houses
+//   hosted        – Houses they host or hosted (not drafts, not cancelled, no examples)
+// Internal only – never shown publicly (no ratings on a profile); kept for matching and the host's own area:
+//   wouldLiveAgain – of livedWith, how many chose "with you again" after the House (incoming; the rating after a stay – data point after.*,
+//                    planned; the mock: lib/yourPeople.ts liveAgainCount)
 //   replyHours    – hosts: the median time to answer a request, in whole hours (at least 1); null without answers
 import { medianReplyMinutes } from "@/lib/profilePrivacy";
 import { getCrew, isCrewMember, type StoreData } from "@/lib/store";
@@ -18,7 +21,11 @@ const isCompleted = (stay: Stay, today: string) => !NOT_HELD.has(stay.status) &&
 export interface ProfileMetrics {
   houses: number;
   livedWith: number;
+  countries: number;
+  hosted: number;
+  /** Internal (matching) – never on the profile */
   wouldLiveAgain: number;
+  /** Internal (the host's own area) – never on the profile */
   replyHours: number | null;
 }
 
@@ -29,6 +36,8 @@ export function profileMetrics(data: StoreData, user: User, today: string): Prof
   return {
     houses: completed.length,
     livedWith: people.size,
+    countries: new Set(completed.map((s) => s.location.country).filter(Boolean)).size,
+    hosted: data.stays.filter((s) => s.hostId === user.id && !NOT_HELD.has(s.status) && !s.isExample).length,
     wouldLiveAgain: liveAgainCount(user.id, [...people]),
     replyHours: minutes === null ? null : Math.max(1, Math.round(minutes / 60)),
   };

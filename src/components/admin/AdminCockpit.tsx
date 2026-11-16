@@ -7,7 +7,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { memo, useMemo, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FormField } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
@@ -16,8 +16,7 @@ import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { COMPARE_PERIODS, DEFAULT_COMPARE, profitMilestones, type ComparePeriod } from "@/config/admin";
-import { monthKpis, monthlySeries, northStar, runway, cockpit, companyBalance, getStatus, launchProgress, money, profitPerMonth, type CockpitNumber, type NeedsYou } from "@/lib/admin/metrics";
-import { needsYou } from "@/lib/admin/tasks";
+import { monthKpis, monthlySeries, northStar, runway, cockpit, companyBalance, getStatus, launchProgress, money, profitPerMonth, type CockpitNumber } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
@@ -57,52 +56,35 @@ export function AdminCockpit() {
   return (
     <AdminShell
       title={t("title")}
-      aside={
-        <span className="flex flex-wrap items-center gap-4">
-          <CapsuleGroup size="sm" label={t("compare.label")} value={period} onChange={setPeriod} options={COMPARE_PERIODS.map((value) => ({ value, content: t(`compare.${value}`) }))} />
-          <Link href="/admin/money" className="text-body font-semibold text-ink hover:underline">
-            {t("moneyLink")}
-          </Link>
-        </span>
-      }
+      aside={<CapsuleGroup size="sm" label={t("compare.label")} value={period} onChange={setPeriod} options={COMPARE_PERIODS.map((value) => ({ value, content: t(`compare.${value}`) }))} />}
     >
-      {/* First what needs you: one row of capsules right under the title. */}
-      <NeedsYouRow needs={needsYou(tasks, inputs)} />
+      {/* What needs you: one line into the Posteingang ("● 30 offen im Posteingang →", the dot only when > 0). */}
+      <InboxLine open={tasks.length} />
 
       {/* Profit this month: the big number, its change, the months in a row. */}
-      <section aria-label={t("move")} className="mt-8 flex flex-wrap items-end gap-x-10 gap-y-5">
+      <section aria-label={t("move")} className="mt-(--adm-inner) flex flex-wrap items-end gap-x-10 gap-y-(--adm-inner)">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-eyebrow uppercase text-muted">
-            <StatusDot status={move.status} />
+          <p className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
             {t("move")}
-            <span className="sr-only">· {tAdmin(`status.${move.status ?? "none"}`)}</span>
+            <InfoTip text={`${t("info.profit")} (${against})`} />
           </p>
-          <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-display tabular-nums text-ink">{eur(move.current)}</span>
-            <span className="text-h3 text-muted">{t("moveTarget", { target: eur(move.target) })}</span>
-            <span className="self-center">
-              <InfoTip text={t("info.profit")} />
-            </span>
-          </p>
-          <ChangeLine change={move.change} against={against} className="mt-1 block text-body" />
+          <p className="text-adm-hero tabular-nums text-ink">{eur(move.current)}</p>
+          {/* ONE line: "▼ −300 € (−6,4 %) · Ziel 5.000 €" – the target with its status dot. */}
+          <ChangeLine change={move.change} target={{ text: t("target", { target: eur(move.target) }), status: move.status }} className="mt-1 block" />
+          <span className="sr-only">· {tAdmin(`status.${move.status ?? "none"}`)}</span>
         </div>
-        {/* The north star beside the profit: people × nights in full Houses this month. */}
+        {/* Shared nights beside the profit: people × nights in full Houses this month. */}
         <div className="min-w-0 border-ink/8 lg:border-l lg:pl-10">
-          <p className="text-eyebrow uppercase text-muted">
-            {t("northStarEyebrow")} · {t("northStar")}
+          <p className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+            {t("northStar")}
+            <InfoTip text={`${t("info.northStar")} (${against})`} />
           </p>
-          <p className="mt-1 flex items-baseline gap-x-2">
-            <span className="text-display tabular-nums text-ink">{num(star.current)}</span>
-            <span className="text-h3 text-muted">{t("chart.nights")}</span>
-            <span className="self-center">
-              <InfoTip text={t("info.northStar")} />
-            </span>
-          </p>
-          <ChangeLine change={star.change} against={against} className="mt-1 block text-body" />
+          <p className="text-adm-hero tabular-nums text-ink">{num(star.current)}</p>
+          <ChangeLine change={star.change} className="mt-1 block" />
         </div>
         <div className="min-w-0 lg:ml-auto">
-          <p className="text-body text-ink">{t("streak", { streak: move.streak, of: move.streakOf })}</p>
-          <StepMeter reached={move.streak} of={move.streakOf} label={t("streak", { streak: move.streak, of: move.streakOf })} className="mt-3 w-60" />
+          <p className="text-eyebrow uppercase text-(--adm-label)">{t("streak", { streak: move.streak, of: move.streakOf })}</p>
+          <StepMeter reached={move.streak} of={move.streakOf} label={t("streak", { streak: move.streak, of: move.streakOf })} className="mt-2 w-60" />
         </div>
       </section>
 
@@ -122,29 +104,24 @@ function AreaRow({ areas }: { areas: ReturnType<typeof cockpit>["areas"] }) {
   const t = useTranslations("admin.cockpit");
   const tAdmin = useTranslations("admin");
   return (
-    <div className="mt-10 grid grid-cols-2 gap-y-8 lg:grid-cols-4">
+    <div className="mt-(--adm-section) grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
       {areas.map((area, i) => {
         const n = area.number;
         return (
-          <div key={area.key} className={cn("group relative min-w-0 px-5 pb-1 pt-5 first:pl-0", i > 0 && "border-l border-ink/8", i === 2 && "max-lg:border-l-0 max-lg:pl-0")}>
+          <div key={area.key} className={cn("group relative min-w-0 px-5 pb-1 pt-4 first:pl-0", i > 0 && "border-l border-ink/8", i === 2 && "max-lg:border-l-0 max-lg:pl-0")}>
             <span aria-hidden className={cn("absolute left-0 right-5 top-0 h-0.5 rounded-full", i > 0 && "left-5", i === 2 && "max-lg:left-0", AREA_BG[GROUP_AREA[area.key]])} />
             <Link href={area.href} aria-label={t("open", { area: t(`group.${area.key}`) })} data-no-tooltip className="absolute inset-0 rounded-lg" />
-            <span className="flex items-center gap-2 text-h3 text-ink">
-              {t(`group.${area.key}`)}
-              <ArrowRight aria-hidden className="size-4 text-muted transition-transform duration-150 group-hover:translate-x-0.5" />
+            {/* The area (a short noun, caps) with its arrow · the number + ⓘ (what it counts) · ONE line "▲ +3 · Ziel 44". */}
+            <span className="flex items-center gap-1.5 text-eyebrow uppercase text-(--adm-label)">
+              {t(`metric.${n.key}`)}
+              <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </span>
-            <span className="mt-3 flex items-center gap-2">
-              <span className="text-h1 tabular-nums text-ink">{valueText(n.value, n.format)}</span>
-              <InfoTip text={t(`info.${n.key}`)} />
+            <span className="mt-1 flex items-center gap-2">
+              <span className="text-adm-figure tabular-nums text-ink">{valueText(n.value, n.format)}</span>
+              <InfoTip text={`${t(`group.${area.key}`)}: ${t(`info.${n.key}`)}`} />
             </span>
-            <ChangeLine change={n.change} className="mt-1 block" />
-            <span className="mt-1 flex items-center gap-2 text-small text-muted">
-              <StatusDot status={n.status} />
-              <span className="min-w-0">
-                {t(`metric.${n.key}`)} · {t("target", { target: valueText(n.target, n.format) })}
-              </span>
-              <span className="sr-only">· {tAdmin(`status.${n.status ?? "none"}`)}</span>
-            </span>
+            <ChangeLine change={n.change} target={{ text: t("target", { target: valueText(n.target, n.format) }), status: n.status }} className="mt-1 block" />
+            <span className="sr-only">· {tAdmin(`status.${n.status ?? "none"}`)}</span>
           </div>
         );
       })}
@@ -152,44 +129,50 @@ function AreaRow({ areas }: { areas: ReturnType<typeof cockpit>["areas"] }) {
   );
 }
 
-/** The chart with its own state (the axis switch) – hovering or switching never re-renders the page. */
+/**
+ * The chart with its own state (the switch "Gewinn · Nächte · Vergleich", right above it) – hovering or switching never re-renders the page.
+ * The profit axis goes up to the next milestone on its own (no axis switch). The chart's height fills the rest of the window (at least
+ * 220px), so the whole overview fits without scrolling (1470 × 814).
+ */
 const ProfitPanel = memo(function ProfitPanel({ data, current, series }: { data: readonly { label: string; value: number }[]; current: number; series: ReturnType<typeof monthlySeries> }) {
   const t = useTranslations("admin.cockpit");
-  const [axis, setAxis] = useState<"current" | `${number}`>("current");
-  const [mode, setMode] = useState<"profit" | "northStar" | "compare">("profit");
-  const title = mode === "profit" ? t("move") : mode === "northStar" ? t("chart.northStarTitle") : t("chart.compareTitle");
+  const [mode, setMode] = useState<"profit" | "nights" | "compare">("profit");
+  const title = mode === "profit" ? t("move") : mode === "nights" ? t("northStar") : t("chart.compareTitle");
+  const box = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(260);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const top = box.current?.getBoundingClientRect().top;
+      if (top === undefined) return;
+      // The rest of the window under the chart's top, less the page's bottom padding; at least 220px.
+      setHeight(Math.max(220, Math.floor(window.innerHeight - (top + window.scrollY) - 40)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  // The axis: up to the next milestone above the highest month (config/admin.ts profitMilestones.ladder).
+  const max = Math.max(0, ...data.map((d) => d.value));
+  const axisTop = profitMilestones.ladder.find((s) => s.value > max)?.value ?? null;
   return (
-    <section aria-label={title} className="mt-12">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-eyebrow uppercase text-muted">
+    <section aria-label={title} className="mt-(--adm-section)">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-eyebrow uppercase text-(--adm-label)">
           {title}
           {mode === "compare" && <span className="ml-2 normal-case tracking-normal">· {t("chart.compareNote")}</span>}
         </h2>
-        <CapsuleGroup size="sm" label={t("chart.label")} value={mode} onChange={setMode} options={(["profit", "northStar", "compare"] as const).map((value) => ({ value, content: t(`chart.${value}`) }))} />
+        <CapsuleGroup size="sm" label={t("chart.label")} value={mode} onChange={setMode} options={(["profit", "nights", "compare"] as const).map((value) => ({ value, content: t(`chart.${value}`) }))} />
       </div>
-      {mode === "profit" && (
-        <>
-          <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_200px]">
-            <ProfitChart data={data} label={t("move")} milestoneLabel={t("milestones.move")} fixedTop={axis === "current" ? null : Number(axis)} />
-            <MilestoneLadder current={current} />
+      <div ref={box}>
+        {mode === "profit" && (
+          <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_160px]">
+            <ProfitChart data={data} label={t("move")} milestoneLabel={t("milestones.move")} fixedTop={axisTop} height={height} />
+            <MilestoneLadder current={current} height={height} />
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-small text-muted">{t("axis.label")}</span>
-            <CapsuleGroup
-              size="sm"
-              label={t("axis.label")}
-              value={axis}
-              onChange={setAxis}
-              options={[
-                { value: "current" as const, content: t("axis.current") },
-                ...profitMilestones.fixedAxes.map((v) => ({ value: `${v}` as `${number}`, content: `${v / 1000}k` })),
-              ]}
-            />
-          </div>
-        </>
-      )}
-      {mode === "northStar" && <CountBars data={series.map((r) => ({ label: monthLabel(r.month), value: r.sharedNights }))} label={t("chart.northStarTitle")} unit={t("chart.nights")} />}
-      {mode === "compare" && <CompareChart series={series} />}
+        )}
+        {mode === "nights" && <CountBars data={series.map((r) => ({ label: monthLabel(r.month), value: r.sharedNights }))} label={t("northStar")} unit={t("chart.nights")} height={height} />}
+        {mode === "compare" && <CompareChart series={series} height={height} />}
+      </div>
     </section>
   );
 });
@@ -200,12 +183,12 @@ const COMPARE: readonly { key: SeriesKey; color: string; format: (v: number) => 
   { key: "bookingVolume", color: "var(--adm-chart-1)", format: eur },
   { key: "sharedNights", color: "var(--adm-chart-2)", format: num },
   { key: "profit", color: "var(--adm-chart-3)", format: eur },
-  { key: "activeUsers", color: "var(--adm-good)", format: num },
-  { key: "repeatRate", color: "var(--adm-area-operate)", format: pct },
+  { key: "activeUsers", color: "var(--adm-chart-4)", format: num },
+  { key: "repeatRate", color: "var(--adm-chart-5)", format: pct },
 ];
 
 /** Every series as an index (its first month = 100), so they share one axis; the tooltip shows the real values. */
-function CompareChart({ series }: { series: ReturnType<typeof monthlySeries> }) {
+function CompareChart({ series, height }: { series: ReturnType<typeof monthlySeries>; height: number }) {
   const t = useTranslations("admin.cockpit.chart");
   const bases = Object.fromEntries(COMPARE.map((c) => [c.key, series.find((r) => r[c.key] !== null && r[c.key]! > 0)?.[c.key] ?? null])) as Record<SeriesKey, number | null>;
   const data = series.map((r) => ({
@@ -213,21 +196,22 @@ function CompareChart({ series }: { series: ReturnType<typeof monthlySeries> }) 
     ...Object.fromEntries(COMPARE.map((c) => [c.key, r[c.key] !== null && bases[c.key] ? Math.round((r[c.key]! / bases[c.key]!) * 100) : null])),
   }));
   const raw = (label: string, key: string) => series.find((r) => monthLabel(r.month) === label)?.[key as SeriesKey] ?? null;
-  return <LinesChart data={data} series={COMPARE.map((c) => ({ ...c, label: t(`series.${c.key}`) }))} label={t("compareTitle")} yFormat={(v) => num(v)} raw={raw} reference={100} />;
+  return <LinesChart data={data} series={COMPARE.map((c) => ({ ...c, label: t(`series.${c.key}`) }))} label={t("compareTitle")} yFormat={(v) => num(v)} raw={raw} reference={100} height={height} />;
 }
 
 /**
  * The milestone ladder beside the chart (config/admin.ts profitMilestones.ladder), top = highest: reached steps a sage circle, the next one a
  * ring with its progress in percent, the rest empty circles; a thin line joins them. Below "Du: X €" (profit this month).
  */
-function MilestoneLadder({ current }: { current: number }) {
+function MilestoneLadder({ current, height }: { current: number; height: number }) {
   const t = useTranslations("admin.cockpit");
   const steps = profitMilestones.ladder;
   const next = steps.find((s) => current < s.value);
   return (
-    <div className="flex flex-col lg:h-[320px]">
-      <h3 className="text-eyebrow uppercase text-muted">{t("ladder.title")}</h3>
-      <ol className="relative mt-4 flex flex-1 flex-col-reverse justify-between gap-3">
+    // Compact: as high as the chart, the steps spread over it.
+    <div className="flex flex-col" style={{ height }}>
+      <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("ladder.title")}</h3>
+      <ol className="relative mt-3 flex flex-1 flex-col-reverse justify-between gap-2">
         <span aria-hidden className="absolute bottom-2 left-[7px] top-2 w-px bg-ink/10" />
         {steps.map((s) => {
           const reached = current >= s.value;
@@ -248,44 +232,20 @@ function MilestoneLadder({ current }: { current: number }) {
           );
         })}
       </ol>
-      <p className="mt-4 text-body font-semibold tabular-nums text-ink">{t("ladder.you", { value: eur(current) })}</p>
+      <p className="mt-3 text-small font-semibold tabular-nums text-ink">{t("ladder.you", { value: eur(current) })}</p>
     </div>
   );
 }
 
-/**
- * "Braucht dich" as ONE row right under the title: the label, then a capsule per kind of open task, in the task list's order (Sicherheit ·
- * Zahlungen · Houses in Gefahr · Bewerbungen · Hosts · Tickets; in pre-launch/beta then the launch criteria) – ember dot, number, short text;
- * each leads to "Heute". The same counts as the side list (lib/admin/tasks.ts taskCounts): their sum is the "Heute" badge. None: "✓ Alles
- * erledigt" in sage. More capsules wrap, never scroll.
- */
-function NeedsYouRow({ needs }: { needs: readonly NeedsYou[] }) {
-  const t = useTranslations("admin.cockpit.needs");
+/** "● 30 offen im Posteingang →" – one line into the Posteingang; the ember dot only when something is open. */
+function InboxLine({ open }: { open: number }) {
+  const t = useTranslations("admin.cockpit");
   return (
-    <section aria-label={t("title")} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <h2 className="mr-1 text-eyebrow uppercase text-muted">{t("title")}</h2>
-      {needs.length === 0 ? (
-        <p className="text-body font-semibold text-adm-good">{t("allDone")}</p>
-      ) : (
-        needs.map((need) => (
-          <Link
-            key={need.key}
-            href="/admin/today"
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-ink/12 px-3.5 text-body text-ink transition-colors duration-150 hover:bg-ink/5"
-          >
-            <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
-            {need.key === "launch" ? (
-              t("short.launch", { met: need.met, total: need.total })
-            ) : (
-              <>
-                <span className="font-semibold tabular-nums">{num(need.count)}</span>
-                {t(`short.${need.key}`)}
-              </>
-            )}
-          </Link>
-        ))
-      )}
-    </section>
+    <Link href="/admin/posteingang" className="group inline-flex items-center gap-2 text-body text-ink hover:underline">
+      {open > 0 && <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />}
+      {open > 0 ? t("inboxLine", { count: open }) : t("inboxEmpty")}
+      <ArrowRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+    </Link>
   );
 }
 
@@ -360,7 +320,7 @@ function MoneyOverview() {
           height={260}
         />
       </AdminSection>
-      <p className="mt-6 max-w-2xl text-small text-muted">{t("note")}</p>
+      <p className="mt-(--adm-inner) max-w-2xl text-small text-muted">{t("note")}</p>
       <PayoutSection />
       <Withdrawals />
     </>
@@ -447,7 +407,7 @@ function PayoutSection() {
       </div>
       <Sheet open={confirming} onClose={() => setConfirming(false)} title={t("payTitle", { amount })}>
         <p className="text-body text-muted">{t("payText", { amount, account: payouts.account })}</p>
-        <ModalFooter onCancel={() => setConfirming(false)} className="mt-6">
+        <ModalFooter onCancel={() => setConfirming(false)} className="mt-(--adm-inner)">
           <Button
             onClick={() => {
               payOutNow(payouts.available, payouts.account);
@@ -517,9 +477,9 @@ function Withdrawals() {
       </form>
 
       {list.length === 0 ? (
-        <p className="mt-6 text-body text-muted">{t("none")}</p>
+        <p className="mt-(--adm-inner) text-body text-muted">{t("none")}</p>
       ) : (
-        <ul className="mt-6 divide-y divide-ink/8 border-y border-ink/8">
+        <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
           {list.map((w) => (
             <li key={w.id} className="flex items-baseline justify-between gap-4 py-3 text-body">
               <span className="text-ink">

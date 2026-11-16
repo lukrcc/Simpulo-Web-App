@@ -485,7 +485,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       </div>
     </div>
   );
-  const panelFooter = (close: () => void, alwaysClear = false) => (
+  const panelFooter = (close: () => void, alwaysClear = false, brand = false) => (
     <>
       {/* Phones: only when something is set (otherwise the primary keeps its place on the right). The bar's sheet: always, on the left. */}
       {alwaysClear || panelCount > 0 || filters.vibes.length > 0 ? (
@@ -497,13 +497,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       )}
       {/* The panel's one primary: it only closes – the filters apply live. */}
       {/* In the dark header the panel's one main action is cream (the light header: ink). */}
-      <Button variant="primary" size="md" onClick={close}>
+      {/* In the header's All filters: filled in the action orange with white words (variant brand – its deeper step, so white keeps 4.5 : 1). */}
+      <Button variant={brand ? "brand" : "primary"} size="md" onClick={close}>
         {/* One span: inside the button's flex row, "Show", the number and "houses" would each be an item with 8px gaps instead of spaces. */}
         <span>{tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}</span>
       </Button>
     </>
   );
-  const barFooter = <div className="flex items-center justify-between gap-4 border-t border-ink/8 px-6 py-4">{panelFooter(closePanel, true)}</div>;
+  const barFooter = <div className="flex items-center justify-between gap-4 border-t border-ink/8 px-6 py-4">{panelFooter(closePanel, true, true)}</div>;
   const Wrap = headless ? Fragment : Container;
   const RowWrap = headless ? "div" : Container;
   return (
@@ -514,8 +515,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         headerSlot &&
         createPortal(
           <>
-            {/* The groups, 20px apart (inside a group 8px), left-aligned from the logo: Where | When · Short trips · the categories + More ·
-                All filters. The categories take as many places as fit (BarCategories measures); what's left stays before the right group. */}
+            {/* One group on the left, no gaps inside: Where | When · Short trips · the theme capsules · Themes / More themes ▾ · All filters ▾.
+                The themes take as many places as fit (BarCategories measures); what's left is the flexible room after All filters, before
+                the line and the navigation. */}
             <SearchField place={filters.place} month={filters.month} onChange={update} autoOpen />
             <ShortTripsToggle
               label={tf("shortTrips")}
@@ -523,9 +525,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
             />
             {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} themesLabel={tHeaderThemes("themes")} moreThemesLabel={tHeaderThemes("moreThemes")} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [] })} />}
-            {/* All filters: the bar's one capsule, only a chevron after the words – flush right, just before the right group (what the
-                categories leave stays before it). */}
-            <span ref={setFiltersEl} className="contents [&>*]:ml-auto">
+            {/* All filters: the bar's one capsule, only a chevron after the words – right after the theme button. */}
+            <span ref={setFiltersEl} className="contents">
               <FiltersButton variant="compact" count={panelCount} expanded={panelOpen} onClick={openPanel} />
             </span>
           </>,

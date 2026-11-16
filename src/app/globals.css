@@ -96,8 +96,17 @@
   background-color: var(--header-pill-hover);
 }
 [data-site-header] :is(.search-capsule[data-active], .short-trips[aria-pressed="true"], .bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"], [data-picked])),
-:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .pick-option[aria-expanded="true"], .filters-capsule.panel-field[data-active]) {
+:is(.bar-sheet, .bar-menu) .pick-option[aria-expanded="true"] {
   background-color: var(--header-pill-active);
+  font-weight: 600;
+}
+/* Chosen in the header's menus (Sort, Category, Length, Crew size, the months, a set dropdown): white filled, graphite words and icon. Not chosen
+   stays the glass capsule above. */
+:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]),
+:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]):hover {
+  background-color: var(--menu-pick-bg);
+  box-shadow: none;
+  color: var(--menu-pick-text);
   font-weight: 600;
 }
 [data-site-header] .pick-option,
@@ -138,6 +147,22 @@
   --breakpoint-split: 68.75rem;
   --breakpoint-nav: 75rem;
   --breakpoint-nav-text: 64rem; /* header tabs: from 1024px text only, below icons only (word as tooltip) */
+  /* The admin overview: profit and shared nights 40px, the four areas 28px. */
+  --text-adm-hero: 40px;
+  --text-adm-hero--line-height: 1.05;
+  --text-adm-hero--font-weight: 700;
+  --text-adm-hero--letter-spacing: -0.03em;
+  /* Admin › BlockMap: a block's title 16px, line height 1.5. */
+  --text-adm-motto: 20px;
+  --text-adm-motto--line-height: 1.5;
+  --text-adm-motto--font-weight: 600;
+  --text-adm-block: 16px;
+  --text-adm-block--line-height: 1.5;
+  --text-adm-block--font-weight: 600;
+  --text-adm-figure: 28px;
+  --text-adm-figure--line-height: 1.1;
+  --text-adm-figure--font-weight: 700;
+  --text-adm-figure--letter-spacing: -0.02em;
   --text-display: clamp(36px, 3.2vw + 8px, 56px);
   --text-display--line-height: 1.05;
   --text-display--font-weight: 700;
@@ -269,6 +294,14 @@
   --text-nav-group--line-height: 1.2;
   --text-nav-group--font-weight: 600;
   --text-nav-group--letter-spacing: 0.08em;
+  /* The admin side list: its entries (16–17px, growing with the window's height) and the area capsules (12px caps). */
+  --text-nav-side: clamp(16px, calc(9px + 1svh), 17px);
+  --text-nav-side--line-height: 1.25;
+  --text-nav-side--font-weight: 500;
+  --text-nav-area: 12px;
+  --text-nav-area--line-height: 1.2;
+  --text-nav-area--font-weight: 600;
+  --text-nav-area--letter-spacing: 0.08em;
 }
 
 /* The six as Tailwind theme colours (inline: utilities read the variables above directly). */
@@ -306,6 +339,10 @@
   --color-adm-chart-1: var(--adm-chart-1);
   --color-adm-chart-2: var(--adm-chart-2);
   --color-adm-chart-3: var(--adm-chart-3);
+  --color-adm-chart-4: var(--adm-chart-4);
+  --color-adm-chart-5: var(--adm-chart-5);
+  --color-adm-label: var(--adm-label);
+  --color-adm-pill: var(--adm-pill);
   --color-adm-good-soft: var(--adm-good-soft);
   --color-adm-warning-soft: var(--adm-warning-soft);
   --color-adm-critical-soft: var(--adm-critical-soft);
@@ -314,6 +351,10 @@
   --color-adm-area-growth: var(--adm-area-growth);
   --color-adm-area-operate: var(--adm-area-operate);
   --color-adm-area-launch: var(--adm-area-launch);
+  --color-adm-area-market-chip: var(--adm-area-market-chip);
+  --color-adm-area-growth-chip: var(--adm-area-growth-chip);
+  --color-adm-area-operate-chip: var(--adm-area-operate-chip);
+  --color-adm-area-launch-chip: var(--adm-area-launch-chip);
 }
 
 /* static: also emit variables that are only read via var(). */
@@ -966,12 +1007,6 @@ html[data-at-top] .milk-glass {
 }
 /* While a sheet hangs from the bar (ui/BarSheet): the bar takes the sheet's exact glass – rgba(72,66,62,.90), blur 32px – in 200ms, without its
    foot line; closing, it goes back to its transparency. Bar and sheet are one surface. */
-html[data-bar-sheet] .header-glass {
-  background-color: rgba(72, 66, 62, 0.9);
-  -webkit-backdrop-filter: blur(32px) saturate(1.6);
-  backdrop-filter: blur(32px) saturate(1.6);
-  box-shadow: none;
-}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .header-glass,
   .milk-glass {
@@ -1550,6 +1585,8 @@ main:has([data-demo-login]) {
 .text-name,
 .text-row,
 .text-figure,
+.text-adm-hero,
+.text-adm-figure,
 .text-section {
   font-family: var(--font-display), var(--font-sans);
 }
@@ -1715,8 +1752,8 @@ main:has([data-demo-login]) {
 
 
 /* Explore's quick search in the header bar shortens by its room (a container query on the slot, layout/header/SiteHeader.tsx
-   data-explore-slot), in this order – all of it needs about 604px: first the theme capsules go (BarCategories, config/explore.ts
-   BAR_CATEGORY_DROP_ORDER: Creator first); under 604px "Where | When" shrinks to its magnifier (a set place or month stays written); under
+   data-explore-slot), in this order – all of it needs about 604px: first the theme capsules go (BarCategories fills them in
+   config/explore.ts TOP_CATEGORIES order, as many as fit); under 604px "Where | When" shrinks to its magnifier (a set place or month stays written); under
    474px the theme button goes too (the themes stay in All filters › Category); under 340px Short trips keeps only its bolt. Short trips is
    always there; nothing ever overlaps. */
 [data-explore-slot] {
@@ -1756,6 +1793,11 @@ body:has([data-last-tone="dark"]) {
 body:has([data-last-tone="dark"]) footer.footer-dark {
   margin-top: 64px;
 }
+
+
+
+
+
 
 
 

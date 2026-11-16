@@ -1,208 +1,425 @@
 "use client";
 
-// Admin › Data & Algorithm – "What do we learn from our data?": the five models as rows (data → model → result, with stage and success
-// measure), the hypotheses with their verdict, then every data point (config/data-points.ts), filterable; at the bottom the network today.
-import { ArrowRight } from "lucide-react";
+// Admin › Algorithmus (/admin/data) – what Simpulo learns from its data, drawn: no visible title; the click row with the tabs Fluss · Thesen ·
+// Datenpunkte, right small "61 Datenpunkte · 5 Modelle" (on Datenpunkte also the filters as dropdowns).
+//   Fluss: a BlockMap Daten · Modelle · Entscheidungen with curved lines (width = data points) – a moment per block with its count and a small
+//          bar (share "Wird erfasst" + "Genutzt"), the five models with their maturity (three dots) and success number, the decisions they
+//          feed (deduplicated). Hover lights a block's lines; a click opens its detail right. Fits 1470 × 814.
+//   Thesen: cards, three a row – status dot, the short sentence, a bar with the target marked and filled to "Jetzt"; without a measure a
+//          dashed empty bar and "noch nicht messbar"; a click shows the full measure.
+//   Datenpunkte: grouped by moment (folding heads with counts); rows of 44px – short name · model capsules · legal basis icon · status dot;
+//          the long text, the key and the purpose only in the detail. "Nie erfasst: …" as an ⓘ at the tab.
+// Every text from config/data-points.ts, config/models.ts, config/hypotheses.ts; numbers from lib/admin/metrics.ts. The network numbers and
+// "Tage bis voll" are no longer here (they stay in lib/admin/metrics.ts; Vision › Kern and Analyse show them).
+import { ChevronDown, Database, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type ReactNode } from "react";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
-import { ScrollRow } from "@/components/ui/ScrollRow";
-import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, type DataPointStatus, type Moment } from "@/config/data-points";
-import { HYPOTHESES } from "@/config/hypotheses";
+import { useMemo, useState } from "react";
+import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, type DataPoint, type DataPointStatus, type Moment } from "@/config/data-points";
+import { HYPOTHESES, type Hypothesis } from "@/config/hypotheses";
 import { MODEL_IDS, MODELS, type Model, type ModelId, type ModelStage } from "@/config/models";
-import { hypothesisStatus, modelMeasures } from "@/lib/admin/metrics";
+import { hypothesisBar, hypothesisStatus, modelMeasures, modelMeasuresShort, type Status } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getHypothesisResults } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./AdminCharts";
-import { NetworkToday } from "./AdminDashboard";
-import { AdminSection, AdminShell } from "./AdminShell";
+import { AdminShell } from "./AdminShell";
+import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { BlockMap, type MapLink } from "./BlockMap";
 
 const STAGES: readonly ModelStage[] = ["idea", "rules", "trained"];
 const MODEL_NAME = Object.fromEntries(MODELS.map((m) => [m.id, m.name])) as Record<ModelId, string>;
+type Tab = "flow" | "theses" | "points";
+
+const MOMENT_ICONS: Record<Moment, LucideIcon> = { onboarding: UserPlus, search: Search, create: Home, request: MessageSquare, inTheHouse: Users, afterTheStay: Star, marketing: Megaphone, support: Inbox };
+const DECISION_ICONS: Record<string, LucideIcon> = { "Explore-Reihen": LayoutGrid, "Vorschläge an Hosts": Lightbulb, "Do it again": RotateCcw, "Wo Houses eröffnen": MapPin, "Welche Videos": Clapperboard };
+/** The decisions, deduplicated, in the models' order. */
+const DECISIONS = [...new Set(MODELS.flatMap((m) => m.decisions))];
+/** Data point status as a dot: planned grey, collecting amber, used sage. */
+const DP_DOT: Record<DataPointStatus, Status | null> = { planned: null, collecting: "warning", used: "good" };
 
 export function AdminData() {
   const t = useTranslations("admin.data");
-  const measures = modelMeasures(useAdminInputs());
-
+  const [tab, setTab] = useState<Tab>("flow");
+  const [moment, setMoment] = useState<"all" | Moment>("all");
+  const [model, setModel] = useState<"all" | ModelId | "none">("all");
+  const [status, setStatus] = useState<"all" | DataPointStatus>("all");
   return (
-    <AdminShell title={t("title")}>
-      <AdminSection title={t("models")} aside={<span className="text-small text-muted">{t("stageHint")}</span>}>
-        <ul className="divide-y divide-ink/8 border-y border-ink/8">
-          {MODELS.map((model) => (
-            <ModelRow key={model.id} model={model} measure={measures[model.id]} />
-          ))}
-        </ul>
-      </AdminSection>
-      <AdminSection title={t("hypotheses")}>
-        <Hypotheses />
-      </AdminSection>
-      <AdminSection title={t("dataPoints")}>
-        <DataPoints />
-      </AdminSection>
-      <NetworkToday />
+    <AdminShell
+      title={t("title")}
+      tabs={
+        <AdminTabs
+          label={t("title")}
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: "flow", label: t("tab.flow") },
+            { value: "theses", label: t("tab.theses") },
+            { value: "points", label: t("tab.points"), info: t("never") },
+          ]}
+        />
+      }
+      aside={
+        <>
+          {tab === "points" && (
+            <>
+              <AdminSort label={t("filter.moment")} value={moment} onChange={setMoment} options={(["all", ...MOMENTS] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : t(`moment.${value}`) }))} />
+              <AdminSort label={t("filter.model")} value={model} onChange={setModel} options={(["all", ...MODEL_IDS, "none"] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : value === "none" ? t("filter.none") : MODEL_NAME[value] }))} />
+              <AdminSort label={t("filter.status")} value={status} onChange={setStatus} options={(["all", ...DATA_POINT_STATUSES] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : t(`dpStatus.${value}`) }))} />
+            </>
+          )}
+          <span className="text-small text-(--adm-label)">{t("totals", { points: DATA_POINTS.length, models: MODELS.length })}</span>
+        </>
+      }
+    >
+      {tab === "flow" && <Flow />}
+      {tab === "theses" && <Theses />}
+      {tab === "points" && <DataPoints moment={moment} model={model} status={status} />}
     </AdminShell>
   );
 }
 
-/** Data → model → result, in one row (stacked on phones). */
-function ModelRow({ model, measure }: { model: Model; measure: string | null }) {
+// ── Fluss ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+type FlowSelection = { kind: "moment"; id: Moment } | { kind: "model"; id: ModelId } | { kind: "decision"; id: string } | null;
+
+function Flow() {
   const t = useTranslations("admin.data");
-  const inputs = inputsOf(model.id);
-  const shown = inputs.slice(0, 4);
+  const tStage = useTranslations("admin.data.stage");
+  const short = modelMeasuresShort(useAdminInputs());
+  const [selected, setSelected] = useState<FlowSelection>(null);
+  const keyOf = (s: NonNullable<FlowSelection>) => `${s.kind}:${s.id}`;
+
+  // Lines: moment → model (width = the moment's data points that model reads), model → decision (width = the model's data points, at most 6).
+  const links = useMemo<MapLink[]>(
+    () => [
+      ...MOMENTS.flatMap((m) => MODEL_IDS.map((id) => ({ from: `moment:${m}`, to: `model:${id}`, weight: DATA_POINTS.filter((d) => d.moment === m && d.models.includes(id)).length })).filter((l) => l.weight > 0)),
+      ...MODELS.flatMap((m) => m.decisions.map((d) => ({ from: `model:${m.id}`, to: `decision:${d}`, weight: Math.min(6, Math.max(1, Math.round(inputsOf(m.id).length / 3))) }))),
+    ],
+    [],
+  );
+
   return (
-    <li className="grid gap-4 py-6 lg:grid-cols-[minmax(0,1fr)_16px_minmax(0,1.1fr)_16px_minmax(0,1fr)] lg:gap-6">
-      <div className="min-w-0">
-        <p className="text-small text-muted">{t("inputs", { count: inputs.length })}</p>
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {shown.map((d) => (
-            <li key={d.id} className="rounded-full bg-ink/5 px-2.5 py-1 text-small text-ink">
-              {d.captures.split(/[(:,]/)[0].trim()}
-            </li>
-          ))}
-          {inputs.length > shown.length && <li className="px-1 py-1 text-small text-muted">+{inputs.length - shown.length}</li>}
-        </ul>
-      </div>
-      <ArrowRight aria-hidden className="mt-7 size-4 text-muted max-lg:hidden" />
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-3">
-          <h3 className="text-h3 text-ink">{model.name}</h3>
-          <StageMeter stage={model.stage} />
-        </div>
-        <p className="mt-2 text-small text-muted">{t("measure")}</p>
-        <p className="text-body text-ink">{model.measure}</p>
-        <p className="mt-1 text-small text-muted">{measure ? t("now", { value: measure }) : t("notMeasured")}</p>
-      </div>
-      <ArrowRight aria-hidden className="mt-7 size-4 text-muted max-lg:hidden" />
-      <div className="min-w-0">
-        <p className="text-small text-muted">{t("output")}</p>
-        <p className="text-body text-ink">{model.output}</p>
-        <p className="mt-2 text-small text-muted">{t("feeds")}</p>
-        <p className="text-body text-ink">{model.feeds}</p>
-      </div>
-    </li>
+    <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,3.3fr)_minmax(0,1fr)]">
+      <BlockMap
+        label={t("tab.flow")}
+        compact
+        links={links}
+        selectedId={selected ? keyOf(selected) : null}
+        columns={[
+          {
+            key: "data",
+            label: t("flow.data"),
+            blocks: MOMENTS.map((m) => {
+              const points = DATA_POINTS.filter((d) => d.moment === m);
+              const collecting = points.filter((d) => d.status === "collecting").length;
+              const used = points.filter((d) => d.status === "used").length;
+              return {
+                id: `moment:${m}`,
+                icon: MOMENT_ICONS[m],
+                title: t(`moment.${m}`),
+                status: "none" as const,
+                // The count beside the bar (not on the right: the moment's name keeps the full width).
+                extra: (
+                  <span className="flex items-center gap-2">
+                    <ShareBar used={used} collecting={collecting} total={points.length} label={t("flow.shareLabel", { used, collecting, total: points.length })} />
+                    <span className="text-small leading-none tabular-nums text-ink/70">{points.length}</span>
+                  </span>
+                ),
+                onOpen: () => setSelected({ kind: "moment", id: m }),
+              };
+            }),
+          },
+          {
+            key: "models",
+            label: t("flow.models"),
+            blocks: MODELS.map((model) => ({
+              id: `model:${model.id}`,
+              icon: Brain,
+              title: model.name,
+              // The success number as its own line under the name (the name keeps the full width).
+              subtitle: short[model.id] ?? "—",
+              status: "none" as const,
+              extra: <StageDots stage={model.stage} label={tStage(model.stage)} />,
+              onOpen: () => setSelected({ kind: "model", id: model.id }),
+            })),
+          },
+          {
+            key: "decisions",
+            label: t("flow.decisions"),
+            blocks: DECISIONS.map((d) => ({
+              id: `decision:${d}`,
+              icon: DECISION_ICONS[d] ?? Database,
+              title: d,
+              subtitle: MODELS.filter((m) => m.decisions.includes(d)).map((m) => m.name).join(", "),
+              status: "none" as const,
+              onOpen: () => setSelected({ kind: "decision", id: d }),
+            })),
+          },
+        ]}
+      />
+      <aside className={cn("min-w-0", !selected && "max-lg:hidden")}>{selected ? <FlowDetail selection={selected} onBack={() => setSelected(null)} /> : <p className="pt-8 text-body text-muted">{t("flow.pick")}</p>}</aside>
+    </div>
   );
 }
 
-/** idea · rules · trained as three short segments, the reached ones filled (chart-1), the word beside them. */
-function StageMeter({ stage }: { stage: ModelStage }) {
-  const t = useTranslations("admin.data.stage");
-  const reached = STAGES.indexOf(stage);
+/** A small bar: the share "Genutzt" (white 80 %) and "Wird erfasst" (white 40 %) of a moment's data points. */
+function ShareBar({ used, collecting, total, label }: { used: number; collecting: number; total: number; label: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-small text-muted">
-      <span aria-hidden className="flex gap-0.5">
-        {STAGES.map((s, i) => (
-          <span key={s} className={cn("h-1.5 w-4 rounded-full", i <= reached ? "bg-adm-chart-1" : "bg-ink/10")} />
-        ))}
-      </span>
-      {t(stage)}
+    <span role="img" aria-label={label} className="flex h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-ink/8">
+      <span className="h-full bg-ink/80" style={{ width: `${(used / Math.max(1, total)) * 100}%` }} />
+      <span className="h-full bg-ink/40" style={{ width: `${(collecting / Math.max(1, total)) * 100}%` }} />
     </span>
   );
 }
 
-/** Each hypothesis: the statement, how it's measured, target and value now; the verdict as a word with its status dot. */
-function Hypotheses() {
-  const t = useTranslations("admin.data.hyp");
-  const results = useMemo(() => getHypothesisResults(), []);
+/** Idee · Regeln · Trainiert as three dots, the reached ones filled; the word beside them. */
+function StageDots({ stage, label }: { stage: ModelStage; label: string }) {
+  const reached = STAGES.indexOf(stage);
   return (
-    <ul className="divide-y divide-ink/8 border-y border-ink/8">
-      {HYPOTHESES.map((h) => {
-        const result = results[h.id];
-        const verdict = result?.status ?? "open";
-        const status = hypothesisStatus(verdict);
-        return (
-          <li key={h.id} className="grid gap-x-6 gap-y-2 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-            <div className="min-w-0">
-              <p className="text-body font-semibold text-ink">{h.statement}</p>
-              <p className="mt-1 text-small text-muted">
-                {t("metric")}: {h.metric ?? "–"} · {t("target")} {h.target ?? "–"} · {t("current")} <span className="font-semibold text-ink">{result?.current ?? "–"}</span>
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-2 justify-self-start text-small font-medium text-ink">
-              <StatusDot status={status} />
-              {t(`status.${verdict}`)}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+    <span className="flex items-center gap-1.5 text-small text-ink/60">
+      {STAGES.map((s, i) => (
+        <span key={s} aria-hidden className={cn("size-2 rounded-full", i <= reached ? "bg-ink/85" : "border border-ink/30")} />
+      ))}
+      <span className="ml-1">{label}</span>
+    </span>
   );
 }
 
-type ModelFilter = "all" | ModelId | "none";
-
-/** Every data point, filterable by moment, model and status. */
-function DataPoints() {
+/** The detail right: a moment's data points · a model's measure, output, decisions · a decision's models. */
+function FlowDetail({ selection, onBack }: { selection: NonNullable<FlowSelection>; onBack: () => void }) {
   const t = useTranslations("admin.data");
-  const [moment, setMoment] = useState<"all" | Moment>("all");
-  const [model, setModel] = useState<ModelFilter>("all");
-  const [status, setStatus] = useState<"all" | DataPointStatus>("all");
-  const shown = DATA_POINTS.filter(
-    (d) => (moment === "all" || d.moment === moment) && (model === "all" || (model === "none" ? d.models.length === 0 : d.models.includes(model))) && (status === "all" || d.status === status),
+  const measures = modelMeasures(useAdminInputs());
+  return (
+    <article data-flow-detail className="lg:pt-8">
+      <BackToList onBack={onBack} />
+      {selection.kind === "moment" && (
+        <>
+          <p className="text-h3 text-ink">{t(`moment.${selection.id}`)}</p>
+          <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
+            {DATA_POINTS.filter((d) => d.moment === selection.id).map((d) => (
+              <li key={d.id} className="flex min-h-10 items-center gap-2 py-1.5 text-small">
+                <StatusDot status={DP_DOT[d.status]} />
+                <span className="min-w-0 flex-1 truncate text-ink">{shortName(d)}</span>
+                <span className="shrink-0 text-ink/50">{d.models.length > 0 ? d.models.length : "–"}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {selection.kind === "model" && <ModelFacts model={MODELS.find((m) => m.id === selection.id)!} measure={measures[selection.id]} />}
+      {selection.kind === "decision" && (
+        <>
+          <p className="text-h3 text-ink">{selection.id}</p>
+          <p className="mt-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{t("flow.fedBy")}</p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {MODELS.filter((m) => m.decisions.includes(selection.id)).map((m) => (
+              <li key={m.id} className="inline-flex h-7 items-center rounded-full bg-ink/6 px-2.5 text-small text-ink">
+                {m.name}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </article>
   );
+}
 
+function ModelFacts({ model, measure }: { model: Model; measure: string | null }) {
+  const t = useTranslations("admin.data");
+  const tStage = useTranslations("admin.data.stage");
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <FilterRow label={t("filter.moment")}>
-          <CapsuleGroup size="sm" label={t("filter.moment")} value={moment} onChange={setMoment} options={(["all", ...MOMENTS] as const).map((value) => ({ value, content: value === "all" ? t("filter.all") : t(`moment.${value}`) }))} />
-        </FilterRow>
-        <FilterRow label={t("filter.model")}>
-          <CapsuleGroup
-            size="sm"
-            label={t("filter.model")}
-            value={model}
-            onChange={setModel}
-            options={(["all", ...MODEL_IDS, "none"] as const).map((value) => ({ value, content: value === "all" ? t("filter.all") : value === "none" ? t("filter.none") : MODEL_NAME[value] }))}
-          />
-        </FilterRow>
-        <FilterRow label={t("filter.status")}>
-          <CapsuleGroup size="sm" label={t("filter.status")} value={status} onChange={setStatus} options={(["all", ...DATA_POINT_STATUSES] as const).map((value) => ({ value, content: value === "all" ? t("filter.all") : t(`dpStatus.${value}`) }))} />
-        </FilterRow>
+      <p className="text-h3 text-ink">{model.name}</p>
+      <div className="mt-2">
+        <StageDots stage={model.stage} label={tStage(model.stage)} />
       </div>
-      <p className="mb-2 mt-6 text-small text-muted">{t("count", { shown: shown.length, all: DATA_POINTS.length })}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] text-left text-body">
-          <thead className="text-small text-muted">
-            <tr className="border-b border-ink/8">
-              <th className="py-3 pr-4 font-medium">{t("col.captures")}</th>
-              <th className="py-3 pr-4 font-medium">{t("col.moment")}</th>
-              <th className="py-3 pr-4 font-medium">{t("col.purpose")}</th>
-              <th className="py-3 pr-4 font-medium">{t("col.models")}</th>
-              <th className="py-3 pr-4 font-medium">{t("col.basis")}</th>
-              <th className="py-3 font-medium">{t("col.status")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((d) => (
-              <tr key={d.id} className="border-b border-ink/8 align-top">
-                <td className="max-w-80 py-3 pr-4">
-                  <span className="block text-ink">{d.captures}</span>
-                  <span className="block text-small text-muted">{d.id}</span>
-                </td>
-                <td className="whitespace-nowrap py-3 pr-4 text-ink">{t(`moment.${d.moment}`)}</td>
-                <td className="max-w-72 py-3 pr-4 text-muted">{d.purpose}</td>
-                <td className="py-3 pr-4 text-ink">{d.models.length ? d.models.map((m) => MODEL_NAME[m]).join(", ") : <span className="text-muted">–</span>}</td>
-                <td className="whitespace-nowrap py-3 pr-4 text-ink">{t(`basis.${d.legalBasis}`)}</td>
-                <td className={cn("whitespace-nowrap py-3", d.status === "planned" ? "text-muted" : "text-ink", d.status === "used" && "font-semibold")}>{t(`dpStatus.${d.status}`)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-4 max-w-2xl text-small text-muted">{t("never")}</p>
+      <dl className="mt-(--adm-inner) flex flex-col gap-(--adm-inner)">
+        {[
+          { label: t("measure"), value: model.measure, sub: measure ? t("now", { value: measure }) : t("notMeasured") },
+          { label: t("output"), value: model.output },
+          { label: t("feeds"), value: model.feeds },
+          { label: t("inputsLabel"), value: t("inputs", { count: inputsOf(model.id).length }) },
+        ].map((f) => (
+          <div key={f.label}>
+            <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
+            <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
+            {f.sub && <dd className="text-small text-muted">{f.sub}</dd>}
+          </div>
+        ))}
+        {/* The hypotheses carry no model in config/hypotheses.ts – none are linked here (nothing invented). */}
+        <div>
+          <dt className="text-eyebrow uppercase text-(--adm-label)">{t("flow.theses")}</dt>
+          <dd className="mt-1 text-small text-muted">{t("flow.noTheses")}</dd>
+        </div>
+      </dl>
     </>
   );
 }
 
-/** A filter: its small label, then the capsules in one scrolling row. */
-function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+// ── Thesen ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+function Theses() {
+  const t = useTranslations("admin.data.hyp");
+  const results = useMemo(() => getHypothesisResults(), []);
+  const [open, setOpen] = useState<string | null>(null);
+  const opened = HYPOTHESES.find((h) => h.id === open);
   return (
-    <div className="flex items-center gap-4">
-      <span className="w-16 shrink-0 text-small text-muted">{label}</span>
-      <ScrollRow label={label} className="min-w-0 flex-1">
-        {children}
-      </ScrollRow>
+    <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.15fr)]">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {HYPOTHESES.map((h) => {
+          const result = results[h.id];
+          const verdict = result?.status ?? "open";
+          const bar = h.metric && h.target ? hypothesisBar(h.target, result?.current) : null;
+          return (
+            <li key={h.id}>
+              <button type="button" onClick={() => setOpen(h.id)} aria-pressed={open === h.id} className="flex h-full w-full flex-col gap-3 rounded-xl border border-ink/8 bg-(--adm-block) p-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)">
+                <span className="flex items-start gap-2">
+                  <StatusDot status={bar ? hypothesisStatus(verdict) : null} className="mt-2" />
+                  <span className={cn("text-adm-block text-ink", open === h.id && "underline decoration-2 underline-offset-4")}>{h.short}</span>
+                </span>
+                <ThesisBar bar={bar} />
+                <span className="flex items-center justify-between gap-2 text-small">
+                  <span className="text-ink/60">{h.target ? `${t("target")} ${h.target.replace("≥ ", "")}` : t("notMeasurable")}</span>
+                  <span className="text-ink">{bar ? t(`status.${verdict}`) : ""}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <aside className={cn("min-w-0", !opened && "max-lg:hidden")}>{opened ? <ThesisDetail h={opened} current={results[opened.id]?.current ?? null} onBack={() => setOpen(null)} /> : <p className="text-body text-muted">{t("pick")}</p>}</aside>
     </div>
+  );
+}
+
+/** The bar: filled to "Jetzt", the target as a mark; without a measure a dashed empty bar. */
+function ThesisBar({ bar }: { bar: ReturnType<typeof hypothesisBar> }) {
+  const t = useTranslations("admin.data.hyp");
+  if (!bar) return <span role="img" aria-label={t("notMeasurable")} className="block h-2 rounded-full border border-dashed border-ink/25" />;
+  return (
+    <span role="img" aria-label={t("barLabel", { now: bar.now, target: bar.target })} className="relative block h-2 rounded-full bg-ink/8">
+      <span className="absolute inset-y-0 left-0 rounded-full bg-ink/70" style={{ width: `${(bar.now / bar.max) * 100}%` }} />
+      <span className="absolute -inset-y-1 w-0.5 rounded-full bg-ink" style={{ left: `${(bar.target / bar.max) * 100}%` }} />
+    </span>
+  );
+}
+
+function ThesisDetail({ h, current, onBack }: { h: Hypothesis; current: string | null; onBack: () => void }) {
+  const t = useTranslations("admin.data.hyp");
+  return (
+    <article data-thesis-detail>
+      <BackToList onBack={onBack} />
+      <p className="text-h3 leading-normal text-ink">{h.statement}</p>
+      <dl className="mt-(--adm-inner) flex flex-col gap-(--adm-inner)">
+        {[
+          { label: t("metric"), value: h.metric ?? t("notMeasurable") },
+          { label: t("target"), value: h.target ?? "–" },
+          { label: t("current"), value: current ?? "–" },
+        ].map((f) => (
+          <div key={f.label}>
+            <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
+            <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
+  );
+}
+
+// ── Datenpunkte ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A data point's short name: what it captures, up to the first bracket, colon or comma. */
+const shortName = (d: DataPoint) => d.captures.split(/[(:,–]/)[0].trim();
+
+function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: "all" | ModelId | "none"; status: "all" | DataPointStatus }) {
+  const t = useTranslations("admin.data");
+  const [closed, setClosed] = useState<ReadonlySet<Moment>>(new Set());
+  const [selected, setSelected] = useState<string | null>(null);
+  const shown = DATA_POINTS.filter((d) => (moment === "all" || d.moment === moment) && (model === "all" || (model === "none" ? d.models.length === 0 : d.models.includes(model))) && (status === "all" || d.status === status));
+  const point = DATA_POINTS.find((d) => d.id === selected);
+  const toggle = (m: Moment) =>
+    setClosed((now) => {
+      const next = new Set(now);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  return (
+    <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.15fr)]">
+      <div className={cn("min-w-0", point && "max-lg:hidden")}>
+        {MOMENTS.map((m) => {
+          const rows = shown.filter((d) => d.moment === m);
+          if (rows.length === 0) return null;
+          const isOpen = !closed.has(m);
+          return (
+            <section key={m} className="mb-3">
+              <button type="button" onClick={() => toggle(m)} aria-expanded={isOpen} className="flex h-9 w-full items-center gap-2 text-left text-small font-semibold text-(--adm-label)">
+                <ChevronDown aria-hidden className={cn("size-4 transition-transform", !isOpen && "-rotate-90")} />
+                {t(`moment.${m}`)}
+                <span className="font-normal tabular-nums">{rows.length}</span>
+              </button>
+              {isOpen && (
+                <ul className="divide-y divide-ink/8 border-y border-ink/8">
+                  {rows.map((d) => (
+                    <li key={d.id} className="relative flex h-(--adm-row-h) items-center gap-3 px-1">
+                      <button type="button" onClick={() => setSelected(d.id)} aria-label={shortName(d)} className="absolute inset-0" />
+                      <span className={cn("pointer-events-none min-w-0 flex-1 truncate text-body", selected === d.id ? "font-semibold text-(--adm-active) underline decoration-2 underline-offset-4" : "text-ink")}>{shortName(d)}</span>
+                      <span className="pointer-events-none flex shrink-0 gap-1">
+                        {d.models.map((id) => (
+                          <span key={id} className="inline-flex h-6 items-center rounded-full bg-ink/6 px-2 text-small text-ink/80">
+                            {MODEL_NAME[id]}
+                          </span>
+                        ))}
+                      </span>
+                      <LegalIcon basis={d.legalBasis} label={t(`basis.${d.legalBasis}`)} />
+                      <span className="pointer-events-none flex w-3 shrink-0 justify-end">
+                        <StatusDot status={DP_DOT[d.status]} />
+                        <span className="sr-only">{t(`dpStatus.${d.status}`)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+        <p className="mt-2 text-small text-(--adm-label)">{t("count", { shown: shown.length, all: DATA_POINTS.length })}</p>
+      </div>
+      <aside className={cn("min-w-0 lg:sticky lg:top-[calc(var(--header-h)+var(--adm-page))] lg:self-start", !point && "max-lg:hidden")}>
+        {point ? (
+          <article data-point-detail>
+            <BackToList onBack={() => setSelected(null)} />
+            <p className="text-h3 leading-normal text-ink">{shortName(point)}</p>
+            <p className="mt-1 text-small text-ink/60">{point.id}</p>
+            <dl className="mt-(--adm-inner) flex flex-col gap-(--adm-inner)">
+              {[
+                { label: t("col.captures"), value: point.captures },
+                { label: t("col.purpose"), value: point.purpose },
+                { label: t("col.models"), value: point.models.length ? point.models.map((m) => MODEL_NAME[m]).join(", ") : "–" },
+                { label: t("col.basis"), value: t(`basis.${point.legalBasis}`) },
+                { label: t("col.status"), value: t(`dpStatus.${point.status}`) },
+              ].map((f) => (
+                <div key={f.label}>
+                  <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
+                  <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ) : (
+          <p className="text-body text-muted">{t("flow.pickPoint")}</p>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+/** Vertrag / Einwilligung as a small icon with its word as the tooltip. */
+function LegalIcon({ basis, label }: { basis: DataPoint["legalBasis"]; label: string }) {
+  const Icon = basis === "contract" ? FileSignature : Hand;
+  return (
+    <button type="button" aria-label={label} className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-ink/60 hover:text-ink">
+      <Icon aria-hidden className="size-4" />
+    </button>
   );
 }

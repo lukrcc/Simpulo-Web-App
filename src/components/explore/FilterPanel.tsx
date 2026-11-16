@@ -21,7 +21,7 @@ export function FilterRow({ label, count = 0, aside, children, className, stacke
           <span className="flex items-center gap-2 text-nav font-semibold text-ink">
             {label}
             {count > 0 && (
-              <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
+              <span aria-hidden data-filter-count className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
                 {count}
               </span>
             )}
@@ -36,7 +36,7 @@ export function FilterRow({ label, count = 0, aside, children, className, stacke
       <span className="flex items-center gap-2 text-nav font-semibold text-ink">
         {label}
         {count > 0 && (
-          <span aria-hidden className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
+          <span aria-hidden data-filter-count className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
             {count}
           </span>
         )}

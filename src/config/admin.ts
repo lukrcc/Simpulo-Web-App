@@ -148,6 +148,10 @@ export const CHANGE_RULES = {
   costPerGuest: { better: "lower", unit: "eur" },
   valueToCost: { better: "higher", unit: "ratio" },
   runwayMonths: { better: "higher", unit: "ratio" },
+  /** Wachstum: the funnel of the chosen period against the one before */
+  visitors: { better: "higher", unit: "count" },
+  requests: { better: "higher", unit: "count" },
+  paid: { better: "higher", unit: "count" },
 } as const satisfies Record<string, { better: "higher" | "lower" | "neutral"; unit: "eur" | "count" | "percent" | "days" | "ratio" }>;
 export type ChangeMetric = keyof typeof CHANGE_RULES;
 

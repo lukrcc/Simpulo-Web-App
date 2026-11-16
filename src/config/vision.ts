@@ -3,7 +3,7 @@
 // no revenue source, stage or criterion is added here that isn't in it. The numbers (revenue this month, the move, full Houses per hub, the
 // current phase) come from lib/admin/metrics.ts – never from here.
 
-export const VISION_TITLE = "Wohin geht Simpulo?";
+export const VISION_TITLE = "Vision";
 export const YOU_ARE_HERE = "Du bist hier";
 export const NOT_MEASURABLE = "noch nicht messbar";
 
@@ -736,4 +736,89 @@ export const LOCATION = {
     save: "Speichern",
     saved: "Entscheidung gespeichert",
   },
+} as const;
+
+// ── Bausteinkarte (Vision-Kopf, Karte, Zoom, Zeitleiste) ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Vision als Bausteinkarte: zwei Ansichten (Karte · Zeitleiste), die Karte in drei Spalten Warum · Wie · Wohin. Jeder Baustein: Titel, ein
+ * Untertitel (höchstens 5 Wörter, aus den Inhalten dieser Datei abgeleitet), eine Zusammenfassung für die Zoom-Ansicht (höchstens 12 Wörter)
+ * und wohin er führt – eine Zoom-Ansicht (?block=<id>) oder ein anderer Admin-Tab (`external`). Reihenfolge fest, wie hier.
+ */
+export const VISION_VIEWS = [
+  { key: "map", label: "Karte" },
+  { key: "timeline", label: "Zeitleiste" },
+] as const;
+export type VisionView = (typeof VISION_VIEWS)[number]["key"];
+
+export const BLOCK_MAP_TEXT = {
+  crumb: "Vision",
+  back: "← Karte",
+  backTimeline: "← Zeitleiste",
+  status: (phase: number, streak: number, of: number, target: string) => `Phase ${phase} · ${streak}/${of} Monate bei ${target}`,
+  phaseOf: (n: number, total: number) => `${n} von ${total}`,
+  groups: (n: number) => `${n} Gruppen`,
+  hosts: (all: number, pro: number) => `${all} · davon ${pro} Pro`,
+  kinds: (n: number) => `${n} Arten`,
+  providers: (n: number) => `${n} Anbieter`,
+  models: (n: number) => `${n} Modelle`,
+  sources: (n: number) => `${n} Quellen`,
+  stages: (n: number) => `${n} Stufen`,
+  ready: (met: number, total: number) => `${met} von ${total} bereit`,
+  open: "offen",
+  again: (value: string) => `${value} „Mit dir wieder“`,
+  more: (n: number) => `+${n}`,
+  count: (n: number) => `${n}`,
+} as const;
+
+export type BlockId = "core" | "segments" | "hosts" | "places" | "tech" | "algorithm" | "phases" | "tModel" | "continuum" | "roadmap" | "location" | "funding";
+export interface BlockDef {
+  id: BlockId;
+  title: string;
+  /** höchstens 5 Wörter */
+  subtitle: string;
+  /** höchstens 12 Wörter – die Zeile oben in der Zoom-Ansicht */
+  summary: string;
+  /** Sprung in einen anderen Admin-Tab statt Zoom */
+  external?: string;
+}
+
+export const BLOCK_MAP: readonly { key: "why" | "how" | "where"; label: string; blocks: readonly BlockDef[] }[] = [
+  {
+    key: "why",
+    label: "Warum",
+    blocks: [
+      { id: "core", title: "Kern", subtitle: "Zeit wirkt", summary: "Simpulo verkauft verdichtete Zeit mit den richtigen Menschen." },
+      { id: "segments", title: "Zielgruppen", subtitle: "8 Gruppen", summary: "Acht Gruppen, theoretische Obergrenze aus groben Annahmen, keine Marktstudie." },
+    ],
+  },
+  {
+    key: "how",
+    label: "Wie",
+    blocks: [
+      { id: "hosts", title: "Hosts", subtitle: "Share · Pro · Anchor", summary: "Drei Host-Stufen: Angebot, Kernumsatz, Reichweite und Marke." },
+      { id: "places", title: "Orte & Anreise", subtitle: "Wohnen und gemeinsame Anreise", summary: "Arten des Ortes nach Phase, dazu gemeinsame Anreise." },
+      { id: "tech", title: "Technik", subtitle: "Ebenen · Anbieter", summary: "Was Simpulo selbst ist, was es einkauft, was es kostet." },
+      { id: "algorithm", title: "Algorithmus", subtitle: "Daten → Modell → Ergebnis", summary: "Fünf Modelle lernen aus den Daten.", external: "/admin/data" },
+    ],
+  },
+  {
+    key: "where",
+    label: "Wohin",
+    blocks: [
+      { id: "phases", title: "Phasen", subtitle: "Deutschland bis Immobilien", summary: "Vier Phasen, jede mit Ziel und Freigabe." },
+      { id: "tModel", title: "T-Modell", subtitle: "Breite führt, Tiefe folgt", summary: "Breite: dieselbe Mechanik für mehr Menschen. Tiefe: Stufe für Stufe." },
+      { id: "continuum", title: "Kontinuum", subtitle: "Plattform · Marke · Immobilien", summary: "Einnahmequellen von Plattform über Marke bis Immobilien." },
+      { id: "roadmap", title: "Roadmap", subtitle: "Marktplatz bis Immobilien", summary: "Sechs Stufen, jede bringt eine neue Einnahme." },
+      { id: "location", title: "Standort", subtitle: "Kandidaten · Zeitfenster", summary: "Warum nicht dauerhaft Deutschland, Kandidaten und das Zeitfenster." },
+      { id: "funding", title: "Finanzierung", subtitle: "Wann und wofür Geld", summary: "Bereitschaft, These, Runden, Unterlagen.", external: "/admin/funding" },
+    ],
+  },
+];
+
+/** Zeitleiste: die Bahnen als Zeilen (dieselben wie LANES) und die Freigabe. */
+export const TIMELINE_TEXT = {
+  expand: "aufklappen",
+  collapse: "zuklappen",
+  openPhase: (title: string) => `${title} öffnen`,
 } as const;

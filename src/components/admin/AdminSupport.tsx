@@ -1,167 +1,34 @@
 "use client";
 
-// Admin › Support – "What do users need?": the tickets from "Help & feedback" (and the House's "Something went wrong"). Inbox: the list left
-// (open safety always first, with the orange signal dot), the ticket right – message, context, links, the conversation and the answer (sent
-// through lib/notify), status, tags, an internal note, Merge for duplicate wishes. Ideas: the wishes by votes, planned / done. Every change
-// goes through lib/admin/actions.ts (and into the log). Free text here is never read by a model (config/data-points.ts).
+// The support tickets' pieces for the Posteingang (components/admin/AdminInbox): a ticket's detail – message, context, links, the
+// conversation and the answer (sent through lib/notify), status, tags, an internal note, Merge for duplicate wishes – and the ideas by votes,
+// planned / done. Every change goes through lib/admin/actions.ts (and into the log). Free text here is never read by a model
+// (config/data-points.ts).
 import { profileHref } from "@/lib/privacy";
-import { ArrowLeft, Paperclip, Search, X } from "lucide-react";
+import { ArrowLeft, Paperclip, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { FormField } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
-import { listItemStyles } from "@/components/ui/listSelection";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { useAdminActions } from "@/lib/admin/actions";
-import { isOpenTicket, sortTickets, supportMetrics } from "@/lib/admin/metrics";
+import { supportMetrics } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { findUser, useStore } from "@/lib/store";
-import { TICKET_CATEGORIES, type SupportTicket, type TicketCategory, type TicketStatus } from "@/lib/types";
+import type { SupportTicket, TicketStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { AdminShell } from "./AdminShell";
 
 const BASE_STATUSES: readonly TicketStatus[] = ["new", "open", "answered", "closed"];
 const IDEA_STATUSES: readonly TicketStatus[] = ["new", "open", "planned", "done", "closed"];
-const ALL_STATUSES: readonly TicketStatus[] = ["new", "open", "answered", "planned", "done", "closed"];
 const statusesOf = (t: SupportTicket) => (t.category === "idea" ? IDEA_STATUSES : BASE_STATUSES);
 
-export function AdminSupport() {
-  const t = useTranslations("admin.support");
-  const tAdmin = useTranslations("admin");
-  const [view, setView] = useState<"inbox" | "ideas">("inbox");
-  return (
-    <AdminShell
-      title={tAdmin("supportTitle")}
-      aside={<CapsuleGroup label={t("views.inbox")} value={view} onChange={setView} options={(["inbox", "ideas"] as const).map((value) => ({ value, content: t(`views.${value}`) }))} />}
-    >
-      {view === "inbox" ? <Inbox /> : <Ideas />}
-    </AdminShell>
-  );
-}
-
-// ── Inbox ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-function Inbox() {
-  const t = useTranslations("admin.support");
-  const { tickets } = useAdminData();
-  const m = supportMetrics(tickets);
-  const [category, setCategory] = useState<"all" | TicketCategory>("all");
-  const [status, setStatus] = useState<"" | TicketStatus>("");
-  const [tag, setTag] = useState("");
-  const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const tags = useMemo(() => [...new Set(tickets.flatMap((x) => x.tags))].toSorted(), [tickets]);
-  const q = query.trim().toLowerCase();
-  const shown = sortTickets(
-    tickets.filter(
-      (x) =>
-        (category === "all" || x.category === category) &&
-        (status === "" || x.status === status) &&
-        (tag === "" || x.tags.includes(tag)) &&
-        (q === "" || [x.message, x.email, x.id, ...x.tags].some((s) => s.toLowerCase().includes(q))),
-    ),
-  );
-  const selected = tickets.find((x) => x.id === selectedId) ?? null;
-
-  return (
-    <>
-      {/* The counters per category are the category filter; open safety carries the orange signal dot. */}
-      <ScrollRow label={t("categoryFilter")} className="max-w-full">
-        <CapsuleGroup
-          label={t("categoryFilter")}
-          value={category}
-          onChange={setCategory}
-          options={(["all", ...TICKET_CATEGORIES] as const).map((value) => ({
-            value,
-            content: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                {value === "all" ? t("all") : t(`category.${value}`)}
-                <span className="tabular-nums text-muted">{value === "all" ? tickets.filter((x) => !x.mergedInto).length : m.perCategory[value]}</span>
-                {value === "safety" && m.openSafety > 0 && <span aria-hidden className="size-2 rounded-full bg-signal" />}
-              </span>
-            ),
-          }))}
-        />
-      </ScrollRow>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
-        <label className="relative block">
-          <span className="sr-only">{t("search")}</span>
-          <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} className="pl-10" />
-        </label>
-        <Select aria-label={t("statusFilter")} value={status} onChange={(e) => setStatus(e.target.value as "" | TicketStatus)}>
-          <option value="">
-            {t("statusFilter")}: {t("all")}
-          </option>
-          {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(`status.${s}`)}
-            </option>
-          ))}
-        </Select>
-        <Select aria-label={t("tagFilter")} value={tag} onChange={(e) => setTag(e.target.value)}>
-          <option value="">{t("allTags")}</option>
-          {tags.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <p className="mb-3 mt-6 text-small text-muted">
-        {t("count", { count: shown.length })} · {t("openCount", { count: m.open })}
-      </p>
-
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
-        {/* The list – on phones gone while a ticket is open. */}
-        <ul className={cn("flex flex-col gap-1", selected && "max-lg:hidden")}>
-          {shown.length === 0 && <li className="py-6 text-body text-muted">{t("none")}</li>}
-          {shown.map((x) => (
-            <li key={x.id}>
-              <TicketRow ticket={x} selected={x.id === selectedId} onSelect={() => setSelectedId(x.id)} />
-            </li>
-          ))}
-        </ul>
-        <div className={cn("min-w-0 lg:sticky lg:top-[calc(var(--header-h)+24px)]", !selected && "max-lg:hidden")}>
-          {selected ? <TicketDetail key={selected.id} ticket={selected} tickets={tickets} onBack={() => setSelectedId(null)} /> : <p className="py-6 text-body text-muted">{t("pick")}</p>}
-        </div>
-      </div>
-    </>
-  );
-}
-
-/** One ticket in the list: the orange signal dot for open safety, what it's about, two lines of the message, who · when · status. */
-function TicketRow({ ticket, selected, onSelect }: { ticket: SupportTicket; selected: boolean; onSelect: () => void }) {
-  const t = useTranslations("admin.support");
-  const f = useFormat();
-  const store = useStore();
-  const who = ticket.userId ? (findUser(store, ticket.userId)?.name ?? ticket.email) : ticket.email;
-  const urgent = ticket.category === "safety" && isOpenTicket(ticket);
-  return (
-    <button type="button" onClick={onSelect} aria-current={selected ? "true" : undefined} className={cn(listItemStyles(selected), "block w-full rounded-[20px] px-4 py-3 text-left")}>
-      <span className="flex items-center gap-2 text-small">
-        {urgent && <span aria-hidden className="size-2 shrink-0 rounded-full bg-signal" />}
-        <span className={cn("font-semibold", urgent ? "text-ink" : "text-muted")}>{t(`category.${ticket.category}`)}</span>
-        {ticket.category === "idea" && <span className="text-muted">· {t("votes", { count: ticket.votes })}</span>}
-        <span className="ml-auto shrink-0 text-muted">{t(`status.${ticket.status}`)}</span>
-      </span>
-      <span className={cn("mt-1 line-clamp-2 text-body", isOpenTicket(ticket) ? "font-semibold text-ink" : "text-ink/80")}>{ticket.message}</span>
-      <span className="mt-1 block truncate text-small text-muted">
-        {who} · {f.day(ticket.createdAt)}
-        {ticket.mergedInto && ` · ${t("mergedInto", { id: ticket.mergedInto })}`}
-      </span>
-    </button>
-  );
-}
-
-function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tickets: readonly SupportTicket[]; onBack: () => void }) {
+export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tickets: readonly SupportTicket[]; onBack: () => void }) {
   const t = useTranslations("admin.support");
   const f = useFormat();
   const store = useStore();
@@ -210,7 +77,7 @@ function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tick
       ))}
 
       {/* Who and where – the context sent along. */}
-      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-ink/8 py-4 text-body sm:grid-cols-3">
+      <dl className="mt-(--adm-inner) grid grid-cols-2 gap-x-6 gap-y-3 border-y border-ink/8 py-4 text-body sm:grid-cols-3">
         <Fact
           label={t("guest")}
           value={
@@ -241,8 +108,8 @@ function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tick
       </dl>
 
       {ticket.replies.length > 0 && (
-        <section className="mt-6">
-          <h3 className="text-eyebrow uppercase text-muted">{t("conversation")}</h3>
+        <section className="mt-(--adm-inner)">
+          <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("conversation")}</h3>
           <ul className="mt-3 flex flex-col gap-3">
             {ticket.replies.map((r) => (
               <li key={r.id} className={cn("max-w-[85%] rounded-[18px] px-4 py-2.5 text-body", r.from === "admin" ? "bubble-own ml-auto bg-bubble-own text-ink" : "bg-bubble-other text-ink")}>
@@ -257,7 +124,7 @@ function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tick
       )}
 
       {!ticket.mergedInto && (
-        <section className="mt-6">
+        <section className="mt-(--adm-inner)">
           <FormField label={t("reply")}>
             <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={t("replyPlaceholder")} className="min-h-28" />
           </FormField>
@@ -357,7 +224,7 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
 // ── Ideas ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The wishes by votes (merged duplicates count for the one they went into); each one's state open · planned · done. */
-function Ideas() {
+export function Ideas() {
   const t = useTranslations("admin.support");
   const { tickets } = useAdminData();
   const { ideas } = supportMetrics(tickets);

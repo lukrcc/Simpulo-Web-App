@@ -6,8 +6,8 @@
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CHAT_THEME_IDS, CHAT_THEMES, chatThemePreview, type ChatThemeId } from "@/config/chat-themes";
-import { settingsOf, useStore } from "@/lib/store";
-import { Sheet } from "@/components/ui/Sheet";
+import { useHydrated } from "@/lib/useHydrated";
+import { chatThemeOf, settingsOf, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 function Swatch({ id, selected, onPick, label }: { id: ChatThemeId; selected: boolean; onPick: () => void; label: string }) {
@@ -18,8 +18,8 @@ function Swatch({ id, selected, onPick, label }: { id: ChatThemeId; selected: bo
       <span
         aria-hidden
         className={cn(
-          "relative flex size-14 items-center justify-center overflow-hidden rounded-full shadow-[inset_0_0_0_1px_var(--line)] transition-[box-shadow] duration-150",
-          selected && "shadow-[inset_0_0_0_1px_var(--line),0_0_0_2px_var(--bg),0_0_0_3.5px_var(--text)]",
+          "relative flex size-14 items-center justify-center overflow-hidden rounded-full shadow-[inset_0_0_0_1px_var(--line)] outline-offset-2 transition-[outline-color] duration-150",
+          selected ? "outline-2 outline-(--text)" : "outline-2 outline-transparent",
         )}
         style={{ background: chatThemePreview(id) }}
       >
@@ -66,12 +66,63 @@ export function ChatBackgroundPicker({ threadId, onPicked }: { threadId: string 
   );
 }
 
-/** From the chat's "…": the background for this chat. */
-export function ChatBackgroundSheet({ threadId, open, onClose }: { threadId: string; open: boolean; onClose: () => void }) {
+/**
+ * At the top of the chat's "…": "Chat background" and a row of round dots (28px) – house · cream · stone · mist · sand · night
+ * (config/chat-themes.ts). The active one with a ring; a click changes it right away and the menu stays open (not an entry).
+ */
+export function ChatThemeDots({ threadId }: { threadId: string }) {
   const t = useTranslations("messages.chatTheme");
+  const store = useStore();
+  const active = chatThemeOf(store, threadId);
   return (
-    <Sheet open={open} onClose={onClose} title={t("title")} subtitle={t("forThisChat")}>
-      <ChatBackgroundPicker threadId={threadId} />
-    </Sheet>
+    <div data-chat-theme-dots>
+      <p className="mb-2.5 text-small font-semibold text-muted">{t("menu")}</p>
+      <div role="radiogroup" aria-label={t("menu")} className="flex items-center gap-2.5">
+        {CHAT_THEME_IDS.map((id) => {
+          const theme = CHAT_THEMES[id];
+          const on = active === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={t(`names.${id}`)}
+              onClick={() => store.setChatTheme(threadId, id)}
+              className={cn(
+                // The ring: an outline 2px off the dot (a second box-shadow class would lose to the first).
+                "relative size-7 shrink-0 overflow-hidden rounded-full shadow-[inset_0_0_0_1px_var(--line)] outline-offset-2 transition-[outline-color] duration-150",
+                on ? "outline-2 outline-(--text)" : "outline-2 outline-transparent",
+              )}
+              style={{ background: chatThemePreview(id) }}
+            >
+              {/* Half of the dot in the own bubble's colour: the ground and the bubble at a glance. */}
+              <span aria-hidden className="absolute inset-y-0 right-0 w-1/2" style={{ background: theme.own }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Once per person (the flag on the account: settings.seenHints "chatTheme"): a small bubble at the chat's "…" – gone on a click, never again. */
+export function ChatThemeHint() {
+  const t = useTranslations("messages.chatTheme");
+  const store = useStore();
+  const hydrated = useHydrated();
+  const me = store.users.find((u) => u.id === store.currentUserId);
+  if (!hydrated || !me || settingsOf(me).seenHints?.includes("chatTheme")) return null;
+  return (
+    <button
+      type="button"
+      data-chat-theme-hint
+      onClick={() => store.markHintSeen("chatTheme")}
+      className="tooltip-bubble animate-fade-in absolute right-0 top-full z-30 mt-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-small text-white"
+    >
+      {/* The small tip pointing up at the "…" */}
+      <span aria-hidden className="tooltip-bubble absolute -top-1 right-3.5 size-2.5 rotate-45 rounded-[2px]" />
+      <span className="relative">{t("hint")}</span>
+    </button>
   );
 }

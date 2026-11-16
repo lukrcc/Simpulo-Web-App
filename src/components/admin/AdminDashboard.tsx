@@ -56,7 +56,7 @@ export function AdminWaitlist() {
       <AdminSection title={t("overTime")}>
         <TrendChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total }))} />
       </AdminSection>
-      <div className="mt-14 grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
+      <div className="mt-(--adm-section) grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
         <AdminSection title={t("sources")}>
           <BarList tone="chart-2" rows={w.bySource.map((s) => ({ key: s.key, label: s.key === "direct" ? t("direct") : s.key, value: s.count }))} />
         </AdminSection>
@@ -91,7 +91,7 @@ export function ThemeScore() {
 
   return (
     <>
-      <p className="mb-6 text-small text-muted">
+      <p className="mb-(--adm-inner) text-small text-muted">
         {t("weights", { reservations: weight(TOPIC_WEIGHTS.reservations), applications: weight(TOPIC_WEIGHTS.applications), waitlist: weight(TOPIC_WEIGHTS.waitlistInterest), hostFee: weight(TOPIC_WEIGHTS.hostFeeShare) })}
       </p>
       <div className="overflow-x-auto">
@@ -158,7 +158,7 @@ export function NetworkToday() {
           </div>
         ))}
       </dl>
-      <p className="mb-4 mt-10 text-small text-muted">{t("toFullChart")}</p>
+      <p className="mb-4 mt-(--adm-section) text-small text-muted">{t("toFullChart")}</p>
       <ColumnChart label={t("toFullChart")} data={a.daysToFullBuckets.map((b) => ({ label: b.key, value: b.count }))} unit={t("houses")} tone="chart-2" />
     </AdminSection>
   );
@@ -188,7 +188,7 @@ export function AdminTraffic() {
           <AdminSection title={t("visitorsChart")}>
             <TrendChart label={t("visitorsChart")} data={report.visitorsPerWeek.map((p) => ({ label: dayLabel(p.week), value: p.visitors }))} />
           </AdminSection>
-          <div className="mt-14 grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
+          <div className="mt-(--adm-section) grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
             <AdminSection title={t("countries")}>
               <BarList tone="chart-2" rows={report.countries.map((c) => ({ key: c.country, label: c.country, value: c.share, display: percent(c.share) }))} />
             </AdminSection>

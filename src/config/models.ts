@@ -18,6 +18,8 @@ export interface Model {
   /** How we know it works */
   measure: string;
   stage: ModelStage;
+  /** The decisions it feeds, short (Algorithmus › Fluss, from `feeds`; the same label from two models is one decision) */
+  decisions: readonly string[];
 }
 
 export const MODELS: readonly Model[] = [
@@ -28,6 +30,7 @@ export const MODELS: readonly Model[] = [
     feeds: "Entdecken (Reihen auf Explore) und „For your next trip“",
     measure: "Klick- und Anfragequote der Vorschläge",
     stage: "rules",
+    decisions: ["Explore-Reihen"],
   },
   {
     id: "crewFit",
@@ -36,6 +39,7 @@ export const MODELS: readonly Model[] = [
     feeds: "Vorschläge an Hosts und in „Fill your House“",
     measure: "Gegenseitige „Your people“ nach einem House",
     stage: "rules",
+    decisions: ["Vorschläge an Hosts"],
   },
   {
     id: "houseChemistry",
@@ -44,6 +48,7 @@ export const MODELS: readonly Model[] = [
     feeds: "Qualitätssignale und „Do it again“",
     measure: "Anteil gegenseitiger „wieder mit dir“, frühe Abreisen, Meldungen",
     stage: "idea",
+    decisions: ["Do it again"],
   },
   {
     id: "demandMap",
@@ -52,6 +57,7 @@ export const MODELS: readonly Model[] = [
     feeds: "Wo Houses eröffnen sollten – später Simpulo Houses",
     measure: "Anteil eröffneter Houses, die dort voll werden, wo die Karte hinzeigte",
     stage: "rules",
+    decisions: ["Wo Houses eröffnen"],
   },
   {
     id: "marketingImpact",
@@ -60,5 +66,6 @@ export const MODELS: readonly Model[] = [
     feeds: "Von welcher Serie und welchem Video es mehr braucht",
     measure: "Anmeldungen je Quelle und je Video",
     stage: "idea",
+    decisions: ["Welche Videos"],
   },
 ];

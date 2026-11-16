@@ -22,10 +22,15 @@ interface SafetyMenuProps {
   extraItems?: MoreMenuItem[];
   className?: string;
   buttonClassName?: string;
+  /** Above everything, not an entry (the chat: its background dots) */
+  top?: React.ReactNode;
+  onOpen?: () => void;
+  /** From a dark surface: the dark menu */
+  dark?: boolean;
 }
 
 /** ⋯ with "Report" (and "Block …" for people). Logged out, both ask for a login first. */
-export function SafetyMenu({ target, user, onBlocked, extraItems = [], className, buttonClassName }: SafetyMenuProps) {
+export function SafetyMenu({ target, user, onBlocked, extraItems = [], className, buttonClassName, top, onOpen, dark }: SafetyMenuProps) {
   const t = useTranslations("safety");
   const store = useStore();
   const requireAuth = useRequireAuth();
@@ -34,7 +39,7 @@ export function SafetyMenu({ target, user, onBlocked, extraItems = [], className
   const name = user ? firstName(user) : undefined;
   const blocked = user !== undefined && isBlocked(store, user.id);
 
-  const items: MoreMenuItem[] = [...extraItems, { label: t("report"), onSelect: () => requireAuth(() => setSheet("report"), { reason: "login" }) }];
+  const items: MoreMenuItem[] = [...extraItems, ...(extraItems.length > 0 ? [{ separator: true as const }] : []), { label: t("report"), onSelect: () => requireAuth(() => setSheet("report"), { reason: "login" }) }];
   if (user && name) {
     items.push(
       blocked
@@ -56,7 +61,7 @@ export function SafetyMenu({ target, user, onBlocked, extraItems = [], className
 
   return (
     <>
-      <MoreMenu items={items} label={t("moreOptions")} className={className} buttonClassName={buttonClassName} />
+      <MoreMenu items={items} label={t("moreOptions")} className={className} buttonClassName={buttonClassName} top={top} onOpen={onOpen} dark={dark} />
       <ReportSheet open={sheet === "report"} onClose={() => setSheet(null)} target={target} name={name} />
       {user && <BlockSheet open={sheet === "block"} onClose={() => setSheet(null)} user={user} onBlocked={onBlocked} />}
     </>

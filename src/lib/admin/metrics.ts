@@ -1,5 +1,10 @@
 // Every number of the admin dashboard (/admin) – computed here, never in the UI. Pure functions over the app data and the admin collections;
-// the targets and weights come from config/admin.ts. With a backend the same functions run on the server (or as scheduled aggregates).
+// the targets and weights come from config/admin.ts.
+//
+// Rule (CLAUDE.md "Admin"): the admin reads only pre-computed statistics. With Firebase, a Cloud Function runs every hour and writes
+// statistics documents (stats/hourly/{hour}, stats/daily/{day}: counts per channel, referrer, House, funnel steps, money, the month rows);
+// these functions then read those documents – never the raw collections (events, requests, payments). Until then they compute the same
+// numbers from the mock records. TODO(firestore): an adapter `getStats(from, to)` in lib/data and these functions over its result.
 import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, fullHousesTarget, feeModelPerFullHouse, type ChangeMetric, type ComparePeriod, HOUSE_RISK, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
 import { FEE_MODEL } from "@/config/policies";
 import { convert, isCurrency } from "@/lib/currency";
@@ -12,6 +17,9 @@ import type { ModelId } from "@/config/models";
 import type { AdminData, HouseOutcome, LedgerEntry, MetricsHistory, OverviewSnapshot } from "@/lib/data";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
+import type { GrowthEvent } from "@/lib/growth";
+import { convertApprox } from "@/lib/rates";
+import type { Currency } from "@/lib/types";
 import { TICKET_CATEGORIES, type Report, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
 
 export interface AdminInputs {
@@ -494,6 +502,35 @@ export function hypothesisStatus(status: HypothesisStatus): Status {
   return status === "supported" ? "good" : status === "rejected" ? "critical" : "warning";
 }
 
+/** Algorithmus › Fluss: each model's success number, short for its block ("41 % gegenseitig", "9 von 38 ohne House"); null – "—". */
+export function modelMeasuresShort(inputs: AdminInputs): Record<ModelId, string | null> {
+  const a = algorithmMetrics(inputs);
+  const real = inputs.stays.filter(isLiveReal);
+  const unmet = inputs.admin.waitlist.filter((e) => e.where && !e.interests.some((v) => real.some((s) => s.vibe === v && hubOf(s) === e.where))).length;
+  return {
+    interestRanking: null,
+    crewFit: a.mutualShare === null ? null : `${Math.round(a.mutualShare * 100)} % gegenseitig`,
+    houseChemistry: null,
+    demandMap: inputs.admin.waitlist.length === 0 ? null : `${unmet} von ${inputs.admin.waitlist.length} offen`,
+    marketingImpact: null,
+  };
+}
+
+/**
+ * A hypothesis as a bar (Algorithmus › Thesen): the numbers inside its target and its value now ("≥ 30 % schneller", "41 % schneller";
+ * "≥ 1,5×", "2,1×") – null where either is missing (no measure yet).
+ */
+export function hypothesisBar(target: string | undefined, current: string | undefined): { now: number; target: number; max: number } | null {
+  const numberIn = (text: string | undefined) => {
+    const m = text?.match(/-?\d+(?:[.,]\d+)?/);
+    return m ? Number(m[0].replace(",", ".")) : null;
+  };
+  const t = numberIn(target);
+  const n = numberIn(current);
+  if (t === null || n === null) return null;
+  return { now: n, target: t, max: Math.max(t * 1.5, n) * 1.05 };
+}
+
 /** Each model's success measure today, where the data already has it (null = not measured yet). */
 export function modelMeasures(inputs: AdminInputs): Record<ModelId, string | null> {
   const a = algorithmMetrics(inputs);
@@ -820,6 +857,24 @@ function dimensionKey(dimension: AnalysisDimension, o: HouseOutcome): string {
  * Admin › Analyse: per angle (topic, length, crew size, kind of place, hub, host tier) the Houses that started in the period – revenue per
  * person and per House, days to full, fill rate, repeat guests (12 months), value per person per year. Most valuable first.
  */
+/**
+ * Analyse › Sortieren "Wachstum": per group, the Houses that began in the period against the period of the same length before it (−0.25 =
+ * a quarter fewer); null for "Gesamt" or without Houses before.
+ */
+export function analysisGrowth(inputs: AdminInputs, dimension: AnalysisDimension, period: AnalysisPeriod): Map<string, number | null> {
+  const outcomes = outcomesOf(inputs);
+  const { from, days } = periodRange(period, inputs.today, outcomes);
+  const before = new Date(Date.parse(`${from}T00:00:00Z`) - days * DAY_MS).toISOString().slice(0, 10);
+  const count = (lo: string, hi: string) => {
+    const counts = new Map<string, number>();
+    for (const o of outcomes) if (o.startDate >= lo && o.startDate < hi) counts.set(dimensionKey(dimension, o), (counts.get(dimensionKey(dimension, o)) ?? 0) + 1);
+    return counts;
+  };
+  const now = count(from, `${inputs.today}~`);
+  const prev = count(before, from);
+  return new Map([...now].map(([key, n]) => [key, period === "all" || !prev.get(key) ? null : n / prev.get(key)! - 1]));
+}
+
 export function analysisRows(inputs: AdminInputs, dimension: AnalysisDimension, period: AnalysisPeriod): AnalysisRow[] {
   const outcomes = outcomesOf(inputs);
   const { from } = periodRange(period, inputs.today, outcomes);
@@ -1324,4 +1379,67 @@ export function askingHostMetrics(inputs: AdminInputs) {
     requests: requests.length,
     requestsWithNote: share(requests.filter((r) => r.message.trim() !== "").length, requests.length),
   };
+}
+
+
+// ── Wachstum ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Wachstum's period: the last 7, 30 or 90 days, or everything. */
+export type GrowthPeriod = "7" | "30" | "90" | "all";
+export const GROWTH_PERIODS: readonly GrowthPeriod[] = ["7", "30", "90", "all"];
+
+/** One row of Wachstum: a channel, a referrer or a House – visits → requests → paid, and Simpulo's part (≈ EUR). */
+export interface GrowthRow {
+  key: string;
+  visits: number;
+  requests: number;
+  accepted: number;
+  paid: number;
+  revenue: number;
+}
+
+const DAY = 86_400_000;
+/** The events of a period (and of the one before it, for the change). TODO(firestore): stats/daily instead of the raw events. */
+function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, back = 0): GrowthEvent[] {
+  if (period === "all") return back === 0 ? [...events] : [];
+  const days = Number(period);
+  const end = Date.parse(`${today}T23:59:59Z`) - back * days * DAY;
+  const start = end - days * DAY;
+  return events.filter((e) => {
+    const at = Date.parse(e.at);
+    return at > start && at <= end;
+  });
+}
+
+/** Visits = house_viewed, requests = request_sent, accepted = request_accepted, paid = payment_completed – grouped by `keyOf`, by revenue. */
+export function growthRows(events: readonly GrowthEvent[], keyOf: (e: GrowthEvent) => string | undefined, period: GrowthPeriod, today: string): GrowthRow[] {
+  const rows = new Map<string, GrowthRow>();
+  for (const e of inWindow(events, period, today)) {
+    const key = keyOf(e);
+    if (key === undefined) continue;
+    const row = rows.get(key) ?? { key, visits: 0, requests: 0, accepted: 0, paid: 0, revenue: 0 };
+    if (e.name === "house_viewed") row.visits++;
+    else if (e.name === "request_sent") row.requests++;
+    else if (e.name === "request_accepted") row.accepted++;
+    else if (e.name === "payment_completed") {
+      row.paid++;
+      row.revenue += convertApprox(e.revenue ?? 0, (e.currency ?? "EUR") as Currency, "EUR");
+    }
+    rows.set(key, row);
+  }
+  return [...rows.values()]
+    .filter((r) => r.visits + r.requests + r.accepted + r.paid > 0)
+    .toSorted((a, b) => b.revenue - a.revenue || b.visits - a.visits || a.key.localeCompare(b.key));
+}
+
+/** The funnel on top of Wachstum: visitors · requests · paid in the period, each with its change against the period before ("all": none). */
+export function growthFunnel(events: readonly GrowthEvent[], period: GrowthPeriod, today: string) {
+  const count = (list: readonly GrowthEvent[], name: GrowthEvent["name"]) => list.filter((e) => e.name === name).length;
+  const now = inWindow(events, period, today);
+  const before = period === "all" ? null : inWindow(events, period, today, 1);
+  const pair = (metric: "visitors" | "requests" | "paid", name: GrowthEvent["name"]) => {
+    const value = count(now, name);
+    return { value, change: before ? getChange(metric, value, count(before, name)) : null };
+  };
+  return { visitors: pair("visitors", "house_viewed"), requests: pair("requests", "request_sent"), paid: pair("paid", "payment_completed") };
 }

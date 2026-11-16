@@ -2,17 +2,21 @@
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
+import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { peopleInFor } from "@/lib/inFor";
+import { BACKLOG, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogStatus } from "@/config/backlog";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/ActionButton";
+import { useEffect, useState } from "react";
+import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { InfoTip } from "./AdminNumbers";
+import { profileHref } from "@/lib/privacy";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Img } from "@/components/ui/Img";
-import { Input } from "@/components/ui/Input";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { TOOL_LINKS } from "@/config/app-links";
@@ -41,161 +45,181 @@ import { AdminSection, AdminShell } from "./AdminShell";
  * holds (config/admin.ts HOUSE_RISK, lib/admin/metrics.ts atRiskHouses), each with its reason in one sentence and the actions that fit;
  * "Läuft gut": the five that filled the fastest; under them a search over all Houses (title, host, place) as a slim list.
  */
+/**
+ * /admin/houses (AdminPageHeader + AdminListDetail): tabs Gefährdet · Läuft gut · Alle (each with its count); right the search (only in
+ * "Alle") and Sortieren. A row: a small photo · title · "Host · Ort · Datum" · one sentence – the reason (Gefährdet) or "voll in X Tagen"
+ * (Läuft gut); no buttons but ✓. The detail right: four levers, each one button and one sentence – Sichtbarkeit, Nachfrage, Host helfen,
+ * Ausweichen –, then the House's numbers (fill rate, requests, days to its start). Mock: every lever a toast and a log line.
+ */
 export function AdminHouseList() {
   const t = useTranslations("admin.houses");
+  const tAdmin = useTranslations("admin");
   const inputs = useAdminInputs();
+  const store = useStore();
+  const f = useFormat();
+  const actions = useAdminActions();
+  const showToast = useToast();
   const atRisk = atRiskHouses(inputs);
   const fastest = fastestFull(inputs);
+  const all = store.stays.filter((s) => !s.isExample && s.status !== "draft" && s.status !== "draft_unclaimed");
+  const [tab, setTab] = useState<"atRisk" | "goingWell" | "all">("atRisk");
+  const [sort, setSort] = useState<HouseSort>("start");
+  const [query, setQuery] = useState("");
+  // A link from the Posteingang opens one House (?house=…).
+  const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("house")));
+
+  const reasonText = (r: RiskReason) =>
+    r.key === "deadline" ? t("reason.deadline", { days: r.days, fill: share(r.fill) }) : r.key === "quiet" ? t("reason.quiet", { days: r.days }) : t("reason.unanswered", { hours: r.hours });
+  const q = query.trim().toLowerCase();
+  const base: { stay: Stay; line: string | null; critical: boolean }[] =
+    tab === "atRisk"
+      ? atRisk.map(({ stay, reasons }) => ({ stay, line: reasons.map(reasonText).join(" "), critical: true }))
+      : tab === "goingWell"
+        ? fastest.map(({ stay, days }) => ({ stay, line: t("fullIn", { days }), critical: false }))
+        : all
+            .filter((s) => !q || [s.title, findUser(store, s.hostId)?.name ?? "", s.city, s.region, s.location?.city ?? ""].some((v) => v.toLowerCase().includes(q)))
+            .map((stay) => ({ stay, line: null, critical: false }));
+  const rows = base.toSorted((a, b) => (sort === "fill" ? fillOf(a.stay) - fillOf(b.stay) : sort === "title" ? a.stay.title.localeCompare(b.stay.title) : a.stay.startDate.localeCompare(b.stay.startDate)));
+  const selected = rows.find((r) => r.stay.id === selectedId) ?? null;
+  const risk = selected ? atRisk.find((r) => r.stay.id === selected.stay.id) : undefined;
+
   return (
-    <AdminShell title={t("title")}>
-      <AdminSection title={`${t("atRisk")} · ${atRisk.length}`}>
-        {atRisk.length === 0 ? (
-          <p className="text-body text-ink">{t("atRiskNone")}</p>
-        ) : (
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {atRisk.map(({ stay, reasons }) => (
-              <AtRiskRow key={stay.id} stay={stay} reasons={reasons} />
-            ))}
-          </ul>
-        )}
-      </AdminSection>
-      <AdminSection title={t("goingWell")}>
-        {fastest.length === 0 ? (
-          <p className="text-body text-muted">{t("goingWellNone")}</p>
-        ) : (
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {fastest.map(({ stay, days }) => (
-              <HouseLine key={stay.id} stay={stay} aside={<span className="shrink-0 text-small text-ink">{t("fullIn", { days })}</span>} />
-            ))}
-          </ul>
-        )}
-      </AdminSection>
-      <HouseSearch />
+    <AdminShell
+      title={t("title")}
+      tabs={
+        <AdminTabs
+          label={t("tabsLabel")}
+          value={tab}
+          onChange={(next) => (setTab(next), setSelectedId(null))}
+          tabs={[
+            { value: "atRisk", label: t("atRisk"), count: atRisk.length, info: t("info.atRisk") },
+            { value: "goingWell", label: t("goingWell"), count: fastest.length },
+            { value: "all", label: t("all"), count: all.length },
+          ]}
+        />
+      }
+      aside={
+        <>
+          <AdminSearch label={t("search")} value={query} onChange={setQuery} disabled={tab !== "all"} />
+          <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["start", "fill", "title"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />
+        </>
+      }
+    >
+      <AdminListDetail
+        label={t("title")}
+        rows={rows.slice(0, 60).map(({ stay, line, critical }) => {
+          const host = findUser(store, stay.hostId);
+          return {
+            id: stay.id,
+            status: critical ? ("critical" as const) : undefined,
+            media: <Img src={housePhotos(stay, host)[0]} alt="" width={36} height={36} className="size-9 rounded-lg object-cover" />,
+            title: stay.title,
+            meta: line ?? [host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · "),
+            aside: line ? f.stayDates(stay) : undefined,
+          };
+        })}
+        selectedId={selected?.stay.id ?? null}
+        onSelect={setSelectedId}
+        empty={<p className="text-body text-muted">{tab === "atRisk" ? t("atRiskNone") : tab === "goingWell" ? t("goingWellNone") : t("searchEmpty")}</p>}
+        detail={
+          selected ? (
+            <HouseDetailPanel
+              key={selected.stay.id}
+              stay={selected.stay}
+              reasons={risk?.reasons ?? []}
+              reasonText={reasonText}
+              onBack={() => setSelectedId(null)}
+              act={(lever) => {
+                const host = findUser(store, selected.stay.hostId);
+                if (lever === "visibility") {
+                  actions.highlightHouse(selected.stay);
+                  showToast(t("toast.highlight", { title: selected.stay.title }));
+                } else if (lever === "demand") {
+                  const count = waitlistMatches(inputs, selected.stay) + peopleInFor(store.inFor, { ...selected.stay, vibe: selected.stay.vibe ?? "" }, inputs.today).length;
+                  actions.notifyWaitlist(selected.stay, count);
+                  showToast(t("toast.notify", { count, title: selected.stay.title }));
+                } else if (lever === "host") {
+                  actions.sendHostSuggestions(selected.stay, host?.name ?? "");
+                  showToast(t("toast.suggestions", { name: host?.name ?? "" }));
+                } else {
+                  actions.proposeAlternative(selected.stay, host?.name ?? "");
+                  showToast(t("toast.alternative", { name: host?.name ?? "" }));
+                }
+              }}
+            />
+          ) : (
+            <p className="py-2 text-body text-muted">{tAdmin("inbox.pick")}</p>
+          )
+        }
+      />
     </AdminShell>
   );
 }
 
-/** A House as a slim line: photo 48px, title (a link to its page), host · place · dates muted; something on the right. */
-function HouseLine({ stay, aside, children }: { stay: Stay; aside?: ReactNode; children?: ReactNode }) {
+type HouseSort = "start" | "fill" | "title";
+const fillOf = (stay: Stay) => (stay.spotsTotal > 0 ? stay.spotsFilled / stay.spotsTotal : 0);
+type Lever = "visibility" | "demand" | "host" | "alternative";
+const LEVERS: readonly Lever[] = ["visibility", "demand", "host", "alternative"];
+
+/** A House's detail: title, host · place · dates, the reasons; four levers (one button, one sentence each); its numbers. */
+function HouseDetailPanel({ stay, reasons, reasonText, onBack, act }: { stay: Stay; reasons: readonly RiskReason[]; reasonText: (r: RiskReason) => string; onBack: () => void; act: (lever: Lever) => void }) {
+  const t = useTranslations("admin.houses");
   const store = useStore();
   const f = useFormat();
+  const { today } = useAdminInputs();
   const host = findUser(store, stay.hostId);
+  const requests = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "pending").length;
+  const daysToStart = Math.max(0, Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000));
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-      <Img src={housePhotos(stay, host)[0]} alt="" width={48} height={48} className="size-12 shrink-0 rounded-xl object-cover" />
-      <div className="min-w-0 flex-1">
-        <Link href={`/h/${stay.id}`} className="block truncate text-body font-semibold text-ink hover:underline">
-          {stay.title}
-        </Link>
-        <p className="truncate text-small text-muted">{[host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · ")}</p>
-        {children}
+    <article data-house-detail>
+      <BackToList onBack={onBack} />
+      <div className="flex items-start gap-4">
+        <Img src={housePhotos(stay, host)[0]} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl object-cover" />
+        <div className="min-w-0">
+          <Link href={`/h/${stay.id}`} className="block text-h3 text-ink hover:underline">
+            {stay.title}
+          </Link>
+          <p className="mt-0.5 text-small text-muted">{[host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · ")}</p>
+        </div>
       </div>
-      {aside}
-    </li>
-  );
-}
-
-/**
- * An at-risk House: its reason(s) with an ember dot, and the actions that fit – Hervorheben and Warteliste informieren when people are
- * missing, Host erinnern when a request waits. Mock: a toast and a log line.
- */
-function AtRiskRow({ stay, reasons }: { stay: Stay; reasons: readonly RiskReason[] }) {
-  const t = useTranslations("admin.houses");
-  const showToast = useToast();
-  const store = useStore();
-  const inputs = useAdminInputs();
-  const actions = useAdminActions();
-  const host = findUser(store, stay.hostId);
-  const needsPeople = reasons.some((r) => r.key === "deadline" || r.key === "quiet");
-  const waiting = reasons.some((r) => r.key === "unanswered");
-  const sentence = (r: RiskReason) =>
-    r.key === "deadline" ? t("reason.deadline", { days: r.days, fill: share(r.fill) }) : r.key === "quiet" ? t("reason.quiet", { days: r.days }) : t("reason.unanswered", { hours: r.hours });
-  return (
-    <HouseLine
-      stay={stay}
-      aside={
-        <span className="flex flex-wrap gap-2">
-          {needsPeople && (
-            <>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  actions.highlightHouse(stay);
-                  showToast(t("toast.highlight", { title: stay.title }));
-                }}
-              >
-                {t("action.highlight")}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const count = waitlistMatches(inputs, stay);
-                  actions.notifyWaitlist(stay, count);
-                  showToast(t("toast.notify", { count, title: stay.title }));
-                }}
-              >
-                {t("action.notify")}
-              </Button>
-            </>
-          )}
-          {waiting && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                actions.remindHost(stay, host?.name ?? "");
-                showToast(t("toast.remind", { name: host?.name ?? "" }));
-              }}
-            >
-              {t("action.remind")}
+      {reasons.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1">
+          {reasons.map((r) => (
+            <li key={r.key} className="flex items-center gap-2 text-small text-ink">
+              <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
+              {reasonText(r)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* The four levers: one button and one sentence each. */}
+      <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
+        {LEVERS.map((lever) => (
+          <li key={lever} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
+            <div className="min-w-0 flex-1 basis-56">
+              <p className="text-eyebrow uppercase text-(--adm-label)">{t(`lever.${lever}.name`)}</p>
+              <p className="mt-0.5 text-small text-muted">{t(`lever.${lever}.text`)}</p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => act(lever)}>
+              {t(`lever.${lever}.action`)}
             </Button>
-          )}
-        </span>
-      }
-    >
-      <ul className="mt-1 flex flex-col gap-0.5">
-        {reasons.map((r) => (
-          <li key={r.key} className="flex items-center gap-2 text-small text-ink">
-            <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
-            {sentence(r)}
           </li>
         ))}
       </ul>
-    </HouseLine>
-  );
-}
-
-/** A search over all Houses – title, host, place –, the results as a slim list with a link to the House page (at most 20). */
-function HouseSearch() {
-  const t = useTranslations("admin.houses");
-  const store = useStore();
-  const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const hits =
-    q.length < 2
-      ? []
-      : store.stays
-          .filter((s) => s.status !== "draft" && s.status !== "draft_unclaimed")
-          .filter((s) => [s.title, findUser(store, s.hostId)?.name ?? "", s.city, s.region, s.location?.city ?? ""].some((v) => v.toLowerCase().includes(q)));
-  return (
-    <AdminSection title={t("search")}>
-      <Input type="text" inputMode="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("search")} className="max-w-xl" />
-      {q.length >= 2 &&
-        (hits.length === 0 ? (
-          <p className="mt-4 text-body text-muted">{t("searchEmpty")}</p>
-        ) : (
-          <>
-            <ul className="mt-4 divide-y divide-ink/8 border-y border-ink/8">
-              {hits.slice(0, 20).map((stay) => (
-                <HouseLine key={stay.id} stay={stay} />
-              ))}
-            </ul>
-            {hits.length > 20 && <p className="mt-3 text-small text-muted">{t("searchMore", { count: hits.length - 20 })}</p>}
-          </>
+      {/* The House's numbers. */}
+      <dl className="mt-(--adm-inner) grid grid-cols-3">
+        {[
+          { label: t("kpi.fill"), value: share(fillOf(stay)) },
+          { label: t("kpi.requests"), value: String(requests) },
+          { label: t("kpi.daysToStart"), value: String(daysToStart) },
+        ].map((n, i) => (
+          <div key={n.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-4")}>
+            <dt className="truncate text-eyebrow uppercase text-(--adm-label)">{n.label}</dt>
+            <dd className="mt-1 text-adm-figure tabular-nums text-ink">{n.value}</dd>
+          </div>
         ))}
-    </AdminSection>
+      </dl>
+    </article>
   );
 }
 
@@ -236,193 +260,213 @@ function Followers({ count }: { count: number }) {
 }
 
 /**
- * /admin/hosts – "Wer hostet?": three tabs – Alle (every host with a real House, sorted by value per year, Houses or newest) · Review (live
- * hosts are let in automatically; only cases with a warning land here) · Prepared (Houses prepared for a host). Calm cards: the tier as a
- * small capsule ("vorgeschlagen" while nobody set it), three numbers – Houses · Füllrate · Wert pro Jahr (lib/admin/metrics.ts hostOverview,
- * the same outcomes as Analyse). The tier changes only in the host's detail (a click on the card), logged.
+ * /admin/hosts (AdminPageHeader + AdminListDetail): ONE tab row – Alle · Share · Pro · Anchor · Prüfen · Vorbereitet (each with its count,
+ * each with an ⓘ); right Sortieren ▾ (Wert pro Jahr · Houses · Neueste). A compact list (rows 52px): photo · name · places · tier · Houses ·
+ * fill rate · value per year · a signal dot (a warning); the column heads carry an ⓘ ("Wert pro Jahr = …"). The detail right: a short
+ * profile, the tier (confirm or change – logged; "vorgeschlagen" only here), the numbers, the warnings, the actions. Vorbereitet: the
+ * prepared Houses.
  */
+type HostTab = "all" | HostTier | "review" | "prepared";
+type HostSort = "value" | "houses" | "newest";
+const NEW_HOST_DAYS = 30;
+
 export function AdminHosts() {
-  const tAdmin = useTranslations("admin");
   const t = useTranslations("admin.hosts");
+  const tTier = useTranslations("admin.tiers");
   const tGrowth = useTranslations("admin.growthArea");
-  const rows = hostOverview(useAdminInputs());
-  const [tab, setTab] = useState<"all" | "review" | "prepared">("all");
-  const review = rows.filter((r) => r.warnings.length > 0);
+  const tAdmin = useTranslations("admin");
+  const inputs = useAdminInputs();
+  const rows = hostOverview(inputs);
+  const store = useStore();
+  const [tab, setTab] = useState<HostTab>("all");
+  const [sort, setSort] = useState<HostSort>("value");
+  // A link from the Posteingang opens one host (?host=…).
+  const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("host")));
+  // "Prüfen": new (first House within 30 days) or with a warning – waits for you.
+  const isNew = (r: HostOverview) => r.houses.length <= 1 && r.newest !== "" && Date.parse(inputs.today) - Date.parse(r.newest) <= NEW_HOST_DAYS * 86_400_000;
+  const review = rows.filter((r) => r.warnings.length > 0 || isNew(r));
+  const prepared = store.stays.filter((s) => s.claim).length;
+  const inTab = (r: HostOverview) => (tab === "all" ? true : tab === "review" ? review.includes(r) : r.tier === tab);
+  const shown = rows.filter(inTab).toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
+  const selected = shown.find((r) => r.user.id === selectedId) ?? null;
+
   return (
-    <AdminShell title={tAdmin("hostsTitle")} aside={tab === "prepared" ? <PrepareButton label={tGrowth("newHouse")} /> : undefined}>
-      <CapsuleGroup
-        label={t("tabs.label")}
-        value={tab}
-        onChange={setTab}
-        className="mb-8 w-fit"
-        options={[
-          { value: "all", content: `${t("tabs.all")} ${rows.length}` },
-          { value: "review", content: `${t("tabs.review")} ${review.length}` },
-          { value: "prepared", content: t("tabs.prepared") },
-        ]}
-      />
-      {tab === "all" && <HostList rows={rows} />}
-      {tab === "review" && (
-        <>
-          <p className="mb-6 max-w-2xl text-body text-muted">{t("reviewNote")}</p>
-          {review.length === 0 ? <p className="text-body text-ink">{t("reviewEmpty")}</p> : <HostGrid rows={review} />}
-        </>
+    <AdminShell
+      title={t("title")}
+      tabs={
+        <AdminTabs
+          label={t("tabs.label")}
+          value={tab}
+          onChange={(next) => (setTab(next), setSelectedId(null))}
+          tabs={[
+            { value: "all", label: t("tabs.all"), count: rows.length },
+            ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, info: t(`tabInfo.${tier}`) })),
+            { value: "review", label: t("tabs.review"), count: review.length, info: t("tabInfo.review") },
+            { value: "prepared", label: t("tabs.prepared"), count: prepared, info: t("tabInfo.prepared") },
+          ]}
+        />
+      }
+      aside={tab === "prepared" ? <PrepareButton label={tGrowth("newHouse")} /> : <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "houses", "newest"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />}
+    >
+      {tab === "prepared" ? (
+        <PreparedList />
+      ) : (
+        <AdminListDetail
+          label={t("title")}
+          rowHeight="h-13"
+          head={<HostColumnsHead />}
+          rows={shown.map((row) => ({
+            id: row.user.id,
+            media: <Avatar user={row.user} size="sm" />,
+            title: row.user.name,
+            meta: row.hubs.join(", "),
+            aside: <HostColumns row={row} />,
+          }))}
+          selectedId={selected?.user.id ?? null}
+          onSelect={setSelectedId}
+          empty={<p className="text-body text-muted">{tab === "review" ? t("reviewEmpty") : tAdmin("empty")}</p>}
+          detail={selected ? <HostDetail key={selected.user.id} row={selected} onBack={() => setSelectedId(null)} /> : <p className="py-2 text-body text-muted">{tAdmin("inbox.pick")}</p>}
+        />
       )}
-      {tab === "prepared" && <PreparedList />}
     </AdminShell>
   );
 }
 
-type HostSort = "value" | "houses" | "newest";
-
-function HostList({ rows }: { rows: readonly HostOverview[] }) {
-  const t = useTranslations("admin.hosts");
-  const [tier, setTier] = useState<HostTier | "all">("all");
-  const [sort, setSort] = useState<HostSort>("value");
-  const shown = rows
-    .filter((r) => tier === "all" || r.tier === tier)
-    .toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
-  return (
-    <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <TierFilter value={tier} onChange={setTier} tiers={rows.map((r) => r.tier)} />
-        <CapsuleGroup size="sm" label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "houses", "newest"] as const).map((value) => ({ value, content: t(`sort.${value}`) }))} />
-      </div>
-      <HostGrid rows={shown} />
-      <p className="mt-6 text-small text-muted">{t("rule")}</p>
-    </>
-  );
-}
-
-function HostGrid({ rows }: { rows: readonly HostOverview[] }) {
+/** The columns right in a host's row: tier · Houses · fill rate · value per year · the signal dot (a warning). */
+const HOST_COLS = "grid grid-cols-[52px_52px_52px_76px_8px] items-center gap-x-3.5 text-right";
+function HostColumns({ row }: { row: HostOverview }) {
+  const tTier = useTranslations("admin.tiers");
   const tAdmin = useTranslations("admin");
-  const [open, setOpen] = useState<string | null>(null);
-  const opened = rows.find((r) => r.user.id === open);
-  if (rows.length === 0) return <p className="text-body text-muted">{tAdmin("empty")}</p>;
   return (
-    <>
-      <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-        {rows.map((row) => (
-          <HostCard key={row.user.id} row={row} onOpen={() => setOpen(row.user.id)} />
-        ))}
-      </ul>
-      {opened && <HostSheet row={opened} onClose={() => setOpen(null)} />}
-    </>
-  );
-}
-
-/** The tier as a small capsule; "vorgeschlagen" in grey behind it while nobody set it by hand. */
-function TierCapsule({ tier, manual }: { tier: HostTier; manual: boolean }) {
-  const t = useTranslations("admin.tiers");
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="inline-flex h-6 items-center rounded-full border border-ink/12 px-2.5 text-small font-medium text-ink">{t(tier)}</span>
-      {!manual && <span className="text-small text-muted">{t("suggested")}</span>}
+    <span className={HOST_COLS}>
+      <span className="truncate text-left text-small text-muted">{tTier(row.tier)}</span>
+      <span className="text-small tabular-nums text-ink">{row.houses.length}</span>
+      <span className="text-small tabular-nums text-ink">{share(row.fillRate)}</span>
+      <span className="text-small tabular-nums text-ink">{formatEur(row.valuePerYear)}</span>
+      <span className="flex justify-end">
+        {row.warnings.length > 0 && (
+          <>
+            <span aria-hidden className="size-2 rounded-full bg-adm-critical" />
+            <span className="sr-only">{tAdmin("status.critical")}</span>
+          </>
+        )}
+      </span>
     </span>
   );
 }
 
-/** Houses · Füllrate · Wert pro Jahr – three numbers side by side, split by fine lines. */
-function HostNumbers({ row }: { row: HostOverview }) {
+/** The column heads over the host list; "Wert/Jahr" with its ⓘ instead of a sentence under the list. */
+function HostColumnsHead() {
   const t = useTranslations("admin.hosts");
   return (
-    <dl className="grid grid-cols-3">
-      {[
-        { label: t("houses"), value: String(row.houses.length) },
-        { label: t("fill"), value: share(row.fillRate) },
-        { label: t("value"), value: formatEur(row.valuePerYear) },
-      ].map((n, i) => (
-        <div key={n.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-4")}>
-          <dt className="truncate text-small text-muted">{n.label}</dt>
-          <dd className="mt-0.5 text-h3 tabular-nums text-ink">{n.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** A host as a calm card (a clickable object): name, hubs, the tier capsule, the three numbers; warnings (Review) as ember-dot lines. */
-function HostCard({ row, onOpen }: { row: HostOverview; onOpen: () => void }) {
-  const t = useTranslations("admin.hosts");
-  const { user } = row;
-  return (
-    <li>
-      <button type="button" onClick={onOpen} aria-label={t("open", { name: user.name })} className="flex h-full w-full flex-col gap-4 rounded-[20px] bg-(--surface) p-5 text-left transition-colors duration-150 hover:bg-surface-2">
-        <span className="flex items-center gap-3">
-          <Avatar user={user} size="md" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-h3 text-ink">{user.name}</span>
-            <span className="block truncate text-small text-muted">{row.hubs.join(", ")}</span>
-          </span>
+    // Small words, not caps: the narrow columns keep the list's name column wide.
+    <div className="flex h-8 items-center justify-end gap-3 px-2 text-small text-(--adm-label)">
+      <span className={HOST_COLS}>
+        <span className="text-left">{t("tier")}</span>
+        <span>{t("housesShort")}</span>
+        <span>{t("fillShort")}</span>
+        <span className="inline-flex items-center justify-end gap-0.5">
+          {t("valueShort")}
+          <InfoTip text={t("rule")} />
         </span>
-        <TierCapsule tier={row.tier} manual={row.manual} />
-        <HostNumbers row={row} />
-        {row.warnings.length > 0 && (
-          <span className="flex flex-col gap-1">
-            {row.warnings.map((w) => (
-              <span key={w} className="flex items-center gap-2 text-small text-ink">
-                <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
-                {t(`warning.${w}`)}
-              </span>
-            ))}
-          </span>
-        )}
-      </button>
-    </li>
+        <span />
+      </span>
+    </div>
   );
 }
 
-/** The host's detail: the numbers, the tier – changed only here (logged) –, their links with followers and their Houses. */
-function HostSheet({ row, onClose }: { row: HostOverview; onClose: () => void }) {
+/** A host's detail: a short profile, the tier (confirm or change, logged), the numbers, the warnings, the actions. */
+function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) {
   const t = useTranslations("admin.hosts");
   const tTier = useTranslations("admin.tiers");
+  const tToday = useTranslations("admin.today");
   const f = useFormat();
-  const { setHostTier } = useAdminActions();
+  const actions = useAdminActions();
+  const showToast = useToast();
   const { user } = row;
   return (
-    <Sheet variant="panel" open onClose={onClose} title={user.name}>
-      <div className="flex flex-col gap-8 px-6 pb-8">
-        <div className="flex items-center gap-3">
-          <Avatar user={user} size="md" />
+    <article data-host-detail>
+      <BackToList onBack={onBack} />
+      <div className="flex items-center gap-4">
+        <Avatar user={user} size="md" />
+        <div className="min-w-0">
+          <Link href={profileHref(user.id)} className="block text-h3 text-ink hover:underline">
+            {user.name}
+          </Link>
           <p className="text-small text-muted">{row.hubs.join(", ")}</p>
         </div>
-        <HostNumbers row={row} />
-        <div>
-          <p className="mb-2 text-small text-muted">{t("tier")}</p>
-          <TierPicker tier={row.tier} manual={row.manual} name={user.name} onChange={(next) => setHostTier(user, next)} />
-          <p className="mt-2 text-small text-muted">{tTier("rule")}</p>
-        </div>
-        <div>
-          <p className="mb-2 text-small text-muted">{t("links")}</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-small">
-            {(user.socials ?? []).length === 0 ? (
-              <span className="text-muted">{tTier("noLinks")}</span>
-            ) : (
-              (user.socials ?? []).map((link) => (
-                <a key={link.platform} href={socialUrl(link)} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-ink hover:underline">
-                  {socialHandle(link)}
-                  <ExternalLink aria-hidden className="size-3 text-muted" />
-                </a>
-              ))
-            )}
-            <Followers count={row.followers} />
-          </div>
-        </div>
-        <div>
-          <p className="mb-2 text-small text-muted">{t("housesList")}</p>
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {row.houses.map((house) => (
-              <li key={house.id}>
-                <Link href={`/h/${house.id}`} className="flex items-baseline justify-between gap-4 py-2.5 text-body hover:underline">
-                  <span className="min-w-0 truncate text-ink">{house.title}</span>
-                  <span className="shrink-0 text-small text-muted">{f.stayDates(house)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
-    </Sheet>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-small">
+        {(user.socials ?? []).map((link) => (
+          <a key={link.platform} href={socialUrl(link)} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-ink hover:underline">
+            {socialHandle(link)}
+            <ExternalLink aria-hidden className="size-3 text-muted" />
+          </a>
+        ))}
+        <Followers count={row.followers} />
+      </div>
+
+      <section className="mt-(--adm-inner)">
+        <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("tier")}</p>
+        <span className="flex flex-wrap items-center gap-2">
+          <TierPicker tier={row.tier} manual={row.manual} name={user.name} onChange={(next) => actions.setHostTier(user, next)} />
+          {!row.manual && (
+            <Button size="sm" variant="tertiary" onClick={() => actions.setHostTier(user, row.tier)}>
+              {tTier("confirm")}
+            </Button>
+          )}
+        </span>
+      </section>
+
+      <dl className="mt-(--adm-inner) grid grid-cols-3 border-y border-ink/8 py-3">
+        {[
+          { label: t("houses"), value: String(row.houses.length) },
+          { label: t("fill"), value: share(row.fillRate) },
+          { label: t("value"), value: formatEur(row.valuePerYear) },
+        ].map((n, i) => (
+          <div key={n.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-4")}>
+            <dt className="truncate text-eyebrow uppercase text-(--adm-label)">{n.label}</dt>
+            <dd className="mt-1 text-adm-figure tabular-nums text-ink">{n.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {row.warnings.length > 0 && (
+        <ul className="mt-(--adm-inner) flex flex-col gap-1">
+          {row.warnings.map((w) => (
+            <li key={w} className="flex items-center gap-2 text-small text-ink">
+              <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
+              {t(`warning.${w}`)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-(--adm-inner) flex flex-wrap gap-2">
+        <Link href={profileHref(user.id)} className={buttonStyles("secondary", "sm")}>
+          {t("openProfile")}
+        </Link>
+        {row.warnings.length > 0 && (
+          <Button size="sm" variant="secondary" onClick={() => (actions.remindHost({ title: row.houses[0]?.title ?? "" }, user.name), showToast(tToday("toast.remindHost", { name: user.name })))}>
+            {tToday("action.remind")}
+          </Button>
+        )}
+      </div>
+
+      <section className="mt-(--adm-section)">
+        <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("housesList")}</p>
+        <ul className="divide-y divide-ink/8 border-y border-ink/8">
+          {row.houses.map((house) => (
+            <li key={house.id}>
+              <Link href={`/h/${house.id}`} className="flex items-baseline justify-between gap-4 py-2.5 text-body hover:underline">
+                <span className="min-w-0 truncate text-ink">{house.title}</span>
+                <span className="shrink-0 text-small text-muted">{f.stayDates(house)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </article>
   );
 }
 
@@ -461,7 +505,7 @@ export function AdminApplications() {
 
   return (
     <AdminShell title={t("title")}>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-(--adm-inner) flex flex-wrap items-center justify-between gap-4">
         <CapsuleGroup
           label={t("filter")}
           value={status}
@@ -479,7 +523,7 @@ export function AdminApplications() {
         />
         {first && <span className="text-small text-muted max-md:hidden">{t("keys")}</span>}
       </div>
-      <div className="mb-6">
+      <div className="mb-(--adm-inner)">
         <TierFilter value={tier} onChange={setTier} tiers={inStatus.map((a) => applicationTier(a).tier)} />
       </div>
       {shown.length === 0 ? (
@@ -574,6 +618,8 @@ export function AdminPlatform() {
   const phase = usePlatformPhase();
   const { changePhase } = useAdminActions();
   const [pending, setPending] = useState<PlatformPhase | null>(null);
+  // Unterreiter: Einstellungen (phase, tools, values) · Backlog (decided building blocks, config/backlog.ts).
+  const [view, setView] = useState<"settings" | "backlog">("settings");
 
   return (
     <AdminShell
@@ -584,6 +630,11 @@ export function AdminPlatform() {
         </Link>
       }
     >
+      <CapsuleGroup size="sm" label={t("views.label")} value={view} onChange={setView} className="mb-(--adm-section) w-fit" options={(["settings", "backlog"] as const).map((value) => ({ value, content: t(`views.${value}`) }))} />
+      {view === "backlog" ? (
+        <Backlog />
+      ) : (
+      <>
       <AdminSection title={t("phase")}>
         <CapsuleGroup
           label={t("phase")}
@@ -648,11 +699,13 @@ export function AdminPlatform() {
           </table>
         </div>
       </AdminSection>
+      </>
+      )}
       <Sheet open={pending !== null} onClose={() => setPending(null)} title={pending ? t("confirmTitle", { phase: t(`phases.${pending}`) }) : ""}>
         {pending && (
           <>
             <p className="text-body text-muted">{t("confirmText", { phase: t(`phases.${pending}`) })}</p>
-            <ModalFooter onCancel={() => setPending(null)} className="mt-6">
+            <ModalFooter onCancel={() => setPending(null)} className="mt-(--adm-inner)">
               <Button variant="primary" onClick={() => changePhase(pending)}>
                 {t("confirm", { phase: t(`phases.${pending}`) })}
               </Button>
@@ -661,6 +714,56 @@ export function AdminPlatform() {
         )}
       </Sheet>
     </AdminShell>
+  );
+}
+
+/**
+ * System › Backlog: the decided building blocks (config/backlog.ts) – title, one line, phase, status. The status switches in the row and is
+ * stored through the adapter (AdminData.backlog, logged); a filter by status; "X offen" on top; done items grey and at the end.
+ */
+function Backlog() {
+  const t = useTranslations("admin.platform.backlog");
+  const data = useAdminData();
+  const { setBacklogStatus } = useAdminActions();
+  const [filter, setFilter] = useState<BacklogStatus | "all">("all");
+  const items = BACKLOG.map((item) => ({ ...item, status: data.backlog?.[item.id] ?? item.status }));
+  const open = items.filter((i) => i.status !== "done").length;
+  // Done at the end, otherwise the config's order.
+  const shown = items.filter((i) => filter === "all" || i.status === filter).toSorted((a, b) => Number(a.status === "done") - Number(b.status === "done"));
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <p className="text-h3 text-ink tabular-nums">{t("open", { count: open })}</p>
+        <CapsuleGroup size="sm" label={t("filterLabel")} value={filter} onChange={setFilter} options={(["all", ...BACKLOG_STATUSES] as const).map((value) => ({ value, content: value === "all" ? t("all") : t(`status.${value}`) }))} />
+      </div>
+      <p className="mt-2 text-small text-muted">
+        {t("note")}
+        {LAUNCH_PLAN_URL && (
+          <>
+            {" · "}
+            <a href={LAUNCH_PLAN_URL} target="_blank" rel="noreferrer noopener" className="font-semibold text-ink hover:underline">
+              {t("noteLink")}
+            </a>
+          </>
+        )}
+      </p>
+      {shown.length === 0 ? (
+        <p className="mt-(--adm-section) text-body text-muted">{t("empty")}</p>
+      ) : (
+        <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
+          {shown.map((item) => (
+            <li key={item.id} data-backlog-item={item.id} className={cn("flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5", item.status === "done" && "opacity-45")}>
+              <div className="min-w-0 flex-1 basis-[320px]">
+                <p className="truncate text-body font-semibold text-ink">{item.title}</p>
+                <p className="truncate text-small text-muted">{item.description}</p>
+              </div>
+              <span className="w-28 shrink-0 text-small text-muted">{t(`phase.${item.phase}`)}</span>
+              <CapsuleGroup size="sm" label={t("statusOf", { title: item.title })} value={item.status} onChange={(next) => next !== item.status && setBacklogStatus(item.id, item.title, next, t(`status.${next}`))} options={BACKLOG_STATUSES.map((value) => ({ value, content: t(`status.${value}`) }))} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

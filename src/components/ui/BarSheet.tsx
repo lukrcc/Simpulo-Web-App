@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 const DURATION_MS = 260;
 /** Where / When / More: this wide, under their opener. */
 const NARROW_WIDTH = 520;
+/** Room between the bar and every menu. */
+const GAP_PX = 8;
 
 /** How many sheets hang from the bar right now: while one does, the bar loses its foot line (html[data-bar-sheet]) – bar and sheet are one. */
 let openSheets = 0;
@@ -20,8 +22,6 @@ interface BarSheetProps {
   anchor: RefObject<HTMLElement | null>;
   /** "narrow" 520px under the opener (Where · When, More) · "full" as wide as the bar's content, at most 1600, centred (All filters) */
   size?: "narrow" | "full";
-  /** Narrow: "start" its left edge on the opener's (Where · When) · "end" its right edge on the opener's (More) */
-  align?: "start" | "end";
   label: string;
   /** A fixed head over the scrolling content (All filters: title, count, ✕) */
   head?: ReactNode;
@@ -32,16 +32,16 @@ interface BarSheetProps {
 }
 
 /**
- * Every flyout of the bar (Where · When, More, All filters) – one piece with the bar: the bar's own graphite glass, only denser
- * (rgba(72,66,62,.90) + blur 32px saturate 160 %), cream words (muted 65 %), the bar's capsules (cream 8 %, chosen 26 %), fields cream 10 %
- * with a 1px cream 20 % edge. It hangs right on the bar's foot (0px), square on top, radius 24 below, and the bar drops its foot line while it's
- * open. It grows downwards out of the bar (clip-path from 100 % to 0 at the bottom, 260ms cubic-bezier(.2,.8,.2,1)), its content fades in 80ms
- * later; closing runs the other way (reduced motion: only the fade). Behind it the page dims (rgba(20,18,16,.18) + blur 4px) and stays put; a
- * click outside or Escape closes it. Narrow ones scroll inside (at most the window less 140px); the full one (All filters) is as high as its content.
- * While one is open the bar takes its exact glass (globals.css html[data-bar-sheet]).
+ * Every menu of the bar (Where · When, Themes, All filters): the header's own graphite glass (--header-bg, --header-filter – one tone with the
+ * bar), cream words (muted 65 %), the bar's capsules (white 8 %; chosen white filled with graphite words). It sits 8px under the bar, every
+ * corner round (24). Narrow ones (Where · When, Themes) flush under their opener's left edge – if that would run past the window, flush with
+ * its right edge; All filters as wide as the bar's content. It grows downwards (clip-path from 100 % to 0 at the bottom, 260ms
+ * cubic-bezier(.2,.8,.2,1)), its content fades in 80ms later; closing runs the other way (reduced motion: only the fade). Behind it the page
+ * dims (rgba(20,18,16,.18) + blur 4px) and stays put; a click outside or Escape closes it. Narrow ones scroll inside (at most the window less
+ * 140px); the full one (All filters) is as high as its content.
  * The bar is the opener's closest [data-bar] – the header's bar, or a filter row in the page (city pages, phones).
  */
-export function BarSheet({ open, onClose, anchor, size = "narrow", align = "start", label, head, footer, className, children }: BarSheetProps) {
+export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, className, children }: BarSheetProps) {
   const [shown, setShown] = useState(open);
   const [closing, setClosing] = useState(false);
   // Open → mounted; closed → it plays its way back into the bar first, then unmounts.
@@ -68,17 +68,17 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", align = "star
       if (!opener) return;
       const bar = (opener.closest("[data-bar]") ?? opener.closest("[data-site-header]") ?? opener).getBoundingClientRect();
       const viewport = document.documentElement.clientWidth;
-      // Never past the bar's content (.bar-width: at most 1600, 32px from the window's edges).
-      const edge = Math.max(32, (viewport - 1600) / 2);
-      const width = Math.min(NARROW_WIDTH, viewport - 2 * edge);
+      const width = Math.min(NARROW_WIDTH, viewport - 32);
       const r = opener.getBoundingClientRect();
-      const wanted = align === "end" ? r.right - width : r.left;
-      setPlace({ top: bar.bottom, left: Math.max(edge, Math.min(wanted, viewport - edge - width)) });
+      // Flush under the opener's left edge; if it would run past the window's right side, flush with the opener's right edge instead.
+      const fitsLeft = r.left + width <= viewport - 16;
+      const wanted = fitsLeft ? r.left : r.right - width;
+      setPlace({ top: bar.bottom + GAP_PX, left: Math.max(16, wanted) });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [shown, anchor, align]);
+  }, [shown, anchor]);
 
   // While it hangs from the bar: the page stays put, the bar has no foot line.
   useEffect(() => {
@@ -120,7 +120,7 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", align = "star
 
   if (!shown || !place) return null;
   const sheet = (
-    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && "max-h-[calc(100vh-140px)]", className)}>
+    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && "max-h-[calc(100vh-148px)]", className)}>
       {head && <div className="bar-sheet-body shrink-0">{head}</div>}
       {/* Full (All filters): as high as its content, no scrolling inside – it is laid out to fit. */}
       <div className={cn("bar-sheet-body min-h-0 flex-1", size === "narrow" && "overflow-y-auto overscroll-contain")}>{children}</div>
