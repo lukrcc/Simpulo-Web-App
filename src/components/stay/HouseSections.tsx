@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { ArrowUpRight, Check, Lightbulb, MapPin, Plus, UserPlus, Vote } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -108,7 +109,7 @@ export function HouseCrew({ stay, crew, waitlist, myWaitlist, canJoin, onJoin, o
           }
           return (
             <li key={member.id}>
-              <Link href={`/u/${member.id}`} className={person}>
+              <Link href={profileHref(member.id)} className={person}>
                 <span className="relative">
                   <Avatar user={member} size="lg" />
                   {member.id === stay.hostId && (

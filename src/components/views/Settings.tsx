@@ -1,5 +1,6 @@
 "use client";
 
+import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
 import { Bell, Check, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -433,9 +434,16 @@ function PrivacyArea({ me }: { me: User }) {
   const showToast = useToast();
   const saved = useSaved();
   const blocked = settingsOf(me).blockedUserIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
-  const privacy = { showOnHousePages: showsOnHousePages(me), showAge: me.privacy?.showAge ?? PRIVACY_DEFAULTS.showAge };
+  const privacy = {
+    showOnHousePages: showsOnHousePages(me),
+    showAge: me.privacy?.showAge ?? PRIVACY_DEFAULTS.showAge,
+    hidePhotoUntilAccepted: hidesPhotoUntilAccepted(me),
+    hostPageInSearch: hostPageInSearch(me),
+  };
+  // The host page switch only for people who host publicly (lib/privacy.ts).
+  const hosts = hostsPublicly(store, me.id);
   function setPrivacy(patch: Partial<typeof privacy>) {
-    store.updateCurrentUser({ privacy: { ...privacy, ...patch } });
+    store.updateCurrentUser({ privacy: { ...me.privacy, ...privacy, ...patch } });
     saved();
   }
 
@@ -463,6 +471,8 @@ function PrivacyArea({ me }: { me: User }) {
       <SettingsGroup title={t("visibilityTitle")}>
         <SettingsRow title={t("showOnHousePages")} subtitle={t("showOnHousePagesText")} control={<Switch on={privacy.showOnHousePages} label={t("showOnHousePages")} onChange={(on) => setPrivacy({ showOnHousePages: on })} />} />
         <SettingsRow title={t("showAge")} subtitle={t("showAgeText")} control={<Switch on={privacy.showAge} label={t("showAge")} onChange={(on) => setPrivacy({ showAge: on })} />} />
+        <SettingsRow title={t("hidePhoto")} subtitle={t("hidePhotoText")} control={<Switch on={privacy.hidePhotoUntilAccepted} label={t("hidePhoto")} onChange={(on) => setPrivacy({ hidePhotoUntilAccepted: on })} />} />
+        {hosts && <SettingsRow title={t("hostPage")} subtitle={t("hostPageText")} control={<Switch on={privacy.hostPageInSearch} label={t("hostPage")} onChange={(on) => setPrivacy({ hostPageInSearch: on })} />} />}
       </SettingsGroup>
       <SettingsGroup title={t("blockedTitle")} footer={t("description")}>
         {blocked.length === 0 ? (

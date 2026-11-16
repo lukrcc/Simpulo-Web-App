@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { showsAge } from "@/config/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -78,7 +79,7 @@ export function HostPreview({ host, anchor, ...pointer }: { host: User; anchor: 
         {host.bio && <p className="line-clamp-2 text-body text-ink">{host.bio}</p>}
         <div className="flex items-center justify-between gap-3">
           <SocialLinks user={host} variant="icons" tone="light" />
-          <Link href={`/u/${host.id}`} className={buttonStyles("tertiary", "sm", "-mr-4 ml-auto")}>
+          <Link href={profileHref(host.id)} className={buttonStyles("tertiary", "sm", "-mr-4 ml-auto")}>
             {tCard("viewProfile")}
           </Link>
         </div>

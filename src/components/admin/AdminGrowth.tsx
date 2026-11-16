@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, type ReactNode } from "react";
@@ -90,7 +91,7 @@ export function AdminGrowth() {
             key === NO_REF ? (
               t("noRef")
             ) : (
-              <Link href={`/u/${key}`} className="hover:underline">
+              <Link href={profileHref(key)} className="hover:underline">
                 {userName(key)}
               </Link>
             )

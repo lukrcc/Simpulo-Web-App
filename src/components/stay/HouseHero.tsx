@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { BackButton } from "@/components/ui/BackButton";
 import { ArrowRight, ArrowUpRight, Home, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
 import { depthOf } from "@/config/depth";
@@ -274,7 +275,7 @@ function HostTile({ host, stay }: { host: User; stay: Stay }) {
   const format = useFormat();
   const store = useStore();
   return (
-    <Link href={`/u/${host.id}`} aria-label={tTiles("profile", { name: firstName(host) })} className={cn(TILE, "group bg-(--tile-host) transition-[filter] duration-150 hover:brightness-[0.98]")}>
+    <Link href={profileHref(host.id)} aria-label={tTiles("profile", { name: firstName(host) })} className={cn(TILE, "group bg-(--tile-host) transition-[filter] duration-150 hover:brightness-[0.98]")}>
       <ArrowUpRight aria-hidden className="absolute right-4 top-4 size-4 text-ink/50 transition-colors group-hover:text-ink" />
       <span className="flex min-w-0 items-center gap-3 pr-6">
         <PersonPhoto src={host.photos[0]} alt="" size={48} className="size-12 shrink-0" />

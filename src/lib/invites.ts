@@ -1,7 +1,7 @@
 "use client";
 
 // Bringing people into a House – one place for who can invite and whom the invite sheet suggests (components/InviteSheet.tsx). The order:
-// Your people · Saved · in for this House ("I'm in for …") · everyone else only by search. Never: the host, anyone already in or asking,
+// Your people · Saved · in for this House ("I'm in for …"). No search for people (lib/privacy.ts) – anyone else gets the link. Never: the host, anyone already in or asking,
 // blocked either way, or who said "Don't invite me again" to you. No friend list, no followers, no requests. Same rules on the server later.
 import { useTodayIso } from "./birthDate";
 import { peopleInFor } from "./inFor";
@@ -42,14 +42,6 @@ export function inviteSuggestions(store: Store, me: string, stay: Stay, today: s
   saved.forEach((u) => out.add(u.id));
   const inFor = peopleInFor(store.inFor, stay, today, out).flatMap((id) => store.users.find((u) => u.id === id) ?? []);
   return { people, saved, inFor };
-}
-
-/** Everyone else, by first name – only what was typed (at least 2 letters). */
-export function searchInvitees(store: Store, me: string, stay: Stay, query: string, limit = 8): User[] {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
-  const out = excludedFor(store, me, stay);
-  return store.users.filter((u) => !out.has(u.id) && u.name.toLowerCase().split(" ")[0].startsWith(q)).slice(0, limit);
 }
 
 /** Can `me` bring people into this House right now: host or in the crew, a free spot, not started yet, open to join. */

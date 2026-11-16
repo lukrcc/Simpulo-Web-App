@@ -1,5 +1,6 @@
 "use client";
 
+import { hidesPhotoUntilAccepted, profileHref } from "@/lib/privacy";
 import { knownThrough } from "@/lib/yourPeople";
 import { Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
@@ -421,7 +422,7 @@ function WaitlistRows({ stay }: { stay: Stay }) {
                   </span>
                 }
                 title={
-                  <Link href={`/u/${person.id}`} className="truncate hover:underline">
+                  <Link href={profileHref(person.id)} className="truncate hover:underline">
                     {person.name}
                   </Link>
                 }
@@ -475,7 +476,7 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
                 lead={<Avatar user={member} size="md" linked />}
                 title={
                   <span className="flex min-w-0 items-center gap-1">
-                    <Link href={`/u/${member.id}`} className="truncate hover:underline">
+                    <Link href={profileHref(member.id)} className="truncate hover:underline">
                       {member.id === store.currentUserId ? t("you", { name: member.name }) : member.name}
                     </Link>
                     {member.verified && <VerifiedBadge />}
@@ -499,7 +500,7 @@ function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolean }) {
             <ListRow
               lead={<Avatar user={person} size="md" linked className="opacity-60" />}
               title={
-                <Link href={`/u/${person.id}`} className="text-muted hover:underline">
+                <Link href={profileHref(person.id)} className="text-muted hover:underline">
                   {person.name}
                 </Link>
               }
@@ -549,13 +550,15 @@ export function RequestRow({ request, applicant, stay }: { request: JoinRequest;
   const now = useNow();
   const left = !waitlist && now !== null ? hoursLeft(request, now) : null;
 
+  // "Hide my photo until I'm accepted" (lib/privacy.ts): no photo on the request until the host said yes. Last names never.
+  const photoHidden = request.status !== "accepted" && hidesPhotoUntilAccepted(applicant);
   return (
     <li className={cn("-mx-3 flex gap-3 p-3", ROW_HOVER)}>
-      <Avatar user={applicant} size="md" linked />
+      <Avatar user={applicant} size="md" linked={!photoHidden} mode={photoHidden ? "hidden" : "full"} />
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 items-center gap-1 text-body font-semibold text-ink">
-          <Link href={`/u/${applicant.id}`} className="truncate hover:underline">
-            {applicant.name}
+          <Link href={profileHref(applicant.id)} className="truncate hover:underline">
+            {firstName}
           </Link>
           {applicant.verified && <VerifiedBadge />}
         </p>

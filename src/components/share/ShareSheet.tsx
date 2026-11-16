@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { Link2, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore, type ReactNode } from "react";
@@ -25,7 +26,7 @@ const CHANNEL_ICONS: Record<LinkChannel, ReactNode> = {
 };
 
 function pathOf(target: ShareTarget): string {
-  return `/u/${target.user.id}`;
+  return profileHref(target.user.id);
 }
 
 const noSubscribe = () => () => {};

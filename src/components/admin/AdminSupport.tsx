@@ -4,6 +4,7 @@
 // (open safety always first, with the orange signal dot), the ticket right – message, context, links, the conversation and the answer (sent
 // through lib/notify), status, tags, an internal note, Merge for duplicate wishes. Ideas: the wishes by votes, planned / done. Every change
 // goes through lib/admin/actions.ts (and into the log). Free text here is never read by a model (config/data-points.ts).
+import { profileHref } from "@/lib/privacy";
 import { ArrowLeft, Paperclip, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -214,7 +215,7 @@ function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tick
           label={t("guest")}
           value={
             user ? (
-              <Link href={`/u/${user.id}`} className="font-semibold text-ink hover:underline">
+              <Link href={profileHref(user.id)} className="font-semibold text-ink hover:underline">
                 {user.name} · {t("profile")}
               </Link>
             ) : (

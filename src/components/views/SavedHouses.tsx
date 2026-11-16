@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -92,7 +93,7 @@ function HostAlerts() {
               <ListRow
                 lead={<Avatar user={host} size="md" linked />}
                 title={
-                  <Link href={`/u/${host.id}`} className="hover:underline">
+                  <Link href={profileHref(host.id)} className="hover:underline">
                     {host.name}
                   </Link>
                 }

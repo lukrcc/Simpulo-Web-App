@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/Avatar";
@@ -63,7 +64,7 @@ export function LivedWithSection({ entries }: { entries: LivedWithEntry[] }) {
       <ul className="mt-2">
         {entries.map(({ user, house }) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} className="block">
+            <Link href={profileHref(user.id)} className="block">
               <ListRow lead={<Avatar user={user} size="md" />} title={user.name} subtitle={house.title} />
             </Link>
           </li>

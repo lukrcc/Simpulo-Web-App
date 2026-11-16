@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { OgLogo } from "@/lib/ogCard";
-import { publicName, showsOnHousePages } from "@/config/privacy";
+import { publicName } from "@/config/privacy";
+import { publicProfileMeta, userByProfileId } from "@/lib/privacy";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { getHouses, getUsers } from "@/lib/data";
 import { COLORS } from "@/lib/colors";
@@ -36,13 +37,14 @@ async function loadPhoto(url: string | undefined): Promise<string | null> {
   }
 }
 
-/** Share card for a profile: photo on the left half, name and the number of Houses hosted on the right. */
+/** Share card for a host's page: photo on the left half, first name and the number of Houses hosted on the right. A guest: the plain card. */
 export default async function Image({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
   const t = await getTranslations({ locale: "en", namespace: "states.og" });
-  const user = getUsers().find((u) => u.id === userId && !u.deletedAt);
-  // A private profile (config/privacy.ts) shares nothing but the first name: no photo, no Houses.
-  const open = user ? showsOnHousePages(user) : false;
+  const found = userByProfileId(getUsers().filter((u) => !u.deletedAt), userId);
+  // Only a host's page shares anything (lib/privacy.ts): a guest's profile shows no name and no photo – just the wordmark.
+  const open = found ? publicProfileMeta(found, getHouses()).host : false;
+  const user = open ? found : undefined;
   const hosted = user && open ? getHouses().filter((s) => s.hostId === user.id && s.status !== "draft").length : 0;
   const [photo, fonts] = await Promise.all([loadPhoto(open ? user?.photos[0] : undefined), loadOgFonts()]);
 

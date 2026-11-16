@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { Search, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -69,7 +70,7 @@ function PeopleContent() {
         <ul className="mt-8 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-5 gap-y-8">
           {shown.map(({ user, house }) => (
             <li key={user.id} className="group">
-              <Link href={`/u/${user.id}`} className="block rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)">
+              <Link href={profileHref(user.id)} className="block rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)">
                 <span className="relative block aspect-[4/5] overflow-hidden rounded-[20px] bg-ink/6">
                   {user.photos[0] && <Img src={user.photos[0]} alt="" fill sizes="240px" className="object-cover transition-transform duration-350 group-hover:scale-[1.03]" />}
                 </span>

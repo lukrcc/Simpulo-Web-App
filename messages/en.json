@@ -3156,7 +3156,12 @@
         "getAppOpen": "Open install page",
         "getAppPrint": "Print cards",
         "getAppPrintText": "Cards with this code to leave in your House."
-      }
+      },
+      "livedWithCount": "{count, plural, one {# housemate} other {# housemates}}",
+      "interestsLabel": "Interests",
+      "basicNumbers": "{houses, plural, one {# House} other {# Houses}} · lived with {people}",
+      "basicNote": "You see the full profile once you're in the same House.",
+      "privateTitle": "A Simpulo member"
     },
     "loginToMessage": "Log in to message {name}",
     "vibe": {
@@ -3333,7 +3338,11 @@
       "dataTitle": "Your data",
       "dataLabel": "A copy of your profile, Houses, requests, payments and messages",
       "download": "Download your data",
-      "downloaded": "Your data is downloading"
+      "downloaded": "Your data is downloading",
+      "hidePhoto": "Hide my photo until I'm accepted",
+      "hidePhotoText": "Hosts see your first name and what you wrote – your photo once they said yes.",
+      "hostPage": "Show my host page in search engines",
+      "hostPageText": "Your first name, photo, short profile and Houses can be found on Google. Guests are never shown."
     },
     "danger": {
       "delete": "Delete account",
@@ -4163,7 +4172,8 @@
     "spotCount": "{count, plural, one {# spot} other {# spots}}",
     "scanToJoin": "Scan to open the invite",
     "yourPeopleText": "Pick several – they get it in the app and by email.",
-    "linkReady": "Link ready · {count, plural, one {# spot held} other {# spots held}} for 48h"
+    "linkReady": "Link ready · {count, plural, one {# spot held} other {# spots held}} for 48h",
+    "pickedNote": "Picked"
   },
   "inFor": {
     "title": "I'm in for",

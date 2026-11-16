@@ -1,3 +1,4 @@
+import { profileHref } from "@/lib/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { VerifiedBadge } from "./VerifiedBadge";
@@ -69,7 +70,7 @@ export function CardTab({ host, bg = "var(--bg)", label, suffix, className, cont
       )}
     >
       {linked ? (
-        <Link href={`/u/${host.id}`} aria-label={t("profile", { name: host.name })} className="pointer-events-auto min-w-0 rounded-full hover:opacity-80">
+        <Link href={profileHref(host.id)} aria-label={t("profile", { name: host.name })} className="pointer-events-auto min-w-0 rounded-full hover:opacity-80">
           {content}
         </Link>
       ) : (

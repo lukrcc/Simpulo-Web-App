@@ -1,3 +1,4 @@
+import { profileHref } from "@/lib/privacy";
 import Link from "next/link";
 import type { User } from "@/lib/types";
 import type { CrewFaceMode } from "@/config/privacy";
@@ -50,7 +51,7 @@ export function Avatar({ user, size = "md", linked = false, mode = "full", class
   );
   if (!linked) return image;
   return (
-    <Link href={`/u/${user.id}`} aria-label={user.name} data-tooltip={user.name} className="shrink-0 rounded-full">
+    <Link href={profileHref(user.id)} aria-label={user.name} data-tooltip={user.name} className="shrink-0 rounded-full">
       {image}
     </Link>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, Link2, QrCode, Search, Share } from "lucide-react";
+import { Check, ChevronRight, Link2, QrCode, Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { useMonthName } from "@/components/explore/SearchFields";
@@ -8,13 +8,12 @@ import { SimpuloQR } from "@/components/SimpuloQR";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Img } from "@/components/ui/Img";
-import { Input } from "@/components/ui/Input";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { INVITE_POLICY } from "@/config/policies";
 import { useTodayIso } from "@/lib/birthDate";
 import { inForPlaceName, isActiveInFor } from "@/lib/inFor";
-import { inviteSuggestions, searchInvitees, useCanInvite } from "@/lib/invites";
+import { inviteSuggestions, useCanInvite } from "@/lib/invites";
 import { friendInviteLink } from "@/lib/links";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { shortNameOf } from "@/lib/shortName";
@@ -27,8 +26,8 @@ const isTouchDevice = () => "ontouchstart" in window || navigator.maxTouchPoints
 /**
  * "Invite friends" – the one way to invite into a House, from every entry (House page, crew circles, chat, Open a House › Fill your House,
  * Your houses, a profile). Head: the House (photo, title, "{n} spots open"). Then "Share" (ShareLink: spots for friends 1–3, the system's
- * share or Copy link, the QR code on a computer), and the people to pick: Your people · Saved · "In for {place} · {month}" (lib/inFor.ts) ·
- * everyone else only by search. Pick several → "Invite {n}" (in-app + email through lib/notify). Mouse: the side panel; touch: a bottom sheet.
+ * share or Copy link, the QR code on a computer), and the people to pick: Your people · Saved · "In for {place} · {month}" (lib/inFor.ts).
+ * No search for people – nobody can be looked up by name (lib/privacy.ts); anyone else gets the link. Pick several → "Invite {n}" (in-app + email through lib/notify). Mouse: the side panel; touch: a bottom sheet.
  * `page`: the same content on a page of its own (Open a House › "Fill your House").
  */
 export function InviteSheet({ stay, houses, open, onClose, preselect = [], title }: { stay?: Stay; /** No `stay`: pick one of these first (a profile's "Invite to your House") */ houses?: Stay[]; open: boolean; onClose: () => void; preselect?: string[]; title?: string }) {
@@ -140,12 +139,10 @@ function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: strin
   const store = useStore();
   const today = useTodayIso();
   const monthName = useMonthName();
-  const [query, setQuery] = useState("");
   const me = store.currentUserId;
   if (!me || !today) return null;
   const spots = openSpots(stay);
   const { people, saved, inFor } = inviteSuggestions(store, me, stay, today);
-  const results = searchInvitees(store, me, stay, query).filter((u) => ![...people, ...saved, ...inFor].some((p) => p.id === u.id));
   // People picked from the search earlier stay visible in their own list.
   const pickedElse = selected.flatMap((id) => ([...people, ...saved, ...inFor].some((p) => p.id === id) ? [] : (findUser(store, id) ?? [])));
   const sentToday = store.joinRequests.filter((r) => r.invitedBy === me && r.createdAt.slice(0, 10) === today && !isConnection(store, me, r.userId)).length;
@@ -182,20 +179,8 @@ function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: strin
       )}
       {saved.length > 0 && <Section title={t("saved")}>{saved.map((u) => row(u, t("savedNote")))}</Section>}
       {inFor.length > 0 && <Section title={inForTitle}>{inFor.map((u) => row(u, t("inForNote")))}</Section>}
-      {pickedElse.length > 0 && <Section title={t("picked")}>{pickedElse.map((u) => row(u, t("searchNote")))}</Section>}
+      {pickedElse.length > 0 && <Section title={t("picked")}>{pickedElse.map((u) => row(u, t("pickedNote")))}</Section>}
 
-      <section>
-        <h3 className="mb-3 text-eyebrow uppercase text-ink/55">{t("search")}</h3>
-        <div className="relative">
-          <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("search")} className="pl-11" />
-        </div>
-        {query.trim().length >= 2 && (
-          <ul className="mt-2">
-            {results.length === 0 ? <li className="px-2 py-2 text-small text-muted">{t("noMatch")}</li> : results.map((u) => row(u, t("searchNote")))}
-          </ul>
-        )}
-      </section>
 
       <p className="text-small text-muted">
         {full ? t("allSpotsPicked") : t("strangersLeft", { count: strangersLeft, limit: INVITE_POLICY.inviteNonConnectionsPerDay })}

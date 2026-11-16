@@ -8,6 +8,8 @@ export const PRIVACY_DEFAULTS = {
   showOnHousePages: true,
   /** Your age on your profile and next to your name – only when you turn it on. */
   showAge: false,
+  /** A host sees no photo on your request until they accepted you. */
+  hidePhotoUntilAccepted: false,
 } as const;
 
 /**
@@ -15,14 +17,15 @@ export const PRIVACY_DEFAULTS = {
  * - full: their own House (host or accepted crew of it), or themselves – the whole profile
  * - named: signed-in, the member shows on House pages – photo and first name
  * - hidden: signed-in, the member turned it off – no face, no name; counted as "+1"
- * - blurred: logged out – the photo softly blurred, no name; the count ("3 of 5 in") stays
- * The host isn't a crew member here: hosting is public.
+ * - blurred: no longer used – logged out every guest is "hidden": no photo, no name, only the count ("2 of 4 in") stays
+ * The host isn't a crew member here: hosting is public. Profiles themselves: lib/privacy.ts getProfileVisibility.
  */
 export type CrewFaceMode = "full" | "named" | "hidden" | "blurred";
 
 export function crewFaceMode(member: Pick<User, "id" | "privacy">, viewer: { id: string | null; inCrew: boolean }, isHost: boolean): CrewFaceMode {
   if (isHost || viewer.id === member.id || viewer.inCrew) return "full";
-  if (!viewer.id) return "blurred";
+  // Logged out: no faces and no names of guests – only "2 of 4" (lib/privacy.ts).
+  if (!viewer.id) return "hidden";
   return showsOnHousePages(member) ? "named" : "hidden";
 }
 

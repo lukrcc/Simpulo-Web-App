@@ -1,7 +1,8 @@
 "use client";
 
+import { getProfileVisibility, photoHiddenFor, profileHref, userByProfileId } from "@/lib/privacy";
 import { BackButton } from "@/components/ui/BackButton";
-import { publicName, showsAge, showsOnHousePages } from "@/config/privacy";
+import { publicName, showsAge } from "@/config/privacy";
 import { Bell, Bookmark, Eye, Languages, LayoutDashboard, Lock, MapPin, MoreHorizontal, Pencil, Printer, SearchX, Settings, Share2, Smartphone, Sparkles, UserPlus, Users, UserX, Zap, type LucideIcon, LifeBuoy, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -36,7 +37,7 @@ import { cityPlaceIdOf } from "@/lib/data/places";
 import { placeImageOf } from "@/config/place-images";
 import { activeInForOf, inForPlaceName } from "@/lib/inFor";
 import { canInvite } from "@/lib/invites";
-import { inCommonWith, medianReplyMinutes, profileViewFor, sharesCrew, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
+import { inCommonWith, medianReplyMinutes, profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
 import { shortNameOf } from "@/lib/shortName";
 import { findUser, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
@@ -66,7 +67,8 @@ export function PublicProfile({ params }: { params: Promise<{ userId: string }> 
   const { userId } = use(params);
   const t = useTranslations("profile");
   const store = useStore();
-  const user = findUser(store, userId);
+  // The URL holds the profile id (lib/privacy.ts), never the account id.
+  const user = userByProfileId(store.users, userId);
 
   if (!user) {
     return (
@@ -150,8 +152,11 @@ function ProfileBody({ user, isMe, previewing, onPreview, onExitPreview }: Profi
   const viewerId = previewing ? null : store.currentUserId;
   const view = profileViewFor(store, user, viewerId, today);
   const { photos } = user;
-  // Turned off "Show me on House pages": only people who shared a crew with them see more (config/privacy.ts) – no photos, no Houses.
-  if (!isMe && !showsOnHousePages(user) && !sharesCrew(store, user.id, viewerId)) return <PrivateProfile user={user} />;
+  // How much of the profile this viewer gets (lib/privacy.ts): private – nothing (logged out not even the first name); basic – first name,
+  // photo, interests; host and full – the profile (lists of people only as numbers for anyone but the owner).
+  const visibility = isMe ? "full" : getProfileVisibility(store, user, viewerId);
+  if (visibility === "private") return <PrivateProfile user={user} showName={viewerId !== null} />;
+  if (visibility === "basic") return <BasicProfile user={user} view={view} />;
 
   return (
     <>
@@ -225,7 +230,8 @@ function ProfileBento({ user, isMe, previewing, onPreview, view, viewerId, today
         mediaWidth="split:w-[clamp(320px,28%,560px)]"
         media={
           <div data-preview-part="photos" className="absolute inset-0">
-            <HeroPhotos photos={user.photos} onOpen={onOpenPhoto} />
+            {/* "Hide my photo until I'm accepted": a host with only their request sees no photos (lib/privacy.ts). */}
+            <HeroPhotos photos={!preview && photoHiddenFor(store, user, viewerId) ? [] : user.photos} onOpen={onOpenPhoto} />
           </div>
         }
         rightColumn={<HostingGoing user={user} isMe={isMe} view={view} today={today} preview={preview} />}
@@ -476,7 +482,7 @@ function QuickTiles({ user }: { user: User }) {
             <ul className="flex flex-col gap-1">
               {people.map(({ user: person, house }) => (
                 <li key={person.id}>
-                  <Link href={`/u/${person.id}`} onClick={() => setPeopleOpen(false)} className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
+                  <Link href={profileHref(person.id)} onClick={() => setPeopleOpen(false)} className="flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
                     <Avatar user={person} size="md" />
                     <span className="min-w-0">
                       <span className="block truncate text-body font-semibold text-ink">{firstName(person)}</span>
@@ -749,7 +755,10 @@ function PeoplePlacesTile({ view, isMe, viewerId }: { view: ProfileVisibility; i
         <h2 id="tile-people" className={COLUMN_LABEL}>
           {tv("livedWithLabel", { count: people.length })}
         </h2>
-        {people.length > 0 ? (
+        {people.length > 0 && !isMe ? (
+          // Somebody else's list stays theirs (lib/privacy.ts): only the number.
+          <p className="mt-3 text-body text-ink">{tv("livedWithCount", { count: people.length })}</p>
+        ) : people.length > 0 ? (
           <button type="button" onClick={() => setSheet("people")} className="mt-3 flex items-center rounded-full" aria-label={tv("livedWithLabel", { count: people.length })} data-no-tooltip>
             <span className="flex -space-x-2">
               {people.slice(0, PEOPLE_FACES).map((entry) => (
@@ -803,7 +812,7 @@ function PeoplePlacesTile({ view, isMe, viewerId }: { view: ProfileVisibility; i
         <ul className="space-y-2">
           {people.map((entry) => (
             <li key={entry.user.id}>
-              <Link href={`/u/${entry.user.id}`} className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
+              <Link href={profileHref(entry.user.id)} className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors hover:bg-ink/5">
                 <Avatar user={entry.user} size="md" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
@@ -835,15 +844,41 @@ function PeoplePlacesTile({ view, isMe, viewerId }: { view: ProfileVisibility; i
 /** A reply this fast (median, minutes) earns "Responds fast". */
 const FAST_REPLY_MINUTES = 120;
 
-/** A private profile, to everyone who wasn't in a crew with them: the first name and "This profile is private" – nothing else. */
-function PrivateProfile({ user }: { user: User }) {
+/**
+ * Signed in, no shared House (lib/privacy.ts "basic"): first name, photo and interests – and the numbers, never the people. No bio, no
+ * links, no Houses as a guest, no last name.
+ */
+function BasicProfile({ user, view }: { user: User; view: ProfileVisibility }) {
+  const tv = useTranslations("profile.view");
+  const f = useFormat();
+  return (
+    <Container page className="flex flex-col items-center pb-(--space-section) pt-8 text-center">
+      <PersonPhoto src={user.photos[0]} alt={publicName(user, null)} size={160} className="size-40 rounded-full" />
+      <h1 className="mt-6 text-name text-ink">{publicName(user, null)}</h1>
+      {(user.interests ?? []).length > 0 && (
+        <ul className="mt-4 flex flex-wrap justify-center gap-2" aria-label={tv("interestsLabel")}>
+          {(user.interests ?? []).map((v) => (
+            <li key={v} className="rounded-full border border-ink/12 px-3 py-1 text-small text-ink">
+              {f.vibe(v)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-6 text-body text-muted">{tv("basicNumbers", { houses: view.housesCount, people: view.livedWith.length })}</p>
+      <p className="mt-2 max-w-[44ch] text-small text-muted">{tv("basicNote")}</p>
+    </Container>
+  );
+}
+
+/** A private profile: "This profile is private" – signed in with the first name, logged out not even that. Nothing else. */
+function PrivateProfile({ user, showName = true }: { user: User; showName?: boolean }) {
   const t = useTranslations("profile.view");
   return (
     <Container page className="flex min-h-[calc(100dvh-var(--header-total)-var(--space-section))] flex-col items-center justify-center pb-(--space-section) text-center">
       <span aria-hidden className="flex size-24 items-center justify-center rounded-full bg-ink/6 text-muted">
         <Lock className="size-7" />
       </span>
-      <h1 className="mt-6 text-h1 text-ink">{publicName(user, null)}</h1>
+      <h1 className="mt-6 text-h1 text-ink">{showName ? publicName(user, null) : t("privateTitle")}</h1>
       <p className="mt-2 text-body-lg text-muted">{t("private")}</p>
     </Container>
   );

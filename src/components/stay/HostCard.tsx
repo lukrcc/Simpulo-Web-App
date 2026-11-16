@@ -1,3 +1,4 @@
+import { profileHref } from "@/lib/privacy";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -11,7 +12,7 @@ import type { User } from "@/lib/types";
 /** Who's hosting. Avatar, name and "View profile" all link to the profile. */
 export function HostCard({ host, action }: { host: User; /** Beside "View profile": Message */ action?: ReactNode }) {
   const t = useTranslations("house.hostCard");
-  const profile = `/u/${host.id}`;
+  const profile = profileHref(host.id);
 
   return (
     <div className="flex gap-4">

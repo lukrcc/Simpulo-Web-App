@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { useBack } from "@/components/ui/BackButton";
 import { ArrowLeft, ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
@@ -134,7 +135,7 @@ export function DirectHeader({ stay, other, embedded }: { stay: Stay; other?: Us
       {other && <Avatar user={other} size="md" linked />}
       <div className="min-w-0 flex-1">
         {other ? (
-          <Link href={`/u/${other.id}`} className="block truncate text-body font-semibold leading-5 hover:underline">
+          <Link href={profileHref(other.id)} className="block truncate text-body font-semibold leading-5 hover:underline">
             {other.name.split(" ")[0]}
           </Link>
         ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { BackLink } from "@/components/ui/BackButton";
 import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
@@ -1010,7 +1011,7 @@ function SavedPeople() {
       <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-5">
         {saved.map((user) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} className="flex w-20 flex-col items-center text-center">
+            <Link href={profileHref(user.id)} className="flex w-20 flex-col items-center text-center">
               <Avatar user={user} size="lg" />
               <span className="mt-2 max-w-full truncate text-body font-semibold text-ink">{user.name.split(" ")[0]}</span>
             </Link>

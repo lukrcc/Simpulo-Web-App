@@ -76,7 +76,8 @@ export interface User extends Attribution {
   signInMethod?: 'apple' | 'google' | 'email';
   settings?: UserSettings;  // unset = defaults (everything on, nobody blocked)
   /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
-  privacy?: { showOnHousePages?: boolean; showAge?: boolean };
+  /** Settings › Privacy (config/privacy.ts, lib/privacy.ts): House pages, age, the photo until accepted, the host page in search engines */
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean };
   deletedAt?: string;       // mock "Delete account"
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
    *  Security Rules and a check in every Function – this field only decides what the UI shows. */

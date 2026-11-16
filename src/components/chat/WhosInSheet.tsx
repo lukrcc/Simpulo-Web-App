@@ -1,5 +1,6 @@
 "use client";
 
+import { profileHref } from "@/lib/privacy";
 import { SocialLinks } from "@/components/SocialLinks";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -21,7 +22,7 @@ export function WhosInSheet({ stay, open, onClose }: { stay: Stay; open: boolean
       <ul className="">
         {crew.map((user) => (
           <li key={user.id}>
-            <Link href={`/u/${user.id}`} onClick={onClose} className="-mx-2 block rounded-xl px-2 transition-colors hover:bg-bg">
+            <Link href={profileHref(user.id)} onClick={onClose} className="-mx-2 block rounded-xl px-2 transition-colors hover:bg-bg">
               <ListRow
                 lead={<Avatar user={user} size="md" />}
                 title={user.name}
