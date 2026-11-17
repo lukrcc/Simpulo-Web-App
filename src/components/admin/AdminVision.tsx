@@ -5,7 +5,7 @@
 // (?block=<id>, breadcrumb "Vision › <Name>", "← Karte") to its content – the former tabs – under a one-line summary. Zeitleiste: the four
 // phases as columns, the lanes as rows of capsules (folded "+N"); a phase's head zooms into the phase. Every text from config/vision.ts,
 // every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier").
-import { ArrowRight, Building2, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, Castle, HeartPulse, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
@@ -76,17 +76,22 @@ import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminTabs } from "./AdminLayout";
 import { BlockMap, type BlockStatus } from "./BlockMap";
 import { MODELS } from "@/config/models";
+import { goVision, VISION_NAV } from "@/lib/admin/visionNav";
+import { HOF } from "@/config/vision-hof";
+import { PatternScales } from "./vision/PatternScales";
+import { HofPartView, HofParts } from "./vision/HofParts";
+import { ContinuumForms, LongevityView } from "./vision/VisionDiagrams";
 
 export function AdminVision() {
   const inputs = useAdminInputs();
   const { view, block, go, back } = useVisionUrl();
   const move = moveProgress(inputs);
   const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
-  const zoomed = block ? zoomOf(block) : null;
+  const zoomed = block ? zoomOf(block, (next) => go({ view, block: next })) : null;
   return (
     <AdminShell
       title={VISION_TITLE}
-      tabs={!zoomed ? <AdminTabs label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))} /> : <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back} />}
+      tabs={!zoomed ? <AdminTabs label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))} /> : <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />}
       aside={
         <span className="inline-flex items-center gap-2 text-body text-ink">
           <StatusDot status={getStatus("profitPerMonth", move.current)} />
@@ -105,7 +110,7 @@ export function AdminVision() {
           {/* The motto (20px) and the three numbers, compact. */}
           <p className="text-adm-motto text-ink">{MOTTO.line}</p>
           <OverviewNumbers inputs={inputs} />
-          <div className="mt-(--adm-section)">{view === "timeline" ? <Timeline inputs={inputs} onOpenPhase={(key) => go({ view: "timeline", block: key })} /> : <VisionMap inputs={inputs} onZoom={(id) => go({ view: "map", block: id })} />}</div>
+          <div className={view === "timeline" ? "mt-(--adm-section)" : "mt-6"}>{view === "timeline" ? <Timeline inputs={inputs} onOpenPhase={(key) => go({ view: "timeline", block: key })} /> : <VisionMap inputs={inputs} onZoom={(id) => go({ view: "map", block: id })} />}</div>
         </>
       )}
     </AdminShell>
@@ -115,7 +120,6 @@ export function AdminVision() {
 // ── URL: ?view=map|timeline and ?block=<id> (a deep link; the browser's back goes one step back) ───────────────────────────────────
 
 const noop = () => () => {};
-const VISION_NAV = "vision-nav";
 function subscribeUrl(callback: () => void) {
   window.addEventListener("popstate", callback);
   window.addEventListener(VISION_NAV, callback);
@@ -135,8 +139,7 @@ function useVisionUrl() {
     if (next.view === "timeline") p.set("view", "timeline");
     if (next.block) p.set("block", next.block);
     const q = p.toString();
-    window.history.pushState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
-    window.dispatchEvent(new Event(VISION_NAV));
+    goVision(q ? `?${q}` : "");
   };
   const back = () => {
     // Back to the map (or the timeline a phase was opened from): the browser's own back when we came from there, else push it.
@@ -181,6 +184,8 @@ function OverviewNumbers({ inputs }: { inputs: AdminInputs }) {
 }
 
 const BLOCK_ICONS: Record<BlockId, LucideIcon> = {
+  hof: Castle,
+  longevity: HeartPulse,
   core: Hourglass,
   segments: Users,
   hosts: House,
@@ -205,6 +210,8 @@ function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: Block
   const again = coreMetrics(inputs).again;
   const country = inputs.admin.location?.country ?? null;
   const metric: Record<BlockId, { value?: ReactNode; status: BlockStatus }> = {
+    hof: { status: "none" },
+    longevity: { status: "none" },
     core: { value: again === null ? NOT_MEASURABLE : T.again(share(again)), status: "none" },
     segments: { value: PHASE_TEXT.overviewNumbers.market.value.replace(" pro Jahr", ""), status: "none" },
     hosts: { value: T.hosts(mix.counts.share + mix.counts.pro + mix.counts.anchor, mix.counts.pro), status: "none" },
@@ -219,8 +226,10 @@ function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: Block
     funding: { value: T.ready(ready.met, ready.total), status: ready.met === ready.total ? "ok" : "open" },
   };
   return (
+    // Compact blocks: the map with its end picture fits 1470 × 814 without scrolling.
     <BlockMap
       label={VISION_TITLE}
+      compact
       columns={BLOCK_MAP.map((col) => ({
         key: col.key,
         label: col.label,
@@ -231,6 +240,7 @@ function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: Block
           subtitle: b.subtitle,
           metric: metric[b.id].value,
           status: metric[b.id].status,
+          ...(b.feature ? { preview: <PatternScales compact /> } : {}),
           ...(b.external ? { externalTab: b.external } : { href: `?block=${b.id}`, onOpen: () => onZoom(b.id) }),
         })),
       }))}
@@ -239,7 +249,13 @@ function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: Block
 }
 
 /** What a zoom shows: its title, the one summary line and the block's content (the former tabs) – the phases open the timeline's phase. */
-function zoomOf(id: string): { title: string; summary: string; fromTimeline: boolean; content: (inputs: AdminInputs) => ReactNode } | null {
+function zoomOf(id: string, go?: (block: string) => void): { title: string; summary: string; fromTimeline: boolean; backLabel?: string; content: (inputs: AdminInputs) => ReactNode } | null {
+  // Der Hof: its parts as cards (?block=hof), one part in depth (?block=hof.regeln) – breadcrumb "Vision › Der Hof › …".
+  if (id === HOF.id) return { title: HOF.title, summary: HOF.sentence, fromTimeline: false, content: () => <HofParts onOpen={(part) => go?.(`${HOF.id}.${part}`)} /> };
+  if (id.startsWith(`${HOF.id}.`)) {
+    const part = HOF.parts.find((p) => `${HOF.id}.${p.id}` === id);
+    if (part) return { title: `${HOF.title} › ${part.title}`, summary: `${part.letter}) ${part.title}`, fromTimeline: false, backLabel: `← ${HOF.title}`, content: () => <HofPartView part={part} /> };
+  }
   const phase = PHASES.find((p) => p.key === id);
   if (phase) return { title: `${PHASE_TEXT.phase(phase.number)} · ${phase.title}`, summary: phase.goal ? `${PHASE_TEXT.goal}: ${phase.goal}` : phase.title, fromTimeline: true, content: (inputs) => (phase.key === "p4" ? <Phase4View /> : <PhaseView phase={phase} inputs={inputs} />) };
   const def = BLOCK_MAP.flatMap((c) => c.blocks).find((b) => b.id === id);
@@ -252,7 +268,14 @@ function zoomOf(id: string): { title: string; summary: string; fromTimeline: boo
     tech: (inputs) => <TechView inputs={inputs} />,
     phases: (inputs) => <Timeline inputs={inputs} onOpenPhase={() => undefined} />,
     tModel: (inputs) => <TModelView inputs={inputs} />,
-    continuum: (inputs) => <ContinuumView inputs={inputs} />,
+    // The forms of living together on top, then the sources of revenue (the former content).
+    continuum: (inputs) => (
+      <>
+        <ContinuumForms />
+        <ContinuumView inputs={inputs} />
+      </>
+    ),
+    longevity: () => <LongevityView />,
     roadmap: () => <RoadmapView />,
     location: (inputs) => <LocationView inputs={inputs} />,
   };
@@ -326,6 +349,30 @@ function Timeline({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (
           </div>
         );
       })}
+      {/* Der Hof: its milestones as small marks (config/vision-hof.ts). */}
+      <div role="row" className="contents" data-hof-milestones>
+        <span className="flex items-start gap-2 border-t border-ink/8 py-3 pr-3 text-body text-ink">
+          <Castle aria-hidden className="mt-0.5 size-4 shrink-0 text-ink/70" />
+          {HOF.timelineLane}
+        </span>
+        {PHASES.map((phase) => {
+          const marks = HOF.milestones.filter((m) => m.phase === phase.key);
+          return (
+            <div key={phase.key} className={cn("flex flex-wrap items-start gap-1.5 border-l border-t border-ink/8 px-4 py-3", phase.key === PHASE_NOW && "bg-(--adm-here)")}>
+              {marks.length === 0 ? (
+                <span className="text-small text-muted">{PHASE_TEXT.none}</span>
+              ) : (
+                marks.map((m) => (
+                  <span key={m.label} className="inline-flex h-6 items-center gap-1.5 rounded-full border border-ink/20 px-2 text-small text-ink">
+                    <span aria-hidden className="size-1.5 rotate-45 bg-(--adm-hof-shared)" />
+                    {m.label}
+                  </span>
+                ))
+              )}
+            </div>
+          );
+        })}
+      </div>
       <div role="row" className="contents">
         <span className="flex items-start gap-2 border-t border-ink/8 py-3 pr-3 text-body text-ink">
           <Diamond aria-hidden className="mt-0.5 size-4 shrink-0 text-ink/70" />

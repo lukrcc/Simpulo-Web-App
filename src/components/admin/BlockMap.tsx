@@ -29,6 +29,8 @@ export interface MapBlock {
   status: BlockStatus;
   /** A line under the subtitle: a small bar, three dots */
   extra?: ReactNode;
+  /** The end picture of a column: set apart, a preview (a small graphic) under its title */
+  preview?: ReactNode;
   /** The zoom target (?block=<id>) – or `externalTab`, a jump into another admin tab */
   href?: string;
   externalTab?: string;
@@ -98,7 +100,8 @@ export function BlockMap({ columns, label, links = [], selectedId = null, compac
   }, [hovered, links]);
 
   return (
-    <div ref={box} role="list" aria-label={label} className={cn("relative grid gap-y-8 lg:grid-cols-3", links.length > 0 ? "gap-x-12" : "gap-x-6")} data-block-map>
+    // As many columns as given (Vision, Algorithmus: three; Firmenstruktur › Gruppe: two).
+    <div ref={box} role="list" aria-label={label} style={{ "--map-cols": columns.length } as React.CSSProperties} className={cn("relative grid gap-y-8 lg:grid-cols-[repeat(var(--map-cols),minmax(0,1fr))]", links.length > 0 ? "gap-x-12" : "gap-x-6")} data-block-map>
       {links.length > 0 && (
         <svg aria-hidden className="pointer-events-none absolute inset-0 max-lg:hidden" width={size.w} height={size.h}>
           {paths.map((p) => {
@@ -126,7 +129,7 @@ export function BlockMap({ columns, label, links = [], selectedId = null, compac
 function Block({ block, selected, compact }: { block: MapBlock; selected: boolean; compact: boolean }) {
   const Icon = block.icon;
   const dot = DOT[block.status];
-  const body = (
+  const head = (
     <>
       <Icon aria-hidden className="size-5 shrink-0 text-ink/80" strokeWidth={1.75} />
       <span className="min-w-0 flex-1 leading-normal">
@@ -145,7 +148,20 @@ function Block({ block, selected, compact }: { block: MapBlock; selected: boolea
       )}
     </>
   );
-  const className = cn("relative flex items-center gap-3 rounded-xl border border-ink/8 bg-(--adm-block) px-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", compact ? "min-h-14 py-2" : "min-h-16 py-3");
+  // The end picture: its head, then the preview across the block's full width; a stronger edge sets it apart.
+  const body = block.preview ? (
+    <span className="flex w-full flex-col gap-2">
+      <span className="flex items-center gap-3">{head}</span>
+      <span className="block">{block.preview}</span>
+    </span>
+  ) : (
+    head
+  );
+  const className = cn(
+    "relative flex items-center gap-3 rounded-xl border bg-(--adm-block) px-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)",
+    block.preview ? cn("border-ink/20", compact ? "py-2" : "py-3") : "border-ink/8",
+    !block.preview && (compact ? "min-h-13 py-1.5" : "min-h-16 py-3"),
+  );
   const href = block.externalTab ?? block.href;
   if (href)
     return (

@@ -69,6 +69,11 @@ body:has(.admin-scope) {
 
   /* Vision › Zeitleiste: the current phase, ocean 10 %. */
   --adm-here: rgb(114 170 223 / 0.1);
+  /* Vision › Der Hof, the pattern plans: shared (an amber tone), private (a turquoise tone), entrance/guests (a violet tone) – muted, a
+     drawing's colours, not status. */
+  --adm-hof-shared: rgb(227 179 84 / 0.62);
+  --adm-hof-private: rgb(95 195 192 / 0.42);
+  --adm-hof-guest: rgb(176 146 224 / 0.75);
   /* BlockMap's connection lines: white 15 %, lit white 80 %. */
   --adm-link: rgb(255 255 255 / 0.15);
   --adm-link-on: rgb(255 255 255 / 0.8);
@@ -184,6 +189,8 @@ body:has(.admin-scope) {
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
+
+
 
 
 

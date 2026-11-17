@@ -6,14 +6,16 @@
 // Legal basis only `contract` (needed to run a House) or `consent` (asked for, can be withdrawn).
 import type { ModelId } from "./models";
 
-export const MOMENTS = ["onboarding", "search", "create", "request", "inTheHouse", "afterTheStay", "marketing", "support"] as const;
+export const MOMENTS = ["onboarding", "search", "create", "request", "inTheHouse", "afterTheStay", "afterwards", "marketing", "support"] as const;
 export type Moment = (typeof MOMENTS)[number];
 
 export const DATA_POINT_STATUSES = ["planned", "collecting", "used"] as const;
 /** planned – not collected yet · collecting – stored, no model reads it yet · used – a model reads it */
 export type DataPointStatus = (typeof DATA_POINT_STATUSES)[number];
 
-export type LegalBasis = "consent" | "contract";
+/** contract (needed to run a House) · consent (asked for, can be withdrawn) · none (no personal data – about a place, not a person) ·
+ *  review (to be checked before it is collected: sensors) */
+export type LegalBasis = "consent" | "contract" | "none" | "review";
 
 export interface DataPoint {
   id: string;
@@ -39,16 +41,16 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "profile.socials", moment: "onboarding", captures: "Öffentliche Social-Links, die sie eintragen", purpose: "Auf dem Profil gezeigt; Vertrauen", models: [], legalBasis: "consent", status: "collecting" },
 
   // ── Search ──
-  { id: "search.placeMonth", moment: "search", captures: "Auf Explore gesuchter Ort und Monat", purpose: "Wohin und wann Leute wollen", models: ["demandMap", "interestRanking"], legalBasis: "consent", status: "collecting" },
+  { id: "search.placeMonth", moment: "search", captures: "Auf Explore gesuchter Ort und Monat", purpose: "Wohin und wann Leute wollen", models: ["demandMap", "interestRanking", "placeFit"], legalBasis: "consent", status: "collecting" },
   { id: "search.category", moment: "search", captures: "Gewählte Kategorie und Filter", purpose: "Welche Themen Leute suchen", models: ["interestRanking", "demandMap"], legalBasis: "consent", status: "collecting" },
-  { id: "search.saved", moment: "search", captures: "Gespeicherte Suchen (Ort, Monat, Kategorie)", purpose: "Zuerst Bescheid geben, wenn ein House öffnet; Nachfrage ohne Angebot", models: ["demandMap"], legalBasis: "consent", status: "used" },
-  { id: "search.inFor", moment: "search", captures: "„I'm in for“: Ort, Monate, Dauer, Kategorien", purpose: "Hosts sehen, wer käme; Nachfrage ohne Angebot", models: ["demandMap", "crewFit"], legalBasis: "consent", status: "collecting" },
+  { id: "search.saved", moment: "search", captures: "Gespeicherte Suchen (Ort, Monat, Kategorie)", purpose: "Zuerst Bescheid geben, wenn ein House öffnet; Nachfrage ohne Angebot", models: ["demandMap", "placeFit"], legalBasis: "consent", status: "used" },
+  { id: "search.inFor", moment: "search", captures: "„I'm in for“: Ort, Monate, Dauer, Kategorien", purpose: "Hosts sehen, wer käme; Nachfrage ohne Angebot", models: ["demandMap", "crewFit", "placeFit"], legalBasis: "consent", status: "collecting" },
   { id: "search.cardClick", moment: "search", captures: "Welche House-Karten geöffnet werden, aus welcher Reihe", purpose: "Welche Vorschläge funktionieren", models: ["interestRanking"], legalBasis: "consent", status: "planned" },
   { id: "search.saveHouse", moment: "search", captures: "Gemerkte Houses (Herz)", purpose: "Interesse vor einer Anfrage", models: ["interestRanking"], legalBasis: "contract", status: "collecting" },
 
   // ── Create ──
   { id: "create.category", moment: "create", captures: "Kategorie des House (oder eigenes Label)", purpose: "Welche Themen Hosts eröffnen", models: ["demandMap", "interestRanking"], legalBasis: "contract", status: "used" },
-  { id: "create.placeMonth", moment: "create", captures: "Ort und Monate des House", purpose: "Angebot je Ort und Monat", models: ["demandMap"], legalBasis: "contract", status: "used" },
+  { id: "create.placeMonth", moment: "create", captures: "Ort und Monate des House", purpose: "Angebot je Ort und Monat", models: ["demandMap", "placeFit"], legalBasis: "contract", status: "used" },
   { id: "create.crewPrice", moment: "create", captures: "Crew-Größe, Preis oder Budget pro Person", purpose: "Was bei welcher Größe und welchem Preis voll wird", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
   { id: "create.hostFee", moment: "create", captures: "Host-Gebühr pro Gast (Pro Hosts)", purpose: "Pro gegen Share Hosts; Einnahmen", models: [], legalBasis: "contract", status: "collecting" },
   { id: "host.tier", moment: "create", captures: "Host-Stufe: Share, Pro oder Anchor (vorgeschlagen nach Host-Gebühr und Followern, vom Team gesetzt)", purpose: "Welche Hosts Angebot, Umsatz und Reichweite bringen", models: [], legalBasis: "contract", status: "collecting" },
@@ -58,6 +60,20 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "host.birthDate", moment: "create", captures: "Geburtsdatum des Hosts (DAC7), bei der Einrichtung der Auszahlungen", purpose: "DAC7-Meldung an das Finanzamt", models: [], legalBasis: "contract", status: "planned" },
   { id: "create.accommodationType", moment: "create", captures: "Art des Ortes: Kategorie und Typ (Villa, Coliving, Surfcamp …, config/accommodation.ts) – in Open a House, „Where will you live?“; „Not sure yet“ speichert keinen", purpose: "Welche Orte voll werden, wo wir bauen", models: ["demandMap", "houseChemistry"], legalBasis: "contract", status: "collecting" },
   { id: "create.placeMode", moment: "create", captures: "Ort gebucht oder gemeinsam gewählt", purpose: "Welcher Weg schneller voll wird", models: [], legalBasis: "contract", status: "collecting" },
+  // Raum-Daten beim Eröffnen – optional, über den Ort, keine Personendaten (Raum-Wirkung, These „Der Raum ist fast egal“)
+  { id: "create.space.table", moment: "create", captures: "Tischposition (Mitte · Rand · keiner)", purpose: "Ob ein Tisch in der Mitte verbindet", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.seats", moment: "create", captures: "Plätze am größten Tisch", purpose: "Ob alle an einen Tisch passen", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.kitchen", moment: "create", captures: "Küche offen oder getrennt", purpose: "Ob eine offene Küche verbindet", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.paths", moment: "create", captures: "Wege zum Bad über den gemeinsamen Raum (ja/nein)", purpose: "Ob Wege durch die Mitte Begegnung erzeugen", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.retreat", moment: "create", captures: "Rückzugsort vorhanden (ja/nein)", purpose: "Ob Rückzug das Wohlfühlen hält", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.rooms", moment: "create", captures: "Eigene oder geteilte Zimmer", purpose: "Ob eigene oder geteilte Zimmer mehr verbinden", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.outdoor", moment: "create", captures: "Außenfläche (keine · Balkon · Garten · Hof)", purpose: "Ob draußen zusammen sein verbindet", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.area", moment: "create", captures: "Fläche pro Person (m²)", purpose: "Enge gegen Weite", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.daylight", moment: "create", captures: "Tageslicht im gemeinsamen Raum (wenig · mittel · viel)", purpose: "Ob Licht den gemeinsamen Raum nutzt", models: ["spaceEffect"], legalBasis: "none", status: "planned" },
+  { id: "create.space.setting", moment: "create", captures: "Lage (Stadt · Rand · Land)", purpose: "Welche Lage verbindet und wo Höfe passen", models: ["spaceEffect", "placeFit"], legalBasis: "none", status: "planned" },
+  // Später, mit Sensoren – vorher rechtlich prüfen; nie Kameras, Mikrofone oder Personen-Tracking
+  { id: "sensor.roomUse", moment: "inTheHouse", captures: "Anonyme Raumnutzung (Sensor)", purpose: "Welche Räume genutzt werden – Räume messen, nie Menschen", models: ["spaceEffect"], legalBasis: "review", status: "planned" },
+  { id: "sensor.noise", moment: "inTheHouse", captures: "Lärmpegel ohne Ton (Sensor)", purpose: "Lautstärke im House, ohne Aufnahme", models: ["spaceEffect"], legalBasis: "review", status: "planned" },
   { id: "create.placeOrigin", moment: "create", captures: "Ort-Herkunft des House: eigener gespeicherter Ort (Fenster, Stay.placeId) oder neuer Ort", purpose: "Ob Hosts aus ihrem Zuhause schneller voll werden und wiederkommen; Fenster pro Ort (Admin › Analyse › Ort-Herkunft)", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
   { id: "place.saved", moment: "create", captures: "Gespeicherter Ort, in dem der Host wohnt: Art des Ortes, Fotos, Zimmer, freie Plätze, Regeln, Ort (Stadt, Region; Straße nur für den Host), Mietzeitraum von–bis, Monatsmiete + Währung", purpose: "Fenster daraus öffnen (vorausgefüllt), Preis anteilig nach Nächten (lib/price.ts)", models: [], legalBasis: "contract", status: "collecting" },
   { id: "place.allowedToHost", moment: "create", captures: "Bestätigung des Hosts „I'm allowed to host guests here“ (Untervermietung bzw. Gäste vom Vermieter und nach örtlichen Regeln erlaubt) mit Zeitpunkt – Pflicht zum Speichern eines Ortes, von Simpulo nicht geprüft", purpose: "Nachweis der eigenen Erklärung des Hosts", models: [], legalBasis: "contract", status: "collecting" },
@@ -80,8 +96,8 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "stay.report", moment: "inTheHouse", captures: "Meldungen und „Something went wrong“-Fälle (Kategorie, kein Chat-Inhalt)", purpose: "Sicherheit; ein House, das nicht funktioniert", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
 
   // ── After the stay (the rating: its own form, a later prompt) ──
-  { id: "after.livedWith", moment: "afterTheStay", captures: "„Lived with“ bestätigt, in beide Richtungen", purpose: "Your people; Vertrauen", models: ["crewFit", "houseChemistry"], legalBasis: "contract", status: "used" },
-  { id: "after.doItAgain", moment: "afterTheStay", captures: "„Do it again“ gestartet", purpose: "Houses, die es wert sind, wiederholt zu werden", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
+  { id: "after.livedWith", moment: "afterTheStay", captures: "„Lived with“ bestätigt, in beide Richtungen", purpose: "Your people; Vertrauen", models: ["crewFit", "houseChemistry", "placeFit"], legalBasis: "contract", status: "used" },
+  { id: "after.doItAgain", moment: "afterTheStay", captures: "„Do it again“ gestartet", purpose: "Houses, die es wert sind, wiederholt zu werden", models: ["houseChemistry", "placeFit"], legalBasis: "contract", status: "collecting" },
   { id: "after.rating", moment: "afterTheStay", captures: "Gesamtbewertung (1–5)", purpose: "Qualität des House", models: ["houseChemistry"], legalBasis: "consent", status: "planned" },
   { id: "after.crewMood", moment: "afterTheStay", captures: "Stimmung in der Crew (1–5)", purpose: "Die soziale Seite des House", models: ["houseChemistry"], legalBasis: "consent", status: "planned" },
   { id: "after.tidiness", moment: "afterTheStay", captures: "Ordnung (zu chaotisch · passt · sehr ordentlich)", purpose: "Zusammenleben; Abgleich mit den Vibe-Reglern", models: ["houseChemistry", "crewFit"], legalBasis: "consent", status: "planned" },
@@ -90,6 +106,13 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "after.again", moment: "afterTheStay", captures: "„Mit wem würdest du wieder wohnen?“ (Personen aus der Crew, privat)", purpose: "Gegenseitiges „wieder“ – das stärkste Zeichen für Passung", models: ["crewFit", "houseChemistry"], legalBasis: "consent", status: "planned" },
   { id: "after.sentence", moment: "afterTheStay", captures: "Ein freier Satz (optional)", purpose: "Vom Team gelesen – keine automatische Auswertung", models: [], legalBasis: "consent", status: "planned" },
   { id: "after.nextHouseBetter", moment: "afterTheStay", captures: "„What would make your next House better?“ – optional in der Bewertung; landet als Idee im Support (Kategorie idea)", purpose: "support", models: [], legalBasis: "consent", status: "planned" },
+  // Der Ort im Rückblick – optional, mit Einwilligung (Raum-Wirkung)
+  { id: "after.space.where", moment: "afterTheStay", captures: "„Wo habt ihr am meisten Zeit zusammen verbracht?“ (Raumwahl)", purpose: "Welcher Raum wirklich verbindet", models: ["spaceEffect"], legalBasis: "consent", status: "planned" },
+  { id: "after.space.feel", moment: "afterTheStay", captures: "„Wie hat sich der Ort angefühlt?“ (Wortkacheln)", purpose: "Wie ein Raum wirkt, in Worten", models: ["spaceEffect"], legalBasis: "consent", status: "planned" },
+  { id: "after.space.wellbeing", moment: "afterTheStay", captures: "Wohlfühlen (1–5)", purpose: "Verbindung ohne Wohlfühlen zu senken", models: ["spaceEffect"], legalBasis: "consent", status: "planned" },
+  { id: "after.space.retreat", moment: "afterTheStay", captures: "„Konnte ich mich zurückziehen?“ (ja/nein)", purpose: "Ob Rückzug gefehlt hat", models: ["spaceEffect"], legalBasis: "consent", status: "planned" },
+  // Danach
+  { id: "afterwards.moai", moment: "afterwards", captures: "Crew trifft sich wieder (Moai, jährlich)", purpose: "Ob aus einer Crew ein Kreis wird", models: [], legalBasis: "consent", status: "planned" },
 
   // ── Marketing ──
   { id: "mkt.src", moment: "marketing", captures: "?src= des Links, über den sie kamen (erster Kontakt)", purpose: "Welcher Kanal Leute bringt", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
@@ -109,3 +132,6 @@ export const DATA_POINTS: readonly DataPoint[] = [
 
 /** The data points a model reads – derived from DATA_POINTS, never listed twice. */
 export const inputsOf = (model: ModelId) => DATA_POINTS.filter((d) => d.models.includes(model));
+
+/** Never collected (Algorithmus › Datenpunkte shows the list): nothing here may ever become a data point. */
+export const NEVER_COLLECTED: readonly string[] = ["Gesundheitsdaten", "Gesprochenes", "Gesprächsinhalte", "Sex und Romantik", "Kameras und Mikrofone", "Personen-Tracking im Raum"];

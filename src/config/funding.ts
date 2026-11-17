@@ -9,13 +9,14 @@ export const FUNDING_NOTE = "Thesen zur Orientierung, keine Finanzberatung. Vor 
 export const OPEN = "noch offen";
 export const YOU_ARE_HERE = "Du bist hier";
 
-export type FundingTab = "readiness" | "thesis" | "rounds" | "documents" | "valuation";
+export type FundingTab = "readiness" | "thesis" | "rounds" | "documents" | "valuation" | "structure";
 export const FUNDING_TABS: readonly { key: FundingTab; label: string }[] = [
   { key: "readiness", label: "Bereitschaft" },
   { key: "thesis", label: "These" },
   { key: "rounds", label: "Runden" },
   { key: "documents", label: "Unterlagen" },
   { key: "valuation", label: "Bewertung & Anteile" },
+  { key: "structure", label: "Firmenstruktur" },
 ];
 
 // ── Bereitschaft ────────────────────────────────────────────────────────────────────────────────────────────────────────────────

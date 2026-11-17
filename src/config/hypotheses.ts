@@ -13,6 +13,8 @@ export interface Hypothesis {
   target?: string;
   /** The statement shortened to at most eight words (Algorithmus › Thesen, the cards) */
   short: string;
+  /** Set apart as a card (the null hypothesis) */
+  highlight?: boolean;
 }
 
 export const HYPOTHESES: readonly Hypothesis[] = [
@@ -24,4 +26,11 @@ export const HYPOTHESES: readonly Hypothesis[] = [
   { id: "tiktokConverts", statement: "Anmeldungen über TikTok werden öfter zu Anfragen als über Instagram", metric: "Anfragequote innerhalb von 60 Tagen, je Quelle", target: "≥ 1,2×", short: "TikTok führt öfter zu Anfragen als Instagram" },
   { id: "creatorCollab", statement: "Creator-Collab-Houses bringen mehr Anmeldungen pro House als normale", short: "Creator-Collabs bringen mehr Anmeldungen" },
   { id: "lowFeeYes", statement: "Eine niedrige Gebühr erhöht die Ja-Quote von Pro Hosts", short: "Niedrige Gebühr, mehr Ja von Pro Hosts" },
+  // Raum und Longevity (Vision › Der Hof › Fünf Regeln) – noch ohne Messung: Status offen, Balken leer
+  { id: "tableMiddle", statement: "Ein Tisch in der Mitte verbindet mehr als ein Tisch am Rand", short: "Tisch in der Mitte verbindet mehr" },
+  { id: "ownRooms", statement: "Eigene Zimmer verbinden mehr als geteilte", short: "Eigene Zimmer verbinden mehr als geteilte" },
+  { id: "pathsMiddle", statement: "Wege durch die Mitte erhöhen die Verbindung, ohne das Wohlfühlen zu senken", short: "Wege durch die Mitte verbinden" },
+  { id: "noRetreat", statement: "Ohne Rückzugsort sinkt das Wohlfühlen", short: "Ohne Rückzugsort sinkt das Wohlfühlen" },
+  { id: "spaceNull", statement: "Nullhypothese: Der Raum ist fast egal, nur Crew und Bogen zählen", short: "Nullhypothese: Der Raum ist fast egal", highlight: true },
+  { id: "longevityFill", statement: "Longevity-Houses füllen sich so schnell wie Fitness-Houses", short: "Longevity-Houses füllen so schnell wie Fitness" },
 ];

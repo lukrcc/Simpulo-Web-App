@@ -11,10 +11,10 @@
 //          the long text, the key and the purpose only in the detail. "Nie erfasst: …" as an ⓘ at the tab.
 // Every text from config/data-points.ts, config/models.ts, config/hypotheses.ts; numbers from lib/admin/metrics.ts. The network numbers and
 // "Tage bis voll" are no longer here (they stay in lib/admin/metrics.ts; Vision › Kern and Analyse show them).
-import { ChevronDown, Database, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
+import { ChevronDown, Database, EyeOff, Flag, Repeat, Scale, SlidersHorizontal, Sofa, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, type DataPoint, type DataPointStatus, type Moment } from "@/config/data-points";
+import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, NEVER_COLLECTED, type DataPoint, type DataPointStatus, type Moment } from "@/config/data-points";
 import { HYPOTHESES, type Hypothesis } from "@/config/hypotheses";
 import { MODEL_IDS, MODELS, type Model, type ModelId, type ModelStage } from "@/config/models";
 import { hypothesisBar, hypothesisStatus, modelMeasures, modelMeasuresShort, type Status } from "@/lib/admin/metrics";
@@ -30,8 +30,8 @@ const STAGES: readonly ModelStage[] = ["idea", "rules", "trained"];
 const MODEL_NAME = Object.fromEntries(MODELS.map((m) => [m.id, m.name])) as Record<ModelId, string>;
 type Tab = "flow" | "theses" | "points";
 
-const MOMENT_ICONS: Record<Moment, LucideIcon> = { onboarding: UserPlus, search: Search, create: Home, request: MessageSquare, inTheHouse: Users, afterTheStay: Star, marketing: Megaphone, support: Inbox };
-const DECISION_ICONS: Record<string, LucideIcon> = { "Explore-Reihen": LayoutGrid, "Vorschläge an Hosts": Lightbulb, "Do it again": RotateCcw, "Wo Houses eröffnen": MapPin, "Welche Videos": Clapperboard };
+const MOMENT_ICONS: Record<Moment, LucideIcon> = { onboarding: UserPlus, search: Search, create: Home, request: MessageSquare, inTheHouse: Users, afterTheStay: Star, afterwards: Repeat, marketing: Megaphone, support: Inbox };
+const DECISION_ICONS: Record<string, LucideIcon> = { "Explore-Reihen": LayoutGrid, "Vorschläge an Hosts": Lightbulb, "Do it again": RotateCcw, "Wo Houses eröffnen": MapPin, "Welche Videos": Clapperboard, "Einrichtungs-Hinweise für Hosts": Sofa, "Hof-Stellschrauben": SlidersHorizontal, "Pacht-Test-Orte": Flag };
 /** The decisions, deduplicated, in the models' order. */
 const DECISIONS = [...new Set(MODELS.flatMap((m) => m.decisions))];
 /** Data point status as a dot: planned grey, collecting amber, used sage. */
@@ -272,7 +272,8 @@ function Theses() {
           const bar = h.metric && h.target ? hypothesisBar(h.target, result?.current) : null;
           return (
             <li key={h.id}>
-              <button type="button" onClick={() => setOpen(h.id)} aria-pressed={open === h.id} className="flex h-full w-full flex-col gap-3 rounded-xl border border-ink/8 bg-(--adm-block) p-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)">
+              {/* The null hypothesis is set apart: a stronger edge. */}
+              <button type="button" onClick={() => setOpen(h.id)} aria-pressed={open === h.id} className={cn("flex h-full w-full flex-col gap-3 rounded-xl border bg-(--adm-block) p-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", h.highlight ? "border-ink/40" : "border-ink/8")}>
                 <span className="flex items-start gap-2">
                   <StatusDot status={bar ? hypothesisStatus(verdict) : null} className="mt-2" />
                   <span className={cn("text-adm-block text-ink", open === h.id && "underline decoration-2 underline-offset-4")}>{h.short}</span>
@@ -364,7 +365,8 @@ function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: 
                     <li key={d.id} className="relative flex h-(--adm-row-h) items-center gap-3 px-1">
                       <button type="button" onClick={() => setSelected(d.id)} aria-label={shortName(d)} className="absolute inset-0" />
                       <span className={cn("pointer-events-none min-w-0 flex-1 truncate text-body", selected === d.id ? "font-semibold text-(--adm-active) underline decoration-2 underline-offset-4" : "text-ink")}>{shortName(d)}</span>
-                      <span className="pointer-events-none flex shrink-0 gap-1">
+                      {/* The model capsules from 640px; on phones they are in the detail (a row never runs out of the screen). */}
+                      <span className="pointer-events-none flex shrink-0 gap-1 max-sm:hidden">
                         {d.models.map((id) => (
                           <span key={id} className="inline-flex h-6 items-center rounded-full bg-ink/6 px-2 text-small text-ink/80">
                             {MODEL_NAME[id]}
@@ -384,6 +386,17 @@ function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: 
           );
         })}
         <p className="mt-2 text-small text-(--adm-label)">{t("count", { shown: shown.length, all: DATA_POINTS.length })}</p>
+        {/* Never collected – visible under the list (config/data-points.ts NEVER_COLLECTED). */}
+        <section className="mt-(--adm-section)" aria-label={t("neverTitle")}>
+          <h3 className="mb-2 text-small font-semibold text-(--adm-label)">{t("neverTitle")}</h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {NEVER_COLLECTED.map((item) => (
+              <li key={item} className="inline-flex h-7 items-center rounded-full border border-dashed border-ink/25 px-2.5 text-small text-ink/80">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
       <aside className={cn("min-w-0 lg:sticky lg:top-[calc(var(--header-h)+var(--adm-page))] lg:self-start", !point && "max-lg:hidden")}>
         {point ? (
@@ -414,9 +427,10 @@ function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: 
   );
 }
 
-/** Vertrag / Einwilligung as a small icon with its word as the tooltip. */
+/** Vertrag · Einwilligung · keine Personendaten · prüfen as a small icon with its word as the tooltip. */
+const LEGAL_ICONS = { contract: FileSignature, consent: Hand, none: EyeOff, review: Scale } as const;
 function LegalIcon({ basis, label }: { basis: DataPoint["legalBasis"]; label: string }) {
-  const Icon = basis === "contract" ? FileSignature : Hand;
+  const Icon = LEGAL_ICONS[basis];
   return (
     <button type="button" aria-label={label} className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-ink/60 hover:text-ink">
       <Icon aria-hidden className="size-4" />

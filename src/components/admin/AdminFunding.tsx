@@ -4,12 +4,12 @@
 // live values, lib/admin/metrics.ts fundingReadiness) · These (where the first money goes) · Runden (the ladder, the share calculator, the
 // investor list as a greyed placeholder) · Unterlagen (the data room checklist, "Kennzahlen als PDF"). Every text in config/funding.ts. The
 // note on top on every part. Deliberately no field for a company valuation. Graphics before text, no cards.
+import { useSearchParams } from "next/navigation";
 import { Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input } from "@/components/ui/Input";
-import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -40,24 +40,26 @@ import { dec, eur, pct } from "@/lib/i18n/adminFormat";
 import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { AdminSection, AdminShell } from "./AdminShell";
+import { AdminTabs } from "./AdminLayout";
+import { CompanyStructure } from "./finance/CompanyStructure";
 
 const fill = (template: string, values: Record<string, string | number>) => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
 
 export function AdminFunding() {
   const inputs = useAdminInputs();
-  const [tab, setTab] = useState<FundingTab>("readiness");
+  // ?tab=structure opens Firmenstruktur (a link from Vision › Der Hof › Eigentum) – Next's search params are current on a client navigation too.
+  const opened = useSearchParams().get("tab") === "structure";
+  const [tab, setTab] = useState<FundingTab>(opened ? "structure" : "readiness");
   return (
-    <AdminShell title={FUNDING_TITLE}>
-      {/* "Bewertung & Anteile" has its own note (a private orientation); every other part the tab's. */}
-      <p className="text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>
-      <ScrollRow label={FUNDING_TITLE} className="mb-10 mt-(--adm-inner) max-w-full">
-        <CapsuleGroup label={FUNDING_TITLE} value={tab} onChange={setTab} options={FUNDING_TABS.map((t) => ({ value: t.key, content: t.label }))} />
-      </ScrollRow>
+    // The tabs in the head's one click row (Grundordnung); the note under it ("Bewertung & Anteile" its own, Firmenstruktur its own at the end).
+    <AdminShell title={FUNDING_TITLE} tabs={<AdminTabs label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))} />}>
+      {tab !== "structure" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
       {tab === "readiness" && <Readiness inputs={inputs} />}
       {tab === "thesis" && <Thesis />}
       {tab === "rounds" && <Rounds />}
       {tab === "documents" && <Documents inputs={inputs} />}
       {tab === "valuation" && <Valuation inputs={inputs} />}
+      {tab === "structure" && <CompanyStructure />}
     </AdminShell>
   );
 }

@@ -771,7 +771,7 @@ export const BLOCK_MAP_TEXT = {
   count: (n: number) => `${n}`,
 } as const;
 
-export type BlockId = "core" | "segments" | "hosts" | "places" | "tech" | "algorithm" | "phases" | "tModel" | "continuum" | "roadmap" | "location" | "funding";
+export type BlockId = "hof" | "longevity" | "core" | "segments" | "hosts" | "places" | "tech" | "algorithm" | "phases" | "tModel" | "continuum" | "roadmap" | "location" | "funding";
 export interface BlockDef {
   id: BlockId;
   title: string;
@@ -781,6 +781,8 @@ export interface BlockDef {
   summary: string;
   /** Sprung in einen anderen Admin-Tab statt Zoom */
   external?: string;
+  /** Das Endbild: volle Spaltenbreite, mit Vorschau-Grafik */
+  feature?: boolean;
 }
 
 export const BLOCK_MAP: readonly { key: "why" | "how" | "where"; label: string; blocks: readonly BlockDef[] }[] = [
@@ -790,6 +792,8 @@ export const BLOCK_MAP: readonly { key: "why" | "how" | "where"; label: string; 
     blocks: [
       { id: "core", title: "Kern", subtitle: "Zeit wirkt", summary: "Simpulo verkauft verdichtete Zeit mit den richtigen Menschen." },
       { id: "segments", title: "Zielgruppen", subtitle: "8 Gruppen", summary: "Acht Gruppen, theoretische Obergrenze aus groben Annahmen, keine Marktstudie." },
+      // Texts from lib/admin/vision/longevity.ts (LONGEVITY.block) – the same words here for the map.
+      { id: "longevity", title: "Longevity", subtitle: "Die soziale Säule", summary: "Simpulo ist die soziale Säule von Longevity." },
     ],
   },
   {
@@ -806,6 +810,8 @@ export const BLOCK_MAP: readonly { key: "why" | "how" | "where"; label: string; 
     key: "where",
     label: "Wohin",
     blocks: [
+      // The end picture, on top and set apart (config/vision-hof.ts holds its contents).
+      { id: "hof", title: "Der Hof", subtitle: "Die Mission in gebauter Form", summary: "Der Ort, an dem alles zusammenkommt.", feature: true },
       { id: "phases", title: "Phasen", subtitle: "Deutschland bis Immobilien", summary: "Vier Phasen, jede mit Ziel und Freigabe." },
       { id: "tModel", title: "T-Modell", subtitle: "Breite führt, Tiefe folgt", summary: "Breite: dieselbe Mechanik für mehr Menschen. Tiefe: Stufe für Stufe." },
       { id: "continuum", title: "Kontinuum", subtitle: "Plattform · Marke · Immobilien", summary: "Einnahmequellen von Plattform über Marke bis Immobilien." },

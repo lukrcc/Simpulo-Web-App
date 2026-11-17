@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, FileUser, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Compass, FileUser, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
@@ -18,7 +18,7 @@ import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "vision" | "funding" | "inbox" | "money" | "platform" | "waitlist" | "applications";
+type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "money" | "platform" | "waitlist" | "applications";
 interface Area {
   key: AreaKey;
   href: string;
@@ -28,7 +28,7 @@ interface Area {
 }
 
 /**
- * The side list in four groups, in this order: MARKT Übersicht · Houses · Hosts · WACHSTUM Wachstum · Analyse · Algorithmus · Vision ·
+ * The side list in four groups, in this order: MARKT Übersicht · Houses · Hosts · WACHSTUM Wachstum · Analyse · Algorithmus · Labore · Vision ·
  * Finanzierung · BETRIEB Posteingang (count) · Geld · System · LAUNCH Warteliste · Bewerbungen.
  */
 const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas: readonly Area[] }[] = [
@@ -46,6 +46,7 @@ const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas:
       { key: "growth", href: "/admin/growth", icon: TrendingUp, also: ["/admin/traffic"] },
       { key: "topics", href: "/admin/topics", icon: Tags },
       { key: "data", href: "/admin/data", icon: Network },
+      { key: "labs", href: "/admin/labore", icon: FlaskConical },
       { key: "vision", href: "/admin/vision", icon: Compass },
       { key: "funding", href: "/admin/funding", icon: Landmark },
     ],

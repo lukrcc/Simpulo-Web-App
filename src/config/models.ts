@@ -2,7 +2,7 @@
 // What Simpulo learns from its data: five models, each with what it delivers, where that goes, how success is measured and how far it is.
 // Its inputs are not listed here: they are the data points that name it (config/data-points.ts inputsOf) – one source.
 
-export const MODEL_IDS = ["interestRanking", "crewFit", "houseChemistry", "demandMap", "marketingImpact"] as const;
+export const MODEL_IDS = ["interestRanking", "crewFit", "houseChemistry", "demandMap", "marketingImpact", "spaceEffect", "placeFit"] as const;
 export type ModelId = (typeof MODEL_IDS)[number];
 
 /** idea – described only · rules – hand-written rules on the data · trained – learned from outcomes */
@@ -67,5 +67,23 @@ export const MODELS: readonly Model[] = [
     measure: "Anmeldungen je Quelle und je Video",
     stage: "idea",
     decisions: ["Welche Videos"],
+  },
+  {
+    id: "spaceEffect",
+    name: "Raum-Wirkung",
+    output: "Wie Raum-Daten auf Verbindungsrate und Wohlfühlen wirken",
+    feeds: "Einrichtungs-Hinweise für Hosts und die Stellschrauben des Hofs (Menschen pro Mitte, Tischform, Wege, Rückzug, Küche)",
+    measure: "noch offen",
+    stage: "idea",
+    decisions: ["Einrichtungs-Hinweise für Hosts", "Hof-Stellschrauben"],
+  },
+  {
+    id: "placeFit",
+    name: "Ort-Eignung",
+    output: "Kandidaten für Pacht-Tests und Höfe – aus Nachfrage, ganzjährig, Wiederkehr, Verbindungsrate und Lücke",
+    feeds: "Wo Pacht-Tests und Höfe hinkommen",
+    measure: "noch offen",
+    stage: "idea",
+    decisions: ["Pacht-Test-Orte"],
   },
 ];

@@ -513,6 +513,8 @@ export function modelMeasuresShort(inputs: AdminInputs): Record<ModelId, string 
     houseChemistry: null,
     demandMap: inputs.admin.waitlist.length === 0 ? null : `${unmet} von ${inputs.admin.waitlist.length} offen`,
     marketingImpact: null,
+    spaceEffect: null,
+    placeFit: null,
   };
 }
 
@@ -543,6 +545,8 @@ export function modelMeasures(inputs: AdminInputs): Record<ModelId, string | nul
     houseChemistry: null,
     demandMap: `${unmet} von ${inputs.admin.waitlist.length} Wünschen auf der Warteliste ohne House`,
     marketingImpact: null,
+    spaceEffect: null,
+    placeFit: null,
   };
 }
 
