@@ -367,12 +367,17 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const openPanel = () => setSheetOpen((o) => !o);
   const closePanel = () => setSheetOpen(false);
   // Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway.
+  // Phones: no sort shortcut (Sort is the filter sheet's first row) and "Filters" as a compact icon with the count of active filters.
+  // (By CSS, so the server's HTML is right at every size.)
   const controls = (
     <>
-      <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
-        <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
-      </SortCapsule>
-      <FiltersButton count={panelCount} onClick={openPanel} expanded={panelOpen} />
+      <span className="contents max-md:hidden">
+        <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
+          <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
+        </SortCapsule>
+        <FiltersButton count={panelCount} onClick={openPanel} expanded={panelOpen} />
+      </span>
+      <FiltersButton variant="icon" count={panelCount} onClick={openPanel} expanded={panelOpen} className="md:hidden" />
     </>
   );
   const fields = (
@@ -570,10 +575,17 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                   title={searchView ? resultLabel : collection ? tCollections(`${collection.id}.title`) : t("title")}
                   subline={searchView ? undefined : filtered ? resultLabel : t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) })}
                   action={
-                    inBar && (
+                    inBar ? (
                       <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
                         <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
                       </SortCapsule>
+                    ) : (
+                      // Logged out on phones: the way to the questions, right beside the title (never under the sticky row).
+                      !store.currentUserId && (
+                        <Link href="/faq" className={buttonStyles("tertiary", "sm", "md:hidden")}>
+                          {t("howItWorksLink")}
+                        </Link>
+                      )
                     )
                   }
                 />
@@ -610,12 +622,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     }
                     pageEnd={<FiltersButton variant="strong" count={panelCount} onClick={openPanel} expanded={panelOpen} />}
                   />
-                )}
-                {/* Logged out on mobile there's no tab bar – this is the way to the questions (plus the footer). */}
-                {!store.currentUserId && (
-                  <Link href="/faq" className={buttonStyles("tertiary", "md", "mt-1 min-h-11 md:hidden")}>
-                    {t("howItWorksLink")}
-                  </Link>
                 )}
               </>
             )}

@@ -9,9 +9,17 @@ import { IconButton } from "@/components/ui/IconButton";
 import { registerShelf, revealInShelf, scrollShelfToSlide } from "@/lib/shelves";
 import { cn } from "@/lib/utils";
 import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
+import { MEDIA } from "@/config/breakpoints";
 
 /** Constant, like its plugins: a new object would make Embla start again. A row that fits has nothing to drag. */
-const OPTIONS: Parameters<typeof useEmblaCarousel>[0] = { align: "start", dragFree: true, containScroll: "trimSnaps", watchDrag: (api) => api.scrollSnapList().length > 1 };
+const OPTIONS: Parameters<typeof useEmblaCarousel>[0] = {
+  align: "start",
+  dragFree: true,
+  containScroll: "trimSnaps",
+  watchDrag: (api) => api.scrollSnapList().length > 1,
+  // Phones: a swipe snaps to the next card (the next one peeks in at the right, .explore-slide 85 %).
+  breakpoints: { [MEDIA.phone]: { dragFree: false } },
+};
 
 const ARROW = "absolute top-1/2 z-20 hidden -translate-y-1/2 transition-opacity duration-200 md:flex";
 const ARROW_GONE = "pointer-events-none opacity-0";

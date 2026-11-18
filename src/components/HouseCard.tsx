@@ -280,7 +280,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {/* Bottom: title (up to two lines, then an ellipsis), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
         <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-on-image", houseCardTextShadow)}>
           {invited && footer === "explore" && <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>}
-          <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", context === "shelf" && "max-md:line-clamp-1", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           {/* Date · Place.short – the city or region, never the country. */}
           <p className="mt-1 truncate text-small text-on-image/85">
             {format.stayDates(stay)}

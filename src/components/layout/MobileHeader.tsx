@@ -13,8 +13,8 @@ import { hidesMobileHeader } from "./nav";
 
 /**
  * Phones' header (< md), the same in Safari and in the installed app, logged in or out: the wordmark left, a search icon right ("Where to
- * next?" as a sheet from the bottom). No account buttons – they live in the tab bar. Graphite like the desktop header, 56px, the status bar's
- * safe area above it (0 in a browser tab); no veil, no gradient. A normal row above the page (not sticky). Not on flows with their own head.
+ * next?" as a sheet from the bottom). No account buttons – they live in the tab bar. Graphite like the desktop header, 56px, under the status bar's
+ * graphite strip (AppShell, --safe-top: 0 in a browser tab); no veil, no gradient. A normal row above the page (not sticky). Not on flows with their own head.
  */
 export function MobileHeader() {
   return (
@@ -32,7 +32,7 @@ function RoutedHeader() {
 
 function Bar({ search }: { search?: React.ReactNode }) {
   return (
-    <header data-site-header data-mobile-header className="bg-graphite pt-(--safe-top) text-ink md:hidden">
+    <header data-site-header data-mobile-header className="bg-graphite text-ink md:hidden">
       <div className="flex h-14 items-center justify-between gap-4 pl-(--page-margin) pr-2">
         <Logo />
         {search}

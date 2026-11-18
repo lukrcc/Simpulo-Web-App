@@ -207,7 +207,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
     // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1680px] pt-[calc(12px+var(--safe-top))] md:pt-8 lg:hidden"
+      className="mx-auto max-w-[1680px] pt-3 md:pt-8 lg:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}
@@ -322,9 +322,10 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
       aria-roledescription="slide"
       aria-label={t("slideLabel", { index: index + 1, count, title: stay.title })}
       className={cn(
-        // Phones: a centred 4:5 card, 76% of the screen wide, neighbours peeking; md+: full width of the padded scroller.
+        // Phones: a centred card 84 % of the screen wide, neighbours peeking, as high as the first screen leaves under the header and the chip
+        // row (above the tab bar, 12px of air each side) – header, row and card together fill it, nothing empty under the card. md+: full width.
         // The slide is only the snap box – the card inside scales, so snap positions never move.
-        "aspect-4/5 w-[76vw] shrink-0 snap-center md:aspect-auto md:h-[64vh] md:min-h-130 md:w-full md:snap-start",
+        "w-[84vw] shrink-0 snap-center max-md:h-(--spot-phone-h) md:aspect-auto md:h-[64vh] md:min-h-130 md:w-full md:snap-start",
         phoneHidden && "max-md:hidden",
       )}
     >
@@ -393,8 +394,9 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
           {/* Bottom: identity, place and crew, then the CTA. Phones: centred and tight (8px), stacked above the dots;
               from md left-aligned at the bottom. Only the title and the CTA take taps (mouse/touch duplicates of the
               slide link – hidden from assistive tech, which uses the full-size link). */}
-          <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-10 text-center text-on-image md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
-            <div className="flex flex-col items-center md:block">
+          <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-5 pb-10 text-center text-on-image md:items-stretch md:gap-4 md:px-8 md:pb-8 md:text-left", cardTextShadow)}>
+            {/* Phones: every line stays inside the card (20px in): the title at most 2 lines, the quote at most 2 with "…". */}
+            <div className="flex w-full min-w-0 flex-col items-center md:block">
               <Link href={href} onNavigate={rememberOrigin} tabIndex={-1} aria-hidden className="pointer-events-auto">
                 <h2 className="line-clamp-2 text-h2 text-on-image md:text-h1">{stay.title}</h2>
               </Link>
@@ -404,16 +406,19 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                 {stay.isExample ? tPlatform("example.house") : t("withHost", { name: firstName(host) })}
                 {host.verified && !stay.isExample && <VerifiedBadge onDark />}
               </p>
-              <p className="mt-2 text-small text-on-image/85">
-                <span className="inline-flex max-w-full items-center gap-1.5">
-                  {format.stayDates(stay)} · <PlaceText>{format.placeName(stay)}</PlaceText>
+              <p className="mt-2 max-w-full text-small text-on-image/85">
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                  <span className="shrink-0">{format.stayDates(stay)} ·</span>
+                  <span className="min-w-0 truncate">
+                    <PlaceText>{format.placeName(stay)}</PlaceText>
+                  </span>
                 </span>
               </p>
               <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
               {stay.hostNote && (
-                <p className="mt-1 flex max-w-full items-center gap-1.5 text-small text-on-image/75">
-                  <MessageCircle className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{stay.hostNote}</span>
+                <p className="mt-1 flex max-w-full min-w-0 items-start gap-1.5 text-small text-on-image/75 md:items-center">
+                  <MessageCircle className="mt-0.5 size-3.5 shrink-0 md:mt-0" aria-hidden />
+                  <span className="min-w-0 max-md:line-clamp-2 md:truncate">{stay.hostNote}</span>
                 </p>
               )}
             </div>

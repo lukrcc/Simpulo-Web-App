@@ -417,6 +417,9 @@
 @media (max-width: 767.98px) {
   :root {
     --tabbar-clear: calc(56px + var(--safe-bottom));
+    /* Explore on phones: the Spotlight card fills what the first screen leaves under the header (56px) and the chip row, above the tab bar,
+       12px of air above and below – header, row and card fill the first screen together (SpotlightHero). */
+    --spot-phone-h: clamp(400px, calc(100dvh - var(--header-total) - 56px - var(--filter-row-h) - var(--tabbar-clear) - 24px), 720px);
   }
   html[data-tabbar="none"] {
     --tabbar-clear: 0px;
@@ -527,6 +530,23 @@ html.sim-standalone {
   --stage-peek: 70px;
   --stage-image-h: clamp(380px, calc(100svh - var(--header-total) - var(--stage-bar-h) - var(--stage-peek)), 640px);
 }
+/* Phones with the page's sticky chip row (Explore, city pages): what is scrolled to (a heading, a section, an anchor) stops under the row,
+   never behind it (scroll-margin-top). */
+@media (max-width: 767.98px) {
+  body:has([data-bar].sticky) main :is(h1, h2, h3, section, [id]) {
+    scroll-margin-top: calc(var(--header-total) + var(--filter-row-h) + 16px);
+  }
+  /* A heading under an eyebrow (SectionHeader): the eyebrow stays in view as well (its 12px line + its 8px gap). */
+  body:has([data-bar].sticky) main p.text-eyebrow + div > :is(h1, h2) {
+    scroll-margin-top: calc(var(--header-total) + var(--filter-row-h) + 44px);
+  }
+}
+/* Phones: less room between sections – 40px instead of the clamp's 56px (after the block above, so it wins). */
+@media (max-width: 767.98px) {
+  :root {
+    --space-section: 40px;
+  }
+}
 @media (min-width: 40rem) {
   :root {
     --explore-cols: 2;
@@ -622,6 +642,13 @@ html.sim-standalone {
   }
   .explore-slide {
     width: calc((var(--explore-w) - (var(--explore-cols) - 1) * var(--explore-gap)) / var(--explore-cols));
+  }
+  /* Phones: a shelf's card is 85 % of the content's width – the next one peeks in at the right, so it's clear the row swipes. Its height
+     (4:5) leaves the shelf's title and the card on one screen. */
+  @media (max-width: 767.98px) {
+    .explore-slide {
+      width: calc(var(--explore-w) * 0.85);
+    }
   }
   /* Your houses' own Houses (components/MyHouseTile, no notch): 5 a row from 1440px, 4 from 1100, 3 from 768, 2 below.
      Lived in: smaller, two more a row (.my-slide-small). Same gap as Explore. */

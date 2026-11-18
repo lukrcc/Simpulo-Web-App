@@ -10,7 +10,8 @@ import { FullBleedSection } from "./FullBleedSection";
  */
 export function DarkBand({ children, className, pageEnd = false }: { children: ReactNode; /** Instead of the 64px before and after it (e.g. "mt-16 mb-0" at a page's end) */ className?: string; /** The page's last section: the footer follows right on it (--footer-gap 0) */ pageEnd?: boolean }) {
   return (
-    <FullBleedSection inner="explore-width" padding="py-16" className={cn("band-dark", className ?? "my-16")} lastTone={pageEnd ? "dark" : undefined}>
+    // Phones: 24px of light page around it and 40px inside (desktop 64 / 64).
+    <FullBleedSection inner="explore-width" padding="py-10 md:py-16" className={cn("band-dark", className ?? "my-6 md:my-16")} lastTone={pageEnd ? "dark" : undefined}>
       {children}
     </FullBleedSection>
   );
