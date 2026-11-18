@@ -687,6 +687,16 @@ html.sim-standalone {
   .my-slide-small {
     width: calc((var(--explore-w) - (var(--my-cols) + 1) * var(--explore-gap)) / (var(--my-cols) + 2));
   }
+  /* Phones: Your houses' rows as shelves like Explore – a tile 85 % of the width (Lived in 45 %), the next one peeking in, a swipe snaps
+     (ui/Shelf). "See all" keeps its grid of two (--my-cols). */
+  @media (max-width: 767.98px) {
+    .my-slide {
+      width: calc(var(--explore-w) * 0.85);
+    }
+    .my-slide-small {
+      width: calc(var(--explore-w) * 0.45);
+    }
+  }
   .explore-root {
     --row-max: var(--explore-max);
   }

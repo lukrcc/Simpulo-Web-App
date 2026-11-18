@@ -7,7 +7,9 @@ import { useTranslations } from "next-intl";
 import { ContextHelp } from "@/components/help/HelpFeedback";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
 import { HeroPhotos } from "@/components/HeroBand";
-import { useState, type ReactNode, type Ref } from "react";
+import { useEffect, useState, type ReactNode, type Ref } from "react";
+import { useRouter } from "next/navigation";
+import { TabBar } from "@/components/ui/TabBar";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { Button } from "@/components/ui/ActionButton";
 import { RowHead } from "@/components/ui/CardRow";
@@ -112,12 +114,14 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
   return (
     // The same bento frame as the visitor's (HouseHero): the photos left (radius 24, as tall as the tile), the member's way through the House
     // as the one Ember tile right – the main action of this page.
-    <section ref={ref} aria-labelledby="house-title" className="page-container explore-width pt-4">
-      <div className="grid gap-4 split:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <div className="relative aspect-4/5 overflow-hidden rounded-[24px] bg-band split:aspect-auto split:h-full split:max-h-[calc((var(--explore-w)-16px)/3*1.25)] split:min-h-100">
+    // Phones (< 768px): the HeroBand pattern – the photos on top across the full width (4:5, no rounding, no margin), the Ember right under
+    // them across the full width, its content on the page margin.
+    <section ref={ref} aria-labelledby="house-title" className="page-container explore-width pt-4 max-md:w-full max-md:pt-0">
+      <div className="grid gap-4 max-md:gap-0 split:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="relative aspect-4/5 overflow-hidden rounded-[24px] bg-band max-md:rounded-none split:aspect-auto split:h-full split:max-h-[calc((var(--explore-w)-16px)/3*1.25)] split:min-h-100">
           <HeroPhotos photos={housePhotos(stay, host)} />
         </div>
-        <div className="ember min-w-0 rounded-[24px] p-6 sm:p-8">
+        <div className="ember min-w-0 rounded-[24px] p-6 max-md:rounded-none max-md:px-(--page-margin) max-md:py-8 sm:p-8">
       <div className="flex h-full min-w-0 flex-col gap-6">
         {/* Phones: the actions sit above the title, so the title gets the whole width. */}
         <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -131,7 +135,7 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
               {stay.title}
             </h1>
             {/* As in the visitor's head: 20px, one line, the area and the city – no country. */}
-            <p className="mt-3 truncate text-h3 font-normal text-muted">
+            <p className="mt-3 text-h3 font-normal text-muted md:truncate">
               {format.stayDatesLong(stay)} · {stay.location.area ? `${stay.location.area}, ${stay.location.city || stay.city}` : stay.location.city || stay.city || stay.region.split(",")[0]}
             </p>
           </div>
@@ -205,19 +209,19 @@ export function MemberSections({ stay, crew }: { stay: Stay; crew: User[] }) {
   );
   return (
     <>
-      <section aria-labelledby="house-member-crew">
+      <section id="house-crew" aria-labelledby="house-member-crew" className="max-md:scroll-mt-[calc(var(--header-total)+64px)]">
         <RowHead id="house-member-crew" title={t("crew", { filled: crewInOf(store, stay), open: openSpots(stay) })} />
         <CrewRow stay={stay} crew={crew} size="lg" names className="mt-4" />
       </section>
 
       {together && (
-        <section id="house-place" aria-labelledby="house-member-place" className="scroll-mt-28">
+        <section id="house-place" aria-labelledby="house-member-place" className="scroll-mt-28 max-md:scroll-mt-[calc(var(--header-total)+64px)]">
           <RowHead id="house-member-place" title={t("place")} />
           <div className="mt-4">{stay.accommodationVote ? <CrewVotes stay={stay} /> : <p className="text-body text-muted">{t("placeLater")}</p>}</div>
         </section>
       )}
 
-      <section aria-labelledby="house-member-practical">
+      <section id="house-plan" aria-labelledby="house-member-practical" className="max-md:scroll-mt-[calc(var(--header-total)+64px)]">
         <RowHead id="house-member-practical" title={t("practical")} />
         <dl className="mt-4 grid max-w-[760px] gap-x-8 gap-y-5 sm:grid-cols-2">
           {fact(
@@ -266,5 +270,50 @@ export function LeaveSheet({ stay, open, onClose }: { stay: Stay; open: boolean;
         showToast(t("leftToast"));
       }}
     />
+  );
+}
+
+/**
+ * Phones (< 768px): a member's parts as one sideways-scrolling tab row under the head, sticking under the status bar while the page scrolls:
+ * Chat (opens the House chat, once there is one) · Crew · Plan (the place's vote when picked together, else what's practical). A tab
+ * scrolls to its part; the row follows which part is in view. (Moments and Me don't exist yet – they join here when they're built.)
+ */
+export function MemberTabs({ chatHref, together }: { chatHref: string | null; together: boolean }) {
+  const t = useTranslations("house.steps.tabs");
+  const router = useRouter();
+  type Part = "chat" | "crew" | "plan";
+  const [active, setActive] = useState<Part>("crew");
+  const targets: Record<Exclude<Part, "chat">, string> = { crew: "house-crew", plan: together ? "house-place" : "house-plan" };
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const seen = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (seen) setActive(seen.target.id === "house-crew" ? "crew" : "plan");
+      },
+      { rootMargin: "-120px 0px -50% 0px" },
+    );
+    for (const id of new Set(Object.values(targets))) {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [targets.plan]); // eslint-disable-line react-hooks/exhaustive-deps
+  const options = [...(chatHref ? [{ value: "chat" as const, label: t("chat") }] : []), { value: "crew" as const, label: t("crew") }, { value: "plan" as const, label: t("plan") }];
+  return (
+    <div data-member-tabs className="sticky top-(--header-total) z-20 border-b border-ink/8 bg-(--bg) px-(--page-margin) md:hidden">
+      <TabBar
+        label={t("label")}
+        options={options}
+        value={active}
+        onChange={(part) => {
+          if (part === "chat") {
+            if (chatHref) router.push(chatHref);
+            return;
+          }
+          setActive(part);
+          document.getElementById(targets[part])?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        }}
+      />
+    </div>
   );
 }

@@ -1198,6 +1198,12 @@
         "cancellation": "Cancellation",
         "cancellationLine": "Free until the crew is complete · Rules",
         "included": "Included"
+      },
+      "tabs": {
+        "label": "Your House",
+        "chat": "Chat",
+        "crew": "Crew",
+        "plan": "Plan"
       }
     }
   },

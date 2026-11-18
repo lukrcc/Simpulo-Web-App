@@ -39,7 +39,9 @@ export interface Step {
 export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
   const t = useTranslations("houses.overview");
   const current = steps.findIndex((s) => !s.done);
+  // Phones: only the dots and lines, the current step's name under them (the words would run into each other).
   return (
+    <div>
     <ol aria-label={label} className="flex items-center gap-2">
       {steps.map((step, i) => {
         const state = step.done ? "done" : i === current ? "now" : "later";
@@ -59,7 +61,7 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
               )}
               {state === "later" && <span className="size-3 rounded-full border-2 border-ink/25" />}
             </span>
-            <span className={cn("shrink-0 text-small", state === "now" ? "font-semibold text-ink" : state === "done" ? "text-ink" : "text-muted")}>
+            <span className={cn("shrink-0 text-small max-md:sr-only", state === "now" ? "font-semibold text-ink" : state === "done" ? "text-ink" : "text-muted")}>
               {step.label}
               <span className="sr-only"> · {t(`state.${state}`)}</span>
             </span>
@@ -68,6 +70,12 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
         );
       })}
     </ol>
+    {current >= 0 && (
+      <p aria-hidden className="mt-2 text-small font-semibold text-ink md:hidden">
+        {steps[current].label}
+      </p>
+    )}
+    </div>
   );
 }
 

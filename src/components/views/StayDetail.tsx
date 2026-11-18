@@ -29,7 +29,7 @@ import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { HouseHero } from "@/components/stay/HouseHero";
-import { LeaveSheet, MemberHero, MemberSections, useStepContent } from "@/components/stay/MemberHouse";
+import { LeaveSheet, MemberHero, MemberSections, MemberTabs, useStepContent } from "@/components/stay/MemberHouse";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { guestJourney } from "@/config/house-steps";
@@ -435,7 +435,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     )}
     {/* The House as the page's main object: the full-width band under the header (components/HeroBand). */}
       {role === "member" ? (
-        <MemberHero ref={summaryRef} stay={stay} host={host} crew={crew} journey={journey} content={stepContent} chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} onLeave={() => setLeaving(true)} />
+        <>
+          <MemberHero ref={summaryRef} stay={stay} host={host} crew={crew} journey={journey} content={stepContent} chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} onLeave={() => setLeaving(true)} />
+          {/* Phones: Chat · Crew · Plan as a sticky, sideways-scrolling row. */}
+          <MemberTabs chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} together={stay.accommodationStatus !== "locked"} />
+        </>
       ) : (
       <HouseHero
           ref={summaryRef}

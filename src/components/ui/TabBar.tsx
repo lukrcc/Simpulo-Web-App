@@ -34,6 +34,8 @@ export function TabBar<T extends string>({ options, value, onChange, label, clas
             role="tab"
             aria-selected={chosen}
             aria-label={option.ariaLabel}
+            // Its ::after is the 2px underline – not the touch hit area's (globals.css); the tab is 40px high and its words wide.
+            data-tap="none"
             onClick={() => onChange(option.value)}
             className={cn(
               "relative flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap text-nav-main transition-colors duration-150",

@@ -42,6 +42,7 @@ import { hasOffer, waitlistOf, waitlistRequestsOf } from "@/lib/waitlist";
 import { HostInvitesSection } from "./HouseInvites";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
+import { StripRow } from "@/components/StripFig";
 
 /** A row that does something: only it gets a surface, and only on hover. */
 const ROW_HOVER = "rounded-2xl transition-colors duration-150 hover:bg-(--chip-bg)";
@@ -90,7 +91,8 @@ function HouseHead({ stay, status, actions, eyebrow }: { stay: Stay; status?: Re
   const store = useStore();
   const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
   return (
-    <header className="flex min-h-18 items-center gap-4">
+    // Phones: the status and the buttons go to their own line under the title (the title keeps the width).
+    <header className="flex min-h-18 items-center gap-4 max-md:flex-wrap max-md:gap-y-3">
       <span className="relative block size-14 shrink-0 overflow-hidden rounded-xl bg-ink/6">{photo && <Img src={photo} alt="" fill sizes="56px" priority className="object-cover" />}</span>
       <div className="min-w-0 flex-1">
         {eyebrow && <p className="text-eyebrow uppercase text-ink/55">{eyebrow}</p>}
@@ -99,7 +101,7 @@ function HouseHead({ stay, status, actions, eyebrow }: { stay: Stay; status?: Re
           {f.stayDates(stay)} · {stay.location?.city ?? stay.city}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 max-md:w-full max-md:pl-18">
         {status}
         {actions}
       </div>
@@ -139,7 +141,8 @@ function HouseFrame({ head, note, children, capsules }: { head: ReactNode; note?
       {head}
       {note && <p className="-mt-3 text-small text-muted">{note}</p>}
       {children}
-      {capsules && <div className="flex flex-wrap gap-2">{capsules}</div>}
+      {/* Phones: one line that scrolls sideways (StripRow → .tab-scroll) instead of wrapping. */}
+      {capsules && <StripRow className="gap-2 md:flex-wrap">{capsules}</StripRow>}
     </div>
   );
 }
