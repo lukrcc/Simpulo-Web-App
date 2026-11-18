@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { FileText } from "lucide-react";
 import type { Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
+import { useTabScroll } from "@/components/ui/useTabScroll";
 import { StatusDot } from "./AdminCharts";
 import { InfoTip } from "./AdminNumbers";
 
@@ -49,8 +50,11 @@ export function AdminPageHeader({ title, badge, tabs, controls }: { title: strin
 
 /** The tabs: words with their count – the chosen one bold, white, underlined (2px), no surface; the others white 60 %; an ⓘ after a technical term. */
 export function AdminTabs<T extends string>({ label, tabs, value, onChange }: { label: string; tabs: readonly AdminTab<T>[]; value: T; onChange: (value: T) => void }) {
+  // Phones: one line that scrolls sideways (to the window's edges), the chosen tab scrolled into view (.tab-scroll, useTabScroll).
+  const ref = useRef<HTMLDivElement>(null);
+  useTabScroll(ref, value);
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap items-center gap-1">
+    <div ref={ref} role="tablist" aria-label={label} data-bleed className="tab-scroll flex flex-wrap items-center gap-1">
       {tabs.map((tab) => {
         const on = tab.value === value;
         return (

@@ -2,10 +2,10 @@
 
 import { ChevronDown, type LucideIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Anchored } from "@/components/ui/Anchored";
 import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { Chip, chipStyles, TextChipLabel } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
+import { MenuLayer } from "@/components/ui/MenuLayer";
 
 export interface ChipOption {
   value: string;
@@ -148,10 +148,9 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
           </Chip>
       </div>
 
-      {moreOpen && (
-        <Anchored anchor={moreRef} ref={popoverRef} align="end">
-          {/* Every category, two per row, in the dark menu: the chosen one on 12 % white with its check. */}
-          <div role="radiogroup" aria-label={labels.more} className={cn(darkMenuClass, darkMenuScroll, "grid w-[min(400px,calc(100vw-32px))] grid-cols-2 gap-0.5")}>
+      {/* Every category, two per row, in the dark menu: the chosen one on 12 % white with its check. Phones: a sheet from the bottom. */}
+      <MenuLayer open={moreOpen} onClose={() => setMoreOpen(false)} anchor={moreRef} panelRef={popoverRef} label={labels.more} tone="dark" panelProps={{ role: "radiogroup", "aria-label": labels.more }} panelClassName={cn(darkMenuClass, darkMenuScroll, "w-[min(400px,calc(100vw-32px))]")}>
+          <div className="grid grid-cols-2 gap-0.5">
             {options.map((o) => (
               <DarkMenuItem
                 key={o.value}
@@ -167,8 +166,7 @@ export function FitChips({ options, labels, value, onSelect }: FitChipsProps) {
               </DarkMenuItem>
             ))}
           </div>
-        </Anchored>
-      )}
+      </MenuLayer>
     </div>
   );
 }

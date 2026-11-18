@@ -1122,6 +1122,52 @@ main:has([data-app-pane="always"]) {
   }
 }
 
+/*
+ * Phones' tab rows (TabBar, AdminTabs, CapsuleGroup; the hook ui/useTabScroll): one line that scrolls sideways instead of wrapping. A row at
+ * the page's edge (data-bleed) reaches to the window's edges and keeps the page margin as padding and scroll padding (--tab-edge, the
+ * admin's 16px), so nothing is cut at the left. The fade only on the right and only while there's more (data-more-end) – the one mask
+ * allowed at an edge, because it marks content, not the page.
+ */
+/* A sheet from the bottom is up (ui/MobileSheet): the tab bar steps back – it would show through the sheet's glass otherwise. */
+html[data-sheet-open] [data-tab-bar] {
+  opacity: 0;
+  pointer-events: none;
+}
+[data-tab-bar] {
+  transition: opacity 200ms ease-out;
+}
+@media (max-width: 767.98px) {
+  .tab-scroll {
+    --tab-edge: var(--page-margin);
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .tab-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-scroll > * {
+    flex-shrink: 0;
+  }
+  .tab-scroll[data-bleed] {
+    flex: 0 0 auto;
+    width: calc(100% + 2 * var(--tab-edge));
+    max-width: none;
+    margin-inline: calc(-1 * var(--tab-edge));
+    padding-inline: var(--tab-edge);
+    scroll-padding-inline: var(--tab-edge);
+  }
+  .admin-scope .tab-scroll {
+    --tab-edge: 1rem;
+  }
+  .tab-scroll[data-more-end] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+}
+
 /* Thin overlay-style scrollbar that only shows its thumb on hover – for the Houses/Messages columns. */
 @utility scroll-pane {
   /* Positioned, so absolutely placed children (sr-only text, hidden file inputs) stay inside the pane

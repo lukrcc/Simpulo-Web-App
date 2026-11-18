@@ -93,8 +93,6 @@ import { HouseCard } from "@/components/HouseCard";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { Button } from "@/components/ui/ActionButton";
-import { Anchored } from "@/components/ui/Anchored";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
@@ -110,6 +108,7 @@ import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { useMonthName } from "@/components/explore/SearchFields";
+import { MenuLayer } from "@/components/ui/MenuLayer";
 
 const noSubscribe = () => () => {};
 
@@ -783,9 +782,7 @@ function DraftLine({ savedAt, conflict, onKeep, onStartOver }: { savedAt: string
       <button ref={anchor} type="button" onClick={() => setConfirming((on) => !on)} aria-expanded={open} className="font-semibold text-ink underline-offset-4 hover:underline">
         {t("startOver")}
       </button>
-      {open && (
-        <Anchored anchor={anchor} ref={panel} align="start" width={280}>
-          <GlassPanel role="dialog" aria-label={conflict ? t("conflictLabel") : t("discardTitle")} className="animate-fade-in w-[min(280px,calc(100vw-32px))] rounded-[20px]! p-4">
+      <MenuLayer open={open} onClose={close} anchor={anchor} panelRef={panel} align="start" width={280} label={conflict ? t("conflictLabel") : t("discardTitle")} tone="light" panelProps={{ role: "dialog", "aria-label": conflict ? t("conflictLabel") : t("discardTitle") }} panelClassName="glass-panel animate-fade-in w-[min(280px,calc(100vw-32px))] rounded-[20px]! p-4">
             {conflict ? (
               <div className="flex flex-col gap-2">
                 <Button size="md" onClick={close}>
@@ -808,9 +805,7 @@ function DraftLine({ savedAt, conflict, onKeep, onStartOver }: { savedAt: string
                 </div>
               </>
             )}
-          </GlassPanel>
-        </Anchored>
-      )}
+      </MenuLayer>
     </div>
   );
 }

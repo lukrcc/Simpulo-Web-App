@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useIsPhone } from "@/lib/useMediaQuery";
+import { useTabScroll } from "./useTabScroll";
 
 /** How far one arrow (or arrow key) moves the row: 80 % of what's visible. */
 const STEP = 0.8;
@@ -15,12 +17,15 @@ const FADE = 40;
  * each side only while there's more that way (left from the first pixel scrolled, right until the end), a fade only on that side, a click
  * or ←/→ (focus inside) moves 80 % of the visible width, smoothly (instant with reduced motion). Trackpads and Shift + wheel scroll it
  * natively; a vertical wheel turn is never taken – it scrolls the page. Arrows 28px, round, the words' colour at 10 % (cream on graphite);
- * on touch none (a finger swipes).
+ * on touch none (a finger swipes). Phones (< 768px): the fade only on the right (the row starts at the page margin, nothing is cut on the
+ * left), and the chosen entry (`active`) is scrolled into view (useTabScroll).
  */
-export function ScrollRow({ children, label, role, className }: { children: ReactNode; label?: string; role?: string; className?: string }) {
+export function ScrollRow({ children, label, role, className, active }: { children: ReactNode; label?: string; role?: string; className?: string; /** What is chosen inside – when it changes, the chosen entry scrolls into view */ active?: unknown }) {
+  const phone = useIsPhone();
   const t = useTranslations("explore.collections");
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
+  useTabScroll(ref, active);
 
   useEffect(() => {
     const el = ref.current;
@@ -57,7 +62,7 @@ export function ScrollRow({ children, label, role, className }: { children: Reac
     }
   };
   // The fade only where there's more: transparent at that edge, full from 40px in.
-  const mask = `linear-gradient(to right, ${edges.start ? "#000 0" : `transparent 0, #000 ${FADE}px`}, ${edges.end ? "#000 100%" : `#000 calc(100% - ${FADE}px), transparent 100%`})`;
+  const mask = `linear-gradient(to right, ${edges.start || phone ? "#000 0" : `transparent 0, #000 ${FADE}px`}, ${edges.end ? "#000 100%" : `#000 calc(100% - ${FADE}px), transparent 100%`})`;
   const arrow = "press absolute top-1/2 z-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-ink/10 text-ink backdrop-blur-sm transition-[opacity,background-color] duration-150 hover:bg-ink/16 pointer-coarse:hidden";
 
   return (

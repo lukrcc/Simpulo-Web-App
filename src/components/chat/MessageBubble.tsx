@@ -2,7 +2,7 @@
 
 import { Check, CheckCheck, Flag, Reply, SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
@@ -96,6 +96,12 @@ export function MessageBubble(props: MessageBubbleProps) {
   function onPointerMove(e: ReactPointerEvent) {
     if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) cancelPress();
   }
+  // Touch: a short tap on the bubble (no long press, no move, not on a link or button) shows its time – again hides it.
+  const [timeShown, setTimeShown] = useState(false);
+  function onPointerUp(e: ReactPointerEvent) {
+    if (e.pointerType === "touch" && press.current) setTimeShown((on) => !on);
+    cancelPress();
+  }
   useEffect(() => cancelPress, []);
 
   const quote = replyTo && (
@@ -145,7 +151,7 @@ export function MessageBubble(props: MessageBubbleProps) {
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={cancelPress}
+        onPointerUp={onPointerUp}
         onPointerCancel={cancelPress}
         // No native "copy / look up" menu on long-press – ours opens instead.
         onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
@@ -206,11 +212,11 @@ export function MessageBubble(props: MessageBubbleProps) {
             <FileRow key={file.url} file={file} mine={mine} />
           ))}
         </div>
-        {/* The time: under a run's last message; any other message shows its time on hover (touch: while its actions are open – long press), beside the bubble. */}
+        {/* The time: under a run's last message; any other message shows its time on hover (touch: a tap on the bubble, or while its actions are open – long press), beside the bubble. */}
         {props.last ? (
           <span className={cn("mt-1 px-1", reactions.length > 0 && "order-last")}>{timeStamp()}</span>
         ) : (
-          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", active && "opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
+          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", (active || timeShown) && "opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
             {time}
           </span>
         )}

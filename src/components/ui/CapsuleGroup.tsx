@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { MouseEvent, ReactNode, Ref } from "react";
+import { useRef, type MouseEvent, type ReactNode, type Ref } from "react";
+import { useTabScroll } from "./useTabScroll";
 import { cn } from "@/lib/utils";
 
 /**
@@ -49,14 +50,22 @@ export function CapsuleGroup<T extends string>({
 }) {
   const index = options.findIndex((o) => o.value === value);
   const Root = as === "nav" ? "nav" : "div";
+  // Phones: one line that scrolls sideways inside its track, the chosen one scrolled into view (.tab-scroll, useTabScroll).
+  const own = useRef<HTMLDivElement | null>(null);
+  useTabScroll(own, value);
+  const setRef = (el: HTMLDivElement | null) => {
+    own.current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) (ref as { current: HTMLElement | null }).current = el;
+  };
   return (
     <Root
-      ref={ref as Ref<HTMLDivElement>}
+      ref={setRef}
       aria-label={label}
       role={as === "group" ? "radiogroup" : undefined}
       data-capsule-group
       className={cn(
-        "relative flex items-center rounded-full bg-ink/5",
+        "tab-scroll relative flex items-center rounded-full bg-ink/5",
         size === "sm" ? "h-(--adm-capsule-h,36px) p-0.5" : "h-11 p-1",
         className,
       )}

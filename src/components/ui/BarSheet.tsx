@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from "react-dom";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { cn } from "@/lib/utils";
+import { useIsPhone } from "@/lib/useMediaQuery";
+import { MobileSheet } from "./MobileSheet";
 
 /** How long it grows out of the bar (and back): globals.css .bar-sheet. */
 const DURATION_MS = 260;
@@ -42,6 +44,8 @@ interface BarSheetProps {
  * The bar is the opener's closest [data-bar] – the header's bar, or a filter row in the page (city pages, phones).
  */
 export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, className, children }: BarSheetProps) {
+  // Phones (< 768px): the same content as a sheet from the bottom in the same dark glass (MobileSheet) – nothing hangs from a bar there.
+  const phone = useIsPhone();
   const [shown, setShown] = useState(open);
   const [closing, setClosing] = useState(false);
   // Open → mounted; closed → it plays its way back into the bar first, then unmounts.
@@ -82,7 +86,7 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
 
   // While it hangs from the bar: the page stays put, the bar has no foot line.
   useEffect(() => {
-    if (!shown) return;
+    if (!shown || phone) return;
     const unlock = lockScroll();
     openSheets += 1;
     document.documentElement.setAttribute("data-bar-sheet", "");
@@ -91,7 +95,7 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
       openSheets -= 1;
       if (openSheets === 0) document.documentElement.removeAttribute("data-bar-sheet");
     };
-  }, [shown]);
+  }, [shown, phone]);
 
   // A click outside (not on the opener – it toggles – and not in a menu opened from inside, portalled to <body>) or Escape closes it.
   const closeRef = useRef(onClose);
@@ -99,7 +103,7 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
     closeRef.current = onClose;
   });
   useEffect(() => {
-    if (!open) return;
+    if (!open || phone) return;
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Element;
       if (sheetRef.current?.contains(target) || anchor.current?.contains(target) || target.closest?.("[data-anchored]")) return;
@@ -116,8 +120,17 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
       document.removeEventListener("pointerdown", onPointer);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, anchor]);
+  }, [open, anchor, phone]);
 
+  if (phone) {
+    return (
+      <MobileSheet open={open} onClose={onClose} label={label} tone="dark" className={className}>
+        {head}
+        {children}
+        {footer}
+      </MobileSheet>
+    );
+  }
   if (!shown || !place) return null;
   const sheet = (
     <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && "max-h-[calc(100vh-148px)]", className)}>

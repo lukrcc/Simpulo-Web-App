@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useTabScroll } from "./useTabScroll";
 
 export interface TabOption<T> {
   value: T;
@@ -17,9 +19,12 @@ export interface TabOption<T> {
  * Page tabs, like the header's: text, the chosen one ink with a 2px underline 6px below, the others muted (hover ink). Your houses
  * "All · Hosting · Joined · Past", a House's tabs, the FAQ "Joining · Hosting", Messages "Chats · Updates". No pill, no surface.
  */
-export function TabBar<T extends string>({ options, value, onChange, label, className }: { options: ReadonlyArray<TabOption<T>>; value: T; onChange: (value: T) => void; label: string; className?: string }) {
+export function TabBar<T extends string>({ options, value, onChange, label, className, bleed = true }: { options: ReadonlyArray<TabOption<T>>; value: T; onChange: (value: T) => void; label: string; className?: string; /** Phones: the row reaches to the window's edges (it sits at the page margin); false inside a card or sheet */ bleed?: boolean }) {
+  // Phones: one line that scrolls sideways, the chosen tab scrolled into view (.tab-scroll, useTabScroll).
+  const ref = useRef<HTMLDivElement>(null);
+  useTabScroll(ref, value);
   return (
-    <div role="tablist" aria-label={label} className={cn("flex min-w-0 items-center gap-6", className)}>
+    <div ref={ref} role="tablist" aria-label={label} data-bleed={bleed || undefined} className={cn("tab-scroll flex min-w-0 items-center gap-6", className)}>
       {options.map((option) => {
         const chosen = option.value === value;
         return (

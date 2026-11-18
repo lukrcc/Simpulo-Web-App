@@ -8,7 +8,6 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import { buttonStyles } from "@/components/ui/ActionButton";
 import { Chip, chipStyles } from "@/components/ui/Chip";
 import { cn } from "@/lib/utils";
-import { Anchored } from "@/components/ui/Anchored";
 import { BarSheet } from "@/components/ui/BarSheet";
 import { BAR_CATEGORIES_MAX, BAR_CATEGORIES_MIN } from "@/config/explore";
 import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
@@ -16,6 +15,7 @@ import { RangeSlider } from "@/components/ui/RangeSlider";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
+import { MenuLayer } from "@/components/ui/MenuLayer";
 
 /**
  * "Filters". "strong": the filter row's (and the header tab's) strongest element at its right end – "All filters" in words (no icon), filled
@@ -246,7 +246,7 @@ export function CategoryRow({
     <div className="chip-row group/chips relative flex min-w-0 items-center">
       {/* The chips keep their width (never squeezed or cut): the row scrolls sideways (ui/ScrollRow – arrows both ways, the fade only where
           there's more, trackpad and Shift + wheel; a vertical wheel scrolls the page). */}
-      <ScrollRow role="radiogroup" label={label} className="flex-1">
+      <ScrollRow role="radiogroup" label={label} className="flex-1" active={value.join(",")}>
         {/* "All": the quiet default – no pill, bold ink while nothing is picked. The categories are text; the chosen one the black capsule. */}
         <Chip variant="plain" size="lg" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {allLabel}
@@ -497,15 +497,19 @@ export function SortCapsule({ label, name, variant = "chip", children }: { label
         <span className="max-sm:sr-only">{label}</span>
         <ChevronDown className={cn("transition-transform max-sm:hidden", open && "rotate-180")} aria-hidden />
       </button>
-      {open && (
-        // In a portal: the site header clips its overflow.
-        <Anchored anchor={buttonRef} ref={panelRef} align="end">
-          {/* A pick closes it. */}
-          <div id={id} role="dialog" aria-label={name ?? t("sort")} onClick={(e) => (e.target as Element).closest('[role="radio"]') && setOpen(false)} className={cn(darkMenuClass, darkMenuScroll, "w-60")}>
-            {children}
-          </div>
-        </Anchored>
-      )}
+      {/* In a portal: the site header clips its overflow. Phones: a sheet from the bottom. A pick closes it. */}
+      <MenuLayer
+        open={open}
+        onClose={() => setOpen(false)}
+        anchor={buttonRef}
+        panelRef={panelRef}
+        label={name ?? t("sort")}
+        tone="dark"
+        panelProps={{ id, role: "dialog", "aria-label": name ?? t("sort"), onClick: (e) => (e.target as Element).closest('[role="radio"]') && setOpen(false) }}
+        panelClassName={cn(darkMenuClass, darkMenuScroll, "w-60")}
+      >
+        {children}
+      </MenuLayer>
     </div>
   );
 }

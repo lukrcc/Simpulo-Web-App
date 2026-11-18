@@ -3,10 +3,10 @@
 import { ChevronDown, Search, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Anchored } from "@/components/ui/Anchored";
 import { DarkMenuItem, darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { cn } from "@/lib/utils";
 import { useDismiss } from "./Filters";
+import { MenuLayer } from "@/components/ui/MenuLayer";
 
 /**
  * The filter panel's rows: the label on the left (150px, 14px semibold; on a narrow sheet above), the content on the right; 16px above and
@@ -228,13 +228,9 @@ function MoreOptions<T extends string>({ label, name, options, value, onChange }
       <button ref={buttonRef} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={id} aria-haspopup="dialog" className={optionClass(false)}>
         {label}
       </button>
-      {open && (
-        <Anchored anchor={buttonRef} ref={menuRef} align="start" width={280}>
-          <div id={id} role="dialog" aria-label={name} className={cn(darkMenuClass, "w-70")}>
-            <SearchableChecklist label={name} options={options} value={value} onChange={onChange} />
-          </div>
-        </Anchored>
-      )}
+      <MenuLayer open={open} onClose={() => setOpen(false)} anchor={buttonRef} panelRef={menuRef} align="start" width={280} label={name} tone="dark" panelProps={{ id, role: "dialog", "aria-label": name }} panelClassName={cn(darkMenuClass, "w-70")}>
+        <SearchableChecklist label={name} options={options} value={value} onChange={onChange} />
+      </MenuLayer>
     </div>
   );
 }
@@ -278,9 +274,7 @@ export function FilterDropdown<T extends string | number>({
         <span className="truncate">{set ? `${label} · ${shown}` : label}</span>
         <ChevronDown aria-hidden className={cn("transition-transform", open && "rotate-180")} />
       </button>
-      {open && (
-        <Anchored anchor={buttonRef} ref={menuRef} align="start" width={240}>
-          <div id={id} role="dialog" aria-label={label} className={cn(darkMenuClass, multiple ? "w-70" : cn("w-60", darkMenuScroll))}>
+      <MenuLayer open={open} onClose={() => setOpen(false)} anchor={buttonRef} panelRef={menuRef} align="start" width={240} label={label} tone="dark" panelProps={{ id, role: "dialog", "aria-label": label }} panelClassName={cn(darkMenuClass, multiple ? "w-70" : cn("w-60", darkMenuScroll))}>
             {multiple ? (
               <SearchableChecklist label={label} options={options} value={value} onChange={onChange} />
             ) : (
@@ -305,9 +299,7 @@ export function FilterDropdown<T extends string | number>({
                 })}
               </div>
             )}
-          </div>
-        </Anchored>
-      )}
+      </MenuLayer>
     </div>
   );
 }
