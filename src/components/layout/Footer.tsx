@@ -12,6 +12,7 @@ import { CurrencyPicker } from "./CurrencyPicker";
 import { FooterWaitlist, FoundingHostsLink } from "./FooterPhase";
 import { Logo } from "./Logo";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
+import { cn } from "@/lib/utils";
 
 /*
  * The footer system (config/footer.ts picks one per route): large · slim · none.
@@ -80,7 +81,8 @@ export async function Footer() {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-12 md:gap-6">
           {/* Brand: logo, the line, socials, the QR to the app (desktop). */}
           <div className="flex flex-col items-start gap-4 md:col-span-4">
-            <Logo size="sm" />
+            {/* Phones: left like the column (the Logo centres itself – in bars that is vertical, here it pulled it to the middle). */}
+            <Logo size="sm" className="max-md:self-start" />
             <p className="text-body-lg text-ink">{tl("tagline")}</p>
             <nav aria-label={t("social.label")}>
               <Socials label={(n) => t(`social.${n}`)} size="md" />
@@ -162,10 +164,11 @@ export async function Footer() {
             <CurrencyPicker />
           </span>
           <span>{t("copyright", { year: COPYRIGHT_YEAR })}</span>
-          <nav aria-label={t("legalLabel")} className="contents">
-            {legal.map(({ href, label }) => (
+          {/* Phones: the legal links on a line of their own (no "·" at its start). */}
+          <nav aria-label={t("legalLabel")} className="contents max-md:flex max-md:w-full max-md:flex-wrap max-md:items-center max-md:gap-x-1.5">
+            {legal.map(({ href, label }, i) => (
               <span key={href} className="flex items-center gap-1.5">
-                <span aria-hidden>·</span>
+                <span aria-hidden className={cn(i === 0 && "max-md:hidden")}>·</span>
                 <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
                   {label}
                 </Link>
