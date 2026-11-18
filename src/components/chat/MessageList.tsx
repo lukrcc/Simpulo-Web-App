@@ -13,6 +13,7 @@ import { DayDivider, SystemLine } from "./ChatCards";
 import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
 import type { ReplyDraft } from "./Composer";
 import { BlockedMessageRow, MessageBubble, quoteText } from "./MessageBubble";
+import { MEDIA } from "@/config/breakpoints";
 
 interface MessageListProps {
   thread: Thread;
@@ -65,12 +66,24 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     setShowPill(false);
   }, []);
 
-  // Opens at the "New messages" divider, otherwise at the bottom.
+  // Opens at the "New messages" divider, otherwise at the bottom. Phones: always at the newest message (the divider stays in the list).
   useLayoutEffect(() => {
     const pane = paneRef.current;
     if (!pane) return;
-    if (unreadRef.current) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24 - parseFloat(getComputedStyle(pane).getPropertyValue("--chat-top") || "0");
-    else pane.scrollTop = pane.scrollHeight;
+    if (unreadRef.current && !window.matchMedia(MEDIA.phone).matches) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24 - parseFloat(getComputedStyle(pane).getPropertyValue("--chat-top") || "0");
+    else {
+      pane.scrollTop = pane.scrollHeight;
+      // The room for the head and the field (--chat-top/--chat-bottom) is measured right after this, and the first scroll event would then
+      // find the pane "not at the end": settle at the end over the next two frames (not cancelled – React's dev double effect would lose it).
+      const settle = () => {
+        pane.scrollTop = pane.scrollHeight;
+        atBottomRef.current = true;
+      };
+      requestAnimationFrame(() => {
+        settle();
+        requestAnimationFrame(settle);
+      });
+    }
     atBottomRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < BOTTOM_THRESHOLD;
   }, []);
 
@@ -95,6 +108,13 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
       if (atBottomRef.current) scrollToBottom(false);
     });
     observer.observe(inner);
+    // The pane itself getting lower (the phone's keyboard opening) and its content box taking the room for the head and the field
+    // (--chat-top/--chat-bottom arrive after the first layout): the newest message stays in view.
+    const pane = paneRef.current;
+    if (pane) {
+      observer.observe(pane);
+      for (const child of Array.from(pane.children)) observer.observe(child);
+    }
     return () => observer.disconnect();
   }, [scrollToBottom]);
 

@@ -11,10 +11,11 @@ import type { Attachment } from "@/lib/types";
 import { cn, findUrls } from "@/lib/utils";
 import { formatSize } from "./chatUtils";
 import { EmojiPicker } from "./EmojiPicker";
+import { MEDIA } from "@/config/breakpoints";
 
-/** Textarea grows to 6 lines (20px each) plus its 8px top/bottom padding, then scrolls. */
-/** Up to five lines (16px type, 22px lines) and the field's inner padding. */
+/** Up to five lines (16px type, 22px lines) and the field's inner padding – four on phones (< 768px), the keyboard takes the rest. */
 const MAX_HEIGHT = 5 * 22 + 16;
+const MAX_HEIGHT_PHONE = 4 * 22 + 16;
 
 interface PendingFile {
   file: File;
@@ -55,7 +56,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, window.matchMedia(MEDIA.phone).matches ? MAX_HEIGHT_PHONE : MAX_HEIGHT)}px`;
   }, [text]);
 
   useEffect(() => {

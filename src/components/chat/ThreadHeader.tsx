@@ -74,11 +74,15 @@ export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded:
           <Link href={`/house/${stay.slug}`} className="block truncate text-body font-semibold leading-5 hover:underline">
             {stay.title}
           </Link>
-          <p className="truncate text-small text-muted">{t("crewMeta", { dates: f.stayDates(stay), filled: crewInOf(store, stay), total: stay.spotsTotal })}</p>
+          <p className="truncate text-small text-muted max-md:hidden">{t("crewMeta", { dates: f.stayDates(stay), filled: crewInOf(store, stay), total: stay.spotsTotal })}</p>
+          {/* Phones: the crew's faces make way for "View House" – the line "Feb 12–26 · 5 of 5 in" opens who's in instead. */}
+          <button type="button" onClick={() => setWhosIn(true)} aria-label={t("whosInLabel", { count: crew.length })} className="block max-w-full truncate text-left text-small text-muted md:hidden">
+            {t("crewMeta", { dates: f.stayDates(stay), filled: crewInOf(store, stay), total: stay.spotsTotal })}
+          </button>
         </div>
 
-        {/* "View House": the House's own page (members see their way there). */}
-        <Button variant="secondary" size="sm" href={`/h/${stay.id}`} className="max-md:hidden">
+        {/* "View House": the House's own page (members see their way there). Phones too, a little smaller. */}
+        <Button variant="secondary" size="sm" href={`/h/${stay.id}`} className="shrink-0 max-md:h-8 max-md:px-3">
           {t("viewHouse")}
         </Button>
 
@@ -87,7 +91,7 @@ export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded:
           onClick={() => setWhosIn(true)}
           aria-label={t("whosInLabel", { count: crew.length })}
           title={t("whosIn")}
-          className="shrink-0 rounded-full p-1 hover:bg-bg"
+          className="shrink-0 rounded-full p-1 hover:bg-bg max-md:hidden"
         >
           <AvatarStack users={crew} size="xs" max={embedded ? 4 : 3} />
         </button>

@@ -25,6 +25,7 @@ import { chatHouseShare, stayAccentOf } from "@/lib/stageTint";
 import { chatThemeStyle } from "@/config/chat-themes";
 import { housePhotos } from "@/lib/utils";
 import { LifeBuoy } from "lucide-react";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 /** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
@@ -183,6 +184,8 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
   // The chat background this person chose (this chat, else all chats, else "house" – a breath of the House's colour over the cream).
   const theme = threadId ? chatThemeOf(store, threadId) : "cream";
   const tint = chatThemeStyle(theme, accent, chatHouseShare(accent));
+  // The mobile chat page follows the visual viewport (the keyboard); embedded (desktop column) it doesn't need to.
+  useVisualViewport(!embedded);
   const stageRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -227,12 +230,17 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
       </div>
     );
 
-  // Mobile page: the full viewport – chat pages have no tab bar (below md; the status bar area as top padding) /
-  // below the top header (md+). data-app-pane="always" drops the footer and main's bottom padding – the page
-  // itself never scrolls.
+  // Mobile page (< 768px): its own screen over the whole window – no tab bar, no header; fixed to the visual viewport (--vv-top/--vv-h,
+  // useVisualViewport), so with the keyboard open the field sits right on it; under the status bar's strip (--safe-top). md+: below the top
+  // header. data-app-pane="always" drops the footer and main's bottom padding – the page itself never scrolls.
   return (
-    <div data-app-pane="always" style={tint} data-chat-theme={theme} className="chat-dark relative z-41 h-dvh overflow-hidden bg-(--chat-bg) md:h-[calc(100dvh-var(--header-total))]">
-      <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--header-h) md:pt-0">{stage}</div>
+    <div
+      data-app-pane="always"
+      style={tint}
+      data-chat-theme={theme}
+      className="chat-dark relative z-41 overflow-hidden bg-(--chat-bg) max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh) md:h-[calc(100dvh-var(--header-total))]"
+    >
+      <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--safe-top) md:pt-0">{stage}</div>
     </div>
   );
 }

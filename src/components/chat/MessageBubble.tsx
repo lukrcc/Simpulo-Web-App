@@ -155,7 +155,7 @@ export function MessageBubble(props: MessageBubbleProps) {
         onPointerCancel={cancelPress}
         // No native "copy / look up" menu on long-press – ours opens instead.
         onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
-        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)]" : "max-w-[min(560px,65%)]")}
+        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)] max-md:w-[80%]" : "max-w-[min(560px,65%)] max-md:max-w-[80%]")}
       >
         {first && showName && author && <p className="mb-1 px-1 text-small font-semibold text-ink">{author.name.split(" ")[0]}</p>}
 
