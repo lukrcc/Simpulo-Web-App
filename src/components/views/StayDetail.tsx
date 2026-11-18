@@ -40,7 +40,7 @@ import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { Button } from "@/components/ui/ActionButton";
 import { iconButtonStyles } from "@/components/ui/IconButton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, PHONE_FOOTER, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
@@ -1069,11 +1069,13 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
       title={t(step === "login" ? "steps.login" : waitlist ? "steps.waitlist" : "steps.message")}
       subtitle={step === "login" ? t("loginSubtitle", { name: hostName }) : undefined}
       onBack={step === "login" ? () => setStep("message") : undefined}
+      // Phones: the full height, the head fixed, "Send" at the bottom over the keyboard (PHONE_FOOTER).
+      fullOnPhone
     >
       {/* Horizontal track: each step is one full-width pane; inactive panes are inert. 4px of air at the sides for the field's focus ring. */}
-      <div className="-mx-1 overflow-x-clip px-1">
+      <div className="-mx-1 overflow-x-clip px-1 max-md:flex max-md:flex-[1_0_auto] max-md:flex-col">
         <div
-          className="flex items-stretch gap-2 transition-transform duration-250 ease-out motion-reduce:transition-none"
+          className="flex items-stretch gap-2 transition-transform duration-250 ease-out motion-reduce:transition-none max-md:flex-[1_0_auto]"
           style={{ transform: `translateX(calc(${index} * (-100% - 8px)))` }}
         >
           <Pane active={step === "message"}>
@@ -1088,7 +1090,7 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                 </ModalFooter>
               </div>
             ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5 max-md:flex max-md:flex-1 max-md:flex-col">
               <RequestSummary stay={stay} photo={photo} />
               {!loggedIn && (
                 <p className="flex items-center gap-2 text-small text-muted">
@@ -1106,17 +1108,26 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                   id="request-note"
                   value={message}
                   onChange={(e) => setMessage(e.target.value.slice(0, NOTE_MAX))}
+                  // Grows with what's written (no inner scrolling) and stays in view while typing – above the sticky foot on phones.
+                  onInput={(e) => growAndShow(e.currentTarget)}
+                  onFocus={(e) => {
+                    const el = e.currentTarget;
+                    window.setTimeout(() => growAndShow(el), 320);
+                  }}
                   maxLength={NOTE_MAX}
                   rows={4}
                   autoFocus
+                  autoComplete="off"
+                  autoCapitalize="sentences"
+                  enterKeyHint="enter"
                   placeholder={t("notePlaceholder", { name: hostName })}
-                  className={cn(formTextarea, "min-h-30")}
+                  className={cn(formTextarea, "min-h-30 overflow-hidden max-md:scroll-mb-32")}
                 />
                 <p className="mt-2 text-small text-muted">{waitlist ? t("waitlistNote", { name: hostName }) : t("optionalNote")}</p>
               </div>
               {loggedIn && me && !me.birthDate && (
                 <FormField label={tAge("label")} helper={tAge("helper")}>
-                  <input type="date" required value={birth} max={today} onChange={(e) => setBirth(e.target.value)} className={formInput} />
+                  <input type="date" required autoComplete="bday" value={birth} max={today} onChange={(e) => setBirth(e.target.value)} className={formInput} />
                 </FormField>
               )}
               {blocked && blockedNote && (
@@ -1124,8 +1135,8 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
                   {blockedNote}
                 </p>
               )}
-              <ModalFooter onCancel={close}>
-                <Button type="submit" size="md">
+              <ModalFooter onCancel={close} className={PHONE_FOOTER}>
+                <Button type="submit" size="md" className="max-md:bg-(--brand-action-fill) max-md:text-on-signal max-md:hover:bg-(--brand-action-fill-hover)">
                   {loggedIn ? t("send") : t("continue")}
                 </Button>
               </ModalFooter>
@@ -1158,8 +1169,16 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
 
 function Pane({ active, children }: { active: boolean; children: ReactNode }) {
   return (
-    <div aria-hidden={!active} inert={!active} className="w-full shrink-0">
+    // Phones: as tall as the sheet's body, so the form's foot sits at its bottom.
+    <div aria-hidden={!active} inert={!active} className="w-full shrink-0 max-md:flex max-md:flex-col">
       {children}
     </div>
   );
+}
+
+/** The request's note: as tall as its text (from its 4 rows up), and in view while typing – nearest, so it never jumps. */
+function growAndShow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight + 2}px`;
+  el.scrollIntoView({ block: "nearest" });
 }

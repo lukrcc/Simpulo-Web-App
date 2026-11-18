@@ -8,7 +8,7 @@ import { ContextHelp } from "@/components/help/HelpFeedback";
 import { useState, type FormEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
-import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { ModalFooter, PHONE_FOOTER, Sheet } from "@/components/ui/Sheet";
 import { useFormat } from "@/i18n/format";
 import { payments, type PaymentMethodInput } from "@/lib/payments";
 import { getMyPayment, useStore } from "@/lib/store";
@@ -149,7 +149,8 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-7 md:grid-cols-[45fr_55fr]">
+    // Phones: one column as tall as the sheet's body – the pay button's foot at the bottom (PHONE_FOOTER, mt-auto).
+    <form onSubmit={submit} className="grid gap-7 max-md:flex max-md:flex-1 max-md:flex-col md:grid-cols-[45fr_55fr]">
       {/* Left: what it's for and what it costs. */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -186,7 +187,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
       </div>
 
       {/* Right: the payment element (mock) – wallets first, then the card. */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 max-md:flex-1">
         <div className="grid grid-cols-2 gap-2">
           <ApplePayButton busy={busy === "apple_pay"} disabled={busy !== null} onClick={() => void pay({ kind: "apple_pay" })} label={t("applePay")} />
           <GooglePayButton busy={busy === "google_pay"} disabled={busy !== null} onClick={() => void pay({ kind: "google_pay" })} label={t("googlePay")} />
@@ -208,9 +209,10 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
             <ContextHelp houseId={stay.id} text={tHelp("somethingWrong")} action={tHelp("getHelpLink")} className="mt-1" />
           </div>
         )}
-        {/* On phones the button stays at the bottom while the rest scrolls. */}
-        <div className="sticky bottom-0 -mx-7 -mb-7 flex flex-col gap-2 bg-[color-mix(in_srgb,var(--glass-solid)_96%,transparent)] px-7 pb-[max(1.75rem,var(--safe-bottom))] pt-3 md:static md:m-0 md:bg-transparent md:p-0">
-          <Button type="submit" disabled={!complete || busy !== null} className="w-full">
+        {/* On phones the button stays at the bottom of the sheet while the rest scrolls – over the safe area and over the keyboard
+            (PHONE_FOOTER; the sheet follows the visual viewport), orange like every main action on a phone. */}
+        <div className={cn("-mx-7 flex flex-col gap-2 px-7 md:static md:m-0 md:bg-transparent md:p-0", PHONE_FOOTER)}>
+          <Button type="submit" disabled={!complete || busy !== null} className="w-full max-md:bg-(--brand-action-fill) max-md:text-on-signal max-md:hover:bg-(--brand-action-fill-hover)">
             {busy === "card" ? <Loader2 className="animate-spin" aria-label={t("processing")} /> : t("payButton", { amount: money(amounts.total) })}
           </Button>
           <p className="text-center text-small text-muted">

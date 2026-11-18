@@ -28,7 +28,43 @@ interface SheetProps {
   titleNode?: ReactNode;
   /** Two columns' room (the pay sheet): 820px from md, 28px inside; on phones the full height */
   wide?: boolean;
+  /** Phones: the full height (the request) – a fixed head, the body scrolling, the foot (PHONE_FOOTER) above the safe area and the keyboard */
+  fullOnPhone?: boolean;
   children: ReactNode;
+}
+
+/**
+ * Phones, in a full-height sheet (fullOnPhone, wide): the foot with the main action stays at the bottom of the sheet – over the safe area,
+ * and with the keyboard open over the keyboard (the sheet follows the visual viewport). Give it to the foot's className.
+ */
+export const PHONE_FOOTER = "max-md:sticky max-md:bottom-0 max-md:z-10 max-md:mt-auto max-md:bg-(--glass-solid) max-md:pt-3 max-md:pb-[max(1rem,var(--safe-bottom))]";
+
+/** How many dialogs are open: while any is, html[data-dialog-open] (the tab bar steps back). */
+let openDialogs = 0;
+
+/**
+ * Phones with a full-height sheet open: the visual viewport's top and height on <html> (--vv-top, --vv-h) – the part of the window the
+ * keyboard leaves. The sheet sits exactly there, so its foot (the main action) is never under the keyboard.
+ */
+function useVisualViewport(active: boolean) {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!active || !vv) return;
+    const root = document.documentElement;
+    const write = () => {
+      root.style.setProperty("--vv-top", `${vv.offsetTop}px`);
+      root.style.setProperty("--vv-h", `${vv.height}px`);
+    };
+    write();
+    vv.addEventListener("resize", write);
+    vv.addEventListener("scroll", write);
+    return () => {
+      vv.removeEventListener("resize", write);
+      vv.removeEventListener("scroll", write);
+      root.style.removeProperty("--vv-top");
+      root.style.removeProperty("--vv-h");
+    };
+  }, [active]);
 }
 
 /** A modal's foot: the one action on the right, "Cancel" as a text link on the left. Never full width. */
@@ -57,7 +93,7 @@ export function Sheet(props: SheetProps | (PanelSheetProps & { variant: "panel" 
   return <DialogSheet {...props} />;
 }
 
-function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, large = false, titleNode, wide = false, children }: SheetProps) {
+function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = false, lead, large = false, titleNode, wide = false, fullOnPhone = false, children }: SheetProps) {
   const t = useTranslations("common");
   const id = useId();
   const titleId = `${id}-title`;
@@ -85,12 +121,31 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
     };
   }, [open, id, focusOverlay]);
 
+  // While a dialog is open the tab bar steps back (html[data-dialog-open], globals.css): requests, payments and login are flows of their own.
+  useEffect(() => {
+    if (!open) return;
+    openDialogs += 1;
+    document.documentElement.setAttribute("data-dialog-open", "");
+    return () => {
+      openDialogs -= 1;
+      if (openDialogs === 0) document.documentElement.removeAttribute("data-dialog-open");
+    };
+  }, [open]);
+  const full = wide || fullOnPhone;
+  useVisualViewport(open && full);
+
   if (!open) return null;
   const iconSize = "size-5";
   // The same for every modal: 560px, 28px radius, 32px inside, as much below as above.
+  // Phones, full height (wide, fullOnPhone): exactly the visual viewport (the wrapper below), the head sticky at the top, 0 padding at the
+  // bottom (the foot carries the safe area itself, PHONE_FOOTER).
   const panelClass = wide
-    ? "glass-panel scroll-pane relative h-dvh max-h-dvh w-full rounded-b-none p-7 pb-[max(1.75rem,var(--safe-bottom))] md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
-    : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
+    ? "glass-panel scroll-pane relative w-full rounded-b-none p-7 pb-[max(1.75rem,var(--safe-bottom))] max-md:flex max-md:h-full max-md:max-h-full max-md:flex-col max-md:rounded-none max-md:pb-0 max-md:pt-0 md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
+    : fullOnPhone
+      ? "glass-panel scroll-pane relative w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] max-md:flex max-md:h-full max-md:max-h-full max-md:flex-col max-md:rounded-none max-md:px-5 max-md:pb-0 max-md:pt-0 md:max-h-[90dvh] md:max-w-[560px] md:rounded-b-[28px]"
+      : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] md:max-w-[560px] md:rounded-b-[28px]";
+  // The sticky head on phones in a full-height sheet: the panel's own glass behind it, reaching to its sides.
+  const stickyHead = full && (wide ? "max-md:-mx-7 max-md:px-7" : "max-md:-mx-5 max-md:px-5");
 
   const content = lead || large ? (
     <>
@@ -114,6 +169,7 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
     </>
   ) : (
     <>
+      <div className={cn(full && cn("max-md:sticky max-md:top-0 max-md:z-10 max-md:shrink-0 max-md:bg-(--glass-solid) max-md:pt-3", stickyHead))}>
       <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line md:hidden" />
       <div className={cn("flex items-center justify-between gap-4", !subtitle && "mb-4")}>
         <div className="flex min-w-0 items-center gap-1">
@@ -130,8 +186,12 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
           <X className={iconSize} />
         </IconButton>
       </div>
+      </div>
       {subtitle && <p className="mb-6 mt-1 text-body text-muted">{subtitle}</p>}
-      <div data-sheet-body>{children}</div>
+      {/* Full height on phones: the body takes the rest of the sheet, so a form inside can put its foot at the bottom (mt-auto). */}
+      <div data-sheet-body className={cn(full && "max-md:flex max-md:flex-[1_0_auto] max-md:flex-col")}>
+        {children}
+      </div>
     </>
   );
 
@@ -147,14 +207,19 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   // Into <body>: a sheet opened from inside a card (backdrop-filter, transform) would otherwise be fixed to that card – cut off,
   // with the page's scrolling locked behind it.
   return createPortal(
-    <div className="fixed inset-0 z-[75] flex items-end justify-center md:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div
+      className={cn("fixed inset-0 z-[75] flex items-end justify-center md:items-center", full && "max-md:bottom-auto max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh)")}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       <button
         type="button"
         aria-label={t("close")}
         onClick={onClose}
         className="modal-backdrop absolute inset-0"
       />
-      <div className={cn("animate-sheet-in", panelClass)}>{content}</div>
+      <div data-dialog-panel className={cn("animate-sheet-in", panelClass)}>{content}</div>
     </div>,
     document.body,
   );

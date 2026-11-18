@@ -1162,8 +1162,9 @@ main:has([data-app-pane="always"]) {
  * admin's 16px), so nothing is cut at the left. The fade only on the right and only while there's more (data-more-end) – the one mask
  * allowed at an edge, because it marks content, not the page.
  */
-/* A sheet from the bottom is up (ui/MobileSheet): the tab bar steps back – it would show through the sheet's glass otherwise. */
-html[data-sheet-open] [data-tab-bar] {
+/* A sheet from the bottom (ui/MobileSheet) or a dialog (ui/Sheet) is up: the tab bar steps back – it would show through the sheet's glass otherwise. */
+html[data-sheet-open] [data-tab-bar],
+html[data-dialog-open] [data-tab-bar] {
   opacity: 0;
   pointer-events: none;
 }
