@@ -401,7 +401,7 @@ function EditProfileForm({ me }: { me: User }) {
         </div>
       </div>
       {/* Phones: the list alone; the preview behind a fixed button at the bottom. */}
-      <div className="fixed inset-x-4 bottom-4 z-30 flex justify-center lg:hidden">
+      <div className="fixed inset-x-(--page-margin) bottom-[calc(var(--bottom-clear)+1rem)] z-30 flex justify-center lg:hidden">
         <Button variant="secondary" onClick={() => setPreviewOpen(true)} className="shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
           <Eye />
           {t("previewButton")}

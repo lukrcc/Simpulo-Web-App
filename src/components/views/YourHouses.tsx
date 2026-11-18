@@ -59,6 +59,7 @@ import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUse
 import type { JoinRequest, Stay } from "@/lib/types";
 import { cn, housePhotos, openSpots } from "@/lib/utils";
 import { waitlistPosition } from "@/lib/waitlist";
+import { MEDIA } from "@/config/breakpoints";
 
 /**
  * /your-houses – everything you're part of, as calm as Explore. On top "Up next": the House that starts next (hosted or joined) as one
@@ -177,9 +178,9 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
   const cols = useGridColumns(columnProbe) || 4;
   // Your own Houses' rows: 5 a row from 1440px, 4 from 1100, 3 from 768, else 2 (globals.css --my-cols) – for "See all".
-  const xlUp = useMediaQuery("(min-width: 90rem)");
-  const lgUp = useMediaQuery("(min-width: 68.75rem)");
-  const smUp = useMediaQuery("(min-width: 48rem)");
+  const xlUp = useMediaQuery(MEDIA.wide);
+  const lgUp = useMediaQuery(MEDIA.desktop);
+  const smUp = useMediaQuery(MEDIA.tabletUp);
   const myCols = xlUp ? 5 : lgUp ? 4 : smUp ? 3 : 2;
   const probe = <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />;
   // Saved: the Houses you hearted (the avatar menu is gone – this row is where they live), as Explore's cards; "See all" → /saved.
@@ -543,7 +544,7 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
   if (!stay) {
     return (
       <div className="absolute inset-0">
-        {UP_NEXT_EMPTY_IMAGE && <Img src={UP_NEXT_EMPTY_IMAGE} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" className="object-cover" />}
+        {UP_NEXT_EMPTY_IMAGE && <Img src={UP_NEXT_EMPTY_IMAGE} alt="" fill sizes={`${MEDIA.desktop} 640px, 100vw`} className="object-cover" />}
         <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
         <div className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 text-on-image sm:p-8", cardTextShadow)}>
           <p className="text-h2">{td("nothingPlanned")}</p>
@@ -570,7 +571,7 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
   void request;
   return (
     <Link href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)} aria-label={stay.title} className="group absolute inset-0 block">
-      {photo && <Img src={photo} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.02]" />}
+      {photo && <Img src={photo} alt="" fill sizes={`${MEDIA.desktop} 640px, 100vw`} className="object-cover transition-transform duration-500 group-hover:scale-[1.02]" />}
       <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
       <span className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-2 p-6 text-on-image sm:p-8", cardTextShadow)}>
         <span className="on-image self-start rounded-full px-3 py-1.5 text-eyebrow uppercase text-on-image [text-shadow:none]">{capsule}</span>
@@ -646,7 +647,7 @@ function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }:
   const colsRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   // Only from 1100px the card has its fixed height (--hero-h): there the columns are measured; below, three entries each.
-  const fixed = useMediaQuery("(min-width: 68.75rem)");
+  const fixed = useMediaQuery(MEDIA.desktop);
   const total = entries.length;
   const groups = shownGroups.map((group) => ({ group, items: entries.filter((e) => TODO_GROUP[e.kind] === group).toSorted(byDeadline) }));
 
@@ -777,7 +778,7 @@ function NeedsRow({ entry, now }: { entry: TodoEntry; now: string }) {
           )}
         </span>
       </span>
-      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/50 opacity-0 transition-opacity duration-150 group-hover:opacity-100 pointer-coarse:opacity-100" />
     </>
   );
   const row = "group -mx-2 flex h-16 w-[calc(100%+16px)] items-center gap-3 rounded-xl px-2 text-left transition-colors duration-150 hover:bg-ink/6";

@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   async redirects() {
     return [
+      // The password page of the preview gate and the demo is /preview (old demo links keep working, with ?next=).
+      { source: "/demo-login", destination: "/preview", permanent: false },
       // Getting the app: /get.
       { source: "/install", destination: "/get", permanent: false },
       // How it works is gone: the FAQ explains Simpulo (the query, e.g. ?role=host, goes along).

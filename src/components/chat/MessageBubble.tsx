@@ -206,11 +206,11 @@ export function MessageBubble(props: MessageBubbleProps) {
             <FileRow key={file.url} file={file} mine={mine} />
           ))}
         </div>
-        {/* The time: under a run's last message; any other message shows its time on hover, beside the bubble. */}
+        {/* The time: under a run's last message; any other message shows its time on hover (touch: while its actions are open – long press), beside the bubble. */}
         {props.last ? (
           <span className={cn("mt-1 px-1", reactions.length > 0 && "order-last")}>{timeStamp()}</span>
         ) : (
-          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
+          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", active && "opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
             {time}
           </span>
         )}

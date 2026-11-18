@@ -87,7 +87,7 @@ function DevSwitcherInner() {
   return (
     // Bottom left, away from toasts, the floating join bar and the sheets on the right; opens upward. Phones: above the tab bar. In the
     // admin bottom right – the side list fills the left edge, and the knob must never cover it.
-    <div data-print-hide className={cn("fixed bottom-[calc(var(--safe-bottom)+96px)] z-50 flex flex-col gap-2 md:bottom-4", pathname.startsWith("/admin") ? "right-4 items-end" : "left-4 items-start")}>
+    <div data-print-hide className={cn("fixed bottom-[calc(var(--bottom-clear)+16px)] z-50 flex flex-col gap-2 md:bottom-4", pathname.startsWith("/admin") ? "right-4 items-end" : "left-4 items-start")}>
       {open && (
         <>
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />

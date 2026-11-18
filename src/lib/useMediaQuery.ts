@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { MEDIA } from "@/config/breakpoints";
 
 /** Whether a media query matches – false on the server and during hydration, then the real value (live). */
 export function useMediaQuery(query: string): boolean {
@@ -16,4 +17,4 @@ export function useMediaQuery(query: string): boolean {
 }
 
 /** Tailwind's md breakpoint – where the site header (SiteHeader) takes over from the mobile chrome. */
-export const MD_QUERY = "(min-width: 768px)";
+export const MD_QUERY = MEDIA.tabletUp;

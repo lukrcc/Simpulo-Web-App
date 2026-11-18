@@ -1,6 +1,7 @@
 // Technical SEO helpers: the public base URL, per-page metadata (canonical, Open Graph, Twitter) and JSON-LD.
 // Server-safe – no client imports.
 import type { Metadata } from "next";
+import { previewGateOn } from "@/config/preview";
 import { APP_MODE } from "./appMode";
 
 const DEFAULT_SITE_URL = "https://simpulo.app";
@@ -21,9 +22,9 @@ export function absoluteUrl(path: string): string {
   return new URL(path, SITE_URL).toString();
 }
 
-/** The demo, or a gated test deployment (SITE_PASSWORD set): nothing gets indexed. The password is runtime-only – read it per request. */
+/** The demo, or the preview gate is on (config/preview.ts): nothing gets indexed. The password is runtime-only – read it per request. */
 export function siteIsGated(): boolean {
-  return APP_MODE === "demo" || Boolean(process.env.SITE_PASSWORD);
+  return APP_MODE === "demo" || previewGateOn();
 }
 
 interface PageMetadataInput {

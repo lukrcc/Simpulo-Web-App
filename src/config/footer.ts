@@ -11,9 +11,9 @@ export type FooterVariant = "large" | "slim" | "none";
 
 const LARGE_EXACT = ["/", "/explore", "/host"];
 const LARGE_PREFIXES = ["/co-living/", "/collections/"];
-/** Flows have no footer: Open a House, the welcome / onboarding step, login (the demo's password page). Requests and payments are windows
+/** Flows have no footer: Open a House, the welcome / onboarding step, the password page (/preview, preview gate and demo). Requests and payments are windows
  *  over their page (no page of their own). */
-const NONE_EXACT = ["/create", "/welcome", "/demo-login"];
+const NONE_EXACT = ["/create", "/welcome", "/preview"];
 const NONE_PREFIXES = ["/messages", "/admin"];
 
 export function footerOf(pathname: string, search?: URLSearchParams | null): FooterVariant {

@@ -266,7 +266,7 @@ export function MonthField({ value, onChange, size, className }: { value: string
 }
 
 /** Mounted only while open: it reads today's date. */
-function MonthOptions({ value, onPick }: { value: string | null; onPick: (month: string | null) => void }) {
+export function MonthOptions({ value, onPick }: { value: string | null; onPick: (month: string | null) => void }) {
   const t = useTranslations("explore.search");
   const monthName = useMonthName();
   const format = useFormatter();

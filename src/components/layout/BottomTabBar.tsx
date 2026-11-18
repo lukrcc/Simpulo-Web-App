@@ -1,122 +1,119 @@
 "use client";
 
-import { useEffect } from "react";
-import { LogIn } from "lucide-react";
+import { LogIn, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
-import { OpenHousePlus, openHouseClass } from "@/components/ui/OpenHouseButton";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
-import { useStore } from "@/lib/store";
+import { Avatar } from "@/components/ui/Avatar";
+import { MobileSheet } from "@/components/ui/MobileSheet";
+import { getCurrentUser, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { useHideOnScroll, useMobileChrome } from "./mobileChrome";
-import { hidesTabBar, isNavActive, navItemsFor } from "./nav";
+import { AccountMenuList } from "./header/AvatarMenu";
+import { hidesTabBar, isNavActive, NAV_ITEMS, type NavItem } from "./nav";
+
+const item = (href: NavItem["href"]) => NAV_ITEMS.find((i) => i.href === href)!;
+
+/** One cell: the icon over its word (13px), centred; active white (semibold), the others white 60 %. */
+const CELL = "flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-150";
 
 /**
- * Mobile tab bar (< md). Must be rendered inside a Suspense boundary (uses usePathname).
- * - Installed app ("pill"): floating glass pill, 64px, 12px above the bottom edge.
- * - Logged in in the browser ("docked"): full-width bar on the bottom edge, 56px + safe area; hides on scroll down.
- * - Logged out in the browser ("header"): none – MobileHeader carries Log in and "+".
+ * Phones' tab bar (< md) – ONE behaviour in Safari and in the installed app (CLAUDE.md "Mobile"): docked to the bottom edge over the full
+ * width, 56px + the bottom safe area (over Safari's toolbar, over the home indicator), the header's dark glass (graphite 88 %), entries spread
+ * evenly. Logged out: Explore · Saved · Log in. Logged in: Explore · Houses · + (Open a House, in the middle, a little set apart – white 16 %,
+ * never orange) · Messages (a small orange dot for unread chats, like the desktop) · Profile (the avatar; opens the account menu as a sheet
+ * from the bottom). It stays put while scrolling. Not on focus flows or an open chat (nav.ts hidesTabBar). Render inside Suspense.
  */
 export function BottomTabBar() {
   const pathname = usePathname();
-  const mode = useMobileChrome();
-  const loggedIn = useStore().currentUserId !== null;
+  const store = useStore();
+  const me = getCurrentUser(store);
   const requireAuth = useRequireAuth();
   const t = useTranslations("nav");
-  const hiddenRoute = hidesTabBar(pathname);
-  const docked = mode === "docked";
-  const scrolledAway = useHideOnScroll(pathname, docked && !hiddenRoute);
-  const unreadIn = useMessagesUnread();
-  // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
-  const unread = unreadIn.chats;
-  // What floats at the bottom of a page (the House's join bar) keeps clear of the bar: data-tabbar on <html> → --tabbar-clear (globals.css).
-  const shown = hiddenRoute || mode === "header" ? "none" : mode;
+  const unread = useMessagesUnread().chats;
+  const [account, setAccount] = useState(false);
+  const hidden = hidesTabBar(pathname);
+  // What the bar covers (--tabbar-clear, globals.css): phones count it by default; a route without the bar says "none".
   useEffect(() => {
-    document.documentElement.dataset.tabbar = shown;
+    if (!hidden) return;
+    document.documentElement.dataset.tabbar = "none";
     return () => {
       delete document.documentElement.dataset.tabbar;
     };
-  }, [shown]);
-  if (hiddenRoute || mode === "header") return null;
+  }, [hidden]);
+  if (hidden) return null;
 
-  // Logged out (pill only): Explore · How it works · Log in. Logged in: Explore · Houses · Messages · Profile.
-  const items = navItemsFor(loggedIn);
-
+  const tab = (href: NavItem["href"], label: string, extra?: ReactNode) => {
+    const active = isNavActive(href, pathname);
+    const Icon = item(href).icon;
+    return (
+      <li key={href} className="flex-1">
+        <Link href={href} aria-current={active ? "page" : undefined} aria-label={extra ? t("itemUnread", { label, count: unread }) : undefined} className={cn(CELL, active ? "font-semibold text-ink" : "font-medium text-ink/60")}>
+          <span className="relative">
+            <Icon aria-hidden className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+            {extra}
+          </span>
+          {label}
+        </Link>
+      </li>
+    );
+  };
   return (
     <>
-      {/* "Open a House" on mobile: round button above the bar (pill: 64px + 12px + 12px gap; docked: 56px + 16px).
-          The docked variant slides away together with the bar. */}
-      {/* Not on a House page: there its join bar is the screen's one main action (and would sit under the round button). */}
-      {pathname !== "/create" && !pathname.startsWith("/h/") && !pathname.startsWith("/house/") && (
-        <Link
-          href="/create"
-          aria-label={t("openHouse")}
-          inert={scrolledAway}
-          className={cn(
-            openHouseClass,
-            "open-house-btn--round fixed right-4 z-40 md:hidden",
-            docked ? "bottom-[calc(72px+var(--safe-bottom))]" : "bottom-[calc(88px+var(--safe-bottom))]",
-            scrolledAway && "translate-y-[calc(100%+72px+var(--safe-bottom))]",
-          )}
-        >
-          <OpenHousePlus />
-        </Link>
-      )}
-
-      <nav
-        inert={scrolledAway}
-        className={cn(
-          "fixed z-40 md:hidden",
-          docked
-            ? "inset-x-0 bottom-0 h-[calc(56px+var(--safe-bottom))] bg-surface/90 pb-[var(--safe-bottom)] backdrop-blur transition-transform duration-200 motion-reduce:transition-none"
-            : "glass inset-x-4 bottom-[calc(12px+var(--safe-bottom))] h-16 rounded-full",
-          scrolledAway && "translate-y-full",
-        )}
-      >
-        <ul className={cn("grid h-full", loggedIn ? "grid-cols-5" : "grid-cols-4")}>
-          {items.map(({ href, labelKey, icon: Icon }) => {
-            const active = isNavActive(href, pathname);
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex h-full flex-col items-center justify-center text-small font-medium transition-colors",
-                    active ? "text-ink" : "text-muted",
-                  )}
-                >
-                  <span className="relative">
-                    <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
-                    {labelKey === "messages" && unread > 0 && <span aria-hidden className="absolute -right-1 -top-0.5 size-2 rounded-full border-2 border-surface bg-accent" />}
-                  </span>
-                  {/* Active marker: a 6px ink dot under the icon (space kept for inactive tabs). */}
-                  <span
-                    className={cn("size-1.5 rounded-full", docked ? "my-0.5" : "my-1", active ? "bg-ink" : "bg-transparent")}
-                    aria-hidden
-                  />
-                  {t(`items.${labelKey}`)}
+      <nav aria-label={t("compactLabel")} data-site-header data-tab-bar className="header-glass fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom) md:hidden">
+        <ul className="flex h-14 items-stretch px-1">
+          {tab("/", t("items.explore"))}
+          {me ? (
+            <>
+              {tab("/your-houses", t("items.houses"))}
+              <li className="flex flex-1 items-center justify-center">
+                {/* Open a House: in the middle, a little set apart (the capsule's white 16 %), never orange. */}
+                <Link href="/create" aria-label={t("openHouse")} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink transition-colors duration-150 active:bg-(--header-pill-hover)">
+                  <Plus aria-hidden className="size-6" strokeWidth={2.25} />
                 </Link>
               </li>
-            );
-          })}
-          {!loggedIn && (
-            <li>
-              <button
-                type="button"
-                onClick={() => requireAuth()}
-                className="flex h-full w-full flex-col items-center justify-center text-small font-medium text-muted"
-              >
-                <LogIn className="size-[22px]" strokeWidth={1.75} />
-                <span className="my-1 size-1.5" aria-hidden />
-                {t("logIn")}
-              </button>
-            </li>
+              {tab(
+                "/messages",
+                t("items.messages"),
+                unread > 0 ? <span aria-hidden data-unread-dot className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-(--brand-action)" /> : undefined,
+              )}
+              <li className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => setAccount(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={account}
+                  className={cn(CELL, account || isNavActive("/profile", pathname) || pathname === "/me" ? "font-semibold text-ink" : "font-medium text-ink/60")}
+                >
+                  <span className={cn("flex size-[24px] overflow-hidden rounded-full transition-shadow", (account || isNavActive("/profile", pathname)) && "ring-2 ring-ink")}>
+                    <Avatar user={me} size="xs" className="max-w-none" />
+                  </span>
+                  {t("items.profile")}
+                </button>
+              </li>
+            </>
+          ) : (
+            <>
+              {tab("/saved", t("items.saved"))}
+              <li className="flex-1">
+                <button type="button" onClick={() => requireAuth()} className={cn(CELL, "font-medium text-ink/60")}>
+                  <LogIn aria-hidden className="size-[22px]" strokeWidth={1.75} />
+                  {t("logIn")}
+                </button>
+              </li>
+            </>
           )}
         </ul>
       </nav>
+      {me && (
+        <MobileSheet open={account} onClose={() => setAccount(false)} label={t("menu.label")} className="px-3">
+          <div role="menu" aria-label={t("menu.label")} className="pb-3 pt-1">
+            <AccountMenuList onDone={() => setAccount(false)} rowClassName="h-12" />
+          </div>
+        </MobileSheet>
+      )}
     </>
   );
 }

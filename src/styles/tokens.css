@@ -340,6 +340,38 @@ body:has(.admin-scope) {
     animation: none;
   }
 }
+/* Phones: the same glass as a sheet from the bottom (ui/MobileSheet: Where to next?, the account menu) – top corners round, it slides up. */
+.bar-sheet.mobile-sheet {
+  border-radius: 24px 24px 0 0;
+  animation: mobile-sheet-in 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.bar-sheet.mobile-sheet[data-closing] {
+  animation: mobile-sheet-out 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes mobile-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes mobile-sheet-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-sheet.mobile-sheet {
+    animation: bar-sheet-fade-in 160ms ease-out both;
+  }
+  .bar-sheet.mobile-sheet[data-closing] {
+    animation: bar-sheet-fade-out 160ms ease-in both;
+  }
+}
 /* A menu opened from inside a sheet (the dropdowns of All filters, the sort): the same dark glass, round, 12px inside. */
 .bar-menu {
   background-color: var(--header-bg);

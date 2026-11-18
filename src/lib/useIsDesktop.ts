@@ -1,9 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { MEDIA } from "@/config/breakpoints";
 
-/** The split breakpoint (globals.css) – where Houses and Messages switch to master–detail. */
-const query = "(min-width: 1100px)";
+/** Desktop (≥ 1100px, config/breakpoints.ts = split in globals.css) – where Houses and Messages switch to master–detail. */
+const query = MEDIA.desktop;
 
 function subscribe(onChange: () => void) {
   const media = window.matchMedia(query);

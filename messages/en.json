@@ -235,7 +235,8 @@
       "messages": "Messages",
       "profile": "Profile",
       "host": "Host",
-      "yourHouses": "Your houses"
+      "yourHouses": "Your houses",
+      "saved": "Saved"
     },
     "logIn": "Log in",
     "openHouse": "Open a House",
@@ -4289,12 +4290,6 @@
     }
   },
   "demo": {
-    "login": {
-      "text": "This is a private preview of Simpulo.",
-      "password": "Password",
-      "wrong": "That's not the password.",
-      "enter": "Enter"
-    },
     "band": {
       "text": "Preview – houses and people are examples.",
       "link": "Open your real House"
@@ -4461,6 +4456,11 @@
       "balanced": "Balanced",
       "deep": "Deep"
     }
+  },
+  "preview": {
+    "text": "This is a private preview of Simpulo.",
+    "password": "Password",
+    "wrong": "Wrong password",
+    "enter": "Enter"
   }
 }
-

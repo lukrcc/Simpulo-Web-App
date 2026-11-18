@@ -36,6 +36,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { placeImageOf } from "@/config/place-images";
 import { cityPlaceIdOf } from "@/lib/data/places";
 import { HowPicked } from "./HouseSections";
+import { MEDIA } from "@/config/breakpoints";
 
 interface HouseHeroProps {
   stay: Stay;
@@ -93,7 +94,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const city = stay.location.city || stay.city || stay.region.split(",")[0];
   const placeShort = stay.location.area ? `${stay.location.area}, ${city}` : city;
   const strip = (
-    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-(--tabbar-clear) max-md:z-30 max-md:px-4 max-md:py-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
+    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-(--tabbar-clear) max-md:z-30 max-md:px-(--page-margin) max-md:py-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
       {/* Left: the price in the strip's number size (--stage-bar-num), under it small the currency and the way in ("Free to request · …").
           Right: the actions – Request to join · Request with a friend · "Message {host}". */}
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -369,7 +370,7 @@ function HostTile({ host, stay }: { host: User; stay: Stay }) {
     >
       {photo && (
         <>
-          <Img src={photo} alt="" fill sizes="(min-width: 1100px) 360px, 100vw" className="object-cover object-[center_22%]" />
+          <Img src={photo} alt="" fill sizes={`${MEDIA.desktop} 360px, 100vw`} className="object-cover object-[center_22%]" />
           <span aria-hidden className="tile-photo-shade absolute inset-0" />
         </>
       )}
@@ -509,7 +510,7 @@ function PlaceTile({ stay, host }: { stay: Stay; host?: User }) {
     <>
       {photo ? (
         <>
-          <Img src={photo} alt="" fill sizes="(min-width: 1100px) 360px, 100vw" className="object-cover" />
+          <Img src={photo} alt="" fill sizes={`${MEDIA.desktop} 360px, 100vw`} className="object-cover" />
           <span aria-hidden className="tile-photo-shade absolute inset-0" />
         </>
       ) : (

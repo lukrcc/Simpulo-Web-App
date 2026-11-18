@@ -5,13 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
-import { enterDemo } from "./actions";
+import { enterPreview } from "./actions";
 
-export function DemoLoginForm() {
-  const t = useTranslations("demo.login");
+export function PreviewForm() {
+  const t = useTranslations("preview");
   const next = useSearchParams().get("next") ?? "/";
-  const [state, action, pending] = useActionState(enterDemo, { failed: false });
-  // A full page load: the router would keep this page hidden in the document, and its chrome-hiding rule with it (globals.css).
+  const [state, action, pending] = useActionState(enterPreview, { failed: false });
+  // A full page load: the proxy sees the new cookie, and the router doesn't keep this page (and its chrome-hiding rule) in the document.
   useEffect(() => {
     if (state.target) window.location.assign(state.target);
   }, [state.target]);

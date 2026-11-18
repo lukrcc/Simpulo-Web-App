@@ -2,7 +2,7 @@
 @import "../styles/tokens.css";
 @import "../styles/admin-tokens.css";
 
-/* One screen without scrolling (the profile): wide enough for the desktop layout (1100px) and at least 760px high; below either, it scrolls. */
+/* One screen without scrolling (the profile): wide enough for Desktop (1100px, = split) and at least 760px high; below either, it scrolls. */
 @custom-variant fit (@media (min-width: 68.75rem) and (min-height: 47.5rem));
 
 /*
@@ -143,10 +143,15 @@
  * Only for the site header and the filter bar (their fixed sizes): logo 22/700 · nav 14/500 (nav and chips).
  */
 @theme {
-  /* Where the page's multi-column areas go to one column; where the header's nav is at full size; from where it shows its words. */
-  --breakpoint-split: 68.75rem;
-  --breakpoint-nav: 75rem;
-  --breakpoint-nav-text: 64rem; /* header tabs: from 1024px text only, below icons only (word as tooltip) */
+  /* The screen classes (CLAUDE.md "Mobile"; the same values for JS in src/config/breakpoints.ts – change both together):
+       Phone < 768 (max-md:) · Tablet 768–1099 (md: … max-split:) · Desktop ≥ 1100 (split:).
+     Tailwind makes max-* of every breakpoint itself: max-split: = below 1100px (never max-[1099px]:). */
+  --breakpoint-md: 48rem; /* 768px: Phone ends, Tablet starts (the Tailwind default, written out to have it here) */
+  --breakpoint-lg: 64rem; /* 1024px (Tailwind default) */
+  --breakpoint-split: 68.75rem; /* 1100px: Desktop – multi-column areas side by side, the stage, master–detail */
+  --breakpoint-nav: 75rem; /* 1200px: the header's nav at full size */
+  --breakpoint-nav-text: 64rem; /* 1024px: header tabs as words from here, icons below (word as tooltip) */
+  /* Plain @media rules below use the same values: 48rem, 64rem, 68.75rem, 90rem (1440px, the Explore grid's 4th column). */
   /* The admin overview: profit and shared nights 40px, the four areas 28px. */
   --text-adm-hero: 40px;
   --text-adm-hero--line-height: 1.05;
@@ -404,17 +409,23 @@
      under it, AppShell). */
   --band-h: var(--demo-band-h);
 }
-/* Phones - how much the bottom tab bar covers (data-tabbar on <html>, BottomTabBar) – floating bars sit above it. */
+/* Phones – how much the bottom tab bar covers (56px + the bottom safe area, BottomTabBar): floating bars sit above it, and every page ends above it.
+   It counts by default (also in the server HTML); a route without the bar sets html[data-tabbar="none"]. */
 :root {
   --tabbar-clear: 0px;
 }
-@media (max-width: 767px) {
-  html[data-tabbar="pill"] {
-    --tabbar-clear: calc(76px + var(--safe-bottom));
-  }
-  html[data-tabbar="docked"] {
+@media (max-width: 767.98px) {
+  :root {
     --tabbar-clear: calc(56px + var(--safe-bottom));
   }
+  html[data-tabbar="none"] {
+    --tabbar-clear: 0px;
+  }
+}
+/* What covers the bottom edge: the tab bar (phones) or otherwise the safe area – anything fixed at the bottom (toasts, the Dev button, sticky
+   save bars) sits above this. */
+:root {
+  --bottom-clear: max(var(--safe-bottom), var(--tabbar-clear));
 }
 html.sim-standalone {
   --safe-top: 47px;
@@ -456,12 +467,12 @@ html.sim-standalone {
 }
 
 /*
- * Responsive: the one container and the fluid spaces. Below md the phone's 16px until Mobile gets its own round.
+ * Responsive: the one container and the fluid spaces. --page-margin: clamp(20px, 3vw, 48px) on every screen class (Phone 20px).
  * The Spotlight: the centre card's size follows the window's height, the width its 3:4. --spot-top: its top edge in the window,
  * as low as still leaves 32px under it (the text goes in the space that makes above the side cards), at most 280px.
  */
 :root {
-  --page-margin: 16px;
+  --page-margin: clamp(20px, 3vw, 48px);
   --space-section: clamp(56px, 6vw, 96px);
   --space-inner: clamp(20px, 2vw, 32px);
   /* The header's one bar (64px). */
@@ -541,11 +552,6 @@ html.sim-standalone {
   :root {
     --my-cols: 5;
     --explore-cols: 4;
-  }
-}
-@media (min-width: 48rem) {
-  :root {
-    --page-margin: clamp(20px, 3vw, 48px);
   }
 }
 @layer base {
@@ -1102,6 +1108,20 @@ main:has([data-app-pane="always"]) {
   }
 }
 
+/*
+ * Touch, the other two rules (CLAUDE.md "Mobile"):
+ * - Fields at least 16px, or iOS zooms in on focus. Unlayered, so it wins over a field's own text token (text-body 15px) on touch only.
+ * - Nothing only on hover: what appears on hover shows on touch all the time (pointer-coarse:opacity-100 at the element) or on a tap/long
+ *   press (the chat's actions and times). Tooltips repeat an aria-label, so they may stay hover-only.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"]),
+  textarea,
+  select {
+    font-size: var(--text-input); /* 16px, the input token */
+  }
+}
+
 /* Thin overlay-style scrollbar that only shows its thumb on hover – for the Houses/Messages columns. */
 @utility scroll-pane {
   /* Positioned, so absolutely placed children (sr-only text, hidden file inputs) stay inside the pane
@@ -1560,15 +1580,15 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 }
 
-/* The demo: its band, and the login page on its own. */
+/* The demo: its band. The password page of the preview gate and the demo (/preview) on its own. */
 :root[data-app-mode="demo"] {
   --demo-band-h: 28px;
 }
-body:has([data-demo-login]) :is(header, footer, [data-demo-band]),
-body:has([data-demo-login]) .fixed.md\:hidden {
+body:has([data-preview-gate]) :is(header, footer, [data-demo-band]),
+body:has([data-preview-gate]) .fixed.md\:hidden {
   display: none;
 }
-main:has([data-demo-login]) {
+main:has([data-preview-gate]) {
   padding: 0;
 }
 

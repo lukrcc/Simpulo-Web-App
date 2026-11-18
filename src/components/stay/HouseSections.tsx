@@ -27,6 +27,7 @@ import { previewForUrl } from "@/lib/data";
 import { platformOf } from "@/lib/platforms";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { ListingInfo } from "./AccommodationTile";
+import { MEDIA } from "@/config/breakpoints";
 
 /**
  * A typical day's time, short: no leading zero; a range of whole hours without ":00" – "07:00–11:00" → "7–11", "11:30" stays, "07:00" → "7:00",
@@ -335,7 +336,7 @@ export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
     <section aria-labelledby="house-where" className={cn(ROW, "grid items-end gap-8 split:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] split:gap-12")}>
       {photo ? (
         <div className="relative h-90 overflow-hidden rounded-[24px] bg-band">
-          <Img src={photo} alt={tWhere("photoAlt", { area })} fill sizes="(min-width: 1100px) 900px, 100vw" className="object-cover" />
+          <Img src={photo} alt={tWhere("photoAlt", { area })} fill sizes={`${MEDIA.desktop} 900px, 100vw`} className="object-cover" />
           <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(to_top,rgba(20,16,14,0.65),transparent)]" />
           <div className="absolute bottom-6 left-6 right-6 text-on-image [text-shadow:0_1px_2px_rgba(0,0,0,0.25)]">
             <h2 id="house-where" className="text-h2">{tWhere("around", { area })}</h2>
@@ -509,7 +510,7 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
  */
 export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode; /** Instead of the price: a member's current step */ line?: string }) {
   // Phones: always there (the head's actions scroll away at once); from md once the head's actions have left the window.
-  const phone = useMediaQuery("(max-width: 47.99rem)");
+  const phone = useMediaQuery(MEDIA.phone);
   const price = useViewerPriceLabel(stay);
   const [cardGone, setCardGone] = useState(false);
   const [atFooter, setAtFooter] = useState(false);

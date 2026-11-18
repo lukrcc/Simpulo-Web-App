@@ -14,6 +14,7 @@ import { crewThreadId } from "@/lib/links";
 import { platformOf, type Platform } from "@/lib/platforms";
 import type { Stay } from "@/lib/types";
 import { cn, stayNights } from "@/lib/utils";
+import { MEDIA } from "@/config/breakpoints";
 
 /**
  * The listing's preview. Real links: the server's Open Graph read (/api/link-preview, cached). Mock data: the mock preview, which
@@ -96,7 +97,7 @@ function ListingTile({ stay, link }: { stay: Stay; link: string }) {
     <a href={link} target="_blank" rel="noopener noreferrer" className={cn(TILE, "group card-soft transition-transform duration-150 hover:-translate-y-0.5")}>
       <span className="relative block min-h-28 flex-1 overflow-hidden">
         {image ? (
-          <Img src={image} alt="" fill sizes="(min-width: 1100px) 300px, 50vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+          <Img src={image} alt="" fill sizes={`${MEDIA.desktop} 300px, 50vw`} className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
         ) : (
           // No picture anywhere: the platform's colour, its mark large, the title on it.
           <span className="absolute inset-0 flex flex-col justify-between p-4 text-on-image" style={{ background: platform.color }}>

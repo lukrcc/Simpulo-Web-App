@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { MEDIA } from "@/config/breakpoints";
 
 /*
  * The filter row in the page – only on city, vibe and collection pages (Where · When + Short trips | the categories that fit, "More ▾" |
@@ -17,7 +18,7 @@ export function scrollUnderHeader(el: HTMLElement | null) {
   const px = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // From md the header's one bar (the quick search in it): 24px under it. Phones: under the page's own chip row.
-  const md = window.matchMedia("(min-width: 48rem)").matches;
+  const md = window.matchMedia(MEDIA.tabletUp).matches;
   const offset = md ? px("--header-h") + px("--band-h") + 24 : px("--header-total") + px("--filter-row-h");
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduce ? "auto" : "smooth" });
 }

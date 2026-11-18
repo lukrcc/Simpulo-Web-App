@@ -7,6 +7,7 @@ import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { stageTintStyle } from "@/lib/stageTint";
 import { cn } from "@/lib/utils";
+import { MEDIA } from "@/config/breakpoints";
 
 /**
  * The main object of a page (a person, a House) as a full-width band (CLAUDE.md "Vollbild-Band für das Hauptobjekt, Karten für Auswählbares"):
@@ -118,7 +119,7 @@ export function HeroPhotos({ photos, onOpen, eager = true, captions }: { photos:
             data-no-tooltip
             className="relative block h-full w-full shrink-0 snap-center snap-always outline-none"
           >
-            <Img src={src} alt="" fill sizes="(min-width: 1100px) 640px, 100vw" loading={eager && i === 0 ? "eager" : undefined} className="object-cover object-[center_30%]" />
+            <Img src={src} alt="" fill sizes={`${MEDIA.desktop} 640px, 100vw`} loading={eager && i === 0 ? "eager" : undefined} className="object-cover object-[center_30%]" />
             {captions?.[i] && (
               // The photo's line: bottom left over a soft shade of the photo (photo gradients are allowed), white, above the dots.
               <span className="absolute inset-x-0 bottom-0 flex h-28 items-end bg-linear-to-t from-shade/55 to-transparent px-5 pb-10 text-left">

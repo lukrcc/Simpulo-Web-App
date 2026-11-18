@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { GlassPanel } from "./GlassPanel";
 import { IconButton } from "./IconButton";
 import { useDialogBehaviour } from "./ModalOverlay";
+import { MEDIA } from "@/config/breakpoints";
 
 const DURATION_MS = 360;
 /** Dragged this far out, it closes: past 40 % of the way. */
@@ -48,7 +49,7 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
   const titleId = useId();
   const [mounted, setMounted] = useState(open);
   if (open && !mounted) setMounted(true);
-  const bottom = useMediaQuery("(pointer: coarse), (max-width: 47.99rem)");
+  const bottom = useMediaQuery(`(pointer: coarse), ${MEDIA.phone}`);
   const panelRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const motion = useRef({ p: 0, full: 0, startP: 1, startFull: 0, frame: 0, dragging: false });

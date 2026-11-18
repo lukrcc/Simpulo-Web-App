@@ -210,7 +210,7 @@ function Editable({ section, on, label, className, children }: { section: Profil
   return (
     <Link href={editHref(section)} aria-label={label} className={cn("group relative -m-2 block rounded-2xl p-2 transition-colors duration-150 hover:bg-ink/4", className)}>
       {children}
-      <Pencil aria-hidden className="absolute right-2 top-2 size-4 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100" />
+      <Pencil aria-hidden className="absolute right-2 top-2 size-4 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100" />
     </Link>
   );
 }

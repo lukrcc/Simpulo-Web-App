@@ -109,7 +109,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   );
   // The text tabs: 36px, padding 0 14px, 15px medium; the one you're on a filled capsule cream 12 % and semibold, hover cream 6 %.
   // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
-  const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150 max-[1099px]:size-10 max-[1099px]:px-0";
+  const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150 max-split:size-10 max-split:px-0";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
@@ -124,7 +124,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <HeaderSearch />
         )}
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
-        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-[1099px]:gap-2", explorePage ? "ml-4" : "ml-5")}>
+        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-split:gap-2", explorePage ? "ml-4" : "ml-5")}>
           {/* Explore: All filters | the right group – a 1px line cream 15 %, 24px high, 16px on each side. */}
           {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-[rgba(244,238,231,0.15)]" />}
           {navItemsFor(me !== undefined, "header").map((item) => {
@@ -149,15 +149,15 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                 }
                 className={cn(tab, current ? "bg-(--hdr-tab-active) font-semibold" : "bg-(--hdr-tab-bg) hover:bg-(--hdr-tab-hover)")}
               >
-                <span className="hidden max-[1099px]:contents">
+                <span className="hidden max-split:contents">
                   <NavIcon item={item} active={current} line />
                 </span>
-                <span className="max-[1099px]:hidden">{label}</span>
+                <span className="max-split:hidden">{label}</span>
                 {/* No numbers in the header. Messages only: unread chats show a 6px dot in --brand-action inside the capsule, 6px after the word
                     (the tab's 8px gap − 2px), centred on the text. Below 1100px (icons) the same dot inside the circle, top right of the icon.
                     Your houses shows nothing; both keep the count in their aria-label. */}
                 {count > 0 && item.labelKey === "messages" && (
-                  <span aria-hidden data-unread-dot className="-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action) max-[1099px]:absolute max-[1099px]:right-2 max-[1099px]:top-2 max-[1099px]:ml-0" />
+                  <span aria-hidden data-unread-dot className="-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action) max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" />
                 )}
               </Link>
             );
@@ -167,10 +167,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <Link
             href="/create"
             aria-label={canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}
-            className={cn(headerActionStyles, "ml-2 max-[1099px]:w-9 max-[1099px]:px-0")}
+            className={cn(headerActionStyles, "ml-2 max-split:w-9 max-split:px-0")}
           >
             <Plus aria-hidden strokeWidth={2.25} />
-            <span className="max-[1099px]:hidden">{canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}</span>
+            <span className="max-split:hidden">{canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}</span>
           </Link>
         </nav>
       </div>

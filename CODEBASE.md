@@ -26,7 +26,7 @@ Stand: 11. Nov 2026. Erstellt durch eine reine Lese-Analyse, ohne Änderungen am
 | Variable | Wirkung |
 |---|---|
 | `NEXT_PUBLIC_APP_MODE` | `dev`, `demo` oder `production` (`lib/appMode.ts`) |
-| `SITE_PASSWORD` | HTTP Basic Auth (Benutzer `simpulo`) für private Deployments. Ist sie gesetzt, gilt noindex. |
+| `SITE_PASSWORD` | Vorschau-Schutz: Passwortseite `/preview` mit signiertem Cookie (90 Tage), Schalter `config/preview.ts`. Aktiv: noindex. |
 | `DEMO_PASSWORD` | Demo-Login mit signiertem Cookie `simpulo_demo` |
 | `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_LINK_BASE_URL`, `NEXT_PUBLIC_PRODUCTION_URL` | Basis-URLs |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google-Karte auf der House-Seite |
@@ -418,7 +418,6 @@ einmal beim Import aus den Rohdaten gebaut)           initialState = buildInitia
 21. **CLAUDE.md weicht vom Code ab:**
     - nennt Szenarien „empty/growing/huge (600)“; im Code gibt es nur prelaunch/launch/full
     - nennt `stay/HouseCard.tsx`, die Datei gibt es nicht (gemeint: `stay/HouseGalleryCard.tsx`)
-    - nennt nur `DEMO_PASSWORD`; es gibt zusätzlich die Basic Auth über `SITE_PASSWORD`
     - `/collections`, `/claim`, `/welcome`, `/saved`, `/admin/growth|houses` fehlen
 22. **`docs/MVP-CHECKLIST.md` ist veraltet:** Sie nennt `/host`, `/how-it-works` und `/your-houses/hosting` als Routen, `/people` als Weiterleitung und `/notifications` → `/messages?tab=updates`.
 23. **Veraltete Kommentare:**

@@ -34,6 +34,7 @@ import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { MEDIA } from "@/config/breakpoints";
 
 /** The areas, in the side list's order; each is its URL hash (#payments), a page behind one is "#payments/history". */
 const SECTIONS = ["account", "payments", "notifications", "chats", "privacy", "general"] as const;
@@ -98,7 +99,7 @@ function useRoute(): { section: Section | null; subpage: Subpage | null } {
 function go(hash: string) {
   window.history.pushState(null, "", hash ? `#${hash}` : window.location.pathname + window.location.search);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
-  if (window.matchMedia("(max-width: 63.99rem)").matches) window.scrollTo(0, 0);
+  if (window.matchMedia(MEDIA.belowLg).matches) window.scrollTo(0, 0);
 }
 
 /** Every change is saved at once: this quiet confirmation at the bottom says so. */

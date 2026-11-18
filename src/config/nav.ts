@@ -1,5 +1,5 @@
 // The navigation's icons (Lucide): the phones' tab bar and the desktop header (its filled forms: header/FilledNavIcons.tsx).
-import { Compass, House, Lightbulb, Megaphone, MessageCircle, User, type LucideIcon } from "lucide-react";
+import { Compass, Heart, House, Lightbulb, Megaphone, MessageCircle, User, type LucideIcon } from "lucide-react";
 
 /** Keyed by the nav item's label key (src/components/layout/nav.ts). */
 export const NAV_ICONS = {
@@ -10,6 +10,7 @@ export const NAV_ICONS = {
   /** Phones' tab bar only – on desktop Profile is in the avatar menu */
   profile: User,
   // Logged out
+  saved: Heart,
   host: Megaphone,
   howItWorks: Lightbulb,
 } as const satisfies Record<string, LucideIcon>;

@@ -28,6 +28,7 @@ import { usePhotoDrag } from "@/lib/usePhotoDrag";
 import { useSnapCarousel } from "@/lib/useSnapCarousel";
 import { placeShortOf } from "@/lib/shortName";
 import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
+import { MEDIA } from "@/config/breakpoints";
 
 /**
  * The one House card of the app – Explore's card everywhere a House shows as a tile (Explore, shelves, Your houses, the profile,
@@ -215,7 +216,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 src={src}
                 alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={gallery ? "(min-width: 1100px) 600px, 520px" : spotlight ? "400px" : CARD_SIZES}
+                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "400px" : CARD_SIZES}
                 loading={spotlight || (gallery && i === 0) ? "eager" : undefined}
                 className="object-cover"
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
