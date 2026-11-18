@@ -208,7 +208,7 @@ const editHref = (section: ProfileSectionKey) => `/settings/profile?section=${se
 function Editable({ section, on, label, className, children }: { section: ProfileSectionKey; on: boolean; label: string; className?: string; children: ReactNode }) {
   if (!on) return <div className={className}>{children}</div>;
   return (
-    <Link href={editHref(section)} aria-label={label} className={cn("group relative -m-2 block rounded-2xl p-2 transition-colors duration-150 hover:bg-ink/4", className)}>
+    <Link href={editHref(section)} aria-label={label} className={cn("group relative -m-2 block rounded-2xl p-2 transition-colors duration-150 hover:bg-ink/4 pointer-coarse:pr-8", className)}>
       {children}
       <Pencil aria-hidden className="absolute right-2 top-2 size-4 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100" />
     </Link>
@@ -248,7 +248,10 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
           !preview && (isMe || houses.length > 0 || hasPlaces(store, view, user.id, today)) ? (
             <div className="flex h-full min-h-0 flex-col justify-between gap-8">
               {isMe || houses.length > 0 ? <HostingGoing user={user} isMe={isMe} houses={houses} today={today} /> : <span />}
-              <PlacesSection user={user} isMe={isMe} view={view} today={today} />
+              {/* Phones: Places stands under the strip instead (below). */}
+              <div className="max-md:hidden">
+                <PlacesSection user={user} isMe={isMe} view={view} today={today} />
+              </div>
             </div>
           ) : undefined
         }
@@ -256,6 +259,14 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
       >
         <IdentityStage user={user} isMe={isMe} previewing={previewing} view={view} houses={houses} hosted={hosted} viewerId={viewerId} today={today} preview={preview} hideAge={hideAge} />
       </HeroBand>
+      {/* Phone exception (CLAUDE.md "Mobile"): Your people and Places as their own sections under the strip and its buttons – on a phone the
+          stage is one long column; from 768px they stay on the stage. */}
+      {!preview && (
+        <div className="flex flex-col gap-8 px-(--page-margin) pb-10 pt-4 md:hidden">
+          <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
+          <PlacesSection user={user} isMe={isMe} view={view} today={today} />
+        </div>
+      )}
       {/* Everything is on the stage: after the strip only the slim footer, one --stage-peek of light below it (header + image + strip +
           peek = the window), so the footer comes only after scrolling. The strip is the last dark part: no further gap (--footer-gap 0). */}
       {!preview && <div aria-hidden data-last-tone="dark" className="hidden h-(--stage-peek) split:block" />}
@@ -356,7 +367,12 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
         </Editable>
       )}
       </div>
-      {!preview && <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />}
+      {/* Phones: Your people stands under the strip instead (ProfileBento). */}
+      {!preview && (
+        <div className="max-md:hidden">
+          <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
+        </div>
+      )}
       {shareable && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
     </div>
   );
@@ -366,6 +382,7 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
  * The vibe as one small line – only what's set, in the questions' order ("Night owl · Balanced · Active · Tidy"); a visitor sees what they
  * share in bold (the same answer on a question). Nothing set: no line (your own: "Add your vibe – 15 seconds").
  */
+// Phones: the vibe words come after the links (order-last) – name, short text, links, vibe.
 function VibeLine({ user, isMe, viewerId, preview, editable }: { user: User; isMe: boolean; viewerId: string | null; preview: boolean; editable: boolean }) {
   const tv = useTranslations("profile.view");
   const tVibe = useTranslations("profile.vibe");
@@ -374,7 +391,7 @@ function VibeLine({ user, isMe, viewerId, preview, editable }: { user: User; isM
   const mine = !isMe && viewerId ? findUser(store, viewerId)?.houseVibe : undefined;
   if (!vibe && !isMe && !preview) return null;
   return (
-    <Editable section="vibe" on={editable} label={tv("editPart", { part: tv("vibeLabel") })} className="mt-3 self-start">
+    <Editable section="vibe" on={editable} label={tv("editPart", { part: tv("vibeLabel") })} className="mt-3 self-start max-md:order-last">
       <p data-preview-part="vibe" className="text-small text-muted">
         {vibe
           ? HOUSE_VIBE_SCALES.flatMap(({ key }) => (vibe[key] ? [{ key, word: tVibe(`${key}.${vibe[key]}`), shared: mine?.[key] === vibe[key] }] : [])).map((item, i) => (
@@ -437,48 +454,57 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
     }
   }
 
+  // The buttons: in the strip from 768px; on phones in one row under it, on the light page (they never sit in the strip there).
+  const buttons = (
+    <>
+            {isMe ? (
+              <>
+                <Button variant="creamOutline" size="md" href="/settings/profile">
+                  {done < counted.length ? <ProgressRing done={done} total={counted.length} /> : <Pencil aria-hidden />}
+                  {done < counted.length ? tv("editWithProgress", { done, total: counted.length }) : t("editProfile")}
+                </Button>
+                <Button variant="brand" size="md" onClick={inviteFriends}>
+                  <UserPlus aria-hidden />
+                  {tv("inviteFriends")}
+                </Button>
+                {hosts && (
+                  <Button variant="creamOutline" size="md" onClick={() => setSharing(true)}>
+                    <Share2 aria-hidden />
+                    {tv("shareHostPage")}
+                  </Button>
+                )}
+              </>
+            ) : (
+              mineOpen.length > 0 && (
+                <>
+                  <Button variant="brand" size="md" onClick={() => guard(() => setInviting(true))} data-preview-action>
+                    <UserPlus aria-hidden />
+                    {tv("inviteToHouse")}
+                  </Button>
+                </>
+              )
+            )}
+    </>
+  );
   return (
-    // Phones: lower than the 120px (16px above and below), the numbers one sideways-scrolling row (StripRow), the buttons under it.
+    <>
+    {/* Phones: lower than the 120px (16px above and below), the numbers one sideways-scrolling row (StripRow); the buttons under it. */}
     <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-4 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
       <StripRow className="max-md:w-full md:flex-nowrap">
         {figs.map((n) => (
           <StripFig key={n.key} value={n.value} label={n.label} href={"href" in n ? n.href : undefined} />
         ))}
       </StripRow>
-      {!preview && (
-        <div className="flex flex-wrap items-center justify-end gap-2 *:whitespace-nowrap">
-          {isMe ? (
-            <>
-              <Button variant="creamOutline" size="md" href="/settings/profile">
-                {done < counted.length ? <ProgressRing done={done} total={counted.length} /> : <Pencil aria-hidden />}
-                {done < counted.length ? tv("editWithProgress", { done, total: counted.length }) : t("editProfile")}
-              </Button>
-              <Button variant="brand" size="md" onClick={inviteFriends}>
-                <UserPlus aria-hidden />
-                {tv("inviteFriends")}
-              </Button>
-              {hosts && (
-                <Button variant="creamOutline" size="md" onClick={() => setSharing(true)}>
-                  <Share2 aria-hidden />
-                  {tv("shareHostPage")}
-                </Button>
-              )}
-              {hosts && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
-            </>
-          ) : (
-            mineOpen.length > 0 && (
-              <>
-                <Button variant="brand" size="md" onClick={() => guard(() => setInviting(true))} data-preview-action>
-                  <UserPlus aria-hidden />
-                  {tv("inviteToHouse")}
-                </Button>
-                {!previewing && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
-              </>
-            )
-          )}
-        </div>
-      )}
+      {!preview && <div className="flex flex-wrap items-center justify-end gap-2 *:whitespace-nowrap max-md:hidden">{buttons}</div>}
     </div>
+    {!preview && (isMe || mineOpen.length > 0) && (
+      <StripRow className="gap-2 px-(--page-margin) py-4 md:hidden [&>*]:whitespace-nowrap">
+        {buttons}
+      </StripRow>
+    )}
+    {isMe && hosts && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
+    {!isMe && mineOpen.length > 0 && !previewing && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+    </>
   );
 }
 

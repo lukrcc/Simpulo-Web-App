@@ -164,7 +164,7 @@ function PeopleContent() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-h1">{t("title")}</h1>
         {count >= SEARCH_FROM && (
-          <div className="relative w-full max-w-[320px]">
+          <div className="relative w-full md:max-w-[320px]">
             <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} aria-label={t("search")} className="pl-11" />
           </div>
@@ -193,13 +193,13 @@ function PeopleContent() {
       ) : nothingShown ? (
         <p className="mt-10 text-muted">{t("noMatch")}</p>
       ) : tab === "saved" ? (
-        <ul className="mt-10 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-10 gap-y-8">{shownSaved.map((u) => row(u, u.id))}</ul>
+        <ul className="mt-10 grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-x-10 gap-y-8">{shownSaved.map((u) => row(u, u.id))}</ul>
       ) : (
         <div className="mt-10 flex flex-col gap-14">
           {shownGroups.map((g) => (
             <section key={g.house.id} aria-label={shortNameOf(g.house)}>
               <GroupHead house={g.house} />
-              <ul className="mt-6 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-10 gap-y-8">{g.people.map((u) => row(u, `${g.house.id}-${u.id}`))}</ul>
+              <ul className="mt-6 grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-x-10 gap-y-8">{g.people.map((u) => row(u, `${g.house.id}-${u.id}`))}</ul>
             </section>
           ))}
         </div>
@@ -273,7 +273,7 @@ function SharedHint({ shared }: { shared: NonNullable<ReturnType<typeof sharedIn
   if (!a || !b) return null;
   const href = createHrefOf({ place: placeById(shared.placeId), month: shared.month });
   return (
-    <p className="mt-8 max-w-[680px] text-body-lg text-ink">
+    <p className="mt-8 text-body-lg text-ink md:max-w-[680px]">
       {t.rich("hint", {
         a: firstName(a),
         b: firstName(b),
