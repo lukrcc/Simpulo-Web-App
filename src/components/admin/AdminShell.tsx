@@ -4,7 +4,8 @@ import { Compass, FileUser, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrde
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
+import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
 import { ADMIN_DE, ADMIN_UI_DE } from "@/lib/i18n/admin.de";
 import { SideNav } from "@/components/settings/SideNav";
@@ -161,8 +162,11 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
         ))}
       </aside>
       <div className="min-w-0 px-4 pb-(--adm-section) pt-6 md:px-(--adm-page) lg:pt-(--admin-page-pad)">
-        {/* Phones and tablets: the areas as one row. */}
-        <ScrollRow label={t("title")} className="mb-(--adm-inner) lg:hidden">
+        {/* Phones (< 768px): two rows – the four areas (Markt · Wachstum · Betrieb · Launch) as a scrolling row of capsules, under it the
+            pages of the current area as scrolling tabs (bold, white, underlined – the admin's active state). A capsule opens its area's first
+            page. Tablets: every page in one row. */}
+        <PhoneNav active={active} item={item} />
+        <ScrollRow label={t("title")} className="mb-(--adm-inner) max-md:hidden lg:hidden">
           {AREAS.map((a) => (
             <Link
               key={a.key}
@@ -246,5 +250,51 @@ export function StatRow({
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Phones: the areas as capsules (ScrollRow), the current area's pages as tabs under it (.tab-scroll – one line, the chosen one in view). */
+function PhoneNav({ active, item }: { active: string | undefined; item: (a: Area) => { key: string; href: string; label: string; badge?: ReactNode } }) {
+  const t = useTranslations("admin");
+  const group = GROUPS.find((g) => g.areas.some((a) => a.href === active)) ?? GROUPS[0];
+  const tabs = useRef<HTMLDivElement>(null);
+  useTabScroll(tabs, active);
+  return (
+    <nav aria-label={t("title")} className="mb-(--adm-inner) md:hidden" data-admin-phone-nav>
+      <ScrollRow label={t("title")} active={group.key}>
+        {GROUPS.map((g) => (
+          <Link
+            key={g.key}
+            href={g.areas[0].href}
+            data-active={g.key === group.key || undefined}
+            aria-current={g.key === group.key ? "true" : undefined}
+            className={cn(
+              "flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-nav-group uppercase",
+              g.key === group.key ? AREA_CHIP[GROUP_COLOR[g.key]] : "text-ink/60",
+            )}
+          >
+            {t(`navGroup.${g.key}`)}
+          </Link>
+        ))}
+      </ScrollRow>
+      <div ref={tabs} data-bleed className="tab-scroll mt-2 flex items-center gap-4">
+        {group.areas.map((a) => {
+          const it = item(a);
+          const on = a.href === active;
+          return (
+            <Link
+              key={a.key}
+              href={a.href}
+              data-tap="none"
+              aria-current={on ? "page" : undefined}
+              className={cn("flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap text-nav-main", on ? "font-semibold text-(--adm-active) underline decoration-2 underline-offset-4" : "text-(--adm-idle-nav)")}
+            >
+              {it.label}
+              {it.badge}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

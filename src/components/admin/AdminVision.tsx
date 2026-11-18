@@ -300,7 +300,9 @@ function Timeline({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (
     return next;
   });
   return (
-    <div data-timeline className="grid grid-cols-[140px_repeat(4,minmax(0,1fr))] max-lg:overflow-x-auto">
+    <>
+    <TimelineVertical inputs={inputs} onOpenPhase={onOpenPhase} />
+    <div data-timeline className="grid grid-cols-[140px_repeat(4,minmax(0,1fr))] max-md:hidden max-lg:overflow-x-auto">
       <span />
       {PHASES.map((phase) => {
         const here = phase.key === PHASE_NOW;
@@ -385,6 +387,86 @@ function Timeline({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (
         ))}
       </div>
     </div>
+    </>
+  );
+}
+
+/**
+ * Phones (< 768px): the timeline from top to bottom instead of four columns – each phase a block (number, title, goal, "Du bist hier"; a tap
+ * on the head opens the phase), under it its lanes with what comes new as capsules (Phase 1 all of it), Der Hof's marks and the release.
+ */
+function TimelineVertical({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (key: PhaseKey) => void }) {
+  return (
+    <ol data-timeline-vertical className="flex flex-col gap-(--adm-inner) md:hidden">
+      {PHASES.map((phase, i) => {
+        const here = phase.key === PHASE_NOW;
+        const marks = HOF.milestones.filter((m) => m.phase === phase.key);
+        return (
+          <li key={phase.key} className={cn("rounded-xl border border-ink/8 p-4", here && "bg-(--adm-here)")}>
+            <button type="button" onClick={() => onOpenPhase(phase.key)} aria-label={TIMELINE_TEXT.openPhase(phase.title)} className="w-full text-left">
+              <span className="flex items-center gap-2">
+                <span className={cn("flex size-6 items-center justify-center rounded-full text-small tabular-nums", here ? "bg-adm-chart-1 text-on-signal" : "border-[1.5px] border-ink/25 text-muted")}>{phase.number}</span>
+                {here && <Here />}
+              </span>
+              <span className="mt-1.5 block text-adm-block text-ink">{phase.title}</span>
+              {phase.goal && <span className="block text-small text-ink/60">{phase.goal}</span>}
+            </button>
+            <dl className="mt-3 flex flex-col gap-3">
+              {LANES.map((lane) => {
+                const Icon = LANE_ICONS[lane.key];
+                const cell = phase.lanes[lane.key];
+                const plus = i > 0 && cell.plus;
+                return (
+                  <div key={lane.key}>
+                    <dt className="flex items-center gap-2 text-small text-(--adm-label)">
+                      <Icon aria-hidden className="size-3.5 shrink-0" />
+                      {lane.label}
+                    </dt>
+                    <dd className="mt-1.5 flex flex-wrap gap-1.5">
+                      {cell.items.length === 0 ? (
+                        <span className="text-small text-muted">{PHASE_TEXT.none}</span>
+                      ) : (
+                        cell.items.map((item) => (
+                          <span key={item.label} className="inline-flex min-h-7 items-center rounded-full bg-ink/6 px-2.5 text-small text-ink">
+                            {plus && <span className="mr-1 text-ink/50">+</span>}
+                            {item.label}
+                          </span>
+                        ))
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+              {marks.length > 0 && (
+                <div>
+                  <dt className="flex items-center gap-2 text-small text-(--adm-label)">
+                    <Castle aria-hidden className="size-3.5 shrink-0" />
+                    {HOF.timelineLane}
+                  </dt>
+                  <dd className="mt-1.5 flex flex-wrap gap-1.5">
+                    {marks.map((m) => (
+                      <span key={m.label} className="inline-flex h-6 items-center gap-1.5 rounded-full border border-ink/20 px-2 text-small text-ink">
+                        <span aria-hidden className="size-1.5 rotate-45 bg-(--adm-hof-shared)" />
+                        {m.label}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="flex items-center gap-2 text-small text-(--adm-label)">
+                  <Diamond aria-hidden className="size-3.5 shrink-0" />
+                  {UNLOCK_LANE_LABEL}
+                </dt>
+                <dd className="mt-1.5">
+                  <UnlockMark phase={phase} inputs={inputs} />
+                </dd>
+              </div>
+            </dl>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

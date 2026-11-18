@@ -104,7 +104,7 @@ function AreaRow({ areas }: { areas: ReturnType<typeof cockpit>["areas"] }) {
   const t = useTranslations("admin.cockpit");
   const tAdmin = useTranslations("admin");
   return (
-    <div className="mt-(--adm-section) grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
+    <div data-area-row className="mt-(--adm-section) grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
       {areas.map((area, i) => {
         const n = area.number;
         return (

@@ -105,7 +105,7 @@ export function AdminTaxes() {
       </div>
 
       {/* The main numbers: each with ⓘ, its change against the period before; missing receipts against 0. */}
-      <dl className="mt-(--adm-section) grid grid-cols-2 gap-y-8 lg:grid-cols-5">
+      <dl data-key-numbers className="mt-(--adm-section) grid grid-cols-2 gap-y-8 lg:grid-cols-5">
         {numbers.map((n, i) => (
           <div key={n.key} className={cn("min-w-0 pr-4 lg:px-5 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
             <dt className="flex items-center gap-1 text-small text-muted">
@@ -322,7 +322,7 @@ function ReserveSection({ summary, reserve, bank }: { summary: ReturnType<typeof
   const covered = bank ? bank.balance >= reserve.total : null;
   return (
     <AdminSection title={t("title")}>
-      <dl className="grid grid-cols-2 gap-y-8 md:grid-cols-4">
+      <dl data-key-numbers className="grid grid-cols-2 gap-y-8 md:grid-cols-4">
         {parts.map((p, i) => (
           <div key={p.key} className={cn("min-w-0 pr-4 md:px-6 md:first:pl-0", i > 0 && "md:border-l md:border-ink/8", i % 2 === 1 && "max-md:border-l max-md:border-ink/8 max-md:pl-4")}>
             <dt className="text-small text-muted">{t(p.key)}</dt>

@@ -119,7 +119,7 @@ export function KeyNumbers({
   className?: string;
 }) {
   return (
-    <dl className={cn("grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-3", className)}>
+    <dl data-key-numbers className={cn("grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-3", className)}>
       {items.map((n, i) => (
         <div key={n.key} className={cn("min-w-0 pr-4 lg:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
           <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">

@@ -196,3 +196,36 @@ body:has(.admin-scope) {
 
 
 
+
+/*
+ * Admin on phones (< 768px, CLAUDE.md "Mobile" › Admin): read and act quickly, not edit everything.
+ * - Main numbers (KeyNumbers) and the overview's four areas: 2-column cards (the block surface, radius 12) instead of columns split by lines.
+ * - Tables scroll inside their own box with the first column fixed – no fixed minimum widths there (the content sets the width).
+ */
+@media (max-width: 767.98px) {
+  .admin-scope :is([data-key-numbers], [data-area-row]) {
+    gap: 8px;
+  }
+  .admin-scope :is([data-key-numbers], [data-area-row]) > div {
+    border: 0;
+    border-radius: 12px;
+    background-color: var(--adm-block);
+    padding: 12px;
+  }
+  /* The area's colour line sits on the card's top edge, inside its corners. */
+  .admin-scope [data-area-row] > div > span[aria-hidden]:first-child {
+    left: 12px;
+    right: 12px;
+  }
+  .admin-scope table {
+    width: max-content;
+    min-width: 100%;
+  }
+  .admin-scope table :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--bg);
+    box-shadow: 1px 0 0 var(--line);
+  }
+}

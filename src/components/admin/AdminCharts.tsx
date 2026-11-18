@@ -4,6 +4,7 @@
 // the page's main line in chart-1 (ocean, the focus), others chart-2 / chart-3 or ink; status colours never fill a chart or a bar – only the
 // small dot beside a number (StatusDot). Recessive grid (ink), a tooltip on hover. Lists of shares are plain bars (BarList), not a chart library.
 import { memo, useMemo, type ReactNode } from "react";
+// Month labels: every one while they fit, on a phone only as many as do (preserveStartEnd + minTickGap) – never on top of each other.
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getStatus, type Status } from "@/lib/admin/metrics";
 import { eur, num } from "@/lib/i18n/adminFormat";
@@ -65,7 +66,7 @@ export function ColumnChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: -16 }} barCategoryGap="28%">
           <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
           <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(Math.max(target ?? 0, ...data.map((d) => d.value)))} domain={[0, (max: number) => Math.max(max, target ?? 0)]} ticks={target !== undefined ? [0, target] : undefined} />
           <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.05 }} content={<ChartTooltip unit={unit} />} />
           {target !== undefined && <ReferenceLine y={target} stroke="var(--text-muted)" strokeDasharray="4 4" label={targetLabel ? { value: targetLabel, position: "insideTopLeft", ...AXIS } : undefined} />}
@@ -188,7 +189,7 @@ export const ProfitChart = memo(function ProfitChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
           <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
           <YAxis tickLine={false} axisLine={false} tick={AXIS} width={24 + eur(top).length * 7.5} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} allowDataOverflow />
           <Tooltip cursor={PROFIT_CURSOR} content={PROFIT_TOOLTIP} isAnimationActive={false} />
           {lines.map((m) => (
@@ -224,7 +225,7 @@ export const CountBars = memo(function CountBars({ data, label, unit, height = 3
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
           <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
           <YAxis tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(top)} domain={[0, top]} ticks={ticks} tickFormatter={(v: number) => num(v)} />
           <Tooltip cursor={PROFIT_CURSOR} content={<ChartTooltip unit={unit} />} isAnimationActive={false} />
           <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false} />
@@ -292,7 +293,7 @@ export const LinesChart = memo(function LinesChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval={0} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
             <YAxis tickLine={false} axisLine={false} tick={AXIS} width={56} tickFormatter={yFormat} />
             <Tooltip cursor={{ stroke: "var(--text)", strokeOpacity: 0.15 }} content={<LinesTooltip series={series} raw={raw} />} isAnimationActive={false} />
             {reference !== undefined && <ReferenceLine y={reference} stroke="var(--text-muted)" strokeDasharray="3 3" />}

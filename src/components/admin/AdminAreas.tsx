@@ -314,13 +314,30 @@ export function AdminHosts() {
         <AdminListDetail
           label={t("title")}
           rowHeight="h-13"
-          head={<HostColumnsHead />}
+          head={
+            <div className="max-md:hidden">
+              <HostColumnsHead />
+            </div>
+          }
           rows={shown.map((row) => ({
             id: row.user.id,
             media: <Avatar user={row.user} size="sm" />,
             title: row.user.name,
-            meta: row.hubs.join(", "),
-            aside: <HostColumns row={row} />,
+            // Phones: the columns don't fit beside the name – one line under it instead ("Pro · 2 Houses · 75 % · 5.240 €", a dot for a warning).
+            meta: (
+              <>
+                <span className="max-md:hidden">{row.hubs.join(", ")}</span>
+                <span className="md:hidden">
+                  {row.warnings.length > 0 && <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full bg-adm-critical" />}
+                  {[tTier(row.tier), `${row.houses.length} ${t("housesShort")}`, share(row.fillRate), formatEur(row.valuePerYear)].join(" · ")}
+                </span>
+              </>
+            ),
+            aside: (
+              <span className="max-md:hidden">
+                <HostColumns row={row} />
+              </span>
+            ),
           }))}
           selectedId={selected?.user.id ?? null}
           onSelect={setSelectedId}
