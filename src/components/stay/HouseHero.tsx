@@ -94,12 +94,17 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const city = stay.location.city || stay.city || stay.region.split(",")[0];
   const placeShort = stay.location.area ? `${stay.location.area}, ${city}` : city;
   const strip = (
-    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-(--tabbar-clear) max-md:z-30 max-md:px-(--page-margin) max-md:py-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
+    // Phones: the booking bar – fixed at the bottom instead of the tab bar (which the House page leaves out), over the safe area; its measured
+    // height is what the page keeps free under its end (--house-bar-h → --tabbar-clear, BookingBarHeight).
+    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:px-(--page-margin) max-md:pb-[calc(12px+var(--safe-bottom))] max-md:pt-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
+      <BookingBarHeight />
       {/* Left: the price in the strip's number size (--stage-bar-num), under it small the currency and the way in ("Free to request · …").
           Right: the actions – Request to join · Request with a friend · "Message {host}". */}
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="flex items-center justify-between gap-x-6 gap-y-3 md:flex-wrap">
         <div className="min-w-0">
           <HeroPrice stay={stay} />
+          {/* Phones: under the price the dates (the currency line is the md+ strip's). */}
+          <p className="mt-0.5 truncate text-small text-muted md:hidden">{format.stayDates(stay)}</p>
           <div className="mt-1 flex flex-col gap-0.5 max-md:hidden">
             {note && <p className="text-small text-muted">{note}</p>}
             {payBy && <p className="text-small text-muted">{t("payBy", { date: `${format.day(payBy)} ${format.time(payBy)}` })}</p>}
@@ -153,7 +158,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
         {stay.title}
       </h1>
       {/* One line: the dates, the nights and where – the area and the city, no country. */}
-      <p className="mt-3 truncate text-h3 font-normal text-muted">
+      <p className="mt-3 text-h3 font-normal text-muted md:truncate">
         {stay.datesOpen
           ? t.rich("lineOpen", { dates: format.stayDatesLong(stay), place: placeShort, date: lineDate })
           : t.rich("line", { dates: format.stayDatesLong(stay), nights: format.nights(stayNights(stay)), place: placeShort, date: lineDate })}
@@ -236,6 +241,11 @@ function HostQuote({ stay, host }: { stay: Stay; host?: User }) {
     if (!slot || !fig) return;
     // The largest step (40 → 36 → 32 → 28px at 1440) that leaves at least 16px of air above and below; none does: the middle stays empty.
     const measure = () => {
+      // Below Desktop the quote stands in the flow (nothing to fit into): always shown, a smaller step.
+      if (!window.matchMedia(MEDIA.desktop).matches) {
+        fig.style.setProperty("--quote-scale", "0.75");
+        return setFits(true);
+      }
       for (const scale of QUOTE_STEPS) {
         fig.style.setProperty("--quote-scale", String(scale));
         if (fig.offsetHeight + 2 * QUOTE_AIR <= slot.clientHeight) return setFits(true);
@@ -281,7 +291,7 @@ function HeroPrice({ stay }: { stay: Stay }) {
         <span className="text-bar-num tabular-nums text-ink">{perPerson ? perPerson[1] : label}</span>
         {perPerson && <span className="text-bar-label text-ink/60">{perPerson[2]}</span>}
       </p>
-      <p className="mt-0.5 text-small text-muted">
+      <p className="mt-0.5 text-small text-muted max-md:hidden">
         {original} ·{" "}
         <button type="button" onClick={() => setOpen(true)} className={STRIP_LINK}>
           {tCurrency("change")}
@@ -544,4 +554,30 @@ function PlaceTile({ stay, host }: { stay: Stay; host?: User }) {
       </Sheet>
     </>
   );
+}
+
+/**
+ * Phones: how tall the booking bar is (with the safe area under it) – written to --house-bar-h on <html>, which html[data-house-bar]
+ * turns into --tabbar-clear: the footer, toasts and the Dev button keep clear of it. Measured live (one or two
+ * lines, a notice).
+ */
+function BookingBarHeight() {
+  const probe = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const bar = probe.current?.parentElement;
+    if (!bar) return;
+    const root = document.documentElement;
+    const write = () => root.style.setProperty("--house-bar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    write();
+    // While it's there the tab bar steps aside on phones (html[data-house-bar], globals.css): the booking bar takes its place.
+    root.setAttribute("data-house-bar", "");
+    const observer = new ResizeObserver(write);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--house-bar-h");
+      root.removeAttribute("data-house-bar");
+    };
+  }, []);
+  return <span ref={probe} aria-hidden className="hidden" />;
 }

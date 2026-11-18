@@ -51,7 +51,7 @@ import { daysUntil, timelineFor, type TimelineEvent } from "@/lib/timeline";
 import { Avatar } from "@/components/ui/Avatar";
 import { acceptedOverlaps } from "@/lib/overlap";
 import { useCardTask, useNeedsYou } from "@/lib/needsYou";
-import { StripFig } from "@/components/StripFig";
+import { StripFig, StripRow } from "@/components/StripFig";
 import { usePayoutAccount } from "@/lib/payments/hooks";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
@@ -890,10 +890,13 @@ function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn
   return (
     // Never the whole strip a link: each number is its own (→ after its label) – earnings and payouts to the Earnings page (payouts with its
     // set-up window open), hosting and fill rate to the Hosting row, Your people to /people.
-    <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center gap-y-3 py-5 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
-      {figs.map((fig) => (
-        <StripFig key={fig.key} value={fig.value} label={fig.label} sub={fig.sub} dot={fig.dot} href={fig.href} />
-      ))}
+    // Phones: lower than the 120px (16px above and below) and the numbers one sideways-scrolling row (StripRow).
+    <div className="ember ember-strip band-inset band-inset-full flex items-center py-4 md:h-(--stage-bar-h) md:py-0">
+      <StripRow className="flex-1 md:flex-nowrap">
+        {figs.map((fig) => (
+          <StripFig key={fig.key} value={fig.value} label={fig.label} sub={fig.sub} dot={fig.dot} href={fig.href} />
+        ))}
+      </StripRow>
     </div>
   );
 }

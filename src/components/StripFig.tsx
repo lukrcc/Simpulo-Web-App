@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { useTabScroll } from "@/components/ui/useTabScroll";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,5 +35,19 @@ export function StripFig({ value, label, href, sub, dot = false, className }: { 
     </Link>
   ) : (
     <div className={box}>{body}</div>
+  );
+}
+
+/**
+ * The numbers of a strip in a row. Phones (< 768px): one line that scrolls sideways (.tab-scroll – no wrapping, the fade on the right only
+ * while more follows); every number stays its own link with its →. From 768px a plain row.
+ */
+export function StripRow({ children, className }: { children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useTabScroll(ref, null);
+  return (
+    <div ref={ref} className={cn("tab-scroll flex min-w-0 items-center", className)}>
+      {children}
+    </div>
   );
 }

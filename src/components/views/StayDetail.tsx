@@ -420,7 +420,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     {friendRequest && !myRequest && role === "visitor" && (
       <Container className="pt-4 md:pb-8 md:pt-6">
         <div className="card-soft flex flex-wrap items-center justify-between gap-4 rounded-3xl p-6">
-          <div className="min-w-0 max-w-[560px]">
+          <div className="min-w-0 md:max-w-[560px]">
             <p className="text-h3 text-ink">{tInvite("friendTitle", { name: friendName })}</p>
             <p className="mt-1 text-body text-muted">{tInvite("friendText", { name: friendName, host: hostFirstName, title: stay.title })}</p>
           </div>
@@ -497,7 +497,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       <div className="mt-8 flex flex-col gap-10">
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
         {role === "member" && <MemberSections stay={stay} crew={crew} />}
-        <div className="flex max-w-[760px] flex-col gap-6 empty:hidden">
+        <div className="flex flex-col gap-6 empty:hidden md:max-w-[760px]">
           {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
           {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
 

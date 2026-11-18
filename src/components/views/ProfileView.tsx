@@ -13,7 +13,7 @@ import { use, useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { useInForLine } from "@/components/InFor";
 import { HeroBand, HeroPhotos } from "@/components/HeroBand";
-import { StripFig } from "@/components/StripFig";
+import { StripFig, StripRow } from "@/components/StripFig";
 import { InviteSheet } from "@/components/InviteSheet";
 import { Container } from "@/components/layout/Container";
 import { PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
@@ -438,12 +438,13 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
   }
 
   return (
-    <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-5 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
-      <div className="flex min-w-0 flex-wrap items-center gap-y-3 md:flex-nowrap">
+    // Phones: lower than the 120px (16px above and below), the numbers one sideways-scrolling row (StripRow), the buttons under it.
+    <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-4 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
+      <StripRow className="max-md:w-full md:flex-nowrap">
         {figs.map((n) => (
           <StripFig key={n.key} value={n.value} label={n.label} href={"href" in n ? n.href : undefined} />
         ))}
-      </div>
+      </StripRow>
       {!preview && (
         <div className="flex flex-wrap items-center justify-end gap-2 *:whitespace-nowrap">
           {isMe ? (

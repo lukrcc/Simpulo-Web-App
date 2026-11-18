@@ -424,6 +424,13 @@
   html[data-tabbar="none"] {
     --tabbar-clear: 0px;
   }
+  /* The House page (visitor, host): its booking bar replaces the tab bar at the bottom (HouseHero) – the page keeps that height free. */
+  html[data-house-bar] {
+    --tabbar-clear: var(--house-bar-h, 96px);
+  }
+  html[data-house-bar] [data-tab-bar] {
+    display: none;
+  }
 }
 /* What covers the bottom edge: the tab bar (phones) or otherwise the safe area – anything fixed at the bottom (toasts, the Dev button, sticky
    save bars) sits above this. */

@@ -195,7 +195,7 @@ export function HouseDay({ stay }: { stay: Stay }) {
     <section aria-labelledby="house-day">
       <SectionHead id="house-day" title={t("day")} />
       {/* A list: the time in a 128px column, muted, never wrapping ("7–11", "11:30"); what happens 17px; 12px between rows. */}
-      <dl className={cn(ROW, "grid grid-cols-[128px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-3")}>
+      <dl className={cn(ROW, "grid grid-cols-[80px_minmax(0,1fr)] items-baseline md:grid-cols-[128px_minmax(0,1fr)] gap-x-4 gap-y-3")}>
         {stops.map((stop) => (
           <Fragment key={`${stop.time}-${stop.label}`}>
             <dt className="whitespace-nowrap text-body-lg text-muted tabular-nums">{shortTime(stop.time)}</dt>
@@ -314,7 +314,7 @@ export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
           {/* eslint-disable-next-line @next/next/no-img-element -- our own cached map route (an SVG mock or Google's PNG), lazy */}
           <img src={`/api/static-map?${mapParams}`} alt={tMap("mapOf", { place: format.placeLabel(stay) })} width={560} height={320} loading="lazy" decoding="async" className="aspect-[560/320] w-full object-cover" />
         </a>
-        <div className="flex max-w-90 flex-col gap-4">
+        <div className="flex flex-col gap-4 md:max-w-90">
           <div>
             <h2 id="house-where" className="text-eyebrow uppercase text-ink/55">
               {t("where")}
@@ -352,7 +352,7 @@ export function HouseWhere({ stay }: { stay: Stay; canOpenChat?: boolean }) {
           </div>
         </div>
       )}
-      <div className="flex max-w-90 flex-col gap-4">{side}</div>
+      <div className="flex flex-col gap-4 md:max-w-90">{side}</div>
     </section>
   );
 }

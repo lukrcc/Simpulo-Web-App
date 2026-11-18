@@ -13,7 +13,8 @@ export const OWN_BAR_SPACER = "h-[calc(92px+var(--safe-bottom))]";
  */
 export function TabBarSpacer() {
   const pathname = usePathname();
-  return <div aria-hidden className={cn("md:hidden", hidesTabBar(pathname) ? OWN_BAR_SPACER : "h-(--tabbar-clear)")} />;
+  // The House page's booking bar counts in --tabbar-clear (html[data-house-bar]); other routes without the bar keep room for their own.
+  return <div aria-hidden className={cn("md:hidden", hidesTabBar(pathname) && !pathname.startsWith("/house/") ? OWN_BAR_SPACER : "h-(--tabbar-clear)")} />;
 }
 
 export function TabBarSpacerFallback() {
