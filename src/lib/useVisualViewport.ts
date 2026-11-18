@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 
 /**
- * Phones: the visual viewport's top and height on <html> (--vv-top, --vv-h) – the part of the window the on-screen keyboard leaves. A
- * full-height sheet (ui/Sheet) or the chat page sits exactly there, so its foot (the main action, the message field) is never under the
- * keyboard. Removed again when inactive.
+ * Phones: the visual viewport's top and height on <html> (--vv-top, --vv-h) – the part of the window the on-screen keyboard leaves – and
+ * how much of the window's bottom the keyboard covers (--vv-kb). A full-height sheet (ui/Sheet) or the chat page sits exactly in the visible
+ * part; a fixed foot (Open a House's "Next") stands --vv-kb above the bottom – never under the keyboard. Removed again when inactive.
  */
 export function useVisualViewport(active: boolean) {
   useEffect(() => {
@@ -15,6 +15,7 @@ export function useVisualViewport(active: boolean) {
     const write = () => {
       root.style.setProperty("--vv-top", `${vv.offsetTop}px`);
       root.style.setProperty("--vv-h", `${vv.height}px`);
+      root.style.setProperty("--vv-kb", `${Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))}px`);
     };
     write();
     vv.addEventListener("resize", write);
@@ -24,6 +25,7 @@ export function useVisualViewport(active: boolean) {
       vv.removeEventListener("scroll", write);
       root.style.removeProperty("--vv-top");
       root.style.removeProperty("--vv-h");
+      root.style.removeProperty("--vv-kb");
     };
   }, [active]);
 }

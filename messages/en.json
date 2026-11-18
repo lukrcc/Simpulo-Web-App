@@ -1653,7 +1653,9 @@
       "cover": "Cover",
       "isCover": "This is the cover",
       "makeCover": "Make this the cover",
-      "remove": "Remove this photo"
+      "remove": "Remove this photo",
+      "pickPhotos": "Choose photos",
+      "pickPhotosHint": "From your photo library · up to {max}, the first is the cover"
     },
     "ready": {
       "theme": "Theme",

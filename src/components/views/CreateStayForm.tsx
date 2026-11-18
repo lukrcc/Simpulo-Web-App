@@ -109,6 +109,7 @@ import { cn } from "@/lib/utils";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { MenuLayer } from "@/components/ui/MenuLayer";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 const noSubscribe = () => () => {};
 
@@ -598,6 +599,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const flowSteps: StepKey[] = [...flowSteps0, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
   const flowIndex = flowSteps.indexOf(step);
   const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
+  // Phones: the fixed Next stands on the keyboard (--vv-kb).
+  useVisualViewport(true);
   const actions = onList ? (
     editing ? (
       isDraft ? (
@@ -662,7 +665,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
           </div>
         )}
       </div>
-      <div className="mt-auto flex flex-wrap items-center gap-3 pt-10">
+      {/* Phones: Back and Next fixed at the bottom – over the safe area and, with the keyboard open, right on it (--vv-kb). */}
+      <div className="mt-auto flex flex-wrap items-center gap-3 pt-10 max-md:fixed max-md:inset-x-0 max-md:bottom-(--vv-kb,0px) max-md:z-30 max-md:flex-nowrap max-md:border-t max-md:border-ink/8 max-md:bg-(--bg) max-md:px-(--page-margin) max-md:pb-[max(12px,var(--safe-bottom))] max-md:pt-3">
         {canGoBack && (
           <Button variant="tertiary" onClick={back} className="-ml-4">
             {t("back")}
@@ -687,7 +691,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         </Suspense>
       )}
       {progress !== null && (
-        <div aria-hidden className="fixed inset-x-0 top-(--header-total) z-30 h-0.5 bg-ink/8">
+        // Phones: along the foot of the focus bar (56px under the status bar's strip).
+        <div aria-hidden className="fixed inset-x-0 top-(--header-total) z-30 h-0.5 bg-ink/8 max-md:top-[calc(var(--header-total)+3.5rem-2px)] max-md:z-41">
           <div className="h-full bg-ink transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none" style={{ width: `${progress * 100}%` }} />
         </div>
       )}
@@ -749,7 +754,8 @@ const CARD_BOX = "mx-auto w-[min(100%,360px)]";
 function CreateLayout({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   return (
     <div
-      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
+      // Phones: room under the last line for the fixed Back / Next bar.
+      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 max-md:pb-32 split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
       style={{ ["--create-card-h" as string]: `${(CARD_W * 5) / 4}px` }}
     >
       <div className="flex min-w-0 flex-col justify-center split:min-h-[calc(100dvh-var(--header-total)-16px)] split:py-10">{children}</div>

@@ -5,6 +5,7 @@ import { Check, ChevronRight, Home, ImagePlus, KeyRound, MapPin, Plus, Users, X 
 import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPIC, TYPE_IMAGE, accommodationOf, livingCategoriesFor, type AccommodationCategoryId } from "@/config/accommodation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
+import { useTabScroll } from "@/components/ui/useTabScroll";
 import { FEE_MODEL } from "@/config/policies";
 import { DEFAULT_DEPTH, DEPTHS, suggestedDepth } from "@/config/depth";
 import { PlaceSearch } from "./PlaceSearch";
@@ -486,14 +487,14 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
           {exact ? (
             <ExactDates form={form} patch={patch} errorOf={errorOf} touch={touch} today={today} />
           ) : (
-            // One row of the next 12 months (six per row on phones); the year small above the first month of a new one, never in the chip.
-            // Several months in a row can be picked; picked = black.
-            <div id={fieldId("month")} className="grid grid-cols-6 gap-x-1.5 gap-y-2 md:grid-cols-12">
+            // One row of the next 12 months (phones: one row that scrolls sideways, .tab-scroll); the year small above the first month of a
+            // new one, never in the chip. Several months in a row can be picked; picked = black.
+            <MonthRow id={fieldId("month")} active={form.month}>
               {months.map((month, i) => {
                 const last = form.monthEnd || form.month;
                 const picked = Boolean(form.month) && month >= form.month && month <= last;
                 return (
-                  <div key={month} className="flex min-w-0 flex-col">
+                  <div key={month} className="flex min-w-0 flex-col max-md:w-14">
                     <span aria-hidden className="block h-4 text-eyebrow text-muted">
                       {newYearOf(months, i)}
                     </span>
@@ -503,7 +504,7 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
                   </div>
                 );
               })}
-            </div>
+            </MonthRow>
           )}
           <div className="mt-2 space-y-2">
             {rentalNote && <p className="text-small text-muted">{rentalNote}</p>}
@@ -912,11 +913,14 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
               setDragging(false);
               void add(e.dataTransfer.files);
             }}
-            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150", dragging ? "bg-ink/10" : "bg-ink/5 hover:bg-ink/8")}
+            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150 max-md:min-h-40", dragging ? "bg-ink/10" : "bg-ink/5 hover:bg-ink/8")}
           >
             <ImagePlus className="size-6 text-muted" aria-hidden />
-            <span className="text-body font-semibold text-ink">{t("drop")}</span>
-            <span className="text-small text-muted">{t("dropHint", { max: MAX_COVER_PHOTOS })}</span>
+            {/* Phones: no dragging – the photo library (accept="image/*", several at once). */}
+            <span className="text-body font-semibold text-ink max-md:hidden">{t("drop")}</span>
+            <span className="text-small text-muted max-md:hidden">{t("dropHint", { max: MAX_COVER_PHOTOS })}</span>
+            <span className="text-body font-semibold text-ink md:hidden">{t("pickPhotos")}</span>
+            <span className="text-small text-muted md:hidden">{t("pickPhotosHint", { max: MAX_COVER_PHOTOS })}</span>
           </button>
           <input
             ref={inputRef}
@@ -951,10 +955,11 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
           )}
         </div>
         {form.photos.length > 0 && (
-          <ul aria-label={t("yours")} className="flex flex-wrap gap-2">
+          // Phones: the own photos as a grid of three (3:4), the first one the cover.
+          <ul aria-label={t("yours")} className="flex flex-wrap gap-2 max-md:grid max-md:grid-cols-3">
             {form.photos.map((src, i) => (
               <li key={src} className="relative">
-                <button type="button" disabled={i === 0} onClick={() => patch({ photos: [src, ...form.photos.filter((photo) => photo !== src)] })} aria-label={i === 0 ? t("isCover") : t("makeCover")} className="relative block h-20 w-15 overflow-hidden rounded-xl bg-ink/5">
+                <button type="button" disabled={i === 0} onClick={() => patch({ photos: [src, ...form.photos.filter((photo) => photo !== src)] })} aria-label={i === 0 ? t("isCover") : t("makeCover")} className="relative block h-20 w-15 overflow-hidden rounded-xl bg-ink/5 max-md:aspect-3/4 max-md:h-auto max-md:w-full">
                   <Img src={src} alt="" fill sizes="60px" className="object-cover" />
                   {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-shade/45 py-0.5 text-center text-small text-on-image">{t("cover")}</span>}
                 </button>
@@ -1500,5 +1505,16 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
         })}
       </ul>
     </section>
+  );
+}
+
+/** The months of "Where and when?": 12 columns from 768px; on phones one row that scrolls sideways, the picked month scrolled into view. */
+function MonthRow({ id, active, children }: { id: string; active: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useTabScroll(ref, active);
+  return (
+    <div ref={ref} id={id} className="tab-scroll grid grid-cols-6 gap-x-1.5 gap-y-2 max-md:flex md:grid-cols-12">
+      {children}
+    </div>
   );
 }

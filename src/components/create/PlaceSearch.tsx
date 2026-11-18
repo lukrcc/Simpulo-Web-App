@@ -1,12 +1,14 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState, type KeyboardEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { worldPlaces } from "@/lib/places";
 import type { SearchPlace } from "@/lib/savedSearches";
 import { cn } from "@/lib/utils";
+import { Sheet } from "@/components/ui/Sheet";
+import { useIsPhone } from "@/lib/useMediaQuery";
 
 export type PlacePick = { kind: "place"; place: SearchPlace } | { kind: "text"; text: string };
 
@@ -15,6 +17,32 @@ export type PlacePick = { kind: "place"; place: SearchPlace } | { kind: "text"; 
  * its country muted. Nothing that fits: what was typed can be used as it is (free text).
  */
 export function PlaceSearch({ id, onPick }: { id: string; onPick: (pick: PlacePick) => void }) {
+  const t = useTranslations("create.flow");
+  const phone = useIsPhone();
+  const [open, setOpen] = useState(false);
+  if (!phone) return <PlaceSearchInline id={id} onPick={onPick} />;
+  // Phones: a field-like button that opens the search as a full-height sheet – the field on top with the keyboard up, the places under it.
+  return (
+    <>
+      <button id={id} type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={cn(formInput, "flex items-center gap-2 text-left text-muted")}>
+        <Search aria-hidden className="size-4 shrink-0" />
+        <span className="truncate">{t("searchPlaceholder")}</span>
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={t("searchLabel")} fullOnPhone>
+        <PlaceSearchInline
+          id={`${id}-sheet`}
+          autoFocus
+          onPick={(pick) => {
+            setOpen(false);
+            onPick(pick);
+          }}
+        />
+      </Sheet>
+    </>
+  );
+}
+
+function PlaceSearchInline({ id, onPick, autoFocus = false }: { id: string; onPick: (pick: PlacePick) => void; autoFocus?: boolean }) {
   const t = useTranslations("create.flow");
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -49,6 +77,8 @@ export function PlaceSearch({ id, onPick }: { id: string; onPick: (pick: PlacePi
         aria-controls={listId}
         aria-label={t("searchLabel")}
         autoComplete="off"
+        autoFocus={autoFocus}
+        enterKeyHint="search"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
