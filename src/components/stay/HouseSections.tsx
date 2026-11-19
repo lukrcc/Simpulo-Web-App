@@ -505,8 +505,8 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
 
 /**
  * The floating Join capsule – light glass (rgba(251,247,242,0.72) + blur 20px, a 1px ink 8 % edge, a soft shadow), centred, at most 720px,
- * 16px above the bottom: from md once the whole head has left the window (IntersectionObserver), out of the footer's way, gone again when the
- * head comes back; on phones always. Photo 40px, title ink, price muted, the main action ink.
+ * 16px above the bottom: from md once the head's actions have been scrolled past – above the window, not while still below it (IntersectionObserver) –,
+ * out of the footer's way, gone again when they come back; on phones always. Photo 40px, title ink, price muted, the main action ink.
  */
 export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode; /** Instead of the price: a member's current step */ line?: string }) {
   // Phones: always there (the head's actions scroll away at once); from md once the head's actions have left the window.
@@ -519,7 +519,8 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: St
     const footer = document.querySelector("footer");
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target === card) setCardGone(!entry.isIntersecting);
+        // Only once the actions have been scrolled past (above the window) – not while they're still below it (a tablet's first screen).
+        if (entry.target === card) setCardGone(!entry.isIntersecting && entry.boundingClientRect.top < 0);
         else setAtFooter(entry.isIntersecting);
       }
     });

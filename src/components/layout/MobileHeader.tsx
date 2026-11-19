@@ -1,5 +1,6 @@
 "use client";
 
+import { HeaderBack } from "@/components/layout/HeaderBack";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,7 +35,11 @@ function Bar({ search }: { search?: React.ReactNode }) {
   return (
     <header data-site-header data-mobile-header className="bg-graphite text-ink md:hidden">
       <div className="flex h-14 items-center justify-between gap-4 pl-(--page-margin) pr-2">
-        <Logo />
+        {/* The installed app: the way back on sub-pages, left of the wordmark (HeaderBack). */}
+        <span className="flex min-w-0 items-center gap-1">
+          <HeaderBack />
+          <Logo />
+        </span>
         {search}
       </div>
     </header>

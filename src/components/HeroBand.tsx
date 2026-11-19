@@ -60,7 +60,7 @@ export function HeroBand({
     return (
       <section ref={ref} {...rest} style={{ ...rest.style, ...tint }} className={cn("scroll-mt-14", tint && "stage-tinted", rest.className)}>
         <div className={cn("split:flex", height)}>
-          <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+          <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 md:max-split:max-h-[55svh] split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
           <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
             <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col md:flex-row", !stagePad && "split:pr-(--band-edge)")}>
               <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col px-6 py-8 sm:px-10", stagePad ? "split:p-(--stage-pad)" : cn("split:py-10 split:pl-14", rightColumn !== undefined ? "split:pr-10" : "split:pr-0"), bodyClassName)}>{children}</div>
@@ -78,7 +78,7 @@ export function HeroBand({
   return (
     <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, rest.className)}>
       {/* Stretched to the band's height (also when the band is only as high as its content, with a min-height – height: 100 % would collapse). */}
-      <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+      <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 md:max-split:max-h-[55svh] split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
       <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
         {/* The right inner edge: where the header's content ends (--band-edge, globals.css). */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row split:pr-(--band-edge)">

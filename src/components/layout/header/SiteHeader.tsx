@@ -1,4 +1,5 @@
 "use client";
+import { HeaderBack } from "@/components/layout/HeaderBack";
 import { cn } from "@/lib/utils";
 import { canOpenHouse, usePlatformPhase } from "@/config/platform";
 import { setHeaderSlot } from "@/lib/headerSlot";
@@ -117,6 +118,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
     <header data-site-header className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
       <div className="bar-width flex h-full items-center">
+        {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
+        <HeaderBack className="mr-2" />
         <Logo className="mr-8 shrink-0" />
         {explorePage ? (
           <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 [--control-h:40px]" />
