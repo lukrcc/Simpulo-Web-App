@@ -46,7 +46,7 @@ export function StripRow({ children, className }: { children: ReactNode; classNa
   const ref = useRef<HTMLDivElement>(null);
   useTabScroll(ref, null);
   return (
-    <div ref={ref} className={cn("tab-scroll flex min-w-0 items-center", className)}>
+    <div ref={ref} className={cn("tab-scroll strip-scroll flex min-w-0 items-center", className)}>
       {children}
     </div>
   );

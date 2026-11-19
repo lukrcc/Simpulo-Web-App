@@ -201,7 +201,8 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
       {/* The facts as a bento at the foot, --stage-pad over the strip: three equal cards with colours that mean something – Host blue (trust,
           a person), Spots the action orange (join in), Place a photo of the surroundings –, the same height (~168px), 20px inside, each
           clickable as a whole. */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      {/* Tablet: two columns, the third tile across both (3 in a row would squeeze the words). */}
+      <div className="grid gap-3 sm:grid-cols-3 md:max-split:grid-cols-2 md:max-split:[&>*:last-child]:col-span-2">
         {/* An example House (pre-launch, beta): no host and no crew – a neutral host card, empty circles. */}
         {stay.isExample ? <ExampleHostTile /> : host && <HostTile host={host} stay={stay} />}
         {stay.isExample ? <ExampleCrewTile stay={stay} /> : <CrewTile stay={stay} crew={crew} cta={cta} onRequestWithFriend={onRequestWithFriend} />}

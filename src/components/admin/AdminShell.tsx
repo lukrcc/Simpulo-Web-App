@@ -1,15 +1,15 @@
 "use client";
 
-import { Compass, FileUser, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Compass, FileUser, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
 import { ADMIN_DE, ADMIN_UI_DE } from "@/lib/i18n/admin.de";
 import { SideNav } from "@/components/settings/SideNav";
-import { listItemStyles } from "@/components/ui/listSelection";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
 import type { Status } from "@/lib/admin/metrics";
@@ -131,6 +131,23 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   const counts = taskCounts(useAdminTasks());
   // The open elements: every task and open ticket, once (the same list as the Posteingang).
   const inboxOpen = counts.total;
+  // Tablet (768–1023px): the side list as a sheet from the left, closed again when a page is picked.
+  const [navOpen, setNavOpen] = useState(false);
+  const [navPath, setNavPath] = useState(pathname);
+  if (navPath !== pathname) {
+    setNavPath(pathname);
+    setNavOpen(false);
+  }
+  useEffect(() => {
+    if (!navOpen) return;
+    const unlock = lockScroll();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [navOpen]);
   if (isAdmin === null) return <div className="min-h-[60vh]" />;
   if (!isAdmin) notFound();
 
@@ -147,6 +164,17 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} urgent={a.key === "inbox" && counts.safetyOpen} /> : undefined,
   });
 
+  const navGroups = (
+    <>
+        {GROUPS.map((group, i) => (
+          <div key={group.key} className={cn(i > 0 && "mt-[calc(var(--sidebar-item-h)*0.8)]")}>
+            <p className={cn("mb-1 flex h-7 items-center rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[GROUP_COLOR[group.key]])}>{t(`navGroup.${group.key}`)}</p>
+            <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />
+          </div>
+        ))}
+    </>
+  );
+
   return (
     // .admin-scope: the admin colours (styles/admin-tokens.css) exist only in here.
     // From 1024px at least the window's height under the header, and over the main area's bottom padding: the side list is never pushed up.
@@ -154,30 +182,38 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
       {/* The side list fills the height: entries --sidebar-item-h (from the window's height), the active one white 8 %; before each area
           capsule 0.8 × an entry. */}
       <aside className="scroll-pane max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-y-auto lg:overscroll-contain lg:pb-1 lg:pt-(--admin-page-pad)" data-admin-nav>
-        {GROUPS.map((group, i) => (
-          <div key={group.key} className={cn(i > 0 && "mt-[calc(var(--sidebar-item-h)*0.8)]")}>
-            <p className={cn("mb-1 flex h-7 items-center rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[GROUP_COLOR[group.key]])}>{t(`navGroup.${group.key}`)}</p>
-            <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />
-          </div>
-        ))}
+        {navGroups}
       </aside>
       <div className="min-w-0 px-4 pb-(--adm-section) pt-6 md:px-(--adm-page) lg:pt-(--admin-page-pad)">
         {/* Phones (< 768px): two rows – the four areas (Markt · Wachstum · Betrieb · Launch) as a scrolling row of capsules, under it the
             pages of the current area as scrolling tabs (bold, white, underlined – the admin's active state). A capsule opens its area's first
             page. Tablets: every page in one row. */}
         <PhoneNav active={active} item={item} />
-        <ScrollRow label={t("title")} className="mb-(--adm-inner) max-md:hidden lg:hidden">
-          {AREAS.map((a) => (
-            <Link
-              key={a.key}
-              href={a.href}
-              aria-current={active === a.href ? "page" : undefined}
-              className={cn(listItemStyles(active === a.href), "flex h-10 shrink-0 items-center whitespace-nowrap px-4 text-body", active === a.href ? "font-semibold text-ink" : "text-ink/70")}
-            >
-              {t(`nav.${a.key}`)}
-            </Link>
-          ))}
-        </ScrollRow>
+        {/* Tablets (768–1023px): one button with the page you're on – it opens the side list as a sheet from the left (280px, the admin's dark
+            surface, the page dimmed behind it); a pick, a tap beside it or Escape closes it. From 1024px the side list stands. */}
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-expanded={navOpen}
+          className="mb-(--adm-inner) hidden h-11 items-center gap-2 rounded-full px-4 text-body font-semibold text-ink ring-1 ring-ink/12 md:max-lg:inline-flex"
+        >
+          <Menu aria-hidden className="size-4" />
+          {AREAS.find((a) => a.href === active) ? t(`nav.${AREAS.find((a) => a.href === active)!.key}`) : t("navMenu")}
+        </button>
+        {navOpen && (
+          <div className="fixed inset-0 z-60 hidden md:max-lg:block">
+            <button type="button" tabIndex={-1} aria-hidden onClick={() => setNavOpen(false)} className="bar-sheet-scrim absolute inset-0 cursor-default" />
+            <nav aria-label={t("navMenu")} className="scroll-pane absolute inset-y-0 left-0 w-70 overflow-y-auto overscroll-contain bg-(--bg) px-3 pb-[max(1rem,var(--safe-bottom))] pt-[calc(var(--safe-top)+1rem)] shadow-[1px_0_0_var(--line)]" data-admin-nav-sheet>
+              <div className="mb-3 flex items-center justify-between px-3">
+                <p className="text-eyebrow uppercase text-(--adm-label)">{t("navMenu")}</p>
+                <button type="button" onClick={() => setNavOpen(false)} aria-label={t("navMenuClose")} className="flex size-11 items-center justify-center rounded-full text-ink/70 hover:text-ink">
+                  <X aria-hidden className="size-5" />
+                </button>
+              </div>
+              {navGroups}
+            </nav>
+          </div>
+        )}
         <div className="mx-auto max-w-[1440px]">{children}</div>
       </div>
     </div>

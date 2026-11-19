@@ -109,7 +109,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   );
   // The text tabs: 36px, padding 0 14px, 15px medium; the one you're on a filled capsule cream 12 % and semibold, hover cream 6 %.
   // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
-  const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150 max-split:size-10 max-split:px-0";
+  const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
@@ -147,30 +147,32 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                       }
                     : undefined
                 }
-                className={cn(tab, current ? "bg-(--hdr-tab-active) font-semibold" : "bg-(--hdr-tab-bg) hover:bg-(--hdr-tab-hover)")}
+                className={cn(tab, explorePage ? "max-split:size-10 max-split:px-0" : "max-lg:size-10 max-lg:px-0", current ? "bg-(--hdr-tab-active) font-semibold" : "bg-(--hdr-tab-bg) hover:bg-(--hdr-tab-hover)")}
               >
-                <span className="hidden max-split:contents">
+                {/* Icons below 1100px; a tablet's wider window (1024–1099px) shows the words – except on Explore, whose filters need the room. */}
+                <span className={explorePage ? "hidden max-split:contents" : "hidden max-lg:contents"}>
                   <NavIcon item={item} active={current} line />
                 </span>
-                <span className="max-split:hidden">{label}</span>
+                <span className={explorePage ? "max-split:hidden" : "max-lg:hidden"}>{label}</span>
                 {/* No numbers in the header. Messages only: unread chats show a 6px dot in --brand-action inside the capsule, 6px after the word
                     (the tab's 8px gap − 2px), centred on the text. Below 1100px (icons) the same dot inside the circle, top right of the icon.
                     Your houses shows nothing; both keep the count in their aria-label. */}
                 {count > 0 && item.labelKey === "messages" && (
-                  <span aria-hidden data-unread-dot className="-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action) max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" />
+                  <span aria-hidden data-unread-dot className={cn("-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action)", explorePage ? "max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" : "max-lg:absolute max-lg:right-2 max-lg:top-2 max-lg:ml-0")} />
                 )}
               </Link>
             );
           })}
           <span className="ml-2 flex">{profile}</span>
-          {/* "Open a House": the thin outline button (headerActionStyles); below 1100px only its "+" (tooltip "Open a House"). */}
+          {/* "Open a House": the capsule (headerActionStyles) with "+" and its words on every width the header has (tablets too, CLAUDE.md
+              "Tablet"); only on Explore below 1100px its "+" alone (tooltip "Open a House") – the filters need the room. */}
           <Link
             href="/create"
             aria-label={canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}
-            className={cn(headerActionStyles, "ml-2 max-split:w-9 max-split:px-0")}
+            className={cn(headerActionStyles, "ml-2", explorePage && "max-split:w-9 max-split:px-0")}
           >
             <Plus aria-hidden strokeWidth={2.25} />
-            <span className="max-split:hidden">{canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}</span>
+            <span className={explorePage ? "max-split:hidden" : undefined}>{canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}</span>
           </Link>
         </nav>
       </div>

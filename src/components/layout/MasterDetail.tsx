@@ -34,11 +34,12 @@ export function MasterDetail({ title, list, detail, detailFill = false, fixedLis
       // header's bar, to the window's right and bottom edges – every corner square.
       // Messages – light like every page: the list on the surface, the chat on the page's ground, a 1px line ink 8 % between them. The
       // list clamp(320px, 24vw, 400px) wide, fixed; the chat fills the rest. Nothing set outside this page.
-      <div data-app-pane="desktop" className="min-h-[calc(100dvh-var(--header-total))] split:grid split:h-[calc(100dvh-var(--header-h)-var(--band-h))] split:min-h-0 split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)] split:overflow-hidden [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
-        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:pt-8 split:mx-0 split:flex split:h-full split:min-h-0 split:w-auto split:flex-col split:border-r split:border-ink/8 bg-surface split:pb-4 split:pl-(--list-gutter) split:pr-6 split:pt-4">
+      // From 768px (Tablet too): list and chat side by side, the list 320px on a tablet, clamp(320px, 24vw, 400px) on the desktop.
+      <div data-app-pane="desktop" className="min-h-[calc(100dvh-var(--header-total))] md:grid md:h-[calc(100dvh-var(--header-h)-var(--band-h))] md:min-h-0 md:grid-cols-[320px_minmax(0,1fr)] md:overflow-hidden split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)] [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
+        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:mx-0 md:flex md:h-full md:min-h-0 md:w-auto md:flex-col md:border-r md:border-ink/8 bg-surface md:px-4 md:pb-4 md:pt-4 split:pl-(--list-gutter) split:pr-6">
           {list}
         </div>
-        <div className="hidden min-w-0 split:block split:h-full split:min-h-0">
+        <div className="hidden min-w-0 md:block md:h-full md:min-h-0">
           <div className="h-full min-h-0 overflow-hidden">{detail}</div>
         </div>
       </div>

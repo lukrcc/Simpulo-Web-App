@@ -78,9 +78,10 @@ export async function Footer() {
     <footer className="footer-dark text-small">
       <Container className="pb-10 pt-16">
         <FooterWaitlist />
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-12 md:gap-6">
+        {/* Tablet (768–1099px): two columns (sm:grid-cols-2); the 12-column row from Desktop. */}
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 split:grid-cols-12 split:gap-6">
           {/* Brand: logo, the line, socials, the QR to the app (desktop). */}
-          <div className="flex flex-col items-start gap-4 md:col-span-4">
+          <div className="flex flex-col items-start gap-4 split:col-span-4">
             {/* Phones: left like the column (the Logo centres itself – in bars that is vertical, here it pulled it to the middle). */}
             <Logo size="sm" className="max-md:self-start" />
             <p className="text-body-lg text-ink">{tl("tagline")}</p>
@@ -90,7 +91,7 @@ export async function Footer() {
             <FooterInstallHint id="get-the-app" size={72} className="mt-2 max-md:hidden" />
           </div>
           {/* Discover: places and themes. */}
-          <nav aria-label={tl("discover")} className="md:col-span-4">
+          <nav aria-label={tl("discover")} className="split:col-span-4">
             <h2 className={HEAD}>{tl("discover")}</h2>
             <div className="mt-3 grid grid-cols-2 gap-6">
               <div>
@@ -119,7 +120,7 @@ export async function Footer() {
               </div>
             </div>
           </nav>
-          <nav aria-label={tl("host")} className="md:col-span-2">
+          <nav aria-label={tl("host")} className="split:col-span-2">
             <h2 className={HEAD}>{tl("host")}</h2>
             <ul className="mt-3">
               {host.map(({ href, label }) => (
@@ -137,7 +138,7 @@ export async function Footer() {
               </li>
             </ul>
           </nav>
-          <nav aria-label={t("columns.simpulo")} className="md:col-span-2">
+          <nav aria-label={t("columns.simpulo")} className="split:col-span-2">
             <h2 className={HEAD}>{t("columns.simpulo")}</h2>
             <ul className="mt-3">
               {simpulo.map(({ href, label }) => (

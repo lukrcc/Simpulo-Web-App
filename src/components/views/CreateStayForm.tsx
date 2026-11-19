@@ -754,8 +754,8 @@ const CARD_BOX = "mx-auto w-[min(100%,360px)]";
 function CreateLayout({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   return (
     <div
-      // Phones: room under the last line for the fixed Back / Next bar.
-      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 max-md:pb-32 split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
+      // Phones: room under the last line for the fixed Back / Next bar. Tablet: one centred column, at most 640px (the preview behind "Preview").
+      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 max-md:pb-32 md:max-split:w-[min(100%-2*var(--page-margin),640px)] split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
       style={{ ["--create-card-h" as string]: `${(CARD_W * 5) / 4}px` }}
     >
       <div className="flex min-w-0 flex-col justify-center split:min-h-[calc(100dvh-var(--header-total)-16px)] split:py-10">{children}</div>

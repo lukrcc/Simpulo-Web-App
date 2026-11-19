@@ -150,7 +150,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
 
   return (
     // Phones: one column as tall as the sheet's body – the pay button's foot at the bottom (PHONE_FOOTER, mt-auto).
-    <form onSubmit={submit} className="grid gap-7 max-md:flex max-md:flex-1 max-md:flex-col md:grid-cols-[45fr_55fr]">
+    <form onSubmit={submit} className="grid gap-7 max-md:flex max-md:flex-1 max-md:flex-col split:grid-cols-[45fr_55fr]">
       {/* Left: what it's for and what it costs. */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">

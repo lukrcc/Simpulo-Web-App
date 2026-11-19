@@ -49,7 +49,9 @@ export function PanelSheet({ open, onClose, title, footer, onClosed, titleNote, 
   const titleId = useId();
   const [mounted, setMounted] = useState(open);
   if (open && !mounted) setMounted(true);
-  const bottom = useMediaQuery(`(pointer: coarse), ${MEDIA.phone}`);
+  // From the bottom on phones only. A tablet (touch too) keeps the floating panel at the right, at most 560px – never a sheet across its
+  // whole width (CLAUDE.md "Tablet").
+  const bottom = useMediaQuery(MEDIA.phone);
   const panelRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const motion = useRef({ p: 0, full: 0, startP: 1, startFull: 0, frame: 0, dragging: false });

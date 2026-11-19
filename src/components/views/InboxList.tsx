@@ -20,7 +20,8 @@ import { useFormat } from "@/i18n/format";
 import { crewInOf, findUser, isBlocked, isThreadUnread, lastMessageAtOf, useStore } from "@/lib/store";
 import type { Message, Thread, User } from "@/lib/types";
 import { useSupportThread } from "@/lib/support/conversation";
-import { useIsDesktop } from "@/lib/useIsDesktop";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { MEDIA } from "@/config/breakpoints";
 import { DIRECT_MESSAGE_POLICY } from "@/config/policies";
 import { shortNameOf } from "@/lib/shortName";
 import { cn, housePhotos } from "@/lib/utils";
@@ -68,7 +69,8 @@ function InboxContent() {
   const t = useTranslations("messages.inbox");
   const store = useStore();
   const me = store.currentUserId;
-  const isDesktop = useIsDesktop();
+  // List and chat side by side from 768px (Tablet and Desktop); phones: the list, a chat opens as its own page.
+  const isDesktop = useMediaQuery(MEDIA.tabletUp);
   const params = useSearchParams();
   const selectedId = params.get("id");
   const f = useFormat();
@@ -184,10 +186,10 @@ function InboxContent() {
             </label>
           )}
           {/* No footer and no legal line on Messages – the one dark page, nothing light under it. */}
-          <div className="split:scroll-pane split:-mr-3 split:min-h-0 split:flex-1 split:pr-3 split:pt-1">{chats}</div>
+          <div className="md:scroll-pane md:-mr-3 md:min-h-0 md:flex-1 md:pr-3 md:pt-1">{chats}</div>
         </>
       }
-      // Mounted on desktop only: on mobile it would mark the chat as read without anyone seeing it.
+      // Mounted from 768px only: on phones it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
     />
   );

@@ -118,7 +118,7 @@ export function MemberHero({ stay, host, crew, journey, content, chatHref, onLea
     // them across the full width, its content on the page margin.
     <section ref={ref} aria-labelledby="house-title" className="page-container explore-width pt-4 max-md:w-full max-md:pt-0">
       <div className="grid gap-4 max-md:gap-0 split:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <div className="relative aspect-4/5 overflow-hidden rounded-[24px] bg-band max-md:rounded-none split:aspect-auto split:h-full split:max-h-[calc((var(--explore-w)-16px)/3*1.25)] split:min-h-100">
+        <div className="relative aspect-4/5 overflow-hidden rounded-[24px] bg-band max-md:rounded-none md:aspect-3/2 split:aspect-auto split:h-full split:max-h-[calc((var(--explore-w)-16px)/3*1.25)] split:min-h-100">
           <HeroPhotos photos={housePhotos(stay, host)} />
         </div>
         <div className="ember min-w-0 rounded-[24px] p-6 max-md:rounded-none max-md:px-(--page-margin) max-md:py-8 sm:p-8">

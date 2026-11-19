@@ -18,7 +18,8 @@ import { chatThemeOf, crewThreadId, findUser, isBlocked, isCrewMember, useStore 
 import Link from "next/link";
 import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
-import { useIsDesktop } from "@/lib/useIsDesktop";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { MEDIA } from "@/config/breakpoints";
 import { addTicketFollowUp } from "@/lib/admin/store";
 import { SUPPORT_THREAD_ID, useSupportThread } from "@/lib/support/conversation";
 import { chatHouseShare, stayAccentOf } from "@/lib/stageTint";
@@ -30,7 +31,8 @@ import { useVisualViewport } from "@/lib/useVisualViewport";
 /** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
-  const isDesktop = useIsDesktop();
+  // From 768px the chat lives in /messages beside the list.
+  const isDesktop = useMediaQuery(MEDIA.tabletUp);
   const router = useRouter();
   const t = useTranslations("messages.thread");
 

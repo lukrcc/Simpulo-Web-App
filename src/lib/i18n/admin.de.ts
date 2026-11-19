@@ -8,6 +8,9 @@
 
 export const ADMIN_DE = {
   title: "Admin",
+  /** Tablet (768–1023px): die Seitenleiste als Blatt von links */
+  navMenu: "Bereiche",
+  navMenuClose: "Bereiche schließen",
   nav: {
     inbox: "Posteingang",
     cockpit: "Übersicht",

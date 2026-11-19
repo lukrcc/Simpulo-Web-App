@@ -105,9 +105,9 @@ export function AdminTaxes() {
       </div>
 
       {/* The main numbers: each with ⓘ, its change against the period before; missing receipts against 0. */}
-      <dl data-key-numbers className="mt-(--adm-section) grid grid-cols-2 gap-y-8 lg:grid-cols-5">
+      <dl data-key-numbers className="mt-(--adm-section) grid grid-cols-2 gap-y-8 md:grid-cols-3 lg:grid-cols-5">
         {numbers.map((n, i) => (
-          <div key={n.key} className={cn("min-w-0 pr-4 lg:px-5 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 2 === 1 && "max-lg:border-l max-lg:border-ink/8 max-lg:pl-4")}>
+          <div key={n.key} className={cn("min-w-0 pr-4 md:px-5 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 3 !== 0 && "md:max-lg:border-l md:max-lg:border-ink/8", i % 3 === 0 && "md:max-lg:pl-0", i % 2 === 1 && "max-md:border-l max-md:border-ink/8 max-md:pl-4")}>
             <dt className="flex items-center gap-1 text-small text-muted">
               {t(`numbers.${n.key}`)}
               <InfoTip text={t(`info.${n.key}`)} />

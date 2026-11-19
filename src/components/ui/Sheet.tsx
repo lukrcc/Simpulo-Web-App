@@ -116,7 +116,7 @@ function DialogSheet({ open, onClose, title, subtitle, onBack, focusOverlay = fa
   // Phones, full height (wide, fullOnPhone): exactly the visual viewport (the wrapper below), the head sticky at the top, 0 padding at the
   // bottom (the foot carries the safe area itself, PHONE_FOOTER).
   const panelClass = wide
-    ? "glass-panel scroll-pane relative w-full rounded-b-none p-7 pb-[max(1.75rem,var(--safe-bottom))] max-md:flex max-md:h-full max-md:max-h-full max-md:flex-col max-md:rounded-none max-md:pb-0 max-md:pt-0 md:h-auto md:max-h-[90dvh] md:max-w-[820px] md:rounded-b-[28px]"
+    ? "glass-panel scroll-pane relative w-full rounded-b-none p-7 pb-[max(1.75rem,var(--safe-bottom))] max-md:flex max-md:h-full max-md:max-h-full max-md:flex-col max-md:rounded-none max-md:pb-0 max-md:pt-0 md:h-auto md:max-h-[90dvh] md:max-w-[640px] md:rounded-b-[28px] split:max-w-[820px]"
     : fullOnPhone
       ? "glass-panel scroll-pane relative w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] max-md:flex max-md:h-full max-md:max-h-full max-md:flex-col max-md:rounded-none max-md:px-5 max-md:pb-0 max-md:pt-0 md:max-h-[90dvh] md:max-w-[560px] md:rounded-b-[28px]"
       : "glass-panel scroll-pane relative max-h-[90dvh] w-full rounded-b-none p-8 pb-[max(2rem,var(--safe-bottom))] md:max-w-[560px] md:rounded-b-[28px]";

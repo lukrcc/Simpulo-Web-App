@@ -560,14 +560,16 @@ html.sim-standalone {
     --explore-gap: 24px;
   }
 }
-@media (min-width: 64rem) {
+/* The third column from Desktop (1100px) – a tablet (768–1099px, iPads upright up to 1032) keeps two (CLAUDE.md "Tablet"). */
+@media (min-width: 68.75rem) {
   :root {
     --explore-cols: 3;
   }
 }
+/* Your houses' tiles: two on a tablet ("See all"), 4 from 1100 – the rows on a tablet show two and the third's edge (.my-slide below). */
 @media (min-width: 48rem) {
   :root {
-    --my-cols: 3;
+    --my-cols: 2;
   }
 }
 @media (min-width: 68.75rem) {
@@ -657,6 +659,12 @@ html.sim-standalone {
       width: calc(var(--explore-w) * 0.85);
     }
   }
+  /* Tablet (768–1099px): a shelf shows two cards and the edge of the third (2.3 in the row's width), so it's clear the row swipes. */
+  @media (min-width: 48rem) and (max-width: 68.74rem) {
+    .explore-slide {
+      width: calc((var(--explore-w) - 2 * var(--explore-gap)) / 2.3);
+    }
+  }
   /* Your houses' own Houses (components/MyHouseTile, no notch): 5 a row from 1440px, 4 from 1100, 3 from 768, 2 below.
      Lived in: smaller, two more a row (.my-slide-small). Same gap as Explore. */
   /* Content on the band's grid inside a full-width footer: the same inner edges as the band's columns. */
@@ -689,6 +697,15 @@ html.sim-standalone {
   }
   /* Phones: Your houses' rows as shelves like Explore – a tile 85 % of the width (Lived in 45 %), the next one peeking in, a swipe snaps
      (ui/Shelf). "See all" keeps its grid of two (--my-cols). */
+  /* Tablet: Your houses' rows like Explore's shelves – two tiles and the third's edge (Lived in: three and the fourth's). */
+  @media (min-width: 48rem) and (max-width: 68.74rem) {
+    .my-slide {
+      width: calc((var(--explore-w) - 2 * var(--explore-gap)) / 2.3);
+    }
+    .my-slide-small {
+      width: calc((var(--explore-w) - 3 * var(--explore-gap)) / 3.3);
+    }
+  }
   @media (max-width: 767.98px) {
     .my-slide {
       width: calc(var(--explore-w) * 0.85);
@@ -1908,12 +1925,25 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   margin-top: 64px;
 }
 
-
-
-
-
-
-
-
-
+/* Tablet (768–1099px): the strips' numbers (StripRow) in one row when they fit, else the row scrolls sideways – the phones' .tab-scroll rules,
+   fading only on the right while more comes. */
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  .strip-scroll {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .strip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .strip-scroll > * {
+    flex-shrink: 0;
+  }
+  .strip-scroll[data-more-end] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+}
 

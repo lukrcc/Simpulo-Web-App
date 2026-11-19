@@ -217,6 +217,9 @@ body:has(.admin-scope) {
     left: 12px;
     right: 12px;
   }
+}
+/* Phones and tablets (< 1100px, CLAUDE.md "Tablet"): tables scroll in their own box with the first column fixed. */
+@media (max-width: 68.74rem) {
   .admin-scope table {
     width: max-content;
     min-width: 100%;
