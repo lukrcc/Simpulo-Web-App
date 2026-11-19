@@ -7,8 +7,9 @@ import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
 import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
+import { addMarketingContact, deleteMarketingContact, patchMarketingContact, setMarketingClips, setMarketingStep } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
-import type { TaxQuestion } from "@/lib/data";
+import type { MarketingContact, TaxQuestion } from "@/lib/data";
 
 export function useAdminActions() {
   const store = useStore();
@@ -127,6 +128,36 @@ export function useAdminActions() {
     setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done", statusLabel: string) {
       setBacklog(id, status);
       appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
+    },
+    /** Marketing › Plan: a next step ticked off (or back). */
+    setMarketingStep(id: string, text: string, done: boolean) {
+      setMarketingStep(id, done);
+      appendAdminLog("marketing_step", `${text} · ${done ? "erledigt" : "offen"}`, by);
+    },
+    /** Marketing › Kontakte: a new contact (the detail opens with it). */
+    addMarketingContact(contact: Omit<MarketingContact, "id" | "createdAt">): MarketingContact {
+      const added = addMarketingContact(contact);
+      appendAdminLog("marketing_contact_added", added.name, by);
+      return added;
+    },
+    /** Marketing › Kontakte: one field changed (`what` names it for the log, without personal values). */
+    updateMarketingContact(contact: MarketingContact, patch: Partial<Omit<MarketingContact, "id" | "createdAt">>, what: string) {
+      patchMarketingContact(contact.id, patch);
+      appendAdminLog("marketing_contact_updated", `${patch.name ?? contact.name} · ${what}`, by);
+    },
+    /** Marketing › Kontakte: deleted for good (privacy) – the log keeps only that one was deleted, not who. */
+    deleteMarketingContact(contact: MarketingContact) {
+      deleteMarketingContact(contact.id);
+      appendAdminLog("marketing_contact_deleted", contact.id, by);
+    },
+    /** Marketing › Content: the 2D series' clips made. */
+    setMarketingClips(count: number) {
+      setMarketingClips(count);
+      appendAdminLog("marketing_clips", String(Math.max(0, count)), by);
+    },
+    /** Marketing › Kontakte: the CSV for one's own records. */
+    logMarketingExport(count: number) {
+      appendAdminLog("marketing_export", `${count} Kontakte`, by);
     },
     /** Vision › Standort: the chosen country and why. */
     decideLocation(country: string | null, reason: string) {

@@ -60,6 +60,43 @@ export interface AdminData {
   backlog: Record<string, "open" | "inProgress" | "done">;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
   location: { country: string | null; reason: string };
+  /** Launch › Marketing › Kontakte – creators written to (Firestore marketingContacts, admins only: firestore.rules) */
+  marketingContacts: MarketingContact[];
+  /** Launch › Marketing › Plan: the next steps ticked off, by step id (config/marketing.ts NEXT_STEPS) */
+  marketingSteps: Record<string, boolean>;
+  /** Launch › Marketing › Content: 2D series clips made so far */
+  marketingClips: number;
+}
+
+/** How a creator was written to. */
+export type MarketingContactWay = "email" | "dm" | "form";
+/** open → replied → demo seen → House opened; "later": not now (a launch mail only with consent). */
+export type MarketingContactStatus = "open" | "replied" | "demo" | "house" | "later";
+
+/** One creator on the marketing list (Admin › Launch › Marketing › Kontakte). Admins only – never shown in the app. */
+export interface MarketingContact {
+  /** "mc-…" – also the demo link's ?ref= */
+  id: string;
+  name: string;
+  /** Instagram, TikTok, YouTube … */
+  channel: string;
+  niche: string;
+  followers: number;
+  contactWay: MarketingContactWay;
+  /** The first message (YYYY-MM-DD); null = not written to yet */
+  firstMessageAt: string | null;
+  /** Follow-ups sent: 0–2 – after the second, quiet */
+  followUps: 0 | 1 | 2;
+  status: MarketingContactStatus;
+  /** Agreed to the launch mail – with the date (YYYY-MM-DD) */
+  launchConsent: boolean;
+  launchConsentAt: string | null;
+  /** Marked for the launch mail – only possible with consent */
+  launchMail?: boolean;
+  note: string;
+  /** When the demo link was opened (set by the visit) */
+  demoSeenAt?: string;
+  createdAt: string;
 }
 
 /** A question for the tax advisor (Geld › Steuern): open → discussed → settled, with a note. */

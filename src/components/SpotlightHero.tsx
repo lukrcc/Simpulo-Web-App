@@ -207,7 +207,7 @@ export function SpotlightHero({ stays }: { stays: Stay[] }) {
     // peek in at the screen edge even at rest; while swiping, its rounded edge shows in the gap. Phones: 12px below
     // the header, never under the status bar (also in the installed app).
     <section
-      className="mx-auto max-w-[1680px] pt-3 md:pt-8 lg:hidden"
+      className="mx-auto max-w-[1680px] pt-3 md:hidden"
       aria-roledescription="carousel"
       aria-label={t("featuredHouses")}
       onMouseEnter={() => setHovered(true)}

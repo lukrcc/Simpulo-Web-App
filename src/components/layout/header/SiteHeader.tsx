@@ -127,7 +127,9 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <HeaderSearch />
         )}
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
-        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-split:gap-2", explorePage ? "ml-4" : "ml-5")}>
+        {/* Below 1100px (tablets) the tab bar at the bottom carries the navigation (BottomTabBar) – the header holds the logo, the search and
+            Explore's filters only. */}
+        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-split:hidden", explorePage ? "ml-4" : "ml-5")}>
           {/* Explore: All filters | the right group – a 1px line cream 15 %, 24px high, 16px on each side. */}
           {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-(--header-divider)" />}
           {navItemsFor(me !== undefined, "header").map((item) => {

@@ -21,12 +21,16 @@ const clean = (value: string | null) => value?.trim().slice(0, MAX_PARAM_LENGTH)
 
 /** ref + utm_* from a URL's query, or null when it carries none. */
 export function attributionFromUrl(url: URL): Attribution | null {
+  // A marketing contact's demo link (?ref=mc-…, Admin › Marketing) is no person's share link: it counts as the source "creator-demo",
+  // never as a referring user.
+  const ref = clean(url.searchParams.get(REF_PARAM));
+  const contactRef = ref?.startsWith("mc-") ?? false;
   const attribution: Attribution = {
-    refUserId: clean(url.searchParams.get(REF_PARAM)),
+    refUserId: contactRef ? undefined : ref,
     // ?src= (an invite: src=invite, the QR cards: src=qr) counts as the source when there's no utm_source.
-    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource) ?? url.searchParams.get(SRC_PARAM)),
+    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource) ?? url.searchParams.get(SRC_PARAM)) ?? (contactRef ? "creator-demo" : undefined),
     utmMedium: clean(url.searchParams.get(UTM_PARAMS.utmMedium)),
-    utmCampaign: clean(url.searchParams.get(UTM_PARAMS.utmCampaign)),
+    utmCampaign: clean(url.searchParams.get(UTM_PARAMS.utmCampaign)) ?? (contactRef ? ref : undefined),
   };
   return Object.values(attribution).some(Boolean) ? withoutEmpty(attribution) : null;
 }

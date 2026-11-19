@@ -188,7 +188,14 @@ export type AdminAction =
   | "funding_moved"
   | "funding_doc"
   | "backlog_status"
-  | "location_decided";
+  | "location_decided"
+  | "marketing_step"
+  | "marketing_contact_added"
+  | "marketing_contact_updated"
+  | "marketing_contact_deleted"
+  | "marketing_demo_seen"
+  | "marketing_clips"
+  | "marketing_export";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
 

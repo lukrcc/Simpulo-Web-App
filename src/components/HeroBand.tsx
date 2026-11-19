@@ -16,6 +16,14 @@ import { MEDIA } from "@/config/breakpoints";
  * from the photo, and on the right flush with the header's content ("Open a House"). `rightColumn`: a column of its own, 360px wide, a 1px
  * cream 10 % line before it. Below 1100px: the photo on top at full width (4:5), Ember under it at full width – neither rounded.
  */
+/** The title photo's shape below 1100px, per page (from 1100px it fills the band's height beside the content). */
+const MEDIA_FIT = {
+  default: "aspect-4/5 md:aspect-3/2 md:max-split:max-h-[55svh]",
+  house: "aspect-square md:aspect-3/2 md:max-split:max-h-[45svh]",
+  upNext: "aspect-4/5 max-split:max-h-[40svh] md:aspect-3/2",
+  profile: "aspect-4/5 max-split:max-h-[45svh] md:aspect-3/2",
+} as const;
+
 export function HeroBand({
   media,
   children,
@@ -24,6 +32,7 @@ export function HeroBand({
   mediaWidth = "split:w-[clamp(360px,30%,640px)]",
   footer,
   fullStrip = false,
+  mediaFit = "default",
   accent,
   stagePad = false,
   stageClassName,
@@ -45,6 +54,12 @@ export function HeroBand({
    * from the content); the footer as a strip across the FULL width under both (its content `band-inset-full`). `height` is then the row's.
    */
   fullStrip?: boolean;
+  /**
+   * The title photo below 1100px on pages where you act (CLAUDE.md "Titelfotos"): "house" – phones 1:1, tablets 3:2 at most 45 % of the
+   * height (title, dates, price and the booking bar on the first screen); "upNext" – at most 40 % (Pay · Reply · Set up on the first screen);
+   * "profile" – at most 45 % (name and short text on the first screen); default 4:5 / 3:2 at most 55 %.
+   */
+  mediaFit?: keyof typeof MEDIA_FIT;
   /** The photo's colour (hex): the stage's surface and strip take a breath of it (lib/stageTint.ts, tokens.css .stage-tinted) */
   accent?: string;
   /** One spacing on the stage (--stage-pad): to the photo, to the right edge, on top and to the strip (the House page) */
@@ -60,7 +75,7 @@ export function HeroBand({
     return (
       <section ref={ref} {...rest} style={{ ...rest.style, ...tint }} className={cn("scroll-mt-14", tint && "stage-tinted", rest.className)}>
         <div className={cn("split:flex", height)}>
-          <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 md:max-split:max-h-[55svh] split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+          <div className={cn(cn("relative w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-auto split:self-stretch", MEDIA_FIT[mediaFit]), mediaWidth)}>{media}</div>
           <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
             <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col md:flex-row", !stagePad && "split:pr-(--band-edge)")}>
               <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col px-6 py-8 sm:px-10", stagePad ? "split:p-(--stage-pad)" : cn("split:py-10 split:pl-14", rightColumn !== undefined ? "split:pr-10" : "split:pr-0"), bodyClassName)}>{children}</div>
@@ -78,7 +93,7 @@ export function HeroBand({
   return (
     <section ref={ref} {...rest} className={cn("scroll-mt-14 split:flex", height, rest.className)}>
       {/* Stretched to the band's height (also when the band is only as high as its content, with a min-height – height: 100 % would collapse). */}
-      <div className={cn("relative aspect-4/5 w-full shrink-0 overflow-hidden bg-ink/6 md:aspect-3/2 md:max-split:max-h-[55svh] split:aspect-auto split:h-auto split:self-stretch", mediaWidth)}>{media}</div>
+      <div className={cn(cn("relative w-full shrink-0 overflow-hidden bg-ink/6 split:aspect-auto split:h-auto split:self-stretch", MEDIA_FIT[mediaFit]), mediaWidth)}>{media}</div>
       <div className={cn("stage flex min-w-0 flex-1 flex-col rounded-none", stageClassName)}>
         {/* The right inner edge: where the header's content ends (--band-edge, globals.css). */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row split:pr-(--band-edge)">

@@ -11,10 +11,10 @@ export const THEME_PREFS: readonly ThemePref[] = ["system", "light", "dark"];
 export const THEME_COOKIE = "simpulo_theme";
 /**
  * <meta name="theme-color"> per mode (the browser's bar and the iPhone's status bar continue the header): a meta tag can't read a CSS variable,
- * so the values are written out here (like the OG images). Light: the header's graphite (--graphite). Dark: the header's glass over the dark
- * floor (--header-bg over --bg), a step deeper.
+ * so the values are written out here (like the OG images): the header's fixed surface below 1100px (--header-surface-mobile = graphite 96 %
+ * over the page's ground) – light over #F3EFEA, dark over #1A1715 – so the status bar joins the head without a seam.
  */
-export const THEME_COLOR: Record<ResolvedTheme, string> = { light: "#48423E", dark: "#3E3935" };
+export const THEME_COLOR: Record<ResolvedTheme, string> = { light: "#4F4945", dark: "#46403C" };
 
 export const DARK_QUERY = "(prefers-color-scheme: dark)";
 

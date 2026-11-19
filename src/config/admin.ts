@@ -126,6 +126,12 @@ export const DEFAULT_COMPARE: ComparePeriod = "month";
  * `unit`: "percent" numbers change in percentage points ("▲ +3 Pkt."), the rest absolute plus relative ("▲ +3 (+8,6 %)").
  */
 export const CHANGE_RULES = {
+  /** Launch › Marketing › Trichter */
+  mktContacted: { better: "higher", unit: "count" },
+  mktReplyRate: { better: "higher", unit: "percent" },
+  mktDemoRate: { better: "higher", unit: "percent" },
+  mktHouseRate: { better: "higher", unit: "percent" },
+  mktFilledHouses: { better: "higher", unit: "count" },
   profit: { better: "higher", unit: "eur" },
   fullHouses: { better: "higher", unit: "count" },
   reservedShare: { better: "higher", unit: "percent" },

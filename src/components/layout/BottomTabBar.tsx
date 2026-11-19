@@ -4,7 +4,9 @@ import { LogIn, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useIsPhone } from "@/lib/useMediaQuery";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { Avatar } from "@/components/ui/Avatar";
@@ -20,11 +22,13 @@ const item = (href: NavItem["href"]) => NAV_ITEMS.find((i) => i.href === href)!;
 const CELL = "flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-150";
 
 /**
- * Phones' tab bar (< md) – ONE behaviour in Safari and in the installed app (CLAUDE.md "Mobile"): docked to the bottom edge over the full
+ * The tab bar below 1100px – phones AND tablets (CLAUDE.md "Navigation nach Breite"; from 1100px the desktop header). Phones' tab bar (< md) – ONE behaviour in Safari and in the installed app (CLAUDE.md "Mobile"): docked to the bottom edge over the full
  * width, 56px + the bottom safe area (over Safari's toolbar, over the home indicator), the header's dark glass (graphite 88 %), entries spread
  * evenly. Logged out: Explore · Saved · Log in. Logged in: Explore · Houses · + (Open a House, in the middle, a little set apart – white 16 %,
  * never orange) · Messages (a small orange dot for unread chats, like the desktop) · Profile (the avatar; opens the account menu as a sheet
  * from the bottom). It stays put while scrolling. Not on focus flows or an open chat (nav.ts hidesTabBar). Render inside Suspense.
+ * Tablets (768–1099px): the same entries as a floating capsule, centred, at most 560px, 16px above the bottom edge and its safe area; "Houses"
+ * says "Your houses"; Profile opens the account menu as a popover above its tab (the header's dark glass), not as a sheet.
  */
 export function BottomTabBar() {
   const pathname = usePathname();
@@ -34,6 +38,8 @@ export function BottomTabBar() {
   const t = useTranslations("nav");
   const unread = useMessagesUnread().chats;
   const [account, setAccount] = useState(false);
+  const phone = useIsPhone();
+  const profileRef = useRef<HTMLButtonElement>(null);
   const hidden = hidesTabBar(pathname);
   // What the bar covers (--tabbar-clear, globals.css): phones count it by default; a route without the bar says "none".
   useEffect(() => {
@@ -43,9 +49,19 @@ export function BottomTabBar() {
       delete document.documentElement.dataset.tabbar;
     };
   }, [hidden]);
+  // The admin keeps its own navigation (side list, "Bereiche") from 768px – no tab bar there on tablets (phones keep it).
+  const admin = pathname.startsWith("/admin");
+  useEffect(() => {
+    if (!admin) return;
+    document.documentElement.dataset.tabbarTablet = "none";
+    return () => {
+      delete document.documentElement.dataset.tabbarTablet;
+    };
+  }, [admin]);
   if (hidden) return null;
 
-  const tab = (href: NavItem["href"], label: string, extra?: ReactNode) => {
+  /** `wide`: the word on tablets, where there's room ("Your houses"). */
+  const tab = (href: NavItem["href"], label: string, extra?: ReactNode, wide?: string) => {
     const active = isNavActive(href, pathname);
     const Icon = item(href).icon;
     return (
@@ -55,19 +71,31 @@ export function BottomTabBar() {
             <Icon aria-hidden className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
             {extra}
           </span>
-          {label}
+          {wide ? (
+            <>
+              <span className="md:hidden">{label}</span>
+              <span className="max-md:hidden">{wide}</span>
+            </>
+          ) : (
+            label
+          )}
         </Link>
       </li>
     );
   };
   return (
     <>
-      <nav aria-label={t("compactLabel")} data-site-header data-tab-bar className="header-glass fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom) md:hidden">
-        <ul className="flex h-14 items-stretch px-1">
+      <nav
+        aria-label={t("compactLabel")}
+        data-site-header
+        data-tab-bar
+        className={cn("header-glass fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom) md:inset-x-0 md:mx-auto md:bottom-[calc(16px+var(--safe-bottom))] md:w-[min(560px,calc(100%-32px))] md:overflow-hidden md:rounded-full md:pb-0 split:hidden", admin && "md:hidden")}
+      >
+        <ul className="flex h-14 items-stretch px-1 md:px-3">
           {tab("/", t("items.explore"))}
           {me ? (
             <>
-              {tab("/your-houses", t("items.houses"))}
+              {tab("/your-houses", t("items.houses"), undefined, t("items.yourHouses"))}
               <li className="flex flex-1 items-center justify-center">
                 {/* Open a House: in the middle, a little set apart (the capsule's white 16 %), never orange. */}
                 <Link href="/create" aria-label={t("openHouse")} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink transition-colors duration-150 active:bg-(--header-pill-hover)">
@@ -81,8 +109,9 @@ export function BottomTabBar() {
               )}
               <li className="flex-1">
                 <button
+                  ref={profileRef}
                   type="button"
-                  onClick={() => setAccount(true)}
+                  onClick={() => setAccount((open) => !open)}
                   aria-haspopup="dialog"
                   aria-expanded={account}
                   className={cn(CELL, account || isNavActive("/profile", pathname) || pathname === "/me" ? "font-semibold text-ink" : "font-medium text-ink/60")}
@@ -107,7 +136,8 @@ export function BottomTabBar() {
           )}
         </ul>
       </nav>
-      {me && (
+      {me && !phone && account && <AccountPopover anchor={profileRef} label={t("menu.label")} onClose={() => setAccount(false)} />}
+      {me && phone && (
         <MobileSheet open={account} onClose={() => setAccount(false)} label={t("menu.label")} className="px-3">
           <div role="menu" aria-label={t("menu.label")} className="pb-3 pt-1">
             <AccountMenuList onDone={() => setAccount(false)} rowClassName="h-12" />
@@ -115,5 +145,46 @@ export function BottomTabBar() {
         </MobileSheet>
       )}
     </>
+  );
+}
+
+/**
+ * Tablets: the account menu as a popover above the Profile tab – the header's dark glass (.bar-menu, like the desktop's avatar menu), 256px,
+ * right edges flush with the tab, 8px above the bar. A tap beside it, Escape or a pick closes it.
+ */
+function AccountPopover({ anchor, label, onClose }: { anchor: React.RefObject<HTMLButtonElement | null>; label: string; onClose: () => void }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    // Placed above the bar, again on resize (the window turning).
+    const place = () => {
+      const bar = anchor.current?.closest("[data-tab-bar]")?.getBoundingClientRect();
+      const r = anchor.current?.getBoundingClientRect();
+      if (!bar || !r) return;
+      setStyle({ position: "fixed", bottom: window.innerHeight - bar.top + 8, right: Math.max(8, document.documentElement.clientWidth - Math.min(bar.right, r.right + 40)) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [anchor]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!panel.current?.contains(target) && !anchor.current?.contains(target)) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [anchor, onClose]);
+  if (!style) return null;
+  return createPortal(
+    <div ref={panel} style={style} data-site-header className="bar-menu z-72 w-64" role="menu" aria-label={label}>
+      <AccountMenuList onDone={onClose} />
+    </div>,
+    document.body,
   );
 }

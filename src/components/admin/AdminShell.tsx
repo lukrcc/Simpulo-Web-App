@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, FileUser, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Compass, FileUser, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
@@ -19,7 +19,7 @@ import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "money" | "platform" | "waitlist" | "applications";
+type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "money" | "platform" | "waitlist" | "applications" | "marketing";
 interface Area {
   key: AreaKey;
   href: string;
@@ -65,6 +65,7 @@ const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas:
     areas: [
       { key: "waitlist", href: "/admin/waitlist", icon: ListOrdered },
       { key: "applications", href: "/admin/applications", icon: FileUser },
+      { key: "marketing", href: "/admin/marketing", icon: Megaphone },
     ],
   },
 ];

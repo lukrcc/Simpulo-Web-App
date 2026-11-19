@@ -419,12 +419,29 @@
     --tabbar-clear: calc(56px + var(--safe-bottom));
     /* Explore on phones: the Spotlight card fills what the first screen leaves under the header (56px) and the chip row, above the tab bar,
        12px of air above and below – header, row and card fill the first screen together (SpotlightHero). */
-    --spot-phone-h: clamp(400px, calc(100dvh - var(--header-total) - 56px - var(--filter-row-h) - var(--tabbar-clear) - 24px), 720px);
+    --spot-phone-h: clamp(400px, calc(100dvh - var(--header-total) - 56px - var(--filter-row-h) - var(--tabbar-clear) - 24px), min(720px, 70svh));
   }
   html[data-tabbar="none"] {
     --tabbar-clear: 0px;
   }
   /* The House page (visitor, host): its booking bar replaces the tab bar at the bottom (HouseHero) – the page keeps that height free. */
+  html[data-house-bar] {
+    --tabbar-clear: var(--house-bar-h, 96px);
+  }
+  html[data-house-bar] [data-tab-bar] {
+    display: none;
+  }
+}
+/* Tablets (768–1099px): the same tab bar, floating – 56px high, 16px above the bottom edge and its safe area (BottomTabBar); pages end above it.
+   The House page's booking bar takes its place there too. From 1100px the desktop header, no tab bar (CLAUDE.md "Navigation nach Breite"). */
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  :root {
+    --tabbar-clear: calc(56px + 16px + var(--safe-bottom));
+  }
+  html[data-tabbar="none"],
+  html[data-tabbar-tablet="none"] {
+    --tabbar-clear: 0px;
+  }
   html[data-house-bar] {
     --tabbar-clear: var(--house-bar-h, 96px);
   }
@@ -1193,13 +1210,11 @@ main:has([data-app-pane="always"]) {
  * allowed at an edge, because it marks content, not the page.
  */
 /* A sheet from the bottom (ui/MobileSheet) or a dialog (ui/Sheet) is up: the tab bar steps back – it would show through the sheet's glass otherwise. */
+/* No fade (opacity on words softens them on some screens): it steps away at once. */
 html[data-sheet-open] [data-tab-bar],
 html[data-dialog-open] [data-tab-bar] {
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-}
-[data-tab-bar] {
-  transition: opacity 200ms ease-out;
 }
 @media (max-width: 767.98px) {
   .tab-scroll {
@@ -1947,6 +1962,42 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   }
 }
 
-
-
+/* Below 1100px: the header, the phones' head, the status bar strip and the tab bar as one fixed surface – no glass, no blur, no text shadow
+   (tokens.css --header-surface-mobile). The desktop keeps its glass. */
+@media (max-width: 68.74rem) {
+  .header-glass,
+  .milk-glass,
+  html[data-at-top] .header-glass,
+  html[data-at-top] .milk-glass,
+  [data-mobile-header],
+  [data-status-bar] {
+    background-color: var(--header-surface-mobile);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .header-glass,
+  .milk-glass,
+  [data-mobile-header] {
+    box-shadow: inset 0 -1px 0 var(--header-line-mobile);
+  }
+  /* The tab bar: the line on its top edge (phones) – on tablets a fine line all round its capsule. */
+  [data-tab-bar].header-glass {
+    box-shadow: inset 0 1px 0 var(--header-line-mobile);
+  }
+  [data-site-header] {
+    text-shadow: none;
+    --text-muted: var(--header-fg);
+    --header-pill: var(--header-pill-mobile);
+    --header-pill-hover: var(--header-pill-hover-mobile);
+    --header-pill-active: var(--header-pill-active-mobile);
+  }
+  [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
+    box-shadow: inset 0 0 0 1px var(--header-pill-edge-mobile);
+  }
+}
+@media (min-width: 48rem) and (max-width: 68.74rem) {
+  [data-tab-bar].header-glass {
+    box-shadow: inset 0 0 0 1px var(--header-line-mobile), var(--shadow-float);
+  }
+}
 

@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Firestore Security Rules – prepared for phase 4 (Firebase). Until then the data lives in the mock adapter; this file is the agreed shape.
+// Everything is closed unless a rule below opens it. Admins carry the custom claim `admin: true` (set server-side, CLAUDE.md "Admin").
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Admin › Launch › Marketing › Kontakte: creators written to – personal data, admins only, read AND write. Never readable by the app,
+    // never by the contact. The demo visit ("Demo gesehen") is written by a Cloud Function with the Admin SDK, not by the browser.
+    match /marketingContacts/{contactId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Default: nothing.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

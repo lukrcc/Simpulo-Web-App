@@ -14,7 +14,8 @@ import type { HypothesisStatus } from "@/config/hypotheses";
 import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
-import type { AdminData, HouseOutcome, LedgerEntry, MetricsHistory, OverviewSnapshot } from "@/lib/data";
+import type { AdminData, HouseOutcome, LedgerEntry, MarketingContact, MetricsHistory, OverviewSnapshot } from "@/lib/data";
+import { FUNNEL_ASSUMPTIONS, PROJECTION_HOUSES } from "@/config/marketing";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
@@ -1446,4 +1447,83 @@ export function growthFunnel(events: readonly GrowthEvent[], period: GrowthPerio
     return { value, change: before ? getChange(metric, value, count(before, name)) : null };
   };
   return { visitors: pair("visitors", "house_viewed"), requests: pair("requests", "request_sent"), paid: pair("paid", "payment_completed") };
+}
+
+// ─── Launch › Marketing ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Filled Houses: real Houses (no examples) whose crew is complete – the plan's ladder 1 → 5 → 50+. */
+export function marketingFilledHouses({ stays }: Pick<AdminInputs, "stays">): number {
+  return stays.filter((s) => isReal(s) && s.status !== "draft" && s.status !== "draft_unclaimed" && s.status !== "closed" && s.spotsTotal > 0 && s.spotsFilled >= s.spotsTotal).length;
+}
+
+export interface FunnelRow {
+  /** "all" or the niche */
+  key: string;
+  contacted: number;
+  replied: number;
+  demo: number;
+  house: number;
+  /** Each as a share of the contacted (0–1); null without contacts */
+  replyRate: number | null;
+  demoRate: number | null;
+  houseRate: number | null;
+}
+
+const reached = { open: 0, later: 1, replied: 1, demo: 2, house: 3 } as const;
+
+function funnelOf(key: string, contacts: readonly MarketingContact[]): FunnelRow {
+  // Written to = a first message is set. "Later" counts as an answer (they replied: not now).
+  const written = contacts.filter((c) => c.firstMessageAt !== null);
+  const replied = written.filter((c) => reached[c.status] >= 1).length;
+  const demo = written.filter((c) => reached[c.status] >= 2).length;
+  const house = written.filter((c) => reached[c.status] >= 3).length;
+  const rate = (n: number) => (written.length ? n / written.length : null);
+  return { key, contacted: written.length, replied, demo, house, replyRate: rate(replied), demoRate: rate(demo), houseRate: rate(house) };
+}
+
+/**
+ * The marketing funnel – written to → replied → demo seen → House opened, each rate as a share of the contacts written to, for all and per
+ * niche; the best niche (House rate, then demo rate, at least 5 written to); how many contacts 50 Houses need at the current House rate;
+ * and the number of contacts written to as of `compareDay` (for getChange – statuses have no history yet, so only that number compares).
+ */
+export function marketingFunnel(contacts: readonly MarketingContact[], compareDay: string) {
+  const niches = [...new Set(contacts.map((c) => c.niche))].toSorted();
+  const all = funnelOf("all", contacts);
+  const perNiche = niches.map((n) => funnelOf(n, contacts.filter((c) => c.niche === n)));
+  const ranked = perNiche.filter((r) => r.contacted >= 5).toSorted((a, b) => (b.houseRate ?? 0) - (a.houseRate ?? 0) || (b.demoRate ?? 0) - (a.demoRate ?? 0));
+  const best = ranked[0]?.key ?? null;
+  const contactsFor = (rate: number | null) => (rate && rate > 0 ? Math.ceil(PROJECTION_HOUSES / rate) : null);
+  return {
+    all,
+    perNiche,
+    best,
+    /** Contacts needed for PROJECTION_HOUSES Houses at the current House rate (null: no House yet) – and at the assumptions' range */
+    projection: { current: contactsFor(all.houseRate), assumed: { from: contactsFor(FUNNEL_ASSUMPTIONS.house.to), to: contactsFor(FUNNEL_ASSUMPTIONS.house.from) } },
+    contactedBefore: contacts.filter((c) => c.firstMessageAt !== null && c.firstMessageAt <= compareDay).length,
+  };
+}
+
+/** Where a rate stands against its assumption: under, inside, above. */
+export function againstAssumption(rate: number | null, range: { from: number; to: number }): Status | null {
+  if (rate === null) return null;
+  return rate >= range.from ? "good" : rate >= range.from * 0.6 ? "warning" : "critical";
+}
+
+/**
+ * The loops, once they can be measured: guest → host (hosts of a real House who were in a crew before they hosted, of all hosts);
+ * guests bring guests (accepted requests that came through someone's link or as "with a friend", of all accepted); host recruits host – not
+ * in the product yet (null).
+ */
+export function marketingLoops({ stays, joinRequests }: Pick<AdminInputs, "stays" | "joinRequests">) {
+  const hosted = stays.filter((s) => isReal(s) && s.status !== "draft" && s.status !== "draft_unclaimed");
+  const firstHosted = new Map<string, string>();
+  for (const s of hosted) if (!firstHosted.has(s.hostId) || s.createdAt < firstHosted.get(s.hostId)!) firstHosted.set(s.hostId, s.createdAt);
+  const accepted = joinRequests.filter((r) => r.status === "accepted");
+  const wasGuestFirst = [...firstHosted].filter(([hostId, at]) => accepted.some((r) => r.userId === hostId && r.createdAt < at)).length;
+  const broughtIn = accepted.filter((r) => r.refUserId || r.withFriend).length;
+  return {
+    guestToHost: firstHosted.size ? { value: wasGuestFirst / firstHosted.size, of: firstHosted.size } : null,
+    guestBringsGuests: accepted.length ? { value: broughtIn / accepted.length, of: accepted.length } : null,
+    hostRecruitsHost: null as { value: number; of: number } | null,
+  };
 }

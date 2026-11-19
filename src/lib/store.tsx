@@ -1,6 +1,7 @@
 "use client";
 
 import { depthLocked } from "./depth";
+import { markContactDemoSeen } from "./admin/store";
 import type { ThemePref } from "./themeScript";
 import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
@@ -2236,6 +2237,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Read once: in development effects run twice, and the write below has by then put the not-yet-restored state back – a second read
     // would bring back nothing (invite links lost on every reload).
     if (growthRestored.current) return;
+    // A marketing contact's demo link (?ref=mc-…): that contact has now seen the demo (Admin › Marketing › Kontakte).
+    try {
+      const ref = new URL(window.location.href).searchParams.get("ref");
+      if (ref?.startsWith("mc-")) markContactDemoSeen(ref);
+    } catch {
+      // no URL to read
+    }
     firstTouch();
     const saved = readPersistedGrowth();
     if (saved) {

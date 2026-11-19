@@ -109,7 +109,7 @@ const INTRO_TEXT_MS = 200;
 const roundsFor = (houses: number, windowWidth: number, windowHeight: number) => (houses === 0 ? 1 : Math.max(1, Math.ceil((3 * windowWidth) / (houses * ((slideHeightFor(windowHeight) * 3) / 4 + LAYOUT_GAP)))));
 
 /**
- * Explore's Spotlight from lg up. A click on a side card brings it to the centre, a click on the centre card opens the
+ * Explore's Spotlight from 768px up (phones: SpotlightHero). A click on a side card brings it to the centre, a click on the centre card opens the
  * House. Arrows, ← →, trackpad swipe and drag. Phones and tablets still have SpotlightHero.
  */
 export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: { stays: Stay[]; /** Open Houses of a category */ countOf: (vibe: Vibe) => number; onPickVibe: (vibe: Vibe) => void; /** Before the launch and in the beta: the launch hero instead of the greeting (components/explore/SpotlightIntro) */ launchHero?: LaunchHero }) {
@@ -503,10 +503,12 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   if (items.length === 0) return null;
 
   return (
+    // From 768px (tablets upright too, CLAUDE.md "Tablet"): the same carousel as the desktop – the centre card with its host notch, the
+    // neighbours peeking in left and right. Phones keep SpotlightHero.
     <StageBand
       from="lg"
       className={cn(
-        "hidden lg:block",
+        "hidden md:block [&>.stage-gradient]:md:block",
         // Until it's measured (server render): by the window's width.
         textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-56px)]"),
       )}

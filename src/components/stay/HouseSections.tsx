@@ -510,7 +510,7 @@ export function RequestSummary({ stay, photo }: { stay: Stay; photo?: string }) 
  */
 export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: Stay; photo?: string; joinCardRef: RefObject<HTMLElement | null>; cta: ReactNode; /** Instead of the price: a member's current step */ line?: string }) {
   // Phones: always there (the head's actions scroll away at once); from md once the head's actions have left the window.
-  const phone = useMediaQuery(MEDIA.phone);
+  const belowDesktop = !useMediaQuery(MEDIA.desktop);
   const price = useViewerPriceLabel(stay);
   const [cardGone, setCardGone] = useState(false);
   const [atFooter, setAtFooter] = useState(false);
@@ -529,7 +529,8 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: St
     return () => observer.disconnect();
   }, [joinCardRef]);
   // Phones: the head's dark strip is the fixed bar there – this one stays away.
-  const shown = !phone && cardGone && !atFooter;
+  // Below 1100px (phones, tablets) the head's dark strip is the fixed bar – this one stays away.
+  const shown = !belowDesktop && cardGone && !atFooter;
   return (
     <div
       data-join-bar

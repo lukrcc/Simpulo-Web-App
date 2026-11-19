@@ -232,6 +232,7 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
       <HeroBand
         aria-labelledby="profile-name"
         fullStrip
+        mediaFit="profile"
         // A breath of the first photo's colour (lib/stageTint.ts) – not when the photos are hidden from this viewer.
         accent={photos.length > 0 ? userAccentOf(user) : undefined}
         height={preview ? "split:h-[440px]" : "split:h-(--stage-image-h)"}

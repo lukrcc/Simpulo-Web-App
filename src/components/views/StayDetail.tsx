@@ -598,10 +598,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     {/* Under the text: More houses like this as a dark band, the last section (the place sits in the head now). Phones: room for the fixed
         action strip. */}
     <HouseMore stay={stay} />
-    <div aria-hidden className="h-40 md:hidden" />
-    {/* Tablets: room for the floating join bar (64px + 16px above the edge) – the page's last content scrolls clear of it before the footer
-        (where it steps aside) comes in. */}
-    <div aria-hidden className="hidden h-24 md:max-split:block" />
+    <div aria-hidden className="h-40 split:hidden" />
     <Container className="explore-width">
 
       {/* The floating bar: a member sees the current step and its action instead of "Request to join". */}

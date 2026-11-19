@@ -311,6 +311,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         // The stage rule (globals.css --stage-image-h): Up next's photo and the right side in one row of that height; the dark strip
         // across the full width under both – the photo ends on top of it. Coming up sits right on the strip (no padding under it).
         fullStrip
+        mediaFit="upNext"
         // A breath of Up next's colour on the surface and the strip (lib/stageTint.ts); nothing planned: the plain tokens.
         height="split:h-(--stage-image-h)"
         bodyClassName="split:pb-0"

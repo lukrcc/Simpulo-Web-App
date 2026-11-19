@@ -94,9 +94,9 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const city = stay.location.city || stay.city || stay.region.split(",")[0];
   const placeShort = stay.location.area ? `${stay.location.area}, ${city}` : city;
   const strip = (
-    // Phones: the booking bar – fixed at the bottom instead of the tab bar (which the House page leaves out), over the safe area; its measured
+    // Phones and tablets (< 1100px): the booking bar – fixed at the bottom instead of the tab bar (which the House page leaves out), over the safe area; its measured
     // height is what the page keeps free under its end (--house-bar-h → --tabbar-clear, BookingBarHeight).
-    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:px-(--page-margin) max-md:pb-[calc(12px+var(--safe-bottom))] max-md:pt-3 flex shrink-0 flex-col justify-center gap-2 md:h-(--stage-bar-h) md:py-0">
+    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-split:fixed max-split:inset-x-0 max-split:bottom-0 max-split:z-30 max-split:px-(--page-margin) max-split:pb-[calc(12px+var(--safe-bottom))] max-split:pt-3 flex shrink-0 flex-col justify-center gap-2 split:h-(--stage-bar-h) split:py-0">
       <BookingBarHeight />
       {/* Left: the price in the strip's number size (--stage-bar-num), under it small the currency and the way in ("Free to request · …").
           Right: the actions – Request to join · Request with a friend · "Message {host}". */}
@@ -129,6 +129,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
       // The stage rule (globals.css --stage-image-h), like Your houses: the photo and the right side in one row of that height, whatever the
       // content (the same photo width and band tone #EAE4DD); the dark action strip (--stage-bar-h) across the full width under both.
       fullStrip
+      mediaFit="house"
       // The light warm cream, no photo tint – the cards carry the colour; one spacing (--stage-pad) to the photo, the right edge, on top,
       // between the cards and to the strip.
       stagePad

@@ -906,3 +906,16 @@ body:has(.admin-scope) {
 :root[data-theme="dark"] {
   --band-dark-floor: #2a2522;
 }
+
+/* ── The header below 1100px (phones, tablets upright – CLAUDE.md "Glas nur auf Desktop, darunter feste Fläche"): no glass. A fixed graphite
+   surface – the graphite 96 % over the page's own ground, opaque, so no photo shows through while scrolling; no blur, no text shadow; a 1px
+   line at its foot. The status bar's strip in the installed app is the same surface (one hard edge, no fade). Its capsules a little denser
+   with a fine edge, words and icons white. The tab bar takes the same values. ── */
+:root {
+  --header-surface-mobile: color-mix(in srgb, var(--graphite) 96%, var(--bg));
+  --header-line-mobile: rgba(255, 255, 255, 0.12);
+  --header-pill-mobile: rgba(255, 255, 255, 0.12);
+  --header-pill-hover-mobile: rgba(255, 255, 255, 0.16);
+  --header-pill-active-mobile: rgba(255, 255, 255, 0.22);
+  --header-pill-edge-mobile: rgba(255, 255, 255, 0.14);
+}

@@ -240,7 +240,7 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
       data-app-pane="always"
       style={tint}
       data-chat-theme={theme}
-      className="chat-dark relative z-41 overflow-hidden bg-(--chat-bg) max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh) md:h-[calc(100dvh-var(--header-total))]"
+      className="chat-dark relative z-41 overflow-hidden bg-(--chat-bg) max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh) md:h-[calc(100dvh-var(--header-total)-var(--tabbar-clear))]"
     >
       <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--safe-top) md:pt-0">{stage}</div>
     </div>

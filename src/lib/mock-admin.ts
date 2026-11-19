@@ -1,5 +1,6 @@
 // ⚠ MOCK: the admin collections (/admin) – waitlist sign-ups, host applications, the admin log – and the demo traffic. Deterministic: the
 // same entries every time. Only the data adapter reads this file (lib/data/mockAdapter.ts); the real source is Firestore (phase 4).
+import { mockMarketingContacts } from "./mock-marketing";
 import { MOCK_TAX_QUESTIONS } from "./mock-ledger";
 import type { AdminLogEntry, HostApplication, SupportTicket, Vibe, WaitlistEntry, Withdrawal } from "./types";
 
@@ -153,7 +154,7 @@ export const MOCK_FOUNDING_HOST_IDS: readonly string[] = applications()
 
 export function mockAdminData() {
   const apps = applications();
-  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, backlog: {}, location: { country: null, reason: "" } };
+  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, backlog: {}, location: { country: null, reason: "" }, marketingContacts: mockMarketingContacts(), marketingSteps: {}, marketingClips: 2 };
 }
 
 /** ⚠ DEMO DATA: what Google Analytics will report from phase 4 – visitors per week, countries, sources, the way to the sign-up. */
