@@ -771,6 +771,7 @@ const en = {
       "budgetMax": "Maximum budget",
       "filtersCount": "Filters, {count} active",
       "show": "Show <num>{count}</num> {count, plural, one {house} other {houses}}",
+      "noneMatch": "No houses – adjust filters",
       "noBudget": "No prices yet",
       "noOptions": "Nothing to choose yet",
       "when": "When",

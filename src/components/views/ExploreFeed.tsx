@@ -1,7 +1,6 @@
 "use client";
 
 import { depthOf, depthShiftDays } from "@/config/depth";
-import { BarSheet } from "@/components/ui/BarSheet";
 import { blockHighlight } from "@/lib/highlight";
 import { useTodayIso } from "@/lib/birthDate";
 import { useHeaderSlot } from "@/lib/headerSlot";
@@ -12,11 +11,10 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { LoadMore } from "@/components/ui/LoadMore";
 import { usePagedList } from "@/lib/usePagedList";
-import { CurrencyPicker } from "@/components/layout/CurrencyPicker";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { PeopleGoingRow, usePeopleGoing } from "@/components/explore/PeopleGoingRow";
-import { BarCategories, CategoryRow, FiltersButton, PriceFilter, SortCapsule, SortList, type CheckOption } from "@/components/explore/Filters";
-import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, exploreBlockSize, explorePageSize, FILTER_ICONS, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, TOP_CATEGORIES, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
+import { BarCategories, CategoryRow, FiltersButton, SortCapsule, SortList } from "@/components/explore/Filters";
+import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, exploreBlockSize, explorePageSize, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, TOP_CATEGORIES, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
 import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
@@ -25,16 +23,14 @@ import { getVisibleHouses } from "@/lib/data/visibleHouses";
 import { launch, showsExamples, showsPersonalRows, useDepthChoice, usePlatformPhase } from "@/config/platform";
 import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
 import { LaunchIntro } from "@/components/explore/SpotlightIntro";
-import { MonthField, PlaceField, SearchField, ShortTripsToggle, useMonthName } from "@/components/explore/SearchFields";
-import { FilterDropdown, FilterRow, OverflowPickOptions, PickOptions, ToggleChip } from "@/components/explore/FilterPanel";
+import { SearchField, ShortTripsToggle, useMonthName } from "@/components/explore/SearchFields";
+import { FilterSheets } from "@/components/explore/FilterSheets";
 import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { HouseCard } from "@/components/HouseCard";
-import { RollingNumber } from "@/components/ui/RollingNumber";
-import { Button, buttonStyles } from "@/components/ui/ActionButton";
+import { buttonStyles } from "@/components/ui/ActionButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { Sheet } from "@/components/ui/Sheet";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
 import { DarkBand } from "@/components/ui/DarkBand";
 import { useFormat } from "@/i18n/format";
@@ -45,17 +41,9 @@ import {
   countryOf,
   EMPTY_FILTERS,
   eurRange,
-  ACCOMMODATION_KEYS,
-  AGE_KEYS,
-  HOST_EXPERIENCE_KEYS,
-  DEPTH_KEYS,
-  CREW_SIZE_KEYS,
-  LENGTH_KEYS,
-  WHO_KEYS,
   matchesFilters,
   panelFilterCount,
   SORT_KEYS,
-  SPOTS_MINS,
   withFilters,
   type ExploreFilters,
   type SortKey,
@@ -174,14 +162,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   );
   const hostPremium = useFeatureFlag("hostPremium");
 
-  // Options with how many Houses each would show alongside the other filters.
-  const languageOptions = useMemo<CheckOption[]>(
-    () =>
-      [...new Set(base.map((s) => s.language).filter(Boolean))]
-        .map((code) => ({ value: code, label: format.language(code), count: base.filter((s) => s.language === code && matchesFilters(s, filters, "languages", verifiedHosts)).length }))
-        .toSorted((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
-    [base, filters, format, verifiedHosts],
-  );
   const budgetBounds = useMemo(() => {
     const ranges = base.map(eurRange).filter((r): r is { min: number; max: number } => r !== null);
     if (ranges.length === 0) return null;
@@ -337,7 +317,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
   const panelCount = panelFilterCount(filters);
-  const clearPanel = () => setFilters({ ...EMPTY_FILTERS, sort: filters.sort });
 
   /** The category chips – the filter row's (32px) or the compact bar's (32px); one choice in the row (several only
    *  in the panel), a pick from More takes the last slot. */
@@ -390,126 +369,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
       />
     </>
   );
-  const one = <T,>(value: T | null): T[] => (value === null ? [] : [value]);
-  // The panel's rows. Phones' sheet: the label left (150px), a 1px line between. The bar's All filters (`stacked`): the label above. No "Any":
-  // nothing picked means all.
-  const panelRows = (stacked: boolean) => ({
-    sort: (
-      <FilterRow stacked={stacked} label={t("sort")}>
-        <PickOptions label={t("sort")} options={sortOptions} value={[filters.sort]} onChange={(sort) => sort[0] && update({ sort: sort[0] })} />
-      </FilterRow>
-    ),
-    where: (
-      <FilterRow stacked={stacked} label={tf("whereWhenRow")}>
-        <div className="grid grid-cols-2 gap-3">
-          <PlaceField size="panel" value={filters.place} onChange={(place) => update({ place })} className="w-full max-w-none" />
-          <MonthField size="panel" value={filters.month} onChange={(month) => update({ month })} className="w-full" />
-        </div>
-      </FilterRow>
-    ),
-    category: showVibes && (
-      <FilterRow stacked={stacked} label={tf("category")} count={filters.vibes.length}>
-        <OverflowPickOptions label={tf("category")} options={vibeOptions} value={filters.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />
-      </FilterRow>
-    ),
-    length: (
-      <FilterRow stacked={stacked} label={tf("length")} count={filters.lengths.length}>
-        <PickOptions multiple label={tf("length")} options={LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))} value={filters.lengths} onChange={(lengths) => update({ lengths })} />
-      </FilterRow>
-    ),
-    crew: (
-      <FilterRow stacked={stacked} label={tf("crewSize")} count={filters.crewSizes.length}>
-        <PickOptions multiple label={tf("crewSize")} options={CREW_SIZE_KEYS.map((key) => ({ value: key, label: key.replace("-", "–") }))} value={filters.crewSizes} onChange={(crewSizes) => update({ crewSizes })} />
-      </FilterRow>
-    ),
-    price: (
-      <FilterRow stacked={stacked} label={tf("price")} aside={<CurrencyPicker />}>
-        {budgetBounds ? (
-          <PriceFilter bounds={budgetBounds} prices={prices} value={filters.budget} onChange={(budget) => update({ budget })} currency={currency} />
-        ) : (
-          <p className="text-small text-muted">{tf("noBudget")}</p>
-        )}
-      </FilterRow>
-    ),
-    more: (
-      <FilterRow stacked={stacked} label={tf("moreRow")}>
-        {/* In the bar: the dropdowns as capsules in two columns, each a column wide. */}
-        <div className={stacked ? "filter-more-grid grid grid-cols-2 gap-2" : "flex flex-wrap items-center gap-2"}>
-          <FilterDropdown icon={FILTER_ICONS.who} label={tf("who")} options={WHO_KEYS.map((key) => ({ value: key, label: tf(`whoOptions.${key}`) }))} value={one(filters.who)} onChange={(v) => update({ who: v[0] ?? null })} />
-          <FilterDropdown icon={FILTER_ICONS.age} label={tf("age")} options={AGE_KEYS.map((key) => ({ value: key, label: tf(`ageOptions.${key}`) }))} value={one(filters.age)} onChange={(v) => update({ age: v[0] ?? null })} />
-          <FilterDropdown icon={FILTER_ICONS.accommodation} label={tf("accommodation")} options={ACCOMMODATION_KEYS.map((key) => ({ value: key, label: tf(`accommodationOptions.${key}`) }))} value={one(filters.accommodation)} onChange={(v) => update({ accommodation: v[0] ?? null })} />
-          <FilterDropdown icon={FILTER_ICONS.spots} label={tf("spots")} options={SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))} value={one(filters.spots)} onChange={(v) => update({ spots: v[0] ?? null })} />
-          {languageOptions.length > 0 && (
-            <FilterDropdown
-              multiple
-              icon={FILTER_ICONS.language}
-              label={t("language")}
-              options={languageOptions.map((o) => ({ value: o.value, label: o.label, hint: String(o.count) }))}
-              value={filters.languages}
-              onChange={(languages) => update({ languages })}
-            />
-          )}
-          {/* Host experience only with its feature flag. */}
-          {hostPremium && (
-            <FilterDropdown icon={FILTER_ICONS.hostExperience} label={tf("hostExperience")} options={HOST_EXPERIENCE_KEYS.map((key) => ({ value: key, label: tf(`hostExperienceOptions.${key}`) }))} value={one(filters.hostExperience)} onChange={(v) => update({ hostExperience: v[0] ?? null })} />
-          )}
-          {/* The social depth (config/depth.ts) – only while the depth choice is on. */}
-          {depthOn && <FilterDropdown icon={FILTER_ICONS.depth} label={tf("depth")} options={DEPTH_KEYS.map((key) => ({ value: key, label: tf(`depthOptions.${key}`) }))} value={one(filters.depth)} onChange={(v) => update({ depth: v[0] ?? null })} />}
-          <ToggleChip icon={FILTER_ICONS.verified} label={tf("verifiedChip")} on={filters.verifiedOnly} onChange={(verifiedOnly) => update({ verifiedOnly })} />
-        </div>
-      </FilterRow>
-    ),
-  });
-  const phoneRows = panelRows(false);
-  const panelBody = (
-    <div className="flex flex-col divide-y divide-ink/7">
-      {phoneRows.sort}
-      {phoneRows.where}
-      {phoneRows.category}
-      {phoneRows.length}
-      {phoneRows.crew}
-      {phoneRows.price}
-      {phoneRows.more}
-    </div>
-  );
-  // The bar's All filters, without scrolling: two halves (a 1px cream 8 % line between) – left Sort, Where & when, Category, Length; right
-  // Crew size, Price per person, More – the labels above, 20px between rows.
-  const barRows = panelRows(true);
-  const barBody = (
-    <div className="grid grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-5 pr-8">
-        {barRows.sort}
-        {barRows.where}
-        {barRows.category}
-        {barRows.length}
-      </div>
-      <div className="flex min-w-0 flex-col gap-5 border-l border-ink/8 pl-8">
-        {barRows.crew}
-        {barRows.price}
-        {barRows.more}
-      </div>
-    </div>
-  );
-  const panelFooter = (close: () => void, alwaysClear = false, brand = false) => (
-    <>
-      {/* Phones: only when something is set (otherwise the primary keeps its place on the right). The bar's sheet: always, on the left. */}
-      {alwaysClear || panelCount > 0 || filters.vibes.length > 0 ? (
-        <button type="button" onClick={clearPanel} className="text-body font-semibold text-ink underline underline-offset-4 transition-colors hover:text-ink/70">
-          {tf("clearAll")}
-        </button>
-      ) : (
-        <span />
-      )}
-      {/* The panel's one primary: it only closes – the filters apply live. */}
-      {/* In the dark header the panel's one main action is cream (the light header: ink). */}
-      {/* In the header's All filters: filled in the action orange with white words (variant brand – its deeper step, so white keeps 4.5 : 1). */}
-      <Button variant={brand ? "brand" : "primary"} size="md" onClick={close}>
-        {/* One span: inside the button's flex row, "Show", the number and "houses" would each be an item with 8px gaps instead of spaces. */}
-        <span>{tf.rich("show", { count: results.length, num: () => <RollingNumber value={results.length} /> })}</span>
-      </Button>
-    </>
-  );
-  const barFooter = <div className="flex items-center justify-between gap-4 border-t border-ink/8 px-6 py-4">{panelFooter(closePanel, true, true)}</div>;
   const Wrap = headless ? Fragment : Container;
   const RowWrap = headless ? "div" : Container;
   return (
@@ -663,49 +522,32 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         </div>
       </Wrap>
 
-      {/* "All filters": one sheet – light glass, the page dimmed only a little behind it (filterSheet). */}
-      {/* From md: one piece with the bar (ui/BarSheet), as wide as the grid; the rows scroll inside, "Clear all" and "Show N houses" stay at
-          its foot. */}
-      <BarSheet
-        open={sheetOpen && md}
+      {/* "All filters": the bar's sheet from 768px, the bottom sheet on phones – a draft until "Show N houses" (explore/FilterSheets.tsx). */}
+      <FilterSheets
+        open={sheetOpen}
+        md={md}
         onClose={closePanel}
-        anchor={filtersAnchor}
-        size="full"
-        label={t("filters")}
-        head={
-          <div className="flex items-center gap-3 px-6 pb-4 pt-5">
-            <h2 className="text-h3 text-ink">{t("filters")}</h2>
-            <span className="text-small text-muted">{resultLabel}</span>
-            <button type="button" onClick={closePanel} aria-label={tc("close")} className="press ml-auto flex size-9 shrink-0 items-center justify-center rounded-full bg-ink/8 text-ink transition-colors duration-150 hover:bg-ink/14">
-              <X className="size-4" aria-hidden />
-            </button>
-          </div>
-        }
-        footer={barFooter}
-      >
-        <div data-filter-panel className="px-6 pb-5">
-          {barBody}
-        </div>
-      </BarSheet>
-      {/* Phones: the same content as a bottom sheet. */}
-      <Sheet
-        variant="panel"
-        wide
-        filterSheet
-        titleNote={resultLabel}
-        open={sheetOpen && !md}
-        onClose={() => setSheetOpen(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setSheetOpen(false);
+        }}
         onClosed={() => {
           if (scrollAfterPanel.current) scrollUnderHeader(resultsRef.current);
           scrollAfterPanel.current = false;
         }}
-        title={t("filters")}
-        footer={panelFooter(() => setSheetOpen(false))}
-      >
-        <div data-filter-panel className="px-6">
-          {panelBody}
-        </div>
-      </Sheet>
+        anchor={filtersAnchor}
+        filters={filters}
+        base={base}
+        verifiedHosts={verifiedHosts}
+        showVibes={showVibes}
+        vibeOptions={vibeOptions}
+        sortOptions={sortOptions}
+        budgetBounds={budgetBounds}
+        prices={prices}
+        currency={currency}
+        hostPremium={hostPremium}
+        depthOn={depthOn}
+      />
 
     </div>
   );
