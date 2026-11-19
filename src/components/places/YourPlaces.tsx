@@ -4,7 +4,8 @@
 // – no box, straight on the page: per place its photo, name, kind · free rooms · rent, and a calendar strip across the host's rental period
 // with the windows opened in it (its Houses) as segments – past ones quiet, coming ones ink, each to its House. "Open a window" starts Open a
 // House from the place (only dates, spots and price to set); the newest past window has "Open again" (the same, from that House).
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatLocale } from "@/i18n/formatLocale";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { againHref, windowHref } from "@/components/create/model";
 import { Button } from "@/components/ui/ActionButton";
@@ -88,7 +89,7 @@ function PlaceRow({ place, windows, today }: { place: Place; windows: Stay[]; to
 function RentalStrip({ place, windows, today }: { place: Place; windows: Stay[]; today: string }) {
   const t = useTranslations("houses.places");
   const format = useFormat();
-  const locale = useLocale();
+  const locale = useFormatLocale();
   const from = at(place.rentFrom);
   const to = at(place.rentTo);
   const span = Math.max(DAY_MS, to - from);

@@ -1,4 +1,4 @@
-// Every text of the admin (/admin) – German. The app outside /admin stays English (messages/en.json); the admin reads these through its
+// Every text of the admin (/admin) – German. The app outside /admin stays English (lib/i18n/en.ts); the admin reads these through its
 // own next-intl provider (AdminFrame, locale "de"), so components keep using useTranslations("admin.…").
 //
 // These stay English, also here: House, Houses, Host, Hosts, Crew, Your people, Do it again, Founding Host, Pro Host, Share Host,

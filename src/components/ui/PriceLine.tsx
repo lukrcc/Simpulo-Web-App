@@ -1,7 +1,7 @@
 "use client";
 
+import { useFormatLocale } from "@/i18n/formatLocale";
 import { useTranslations } from "next-intl";
-import { useSyncExternalStore } from "react";
 import { useFormat } from "@/i18n/format";
 import { convertApprox } from "@/lib/rates";
 import type { Currency, Stay } from "@/lib/types";
@@ -32,7 +32,6 @@ export function useApproxAmount(stay: PricedStay): string | null {
     : format.approxRange(convertApprox(price.min, stay.currency, preferred), convertApprox(price.max, stay.currency, preferred), preferred);
 }
 
-const noSubscribe = () => () => {};
 
 /**
  * A card's price line, in the viewer's currency and number format only: "€450 pp", "€400–550 pp" or "Price set with
@@ -42,14 +41,14 @@ const noSubscribe = () => () => {};
 export function useViewerAmount(): (amount: number, from: Currency) => string {
   const format = useFormat();
   const currency = usePreferredCurrency() ?? "EUR";
-  const locale = useSyncExternalStore(noSubscribe, () => navigator.language, () => "en");
+  const locale = useFormatLocale();
   return (amount, from) => format.viewerAmount(amount, from, currency, locale);
 }
 
 export function useViewerPriceLabel(stay: PricedStay): string {
   const format = useFormat();
   const currency = usePreferredCurrency() ?? "EUR";
-  const locale = useSyncExternalStore(noSubscribe, () => navigator.language, () => "en");
+  const locale = useFormatLocale();
   return format.viewerPriceLabel(stay, currency, locale);
 }
 

@@ -1,6 +1,7 @@
 // The one email layout (mock – rendered by the backend later, sent with Resend): light warm page, the wordmark, the content on a soft
 // card, ONE black button, and a footer with the Impressum and – for groups you can switch off – an unsubscribe link. Tables and inline
 // styles only: that's what mail clients understand.
+import { tEn } from "@/lib/i18n/translate";
 import type { ReactNode } from "react";
 
 export const EMAIL_COLORS = { page: "#F2F0EB", card: "#FBFAF7", ink: "#221E1B", muted: "#77706A", accent: "#F0633A" } as const;
@@ -32,7 +33,7 @@ export function EmailLayout({ preview, headline, children, action, origin, unsub
               <tbody>
                 <tr>
                   <td style={{ padding: "0 8px 24px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: C.ink }}>
-                    simpulo<span style={{ color: C.accent }}>.</span>
+                    {tEn("emails.wordmark")}<span style={{ color: C.accent }}>.</span>
                   </td>
                 </tr>
                 <tr>
@@ -55,17 +56,17 @@ export function EmailLayout({ preview, headline, children, action, origin, unsub
                 <tr>
                   <td style={{ padding: "24px 8px 0", fontSize: 13, lineHeight: 1.5, color: C.muted }}>
                     <a href={`${origin}/impressum`} style={{ color: C.muted }}>
-                      Impressum
+                      {tEn("emails.impressum")}
                     </a>
                     {" · "}
                     <a href={`${origin}/privacy`} style={{ color: C.muted }}>
-                      Privacy
+                      {tEn("emails.privacy")}
                     </a>
                     {unsubscribeHref && (
                       <>
                         {" · "}
                         <a href={abs(origin, unsubscribeHref)} style={{ color: C.muted }}>
-                          Unsubscribe from these emails
+                          {tEn("emails.unsubscribe")}
                         </a>
                       </>
                     )}

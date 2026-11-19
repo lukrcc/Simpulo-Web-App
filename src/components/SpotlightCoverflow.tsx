@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SpotlightGreeting, type LaunchHero } from "@/components/explore/SpotlightIntro";
 import { markSpotlightIntroDone } from "@/components/explore/useMarkBreath";
-import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY, SPOTLIGHT_THEME_LINES, SPOTLIGHT_THEME_LINES_VISITOR } from "@/config/explore";
+import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY } from "@/config/explore";
+import { useSpotlightThemeLines } from "@/components/explore/themeLines";
 import { Container } from "@/components/layout/Container";
 import { HouseCard } from "@/components/HouseCard";
 import { IconButton } from "@/components/ui/IconButton";
@@ -363,7 +364,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   const [textPlace, setTextPlace] = useState<"side" | "above" | null>(null);
   // Logged in and out share the greeting layout (visitors: "Share a place." · "Find your people.").
   const greeting = true;
-  const themeLines = me ? SPOTLIGHT_THEME_LINES : SPOTLIGHT_THEME_LINES_VISITOR;
+  const { lines: themeLines } = useSpotlightThemeLines(!me);
   useLayoutEffect(() => {
     const block = sideTextRef.current;
     const section = sectionRef.current;

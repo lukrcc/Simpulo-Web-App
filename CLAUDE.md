@@ -60,6 +60,16 @@ Simpulo hat ein einziges Objekt: das House. Keine Ort-Objekte in der App (keine 
 - **Offen:** Bildtönung der Bühnen (`lib/stageTint.ts` rechnet den Kontrast gegen die hellen Werte; dunkel mit genug Abstand gemessen, aber nicht neu gerechnet); dunkle Menü-Blätter (`.bar-sheet`) heben sich auf dem dunklen Boden nur durch Schleier und Griff ab.
 - **Prüfen:** Playwright mit Cookie `simpulo_theme=dark` oder `colorScheme: "dark"` (ohne Cookie); je Seite hell und dunkel, Breiten wie in der Prüfmatrix.
 
+## Texte und Sprachen
+**Kein sichtbarer Text direkt im JSX, immer aus lib/i18n (Regel).** Produkt Englisch, Admin Deutsch.
+- **Eine Quelle:** alle Produkttexte in `src/lib/i18n/en.ts` (typisiert: `ProductMessages`, über `src/global.d.ts` in next-intl, falsche Schlüssel sind Typfehler), nach Bereichen gegliedert (`explore`, `house`, `messages`, `settings`, `emails`, `og`, `faq`, `auth.reasons` …). Platzhalter in ICU-Form (`{host}`, `{count}`). In Komponenten `useTranslations`, auf dem Server `getTranslations`, außerhalb von React (E-Mails, OG-Bilder, Manifest, Benachrichtigungs-Kanäle, `lib/seo.ts`) `tEn` aus `lib/i18n/translate.ts` – dieselbe Datei, volle Schlüssel. `messages/en.json` gibt es nicht mehr. Admin bleibt `lib/i18n/admin.de.ts`.
+- **Configs halten Struktur, keine Wörter:** z. B. `config/faq.ts` (Reihenfolge, Anker, Zahlen aus `config/policies.ts`, Links) – die Fragen und Antworten in `faq.items.<id>`; `config/auth-copy.ts` nur der Typ `AuthReason`; die Spotlight-Sätze in `explore.themeLines` (`components/explore/themeLines.ts`).
+- **Mehrzahl immer als ICU-Plural** (`{count, plural, one {# spot left} other {# spots left}}`; next-intl wählt die Form mit `Intl.PluralRules`), nie `count === 1 ? … : …` im Code.
+- **Wörter vs. Formate:** die Oberfläche spricht die UI-Sprache (en); Datum, Zahlen und Geld folgen der Region des Browsers – UI-Sprache + Region (`de-DE` → `en-DE`: englische Monatsnamen, deutsche Reihenfolge und Trennzeichen), `useFormatLocale()` in `i18n/formatLocale.ts`, genutzt von `useFormat`, `PriceLine`, Kalender, Chat-Daten und Dateigrößen. Server und Hydration: die UI-Sprache, direkt danach die Region. Wörter (Listen „A and B“, Ländernamen) bleiben in der UI-Sprache.
+- **Sprache als Einstellung (vorbereitet, nicht sichtbar):** `locales` in `i18n/config.ts` (nur `en`), `UserSettings.language` (keins = en), Cookie `simpulo-locale`, `resolveLocale` (Einstellung → Accept-Language → en). Settings › General › Language bleibt verborgen, bis `SHOW_LANGUAGE_SETTING` (`i18n/config.ts`) zusammen mit der zweiten Sprache an geht.
+- **Neue Sprache:** `lib/i18n/<code>.ts` mit der Form von `en.ts`, Code in `locales`, eine Zeile in `i18n/request.ts`; sonst nichts.
+- **Ausnahmen (bleiben im Code):** das Wortlogo „simpulo.“ (Marke), Marken-Beschriftungen der Wallet-Knöpfe („Pay“), URL-/E-Mail-Beispiele in Platzhaltern, Mock-Daten (Chat-Zeilen, Orte, Namen – Inhalt, nicht Oberfläche).
+
 ## Umgebungen
 `NEXT_PUBLIC_APP_MODE` = `dev` | `demo` | `production` (`src/lib/appMode.ts`). Nicht gesetzt: `dev` unter `next dev`, sonst `production`.
 - dev: Mock-Daten, Plattform-Phase aus dem Dev-Menü, Dev-Menü sichtbar (Knopf unten links, im Admin unten rechts, auf Telefonen über der unteren Leiste).

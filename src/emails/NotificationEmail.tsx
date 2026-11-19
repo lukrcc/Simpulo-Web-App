@@ -1,3 +1,4 @@
+import { tEn } from "@/lib/i18n/translate";
 import { CHANNELS } from "@/config/notifications";
 import type { NotifyEvent } from "@/lib/notify/events";
 import { EmailLayout, EmailText } from "./EmailLayout";
@@ -8,7 +9,7 @@ export function NotificationEmail({ event, text, href, origin }: { event: Notify
   const action = EMAIL_ACTION[event];
   return (
     <EmailLayout preview={text} headline={text} action={{ label: action.label, href: href ?? action.path }} origin={origin} unsubscribeHref={unsubscribeHref(CHANNELS[event].category)}>
-      <EmailText>Everything else is on Simpulo.</EmailText>
+      <EmailText>{tEn("emails.notification.rest")}</EmailText>
     </EmailLayout>
   );
 }

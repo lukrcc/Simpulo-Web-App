@@ -2,6 +2,7 @@
 // src/emails (preview at /dev/emails).
 // TODO(email): Resend – render the template on the server (emails/*) and send it with resend.emails.send({ from, to, subject, react }),
 // the chat collection as a delayed job, the weekly summary as a cron job; the unsubscribe link with a signed token.
+import { tEn } from "@/lib/i18n/translate";
 import { CHAT_EMAIL_AFTER_MINUTES } from "@/config/notifications";
 import { announceDelivery, logDelivery } from "../log";
 
@@ -35,7 +36,7 @@ export function sendIfUnread(userId: string, item: EmailItem, isUnread: () => bo
     const still = pendingChat.get(userId)?.items.filter((i) => i.isUnread()) ?? [];
     pendingChat.delete(userId);
     if (still.length === 0) return;
-    const subject = still.length === 1 ? still[0].item.subject : `${still.length} unread messages on Simpulo`;
+    const subject = tEn("emails.chatDigest.subject", { count: still.length, subject: still[0].item.subject });
     console.info("[email] chat digest", userId, still.map((i) => i.item.text));
     logDelivery({ channel: "emailDigest", userId, text: subject });
     announceDelivery("email", userId, subject);

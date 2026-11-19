@@ -13,6 +13,7 @@ import type { Payment, Stay } from "@/lib/types";
 export function Receipt({ stay, payment }: { stay: Stay; payment: Payment }) {
   const t = useTranslations("house.pay");
   const f = useFormat();
+  const tr = useTranslations("receipt");
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   useEffect(() => {
     let live = true;
@@ -26,15 +27,15 @@ export function Receipt({ stay, payment }: { stay: Stay; payment: Payment }) {
   function download() {
     if (!receipt) return;
     const blob = receiptPdf([
-      "Simpulo – Receipt",
+      tr("docTitle"),
       stay.title,
       `${f.stayDatesLong(stay)} · ${f.placeName(stay)}`,
-      `Share: ${f.price(payment.share, stay.currency)}`,
-      ...(payment.hostFee ? [`Host experience: ${f.price(payment.hostFee, stay.currency)}`] : []),
-      `Simpulo fee (included): ${f.price(payment.fee, stay.currency)}`,
-      `Total paid: ${f.price(receipt.amount, receipt.currency)}`,
-      `Paid ${f.day(receipt.paidAt)} with ${receipt.brand} ****${receipt.last4}`,
-      `Receipt no. ${receipt.paymentId}`,
+      tr("share", { amount: f.price(payment.share, stay.currency) }),
+      ...(payment.hostFee ? [tr("hostExperience", { amount: f.price(payment.hostFee, stay.currency) })] : []),
+      tr("fee", { amount: f.price(payment.fee, stay.currency) }),
+      tr("total", { amount: f.price(receipt.amount, receipt.currency) }),
+      tr("paid", { date: f.day(receipt.paidAt), brand: receipt.brand, last4: receipt.last4 }),
+      tr("number", { id: receipt.paymentId }),
     ]);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

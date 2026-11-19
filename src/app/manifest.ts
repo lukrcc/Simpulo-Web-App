@@ -1,3 +1,4 @@
+import { tEn } from "@/lib/i18n/translate";
 import type { MetadataRoute } from "next";
 
 /**
@@ -8,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Simpulo",
     short_name: "Simpulo",
-    description: "Share a place. Find your people.",
+    description: tEn("og.tagline"),
     start_url: "/",
     display: "standalone",
     background_color: "#111111",

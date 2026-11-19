@@ -16,11 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * /faq – the one page that explains Simpulo (/how-it-works leads here; ?role=host opens Hosting): "Questions", Joining · Hosting, the
  * answers from config/faq.ts – plus both sides as FAQPage structured data.
  */
-export default function FaqPage() {
+export default async function FaqPage() {
+  const t = await getTranslations("faq.items");
+  const text = (key: string, values?: Record<string, number>) => t(key as Parameters<typeof t>[0], values);
   const faqPage = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [...FAQ.join, ...FAQ.host].map((item) => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } })),
+    mainEntity: [...FAQ.join, ...FAQ.host].map((item) => ({ "@type": "Question", name: text(`${item.id}.question`), acceptedAnswer: { "@type": "Answer", text: text(`${item.id}.answer`, item.values) } })),
   };
   return (
     <Container page>

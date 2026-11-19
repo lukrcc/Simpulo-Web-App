@@ -1,5 +1,6 @@
 // Technical SEO helpers: the public base URL, per-page metadata (canonical, Open Graph, Twitter) and JSON-LD.
 // Server-safe – no client imports.
+import { tEn } from "@/lib/i18n/translate";
 import type { Metadata } from "next";
 import { previewGateOn } from "@/config/preview";
 import { APP_MODE } from "./appMode";
@@ -42,7 +43,7 @@ interface PageMetadataInput {
 }
 
 /** The site-wide share card (src/app/opengraph-image.tsx). */
-const DEFAULT_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, alt: "Simpulo – Share a place. Find your people." };
+const DEFAULT_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, alt: tEn("og.siteTitle") };
 
 /**
  * Metadata for a public page: unique title, description, canonical, Open Graph and a large Twitter card. The image is

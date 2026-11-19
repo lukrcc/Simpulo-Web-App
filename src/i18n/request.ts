@@ -1,5 +1,5 @@
 import { getRequestConfig } from "next-intl/server";
-import en from "../../messages/en.json";
+import en, { type ProductMessages } from "@/lib/i18n/en";
 import { defaultLocale, LOCALE_COOKIE, locales, resolveLocale, type Locale } from "./config";
 
 /**
@@ -15,11 +15,10 @@ async function requestLocale(): Promise<Locale> {
 }
 
 /**
- * The message files, imported statically: the bundler then knows them and reloads them on every save. A template import
- * (`messages/${locale}.json`) isn't watched reliably – the dev server kept serving old texts, and every new key showed as a
- * MISSING_MESSAGE error ("1 Issue" in Next's overlay). A new locale gets its line here.
+ * The product's texts (lib/i18n/<code>.ts), imported statically – a TypeScript module the bundler knows and reloads on every save (the old
+ * messages/en.json was served one save late by the dev server). A new locale gets its line here.
  */
-const MESSAGES: Record<Locale, typeof en> = { en };
+const MESSAGES: Record<Locale, ProductMessages> = { en };
 
 export default getRequestConfig(async () => {
   const locale = await requestLocale();

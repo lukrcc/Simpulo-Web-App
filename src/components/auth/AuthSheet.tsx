@@ -12,7 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
 import { isProfileComplete, useStore } from "@/lib/store";
-import { authCopy, type AuthReason } from "@/config/auth-copy";
+import type { AuthReason } from "@/config/auth-copy";
 
 type Provider = "Apple" | "Google";
 
@@ -44,7 +44,9 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
     if (open) setCompleting(false);
   }
 
-  const copy = authCopy(reason, hostName);
+  const tReason = useTranslations("auth.reasons");
+  const host = hostName || tReason("theHost");
+  const copy = { title: tReason(`${reason}.title`), subline: tReason(`${reason}.subline`, { hostName: host }) };
   if (completing) {
     return (
       <Sheet open={open} onClose={onClose} title={tOnboarding("title")} focusOverlay>

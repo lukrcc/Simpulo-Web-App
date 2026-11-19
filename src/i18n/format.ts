@@ -1,6 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import { useFormatLocale } from "./formatLocale";
 import { useMemo } from "react";
 import { currencySymbol } from "@/lib/currency";
 import { convertApprox } from "@/lib/rates";
@@ -95,7 +96,8 @@ export type Formatters = ReturnType<typeof createFormatters>;
  * Only formats – user content (titles, pitches, messages) is passed through untouched.
  */
 export function useFormat() {
-  const locale = useLocale();
+  // Dates and numbers in the viewer's regional format, words in the UI language (i18n/formatLocale.ts).
+  const locale = useFormatLocale();
   const t = useTranslations("common");
 
   return useMemo(() => {

@@ -1,10 +1,11 @@
+import { tEn } from "@/lib/i18n/translate";
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { COLORS } from "@/lib/colors";
 import { OgLogo } from "@/lib/ogCard";
 
-export const alt = "Simpulo – Share a place. Find your people.";
+export const alt = tEn("og.siteTitle");
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

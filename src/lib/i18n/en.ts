@@ -1,4 +1,9 @@
-{
+// Every text of the product (everything outside /admin) – English, the one source (CLAUDE.md "Texte und Sprachen"). Grouped by area
+// (explore, house, messages, settings …); placeholders in ICU form ({host}, {count}), plurals as ICU plural ("{count, plural, one {# spot
+// left} other {# spots left}}" – next-intl picks the form with Intl.PluralRules). A second language later: a file with the same shape
+// (lib/i18n/<code>.ts, typed against ProductMessages), its code in i18n/config.ts and its line in i18n/request.ts – nothing else changes.
+// The admin is German and has its own file (lib/i18n/admin.de.ts).
+const en = {
   "meta": {
     "siteTitle": "Simpulo – Share a place. Find your people.",
     "titleTemplate": "%s · Simpulo",
@@ -219,7 +224,7 @@
       "crewLine": {
         "justOpened": "Just opened · {count, plural, one {# spot} other {# spots}}",
         "partial": "{filled} of {total} in",
-        "oneLeft": "1 spot left",
+        "left": "{count, plural, one {# spot left} other {# spots left}}",
         "complete": "Crew complete"
       },
       "rows": {
@@ -580,6 +585,37 @@
       "subtitle": "Sign in to continue.",
       "passkey": "Use a passkey",
       "notNow": "Not now"
+    },
+    "reasons": {
+      "join": {
+        "title": "Your spot is waiting.",
+        "subline": "Sign in to ask {hostName} if you can join."
+      },
+      "open": {
+        "title": "Let's open your House.",
+        "subline": "Sign in and you're one step from your crew."
+      },
+      "save": {
+        "title": "Keep this one.",
+        "subline": "Sign in to save Houses you like."
+      },
+      "message": {
+        "title": "Say hi.",
+        "subline": "Sign in to message {hostName}."
+      },
+      "login": {
+        "title": "Find your people.",
+        "subline": "Welcome back – or welcome in."
+      },
+      "yourHouses": {
+        "title": "Your Houses live here.",
+        "subline": "Sign in to see the Houses you host and join."
+      },
+      "messages": {
+        "title": "Your crew chats live here.",
+        "subline": "Sign in to message hosts and your crew."
+      },
+      "theHost": "the host"
     }
   },
   "onboarding": {
@@ -716,7 +752,7 @@
       "searchIn": "Search {label}",
       "noMatch": "Nothing found",
       "verifiedChip": "Verified hosts",
-      "languagesCount": "{count} languages",
+      "languagesCount": "{count, plural, one {# language} other {# languages}}",
       "sectionActive": "Filter set",
       "clear": "Clear",
       "clearSection": "Clear {section}",
@@ -852,6 +888,37 @@
     "barThemes": {
       "themes": "Themes",
       "moreThemes": "More themes"
+    },
+    "themeLines": {
+      "member": {
+        "fitness": "Train with people who show up.",
+        "surf-water": "Waves before breakfast.",
+        "remote-work": "Deep work, good people.",
+        "founder": "Build it with people who get it.",
+        "creator": "Make things together.",
+        "wellness": "Slow mornings, real rest.",
+        "adventure": "Out there, together.",
+        "culture": "See it with people who care.",
+        "party": "Big nights, one villa.",
+        "holiday": "Time off, in good company.",
+        "social": "Come for the place, stay for the people.",
+        "students": "Study less alone."
+      },
+      "visitor": {
+        "fitness": "Train together. Split the villa.",
+        "surf-water": "Four strangers, one villa, one swell.",
+        "remote-work": "Work mornings. Sunsets with your crew.",
+        "founder": "Build all day. Dinner with people who get it.",
+        "creator": "Shoot by day. Edit together at night.",
+        "wellness": "Slow mornings, one kitchen, real rest.",
+        "adventure": "Strangers at the start, friends at the top.",
+        "culture": "A new city, seen with new friends.",
+        "party": "One villa, one crew, big nights.",
+        "holiday": "Time off with people worth meeting.",
+        "social": "Come for the place, stay for the people.",
+        "students": "Same city, same semester, one House."
+      },
+      "fallback": "{count, plural, one {# house open right now.} other {# houses open right now.}}"
     }
   },
   "house": {
@@ -1096,7 +1163,7 @@
         "respondsFast": "Responds fast",
         "inCommonLabel": "In common",
         "crewLabel": "Crew",
-        "spotsLeftOf": "{open} of {total} spots left",
+        "spotsLeftOf": "{open} of {total, plural, one {# spot} other {# spots}} left",
         "crewComplete": "Crew complete",
         "bringFriend": "Bring a friend – request together",
         "quote": "“{text}”",
@@ -1244,7 +1311,7 @@
     "loginNote": "You'll log in before sending – your message is kept.",
     "placeholder": "Hi! I'm a designer from Berlin, love early mornings and cooking for the House…",
     "looksGood": "Looks good",
-    "minLength": "At least {count} characters",
+    "minLength": "At least {count, plural, one {# character} other {# characters}}",
     "messageLabel": "Your message to {name} (optional)",
     "send": "Send request",
     "continue": "Continue",
@@ -2849,7 +2916,7 @@
       "reminderPayToday": "{title}: last hours to pay your share ({price})",
       "reminderBookingUpload": "{title}: everyone paid – upload the booking confirmation within {hours}h",
       "reminderPendingRequests": "{title}: {count, plural, one {# request is} other {# requests are}} waiting for your answer",
-      "reminderArrival": "{title}: {days} days to go – arrival {date}",
+      "reminderArrival": "{title}: {days, plural, one {# day} other {# days}} to go – arrival {date}",
       "reminderSavedSoon": "{title} starts {date} – still taking requests",
       "hostOpened": "{name} opened a House: {title}",
       "crewFull": "{title}: the House is complete",
@@ -4140,7 +4207,66 @@
     "roleLabel": "Questions about",
     "joining": "Joining",
     "hosting": "Hosting",
-    "contact": "Still unsure? Write us →"
+    "contact": "Still unsure? Write us →",
+    "items": {
+      "payment": {
+        "question": "Where does my money go?",
+        "answer": "You pay Simpulo, not the host. We hold your payment until the crew is complete and the host has booked the place."
+      },
+      "when-to-pay": {
+        "question": "When do I pay?",
+        "answer": "Only after the host accepts you. You then have {hours}h to pay your share."
+      },
+      "refund": {
+        "question": "What if the House doesn't fill up or the host doesn't book?",
+        "answer": "You get your money back in full."
+      },
+      "cancellation": {
+        "question": "Can I cancel?",
+        "answer": "Until the crew is complete, you can withdraw your request or leave your spot any time, for free. After paying, you can hand your spot to the next person on the waitlist and get everything back except the service fee; if nobody takes it, there's no refund. If the host cancels or doesn't confirm the booking within {hours}h after everyone paid, you get everything back.",
+        "link": "All cancellation rules →"
+      },
+      "fees": {
+        "question": "What does Simpulo charge?",
+        "answer": "A {percent} % service fee on your share, shown before you pay. Nothing else."
+      },
+      "people": {
+        "question": "Who will I live with?",
+        "answer": "You see everyone's profile before you join – who they've lived with, languages, socials. Verified members have a badge."
+      },
+      "place": {
+        "question": "Is the place already booked?",
+        "answer": "Some Houses come with a set place and price. Others are planned together – you'll see a price range until the crew picks the place."
+      },
+      "host-fees": {
+        "question": "What does hosting cost?",
+        "answer": "Nothing. You pay your share like everyone else."
+      },
+      "host-money": {
+        "question": "How does the money work?",
+        "answer": "Your crew pays through Simpulo. Once everyone has paid, the money is released to you and you book the place within {hours}h."
+      },
+      "not-full": {
+        "question": "What if my House doesn't fill up?",
+        "answer": "Nobody pays until the crew is complete. If it doesn't fill by your deadline, the House closes and nobody is charged."
+      },
+      "who-joins": {
+        "question": "Who decides who joins?",
+        "answer": "You. Nobody is in without your yes."
+      },
+      "place-host": {
+        "question": "Do I need a place already?",
+        "answer": "No. Bring a place you've found – or just a city, dates and a budget and pick the place together with your crew."
+      },
+      "host-at-home": {
+        "question": "Can I host where I live?",
+        "answer": "Yes – save the place you live in and open Houses in it for a few weeks at a time. You live there too and count as one of the crew, so the spots are your free rooms. Only do it if you're allowed to: renting rooms out or having paying guests usually needs your landlord's permission, and some cities have their own rules for short stays. Simpulo doesn't check this for you – when you save the place, you confirm it yourself."
+      },
+      "verify": {
+        "question": "Do I need to verify?",
+        "answer": "Only when you receive money: setting up payouts includes an ID check by our payment partner. Hosts with payouts get the Verified badge automatically."
+      }
+    }
   },
   "seo": {
     "breadcrumbs": {
@@ -4355,7 +4481,7 @@
     "allSpotsPicked": "Every open spot is picked.",
     "strangersLeft": "{count, plural, =0 {No more invites to new people today} one {# more invite to new people today} other {# more invites to new people today}} · {limit} a day",
     "sent": "{count, plural, one {# invite sent} other {# invites sent}} – spots held for {hours}h",
-    "limitReached": "That's {count} invites to new people today – {sent} sent",
+    "limitReached": "That's {count, plural, one {# invite} other {# invites}} to new people today – {sent} sent",
     "notSent": "Nothing sent – they can't be invited right now",
     "addSpot": "Invite to a free spot",
     "freeSpot": "Free spot",
@@ -4478,5 +4604,84 @@
     "password": "Password",
     "wrong": "Wrong password",
     "enter": "Enter"
+  },
+  "emails": {
+    "wordmark": "simpulo",
+    "impressum": "Impressum",
+    "privacy": "Privacy",
+    "unsubscribe": "Unsubscribe from these emails",
+    "magicLink": {
+      "preview": "Tap to sign in – the link works for 15 minutes.",
+      "headline": "Sign in to Simpulo",
+      "action": "Sign in",
+      "body": "Tap the button to sign in. The link works once, for 15 minutes.",
+      "ignore": "Didn't ask for it? Ignore this email – nothing happens."
+    },
+    "notification": {
+      "rest": "Everything else is on Simpulo."
+    },
+    "weekly": {
+      "headline": "{count, plural, one {A new House near your search} other {# new Houses near your searches}}",
+      "action": "See them on Simpulo",
+      "intro": "This week on Simpulo:"
+    },
+    "chatDigest": {
+      "headline": "{count, plural, one {{name} wrote to you} other {# unread messages}}",
+      "action": "Reply",
+      "subject": "{count, plural, one {{subject}} other {# unread messages on Simpulo}}"
+    },
+    "actions": {
+      "requestReceived": "See the request",
+      "requestAnswered": "See similar Houses",
+      "accepted": "Open your House",
+      "paymentDue": "Pay your share",
+      "paymentReminder": "Pay your share",
+      "bookingConfirmed": "See your House",
+      "bookingCancelled": "See what happens next",
+      "refundIssued": "See your refund",
+      "houseArc": "Open your House",
+      "chatMessage": "Reply",
+      "houseNearby": "See the House",
+      "simpuloNews": "Open Simpulo",
+      "supportReply": "Open Simpulo"
+    }
+  },
+  "og": {
+    "tagline": "Share a place. Find your people.",
+    "siteTitle": "Simpulo – Share a place. Find your people.",
+    "brand": "Simpulo",
+    "spots": "{open, plural, =0 {Full} one {# spot left} other {# spots left}}",
+    "openHouses": "{count, plural, one {# open House} other {# open Houses}}",
+    "invite": {
+      "alt": "You're invited to a House on Simpulo",
+      "title": "You're invited to a House",
+      "line": "Your spot is held for 48 hours.",
+      "eyebrow": "Invite",
+      "strong": "Accept on Simpulo"
+    },
+    "priceTbd": "Price set with crew",
+    "house": {
+      "alt": "A House on Simpulo: cover, title, dates, place, price, crew and free spots",
+      "crewLine": "{in} of {total} in · {spots}"
+    },
+    "coLiving": {
+      "alt": "Co-living on Simpulo: open Houses in this city",
+      "eyebrow": "Co-living",
+      "title": "Co-living in {city}"
+    }
+  },
+  "receipt": {
+    "docTitle": "Simpulo – Receipt",
+    "number": "Receipt no. {id}",
+    "share": "Share: {amount}",
+    "hostExperience": "Host experience: {amount}",
+    "fee": "Simpulo fee (included): {amount}",
+    "total": "Total paid: {amount}",
+    "paid": "Paid {date} with {brand} ****{last4}"
   }
-}
+};
+
+export default en;
+
+/** The shape every product language must have (keys and nesting as en). */
+export type ProductMessages = typeof en;

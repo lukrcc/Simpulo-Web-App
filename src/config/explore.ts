@@ -87,40 +87,10 @@ export const JUST_OPENED_DAYS = 7;
 export const SHELF_MAX_ITEMS = 24;
 
 /**
- * The Spotlight's line beside the centre card (logged in; visitors: SPOTLIGHT_THEME_LINES_VISITOR), by the card's category: a short sentence, then that category's
- * open Houses. Later in en.json.
+ * The Spotlight's line beside the centre card, by the card's category (logged in "member", visitors the more inviting "visitor"): the words in
+ * lib/i18n/en.ts (explore.themeLines), read through useSpotlightThemeLines (components/explore/themeLines.ts); a House without a category gets
+ * "explore.themeLines.fallback" ("10 houses open right now.").
  */
-export const SPOTLIGHT_THEME_LINES: Record<Vibe, string> = {
-  fitness: "Train with people who show up.",
-  "surf-water": "Waves before breakfast.",
-  "remote-work": "Deep work, good people.",
-  founder: "Build it with people who get it.",
-  creator: "Make things together.",
-  wellness: "Slow mornings, real rest.",
-  adventure: "Out there, together.",
-  culture: "See it with people who care.",
-  party: "Big nights, one villa.",
-  holiday: "Time off, in good company.",
-  social: "Come for the place, stay for the people.",
-  students: "Study less alone.",
-};
-/** The same line for visitors (logged out): more inviting – what living in such a House is like. */
-export const SPOTLIGHT_THEME_LINES_VISITOR: Record<Vibe, string> = {
-  fitness: "Train together. Split the villa.",
-  "surf-water": "Four strangers, one villa, one swell.",
-  "remote-work": "Work mornings. Sunsets with your crew.",
-  founder: "Build all day. Dinner with people who get it.",
-  creator: "Shoot by day. Edit together at night.",
-  wellness: "Slow mornings, one kitchen, real rest.",
-  adventure: "Strangers at the start, friends at the top.",
-  culture: "A new city, seen with new friends.",
-  party: "One villa, one crew, big nights.",
-  holiday: "Time off with people worth meeting.",
-  social: "Come for the place, stay for the people.",
-  students: "Same city, same semester, one House.",
-};
-/** A House without a category: the number is the sentence. */
-export const spotlightThemeFallback = (count: number) => `${count} ${count === 1 ? "house" : "houses"} open right now.`;
 
 /** Open Houses loads page by page, only on a click ("Show 24 more"; never on scroll): this many per page, rounded up to full rows. */
 export const pageSize = 24;

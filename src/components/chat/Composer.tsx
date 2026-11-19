@@ -1,7 +1,8 @@
 "use client";
 
+import { useFormatLocale } from "@/i18n/formatLocale";
 import { ArrowUp, FileText, Paperclip, Reply, X } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
 import { IconButton } from "@/components/ui/IconButton";
@@ -44,7 +45,7 @@ interface ComposerProps {
  */
 export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend }: ComposerProps) {
   const t = useTranslations("messages.thread");
-  const locale = useLocale();
+  const locale = useFormatLocale();
   const { sendMessage } = useStore();
   const [text, setText] = useState("");
   const [files, setFiles] = useState<PendingFile[]>([]);

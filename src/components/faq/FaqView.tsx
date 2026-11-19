@@ -8,6 +8,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { TabBar } from "@/components/ui/TabBar";
 import { CONTACT_EMAIL } from "@/config/contact";
 import { FAQ, roleOfAnchor, type FaqRole } from "@/config/faq";
+import type en from "@/lib/i18n/en";
+
+/** A FAQ text key: "<id>.question" · "<id>.answer" · "<id>.link". */
+type FaqKey = { [Id in keyof (typeof en)["faq"]["items"]]: `${Id & string}.${keyof (typeof en)["faq"]["items"][Id] & string}` }[keyof (typeof en)["faq"]["items"]];
 
 const noSubscribe = () => () => {};
 
@@ -18,6 +22,7 @@ const noSubscribe = () => () => {};
  */
 export function FaqView() {
   const t = useTranslations("faq");
+  const tItems = useTranslations("faq.items");
   const params = useSearchParams();
   const router = useRouter();
   const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
@@ -71,14 +76,14 @@ export function FaqView() {
             className="group scroll-mt-[calc(var(--header-total)+24px)] border-b border-ink/10 first:border-t"
           >
             <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 text-body font-semibold text-ink [&::-webkit-details-marker]:hidden">
-              {item.question}
+              {tItems(`${item.id}.question` as FaqKey)}
               <ChevronDown className="size-5 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
             </summary>
             <div className="max-w-[640px] pb-5 text-body text-muted">
-              <p>{item.answer}</p>
+              <p>{tItems(`${item.id}.answer` as FaqKey, item.values)}</p>
               {item.link && (
                 <Link href={item.link.href} className="mt-2 inline-block font-semibold text-ink underline-offset-4 hover:underline">
-                  {item.link.label}
+                  {tItems(`${item.id}.link` as FaqKey)}
                 </Link>
               )}
             </div>

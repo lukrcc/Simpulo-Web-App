@@ -28,6 +28,7 @@ import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { setInstallHintsOff, useInstallHintsOff, useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
+import { SHOW_LANGUAGE_SETTING } from "@/i18n/config";
 import { applyThemePref, THEME_PREFS, useThemePref, type ThemePref } from "@/lib/theme";
 import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
@@ -163,7 +164,7 @@ function SettingsContent({ me }: { me: User }) {
           {shown === "chats" && <ChatsArea />}
           {shown === "appearance" && <AppearanceArea />}
           {shown === "privacy" && <PrivacyArea me={me} />}
-          {shown === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" ? <LanguagePage /> : <GeneralArea me={me} />)}
+          {shown === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" && SHOW_LANGUAGE_SETTING ? <LanguagePage /> : <GeneralArea me={me} />)}
         </div>
       </div>
       {/* Phones and the installed app: the legal links at the very bottom of Settings too. */}
@@ -597,7 +598,8 @@ function GeneralArea({ me }: { me: User }) {
       <AreaTitle title={tu("nav.general")} />
       <SettingsGroup>
         <SettingsRow title={tu("general.currency")} value={automatic ? tu("general.automaticValue", { label: currencyLabel(current) }) : currencyLabel(current)} chevron onClick={() => go("general/currency")} />
-        <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron onClick={() => go("general/language")} />
+        {/* Hidden until a second language exists (i18n/config.ts SHOW_LANGUAGE_SETTING); the account field is ready. */}
+        {SHOW_LANGUAGE_SETTING && <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron onClick={() => go("general/language")} />}
       </SettingsGroup>
       {/* Your people and – not in the installed app – Get the app, as in the avatar menu (Log out also sits in Account › Devices). */}
       <SettingsGroup>

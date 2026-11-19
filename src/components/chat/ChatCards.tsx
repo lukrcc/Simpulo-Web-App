@@ -1,8 +1,9 @@
 "use client";
 
+import { useFormatLocale } from "@/i18n/formatLocale";
 import { ArrowUpRight, FileText, ImageIcon, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { againHref } from "@/components/create/model";
 import { Button } from "@/components/ui/ActionButton";
 import { cardClass } from "@/components/ui/Card";
@@ -20,7 +21,7 @@ export const CARD_WIDTH = "w-full max-w-[420px]";
 /** "Today", "Yesterday", otherwise "Mon, Jan 12": small and muted, centred, nothing around it. */
 export function DayDivider({ day }: { day: string }) {
   const t = useTranslations("messages.thread");
-  const locale = useLocale();
+  const locale = useFormatLocale();
   const now = new Date();
   const label =
     day === dayOf(now.toISOString())
@@ -113,7 +114,7 @@ function ChatImage({ src, alt, sizes = "320px" }: { src: string; alt: string; si
 /** A PDF or other file in a bubble: icon, name, size – links to the file. */
 export function FileRow({ file, mine }: { file: Attachment; mine: boolean }) {
   const t = useTranslations("messages.thread");
-  const locale = useLocale();
+  const locale = useFormatLocale();
   return (
     <a
       href={file.url}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { SPOTLIGHT_THEME_LINES, SPOTLIGHT_THEME_LINES_VISITOR, spotlightThemeFallback } from "@/config/explore";
+import { useSpotlightThemeLines } from "./themeLines";
 import { useFormat } from "@/i18n/format";
 import { EMPTY_FILTERS, withFilters } from "@/lib/exploreFilters";
 import type { Vibe } from "@/lib/types";
@@ -65,7 +65,7 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, 
   const t = useTranslations("explore.spotlightGreeting");
   const tIntro = useTranslations("explore.spotlightIntro");
   const breath = useMarkBreath();
-  const lines = name === null ? SPOTLIGHT_THEME_LINES_VISITOR : SPOTLIGHT_THEME_LINES;
+  const { lines, fallback } = useSpotlightThemeLines(name === null);
   return (
     <div data-spotlight-greeting className="pointer-events-none flex items-start justify-between gap-6">
       <div data-spotlight-greeting-left className={cn("min-w-0", sideClassName ?? "flex-1")}>
@@ -79,7 +79,7 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, 
       {/* Beside the card it hangs from the common top edge: the left side alone sets the height, which puts "Where to next?" where it belongs. Its eyebrow's
           capitals level with those of "Hi …": the greeting's letters sit lower in their line, so the block comes down by that (GREETING_EYEBROW_DROP). */}
       <div data-spotlight-greeting-right className={cn("flex min-w-0 justify-end pt-[calc(var(--text-greeting)*0.15-1.5px)]", sideClassName ? cn(sideClassName, "h-0") : "flex-1")}>
-        {launch ? <LaunchBlock launch={launch} /> : <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} />}
+        {launch ? <LaunchBlock launch={launch} /> : <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} fallback={fallback} />}
       </div>
     </div>
   );
@@ -89,13 +89,13 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, 
  * Follows the category. The name and the link crossfade, the name, the sentence and the link crossfade, nothing moves with it; never for the same category again. Two
  * lines of sentence always reserved.
  */
-function ThemeBlock({ vibe, countOf, onPick, lines }: Pick<GreetingProps, "vibe" | "countOf" | "onPick"> & { lines: Record<Vibe, string> }) {
+function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingProps, "vibe" | "countOf" | "onPick"> & { lines: Record<Vibe, string>; fallback: (count: number) => string }) {
   const t = useTranslations("explore.spotlightGreeting");
   const format = useFormat();
   const [state, setState] = useState({ vibe, from: null as Vibe | null, run: 0 });
   if (state.vibe !== vibe) setState({ vibe, from: state.vibe, run: state.run + 1 });
   const { from, run } = state;
-  const sentenceOf = (v: Vibe) => lines[v] ?? spotlightThemeFallback(countOf(v));
+  const sentenceOf = (v: Vibe) => lines[v] ?? fallback(countOf(v));
   const link = (v: Vibe) => (
     <Link
       href={`/?${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [v] })}`}

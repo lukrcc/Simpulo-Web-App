@@ -1,3 +1,4 @@
+import { tEn } from "@/lib/i18n/translate";
 /* eslint-disable @next/next/no-img-element -- next/og renders plain <img>, not next/image */
 // Share cards (Open Graph / X), 1200×630, rendered on the server with next/og: the House's cover left, its facts right, the wordmark.
 import { COLORS } from "./colors";
@@ -44,7 +45,7 @@ const money = (amount: number, currency: string) => new Intl.NumberFormat("en", 
 export function ogPrice(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" | "currency">): string {
   if (stay.pricePerPerson) return `${money(stay.pricePerPerson, stay.currency)} pp`;
   if (stay.budgetPerPerson) return `${money(stay.budgetPerPerson.min, stay.currency)}–${money(stay.budgetPerPerson.max, stay.currency).replace(/^[^\d]+/, "")} pp`;
-  return "Price set with crew";
+  return tEn("og.priceTbd");
 }
 
 /** "Feb 12 – 26" – stored dates are calendar dates, so in UTC. */

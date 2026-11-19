@@ -1,8 +1,9 @@
 "use client";
 
+import { useFormatLocale } from "@/i18n/formatLocale";
 import { selectedSurface } from "@/components/ui/Chip";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useFormat } from "@/i18n/format";
 import { formInput } from "@/components/form/FormLayout";
@@ -43,7 +44,7 @@ function monthGrid(month: string): Array<string | null> {
 export function DateRangePicker({ id, start, end, onChange, min, maxNights, invalid, onClose }: DateRangePickerProps) {
   const t = useTranslations("common.ui.dateRange");
   const format = useFormat();
-  const locale = useLocale();
+  const locale = useFormatLocale();
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);

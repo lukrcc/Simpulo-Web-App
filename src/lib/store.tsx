@@ -2899,6 +2899,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     chatThemes: user?.settings?.chatThemes ?? {},
     seenHints: user?.settings?.seenHints ?? [],
     appearance: user?.settings?.appearance,
+    language: user?.settings?.language,
   };
 }
 

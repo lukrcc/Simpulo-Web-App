@@ -15,7 +15,7 @@ export function CrewLine({ stay, inCrew, onDark = false, className }: { stay: Cr
   const filled = Math.max(stay.spotsFilled, inCrew ?? 1, 1);
   const base = onDark ? "text-on-image/85" : "text-muted";
   if (filled >= stay.spotsTotal) return <span className={cn("text-small", onDark ? "text-on-image/60" : "text-muted", className)}>{t("complete")}</span>;
-  if (open === 1) return <span className={cn("text-small font-semibold text-accent", className)}>{t("oneLeft")}</span>;
+  if (open === 1) return <span className={cn("text-small font-semibold text-accent", className)}>{t("left", { count: open })}</span>;
   if (filled <= 1) return <span className={cn("text-small", base, className)}>{t("justOpened", { count: open })}</span>;
   return <span className={cn("text-small", base, className)}>{t("partial", { filled, total: stay.spotsTotal })}</span>;
 }

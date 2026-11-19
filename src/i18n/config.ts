@@ -1,5 +1,5 @@
 /**
- * Supported UI languages. Adding one = add its code here and a messages/<code>.json with the same keys as en.json.
+ * Supported UI languages. Adding one = add its code here and a lib/i18n/<code>.ts with the same shape as lib/i18n/en.ts.
  * Nothing else changes: the locale is picked per request (see request.ts) – there's no locale in the URL.
  */
 export const locales = ["en"] as const;
@@ -8,6 +8,12 @@ export const defaultLocale: Locale = "en";
 
 /** A user's explicit choice (a future setting) wins over the browser's Accept-Language. */
 export const LOCALE_COOKIE = "simpulo-locale";
+
+/**
+ * The language choice in Settings (General › Language) stays hidden until a second language exists – the account field
+ * (UserSettings.language, default "en") and the cookie are ready. Turn on together with the second entry in `locales`.
+ */
+export const SHOW_LANGUAGE_SETTING = false;
 
 function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);

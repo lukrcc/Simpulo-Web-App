@@ -5,6 +5,7 @@ import { shortNameOf } from './shortName';
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
 import type { ChatThemeId } from "@/config/chat-themes";
 import type { ThemePref } from "./themeScript";
+import type { Locale } from "@/i18n/config";
 import { FACE_QUERIES, isWoman, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
 import { extraHosts, extraHouses, type ExtraHost, type ExtraHouse } from './mock-houses-extra';
 import { VIBES, locationOf } from './catalog';
@@ -140,6 +141,8 @@ export interface UserSettings {
   seenHints?: string[];
   /** Light or dark: System (none) · Light · Dark – Settings › Appearance; on every device (this device also keeps it in a cookie, lib/theme.ts) */
   appearance?: ThemePref;
+  /** The interface language (i18n/config.ts locales; none = "en"). Prepared, not shown in Settings yet (SHOW_LANGUAGE_SETTING). */
+  language?: Locale;
 }
 
 /** The platforms a profile can link to. */

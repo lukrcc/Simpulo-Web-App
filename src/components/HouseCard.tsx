@@ -306,7 +306,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
               {context === "grid" && signal ? (
                 <SignalLine signal={signal} size={16} className="mt-1" />
               ) : context === "shelf" && signal ? null : context === "shelf" && lastSpot ? (
-                <p className="mt-1 truncate text-small font-semibold text-accent">{tCrew("oneLeft")}</p>
+                <p className="mt-1 truncate text-small font-semibold text-accent">{tCrew("left", { count: 1 })}</p>
               ) : (
                 stay.hostNote && (
                   <p className="mt-1 flex items-center gap-1.5 text-small text-on-image/75">
@@ -463,7 +463,7 @@ function CompactCrew({ stay, crew, urgent }: { stay: Stay; crew: User[]; /** fal
   const store = useStore();
   const filled = Math.max(crewInOf(store, stay), 1);
   const open = openSpots(stay);
-  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 && urgent ? t("oneLeft") : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
+  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 && urgent ? t("left", { count: open }) : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
   return (
     <span className="flex min-w-0 items-center gap-2">
       <CrewFaces stay={stay} crew={crew} />

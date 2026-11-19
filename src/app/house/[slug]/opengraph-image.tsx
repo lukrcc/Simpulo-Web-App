@@ -1,10 +1,11 @@
+import { tEn } from "@/lib/i18n/translate";
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/lib/ogFonts";
 import { getCrew, getStayRecord } from "@/lib/data/stays";
 import { OG_SIZE, OgCard, ogDates, ogPictures, ogPrice } from "@/lib/ogCard";
 import { openSpots } from "@/lib/utils";
 
-export const alt = "A House on Simpulo: cover, title, dates, place, price, crew and free spots";
+export const alt = tEn("og.house.alt");
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -24,13 +25,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         line={`${ogDates(stay.startDate, stay.endDate)} · ${stay.city || stay.region}`}
         strong={ogPrice(stay)}
         faces={pictures.faces}
-        crewLine={`${stay.spotsFilled} of ${stay.spotsTotal} in · ${spotsText(openSpots(stay))}`}
+        crewLine={tEn("og.house.crewLine", { in: stay.spotsFilled, total: stay.spotsTotal, spots: tEn("og.spots", { open: openSpots(stay) }) })}
       />
     ) : (
-      <OgCard cover={null} title="Simpulo" line="Share a place. Find your people." />
+      <OgCard cover={null} title={tEn("og.brand")} line={tEn("og.tagline")} />
     ),
     { ...size, fonts },
   );
 }
 
-const spotsText = (open: number) => (open === 0 ? "Full" : open === 1 ? "1 spot left" : `${open} spots left`);

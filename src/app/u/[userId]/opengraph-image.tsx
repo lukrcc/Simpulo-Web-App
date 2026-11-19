@@ -1,3 +1,4 @@
+import { tEn } from "@/lib/i18n/translate";
 import { getTranslations } from "next-intl/server";
 import { ImageResponse } from "next/og";
 import { OgLogo } from "@/lib/ogCard";
@@ -7,7 +8,7 @@ import { loadOgFonts } from "@/lib/ogFonts";
 import { getHouses, getUsers } from "@/lib/data";
 import { COLORS } from "@/lib/colors";
 
-export const alt = "Simpulo";
+export const alt = tEn("og.brand");
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -59,7 +60,7 @@ export default async function Image({ params }: { params: Promise<{ userId: stri
         <div style={{ display: "flex", flexDirection: "column", width: 600, height: 630, padding: "64px 56px 48px" }}>
           <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
             <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>
-              {user ? publicName(user, null) : "Simpulo"}
+              {user ? publicName(user, null) : tEn("og.brand")}
             </div>
             {user && open && (
               <div style={{ display: "flex", marginTop: 20, fontSize: 30, color: COLORS.muted }}>{t("hosted", { count: hosted })}</div>
