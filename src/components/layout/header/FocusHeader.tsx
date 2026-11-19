@@ -22,7 +22,7 @@ export function FocusHeader({ exit = true }: { exit?: boolean }) {
   const me = getCurrentUser(useStore());
   const showToast = useToast();
   return (
-    <header data-site-header data-focus-header className="milk-glass fixed inset-x-0 top-(--band-h) z-40 h-(--header-h) shadow-[0_1px_0_rgba(0,0,0,0.08)] max-md:sticky max-md:top-(--header-total) max-md:h-14">
+    <header data-site-header data-focus-header className="milk-glass fixed inset-x-0 top-(--band-h) z-40 h-(--header-h) shadow-(--shadow-bar-foot) max-md:sticky max-md:top-(--header-total) max-md:h-14">
       <Container className="flex h-full items-center justify-between">
         <Logo />
         {exit && <Link

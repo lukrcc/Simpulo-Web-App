@@ -9,7 +9,7 @@ export type ButtonSize = "md" | "sm" | "lg";
 // Every colour from the ground's tokens (src/styles/tokens.css): on the light floor the primary is ink with cream words, on a stage or a dark
 // floor cream with ink words – the same classes.
 const primaryLook =
-  "bg-(--action-bg) text-(--action-text) shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-(--action-hover) hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none";
+  "bg-(--action-bg) text-(--action-text) shadow-(--edge-highlight) hover:-translate-y-px hover:bg-(--action-hover) hover:shadow-[var(--edge-highlight),var(--shadow-lift)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none";
 const variants: Record<ButtonVariant, string> = {
   primary: primaryLook,
   // Light floor: a raised warm white; on a dark ground a 1px cream 25 % outline (--secondary-*).
@@ -24,7 +24,7 @@ const variants: Record<ButtonVariant, string> = {
   // The stage's other actions: a 1px outline in the words' colour at 25 %.
   creamOutline: "border border-ink/25 text-ink hover:-translate-y-px hover:bg-ink/6 disabled:translate-y-0 disabled:text-ink/50",
   // "Join in": the one orange button of an area (the House page's strip) – the action orange's deep step with white words (4.7 : 1).
-  brand: "bg-(--brand-action-fill) text-on-signal shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:-translate-y-px hover:bg-(--brand-action-fill-hover) hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(0,0,0,0.18)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
+  brand: "bg-(--brand-action-fill) text-on-signal shadow-(--edge-highlight) hover:-translate-y-px hover:bg-(--brand-action-fill-hover) hover:shadow-[var(--edge-highlight),var(--shadow-lift)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
 };
 
 const sizes: Record<ButtonSize, string> = { md: "h-11 px-5", sm: "h-9 px-4", lg: "h-12 px-6" };

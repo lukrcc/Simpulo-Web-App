@@ -1,6 +1,7 @@
 "use client";
 
 import { depthLocked } from "./depth";
+import type { ThemePref } from "./themeScript";
 import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
 import { mockInFor } from "./mock-inFor";
@@ -207,6 +208,7 @@ type StoreAction =
   | { type: "markThreadRead"; threadId: string; at: string }
   | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
   | { type: "markHintSeen"; hint: string }
+  | { type: "setAppearance"; appearance: ThemePref }
   | {
       type: "lockAccommodation";
       stayId: string;
@@ -367,6 +369,8 @@ interface StoreActions {
   setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
   /** A one-time hint seen – on the account, so it never comes back */
   markHintSeen: (hint: string) => void;
+  /** Light or dark on the account (Settings › Appearance; lib/theme.ts applies it on the device) */
+  setAppearance: (appearance: ThemePref) => void;
   /**
    * Host locks a link: total split across `spots` → per person. Creates a pending payment for every crew member
    * and posts the lock card into the crew chat. Resolves after a mock delay.
@@ -1818,6 +1822,14 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
+    case "setAppearance": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), appearance: action.appearance === "system" ? undefined : action.appearance } } : u)),
+      };
+    }
+
     case "setChatTheme": {
       if (!me) return state;
       return {
@@ -2638,6 +2650,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [threads],
   );
   const markHintSeen = useCallback((hint: string) => dispatch({ type: "markHintSeen", hint }), []);
+  const setAppearance = useCallback((appearance: ThemePref) => dispatch({ type: "setAppearance", appearance }), []);
   const setChatTheme = useCallback((threadId: string | null, theme: ChatThemeId | null) => dispatch({ type: "setChatTheme", threadId, theme }), []);
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
   const setHostTier = useCallback((userId: string, tier: HostTier) => dispatch({ type: "setHostTier", userId, tier }), []);
@@ -2801,6 +2814,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       setChatTheme,
       markHintSeen,
+      setAppearance,
       toggleReaction,
       lockAccommodation,
       payShare,
@@ -2828,7 +2842,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2884,6 +2898,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     chatTheme: user?.settings?.chatTheme,
     chatThemes: user?.settings?.chatThemes ?? {},
     seenHints: user?.settings?.seenHints ?? [],
+    appearance: user?.settings?.appearance,
   };
 }
 

@@ -5,13 +5,12 @@
 // No free colours. Stored on the account via the store (setChatTheme), so it follows the person to every device and only they see it.
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { CHAT_THEME_IDS, CHAT_THEMES, chatThemePreview, type ChatThemeId } from "@/config/chat-themes";
+import { CHAT_PREVIEW_STYLE, CHAT_THEME_IDS, type ChatThemeId } from "@/config/chat-themes";
 import { useHydrated } from "@/lib/useHydrated";
 import { chatThemeOf, settingsOf, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 function Swatch({ id, selected, onPick, label }: { id: ChatThemeId; selected: boolean; onPick: () => void; label: string }) {
-  const theme = CHAT_THEMES[id];
   return (
     <button type="button" onClick={onPick} aria-pressed={selected} className="group flex w-16 flex-col items-center gap-2 rounded-xl outline-offset-4">
       {/* The preview: the ground, an others' bubble on the left, yours on the right ("house" carries a hint of a House colour). */}
@@ -21,17 +20,20 @@ function Swatch({ id, selected, onPick, label }: { id: ChatThemeId; selected: bo
           "relative flex size-14 items-center justify-center overflow-hidden rounded-full shadow-[inset_0_0_0_1px_var(--line)] outline-offset-2 transition-[outline-color] duration-150",
           selected ? "outline-2 outline-(--text)" : "outline-2 outline-transparent",
         )}
-        style={{ background: chatThemePreview(id) }}
       >
-        <span className="absolute top-3.5 left-2.5 h-3 w-6 rounded-full" style={{ background: theme.other }} />
-        <span className="absolute right-2.5 bottom-3.5 h-3 w-6 rounded-full" style={{ background: theme.own }} />
-        {selected && (
-          <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex size-5 items-center justify-center rounded-full" style={{ background: theme.own, color: theme.ownText }}>
-              <Check className="size-3" strokeWidth={3} />
+        {/* The background's own tokens (styles/tokens.css) – in dark mode its darkened variant. The ring above stays in the page's colour. */}
+        <span data-chat-theme={id} style={CHAT_PREVIEW_STYLE[id]} className="absolute inset-0 bg-(--chat-bg)">
+          <span className="absolute top-3.5 left-2.5 h-3 w-6 rounded-full bg-(--bubble-other)" />
+          <span className="absolute right-2.5 bottom-3.5 h-3 w-6 rounded-full bg-(--bubble-own)" />
+          {selected && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="flex size-5 items-center justify-center rounded-full bg-(--bubble-own) text-(--bubble-own-text)">
+                <Check className="size-3" strokeWidth={3} />
+              </span>
             </span>
-          </span>
-        )}
+          )}
+        </span>
+        <span className="absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_var(--line)]" />
       </span>
       <span className={cn("text-small", selected ? "text-ink" : "text-muted")}>{label}</span>
     </button>
@@ -79,7 +81,6 @@ export function ChatThemeDots({ threadId }: { threadId: string }) {
       <p className="mb-2.5 text-small font-semibold text-muted">{t("menu")}</p>
       <div role="radiogroup" aria-label={t("menu")} className="flex items-center gap-2.5">
         {CHAT_THEME_IDS.map((id) => {
-          const theme = CHAT_THEMES[id];
           const on = active === id;
           return (
             <button
@@ -94,10 +95,12 @@ export function ChatThemeDots({ threadId }: { threadId: string }) {
                 "relative size-7 shrink-0 overflow-hidden rounded-full shadow-[inset_0_0_0_1px_var(--line)] outline-offset-2 transition-[outline-color] duration-150",
                 on ? "outline-2 outline-(--text)" : "outline-2 outline-transparent",
               )}
-              style={{ background: chatThemePreview(id) }}
             >
-              {/* Half of the dot in the own bubble's colour: the ground and the bubble at a glance. */}
-              <span aria-hidden className="absolute inset-y-0 right-0 w-1/2" style={{ background: theme.own }} />
+              {/* Half of the dot in the own bubble's colour: the ground and the bubble at a glance (the background's own tokens). */}
+              <span aria-hidden data-chat-theme={id} style={CHAT_PREVIEW_STYLE[id]} className="absolute inset-0 bg-(--chat-bg)">
+                <span className="absolute inset-y-0 right-0 w-1/2 bg-(--bubble-own)" />
+              </span>
+              <span aria-hidden className="absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_var(--line)]" />
             </button>
           );
         })}
@@ -118,7 +121,7 @@ export function ChatThemeHint() {
       type="button"
       data-chat-theme-hint
       onClick={() => store.markHintSeen("chatTheme")}
-      className="tooltip-bubble animate-fade-in absolute right-0 top-full z-30 mt-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-small text-white"
+      className="tooltip-bubble animate-fade-in absolute right-0 top-full z-30 mt-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-small text-on-image"
     >
       {/* The small tip pointing up at the "…" */}
       <span aria-hidden className="tooltip-bubble absolute -top-1 right-3.5 size-2.5 rotate-45 rounded-[2px]" />

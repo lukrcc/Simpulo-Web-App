@@ -2,7 +2,7 @@ import { useId, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** The soft shadow of every container card (forms, panels) – no border. House cards with a photo have their own look. */
-export const cardShadow = "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]";
+export const cardShadow = "shadow-(--shadow-card)";
 
 /** The one container card: surface, no border, the soft shadow, 24px radius, 40px padding. Never nested – split with CardSection. */
 export const cardClass = `rounded-3xl bg-surface p-10 ${cardShadow}`;

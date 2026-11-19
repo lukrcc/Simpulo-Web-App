@@ -3381,7 +3381,8 @@
         "notifications": "Notifications",
         "privacy": "Privacy & safety",
         "general": "General",
-        "chats": "Chats"
+        "chats": "Chats",
+        "appearance": "Appearance"
       },
       "account": {
         "groupSignIn": "Sign-in",
@@ -3451,6 +3452,13 @@
         "installHints": "App reminders",
         "installHintsText": "At most once a week – after paying, joining a crew or opening the group chat.",
         "legal": "Legal"
+      },
+      "appearance": {
+        "system": "System",
+        "systemSub": "Follows your device's setting",
+        "light": "Light",
+        "dark": "Dark",
+        "hint": "Saved to your account and this device."
       }
     },
     "loginTitle": "Log in to see your settings",

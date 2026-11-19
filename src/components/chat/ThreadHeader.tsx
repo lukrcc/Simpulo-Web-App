@@ -11,7 +11,8 @@ import { openGetHelp } from "@/lib/support/feedback";
 import { useState } from "react";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { ChatThemeDots, ChatThemeHint } from "@/components/chat/ChatBackground";
-import { CHAT_THEMES } from "@/config/chat-themes";
+import { CHAT_THEME_DARK } from "@/config/chat-themes";
+import { useResolvedTheme } from "@/lib/theme";
 import { CrewMenu } from "@/components/stay/CrewMenu";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
@@ -176,7 +177,9 @@ export function DirectHeader({ stay, other, embedded, threadId }: { stay: Stay; 
 /** The chat's "…": dark when the chat's background is (Night – menus take the tone of the surface they come from); opening it ends the hint. */
 function useChatMenu(threadId: string) {
   const store = useStore();
-  const dark = CHAT_THEMES[chatThemeOf(store, threadId)].dark;
+  // In dark mode every chat background is dark (its darkened variant): the menu is dark too.
+  const darkMode = useResolvedTheme() === "dark";
+  const dark = darkMode || CHAT_THEME_DARK[chatThemeOf(store, threadId)];
   const seeHint = () => store.markHintSeen("chatTheme");
   return { dark, seeHint };
 }

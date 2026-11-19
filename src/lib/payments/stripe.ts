@@ -37,7 +37,8 @@ export class StripePaymentsAdapter implements PaymentsAdapter {
 
   async createPaymentIntent(_houseId: string, _memberId: string): Promise<PaymentIntent> {
     // TODO: stripe.paymentIntents.create({ amount, currency, application_fee_amount: fee, transfer_data: { destination: host account },
-    // metadata: { houseId, memberId } }) on the server; the browser gets client_secret for the Payment Element.
+    // metadata: { houseId, memberId } }) on the server; the browser gets client_secret for the Payment Element – created with
+    // stripe.elements({ clientSecret, appearance: stripeAppearance() }) (lib/payments/stripeAppearance.ts: our tokens, dark mode = "night").
     return notYet("createPaymentIntent");
   }
 

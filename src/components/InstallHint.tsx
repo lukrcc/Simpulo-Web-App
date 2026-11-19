@@ -56,7 +56,7 @@ export function IosInstallSteps({ className, arrow = true }: { className?: strin
           aria-hidden
           data-ios-arrow
           className={cn(
-            "pointer-events-none fixed z-[80] flex size-10 items-center justify-center rounded-full bg-ink/85 text-inverse shadow-[0_6px_16px_rgba(0,0,0,0.18)] motion-safe:animate-bounce",
+            "pointer-events-none fixed z-[80] flex size-10 items-center justify-center rounded-full bg-ink/85 text-inverse shadow-(--shadow-lift) motion-safe:animate-bounce",
             ipad ? "right-24 top-3" : "bottom-[calc(var(--safe-bottom)+12px)] left-[calc(50%-20px)]",
           )}
         >

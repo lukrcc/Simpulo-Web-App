@@ -228,7 +228,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
         {typingUser && (
           <div className="mt-3 flex items-center gap-2" aria-live="polite">
             <Avatar user={typingUser} size="sm" />
-            <div className="flex items-center gap-2 rounded-[20px] bg-(--select-bg) px-3.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-2 rounded-[20px] bg-(--select-bg) px-3.5 py-2 shadow-(--shadow-xs)">
               <span className="flex gap-1" aria-hidden>
                 {[0, 150, 300].map((delay) => (
                   <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />

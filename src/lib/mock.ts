@@ -4,6 +4,7 @@ import { shortNameOf } from './shortName';
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
 import type { ChatThemeId } from "@/config/chat-themes";
+import type { ThemePref } from "./themeScript";
 import { FACE_QUERIES, isWoman, THEME_QUERIES, THEME_QUERY_FIXES, houseThemePath, userFacePath as userFace, userPhotoPath } from './mock-images';
 import { extraHosts, extraHouses, type ExtraHost, type ExtraHouse } from './mock-houses-extra';
 import { VIBES, locationOf } from './catalog';
@@ -137,6 +138,8 @@ export interface UserSettings {
   chatThemes?: Record<string, ChatThemeId>;
   /** One-time hints this person has seen ("chatTheme": "New: pick your chat background") – never shown again, on any device */
   seenHints?: string[];
+  /** Light or dark: System (none) · Light · Dark – Settings › Appearance; on every device (this device also keeps it in a cookie, lib/theme.ts) */
+  appearance?: ThemePref;
 }
 
 /** The platforms a profile can link to. */

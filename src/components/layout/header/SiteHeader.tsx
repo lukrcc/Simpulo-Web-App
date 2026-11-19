@@ -126,7 +126,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
         <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-split:gap-2", explorePage ? "ml-4" : "ml-5")}>
           {/* Explore: All filters | the right group – a 1px line cream 15 %, 24px high, 16px on each side. */}
-          {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-[rgba(244,238,231,0.15)]" />}
+          {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-(--header-divider)" />}
           {navItemsFor(me !== undefined, "header").map((item) => {
             const label = t(`items.${item.headerLabelKey ?? item.labelKey}`);
             // A small number in the capsule: Messages – unread chats (not messages); Your houses – open tasks. None at 0.

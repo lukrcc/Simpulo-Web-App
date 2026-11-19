@@ -963,7 +963,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
                   <Img src={src} alt="" fill sizes="60px" className="object-cover" />
                   {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-shade/45 py-0.5 text-center text-small text-on-image">{t("cover")}</span>}
                 </button>
-                <button type="button" onClick={() => patch({ photos: form.photos.filter((photo) => photo !== src) })} aria-label={t("remove")} className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+                <button type="button" onClick={() => patch({ photos: form.photos.filter((photo) => photo !== src) })} aria-label={t("remove")} className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface text-ink shadow-(--shadow-sm)">
                   <X className="size-3" aria-hidden />
                 </button>
               </li>
@@ -1490,7 +1490,7 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
           const vibe = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
           const title = form.title.trim() || t("untitled");
           return (
-            <li key={template.id} className="flex items-start gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 transition-colors hover:border-ink">
+            <li key={template.id} className="flex items-start gap-2 rounded-xl bg-surface shadow-(--shadow-sm) p-4 transition-colors hover:border-ink">
               <button type="button" onClick={() => onPick(template)} className="min-w-0 flex-1 text-left">
                 <span className="block truncate text-body font-medium text-ink">{title}</span>
                 <span className="mt-0.5 block truncate text-small text-muted">

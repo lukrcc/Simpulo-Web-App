@@ -143,7 +143,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
             type="button"
             onClick={() => setPastedUrl(null)}
             aria-label={t("removePreview")}
-            className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg"
+            className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-surface shadow-(--shadow-sm) text-ink hover:bg-bg"
           >
             <X className="size-3.5" />
           </button>
@@ -159,7 +159,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={file.name} className="size-16 rounded-xl object-cover" />
               ) : (
-                <div className="flex h-16 w-48 items-center gap-2 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] px-3">
+                <div className="flex h-16 w-48 items-center gap-2 rounded-xl bg-surface shadow-(--shadow-sm) px-3">
                   <FileText className="size-5 shrink-0 text-muted" aria-hidden />
                   <div className="min-w-0">
                     <p className="truncate text-small font-medium">{file.name}</p>
@@ -171,7 +171,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
                 type="button"
                 onClick={() => removeFile(url)}
                 aria-label={t("removeAttachment", { name: file.name })}
-                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-ink hover:bg-bg"
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-surface shadow-(--shadow-sm) text-ink hover:bg-bg"
               >
                 <X className="size-3" />
               </button>

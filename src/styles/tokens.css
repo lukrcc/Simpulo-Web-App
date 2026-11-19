@@ -139,6 +139,42 @@
   --stage-mist: rgba(40, 32, 26, 0.04);
 }
 
+/* ── Shadows as tokens (CLAUDE.md "Dark Mode": on dark a shadow can't be seen – there a fine light line takes its place). Components use these
+   (shadow-(--shadow-sm) …), never an rgba() of their own. ── */
+:root {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --shadow-raised: 0 2px 10px rgba(34, 30, 27, 0.14);
+  /* A button lifting on hover, a floating button. */
+  --shadow-lift: 0 6px 16px rgba(0, 0, 0, 0.18);
+  --shadow-lift-soft: 0 8px 24px rgba(0, 0, 0, 0.12);
+  /* A switch's knob on its track. */
+  --shadow-knob: 0 1px 2px rgba(0, 0, 0, 0.2);
+  /* A bar's foot (the focus header). */
+  --shadow-bar-foot: 0 1px 0 rgba(0, 0, 0, 0.08);
+  /* The light inner edge on a filled button. */
+  --edge-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  /* The HouseCard's inner edge on the page, its hover depth, the Spotlight's depth and glow (globals.css). */
+  --card-edge-stroke: rgba(34, 30, 27, 0.22);
+  --card-hover-shadow: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+  --spot-depth: drop-shadow(0 4px 10px rgba(34, 30, 27, 0.14)) drop-shadow(0 28px 56px rgba(34, 30, 27, 0.28));
+  --spot-depth-side: drop-shadow(0 12px 28px rgba(34, 30, 27, 0.16));
+  --spot-glow: rgba(34, 30, 27, 0.16);
+  /* The warm light on the ground under a hovered card: faint on the light page, stronger on dark (as in a dark band). */
+  --card-floor-light: rgba(255, 200, 150, 0.08);
+  /* Muted words on Explore's light filter sheet. */
+  --filter-sheet-muted: rgba(34, 30, 27, 0.72);
+  /* The thin divider before the header's tabs (Explore), cream 15 %. */
+  --header-divider: rgba(244, 238, 231, 0.15);
+  /* The compact crew's ring on a photo (HouseCard). */
+  --image-ring: rgba(20, 16, 14, 0.85);
+  /* Where a dark strip or band meets the floor: nothing on the light page (its hard edge is enough), a fine light line in dark mode. */
+  --strip-edge: transparent;
+}
+
 /* ── The dark grounds: Ember tiles (.ember), Explore's dark band (.band-dark), Messages, the header, the bar's sheets and menus ── */
 .ember,
 .band-dark,
@@ -209,6 +245,112 @@ body:has(.admin-scope) {
   --input-border: rgba(244, 238, 231, 0.2);
   --chip-bg: rgba(244, 238, 231, 0.08);
   --chip-bg-hover: rgba(244, 238, 231, 0.14);
+}
+
+/* ── Dark mode (CLAUDE.md "Dark Mode"): data-theme="dark" on <html> (lib/themeScript.ts – from the cookie or the system, before the first
+   paint). Only the floor's tokens change; the dark grounds above (Ember, the bands, the header, its menus, the night chat) and the admin keep
+   theirs. The floor is a warm near-black a step lighter than the black strip (#141110), so the strip still reads as black, set off by a fine
+   line (--strip-edge). On dark the rules of the dark grounds hold: selection a filled cream 12 % capsule, primary cream with ink words,
+   secondary an outline. Shadows can't be seen on dark: they become fine light lines or none. Photos never change.
+   Contrast (WCAG, computed): text 15.5 : 1 on --bg, 14.1 on --surface, 12.9 on --surface-2; muted (cream 66 %) ≥ 6.4 : 1 on all three;
+   faint (cream 45 %) ≥ 3.8 : 1 (decoration and placeholders only, like on light); the action orange --brand-action 5.6 : 1 on --bg (4.6 on --surface-2); the header over the dark floor: white 10.7, muted 8.3, in the active capsule 6.6. ── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a1715;
+  --surface: #23201d;
+  --surface-2: #2b2724;
+  --band: #211d1b;
+  --tile-tint: #2a2420;
+  --tile-host: #2b2622;
+  --tile-crew: #2e2722;
+  --tile-place: #27221f;
+  --filter-sheet-bg: rgba(35, 32, 29, 0.88);
+  --filter-sheet-muted: rgba(244, 238, 231, 0.72);
+  --text: #f4eee7;
+  --text-muted: rgba(244, 238, 231, 0.66);
+  --text-faint: rgba(244, 238, 231, 0.45);
+  --line: rgba(244, 238, 231, 0.08);
+  --input-border: rgba(244, 238, 231, 0.14);
+  --text-inverse: #221e1b;
+  --danger: #ff8a75;
+  --success: #7fcf9f;
+  --warn-bg: rgba(240, 99, 58, 0.14);
+  --warn-text: #ffb59c;
+  --action-hover: #ffffff;
+  --secondary-bg: transparent;
+  --secondary-edge: rgba(244, 238, 231, 0.25);
+  --secondary-hover: rgba(244, 238, 231, 0.06);
+  --secondary-shadow: none;
+  --sel-fill: 12%;
+  --sel-edge: 0%;
+  --select-bg: rgba(244, 238, 231, 0.1);
+  --select-shadow: none;
+  --chip-bg: rgba(244, 238, 231, 0.08);
+  --chip-bg-hover: rgba(244, 238, 231, 0.12);
+  --filters-capsule: rgba(244, 238, 231, 0.06);
+  --panel-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08);
+  /* Milk glass turns into dark glass: a warm graphite, no brightening, a fine light edge instead of the shadow. */
+  --glass-bg: rgba(38, 34, 31, 0.8);
+  --glass-solid: #26221f;
+  --glass-blur: blur(24px) saturate(1.2);
+  --glass-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.1);
+  --glass-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  --card-soft: rgba(244, 238, 231, 0.05);
+  --card-soft-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.08);
+  --card-soft-shadow: none;
+  --card-blank-from: #3a2a22;
+  --card-blank-to: #262a30;
+  --card-blank: #2a2520;
+  --pick-option-bg: rgba(244, 238, 231, 0.06);
+  --row-surface: rgba(26, 23, 21, 0.92);
+  --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
+  --stage-wash: 0;
+  --stage-mist: rgba(244, 238, 231, 0.04);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --scrim-soft: rgba(0, 0, 0, 0.3);
+  /* Messages' tokens (a chat background from config/chat-themes.ts sets its own over these). */
+  --chat-bg: #1a1715;
+  --chat-input: #23201d;
+  --bubble-other: #2f2c2a;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  /* The stage's light surfaces become the floor's dark steps. */
+  --stage-cream: #211d1b;
+  --stage-card: rgba(244, 238, 231, 0.06);
+  --stage-card-line: rgba(244, 238, 231, 0.1);
+  --ask-link: rgba(244, 238, 231, 0.78);
+  --ask-link-hover: #f4eee7;
+  /* Blue means trust: a little lighter on the dark floor, white words still ≥ 5.3 : 1. */
+  --card-host-top: #42717f;
+  --card-host-bottom: #424879;
+  --card-host-deep: #333c6a;
+  /* Shadows → fine light lines (or none). */
+  --shadow-xs: 0 0 0 1px rgba(244, 238, 231, 0.06);
+  --shadow-sm: 0 0 0 1px rgba(244, 238, 231, 0.08);
+  --shadow-md: 0 0 0 1px rgba(244, 238, 231, 0.08);
+  --shadow-card: 0 0 0 1px rgba(244, 238, 231, 0.08);
+  --shadow-float: 0 0 0 1px rgba(244, 238, 231, 0.1);
+  --shadow-raised: 0 0 0 1px rgba(244, 238, 231, 0.12);
+  --shadow-lift: 0 0 0 1px rgba(244, 238, 231, 0.16);
+  --shadow-lift-soft: 0 0 0 1px rgba(244, 238, 231, 0.14);
+  --shadow-knob: 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --shadow-bar-foot: 0 1px 0 rgba(244, 238, 231, 0.08);
+  --card-edge-stroke: rgba(255, 255, 255, 0.12);
+  --card-hover-shadow: none;
+  --spot-depth: none;
+  --spot-depth-side: none;
+  --spot-glow: rgba(244, 238, 231, 0.05);
+  /* The tooltip's dark glass a step lighter than the dark floor, so it still stands out. */
+  --tooltip-bg: rgba(72, 66, 62, 0.95);
+  --card-floor-light: rgba(255, 200, 150, 0.14);
+  --strip-edge: rgba(244, 238, 231, 0.1);
+}
+/* The black strip of the stages, Explore's dark bands and the large footer stay dark: on the dark floor a fine light line sets them off. */
+:root[data-theme="dark"] .ember.ember-strip,
+:root[data-theme="dark"] .band-dark {
+  box-shadow: inset 0 1px 0 var(--strip-edge), inset 0 -1px 0 var(--strip-edge);
+}
+:root[data-theme="dark"] .footer-dark {
+  box-shadow: inset 0 1px 0 var(--strip-edge);
 }
 
 /* ── Derived: recomputed on every ground, from that ground's values ── */
@@ -612,3 +754,155 @@ body:has(.admin-scope) {
   backdrop-filter: blur(8px);
 }
 
+/* ── Chat backgrounds (config/chat-themes.ts): six fixed ones, the person's own choice. Each sets the chat's ground, both bubbles, the words,
+   the times and the field. "house" mixes the House's colour into its ground (--chat-accent, --chat-house-share from the chat). In dark mode
+   (CLAUDE.md "Dark Mode") the light ones are offered darkened – a dark ground of their own hue, the others' bubble dark grey (not white), yours
+   graphite (lighter than theirs, white words); night stays night. Measured contrast: see the values' comments. ── */
+[data-chat-theme] {
+  color: var(--text);
+}
+[data-chat-theme="house"],
+[data-chat-theme="cream"] {
+  color-scheme: light;
+  --chat-bg: #f3efea;
+  --bubble-other: #ffffff;
+  --bubble-other-line: rgba(0, 0, 0, 0.04);
+  --bubble-own: #48423e;
+  --bubble-own-text: #ffffff;
+  --chat-input: #fbf8f4;
+  --text: #221e1b;
+  --text-muted: rgba(34, 30, 27, 0.66);
+}
+[data-chat-theme="stone"] {
+  color-scheme: light;
+  --chat-bg: #e4e1dd;
+  --bubble-other: #ffffff;
+  --bubble-other-line: rgba(0, 0, 0, 0.05);
+  --bubble-own: #3b3734;
+  --bubble-own-text: #ffffff;
+  --chat-input: #f6f4f1;
+  --text: #221e1b;
+  --text-muted: rgba(34, 30, 27, 0.72);
+}
+[data-chat-theme="mist"] {
+  color-scheme: light;
+  --chat-bg: #e2e8ec;
+  --bubble-other: #ffffff;
+  --bubble-other-line: rgba(0, 0, 0, 0.05);
+  --bubble-own: #2f4250;
+  --bubble-own-text: #ffffff;
+  --chat-input: #f4f7f9;
+  --text: #1f2a31;
+  --text-muted: rgba(31, 42, 49, 0.72);
+}
+[data-chat-theme="sand"] {
+  color-scheme: light;
+  --chat-bg: #ebdfcd;
+  --bubble-other: #fffaf2;
+  --bubble-other-line: rgba(0, 0, 0, 0.05);
+  --bubble-own: #5b4535;
+  --bubble-own-text: #ffffff;
+  --chat-input: #fbf5ec;
+  --text: #2a2018;
+  --text-muted: rgba(42, 32, 24, 0.72);
+}
+[data-chat-theme="night"] {
+  color-scheme: dark;
+  --chat-bg: #1b1918;
+  --bubble-other: #2f2c2a;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --bubble-own: #ece5dc;
+  --bubble-own-text: #221e1b;
+  --chat-input: #262321;
+  --text: #f4eee7;
+  --text-muted: rgba(244, 238, 231, 0.7);
+}
+/* Dark mode: the light ones darkened. Text ≥ 12 : 1 on the ground and in the others' bubble, white in yours ≥ 8.9, the times ≥ 6. */
+:root[data-theme="dark"] :is([data-chat-theme="house"], [data-chat-theme="cream"]) {
+  color-scheme: dark;
+  --chat-bg: #1a1715;
+  --bubble-other: #2f2b28;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --bubble-own: #4d4642;
+  --bubble-own-text: #ffffff;
+  --chat-input: #24201d;
+  --text: #f4eee7;
+  --text-muted: rgba(244, 238, 231, 0.7);
+}
+:root[data-theme="dark"] [data-chat-theme="stone"] {
+  color-scheme: dark;
+  --chat-bg: #1c1b1a;
+  --bubble-other: #302f2d;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --bubble-own: #4e4b48;
+  --bubble-own-text: #ffffff;
+  --chat-input: #262524;
+  --text: #f2f0ee;
+  --text-muted: rgba(242, 240, 238, 0.7);
+}
+:root[data-theme="dark"] [data-chat-theme="mist"] {
+  color-scheme: dark;
+  --chat-bg: #151a1e;
+  --bubble-other: #252e36;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --bubble-own: #3a5263;
+  --bubble-own-text: #ffffff;
+  --chat-input: #1d242a;
+  --text: #e9eff3;
+  --text-muted: rgba(233, 239, 243, 0.7);
+}
+:root[data-theme="dark"] [data-chat-theme="sand"] {
+  color-scheme: dark;
+  --chat-bg: #1e1913;
+  --bubble-other: #342b21;
+  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --bubble-own: #5e4838;
+  --bubble-own-text: #ffffff;
+  --chat-input: #282119;
+  --text: #f5ebdd;
+  --text-muted: rgba(245, 235, 221, 0.7);
+}
+/* "house": a breath of the House's colour over the ground (light and dark). */
+[data-chat-theme="house"] {
+  --chat-bg: color-mix(in oklab, var(--chat-base-house) calc(100% - var(--chat-house-share, 0%)), var(--chat-accent, var(--chat-base-house)) var(--chat-house-share, 0%));
+  --chat-base-house: #f3efea;
+}
+:root[data-theme="dark"] [data-chat-theme="house"] {
+  --chat-base-house: #1a1715;
+  --chat-bg: color-mix(in oklab, var(--chat-base-house) calc(100% - var(--chat-house-share, 0%)), var(--chat-accent, var(--chat-base-house)) var(--chat-house-share, 0%));
+}
+/* In dark mode every chat background is a dark ground: the tokens of the dark grounds (surfaces, selection, buttons) inside it. */
+:root[data-theme="dark"] [data-chat-theme] {
+  --surface: rgba(244, 238, 231, 0.06);
+  --surface-2: rgba(244, 238, 231, 0.1);
+  --line: rgba(244, 238, 231, 0.08);
+  --input-border: rgba(244, 238, 231, 0.14);
+}
+
+/* ── Wallet buttons (stay/PaySheet.tsx) – brand values from Apple's and Google's guidelines: on light Apple black / Google white with a grey edge;
+   on the dark floor Apple white / Google black with a grey edge. ── */
+:root {
+  --wallet-apple-bg: #000000;
+  --wallet-apple-fg: #ffffff;
+  --wallet-google-bg: #ffffff;
+  --wallet-google-fg: #3c4043;
+  --wallet-google-edge: #747775;
+  --wallet-google-hover: #f8f9fa;
+}
+:root[data-theme="dark"] {
+  --wallet-apple-bg: #ffffff;
+  --wallet-apple-fg: #000000;
+  --wallet-google-bg: #131314;
+  --wallet-google-fg: #e3e3e3;
+  --wallet-google-edge: #8e918f;
+  --wallet-google-hover: #1f1f20;
+}
+
+/* ── Explore's dark bands on the dark floor: one step lighter than the page (warm graphite, no picture – the Ember picture is darker than the
+   floor), a fine light line at both hard edges. On the light page unchanged. ── */
+:root[data-theme="dark"] .band-dark {
+  background: var(--band-dark-floor);
+}
+:root[data-theme="dark"] {
+  --band-dark-floor: #2a2522;
+}

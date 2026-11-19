@@ -449,7 +449,7 @@ function CrewFaces({ stay, crew }: { stay: Stay; crew: User[] }) {
   return (
     <span className="flex shrink-0 -space-x-2">
       {shown.map((member) => (
-        <span key={member.id} className="block size-6.5 overflow-hidden rounded-full ring-2 ring-[rgba(20,16,14,0.85)]">
+        <span key={member.id} className="block size-6.5 overflow-hidden rounded-full ring-2 ring-(--image-ring)">
           <PersonPhoto src={member.photos[0]} alt={faceOf(member) === "blurred" ? "" : firstName(member)} size={26} className={cn("size-full", faceOf(member) === "blurred" && "blur-[2px]")} />
         </span>
       ))}

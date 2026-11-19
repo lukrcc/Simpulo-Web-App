@@ -1,5 +1,7 @@
 import { SPOTLIGHT_INTRO_KEY } from "@/config/explore";
 import { STANDALONE_SCRIPT } from "@/lib/install";
+import { THEME_COLOR, THEME_SCRIPT } from "@/lib/themeScript";
+import { ThemeSync } from "@/components/layout/ThemeSync";
 import type { Metadata, Viewport } from "next";
 import { Inter, Inter_Tight } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
@@ -58,9 +60,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  // Renders <meta name="theme-color">: the header's graphite (--graphite) – the browser's bar continues it. A meta tag can't read a CSS
-  // variable, so the value is written out here (like the OG images).
-  themeColor: "#48423E",
+  // Renders <meta name="theme-color"> once per mode (lib/themeScript.ts THEME_COLOR): the browser's bar and the iPhone's status bar continue
+  // the header. A chosen mode (Settings › Appearance) sets both to its colour before the first paint (THEME_SCRIPT) and after (ThemeSync).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
+  ],
   // Lets the page draw under the status bar; safe-area insets are handled per component.
   viewportFit: "cover",
 };
@@ -69,6 +74,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
     <html lang={locale} data-app-mode={APP_MODE} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
+      {/* Before anything paints: light or dark (data-theme on <html>) from the cookie, else the system – no flash (lib/themeScript.ts). A plain
+          inline script in <head>, parser-blocking: next/script's beforeInteractive is deferred in the App Router (it runs after the body is
+          parsed – measured: a flash). The root layout is only ever hydrated, never rendered on the client, so React leaves the script alone.
+          React never renders data-theme, so hydration doesn't compare it (<html> carries suppressHydrationWarning for the head scripts). */}
+      <head>
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       {/* relative + isolate: the frame for the Spotlight glow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
         {/* Before anything paints: the Spotlight's first showing of this session starts hidden (SpotlightCoverflow). Through next/script
@@ -98,6 +110,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <AppBadge />
               <StandaloneWelcome />
               <CurrencyHint />
+              <ThemeSync />
             </AuthProvider>
           </ToastProvider>
         </StoreProvider>

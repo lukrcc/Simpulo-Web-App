@@ -122,7 +122,7 @@ export function StickyFormBar({ children, slideIn = false }: { children: ReactNo
   return (
     <div
       className={cn(
-        "sticky bottom-[calc(var(--bottom-clear)+0.75rem)] z-20 mt-4 flex items-center gap-3 rounded-xl bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]/90 px-4 py-3 shadow-sm backdrop-blur md:bottom-4",
+        "sticky bottom-[calc(var(--bottom-clear)+0.75rem)] z-20 mt-4 flex items-center gap-3 rounded-xl bg-surface shadow-(--shadow-sm) px-4 py-3 backdrop-blur md:bottom-4",
         slideIn && "animate-slide-up",
       )}
     >

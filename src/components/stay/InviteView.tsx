@@ -92,7 +92,7 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
   return (
     <Container className="pb-(--space-section) pt-8 md:pt-12">
       {/* On top, first thing: who saved the spot and how long it's held – live. */}
-      <p role="status" className="mb-8 flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-surface py-2 pl-2 pr-4 text-body text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <p role="status" className="mb-8 flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-surface py-2 pl-2 pr-4 text-body text-ink shadow-(--shadow-xs)">
         {inviter && !invite.priority && <Avatar user={inviter} size="xs" />}
         <span className="font-semibold">{invite.priority ? t("searchInvited") : t("savedYou", { name: inviter ? firstName(inviter) : "" })}</span>
         <span className="text-muted">·</span>

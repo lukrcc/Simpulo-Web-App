@@ -748,7 +748,7 @@ html.sim-standalone {
   background-color: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-edge), 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--glass-edge), var(--shadow-float);
 }
 /* The chat's head: messages scroll under it. */
 /* The chat's head: glass – the chat's own ground, half see-through, blur 20px; the messages scroll under it. */
@@ -1018,7 +1018,7 @@ html.sim-standalone {
   background-color: var(--filter-sheet-bg);
   -webkit-backdrop-filter: blur(28px);
   backdrop-filter: blur(28px);
-  --text-muted: rgba(34, 30, 27, 0.72);
+  --text-muted: var(--filter-sheet-muted);
 }
 html[data-at-top] .header-glass,
 html[data-at-top] .milk-glass {
@@ -1079,7 +1079,7 @@ html[data-at-top] .milk-glass {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(ellipse 55% 42% at 50% 52%, rgba(34, 30, 27, 0.16), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 50% 52%, var(--spot-glow), transparent 70%),
     radial-gradient(ellipse 60% 45% at 50% 50%, color-mix(in srgb, var(--signal) 6%, transparent), transparent 70%);
 }
 
@@ -1502,7 +1502,7 @@ input[type="number"]::-webkit-inner-spin-button {
 /* Every HouseCard's inner edge (HouseCard [data-card-edge], its path from useNotchClip): 1px inside its own outline, notch included, so a
    light photo comes off the ground – ink 22 % on the light page, white 12 % in a dark band. */
 .card-edge path {
-  stroke: rgba(34, 30, 27, 0.22);
+  stroke: var(--card-edge-stroke);
 }
 .band-dark .card-edge path {
   stroke: rgba(255, 255, 255, 0.12);
@@ -1510,11 +1510,11 @@ input[type="number"]::-webkit-inner-spin-button {
 /* The Spotlight's depth (HouseCard .card-depth-spotlight; drop-shadow, so it follows the notch): the middle card two steps, the side cards
    (inert) one softer step. Nothing moves or grows. */
 .card-depth-spotlight {
-  filter: drop-shadow(0 4px 10px rgba(34, 30, 27, 0.14)) drop-shadow(0 28px 56px rgba(34, 30, 27, 0.28));
+  filter: var(--spot-depth);
   transition: filter 300ms ease-out;
 }
 [inert] .card-depth-spotlight {
-  filter: drop-shadow(0 12px 28px rgba(34, 30, 27, 0.16));
+  filter: var(--spot-depth-side);
 }
 /* The HouseCard's hover – fine, at the bottom only (components/HouseCard). No veil, no brightness, no zoom, no scale. The card rises 2px, its
    shadow a little deeper; inside it a faint warm light comes up at the bottom edge – radial-gradient(ellipse 70% 28% at 50% 100%), warm white
@@ -1537,7 +1537,7 @@ input[type="number"]::-webkit-inner-spin-button {
   z-index: -1;
   width: 60%;
   height: 24px;
-  background: radial-gradient(closest-side, rgba(255, 200, 150, 0.08), transparent);
+  background: radial-gradient(closest-side, var(--card-floor-light), transparent);
   filter: blur(16px);
   opacity: 0;
   transition: opacity 260ms ease-out;
@@ -1548,7 +1548,7 @@ input[type="number"]::-webkit-inner-spin-button {
 @media (hover: hover) and (min-width: 48rem) {
   .card-hover:is(:hover, :has(:focus-visible)) {
     translate: 0 -2px;
-    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+    filter: var(--card-hover-shadow);
   }
   .card-hover:is(:hover, :has(:focus-visible)) :is(.card-light, .card-floor) {
     opacity: 1;
@@ -1907,6 +1907,8 @@ body:has([data-last-tone="dark"]) {
 body:has([data-last-tone="dark"]) footer.footer-dark {
   margin-top: 64px;
 }
+
+
 
 
 

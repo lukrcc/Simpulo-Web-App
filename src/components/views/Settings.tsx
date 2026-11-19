@@ -1,7 +1,7 @@
 "use client";
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
-import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { setInstallHintsOff, useInstallHintsOff, useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
+import { applyThemePref, THEME_PREFS, useThemePref, type ThemePref } from "@/lib/theme";
 import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
@@ -37,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { MEDIA } from "@/config/breakpoints";
 
 /** The areas, in the side list's order; each is its URL hash (#payments), a page behind one is "#payments/history". */
-const SECTIONS = ["account", "payments", "notifications", "chats", "privacy", "general"] as const;
+const SECTIONS = ["account", "payments", "notifications", "chats", "appearance", "privacy", "general"] as const;
 type Section = (typeof SECTIONS)[number];
 const SUBPAGES = ["payments/history", "general/currency", "general/language"] as const;
 type Subpage = (typeof SUBPAGES)[number];
@@ -51,6 +52,7 @@ const SECTION_ICONS: Record<Section, LucideIcon> = {
   payments: CreditCard,
   notifications: Bell,
   chats: MessageCircle,
+  appearance: SunMoon,
   privacy: ShieldCheck,
   general: Settings2,
 };
@@ -159,6 +161,7 @@ function SettingsContent({ me }: { me: User }) {
           {shown === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
           {shown === "notifications" && <NotificationsArea me={me} />}
           {shown === "chats" && <ChatsArea />}
+          {shown === "appearance" && <AppearanceArea />}
           {shown === "privacy" && <PrivacyArea me={me} />}
           {shown === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" ? <LanguagePage /> : <GeneralArea me={me} />)}
         </div>
@@ -533,6 +536,41 @@ function PrivacyArea({ me }: { me: User }) {
       </SettingsGroup>
       <SettingsGroup title={t("dataTitle")} footer={t("dataLabel")}>
         <SettingsRow title={tu("privacy.download")} chevron onClick={downloadData} />
+      </SettingsGroup>
+    </div>
+  );
+}
+
+// ─── Appearance ───────────────────────────────────────────────────────────────
+
+/**
+ * Light or dark (CLAUDE.md "Dark Mode"): System (default, follows the device) · Light · Dark – one tap, the chosen one checked. Saved on the
+ * account (UserSettings.appearance, every device) and in this device's cookie (lib/theme.ts), so the first paint is right next time.
+ */
+function AppearanceArea() {
+  const tu = useTranslations("settings.ui");
+  const store = useStore();
+  const pref = useThemePref();
+  const saved = useSaved();
+  const choose = (next: ThemePref) => {
+    if (next === pref) return;
+    applyThemePref(next);
+    store.setAppearance(next);
+    saved();
+  };
+  return (
+    <div className="space-y-8">
+      <AreaTitle title={tu("nav.appearance")} />
+      <SettingsGroup footer={tu("appearance.hint")}>
+        {THEME_PREFS.map((option) => (
+          <SettingsRow
+            key={option}
+            title={tu(`appearance.${option}`)}
+            subtitle={option === "system" ? tu("appearance.systemSub") : undefined}
+            control={pref === option ? <Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} /> : undefined}
+            onClick={() => choose(option)}
+          />
+        ))}
       </SettingsGroup>
     </div>
   );

@@ -229,10 +229,10 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
   );
 }
 
-/** Apple Pay as Apple's guidelines show it: a black button, the white Apple logo and "Pay". */
+/** Apple Pay as Apple's guidelines show it: black with a white logo and "Pay"; on the dark floor the white style (tokens --wallet-apple-*). */
 function ApplePayButton({ onClick, disabled, busy, label }: { onClick: () => void; disabled: boolean; busy: boolean; label: string }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className="press flex h-11 items-center justify-center gap-1 rounded-full bg-black text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-60">
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className="press flex h-11 items-center justify-center gap-1 rounded-full bg-(--wallet-apple-bg) text-(--wallet-apple-fg) transition-opacity duration-150 hover:opacity-90 disabled:opacity-60">
       {busy ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />
       ) : (
@@ -247,10 +247,10 @@ function ApplePayButton({ onClick, disabled, busy, label }: { onClick: () => voi
   );
 }
 
-/** Google Pay as Google's guidelines show it: a white button with a fine edge, the four-colour G and "Pay". */
+/** Google Pay as Google's guidelines show it: white with a fine edge, the four-colour G and "Pay"; on the dark floor the black style (tokens --wallet-google-*). */
 function GooglePayButton({ onClick, disabled, busy, label }: { onClick: () => void; disabled: boolean; busy: boolean; label: string }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className="press flex h-11 items-center justify-center gap-1.5 rounded-full border border-[#747775] bg-white text-[#3C4043] transition-colors duration-150 hover:bg-[#F8F9FA] disabled:opacity-60">
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className="press flex h-11 items-center justify-center gap-1.5 rounded-full border border-(--wallet-google-edge) bg-(--wallet-google-bg) text-(--wallet-google-fg) transition-colors duration-150 hover:bg-(--wallet-google-hover) disabled:opacity-60">
       {busy ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />
       ) : (

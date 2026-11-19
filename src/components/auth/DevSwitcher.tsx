@@ -93,7 +93,7 @@ function DevSwitcherInner() {
           <button type="button" aria-label={t("closePanel")} tabIndex={-1} onClick={close} className="fixed inset-0 cursor-default" />
           <div
             id="dev-switcher-panel"
-            className="animate-fade-in relative flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[20px] bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.16)] md:max-h-[calc(100dvh-5rem)]"
+            className="animate-fade-in relative flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[20px] bg-surface text-ink shadow-[var(--shadow-xs),var(--glass-shadow)] md:max-h-[calc(100dvh-5rem)]"
           >
             <div className="flex h-11 shrink-0 items-center justify-between px-4">
               <span className="text-eyebrow uppercase text-ink/45">{t("devLabel")}</span>
@@ -267,7 +267,7 @@ function DevSwitch({ label, on, onChange }: { label: string; on: boolean; onChan
       onClick={() => onChange(!on)}
       className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)", on ? "bg-ink" : "bg-ink/12")}
     >
-      <span aria-hidden className={cn("absolute left-0.5 top-0.5 size-5 rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-150 motion-reduce:transition-none", on && "translate-x-4")} />
+      <span aria-hidden className={cn("absolute left-0.5 top-0.5 size-5 rounded-full bg-surface shadow-(--shadow-knob) transition-transform duration-150 motion-reduce:transition-none", on && "translate-x-4")} />
     </button>
   );
 }

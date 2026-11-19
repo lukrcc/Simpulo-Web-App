@@ -534,7 +534,7 @@ export function HouseJoinBar({ stay, photo, joinCardRef, cta, line }: { stay: St
       data-join-bar
       inert={!shown}
       className={cn(
-        "fixed bottom-[calc(var(--tabbar-clear)+16px)] left-1/2 z-30 flex h-16 w-[min(100%-32px,720px)] -translate-x-1/2 items-center gap-3 rounded-full border border-ink/8 bg-(--glass-bg) py-2 pl-3 pr-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[20px] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
+        "fixed bottom-[calc(var(--tabbar-clear)+16px)] left-1/2 z-30 flex h-16 w-[min(100%-32px,720px)] -translate-x-1/2 items-center gap-3 rounded-full border border-ink/8 bg-(--glass-bg) py-2 pl-3 pr-2 shadow-(--shadow-float) backdrop-blur-[20px] transition-[translate,opacity] duration-300 motion-reduce:transition-none",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
       )}
     >

@@ -201,7 +201,7 @@ function InstallSheet({ offer, trigger, onClose }: { offer: Offer; trigger: Inst
 function MockNotification({ android }: { android: boolean }) {
   const t = useTranslations("install");
   return (
-    <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-surface/65 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(40,32,26,0.08)]">
+    <div aria-hidden className="w-[min(340px,calc(100vw-120px))] rounded-[20px] bg-surface/65 p-3 shadow-(--shadow-card)">
       {android ? (
         <div>
           <div className="flex items-center gap-1.5 text-small text-muted">
