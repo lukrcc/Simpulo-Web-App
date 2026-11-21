@@ -1,7 +1,7 @@
 ---
 title: Impressum
 description: Legal notice – who runs Simpulo and how to reach us.
-version: 0.3
+version: 0.4
 updated: 2026-11-21
 draft: true
 ---
@@ -25,7 +25,7 @@ Legal notice for simpulo.app.
 
 Email: {{company.email}}
 
-Phone or another direct way to reach us: {{company.phone}}
+Another direct way to reach us: {{company.secondContact}}
 
 ## Contact point {#contact-point}
 

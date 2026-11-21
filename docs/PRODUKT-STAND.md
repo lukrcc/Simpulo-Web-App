@@ -1,6 +1,6 @@
 # Produkt-Stand – Bestandsaufnahme
 
-Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage ist der Code in `src/` (Routen, Komponenten, Store, Adapter, Configs), nicht CLAUDE.md.
+Stand 21. Nov. 2026, abends (nach der Nacharbeit: Fristen, Benachrichtigungen, Marketing-Kanäle, keine App-Stores) · nur gelesen, nichts am Code geändert. Grundlage ist der Code in `src/` (Routen, Komponenten, Store, Adapter, Configs), nicht CLAUDE.md.
 
 **Status:** fertig im Mock · teilweise · Platzhalter · fehlt
 **Platzhalter?** ob Inhalte Platzhalter, Entwurf, Mock oder TODO sind.
@@ -43,7 +43,7 @@ Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
 | House-Bereich mit Reitern Chat · Crew · Plan · Moments · Me · Manage | fertig im Mock | `/h/[id]`, `stay/HouseArea.tsx`; `/h/[id]/manage` leitet auf `?tab=manage` | – | Mock |
-| Stepper der Schritte | teilweise | `config/house-steps.ts` | **`REQUEST_HOURS = 48` fest im Code, die Anfrage läuft aber nach 72 h ab** (`DEADLINES.request`) | nein |
+| Stepper der Schritte | fertig im Mock | `config/house-steps.ts` | – (Anfragefrist 72 h aus `DEADLINE_HOURS`) | nein |
 | House-Chat | teilweise | `views/ThreadView.tsx` | Der Platz für Reiter im Chat-Kopf ist leer („not built yet“) | Mock-Nachrichten |
 | Bogen: Vorher (Absicht, Crew-Seite, Getting there, Practical, Host-Aufgaben) | fertig im Mock | `stay/ArcBefore.tsx`, `config/arc.ts`, `lib/arc.ts` | – | Mock-Absichten |
 | Bogen: Ankommen (I'm here, First night, House agreement) | fertig im Mock | `stay/ArcArrival.tsx`, `config/question-cards.ts` | – | Mock |
@@ -96,7 +96,7 @@ Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage 
 | Profil, Edit profile | fertig im Mock | `/profile`, `/u/[id]`, `views/EditProfile.tsx` | Fotos nicht hochgeladen | ja |
 | Settings (alle Bereiche, Notifications mit Ruhezeiten, Wer darf schreiben) | teilweise | `views/Settings.tsx` | Passkey und Anmelde-Methode zeigen nur „comes soon“ | ja |
 | Your data (Export, Pausieren, Löschen mit Sperre) | fertig im Mock | `lib/dataExport.ts`, `lib/accountDeletion.ts` | Wirkt nur im lokalen Store | Mock |
-| Benachrichtigungs-Katalog | fertig im Mock | `config/notifications.ts`, `lib/notify` | 9 Ereignisse ohne Auslöser (siehe Lücken) | – |
+| Benachrichtigungs-Katalog | fertig im Mock | `config/notifications.ts`, `lib/notify` | – (alle 44 mit Auslöser) | – |
 | E-Mails | teilweise | `src/emails/*`, `/dev/emails` | Kein Versand (Resend), Abmelde-Link nicht signiert | ja |
 | Dark Mode | teilweise | Tokens, Schalter in Settings und Avatar-Menü | Die Seiten sind nicht einzeln angepasst (D1–D3) | – |
 | Mehrsprachigkeit | Platzhalter | `i18n/config.ts` (`locales = ["en"]`, `SHOW_LANGUAGE_SETTING = false`) | Zweite Sprache fehlt | vorbereitet |
@@ -113,8 +113,8 @@ Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage 
 | Ideen-Liste | Platzhalter | `/ideas` (`ideasBoard: false`) | Bewusst aus | – |
 | Rechtsseiten (Impressum, Privacy, Terms, Cancellation, Cookies, Safety, Community guidelines) | teilweise | `content/legal/*.en.md`, `components/legal/LegalPage.tsx` | **Alle 7 als Entwurf; Impressum-Felder leer** | ja |
 | Inhalte melden, Entscheidungen | fertig im Mock | `/report-content`, `/notices` | – | Mock |
-| Kontakt | teilweise | `/contact` | Nur eine mailto-Zeile, kein Formular | nein |
-| App auf dem Telefon | teilweise | `/get`, `/get/card` | Store-Links und Video leer | ja |
+| Kontakt | fertig im Mock | `/contact`, `help/ContactForm.tsx` | Nachricht landet nur im lokalen Admin-Store | nein |
+| App auf dem Telefon (Web-App) | teilweise | `/get`, `/get/card` | Installationsvideo für iOS leer (keine native App, keine Stores) | ja |
 | Leere Zustände | fertig im Mock | `ui/EmptyState` u. a. | – | nein |
 | Fehlerseiten, offline | fertig im Mock | `error.tsx` je Bereich, `global-error.tsx`, `states/OfflineBanner.tsx` | – | nein |
 | Passwortseite | fertig im Mock | `/preview` | – | nein |
@@ -143,7 +143,7 @@ Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage 
 | Geld › Steuern › Überblick | fertig im Mock | `mock-ledger.ts` | Beleg-Upload Mock; Xero Platzhalter | ja |
 | System (Einstellungen, Backlog, Launch-Checkliste, Plattform-Pflichten) | fertig im Mock | Configs + Server-Fakten (`lib/launchChecks.ts`) | Phasenwechsel wirkt nur im eigenen Browser | – |
 | Log | teilweise | localStorage | Nicht auf einem Server gespeichert | ja |
-| Marketing (Plan, Kontakte, Partner, Trichter, Content, Schleifen) | teilweise | `config/marketing.ts`, Mock-Kontakte und -Partner | In `MARKETING_CHANNELS` sind 6 von 8 Werkzeug-Listen und alle 8 Notizen leer | Demo-Daten |
+| Marketing (Plan, Kontakte, Partner, Trichter, Content, Schleifen) | fertig im Mock | `config/marketing.ts`, Mock-Kontakte und -Partner | – | Demo-Daten |
 
 ---
 
@@ -156,14 +156,14 @@ Datenmodell: `lib/mock.ts`; Logik: `lib/store.tsx`, `lib/joinFlow.ts`, `lib/requ
 | angefragt (`pending`) | ja | ja | ja | ja | mit Notiz, Freund, Herkunft, Verhaltenskodex |
 | angenommen | ja | ja | ja | ja | – |
 | abgelehnt | ja | ja (+ Undo) | ja („Didn't work out“ + ähnliche Houses) | ja | – |
-| abgelaufen (72 h) | ja | ja (Fristen, Erinnerungen 24 h / 48 h) | ja | ja | Stepper zeigt noch 48 h |
+| abgelaufen (72 h) | ja | ja (Fristen, Erinnerungen 24 h / 48 h) | ja | ja | – |
 | Zahlung fällig | ja | ja (Erinnerungen 24 h / 44 h) | ja | ja | Zahlung nur Mock |
 | Zahlung nach 48 h verfallen | ja (`endedReason: paymentLapsed`) | ja | ja (eigener Hinweis, Direktchat-Zeile, Benachrichtigung) | ja | – |
 | bezahlt | ja | ja | ja (Anteil, Beleg) | ja | – |
 | Buchung bestätigt | ja | ja (sonst Erstattung nach 48 h) | ja | ja | – |
 | storniert durch Gast | ja | ja | ja | ja | – |
 | storniert durch Host | ja | ja (volle Erstattung) | ja | ja | – |
-| vom Host entfernt | ja (`endedReason: removed`) | ja | teilweise | ja | Hinweis im Me-Reiter und Direktchat, aber **keine Benachrichtigung** (Katalog `guestRemoved` ohne Auslöser) |
+| vom Host entfernt | ja (`endedReason: removed`, `endedNote`) | ja | ja (Benachrichtigung mit Grund und 3 ähnlichen Houses, Me-Reiter, Direktchat) | ja (optionaler Grund) | – |
 | aus Moderation entfernt | ja | ja | ja | – | Benachrichtigung „decision“ |
 | erstattet | ja | ja (Mock) | ja | teilweise | Echte Erstattung fehlt (Stripe) |
 | Warteliste, Angebot 24 h | ja | ja | ja | ja | – |
@@ -225,18 +225,18 @@ Der Block-Plan selbst liegt nicht im Repo. Die Teile sind nach Thema zugeordnet,
 | Spotlight mit Host-Aussparung auf Tablet | ja | `SpotlightCoverflow` ab 744 px |
 | Breiten-Test-Skript | ja | `scripts/breiten-test.mjs`, `npm run test:breiten` (hier noch nicht gelaufen) |
 | Tablet ab 744 px | ja | `--breakpoint-md 46.5rem`, `config/breakpoints.ts` |
-| Marketing mit Kontakten, Partnern, `config/marketing.ts` gefüllt | teilweise | Kontakte und Partner fertig; in `MARKETING_CHANNELS` 6 von 8 Werkzeug-Listen und alle 8 Notizen leer |
+| Marketing mit Kontakten, Partnern, `config/marketing.ts` gefüllt | ja | Kontakte, Partner, alle 8 Kanäle mit Werkzeugen und Notiz |
 
 ## Platzhalter, die Lukas selbst füllen muss
 
 | Was | Wo | Stand |
 |---|---|---|
-| Impressum und Kontaktstelle: Name, Straße, Ort, Land, Vertreter, E-Mail, Telefon, Inhaltlich Verantwortlicher, Datenschutz-E-Mail, Kontaktstelle, Sprachen (Register und USt-ID optional) | `config/company.ts` | alles `null` |
+| Impressum: Geschäftsadresse (Straße, Ort, Land), Vertreter, Inhaltlich Verantwortlicher, Kontaktstelle, Sprachen (Register, USt-ID, Datenschutz-E-Mail optional) | `config/company.ts` | Name, E-Mail und Kontaktformular eingetragen; Adresse blockiert den öffentlichen Start |
 | Rechtstexte prüfen lassen und `draft: false` setzen | `content/legal/*.en.md` (7 Seiten) | alle Entwurf |
 | Plattform-Pflichten als geprüft markieren | `config/obligations.ts` `REVIEWED_BY_LAWYER` | 0 von 5 |
 | Gründer-Abschnitt: Foto, Vorname, zwei Sätze, E-Mail | `config/pages.ts` `FOUNDER` | `null` |
 | Fotos: 91 der kuratierten Ortsbilder fehlen | `public/destinations/` (`MISSING.md`) | 9 vorhanden |
-| App: App-Store- und Play-Store-Link, Installationsvideo für iOS | `config/app-links.ts` | leer |
+| Installationsvideo für iOS (Web-App, keine Stores) | `config/app-links.ts` `iosInstallVideo` | leer |
 | Werkzeug-Links (Firebase-Projekte, Stripe, Analytics, GitHub-Repo) | `config/app-links.ts` `TOOL_LINKS` | nur allgemeine Startseiten |
 | Link zum Launch-Plan | `config/backlog.ts` `LAUNCH_PLAN_URL` | leer |
 | Steuern: Rücklage-Sätze, USt an/aus und Sätze, Stripe-Gebühr, DATEV-Berater-/Mandantennummer und Konten, Rücklagenkonto | `config/tax.ts` | Platzhalter |
@@ -250,7 +250,7 @@ Der Block-Plan selbst liegt nicht im Repo. Die Teile sind nach Thema zugeordnet,
 | Statistik (PostHog EU) einschalten, Key setzen | `config/analytics.ts`, `NEXT_PUBLIC_POSTHOG_KEY` | aus |
 | Finanzierung: Begründungen der Verteilung, Rundenbeträge | `config/funding.ts` (`ALLOCATION.reason` u. a.) | `null` |
 | Vision: Vergleich Börse · Privat · Verkauf | `config/vision.ts` | `null`-Zellen |
-| Marketing-Kanäle: Werkzeuge und Einordnung | `config/marketing.ts` `MARKETING_CHANNELS` | größtenteils leer |
+| Marketing-Kanäle: Werkzeuge und Einordnung | `config/marketing.ts` `MARKETING_CHANNELS` | gefüllt (prüfen) |
 | Launch-Zeitpunkt prüfen („Opening March 2027“) | `config/platform.ts` `launch` | gesetzt |
 | Eigene Social-Profile prüfen (instagram/tiktok/youtube „@simpulo“) | `lib/social.ts` `SOCIAL_LINKS` | ungeprüft |
 
@@ -263,16 +263,13 @@ Nach Gewicht. Die Oberfläche ist für Desktop, Tablet und Telefon im Mock weitg
 1. **Datenquelle und Server:** kein Firestore, keine Server-Fristen (Fristen laufen im Browser), Admin nur in der Oberfläche geschützt. In Produktion ist alles leer.
 2. **Echtes Geld:** Stripe ist leer (Payment Element, Connect, Erstattungen, Webhooks); im Production-Modus bricht jede Zahlung ab.
 3. **Echte Anmeldung:** Apple, Google, Magic Link und Passkey sind eine Mock-Auswahl.
-4. **Versand:** E-Mail und Push laufen nur im Mock (`DELIVERY`). 9 Katalog-Ereignisse haben keinen Auslöser: signIn, welcome, requestSent, guestRemoved, profileTips, waitlistOpen, termsUpdate, accountPaused, accountDeleted.
+4. **Versand:** E-Mail und Push laufen nur im Mock (`DELIVERY`); alle 44 Katalog-Ereignisse haben inzwischen einen Auslöser.
 5. **Recht:** Alle 7 Rechtsseiten sind Entwürfe, das Impressum ist leer, 0 von 5 Plattform-Pflichten sind geprüft. Ein Live-Build bricht deshalb ab (gewollt).
 6. **Fotos und Uploads:** House-, Profil- und Album-Fotos bleiben im Browser; 91 Ortsbilder und das Gründerfoto fehlen.
 7. **Dark Mode D1–D3:** Das Fundament steht, die Seiten sind nicht einzeln angepasst.
 8. **Mobile/iPad-Durchgang und Breiten-Test:** Der Test ist gebaut, aber hier nie gelaufen (kein Bericht); die Launch-Checkliste zeigt ihn offen.
 9. **Kleine Ablauf-Lücken:**
-   - Der Stepper sagt 48 h, die Anfrage läuft aber nach 72 h ab.
-   - Ein vom Host entfernter Gast bekommt keine Benachrichtigung.
    - Der Chat-Kopf hat noch keine Reiter.
    - Sammlungen haben kein OG-Bild.
-   - Kontakt ist nur eine mailto-Zeile.
    - Passkey und Anmelde-Methode zeigen „comes soon“.
 10. **Offene Entscheidungen und Werte:** Steuersätze und Konten, Host wirbt Host, Album-Anreiz, Host-Fee-Beispiel, Tiefe ein/aus, Founding Hosts sehen andere, Finanzierungs-Begründungen, Marketing-Kanäle.

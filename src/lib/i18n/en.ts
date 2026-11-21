@@ -3,6 +3,10 @@
 // left} other {# spots left}}" – next-intl picks the form with Intl.PluralRules). A second language later: a file with the same shape
 // (lib/i18n/<code>.ts, typed against ProductMessages), its code in i18n/config.ts and its line in i18n/request.ts – nothing else changes.
 // The admin is German and has its own file (lib/i18n/admin.de.ts).
+import { AGREEMENT_HOURS } from "@/config/arc";
+import { DEADLINE_HOURS as H } from "@/config/policies";
+import { PROGRAM_FULL_DAYS_BEFORE } from "@/config/program";
+
 const en = {
   "meta": {
     "siteTitle": "Simpulo – Share a place. Find your people.",
@@ -333,7 +337,9 @@ const en = {
     "vibeHouses": "{vibe} houses",
     "large": {
       "tagline": "Share a place. Find your people.",
-      "columns": { "discover": "Discover", "host": "Host", "simpulo": "Simpulo", "help": "Help" },
+      "columns": { "places": "Places", "themes": "Themes", "explore": "Explore", "host": "Host", "simpulo": "Simpulo", "help": "Help" },
+      "allPlaces": "All places →",
+      "allThemes": "All themes →",
       "links": {
         "shortTrips": "Short trips",
         "startingSoon": "Starting soon",
@@ -356,13 +362,6 @@ const en = {
       "discover": "Discover",
       "places": "Places",
       "themes": "Themes",
-      "theme": {
-        "creator": "Creator",
-        "fitness": "Fitness",
-        "founder": "Founder",
-        "remote-work": "Remote work",
-        "surf-water": "Surf"
-      },
       "host": "Host",
       "howHosting": "How hosting works",
       "foundingHosts": "Founding Hosts",
@@ -376,6 +375,7 @@ const en = {
     "version": "Version {version}",
     "draft": "Draft – not yet reviewed",
     "draftText": "This text hasn't been reviewed by a lawyer yet. It can still change.",
+    "addressFollows": "Address will be added before launch (internal note – the public site goes live only with a real business address).",
     "contents": "On this page",
     "gap": "to fill: {field}",
     "language": "Language",
@@ -450,7 +450,7 @@ const en = {
       "logOpen": "Open link",
       "unlockAccommodation": "Unlock accommodation",
       "resetPayments": "Reset payments",
-      "lapse48h": "Let the 48 hours run out",
+      "lapse48h": `Let the ${H.payment} hours run out`,
       "overdue": "overdue – would send now",
       "channel": {
         "email": "email",
@@ -745,7 +745,7 @@ const en = {
   },
   "program": {
     "title": "Programme",
-    "intro": "Your plan for each day – your crew sees it in full two days before the House, a preview on the House page until then.",
+    "intro": `Your plan for each day – your crew sees it in full ${PROGRAM_FULL_DAYS_BEFORE} days before the House, a preview on the House page until then.`,
     "day": "Day {day}",
     "dayDate": "Day {day} · {date}",
     "daysLabel": "Days",
@@ -772,10 +772,10 @@ const en = {
     "momentBadge": "{moment}",
     "proOnly": "The programme is for hosts who lead their House (with a host fee).",
     "planTitle": "Programme",
-    "planPreview": "The full programme with times and places shows two days before the House.",
+    "planPreview": `The full programme with times and places shows ${PROGRAM_FULL_DAYS_BEFORE} days before the House.`,
     "planEmpty": "{host} hasn't shared a programme yet.",
     "whatsPlanned": "What's planned",
-    "whatsPlannedMore": "The full programme comes two days before the House.",
+    "whatsPlannedMore": `The full programme comes ${PROGRAM_FULL_DAYS_BEFORE} days before the House.`,
     "crewProgress": "Crew progress",
     "feedbackTitle": "Your programme, from the crew",
     "feedbackAverage": "Programme · {average} of 5 · {count, plural, one {# rating} other {# ratings}}",
@@ -1139,12 +1139,12 @@ const en = {
       "nearbyEyebrow": "Nearby",
       "nearbyTitle": "Nearby",
       "nearbySubline": "A similar place or time",
-      "saved": "Done. You'll be the first to know – 48h before everyone else.",
+      "saved": `Done. You'll be the first to know – ${H.searchHeadStart}h before everyone else.`,
       "nearby": "Houses nearby or in other months",
       "notQuite": "Not quite it? Notify me about new Houses in {place} →",
       "notifySheet": {
         "title": "Notify me",
-        "text": "We'll email you the moment a House opens – 48h before everyone else.",
+        "text": `We'll email you the moment a House opens – ${H.searchHeadStart}h before everyone else.`,
         "email": "Email",
         "emailPlaceholder": "you@example.com",
         "emailError": "Enter a valid email address.",
@@ -1229,7 +1229,7 @@ const en = {
         "practical": { "title": "Practical", "text": "The exact address, check-in and what to bring are in the plan now.", "action": "See the practical" },
         "arrive": { "title": "You're here?", "text": "Tap when you've arrived – your crew sees who's in.", "action": "I'm here" },
         "firstNight": { "title": "First night", "text": "Tonight: dinner and a few questions to get to know each other. Ask out loud – nothing is saved.", "action": "Open the cards" },
-        "agreement": { "title": "Your House agreement", "text": "Three quick votes. One answer is preset – after 24 hours the result stands.", "action": "Vote" },
+        "agreement": { "title": "Your House agreement", "text": `Three quick votes. One answer is preset – after ${AGREEMENT_HOURS} hours the result stands.`, "action": "Vote" },
         "moment": { "title": "Tomorrow?", "text": "A small idea for tomorrow – are you in?", "action": "Vote" },
         "halftime": { "title": "Halftime", "text": "Half the House is behind you. A private check-in – only you see it.", "action": "Check in" },
         "peakPlan": { "title": "Your highlight", "text": "Set the one thing your crew does together in the second half – or leave it to a vote.", "action": "Set the highlight" },
@@ -1650,10 +1650,11 @@ const en = {
         "withdraw": "Withdraw request",
         "help": "Something went wrong?",
         "removedTitle": "You're no longer in this House",
+        "similarTitle": "Similar Houses with a free spot",
         "removedText": "{host} removed you from {title}. Anything you paid is refunded.",
         "moderationText": "Simpulo removed you from {title} after a report. Anything you paid is refunded. Write to us if you think this is a mistake.",
         "lapsedTitle": "Your spot was released",
-        "lapsedText": "The 48 hours to pay for {title} ran out, so your spot is open again. If there's still room, you can ask again.",
+        "lapsedText": `The ${H.payment} hours to pay for {title} ran out, so your spot is open again. If there's still room, you can ask again.`,
         "similar": "Find a similar House",
         "hostShare": "As the host you pay your share like everyone else."
       }
@@ -1754,7 +1755,7 @@ const en = {
       "googlePay": "Google Pay",
       "orCard": "or pay by card",
       "successTitle": "You're in.",
-      "successText": "Booking confirmation follows within 48h.",
+      "successText": `Booking confirmation follows within ${H.booking}h.`,
       "done": "Done",
       "receipt": "Receipt",
       "receiptPaid": "Paid {date}",
@@ -1827,7 +1828,7 @@ const en = {
       "invite": "Invite",
       "spotInvite": "Invite someone to this spot",
       "spotInviteShort": "Invite",
-      "spotInviteCopied": "Invite link copied – the spot is held for 48h",
+      "spotInviteCopied": `Invite link copied – the spot is held for ${H.invite}h`,
       "audienceWomen": "This House is for women only.",
       "hostedCount": "hosted {count, plural, one {# House} other {# Houses}}",
       "photosCount": "{count, plural, one {# photo} other {# photos}}",
@@ -1989,7 +1990,7 @@ const en = {
         "payShareLine": "{amount} – your spot is held until then.",
         "payNow": "Pay now",
         "hostBooks": "{name} books the place",
-        "hostBooksLine": "Within 48h – then the address is yours.",
+        "hostBooksLine": `Within ${H.booking}h – then the address is yours.`,
         "inDays": "{count, plural, one {In # day} other {In # days}}",
         "today": "Happening now",
         "bookedLine": "Booked ✓ · {dates}",
@@ -2566,12 +2567,12 @@ const en = {
       "text": "Share the link – your crew finds you through it.",
       "copy": "Copy link",
       "story": "Story image",
-      "notified": "{count, plural, one {# person was notified – they get 48h first} other {# people were notified – they get 48h first}}",
+      "notified": `{count, plural, one {# person was notified – they get ${H.searchHeadStart}h first} other {# people were notified – they get ${H.searchHeadStart}h first}}`,
       "saveTemplate": "Save as template",
       "templateSaved": "Saved as a template",
       "yourHouses": "Go to Your houses",
       "copyInvite": "Copy invite link",
-      "inviteCopied": "Invite link copied – the spot is held for 48h"
+      "inviteCopied": `Invite link copied – the spot is held for ${H.invite}h`
     },
     "socialsHint": "<link>Add your socials in your profile</link> – houses with socials get more requests",
     "templates": {
@@ -2675,14 +2676,14 @@ const en = {
       "deadline": "Voting ends"
     },
     "invite": {
-      "count": "{max, plural, =0 {No spots left to invite to} other {{count} of {max} spots held for 48h once it opens}}",
+      "count": `{max, plural, =0 {No spots left to invite to} other {{count} of {max} spots held for ${H.invite}h once it opens}}`,
       "livedIn": "Lived together in {place}",
       "addFrom": "Add from Your people",
       "search": "Search your people",
       "noMatch": "Nobody by that name",
       "add": "Add",
       "byLink": "Invite by link",
-      "byLinkHint": "You get a link right after opening – it holds a spot for 48h"
+      "byLinkHint": `You get a link right after opening – it holds a spot for ${H.invite}h`
     },
     "kind": {
       "popular": "Popular for {topic}",
@@ -2923,13 +2924,13 @@ const en = {
           "chip": "{count, plural, one {# request} other {# requests}}",
           "action": "Review {count, plural, one {# request} other {# requests}}",
           "sheetTitle": "Requests · {house}",
-          "slow": "Guests are waiting – answer within 48h, a quick yes or “Not a fit” helps them plan."
+          "slow": `Guests are waiting – answer within ${H.request}h, a quick yes or “Not a fit” helps them plan.`
         },
         "book": {
           "chip": "Confirm booking",
           "action": "Confirm booking",
           "sheetTitle": "Confirm the booking",
-          "sheetText": "Everyone paid. Book the place and upload the confirmation within 48h – then the money is released to you."
+          "sheetText": `Everyone paid. Book the place and upload the confirmation within ${H.booking}h – then the money is released to you.`
         },
         "choosePlace": {
           "chip": "Choose the place",
@@ -2949,7 +2950,7 @@ const en = {
           "chip": "Spot open · {hours}h",
           "action": "Take spot",
           "sheetTitle": "Take your spot in {house}?",
-          "sheetText": "A spot opened up and it's held for you for 24 hours.",
+          "sheetText": `A spot opened up and it's held for you for ${H.waitlistOffer} hours.`,
           "toast": "You're in {house} 🎉"
         }
       },
@@ -3004,7 +3005,7 @@ const en = {
         },
         "book": {
           "title": "Confirm the booking",
-          "sub": "{house} · within 48h",
+          "sub": `{house} · within ${H.request}h`,
           "action": "Mark as booked"
         },
         "paymentsOpen": {
@@ -3015,11 +3016,11 @@ const en = {
         "requests": {
           "title": "Review {count, plural, one {# request} other {# requests}}",
           "sub": "{hours, plural, =0 {{house}} other {{house} · the first expires in #h}}",
-          "subSlow": "{house} · guests are waiting – answer within 48h",
+          "subSlow": `{house} · guests are waiting – answer within ${H.request}h`,
           "action": "Review"
         },
         "responseRate": {
-          "title": "Answer requests within 48h",
+          "title": `Answer requests within ${H.request}h`,
           "sub": "Guests are waiting – a quick yes or “Not a fit” helps them plan"
         },
         "invite": {
@@ -3089,7 +3090,7 @@ const en = {
         "choosePlace": "The crew is complete – choose the place",
         "voting": "The crew is voting on the place",
         "paymentsOpen": "{count, plural, one {# payment open} other {# payments open}} – due {date}",
-        "book": "Everyone paid – book the place within 48h",
+        "book": `Everyone paid – book the place within ${H.booking}h`,
         "invite": "You're invited – answer the host",
         "pay": "Pay your share – due {date}",
         "offer": "A spot opened for you – take it by {date}",
@@ -3266,7 +3267,7 @@ const en = {
       "yourShareDue": "Your share is open · due {date}",
       "voting": "Accommodation: crew is voting",
       "choosePlace": "The crew is complete – choose the place",
-      "bookPlace": "Book the place – you have 48h",
+      "bookPlace": `Book the place – you have ${H.booking}h`,
       "groupLink": "Crew complete – share the group chat link",
       "crew": "Crew",
       "crewIn": "{filled} of {total} in",
@@ -3306,7 +3307,7 @@ const en = {
         "paymentsOpen": "{open, plural, one {# payment open} other {# payments open}} – due {date}",
         "remind": "Remind",
         "reminded": "Reminder sent",
-        "book": "Book the place within 48h",
+        "book": `Book the place within ${H.booking}h`,
         "markBooked": "Mark as booked",
         "ready": "All set – see you there",
         "waiting": "Waiting for {name} to answer",
@@ -3354,7 +3355,7 @@ const en = {
         "onWaitlist": "You're on the waitlist",
         "withdraw": "Withdraw request",
         "payLater": "{filled} of {total} in – you pay once the crew is complete and the place is chosen.",
-        "waitBooking": "Everyone paid – {name} books the place within 48h.",
+        "waitBooking": `Everyone paid – {name} books the place within ${H.booking}h.`,
         "paidOf": "{paid} of {total} paid",
         "booked": "{name} booked the place",
         "place": "The place",
@@ -3384,7 +3385,7 @@ const en = {
         "payoutDone": "{amount} paid out to your payout account",
         "yourPayment": "Your payment",
         "notLockedGuest": "Nothing to pay yet. Your share is due once the crew is complete and the place is chosen.",
-        "refundNote": "Full refund if the host cancels, the place is unlocked, or the booking isn't confirmed within 48 hours.",
+        "refundNote": `Full refund if the host cancels, the place is unlocked, or the booking isn't confirmed within ${H.booking} hours.`,
         "crewGroup": "House group",
         "crewGroupText": "The House's own group chat, now that everyone's in.",
         "openCrewGroup": "Open House group",
@@ -3461,6 +3462,8 @@ const en = {
       "removeTitle": "Remove {name}?",
       "removeDescription": "Their spot opens up again and they lose access to the House chat. The House sees a short note in the chat.",
       "removeConfirm": "Remove",
+      "removeReason": "Why? (optional – {name} sees it)",
+      "removeReasonPlaceholder": "A sentence is enough",
       "removedToast": "{name} is no longer in the House",
       "invitedNote": "Invited · holds a spot",
       "removeLabel": "Remove {name} from the House",
@@ -3538,9 +3541,9 @@ const en = {
       "fundsText": "Everyone has paid. Book the place, then upload the booking confirmation so the House can see it's booked.",
       "upload": "Upload booking confirmation",
       "uploading": "Uploading booking confirmation",
-      "uploadWithin": "Upload within 48 hours",
+      "uploadWithin": `Upload within ${H.booking} hours`,
       "timeLeft": "{hours}h {minutes}m left",
-      "overdue": "The 48 hours are up – please upload it now",
+      "overdue": `The ${H.booking} hours are up – please upload it now`,
       "confirmedTitle": "Booking confirmed · {date}",
       "confirmedText": "Everyone sees the House as booked.",
       "viewProof": "View booking confirmation",
@@ -3599,7 +3602,7 @@ const en = {
       "toggle": "{label}, {count} Houses"
     },
     "invites": {
-      "description": "Invite someone by name or email. Their link reserves a spot for 48 hours.",
+      "description": `Invite someone by name or email. Their link reserves a spot for ${H.invite} hours.`,
       "invite": "Invite friends",
       "full": "Every spot is taken or reserved – free one up to invite someone.",
       "until": "Reserved until {date}",
@@ -3607,8 +3610,8 @@ const en = {
       "linkOnly": "Link",
       "resend": "Resend",
       "cancel": "Cancel",
-      "resentEmail": "Sent again to {email} – reserved for another 48 hours",
-      "resentLink": "Link copied – reserved for another 48 hours",
+      "resentEmail": `Sent again to {email} – reserved for another ${H.invite} hours`,
+      "resentLink": `Link copied – reserved for another ${H.invite} hours`,
       "cancelled": "Invite cancelled – the spot is free again",
       "cancelLabel": "Cancel the invite for {name}",
       "resendLabel": "Resend the invite for {name}",
@@ -3662,7 +3665,7 @@ const en = {
       "datesDecided": "The dates are set – starts {date}",
       "searchHouseOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else.",
       "youWereRemoved": "{host} removed you from {title}. Anything you paid is refunded.",
-      "yourPaymentLapsed": "The 48 hours to pay for {title} ran out, so your spot is open again.",
+      "yourPaymentLapsed": `The ${H.payment} hours to pay for {title} ran out, so your spot is open again.`,
       "youWereRemovedModeration": "Simpulo removed you from {title} after a report. Anything you paid is refunded."
     },
     "notify": {
@@ -3690,8 +3693,14 @@ const en = {
       "appealReversed": "We looked at your appeal again and reversed our decision. Sorry for the trouble.",
       "friendSpotsExpired": "{count, plural, one {{title}: the spots you saved for friends are free again} other {The spots you saved for friends in # Houses are free again}}",
       "friendSpotExpiredForYou": "{count, plural, one {{name}'s spot for you in {title} ran out – you can still ask to join} other {# spots saved for you ran out – you can still ask to join}}",
+      "requestSent": `Your request for {title} is on its way – {host} has ${H.request} hours to answer.`,
+      "termsUpdated": "We've updated our Terms – have a look before you go on.",
+      "accountPaused": "Your account is paused – your profile is private and your Houses are off Explore.",
+      "waitlistOpen": "Simpulo is open – Houses are waiting where you wanted to go.",
+      "removedByHost": "{host} took you out of {title}. Anything you paid comes back – here are similar Houses.",
+      "removedByHostReason": "{host} took you out of {title}: “{reason}” Anything you paid comes back – here are similar Houses.",
       "locked": "{title}: accommodation locked – {price} each, you pay once the crew is complete",
-      "paymentDue": "{title}: the crew is complete. Your share is due within 48 hours",
+      "paymentDue": `{title}: the crew is complete. Your share is due within ${H.payment} hours`,
       "paymentLapsed": "{title}: {name} didn't pay in time, so their spot is open again",
       "bookingRefunded": "{title}: the booking wasn't confirmed in time, so every share was refunded",
       "bookingConfirmed": "{title} is booked – the address is on the House page",
@@ -3710,8 +3719,8 @@ const en = {
       "houseCancelled": "{title} was cancelled by the host – every paid share is refunded",
       "waitlistAccepted": "{title}: you're on the waitlist – you move up automatically if someone drops out",
       "waitlistRemoved": "{title}: you're no longer on the waitlist",
-      "waitlistOffer": "{title}: a spot opened for you – take it within 24 hours",
-      "waitlistMovedUp": "{title}: a spot opened – {name} from the waitlist has 24 hours to take it",
+      "waitlistOffer": `{title}: a spot opened for you – take it within ${H.waitlistOffer} hours`,
+      "waitlistMovedUp": `{title}: a spot opened – {name} from the waitlist has ${H.waitlistOffer} hours to take it`,
       "waitlistOfferExpired": "{title}: {name} didn't take the spot in time – it goes to the next one on the waitlist",
       "waitlistTookSpot": "{title}: {name} took the free spot from the waitlist",
       "leftRefund": "{title}: your spot goes to the waitlist – {amount} is on its way back (everything but the Simpulo fee)",
@@ -4094,7 +4103,7 @@ const en = {
       "bothInto": "Both into {interest}",
       "seeHouse": "See {name}",
       "inviteToHouse": "Invite to a House",
-      "invitedToast": "{name} is invited to {house} – the spot is held for 48h",
+      "invitedToast": `{name} is invited to {house} – the spot is held for ${H.invite}h`,
       "rowVibe": "Vibe",
       "rowHostingNow": "Hosting now",
       "rowGoingTo": "Going to",
@@ -4616,7 +4625,7 @@ const en = {
     "verifiedOnlyText": "Guests verify with an ID through Stripe Identity. Fewer requests, more trust."
   },
   "policy": {
-    "short": "Cancellation: free until the crew is complete. After paying, only by handing your spot to the waitlist (everything back but the Simpulo fee). Full refund if the host cancels or doesn't confirm the booking in 48h.",
+    "short": `Cancellation: free until the crew is complete. After paying, only by handing your spot to the waitlist (everything back but the Simpulo fee). Full refund if the host cancels or doesn't confirm the booking in ${H.booking}h.`,
     "link": "Cancellation rules"
   },
   "invitePage": {
@@ -4634,7 +4643,7 @@ const en = {
     "joinedToast": "You're in – welcome to {title}",
     "invalid": "This invite isn't valid any more.",
     "expiredTitle": "This invite has expired",
-    "expiredText": "Invite links hold a spot for 48 hours, once. Ask the host for a new one – or have a look at the House.",
+    "expiredText": `Invite links hold a spot for ${H.invite} hours, once. Ask the host for a new one – or have a look at the House.`,
     "savedYou": "{name} saved you a spot",
     "savedYouIn": "{name} saved you a spot in {title}",
     "savedYouMany": "{name} saved {count} spots for friends",
@@ -4754,7 +4763,7 @@ const en = {
     "line": "Refund of {amount} on its way · 5–10 days",
     "none": "No refund – left after paying",
     "reason": {
-      "booking_not_confirmed": "The host didn't confirm the booking within 48 hours, so every share goes back.",
+      "booking_not_confirmed": `The host didn't confirm the booking within ${H.booking} hours, so every share goes back.`,
       "spot_transferred": "Your spot went to the waitlist – everything but the Simpulo fee goes back.",
       "cancelled": "You left the House – your share goes back.",
       "host_cancelled": "The host cancelled the House – your whole share goes back.",
@@ -4788,7 +4797,7 @@ const en = {
       "alsoBlock": "Also block this person",
       "send": "Send report",
       "sentTitle": "Report sent",
-      "sent": "Thanks – we'll look at this within 24 hours.",
+      "sent": `Thanks – we'll look at this within ${H.reportReview} hours.`,
       "blockedToo": "{name} is blocked too – they can't message you or request your Houses.",
       "thisPerson": "This person",
       "done": "Done"
@@ -5183,7 +5192,7 @@ const en = {
       },
       "report": {
         "question": "How do I report someone?",
-        "answer": "Tap “Report” on a profile, a message, a House or a photo. Pick a reason, add a few words if you like, and block the person too if you want. We look at every report within 24 hours."
+        "answer": `Tap “Report” on a profile, a message, a House or a photo. Pick a reason, add a few words if you like, and block the person too if you want. We look at every report within ${H.reportReview} hours.`
       },
       "emergency": {
         "question": "What if I'm in danger?",
@@ -5251,8 +5260,8 @@ const en = {
       "introEmpty": "Share a house in {city} with people who want the same kind of trip – a few weeks, one crew, a host who knows the place. There's no House here yet: open the first one, or hear first when one opens.",
       "startingSoon": "Starting soon in {city}",
       "faqTitle": "Co-living in {city}: questions",
-      "emptyTitle": "No House in {city} yet",
-      "emptyText": "Open the first one – or join the waitlist and hear first when a House opens in {city}.",
+      "emptyTitle": "Opening soon in {city}",
+      "emptyText": "No House is open in {city} right now. Join the waitlist and hear first when one opens – or open the first one yourself.",
       "related": "Also popular",
       "link": "{city}",
       "vibes": "Vibes in {city}"
@@ -5261,6 +5270,7 @@ const en = {
     "emptyAction": "Open a House",
     "openFirst": "Open the first one",
     "joinWaitlist": "Join the waitlist",
+    "guidesWhileWaiting": "Read while you wait",
     "cityFaq": {
       "how": { "q": "How does co-living in {name} work?", "a": "A host opens a House in {name} – a place, a few weeks, a theme. You ask to join with a short note, the host says yes or not, and once the crew is complete everyone pays an equal share of the place." },
       "length": { "q": "How long do Houses in {name} last?", "a": "Each House sets its own dates – from a long weekend to a few months. The dates and nights are on every House card." },
@@ -5279,11 +5289,29 @@ const en = {
     "collectionEmptyTitle": "No House in this theme yet",
     "collectionEmptyText": "Open the first one – or join the waitlist and hear first when one opens.",
     "vibe": {
-      "h1": "{vibe} houses",
-      "description": "Shared {vibe} houses for a few weeks: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
-      "intro": "Intro paragraph about {vibe} houses – who they're for, what a day looks like, what hosts expect.",
-      "related": "More vibes",
-      "cities": "Top cities for {vibe} houses"
+      "h1": "{vibe} Houses",
+      "description": "Shared {vibe} Houses for a few weeks: {count, plural, =0 {opening soon} one {# open House} other {# open Houses}} with real hosts on Simpulo.",
+      "intro": "Share a place for a few weeks with people who are into {vibe} too – a host who chooses the crew, a place, a theme. Ask to join an open House below, or open your own. Asking is free.",
+      "emptyTitle": "Opening soon: {vibe} Houses",
+      "emptyText": "No {vibe} House is open right now. Join the waitlist and hear first when one opens – or open the first one yourself.",
+      "startingSoon": "{vibe} Houses starting soon",
+      "faqTitle": "{vibe} Houses: questions",
+      "related": "More themes",
+      "cities": "Cities with {vibe} Houses"
+    },
+    "places": {
+      "title": "Places",
+      "description": "Every city with Houses on Simpulo – open now or opening soon.",
+      "intro": "Cities where Houses are open now, and where they open next.",
+      "open": "Open now",
+      "soon": "Opening soon",
+      "count": "{count, plural, =0 {Opening soon} one {# open House} other {# open Houses}}"
+    },
+    "themes": {
+      "title": "Themes",
+      "description": "Every theme on Simpulo – Houses for training, building, creating, slowing down and more.",
+      "intro": "Find Houses by what you want to do together.",
+      "count": "{count, plural, =0 {Opening soon} one {# open House} other {# open Houses}}"
     },
     "faq": {
       "title": "Help center",
@@ -5312,22 +5340,29 @@ const en = {
       }
     }
   },
+  "contactForm": {
+    "name": "Your name (optional)",
+    "email": "Your email",
+    "message": "Your message",
+    "send": "Send",
+    "sent": "Thanks – it's with us. We answer by email."
+  },
   "notifications": {
     "yourHouse": "your House",
     "catalog": {
       "signIn": { "subject": "Your sign-in link for Simpulo", "short": "Sign in to Simpulo", "body": "Tap the button to sign in. The link works once, for 15 minutes. Didn't ask for it? Ignore this email.", "action": "Sign in" },
       "welcome": { "subject": "Welcome to Simpulo", "short": "Welcome to Simpulo", "body": "Your account is ready. Add a few photos and a sentence about you – hosts look at your profile first.", "action": "Finish your profile" },
-      "requestSent": { "subject": "Your request for {house} is on its way", "short": "Request sent for {house}", "body": "The host answers within 72 hours. Nothing is charged until the crew is complete.", "action": "See your request" },
-      "requestReceived": { "subject": "New request for {house}", "short": "New request for {house}", "body": "Someone wants to join. Answer within 72 hours – after that the request runs out.", "action": "See the request" },
+      "requestSent": { "subject": "Your request for {house} is on its way", "short": "Request sent for {house}", "body": `The host answers within ${H.request} hours. Nothing is charged until the crew is complete.`, "action": "See your request" },
+      "requestReceived": { "subject": "New request for {house}", "short": "New request for {house}", "body": `Someone wants to join. Answer within ${H.request} hours – after that the request runs out.`, "action": "See the request" },
       "requestAccepted": { "subject": "You're in: {house}", "short": "Good news about {house}", "body": "The host said yes. You pay your share once the crew is complete.", "action": "Open your House" },
       "requestDeclined": { "subject": "About {house}", "short": "News about {house}", "body": "This one didn't work out. There are similar Houses with free spots.", "action": "See similar Houses" },
       "requestExpired": { "subject": "Your request for {house} ran out", "short": "News about {house}", "body": "The time to answer has passed. There are similar Houses with free spots.", "action": "See similar Houses" },
-      "invited": { "subject": "A spot for you in {house}", "short": "A spot for you in {house}", "body": "The spot is held for 48 hours – accept it before it's free again.", "action": "See the invite" },
+      "invited": { "subject": "A spot for you in {house}", "short": "A spot for you in {house}", "body": `The spot is held for ${H.invite} hours – accept it before it's free again.`, "action": "See the invite" },
       "hostReminder": { "subject": "Requests are waiting: {house}", "short": "Requests are waiting for {house}", "body": "Answer them before they run out – people plan around your answer.", "action": "Answer requests" },
-      "friendSpots": { "subject": "Spots for friends are free again: {house}", "short": "Update on {house}", "body": "The 48 hours have passed – the spots you held are open to everyone again.", "action": "Open your House" },
-      "paymentDue": { "subject": "Pay your share: {house}", "short": "Payment due for {house}", "body": "The crew is complete and the place is picked. You have 48 hours to pay your share.", "action": "Pay your share" },
+      "friendSpots": { "subject": "Spots for friends are free again: {house}", "short": "Update on {house}", "body": `The ${H.invite} hours have passed – the spots you held are open to everyone again.`, "action": "Open your House" },
+      "paymentDue": { "subject": "Pay your share: {house}", "short": "Payment due for {house}", "body": `The crew is complete and the place is picked. You have ${H.payment} hours to pay your share.`, "action": "Pay your share" },
       "paymentReminder": { "subject": "Reminder: pay your share for {house}", "short": "Payment reminder for {house}", "body": "Your spot is held until the payment window closes. After that it's free again.", "action": "Pay your share" },
-      "paymentLapsed": { "subject": "Your spot in {house} was released", "short": "Update on {house}", "body": "The 48 hours to pay have passed, so your spot is free again. Nothing was charged.", "action": "See similar Houses" },
+      "paymentLapsed": { "subject": "Your spot in {house} was released", "short": "Update on {house}", "body": `The ${H.payment} hours to pay have passed, so your spot is free again. Nothing was charged.`, "action": "See similar Houses" },
       "paid": { "subject": "A payment came in: {house}", "short": "Payment in for {house}", "body": "Someone in the crew paid their share. You see the progress in the House.", "action": "Open your House" },
       "bookingConfirmed": { "subject": "Booked: {house}", "short": "{house} is booked", "body": "The host confirmed the booking. The address and check-in details follow before you arrive.", "action": "Open your House" },
       "cancelled": { "subject": "{house} was cancelled", "short": "Update on {house}", "body": "This House won't happen. Any payment comes back to you – the details are in the House.", "action": "See what happens next" },
@@ -5351,7 +5386,7 @@ const en = {
       "applicationQuestion": { "subject": "A question about your application", "short": "A question about your application", "body": "We have one question before we decide.", "action": "Answer" },
       "waitlistConfirm": { "subject": "Confirm your email", "short": "Confirm your email", "body": "One click and you're on the list. Didn't sign up? Ignore this email.", "action": "Confirm" },
       "waitlistOpen": { "subject": "Houses are open", "short": "Houses are open", "body": "Simpulo is open where you wanted to go. You were first on the list.", "action": "See Houses" },
-      "reportReceived": { "subject": "We got your report", "short": "We got your report", "body": "Thanks – we look at it within 24 hours and tell you what we decided.", "action": "Open Simpulo" },
+      "reportReceived": { "subject": "We got your report", "short": "We got your report", "body": `Thanks – we look at it within ${H.reportReview} hours and tell you what we decided.`, "action": "Open Simpulo" },
       "reportDecided": { "subject": "About your report", "short": "About your report", "body": "We looked at what you reported. The result is in Simpulo.", "action": "Open Simpulo" },
       "decision": { "subject": "A decision about your account", "short": "A decision about your account", "body": "We made a decision about your account or content. You see why and can appeal.", "action": "See the decision" },
       "teamMessage": { "subject": "A message from Simpulo about {house}", "short": "A message from Simpulo", "body": "We wrote to you in Messages – a few ideas for your House.", "action": "Read the message" },
@@ -5496,7 +5531,7 @@ const en = {
     "linkHolds": "A link holds a spot for {hours}h.",
     "linkFailed": "No spot left to hold.",
     "copied": "Copied",
-    "message": "Come with me to {title}? I saved you a spot for 48h.",
+    "message": `Come with me to {title}? I saved you a spot for ${H.invite}h.`,
     "yourPeople": "Your people",
     "livedWith": "Lived with you",
     "saved": "Saved",
@@ -5538,12 +5573,12 @@ const en = {
     "inviteFriends": "Invite friends",
     "shareTitle": "Share",
     "spotsForFriends": "Spots for friends",
-    "spotsForFriendsText": "{count, plural, one {The link holds # spot for 48h} other {The link holds # spots for 48h}} – then {count, plural, one {it's} other {they're}} free again.",
-    "spotsAfterPaying": "Once you've paid your share, your link can hold spots for friends for 48h. Until then it's the House's link.",
+    "spotsForFriendsText": `{count, plural, one {The link holds # spot for ${H.invite}h} other {The link holds # spots for ${H.invite}h}} – then {count, plural, one {it's} other {they're}} free again.`,
+    "spotsAfterPaying": `Once you've paid your share, your link can hold spots for friends for ${H.invite}h. Until then it's the House's link.`,
     "spotCount": "{count, plural, one {# spot} other {# spots}}",
     "scanToJoin": "Scan to open the invite",
     "yourPeopleText": "Pick several – they get it in the app and by email.",
-    "linkReady": "Link ready · {count, plural, one {# spot held} other {# spots held}} for 48h",
+    "linkReady": `Link ready · {count, plural, one {# spot held} other {# spots held}} for ${H.invite}h`,
     "pickedNote": "Picked"
   },
   "inFor": {
@@ -5823,7 +5858,7 @@ const en = {
         "decide": { "title": "You decide who joins", "text": "Every request needs your yes – you can ask for verified guests only." },
         "pay": { "title": "Paid through Simpulo", "text": "No cash, no chasing. The money comes once everyone has paid." },
         "help": { "title": "Help during the stay", "text": "Something goes wrong? Get help right from your House." },
-        "report": { "title": "Report and block", "text": "One tap – we look at every report within 24 hours." }
+        "report": { "title": "Report and block", "text": `One tap – we look at every report within ${H.reportReview} hours.` }
       },
       "link": "Safety for hosts"
     },
@@ -5897,7 +5932,7 @@ const en = {
         "verified": { "title": "Verified hosts", "text": "Hosts can verify their ID with Stripe – you see the check on their profile." },
         "payAfterYes": { "title": "Pay only after the host says yes", "text": "Asking is free. Nothing is charged until you're accepted and the crew is complete." },
         "helpOnSite": { "title": "Help on site", "text": "Something wrong during your stay? Get help right from the House." },
-        "report": { "title": "Report in one tap", "text": "Report a person, a message or a photo – we look at it within 24 hours." }
+        "report": { "title": "Report in one tap", "text": `Report a person, a message or a photo – we look at it within ${H.reportReview} hours.` }
       },
       "safety": "How we keep Houses safe"
     },
@@ -6112,7 +6147,7 @@ const en = {
     "invite": {
       "alt": "You're invited to a House on Simpulo",
       "title": "You're invited to a House",
-      "line": "Your spot is held for 48 hours.",
+      "line": `Your spot is held for ${H.invite} hours.`,
       "eyebrow": "Invite",
       "strong": "Accept on Simpulo"
     },

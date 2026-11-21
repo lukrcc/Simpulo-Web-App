@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Share } from "lucide-react";
-import { useEffect } from "react";
 import { AndroidInstallButton, IosInstallSteps } from "@/components/InstallHint";
 import { Wordmark } from "@/components/layout/Logo";
 import { SimpuloQR } from "@/components/SimpuloQR";
@@ -18,12 +17,6 @@ export function GetApp() {
   const browser = useBrowser();
   const standalone = useIsStandalone();
   const prompt = useInstallPrompt();
-
-  // Once there are real apps: straight to the store of this device.
-  const store = browser.startsWith("ios") ? APP_LINKS.appStoreUrl : browser.startsWith("android") ? APP_LINKS.playStoreUrl : "";
-  useEffect(() => {
-    if (store && !standalone) window.location.replace(store);
-  }, [store, standalone]);
 
   let body: React.ReactNode = null;
   if (standalone) {

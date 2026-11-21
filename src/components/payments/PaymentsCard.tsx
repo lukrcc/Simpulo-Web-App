@@ -12,11 +12,13 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { paymentSplit } from "@/lib/fees";
+import { PAYMENT_POLICY } from "@/config/policies";
 import { findUser, getPayments, paymentProgress, useStore } from "@/lib/store";
 import type { Payment, Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const UPLOAD_WINDOW_MS = 48 * 60 * 60 * 1000;
+/** The host books and uploads the confirmation within the booking window (config/policies.ts). */
+const UPLOAD_WINDOW_MS = PAYMENT_POLICY.hostBookingWindowHours * 3_600_000;
 
 /**
  * Your houses → "Payments" for the host of a locked House: progress, who paid what, reminders, the payout, unlock

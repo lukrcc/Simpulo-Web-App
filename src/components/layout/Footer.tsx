@@ -5,23 +5,22 @@ import { SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import type { IconType } from "react-icons";
 import { SupportLink } from "@/components/help/HelpFeedback";
 import { FooterInstallHint } from "@/components/InstallHint";
-import { FOOTER_COLUMNS, FOOTER_LEGAL, FOOTER_PLACES, FOOTER_THEMES, type FooterLink } from "@/config/footer";
+import { FOOTER_COLUMNS, FOOTER_LEGAL, type FooterLink } from "@/config/footer";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
 import { CurrencyPicker } from "./CurrencyPicker";
 import { FooterColumn } from "./FooterColumn";
+import { FooterDiscover } from "./FooterDiscover";
 import { FooterWaitlist } from "./FooterPhase";
 import { Logo } from "./Logo";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
 
 /*
  * The footer system (config/footer.ts picks one per route): large · slim · none.
- * Large – dark (.footer-dark: the strips' graphite with a warm run, no Ember picture), always 64px of the light page before it (so a dark last
- * section never runs into it). Brand (logo, "Find your people.", socials, the QR "Get Simpulo on your phone") · Discover (places → their
- * pages, themes → Explore filtered) · Host (Open a House · How hosting works · Founding Hosts in pre-launch/beta · Host safety) · Simpulo
- * (About · How it works · Safety · Help · Share an idea); the last line small: currency · © · Impressum · Privacy · Terms · Cookies.
- * Pre-launch: "Join the waitlist" on top.
- * Slim – one line on the light ground: logo small · Help · Share an idea · right Impressum · Privacy · Terms · Cookies · socials.
+ * Large – the header's colour (.footer-dark: --footer-surface = --header-surface, neutral graphite, no warm run), always 64px of the light page
+ * before it. Brand (logo, claim, socials, the QR) · Places · Themes (computed – FooterDiscover) · Explore · Host · Simpulo · Help (config/
+ * footer.ts), every heading the same; the last line small: © · Impressum · Privacy · Terms · Cookies · currency. Pre-launch: the waitlist on top.
+ * Slim – one line on the page's surface with a fine line on top (--footer-slim-line).
  */
 const SOCIAL_ICONS: Record<SocialNetwork, IconType> = { instagram: SiInstagram, tiktok: SiTiktok, youtube: SiYoutube };
 
@@ -76,10 +75,10 @@ export async function Footer() {
     <footer className="footer-dark text-small">
       <Container className="pb-10 pt-16">
         <FooterWaitlist />
-        {/* Brand and four columns (config/footer.ts): phones one column, the four as groups that open (FooterColumn); tablets two columns;
-            the 12-column row from Desktop. */}
-        <div className="grid grid-cols-1 gap-x-10 gap-y-0 sm:grid-cols-2 md:gap-y-10 split:grid-cols-12 split:gap-x-6">
-          <div className="flex flex-col items-start gap-4 pb-8 sm:col-span-2 md:pb-0 split:col-span-3">
+        {/* Brand and six columns: phones one column, the six as groups that open (FooterColumn); tablets three columns under the brand;
+            Desktop one row – the brand wider, the six equal (fluid, no fixed widths). */}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-0 sm:grid-cols-2 md:grid-cols-3 md:gap-y-10 split:grid-cols-[minmax(0,2fr)_repeat(6,minmax(0,1fr))] split:gap-x-6">
+          <div className="flex flex-col items-start gap-4 pb-8 sm:col-span-2 md:col-span-3 md:pb-0 split:col-span-1">
             <Logo size="sm" className="self-start" />
             <p className="text-body-lg text-ink">{tl("tagline")}</p>
             <nav aria-label={t("social.label")}>
@@ -87,37 +86,10 @@ export async function Footer() {
             </nav>
             <FooterInstallHint id="get-the-app" size={72} className="mt-2 max-md:hidden" />
           </div>
+          <FooterDiscover linkClass={LINK} />
           {FOOTER_COLUMNS.map((column) => (
-            <FooterColumn key={column.id} title={tl(`columns.${column.id}`)} className={column.groups ? "split:col-span-3" : "split:col-span-2"}>
-              {column.groups && (
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-small font-semibold text-ink">{tl("places")}</p>
-                    <ul className="mt-1">
-                      {FOOTER_PLACES.map((place) => (
-                        <li key={place.slug}>
-                          <Link href={`/co-living/${place.slug}`} className={LINK}>
-                            {place.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="text-small font-semibold text-ink">{tl("themes")}</p>
-                    <ul className="mt-1">
-                      {FOOTER_THEMES.map((theme) => (
-                        <li key={theme}>
-                          <Link href={`/explore?category=${theme}`} className={LINK}>
-                            {tl(`theme.${theme}`)}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-              <ul className={column.groups ? "mt-3" : undefined}>{column.links.map(link)}</ul>
+            <FooterColumn key={column.id} title={tl(`columns.${column.id}`)}>
+              <ul>{column.links.map(link)}</ul>
             </FooterColumn>
           ))}
         </div>
@@ -150,7 +122,7 @@ export async function SlimFooter() {
   const tl = await getTranslations("footer.large");
   const legal = await legalLinks();
   return (
-    <footer className="bg-(--footer-surface)">
+    <footer data-footer-slim className="border-t border-(--footer-slim-line) bg-(--footer-slim-surface)">
       <Container className="flex min-h-(--footer-slim-h) items-center py-(--footer-slim-pad) text-small text-muted">
         <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
           <SupportLink kind="help" className="min-h-11 md:min-h-0" label={tl("links.getHelp")} />

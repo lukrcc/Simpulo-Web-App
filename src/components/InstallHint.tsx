@@ -18,7 +18,8 @@ export function FooterInstallHint({ id, size = 72, className }: { id?: string; s
   return (
     <div id={id} className={cn("flex items-center gap-4", className)}>
       <SimpuloQR url={appLink()} refParam="footer" size={size} className="shrink-0" />
-      <div className="whitespace-nowrap">
+      {/* Wraps instead of running into the next footer column. */}
+      <div className="min-w-0">
         <p className="text-body text-ink">{t("footerTitle")}</p>
         <p className="mt-0.5 text-small text-muted">{t("footerScan")}</p>
       </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { pageMetadata } from "@/lib/seo";
 import { ContentPage } from "@/components/layout/ContentPage";
+import { ContactForm } from "@/components/help/ContactForm";
 import { CONTACT_EMAIL } from "@/components/layout/secondaryLinks";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,6 +24,10 @@ export default async function ContactPage() {
           ),
         })}
       </p>
+      {/* The second direct way to reach us (the imprint names it). */}
+      <div className="mt-8">
+        <ContactForm />
+      </div>
     </ContentPage>
   );
 }

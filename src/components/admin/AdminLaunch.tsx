@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/ActionButton";
+import { ADDRESS_FIELDS } from "@/config/company";
 import { HELP } from "@/config/help";
 import { LAUNCH_GROUPS, LAUNCH_POINTS, type LaunchPoint } from "@/config/launch";
 import { DELIVERY } from "@/config/notifications";
@@ -56,6 +57,7 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
     noDrafts: { ok: facts ? facts.legal.drafts.length === 0 : false, values: { state: facts ? (facts.legal.drafts.length ? t("drafts", { list: facts.legal.drafts.join(", ") }) : t("noDraftsOk")) : "–" } },
     impressum: { ok: facts ? facts.legal.companyGaps.length === 0 : false, values: { state: facts ? (facts.legal.companyGaps.length ? t("gaps", { list: facts.legal.companyGaps.join(", ") }) : t("gapsNone")) : "–" } },
     duties: { ok: reviewed === DUTIES.length, values: { reviewed, total: DUTIES.length } },
+    impressumAddress: { ok: facts ? !facts.legal.companyGaps.some((g) => (ADDRESS_FIELDS as readonly string[]).includes(g)) : false, values: { state: facts && !facts.legal.companyGaps.some((g) => (ADDRESS_FIELDS as readonly string[]).includes(g)) ? t("addressOk") : t("addressMissing") } },
     founder: { ok: FOUNDER.name !== null, values: { state: FOUNDER.name ? t("founderOk") : t("founderMissing") } },
     help: { ok: helpCount > 0, values: { count: helpCount, topics: Object.keys(HELP).length } },
     guides: { ok: GUIDES.length > 0, values: { count: GUIDES.length } },

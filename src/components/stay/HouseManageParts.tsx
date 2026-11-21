@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { Textarea } from "@/components/ui/Input";
 import { REQUEST_POLICY } from "@/config/policies";
 import { hoursLeft } from "@/lib/requests";
 import { useNow } from "@/lib/useNow";
@@ -179,6 +180,8 @@ export function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolea
   const store = useStore();
   const showToast = useToast();
   const [removing, setRemoving] = useState<User | null>(null);
+  /** Why (optional) – the guest sees it in their notification and Me tab */
+  const [removeReason, setRemoveReason] = useState("");
   const router = useRouter();
   const crew = getCrew(store, stay);
   const invited = getInvited(store, stay.id);
@@ -237,15 +240,24 @@ export function CrewRows({ stay, manage = false }: { stay: Stay; manage?: boolea
         title={t("removeTitle", { name: removing?.name.split(" ")[0] ?? "" })}
         description={t("removeDescription")}
         confirmLabel={t("removeConfirm")}
-        onClose={() => setRemoving(null)}
+        onClose={() => {
+          setRemoving(null);
+          setRemoveReason("");
+        }}
         onConfirm={() => {
           if (removing) {
-            store.removeMember(stay.id, removing.id);
+            store.removeMember(stay.id, removing.id, removeReason);
             showToast(t("removedToast", { name: removing.name.split(" ")[0] }));
           }
           setRemoving(null);
+          setRemoveReason("");
         }}
-      />
+      >
+        <label className="flex flex-col gap-2">
+          <span className="text-small text-muted">{t("removeReason", { name: removing?.name.split(" ")[0] ?? "" })}</span>
+          <Textarea rows={3} maxLength={300} value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} placeholder={t("removeReasonPlaceholder")} />
+        </label>
+      </ConfirmSheet>
     </>
   );
 }

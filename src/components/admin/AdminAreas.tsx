@@ -7,6 +7,7 @@ import { BACKLOG, BACKLOG_PHASES, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type Backlo
 import type { LaunchFacts } from "@/lib/launchChecks";
 import { AdminLaunch } from "./AdminLaunch";
 import { DUTIES, dutyStatus } from "@/config/obligations";
+import { ADDRESS_FIELDS, hasBusinessAddress } from "@/config/company";
 import { FOUNDING_HOST } from "@/config/policies";
 import { isFoundingHost } from "@/lib/founding";
 import { StatusDot } from "./AdminCharts";
@@ -509,6 +510,9 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   const phase = usePlatformPhase();
   const { changePhase } = useAdminActions();
   const [pending, setPending] = useState<PlatformPhase | null>(null);
+  // Going public without a business address in the imprint: blocked (config/company.ts; the server's facts know it).
+  const addressMissing = facts ? facts.legal.companyGaps.some((g) => (ADDRESS_FIELDS as readonly string[]).includes(g)) : !hasBusinessAddress();
+  const blockedLive = pending === "live" && addressMissing;
   // Einstellungen (phase, tools, values) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
   // config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
   const [view, setView] = useState<"settings" | "prepare">("settings");
@@ -603,8 +607,15 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         {pending && (
           <>
             <p className="text-body text-muted">{t("confirmText", { phase: t(`phases.${pending}`) })}</p>
+            {/* Public (Live) needs the imprint's real business address – until then the switch is blocked (Launch checklist). */}
+            {blockedLive && (
+              <p role="alert" data-live-blocked className="mt-3 flex items-start gap-2 text-body text-ink">
+                <StatusDot status="critical" />
+                {t("liveBlocked")}
+              </p>
+            )}
             <ModalFooter onCancel={() => setPending(null)} className="mt-(--adm-inner)">
-              <Button variant="primary" onClick={() => changePhase(pending)}>
+              <Button variant="primary" disabled={blockedLive} onClick={() => changePhase(pending)}>
                 {t("confirm", { phase: t(`phases.${pending}`) })}
               </Button>
             </ModalFooter>

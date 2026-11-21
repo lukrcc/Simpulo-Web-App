@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 
 /**
  * The web app manifest (served at /manifest.webmanifest; Next links it itself). The app icon is the orbit on black – "any" with its own
- * rounded corners, "maskable" full-bleed for Android's masks. public/icon-1024.png is for the stores later and isn't listed.
+ * rounded corners, "maskable" full-bleed for Android's masks. public/icon-1024.png is a large master copy and isn't listed (Simpulo is a web app – no app stores).
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

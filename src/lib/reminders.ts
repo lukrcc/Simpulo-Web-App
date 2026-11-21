@@ -1,5 +1,6 @@
 // Mock notification schedule: which reminders a user would get, computed from the current data. Nothing is
 // scheduled for real yet – later this becomes Cloud Functions (timers) + FCM push / email.
+import { PAYMENT_POLICY, REMINDER_TIMING } from "@/config/policies";
 import { installedUsers } from "./data";
 import type { NotifyEventKey } from "./store";
 import type { Crew, JoinRequest, Payment, Stay, User } from "./types";
@@ -29,18 +30,19 @@ interface ReminderData {
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-/** Rule timings */
-const PAY_DUE_HOURS_BEFORE = 24;
-const PAY_LAST_CALL_HOURS_BEFORE = 3;
-const BOOKING_UPLOAD_HOURS = 24;
-const REQUEST_ANSWER_HOURS = 48;
-const ARRIVAL_DAYS_BEFORE = 3;
-const SAVED_WINDOW_DAYS = 60;
-const SAVED_DAYS_BEFORE = 14;
-/** Host alerts: Houses an alerted host opened within this window */
-const HOST_ALERT_WINDOW_DAYS = 30;
+/** Rule timings – all from config/policies.ts (REMINDER_TIMING) */
+const {
+  payDueHoursBefore: PAY_DUE_HOURS_BEFORE,
+  payLastCallHoursBefore: PAY_LAST_CALL_HOURS_BEFORE,
+  bookingUploadAfterHours: BOOKING_UPLOAD_HOURS,
+  requestAnswerHours: REQUEST_ANSWER_HOURS,
+  arrivalDaysBefore: ARRIVAL_DAYS_BEFORE,
+  savedWindowDays: SAVED_WINDOW_DAYS,
+  savedDaysBefore: SAVED_DAYS_BEFORE,
+  hostAlertWindowDays: HOST_ALERT_WINDOW_DAYS,
+} = REMINDER_TIMING;
 /** "Want to do it again?": this long after a House ended, to everyone in its crew */
-export const DO_IT_AGAIN_DAYS_AFTER = 2;
+export const DO_IT_AGAIN_DAYS_AFTER = REMINDER_TIMING.doItAgainDaysAfter;
 
 const dayStart = (date: string) => new Date(`${date}T09:00:00Z`).getTime();
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -81,7 +83,7 @@ export function computeReminders(data: ReminderData, userId: string, now = Date.
           stayId: stay.id,
           due: iso(lastPaid + BOOKING_UPLOAD_HOURS * HOUR),
           notifyKey: "reminderBookingUpload",
-          values: { title: stay.title, hours: 48 - BOOKING_UPLOAD_HOURS },
+          values: { title: stay.title, hours: PAYMENT_POLICY.hostBookingWindowHours - BOOKING_UPLOAD_HOURS },
         });
       }
       // Requests waiting for an answer.

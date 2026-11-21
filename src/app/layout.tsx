@@ -41,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Simpulo" },
     // The manifest is src/app/manifest.ts – Next links it itself.
     // The orbit (public/). Browser tab: the transparent favicon.svg (it follows a light or dark browser by prefers-color-scheme), PNG
-    // fallbacks, the .ico for old browsers. Home screen: the app icon on black, square (iOS rounds it itself). icon-1024.png: stores later.
+    // fallbacks, the .ico for old browsers. Home screen: the app icon on black, square (iOS rounds it itself). icon-1024.png: a large master copy, not linked (a web app – no app stores).
     icons: {
       icon: [
         { url: "/favicon.svg", type: "image/svg+xml" },

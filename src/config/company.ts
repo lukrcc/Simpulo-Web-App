@@ -16,15 +16,15 @@ export interface Company {
   representative: string | null;
   /** The general contact address */
   email: string | null;
-  /** A phone number – or another quick way to reach us (the imprint needs a second direct contact) */
-  phone: string | null;
+  /** The second quick way to reach us besides email (the imprint needs one) – here the contact form, no phone */
+  secondContact: string | null;
   /** Commercial register and number, if registered */
   register: string | null;
   /** VAT ID – optional */
   vatId: string | null;
   /** Responsible for the content (name and address) */
   contentResponsible: string | null;
-  /** Address for privacy requests */
+  /** Address for privacy requests – null: the general email (lib/legal/values.ts), not kept twice */
   privacyEmail: string | null;
   /** The single point of contact for authorities and users (one email) – on /impressum and /help */
   contactPoint: string | null;
@@ -33,13 +33,14 @@ export interface Company {
 }
 
 export const COMPANY: Company = {
-  name: null,
+  name: "Lukas Richter",
+  /** The address follows: a real business address replaces this before launch (Admin › System › Launch keeps it open; a live build stops). */
   street: null,
   city: null,
   country: null,
   representative: null,
-  email: null,
-  phone: null,
+  email: "lukas@simpulo.app",
+  secondContact: "the contact form at [simpulo.app/contact](/contact)",
   register: null,
   vatId: null,
   contentResponsible: null,
@@ -48,8 +49,13 @@ export const COMPANY: Company = {
   contactLanguages: null,
 };
 
-/** Optional fields: no gap in the launch checklist when they stay empty (the imprint then leaves the line out). */
-export const COMPANY_OPTIONAL: readonly (keyof Company)[] = ["register", "vatId"];
+/** Optional fields: no gap in the launch checklist when they stay empty (the imprint then leaves the line out). privacyEmail falls back to
+ *  the email. */
+export const COMPANY_OPTIONAL: readonly (keyof Company)[] = ["register", "vatId", "privacyEmail"];
+
+/** The business address – street, postcode and city, country. Until all three are set: no public launch (Regel, CLAUDE.md "Rechtsseiten"). */
+export const ADDRESS_FIELDS = ["street", "city", "country"] as const satisfies readonly (keyof Company)[];
+export const hasBusinessAddress = () => ADDRESS_FIELDS.every((k) => COMPANY[k] !== null && COMPANY[k]!.trim() !== "");
 
 /** The fields still to fill (for the launch checklist). */
 export function companyGaps(): (keyof Company)[] {

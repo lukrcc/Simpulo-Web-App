@@ -4,7 +4,8 @@ import { PREVIEW_COOKIE_DAYS } from "@/config/preview";
 import { DEADLINES, FEE_MODEL, HELP_WINDOW, INVITE_POLICY, MIN_AGE, PAYMENT_POLICY, REPORT_POLICY, REQUEST_POLICY, WAITLIST_POLICY } from "@/config/policies";
 import type { LegalValues } from "./parse";
 
-const company = Object.fromEntries((Object.keys(COMPANY) as (keyof Company)[]).map((k) => [`company.${k}`, COMPANY[k]]));
+// The privacy requests' address is the general email unless one of its own is set – the same data, not kept twice.
+const company = Object.fromEntries((Object.keys(COMPANY) as (keyof Company)[]).map((k) => [`company.${k}`, k === "privacyEmail" ? (COMPANY.privacyEmail ?? COMPANY.email) : COMPANY[k]]));
 
 export const LEGAL_VALUES: LegalValues = {
   ...company,

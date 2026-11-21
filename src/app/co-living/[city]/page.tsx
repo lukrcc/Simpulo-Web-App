@@ -89,7 +89,7 @@ async function CityPageContent({ params }: { params: PageProps<"/co-living/[city
       ]}
       related={[
         { title: t("city.related"), links: others.map((c) => ({ href: `/co-living/${c.slug}`, label: t("city.link", { city: c.name }) })) },
-        { title: t("city.vibes", { city: city.name }), links: vibes.map((v) => ({ href: `/explore?category=${v}`, label: t("vibe.h1", { vibe: tVibe(v) }) })) },
+        { title: t("city.vibes", { city: city.name }), links: vibes.map((v) => ({ href: `/themes/${v}`, label: t("vibe.h1", { vibe: tVibe(v) }) })) },
       ]}
     />
   );

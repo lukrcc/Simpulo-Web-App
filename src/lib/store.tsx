@@ -219,7 +219,7 @@ type StoreAction =
   | { type: "addSupportCase"; supportCase: SupportCase }
   | { type: "removeFromWaitlist"; requestId: string }
   | { type: "takeWaitlistSpot"; stayId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
-  | { type: "removeMember"; stayId: string; userId: string; systemMessage: Pick<Message, "id" | "createdAt"> }
+  | { type: "removeMember"; stayId: string; userId: string; reason?: string; systemMessage: Pick<Message, "id" | "createdAt"> }
   | { type: "castVote"; stayId: string; kind: VoteKind; optionId: string; at: string }
   | { type: "closeVote"; stayId: string; kind: VoteKind; at: string }
   | { type: "decideVote"; stayId: string; kind: VoteKind; optionId: string; message: Pick<Message, "id" | "createdAt"> }
@@ -244,6 +244,7 @@ type StoreAction =
   | { type: "toggleHostHelp"; stayId: string; item: HostHelpItem }
   | { type: "setQuietHours"; quiet: QuietHours }
   | { type: "setOnboarding"; patch: NonNullable<UserSettings["onboarding"]> }
+  | { type: "announceTerms"; version: string }
   | { type: "appeal"; noticeId: string; text: string; at: string }
   | { type: "decideAppeal"; noticeId: string; outcome: "upheld" | "reversed"; at: string }
   | { type: "resetConsents" }
@@ -407,7 +408,8 @@ interface StoreActions {
   /** Host only: ends the House early. The crew is told in the crew chat. */
   closeStay: (stayId: string) => void;
   /** Host only: takes a member out of the crew (spot freed, out of the chat). */
-  removeMember: (stayId: string, userId: string) => void;
+  /** The host takes a guest out – `reason` (optional) goes into the guest's notification and their Me tab */
+  removeMember: (stayId: string, userId: string, reason?: string) => void;
   /** Host only: back to "crew decides together" – link and price are cleared, paid shares refunded. */
   /** One vote per member; a second one moves it. */
   castVote: (stayId: string, kind: VoteKind, optionId: string) => void;
@@ -541,6 +543,8 @@ interface StoreActions {
   reportContent: (report: Omit<Report, "reporterId" | "source">) => void;
   /** Onboarding's state on the account (guest/host started or done, skipped steps, cards seen) */
   setOnboarding: (patch: NonNullable<UserSettings["onboarding"]>) => void;
+  /** A new Terms version is waiting for this person – the notice, once per version */
+  announceTerms: (version: string) => void;
   /** Quiet hours (Settings › Notifications): push waits until they end */
   setQuietHours: (quiet: QuietHours) => void;
   /** A Pro host's programme (Manage › Programme): the whole day plan at once – only the host, only a House with a host fee */
@@ -1353,9 +1357,14 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "logout":
       return { ...state, currentUserId: null };
 
-    case "updateCurrentUser":
+    case "updateCurrentUser": {
       if (!me) return state;
-      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, ...action.patch } : u)) };
+      const before = state.users.find((u) => u.id === me);
+      const next = { ...state, users: state.users.map((u) => (u.id === me ? { ...u, ...action.patch } : u)) };
+      // Paused just now (Settings › Your data): the account hears it (catalogue "accountPaused": in-app + email).
+      const paused = action.patch.privacy?.paused === true && !before?.privacy?.paused;
+      return paused ? { ...next, notifications: notifyInApp(next, [me], "accountPaused", {}, `paused-${me}-${action.patch.privacy?.pausedAt ?? ""}`, undefined, undefined, { href: "/settings#privacy" }) } : next;
+    }
 
     case "createStay": {
       if (!me) return state;
@@ -1828,7 +1837,16 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || action.userId === me) return state;
       const name = state.users.find((u) => u.id === action.userId)?.name.split(" ")[0] ?? "Someone";
-      return withoutMember(state, stay, action.userId, systemLine(action.systemMessage, crewThreadId(stay.id), "removed", { name }), "removed");
+      const host = state.users.find((u) => u.id === stay.hostId)?.name.split(" ")[0] ?? "";
+      const next = withoutMember(state, stay, action.userId, systemLine(action.systemMessage, crewThreadId(stay.id), "removed", { name }), "removed");
+      if (next === state) return state;
+      // The guest hears it through the catalogue (config/notifications.ts "guestRemoved": in-app + email): the reason if the host gave one,
+      // and three similar Houses under it (NotificationItem, the email). The reason also stays on their request for the Me tab.
+      return {
+        ...next,
+        joinRequests: action.reason ? next.joinRequests.map((r) => (r.stayId === stay.id && r.userId === action.userId && r.endedReason === "removed" ? { ...r, endedNote: action.reason } : r)) : next.joinRequests,
+        notifications: notifyInApp(next, [action.userId], action.reason ? "removedByHostReason" : "removedByHost", { title: stay.title, host, ...(action.reason && { reason: action.reason }) }, `${action.systemMessage.id}-removed`, stay.id, undefined, { href: `/h/${stay.id}?tab=me` }),
+      };
     }
 
     case "unlockAccommodation": {
@@ -1913,10 +1931,12 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       if (settingsOf(host).blockedUserIds.includes(me)) {
         return { ...state, joinRequests: [...state.joinRequests, { ...request, status: "declined" }], events };
       }
+      // The host hears of it; the guest gets the confirmation (catalogue "requestSent": in-app + email).
+      const toHost = { ...state, notifications: notifyInApp(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id, stay.id) };
       return {
         ...state,
         joinRequests: [...state.joinRequests, request],
-        notifications: notifyInApp(state, [stay.hostId], "newRequest", { name: firstNameOf(state, me), title: stay.title }, id, stay.id),
+        notifications: notifyInApp(toHost, [me], "requestSent", { title: stay.title, host: firstNameOf(state, stay.hostId) }, `${id}-sent`, stay.id),
         events,
       };
     }
@@ -2207,7 +2227,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "agree": {
       if (!me || !action.records.length) return state;
-      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), consents: [...(settingsOf(u).consents ?? []), ...action.records] } } : u)) };
+      const user = state.users.find((u) => u.id === me);
+      // The first Terms ever = the account was just made: "Welcome to Simpulo" (catalogue "welcome": in-app + email).
+      const firstTerms = action.records.some((r) => r.kind === "terms") && !(settingsOf(user).consents ?? []).some((c) => c.kind === "terms");
+      const next = { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), consents: [...(settingsOf(u).consents ?? []), ...action.records] } } : u)) };
+      return firstTerms ? { ...next, notifications: notifyInApp(next, [me], "systemWelcome", {}, `welcome-${me}`, undefined, undefined, { href: "/settings/profile?setup=1" }) } : next;
     }
 
     case "resetConsents": {
@@ -2541,7 +2565,18 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "setOnboarding": {
       if (!me) return state;
-      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), onboarding: { ...settingsOf(u).onboarding, ...action.patch } } } : u)) };
+      const user = state.users.find((u) => u.id === me);
+      const next = { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), onboarding: { ...settingsOf(u).onboarding, ...action.patch } } } : u)) };
+      // The guest onboarding finished: one tip for what's still missing (catalogue "profileTips") – a face photo first, else the ID check.
+      if (action.patch.guest !== "done" || settingsOf(user).onboarding?.guest === "done" || !user) return next;
+      const tip = user.photos.length < 2 ? "systemPhoto" : !user.verified ? "systemVerify" : null;
+      return tip ? { ...next, notifications: notifyInApp(next, [me], tip, {}, `tip-${tip}-${me}`, undefined, undefined, { href: tip === "systemPhoto" ? "/settings/profile?section=photos" : "/settings#payments" }) } : next;
+    }
+
+    case "announceTerms": {
+      // A new Terms version for someone who agreed to an older one: once per version (catalogue "termsUpdate").
+      if (!me || state.notifications.some((n) => n.eventId === `n-terms-${action.version}` && n.userId === me)) return state;
+      return { ...state, notifications: notifyInApp(state, [me], "termsUpdated", { version: action.version }, `terms-${action.version}`, undefined, undefined, { href: "/terms" }) };
     }
 
     case "setQuietHours": {
@@ -3090,8 +3125,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
   const removeMember = useCallback(
-    (stayId: string, userId: string) =>
-      dispatch({ type: "removeMember", stayId, userId, systemMessage: { id: makeId("m"), createdAt: new Date().toISOString() } }),
+    (stayId: string, userId: string, reason?: string) =>
+      dispatch({ type: "removeMember", stayId, userId, reason: reason?.trim().slice(0, 300) || undefined, systemMessage: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
   );
   const castVote = useCallback((stayId: string, kind: VoteKind, optionId: string) => dispatch({ type: "castVote", stayId, kind, optionId, at: new Date().toISOString() }), []);
@@ -3338,6 +3373,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const decideReport = useCallback((reportId: string, outcome: ReportOutcome) => dispatch({ type: "decideReport", reportId, outcome, at: new Date().toISOString() }), []);
   const reportContent = useCallback((report: Omit<Report, "reporterId" | "source">) => dispatch({ type: "reportContent", report: { ...report, reporterId: null } }), []);
+  const announceTerms = useCallback((version: string) => dispatch({ type: "announceTerms", version }), []);
   const setOnboarding = useCallback((patch: NonNullable<UserSettings["onboarding"]>) => dispatch({ type: "setOnboarding", patch }), []);
   const setQuietHours = useCallback((quiet: QuietHours) => dispatch({ type: "setQuietHours", quiet }), []);
   const setProgram = useCallback((stayId: string, items: ProgramItem[]) => dispatch({ type: "setProgram", stayId, items }), []);
@@ -3349,6 +3385,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const appeal = useCallback((noticeId: string, text: string) => dispatch({ type: "appeal", noticeId, text, at: new Date().toISOString() }), []);
   const decideAppeal = useCallback((noticeId: string, outcome: "upheld" | "reversed") => dispatch({ type: "decideAppeal", noticeId, outcome, at: new Date().toISOString() }), []);
   const deleteAccount = useCallback(() => {
+    // The goodbye goes by email only (catalogue "accountDeleted") – there is no account left to show it in. Sent before the account goes.
+    const leaving = latest.current.users.find((u) => u.id === latest.current.currentUserId);
+    if (leaving && deletionBlockers(latest.current, leaving.id, new Date().toISOString().slice(0, 10)).length === 0) notifyByEmail(leaving.email ?? leaving.id, "accountDeleted");
     dispatch({ type: "deleteAccount", at: new Date().toISOString() });
     try {
       localStorage.removeItem(MOCK_USER_KEY);
@@ -3504,6 +3543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       remindGuest,
       reportContent,
       setOnboarding,
+      announceTerms,
       setQuietHours,
       setProgram,
       boostHouse,
@@ -3515,7 +3555,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       decideAppeal,
       decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setOnboarding, setQuietHours, setProgram, boostHouse, setHostHelp, toggleHostHelp, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setOnboarding, announceTerms, setQuietHours, setProgram, boostHouse, setHostHelp, toggleHostHelp, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

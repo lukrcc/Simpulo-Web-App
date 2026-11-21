@@ -1,3 +1,4 @@
+import type { Vibe } from "@/lib/types";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/layout/Container";
@@ -17,7 +18,7 @@ interface LandingPageProps {
   /** Under the Houses: "Starting soon in {city}" (ids, soonest first) and the page's questions; without a House the empty block */
   startingSoon?: { title: string; ids: readonly string[] };
   faq?: { title: string; items: readonly { q: string; a: string }[] };
-  empty?: { title: string; text: string; where?: string };
+  empty?: { title: string; text: string; where?: string; category?: Vibe };
   stays: Stay[];
   /** The feed's scope: the same Houses as `stays`, filterable like Explore (filters in the URL) */
   scope: FeedScope;
@@ -61,7 +62,7 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
       {/* Explore's grid and filters, limited to this page's Houses (rendered on the server too). */}
       {stays.length === 0 ? (
         empty ? (
-          <SeoEmpty title={empty.title} text={empty.text} createHref={createHref} where={empty.where} />
+          <SeoEmpty title={empty.title} text={empty.text} createHref={createHref} where={empty.where} category={empty.category} />
         ) : (
           <div className="mt-(--space-section) flex flex-col items-start gap-4">
             <p className="text-h2 text-ink">{t("emptyTitle")}</p>

@@ -73,7 +73,7 @@ export const SPOTLIGHT_MIN = 5;
 
 
 /** A new House belongs to the people whose search it answers this long: only they see it, and each has a token to join. */
-export const SEARCH_HEAD_START_HOURS = 48;
+export { SEARCH_HEAD_START_HOURS } from "./policies";
 
 
 /** Starting soon: starts within this many days. */

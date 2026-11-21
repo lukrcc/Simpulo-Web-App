@@ -16,6 +16,15 @@ export interface EmailItem {
   text: string;
   /** The button's target */
   url?: string;
+  /** Up to three Houses to show under it ("Didn't work out", removed by the host) */
+  houses?: EmailHouse[];
+}
+
+export interface EmailHouse {
+  title: string;
+  /** "Mar 3 · Lisbon" */
+  meta: string;
+  href: string;
 }
 
 /** `to`: an account – or, for people without one (the waitlist, a host application, a report), their email address. */

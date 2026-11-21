@@ -2,6 +2,9 @@
 // /community-guidelines. The words come from content/legal/<slug>.<lang>.md (lib/legal), never from code. Reading width, the title with
 // "Version · Last updated" under it, the draft note while no lawyer has reviewed the text, a table of contents for long texts (4+
 // sections; beside the text from 1100px, above it below), and the EN/DE switch once a German file exists.
+import { hasBusinessAddress } from "@/config/company";
+import { PREVIEW_GATE } from "@/config/preview";
+import { APP_MODE } from "@/lib/appMode";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -110,7 +113,7 @@ function Body({ blocks }: { blocks: Block[] }) {
 }
 
 /** One language version: the head (title, version, date, draft note), the contents and the text. */
-async function Version({ doc, lang }: { doc: LegalDoc; lang: string }) {
+async function Version({ doc, lang, notice }: { doc: LegalDoc; lang: string; /** An internal note under the head (the imprint's missing address) */ notice?: string }) {
   const t = await getTranslations("legal");
   const format = await getFormatter();
   const headings = doc.blocks.filter((b): b is Extract<Block, { kind: "heading" }> => b.kind === "heading");
@@ -125,6 +128,11 @@ async function Version({ doc, lang }: { doc: LegalDoc; lang: string }) {
         {doc.meta.draft && (
           <p role="note" data-legal-draft-note className="mt-4 rounded-xl border border-dashed border-accent/50 bg-(--warn-bg) px-4 py-3 text-body text-(--warn-text)">
             <strong className="font-semibold">{t("draft")}</strong> · {t("draftText")}
+          </p>
+        )}
+        {notice && (
+          <p role="note" data-legal-internal-note className="mt-4 rounded-xl border border-dashed border-accent/50 bg-(--warn-bg) px-4 py-3 text-body text-(--warn-text)">
+            {notice}
           </p>
         )}
         {toc && (
@@ -167,12 +175,16 @@ function TocList({ headings, title }: { headings: { id: string; text: string }[]
 export async function LegalPage({ slug }: { slug: LegalSlug }) {
   const t = await getTranslations("legal");
   const versions = legalVersions(slug);
+  // The imprint without a business address yet: an internal note – only in dev, the demo and behind the preview gate (never public, and a
+  // public build without the address stops anyway: scripts/check-legal.ts).
+  const internal = APP_MODE !== "production" || PREVIEW_GATE;
+  const notice = slug === "impressum" && internal && !hasBusinessAddress() ? t("addressFollows") : undefined;
   return (
     <Container page>
       <div data-legal-page={slug} className="pb-8">
         <LegalVersions
           label={t("language")}
-          versions={versions.map((v) => ({ lang: v.lang, label: t(`langs.${v.lang}`), node: <Version doc={v.doc} lang={v.lang} /> }))}
+          versions={versions.map((v) => ({ lang: v.lang, label: t(`langs.${v.lang}`), node: <Version doc={v.doc} lang={v.lang} notice={notice} /> }))}
         />
       </div>
     </Container>

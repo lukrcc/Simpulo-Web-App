@@ -507,8 +507,10 @@ html.sim-standalone {
   /* The grid's card height keeps the chip row's former depth (108px), so the deeper tab doesn't shrink the cards. */
   --header-row-total: calc(108px + var(--band-h));
   --scroll-under-tab: calc(var(--header-open-total) + 40px);
-  /* The footer: a step darker than the floor. */
-  --footer-surface: color-mix(in srgb, var(--surface-2) 70%, var(--bg));
+  /* The footers (CLAUDE.md "Footer"): the large one the header's colour; the slim one the page's own surface with a fine line on top. */
+  --footer-surface: var(--header-surface);
+  --footer-slim-surface: var(--bg);
+  --footer-slim-line: var(--line);
   --spot-h: clamp(440px, 100vh - var(--header-total) - 160px, 680px);
   --spot-w: calc(var(--spot-h) * 3 / 4);
   --spot-top: clamp(96px, 100vh - var(--spot-h) - 32px, 280px);

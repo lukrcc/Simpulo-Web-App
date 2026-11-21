@@ -5,7 +5,7 @@
 // A new version: once more – "We've updated our Terms" at the next visit or login, the guidelines before the next request or House.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useLayoutEffect, useState, useSyncExternalStore, type ReactNode, useEffect } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
@@ -131,6 +131,14 @@ export function TermsGate() {
   const [later, setLater] = useState(false);
   const title = useTermsTitle(needed ?? "outdated");
   const inline = useSyncExternalStore(subscribeTerms, () => inlineTerms, () => 0);
+  const versions = useConsentVersions();
+  // A newer version for someone who agreed before: the notice too (catalogue "termsUpdate", in-app + email) – once per version (the store).
+  const { announceTerms } = store;
+  const termsVersion = versions.terms;
+  const outdated = Boolean(me) && needed === "outdated";
+  useEffect(() => {
+    if (outdated) announceTerms(termsVersion);
+  }, [outdated, termsVersion, announceTerms]);
   if (!me || !needed || later || inline > 0) return null;
   return (
     <Sheet open onClose={() => setLater(true)} title={title}>

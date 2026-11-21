@@ -1,6 +1,7 @@
 // A guest's way through a House, on its own page (/h/[id]): Requested → Accepted → Crew → Pay → Arrival. The current step is the first one not
 // done. Pay only comes once the crew is complete AND the place is picked (with "together", picking the place is part of the Crew step: "Crew &
 // place"). The booking is the host's job: for the guest it shows as a check inside Arrival ("Booked ✓"). Words in messages (house.steps.*).
+import { DEADLINE_HOURS } from "@/config/policies";
 import type { JoinRequest, Payment, Stay } from "@/lib/types";
 
 export type GuestStepKey = "requested" | "accepted" | "crew" | "pay" | "arrival";
@@ -32,7 +33,8 @@ export interface GuestJourney {
 
 const ORDER: readonly GuestStepKey[] = ["requested", "accepted", "crew", "pay", "arrival"];
 const DAY_MS = 86_400_000;
-const REQUEST_HOURS = 48;
+/** A request runs out after this many hours (config/policies.ts DEADLINES.request "expire" – 72 h). */
+const REQUEST_HOURS = DEADLINE_HOURS.request;
 
 export function guestJourney(stay: Stay, request: JoinRequest | undefined, payment: Payment | undefined, now: string, /** Who's in, host included (crewInOf) */ inCrew = stay.spotsFilled): GuestJourney {
   const together = stay.accommodationStatus !== "locked" && !stay.accommodationLink;

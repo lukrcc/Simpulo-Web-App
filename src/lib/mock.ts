@@ -647,6 +647,8 @@ export interface JoinRequest extends Attribution {
    * guest still sees their House area with its own note in "Me" – and a line in Messages (the direct chat with the host).
    */
   endedReason?: "removed" | "paymentLapsed" | "moderation";
+  /** Removed by the host: the reason they gave (optional) – the guest sees it in the notification and the Me tab */
+  endedNote?: string;
   endedAt?: string;
   /** The deadline steps already taken (lib/deadlines.ts, config/policies.ts DEADLINES): step id → when */
   deadlines?: Partial<Record<string, string>>;

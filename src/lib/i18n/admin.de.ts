@@ -5,6 +5,7 @@
 // Anchor Creator, Explore, Up next, Needs you, Spotlight, Example. New admin texts go into this file only (CLAUDE.md "Admin").
 //
 // Numbers and dates in German format (lib/i18n/adminFormat.ts): 1.580 · 4.400 € · 14. Nov. · 38 % (space before %).
+import { HOUSE_RISK } from "@/config/admin";
 
 export const ADMIN_DE = {
   title: "Admin",
@@ -259,7 +260,7 @@ export const ADMIN_DE = {
     title: "Houses",
     tabsLabel: "Houses",
     sort: { label: "Sortieren", urgency: "Dringlichkeit", start: "Start", fill: "Füllrate", title: "Titel" },
-    info: { atRisk: "Kommende Houses, bei denen eine Regel greift: wenig voll kurz vor dem Start, seit 7 Tagen keine Anfrage oder eine Anfrage länger als 48 h offen. Sortiert nach Dringlichkeit: freie Plätze pro verbleibendem Tag." },
+    info: { atRisk: `Kommende Houses, bei denen eine Regel greift: wenig voll kurz vor dem Start, seit 7 Tagen keine Anfrage oder eine Anfrage länger als ${HOUSE_RISK.unansweredHours} h offen. Sortiert nach Dringlichkeit: freie Plätze pro verbleibendem Tag.` },
     lever: {
       visibility: { name: "Sichtbarkeit", text: "Rückt das House auf Explore nach vorn.", action: "Im Explore hervorheben" },
       demand: {
@@ -839,6 +840,7 @@ export const ADMIN_DE = {
         pushActive: { title: "Push aktiv", text: "Versand: {mode} (config/notifications.ts DELIVERY)" },
         widthTest: { title: "Breiten-Test grün", text: "{state}" },
         noDrafts: { title: "Rechtsseiten ohne Entwurf", text: "{state}" },
+        impressumAddress: { title: "Impressum: echte Geschäftsadresse eingetragen", text: "{state}" },
         impressum: { title: "Impressum ausgefüllt", text: "{state}" },
         duties: { title: "Plattform-Pflichten geprüft", text: "{reviewed} von {total} vom Anwalt geprüft" },
         founder: { title: "Gründer-Abschnitt", text: "{state}" },
@@ -861,6 +863,8 @@ export const ADMIN_DE = {
       gapsNone: "alle Felder ausgefüllt",
       founderMissing: "FOUNDER in config/pages.ts noch leer",
       founderOk: "ausgefüllt",
+      addressOk: "Straße, Ort und Land stehen in config/company.ts",
+      addressMissing: "Noch keine Geschäftsadresse – blockiert den öffentlichen Start (Phase Live, Live-Build)",
     },
     duties: {
       note: "Vorbereitung für die Pflichten einer Plattform – Details klärt Lukas mit dem Anwalt. Keine Rechtsberatung.",
@@ -893,6 +897,7 @@ export const ADMIN_DE = {
     phases: { prelaunch: "Pre-Launch", beta: "Beta", live: "Live" },
     confirmTitle: "Zu {phase} wechseln?",
     confirmText: "Alle sehen, was {phase} erlaubt. Die Seite lädt mit den Daten dieser Phase neu. Das kommt ins Log.",
+    liveBlocked: "Noch keine Geschäftsadresse im Impressum (config/company.ts). Öffentlich geht Simpulo erst mit echter Adresse – siehe Launch-Checkliste.",
     confirm: "Zu {phase} wechseln",
     values: "Werte (config/platform.ts)",
     hideCategory: "Examples verlassen eine Kategorie bei",

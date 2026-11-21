@@ -1,5 +1,6 @@
 "use client";
 
+import { INVITE_POLICY } from "@/config/policies";
 import { canMessage } from "@/lib/messagePermission";
 import { WhatsPlanned } from "@/components/stay/ProgramParts";
 import { useDevSetting } from "@/lib/devSettings";
@@ -244,7 +245,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   async function copyFriendLink(requestId: string) {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/h/${stay.id}?with=${requestId}`);
-      showToast(tInvite("copied", { hours: 48 }));
+      showToast(tInvite("copied", { hours: INVITE_POLICY.inviteHoldHours }));
     } catch {
       showToast(tCommon("linkCopyFailed"));
     }

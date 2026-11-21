@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyByEmail } from "@/lib/notify";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -223,7 +224,9 @@ export function EmailForm({ onSuccess }: { onSuccess: (userId: string) => void }
     if (!e.currentTarget.checkValidity()) return;
     const address = email.trim();
     setSentTo(address);
-    // A real backend would email a sign-in link; the mock "clicks" it after a moment.
+    // The sign-in link by email (catalogue "signIn" – mock: the Dev menu's log); a real backend sends it with a signed token. The mock then
+    // "clicks" it after a moment.
+    notifyByEmail(address, "signIn", { url: "/" });
     timer.current = setTimeout(() => {
       login(mockUserId);
       onSuccess(mockUserId);

@@ -9,8 +9,10 @@ import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { notify, notifyByEmail } from "@/lib/notify";
 import { tEn } from "@/lib/i18n/translate";
+import { waitlistStatus } from "@/lib/types";
 import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, Stay, SupportTicket, TicketStatus } from "@/lib/types";
 import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
+import { useAdminData } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
@@ -21,6 +23,7 @@ const currentPhase = (): PlatformPhase => readPlatformPhase();
 export function useAdminActions() {
   const store = useStore();
   const by = getCurrentUser(store)?.id ?? "unknown";
+  const data = useAdminData();
   return {
     /**
      * Annehmen (yes) · Rückfrage (maybe) · Ablehnen (no) on an application – each into the log, each with an email to the applicant (mock: the
@@ -338,8 +341,20 @@ export function useAdminActions() {
     /** The platform phase – the same storage as the Dev menu's switch; the page reloads with that phase's data. */
     changePhase(phase: PlatformPhase) {
       appendAdminLog("phase_changed", phase, by);
+      // Live: everyone confirmed on the waitlist hears that Houses are open (catalogue "waitlistOpen") – accounts in the app and by email,
+      // the rest by email. Mock: the Dev menu's log.
+      if (phase === "live") {
+        const confirmed = data.waitlist.filter((e) => waitlistStatus(e) === "confirmed");
+        for (const entry of confirmed) {
+          const account = entry.userId ? store.users.find((u) => u.id === entry.userId) : undefined;
+          if (account) notify(account.id, "waitlistOpen", { key: "waitlistOpen", values: {}, eventId: `waitlist-open-${entry.id}`, href: "/explore", text: tEn("messages.notify.waitlistOpen"), url: "/explore", prefs: account.settings?.notifications });
+          else notifyByEmail(entry.email, "waitlistOpen", { url: "/explore" });
+        }
+        appendAdminLog("waitlist_notified", `Launch · ${confirmed.length}`, by);
+      }
       setPlatformPhase(phase);
-      window.location.reload();
+      // A moment for the store to keep the new notices before the page loads again.
+      window.setTimeout(() => window.location.reload(), 300);
     },
   };
 }

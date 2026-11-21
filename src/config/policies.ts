@@ -5,10 +5,15 @@
  * host confirms the booking within this many hours, otherwise everything is refunded.
  */
 export const PAYMENT_POLICY = {
-  /** The 48 hours to pay once the crew is complete – the lapse step of DEADLINES.payment must match */
+  /** The hours to pay once the crew is complete – DEADLINES.payment's lapse step reads it */
   paymentWindowHours: 48,
   hostBookingWindowHours: 48,
 } as const;
+
+/** "Spots for friends" and invite links: a spot is held this many hours (DEADLINES.invite and INVITE_POLICY read it). */
+const INVITE_HOLD_HOURS = 48;
+/** Saved searches hear about a new House first: for this many hours only they see it on Explore (config/explore.ts re-exports it). */
+export const SEARCH_HEAD_START_HOURS = 48;
 
 export const CANCELLATION_POLICY = {
   /** Until the crew is complete: a request or a spot can be withdrawn any time, for free (nothing is paid before). */
@@ -102,16 +107,16 @@ export const DEADLINES = {
     /** A day into the 48 hours: the guest is reminded */
     { id: "payReminder", afterHours: 24, to: "guest", notice: "deadlinePayReminder" },
     /** Four hours left */
-    { id: "payReminderLast", afterHours: 44, to: "guest", notice: "deadlinePayLastHours" },
-    /** 48 hours: the spot is free again – the guest hears it, the host and crew too (store settlePayments) */
-    { id: "lapse", afterHours: 48, to: "guest", notice: "deadlineYourPaymentLapsed" },
+    { id: "payReminderLast", afterHours: PAYMENT_POLICY.paymentWindowHours - 4, to: "guest", notice: "deadlinePayLastHours" },
+    /** The window is over: the spot is free again – the guest hears it, the host and crew too (store settlePayments) */
+    { id: "lapse", afterHours: PAYMENT_POLICY.paymentWindowHours, to: "guest", notice: "deadlineYourPaymentLapsed" },
   ],
   /**
    * "Spots for friends" (a member's or the host's invite link, HouseInvite.spots): the spots are held 48 hours (INVITE_POLICY.inviteHoldHours);
    * then they're free again – the one who saved them hears it ("guest" here = the inviter), and so does every signed-in friend who opened the
    * link (HouseInvite.openedBy).
    */
-  invite: [{ id: "inviteExpire", afterHours: 48, to: "guest", notice: "friendSpotsExpired" }],
+  invite: [{ id: "inviteExpire", afterHours: INVITE_HOLD_HOURS, to: "guest", notice: "friendSpotsExpired" }],
 } as const satisfies Record<"request" | "payment" | "invite", readonly { id: string; afterHours: number; to: "host" | "guest" | "admin"; notice: string | null }[]>;
 export type DeadlineFlow = keyof typeof DEADLINES;
 export type DeadlineStepId = (typeof DEADLINES)[DeadlineFlow][number]["id"];
@@ -223,7 +228,7 @@ export const HIGHLIGHT_POLICY = { days: 7, maxConcurrent: 3, rankShiftDays: 21 }
 export const NUDGE_POLICY = { perPersonPerDay: 1 } as const;
 
 export const INVITE_POLICY = {
-  inviteHoldHours: 48,
+  inviteHoldHours: INVITE_HOLD_HOURS,
   inviteNonConnectionsPerDay: 5,
   /** "Spots for friends": one link holds 1 to this many spots (never more than are open) */
   maxSpotsPerLink: 3,
@@ -232,4 +237,47 @@ export const INVITE_POLICY = {
 /** "I'm in for …" (lib/inFor.ts): at most this many running at once per person; each runs out after its last month. */
 export const IN_FOR_POLICY = {
   maxActive: 3,
+} as const;
+
+/**
+ * Every deadline a text names, in hours – the one place texts read them from (lib/i18n/en.ts fills them in; nothing writes "48h" by hand).
+ * Each one is the value its rule above decides.
+ */
+export const DEADLINE_HOURS = {
+  /** A request runs out (DEADLINES.request "expire") */
+  request: DEADLINES.request.find((s) => s.id === "expire")!.afterHours,
+  /** The window to pay once the crew is complete */
+  payment: PAYMENT_POLICY.paymentWindowHours,
+  /** The host books and uploads the confirmation after everyone paid */
+  booking: PAYMENT_POLICY.hostBookingWindowHours,
+  /** An invite link / spots for friends hold a spot */
+  invite: INVITE_HOLD_HOURS,
+  /** A waitlist offer */
+  waitlistOffer: WAITLIST_POLICY.offerHours,
+  /** Simpulo looks at a report */
+  reportReview: REPORT_POLICY.reviewHours,
+  /** Saved searches hear first */
+  searchHeadStart: SEARCH_HEAD_START_HOURS,
+} as const;
+
+/**
+ * The reminders of lib/reminders.ts (Dev menu "Reminders", "Do it again" in the store) – their timings from the rules above where one decides
+ * it, the rest here. Nothing in lib/reminders.ts is a number of its own.
+ */
+export const REMINDER_TIMING = {
+  /** Before the payment window closes: the first reminder (= the window minus DEADLINES.payment "payReminder") */
+  payDueHoursBefore: PAYMENT_POLICY.paymentWindowHours - DEADLINES.payment.find((s) => s.id === "payReminder")!.afterHours,
+  /** …and the last call (= the window minus "payReminderLast") */
+  payLastCallHoursBefore: PAYMENT_POLICY.paymentWindowHours - DEADLINES.payment.find((s) => s.id === "payReminderLast")!.afterHours,
+  /** After everyone paid: the host is reminded to upload the booking halfway through the booking window */
+  bookingUploadAfterHours: PAYMENT_POLICY.hostBookingWindowHours / 2,
+  /** Open requests: the host's last reminder (DEADLINES.request "hostReminderLast") */
+  requestAnswerHours: DEADLINES.request.find((s) => s.id === "hostReminderLast")!.afterHours,
+  arrivalDaysBefore: 3,
+  savedWindowDays: 60,
+  savedDaysBefore: 14,
+  /** Host alerts: Houses an alerted host opened within this window */
+  hostAlertWindowDays: 30,
+  /** "Want to do it again?": this long after a House ended, to everyone in its crew */
+  doItAgainDaysAfter: 2,
 } as const;

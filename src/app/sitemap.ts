@@ -1,3 +1,4 @@
+import { VIBES } from "@/lib/utils";
 import type { MetadataRoute } from "next";
 import { citySlugOf, getCities, getPublicStays, MIN_INDEXABLE_HOUSES } from "@/lib/data/stays";
 import { COLLECTIONS, MIN_COLLECTION_SIZE } from "@/lib/collections";
@@ -35,6 +36,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter(({ houses }) => houses.length >= MIN_COLLECTION_SIZE)
       .map(({ collection, houses }) => ({ url: absoluteUrl(`/collections/${collection.slug}`), lastModified: newest(houses.map((s) => s.createdAt)) })),
     ...GUIDES.map((g) => ({ url: absoluteUrl(`/guides/${g.slug}`), lastModified: new Date(g.published) })),
+    // The overviews, and every theme page with enough open Houses (the others are noindex).
+    ...["/places", "/themes"].map((path) => ({ url: absoluteUrl(path), lastModified: STATIC_UPDATED })),
+    ...VIBES.map((v) => ({ vibe: v.key, houses: stays.filter((s) => isListedStay(s) && s.vibe === v.key) }))
+      .filter(({ houses }) => houses.length >= MIN_INDEXABLE_HOUSES)
+      .map(({ vibe, houses }) => ({ url: absoluteUrl(`/themes/${vibe}`), lastModified: newest(houses.map((s) => s.createdAt)) })),
     // Host pages only when the host chose "Show my host page in search engines" (lib/privacy.ts) – guest profiles never (noindex).
     ...getUsers()
       .filter((u) => !u.deletedAt && stays.some((s) => s.hostId === u.id) && hostPageInSearch(u))

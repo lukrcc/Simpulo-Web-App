@@ -8,6 +8,8 @@ import { APP_MODE } from "@/lib/appMode";
 import { linkBase } from "@/lib/links";
 import { catalogOf, notify } from "@/lib/notify";
 import { shortNameOf } from "@/lib/shortName";
+import { typeOf } from "@/lib/data/notifications";
+import { similarHouses } from "@/lib/requests";
 import { setInAppSink } from "@/lib/notify/channels/inapp";
 import { setAnnounce } from "@/lib/notify/log";
 import { findUser, settingsOf, useStore } from "@/lib/store";
@@ -20,6 +22,9 @@ import { hrefOf } from "./useNotifications";
  * - notify() called outside the reducer writes its in-app records into the store,
  * - in the demo, push and email to the person using the app show as a small toast ("📧 Email sent: …").
  */
+/** The emails are English: "Jan 8". */
+const emailDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
+
 export function NotifyBridge() {
   const store = useStore();
   const text = useNotificationText();
@@ -59,9 +64,12 @@ export function NotifyBridge() {
       done.current.add(n.id);
       const href = hrefOf(n, store.stays, n.userId);
       const stay = n.stayId ? store.stays.find((s) => s.id === n.stayId) : undefined;
+      // "Didn't work out" and "taken out by the host": three similar Houses go into the email too (the Activity list shows them already).
+      const similar = stay && typeOf(n) === "request_declined" ? similarHouses(store.stays, stay, n.userId) : [];
       notify(n.userId, catalogOf(n.key), {
         // Push and the lock screen show only the kind and this (the catalogue's short line) – never the text below.
         house: stay ? shortNameOf(stay) : undefined,
+        houses: similar.map((s) => ({ title: s.title, meta: `${emailDay.format(new Date(`${s.startDate}T00:00:00Z`))} · ${s.location.city}`, href: `/house/${s.slug}` })),
         key: n.key,
         values: n.values,
         eventId: n.eventId,

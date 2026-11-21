@@ -1,5 +1,6 @@
 "use client";
 
+import { INVITE_POLICY } from "@/config/policies";
 import { cleanSpace } from "@/config/space";
 import { useDepthChoice } from "@/config/platform";
 import { depthLocked } from "@/lib/depth";
@@ -912,7 +913,7 @@ function OpenedScreen({ stay, notified, host, form, linkToken, preselect }: { st
               <div>
                 <p className="text-eyebrow uppercase text-ink/55">{tInvite("fillLive")}</p>
                 <h1 className="mt-2 text-h1 text-ink">{tInvite("fillTitle")}</h1>
-                <p className="mt-3 max-w-[560px] text-body-lg text-muted">{tInvite("fillText", { hours: 48 })}</p>
+                <p className="mt-3 max-w-[560px] text-body-lg text-muted">{tInvite("fillText", { hours: INVITE_POLICY.inviteHoldHours })}</p>
               </div>
             }
           />

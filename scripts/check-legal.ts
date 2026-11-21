@@ -6,6 +6,7 @@
 //    checklist).
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { ADDRESS_FIELDS, COMPANY, hasBusinessAddress } from "../src/config/company";
 import { CONSENT_DOCS } from "../src/config/consent";
 import { PREVIEW_GATE } from "../src/config/preview";
 import { STORAGE } from "../src/config/storage";
@@ -69,6 +70,8 @@ export function assertLegal(root = process.cwd()) {
   const { files, problems } = legalStatus(root);
   const drafts = files.filter((f) => f.draft);
   if (goingLive() && drafts.length) problems.push(`Entwurf darf nicht live gehen (Anwalt prüfen, dann draft: false): ${drafts.map((d) => `${d.slug}.${d.lang}.md`).join(", ")}`);
+  // The imprint needs a real business address before the public site goes live (config/company.ts).
+  if (goingLive() && !hasBusinessAddress()) problems.push(`Impressum ohne Geschäftsadresse darf nicht live gehen: ${ADDRESS_FIELDS.filter((k) => !COMPANY[k]).map((k) => `company.${k}`).join(", ")} in src/config/company.ts eintragen`);
   if (problems.length) throw new Error(`Rechtstexte:\n  ${problems.join("\n  ")}`);
   if (drafts.length) console.warn(`Rechtstexte: ${drafts.length} Entwürfe (vor dem Launch prüfen lassen) – ${drafts.map((d) => d.slug).join(", ")}`);
 }

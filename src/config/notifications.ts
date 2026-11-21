@@ -42,16 +42,16 @@ export interface CatalogEntry {
   path: string;
 }
 
-const money = (trigger: string | null, to: Recipient, path = "/your-houses"): CatalogEntry => ({ trigger, to, category: "bookings", mandatory: true, email: "instant", push: true, inApp: true, path });
+const money = (trigger: string | null, to: Recipient, path = "/your-houses", extra: Partial<CatalogEntry> = {}): CatalogEntry => ({ trigger, to, category: "bookings", mandatory: true, email: "instant", push: true, inApp: true, path, ...extra });
 const account = (trigger: string | null, to: Recipient, path = "/", extra: Partial<CatalogEntry> = {}): CatalogEntry => ({ trigger, to, category: "account", mandatory: true, email: "instant", push: false, inApp: false, path, ...extra });
 const tip = (trigger: string | null, category: OptionalCategory, path = "/your-houses", extra: Partial<CatalogEntry> = {}): CatalogEntry => ({ trigger, to: "guest", category, mandatory: false, email: "daily", push: true, inApp: true, path, ...extra });
 
 export const NOTIFY_CATALOG = {
   // ── Account ──
-  signIn: account(null, "account", "/"),
-  welcome: account(null, "account", "/settings/profile?setup=1", { inApp: true }),
+  signIn: account("auth/AuthSheet › sendLink (the magic link)", "account", "/"),
+  welcome: account("store › agree (the first Terms = a new account)", "account", "/settings/profile?setup=1", { inApp: true }),
   // ── Requests ──
-  requestSent: money(null, "guest"),
+  requestSent: money("store › requestToJoin", "guest", "/your-houses", { push: false }),
   requestReceived: money("store › requestToJoin, requestWaitlist, withdrawRequest", "host"),
   requestAccepted: money("store › acceptRequest, takeWaitlistSpot, syncWaitlist", "guest"),
   requestDeclined: money("store › declineRequest, removeFromWaitlist", "guest", "/your-houses"),
@@ -67,7 +67,8 @@ export const NOTIFY_CATALOG = {
   bookingConfirmed: money("store › confirmBooking", "crew"),
   cancelled: money("store › closeStay, leaveStay", "crew"),
   refund: money("store › settlePayments, leaveStay", "guest", "/settings#payments"),
-  guestRemoved: money(null, "guest"),
+  // In-app + email (no push): the reason, if any, and three similar Houses.
+  guestRemoved: money("store › removeMember", "guest", "/explore", { push: false }),
   houseMilestone: money("store › acceptRequest, takeWaitlistSpot, redeemHouseInvite, respondToInvite (crew complete)", "crew"),
   // ── The House's arc (House tips) ──
   arcStep: tip("stay/ArcParts › useArcEmails", "arc"),
@@ -81,14 +82,15 @@ export const NOTIFY_CATALOG = {
   chatMessage: { trigger: "store › sendMessage", to: "crew", category: "messages", mandatory: false, email: "unreadAfter", push: true, inApp: true, path: "/messages" },
   houseNudge: { trigger: "lib/admin/actions › nudgeHouse (Admin › Houses › Nachfrage)", to: "account", category: "nearby", mandatory: false, email: "daily", push: true, inApp: false, path: "/explore" },
   newHouse: { trigger: "store › announceToSearches", to: "account", category: "nearby", mandatory: false, email: "weekly", push: true, inApp: true, path: "/explore" },
-  profileTips: { trigger: null, to: "account", category: "news", mandatory: false, email: "optIn", push: false, inApp: true, path: "/settings/profile" },
+  // One tip at the end of the onboarding about the account itself – in the app and the daily bundle, no push.
+  profileTips: { trigger: "store › setOnboarding (guest done)", to: "account", category: "account", mandatory: false, email: "daily", push: false, inApp: true, path: "/settings/profile" },
   // ── Applications, waitlist ──
   applicationReceived: account("store › addApplication", "applicant", "/apply"),
   applicationAccepted: account("lib/admin/actions › decide (yes)", "applicant", "/welcome/host"),
   applicationDeclined: account("lib/admin/actions › decide (no)", "applicant", "/apply"),
   applicationQuestion: account("lib/admin/actions › decide (maybe)", "applicant", "/apply"),
   waitlistConfirm: account("lib/waitlistSignup › joinWaitlist", "waitlist", "/"),
-  waitlistOpen: account(null, "waitlist", "/explore"),
+  waitlistOpen: account("lib/admin/actions › changePhase (live)", "waitlist", "/explore", { inApp: true }),
   // ── Safety ──
   reportReceived: account("store › reportContent, safety/ReportContentForm", "reporter", "/", { inApp: true }),
   reportDecided: account("store › decideReport (lib/admin/actions › moderate)", "reporter", "/", { inApp: true }),
@@ -96,9 +98,9 @@ export const NOTIFY_CATALOG = {
   teamMessage: account("lib/admin/actions › sendHostSuggestions, proposeAlternative (Admin › Houses)", "host", "/messages?id=support", { push: true }),
   supportReply: account("lib/admin/actions › reply", "account", "/messages?id=support", { inApp: true }),
   // ── Terms and the account ──
-  termsUpdate: account(null, "account", "/terms"),
-  accountPaused: account(null, "account", "/settings#privacy"),
-  accountDeleted: account(null, "account", "/"),
+  termsUpdate: account("consent/Agreements › TermsGate → store › announceTerms", "account", "/terms", { inApp: true }),
+  accountPaused: account("store › updateCurrentUser (paused)", "account", "/settings#privacy", { inApp: true }),
+  accountDeleted: account("store › deleteAccount (email only – the account is gone)", "account", "/"),
 } satisfies Record<string, CatalogEntry>;
 
 export type CatalogId = keyof typeof NOTIFY_CATALOG;
@@ -167,6 +169,12 @@ export const EVENT_OF: Record<NotifyEventKey, CatalogId> = {
   appealUpheld: "decision",
   appealReversed: "decision",
   friendSpotsExpired: "friendSpots",
+  removedByHost: "guestRemoved",
+  removedByHostReason: "guestRemoved",
+  requestSent: "requestSent",
+  termsUpdated: "termsUpdate",
+  accountPaused: "accountPaused",
+  waitlistOpen: "waitlistOpen",
   friendSpotExpiredForYou: "friendSpots",
 };
 

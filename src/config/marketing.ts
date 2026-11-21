@@ -20,14 +20,14 @@ export const CHANNEL_STATUSES: readonly ChannelStatus[] = ["now", "later", "no"]
  * `note` (the classification) only where the plan gives one – nothing is made up, an empty field simply isn't shown.
  */
 export const MARKETING_CHANNELS: readonly { rank: number; name: string; tools: readonly string[]; note: string; status: ChannelStatus }[] = [
-  { rank: 1, name: "Hosts direkt gewinnen", tools: [], note: "", status: "now" },
-  { rank: 2, name: "House-Link als Werbemittel", tools: [], note: "", status: "now" },
-  { rank: 3, name: "Echte Houses filmen", tools: [], note: "", status: "now" },
-  { rank: 4, name: "Reels, TikTok, Shorts", tools: ["Instagram Reels", "TikTok", "YouTube Shorts"], note: "", status: "now" },
-  { rank: 5, name: "Kleine Creator pro gefülltem House bezahlen", tools: [], note: "", status: "later" },
-  { rank: 6, name: "SEO und KI-Suche", tools: [], note: "", status: "later" },
-  { rank: 7, name: "Communities", tools: ["Skool", "Discord", "Reddit"], note: "", status: "now" },
-  { rank: 8, name: "Bezahlte Anzeigen", tools: [], note: "", status: "no" },
+  { rank: 1, name: "Hosts direkt gewinnen", tools: ["Demo-Zugang", "Kontaktliste", "E-Mail von simpulo.app"], note: "Wichtigster Hebel.", status: "now" },
+  { rank: 2, name: "House-Link als Werbemittel", tools: ["Share-Bilder", "Link-Vorschau"], note: "Im Produkt eingebaut.", status: "now" },
+  { rank: 3, name: "Echte Houses filmen", tools: ["Smartphone", "Shotliste", "Schnitt"], note: "Beweis statt Behauptung.", status: "now" },
+  { rank: 4, name: "Reels, TikTok, Shorts", tools: ["Instagram Reels", "TikTok", "YouTube Shorts", "Schnittprogramm", "2D-Serie"], note: "Mit Material aus Kanal 3.", status: "now" },
+  { rank: 5, name: "Kleine Creator pro gefülltem House bezahlen", tools: ["Tracking-Link"], note: "Erst mit Stripe.", status: "later" },
+  { rank: 6, name: "SEO und KI-Suche", tools: ["Zielseiten", "Ratgeber"], note: "Wirkt nach 6–12 Monaten.", status: "later" },
+  { rank: 7, name: "Communities", tools: ["Skool", "Discord", "Reddit", "eigener Account", "mitlesen"], note: "Nicht am ersten Tag werben.", status: "now" },
+  { rank: 8, name: "Bezahlte Anzeigen", tools: ["Meta", "TikTok"], note: "Vorerst nein (10 % Take Rate).", status: "no" },
 ];
 
 /** The timeline; `from` (YYYY-MM) is when a phase begins – the page marks the one today falls in. */

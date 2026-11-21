@@ -31,6 +31,8 @@ export interface NotifyData extends Partial<inApp.InAppInput> {
   quiet?: QuietHours;
   /** The email's body instead of the entry's (an admin's question to an applicant) */
   body?: string;
+  /** Similar Houses to show in the email (up to three) */
+  houses?: email.EmailHouse[];
 }
 
 export interface Channels {
@@ -77,13 +79,13 @@ export function notify(userId: string, id: CatalogId, data: NotifyData): Channel
 }
 
 /** Email only – for people without an account (the waitlist, a host application, a report from the form) or a ready-made line. */
-export function notifyByEmail(to: string, id: CatalogId, data: Pick<NotifyData, "text" | "house" | "url" | "body"> = {}) {
+export function notifyByEmail(to: string, id: CatalogId, data: Pick<NotifyData, "text" | "house" | "url" | "body" | "houses"> = {}) {
   const timing = NOTIFY_CATALOG[id].email;
   if (timing) sendEmail(to, id, timing, data, catalogText(id, data.house));
 }
 
 function sendEmail(to: string, id: CatalogId, timing: EmailTiming, data: NotifyData, words: ReturnType<typeof catalogText>) {
-  const item: email.EmailItem = { id, subject: words.subject, headline: data.text ?? words.subject, text: data.body ?? words.body, url: data.url ?? NOTIFY_CATALOG[id].path };
+  const item: email.EmailItem = { id, subject: words.subject, headline: data.text ?? words.subject, text: data.body ?? words.body, url: data.url ?? NOTIFY_CATALOG[id].path, ...(data.houses?.length && { houses: data.houses.slice(0, 3) }) };
   switch (timing) {
     case "instant":
       email.send(to, item);

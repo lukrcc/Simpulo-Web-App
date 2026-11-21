@@ -18,6 +18,13 @@ export const metadata: Metadata = { title: "Emails", robots: PRIVATE_ROBOTS };
 const SAMPLE = { name: "Aisha", title: "Fitness House Canggu", date: "Nov 7", price: "€528", count: 2, place: "Lisbon", hours: 48, days: 12, amount: "€480", preview: "See you at 6 at the gym!", open: 2, from: "Aisha", to: "Sofia", host: "Tom", spots: 2 };
 const HOUSE = "Fitness Canggu";
 const ORIGIN = "https://simpulo.app";
+/** These emails carry three similar Houses under the text (NotifyBridge fills them from the data). */
+const WITH_SIMILAR: readonly CatalogId[] = ["guestRemoved", "requestDeclined", "requestExpired"];
+const SIMILAR = [
+  { title: "Surf Coach House Ericeira", meta: "Mar 3 · Ericeira", href: "/house/surf-coach-house-ericeira" },
+  { title: "Crypto Builders House Lisbon", meta: "Apr 6 · Lisbon", href: "/house/crypto-builders-house-lisbon" },
+  { title: "Fitness House Canggu", meta: "Feb 1 · Canggu", href: "/house/fitness-house-canggu-feb" },
+];
 const TIMING: Record<string, string> = { instant: "Email right away · never bundled", daily: "Email in the daily bundle", unreadAfter: "Email only if unread after 60 min, collected", weekly: "Email in the weekly summary", optIn: "Email only with opt-in, in the daily bundle" };
 
 /**
@@ -89,7 +96,7 @@ export default async function EmailsPage() {
               </div>
               {e.email ? (
                 <div className="overflow-hidden rounded-3xl">
-                  <NotificationEmail id={id} house={HOUSE} headline={sample(id)} origin={ORIGIN} />
+                  <NotificationEmail id={id} house={HOUSE} headline={sample(id)} origin={ORIGIN} houses={WITH_SIMILAR.includes(id) ? SIMILAR : undefined} />
                 </div>
               ) : (
                 <p className="text-small text-muted">No email.</p>

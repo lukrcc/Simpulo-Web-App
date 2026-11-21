@@ -106,7 +106,16 @@ export type NotifyEventKey =
   | "appealUpheld"
   | "appealReversed"
   | "friendSpotsExpired"
-  | "friendSpotExpiredForYou";
+  | "friendSpotExpiredForYou"
+  // The host took the guest out (config/notifications.ts "guestRemoved") – with or without a reason
+  | "removedByHost"
+  | "removedByHostReason"
+  // The guest's own request, confirmed (config/notifications.ts "requestSent")
+  | "requestSent"
+  // A new Terms version · the account paused · Houses open where the waitlist wanted
+  | "termsUpdated"
+  | "accountPaused"
+  | "waitlistOpen";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -167,6 +176,13 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   appealUpheld: "system",
   appealReversed: "system",
   friendSpotsExpired: "crew_invite",
+  // "request_declined": three similar Houses under it (NotificationItem)
+  removedByHost: "request_declined",
+  removedByHostReason: "request_declined",
+  requestSent: "request_received",
+  termsUpdated: "system",
+  accountPaused: "system",
+  waitlistOpen: "house_opened_in_place",
   friendSpotExpiredForYou: "crew_invite",
 };
 

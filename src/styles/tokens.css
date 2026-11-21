@@ -614,13 +614,14 @@ body:has(.admin-scope) {
 }
 
 
-/* The large footer (layout/Footer.tsx, Explore and the place pages): dark – the strips' graphite (--stage-bar-bg without a photo's colour)
-   with a warm run to the right, a few steps only (no banding). No Ember picture as a surface. Words cream, the tokens turned like every
-   dark ground. */
+/* The large footer (layout/Footer.tsx): the header's colour (Regel: großer Footer = Header-Farbe) – --footer-surface = --header-surface, one
+   flat graphite, no warm run, no picture. Words cream, the tokens turned like every dark ground. */
 .footer-dark {
-  background-color: var(--graphite);
-  background-image: linear-gradient(100deg, var(--graphite) 45%, color-mix(in oklab, var(--graphite) 95%, var(--signal) 5%));
+  background-color: var(--footer-surface);
   color: var(--text);
+  /* Links, headings and the last line: cream 72 % – WCAG AA on this surface (computed: 4.9 : 1 light mode, 5.5 : 1 dark; 65 % held only
+     4.3 : 1 here). Text cream 100 %: 7.7 / 8.8 : 1. */
+  --text-muted: rgba(244, 238, 231, 0.72);
 }
 
 
@@ -936,7 +937,10 @@ body:has(.admin-scope) {
    line at its foot. The status bar's strip in the installed app is the same surface (one hard edge, no fade). Its capsules a little denser
    with a fine edge, words and icons white. The tab bar takes the same values. ── */
 :root {
-  --header-surface-mobile: color-mix(in srgb, var(--graphite) 96%, var(--bg));
+  /* The header's opaque colour: the graphite 96 % over the page's ground – the solid header below 1100px, and the large footer
+     (--footer-surface = --header-surface, CLAUDE.md "Footer"). */
+  --header-surface: color-mix(in srgb, var(--graphite) 96%, var(--bg));
+  --header-surface-mobile: var(--header-surface);
   --header-line-mobile: rgba(255, 255, 255, 0.12);
   --header-pill-mobile: rgba(255, 255, 255, 0.12);
   --header-pill-hover-mobile: rgba(255, 255, 255, 0.16);

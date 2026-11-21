@@ -4,6 +4,8 @@
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
 // "Ended"), under it the tabs as capsules – Chat · Crew · Plan · Moments · Me, the host also Manage – their state in the URL (?tab=plan).
 // Visitors keep the public House page (views/StayDetail.tsx). Everything from the store (mock); nothing here is a second copy of Messages.
+import { placeShortOf } from "@/lib/shortName";
+import { similarHouses } from "@/lib/requests";
 import { HostHelpChecklist } from "./HostHelpChecklist";
 import { HostChecklist } from "@/components/onboarding/HostOnboarding";
 import { ProgramEditor, ProgramFeedbackSummary, ProgramView } from "./ProgramParts";
@@ -466,16 +468,41 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
 
   if (ended) {
     const hostName = host?.name.split(" ")[0] ?? "";
+    const removedNote = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId && r.endedReason === "removed")?.endedNote;
+    // Where to go instead: up to three similar Houses with a free spot (the same as in the notification's email).
+    const similar = similarHouses(store.stays, stay, store.currentUserId);
     return (
       <div className="flex max-w-[640px] flex-col gap-6">
         <div className="card-soft rounded-[20px] p-6">
           <h2 className="text-h3 text-ink">{ended === "paymentLapsed" ? t("lapsedTitle") : t("removedTitle")}</h2>
           <p className="mt-2 text-body text-muted">{ended === "removed" ? t("removedText", { host: hostName, title: stay.title }) : ended === "moderation" ? t("moderationText", { title: stay.title }) : t("lapsedText", { title: stay.title })}</p>
+          {/* The host's reason, if they gave one (the removal's notification says it too). */}
+          {ended === "removed" && removedNote && <p className="mt-2 text-body text-ink">“{removedNote}”</p>}
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href={`/explore?category=${stay.vibe}`}>{t("similar")}</Button>
             {refunded && refundReason && <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} />}
           </div>
         </div>
+        {similar.length > 0 && (
+          <section data-similar-houses aria-labelledby="similar-houses" className="flex flex-col gap-3">
+            <h2 id="similar-houses" className="text-subhead text-ink">
+              {t("similarTitle")}
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {similar.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/house/${s.slug}`} className="flex items-center gap-3 rounded-2xl p-1 pr-3 transition-colors duration-150 hover:bg-ink/5">
+                    <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-ink/6">{housePhotos(s)[0] && <Img src={housePhotos(s)[0]} alt="" fill sizes="56px" className="object-cover" />}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-body font-semibold text-ink">{s.title}</span>
+                      <span className="block truncate text-small text-muted">{f.stayDates(s)} · {placeShortOf(s)}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} />
       </div>
     );
