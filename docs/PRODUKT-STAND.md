@@ -1,16 +1,18 @@
 # Produkt-Stand – Bestandsaufnahme
 
-Stand 21. Nov. 2026 · nur gelesen, nichts am Code geändert. Grundlage: der Code in `src/` (Routen, Komponenten, Store, Adapter), nicht die Beschreibungen in CLAUDE.md.
+Stand 21. Nov. 2026, abends · nur gelesen, nichts am Code geändert. Grundlage ist der Code in `src/` (Routen, Komponenten, Store, Adapter, Configs), nicht CLAUDE.md.
 
-**Status:** fertig · teilweise · nur Platzhalter · fehlt
+**Status:** fertig im Mock · teilweise · Platzhalter · fehlt
 **Platzhalter?** ob Inhalte Platzhalter, Entwurf, Mock oder TODO sind.
 
 ## Vorweg: was für alles gilt
 
-- **Kein Backend.** Alle Daten laufen über `src/lib/data/index.ts`. In dev und demo liefert sie der Mock-Adapter, im Production-Build der leere Adapter (`emptyAdapter`: leere Listen, `TODO(firestore)`). Zustände liegen im Client-Store (`src/lib/store.tsx`) und in localStorage.
-- **Keine externen Dienste.** `package.json` enthält kein Stripe-, Firebase-, Resend- oder Auth-Paket. Es gibt nur zwei API-Routen: `api/link-preview` und `api/static-map`.
-- **Fristen nur im Browser.** Die 48h-Fristen (Anfragen, Zahlung, Einladungen, Buchung) prüft eine Uhr im Browser beim Laden und jede Minute. Einen Server-Job gibt es nicht.
-- **„fertig“ heißt unten:** Oberfläche und Logik funktionieren im Mock-Store. In Produktion fehlt überall die Datenquelle.
+- **Kein Backend.** Alle Daten laufen über `src/lib/data/index.ts`. In dev und demo liefert sie der Mock-Adapter, im Production-Build der leere Adapter (`emptyAdapter`). Zustände liegen im Client-Store (`src/lib/store.tsx`), im Admin-Store (`src/lib/admin/store.ts`) und in localStorage.
+- **Keine externen Dienste.** `package.json` enthält kein Stripe-, Firebase-, Resend- oder Auth-Paket. `lib/payments/stripe.ts` wirft bei jeder Methode „isn't implemented yet“.
+- **Kein echter Versand.** `DELIVERY` in `config/notifications.ts` steht auf `mock` für E-Mail und Push: alles geht in die Konsole und ins Dev-Log.
+- **Fristen nur im Browser.** Fristen (Anfrage 72 h, Zahlung 48 h, Einladung 48 h) rechnet `lib/deadlines.ts` rein; ausgeführt werden sie von einer Uhr im Browser beim Laden und jede Minute. Einen Server-Job gibt es nicht.
+- **„fertig im Mock“ heißt unten:** Oberfläche und Logik funktionieren mit Mock-Daten. In Produktion fehlt überall die Datenquelle.
+- **Dev-Server:** Der laufende Dev-Server meldet auf Admin-Seiten beim Server-Rendern „reading 'filter'“. Das ist ein veralteter Code-Stand in seinem Speicher, kein Fehler im Code; ein Neustart sollte ihn beheben.
 
 ---
 
@@ -18,198 +20,259 @@ Stand 21. Nov. 2026 · nur gelesen, nichts am Code geändert. Grundlage: der Cod
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Explore (Spotlight, Raster, dunkle Bänder, Kategorien, All filters, Where · When) | fertig | `/explore`, `views/ExploreFeed.tsx`, `components/explore/*`, `SpotlightCoverflow.tsx`, `SpotlightHero.tsx` | – | Mock-Daten; die Ortssuche ist für Google Places nur vorbereitet |
-| Leere Suche (NoHouseYet, BeFirstHere, NotifyLine, Save this search) | fertig | `explore/NoHouseYet.tsx`, `ExplorePrelaunch.tsx` | „Join the waitlist“ zeigt nur einen Toast | ja (Warteliste) |
-| Stadt- und Sammlungsseiten | fertig | `/co-living/[city]`, `/collections/[slug]` | Der Stadttext ist nur eine Vorlage; Sammlungen haben kein eigenes OG-Bild | Mock-Daten |
-| House-Seite Besucher | fertig | `/house/[slug]`, `/h/[id]`, `views/StayDetail.tsx`, `stay/HouseHero.tsx`, `stay/HouseSections.tsx` | – | Mock |
-| House-Seite Host | teilweise | `StayDetail.tsx` + `/h/[id]/manage` (`views/ManageHouse.tsx`, `stay/HouseDetail.tsx`) | Die Verwaltung ist eine eigene Seite mit Sheets, nicht in die House-Seite eingebaut | nein |
-| House-Seite Mitglied | teilweise | `stay/MemberHouse.tsx` (MemberHero, Stepper, MemberSections) | Die Reiter Chat · Crew · Plan · Moments · Me fehlen (nur als Kommentar geplant). Beleg und „Something went wrong“ gibt es nur in der alten Detailansicht | ja (Kommentar „Later: …“) |
-| Buchungsleiste, schwebende Kapsel, JoinSteps | fertig | `HouseSections.tsx` (HouseJoinBar), `StayDetail.tsx` (StayCta) | – | nein |
-| Warteliste eines vollen House | fertig | `lib/waitlist.ts`, Store `requestWaitlist` / `takeWaitlistSpot` / `syncWaitlist` | Die Uhr läuft nur im Browser | Mock |
-| Warteliste vor dem Launch („Join the waitlist“) | fertig (Mock) | `lib/waitlistSignup.ts`, `platform/WaitlistSheet.tsx`, `/waitlist/confirm`, `/waitlist/unsubscribe` | Double-Opt-in und Mails nur im Mock (Dev-Log); kein echter Versand | ja |
-| Request with a friend | fertig | `StayDetail.tsx` (`withFriend`, `?with=`) | – | nein |
-| Beispiel- und Founding-Houses | fertig | `lib/data/visibleHouses.ts`, `HouseCard.tsx`, `HouseHero.tsx` | „Host one like this“ führt auf `/create`, nicht auf eine Bewerbung | ja (`HOST_APPLY_HREF = "/create"`) |
-| Anfrage-Fenster (Notiz 300 Zeichen) | fertig | `StayDetail.tsx` (RequestSheet) | – | nein |
-| Altersprüfung 18+ | fertig | `StayDetail.tsx`, `lib/birthDate.ts` | Das Alter wird nur selbst angegeben, nicht geprüft | nein |
-| Women-only | fertig | `lib/requests.ts`, `store.requestToJoin` | – | nein |
-| Anfrage zurückziehen | fertig | `store.withdrawRequest`, StayDetail, HouseDetail | – | nein |
-| Bezahl-Fenster (Apple Pay, Google Pay, Karte) | teilweise | `stay/PaySheet.tsx` | Die Wallet-Knöpfe sind nur gezeichnet; die Kartenfelder sind einfache Eingaben statt Stripe Payment Element | ja (Testkarte vorbelegt) |
-| Zahlungs-Adapter | Mock fertig, Stripe fehlt | `lib/payments/mock.ts`, `stripe.ts` | Jede Stripe-Methode wirft „not implemented“ (12×). Kein Paket, keine API-Routen, keine Webhooks. **Im Production-Modus schlägt jede Zahlung fehl** | ja |
-| Belege (PDF) | teilweise | `payments/Receipt.tsx`, `lib/receiptPdf.ts` | Nur in der alten Detailansicht, nicht auf der Mitglieder-House-Seite | Mock-Beleg |
-| Erstattungen | teilweise | `payments/Refund.tsx`, Store-Effekt → `payments.refund` | Laufen nur gegen den Mock | Mock |
+| Explore (Spotlight, Raster, Bänder, Kategorien, All filters erst bei „Show N houses“, Where · When) | fertig im Mock | `/explore`, `views/ExploreFeed.tsx`, `components/explore/*` | Ortssuche für Google Places nur vorbereitet | Mock-Daten |
+| Startseite für Ausgeloggte | fertig im Mock | `/`, `views/Landing.tsx`, `config/landing.ts` | – | Mock-Houses |
+| Leere Suche (NoHouseYet, BeFirstHere, Save this search) | fertig im Mock | `explore/NoHouseYet.tsx` | – | Mock |
+| Stadt- und Sammlungsseiten | teilweise | `/co-living/[city]`, `/collections/[slug]` | Sammlungen haben kein eigenes OG-Bild | Mock |
+| House-Seite Besucher (inkl. „The space“, Teilen-Blatt) | fertig im Mock | `/house/[slug]`, `views/StayDetail.tsx`, `stay/HouseHero.tsx`, `stay/HouseSections.tsx` | – | Mock |
+| Buchungsleiste, schwebende Kapsel | fertig im Mock | `HouseSections.tsx` (HouseJoinBar) | – | nein |
+| Warteliste eines vollen House | fertig im Mock | `lib/waitlist.ts`, Store | Uhr nur im Browser | Mock |
+| Warteliste vor dem Launch (Double-Opt-in) | fertig im Mock | `lib/waitlistSignup.ts`, `platform/WaitlistSheet.tsx`, `/waitlist/confirm`, `/waitlist/unsubscribe` | Kein echter Versand, Token nicht signiert | Mock-Mails |
+| Request with a friend | fertig im Mock | `StayDetail.tsx` | – | nein |
+| Beispiel- und Founding-Houses | fertig im Mock | `lib/data/visibleHouses.ts`, `HouseCard.tsx` | – | Mock |
+| Anfrage-Fenster mit Verhaltenskodex | fertig im Mock | `StayDetail.tsx`, `consent/Agreements.tsx` | – | nein |
+| Push-Frage nach der ersten Anfrage | fertig im Mock | `InstallPrompt.tsx` (Trigger „requested“) | Echte Push-Anmeldung fehlt (FCM) | Mock |
+| Altersprüfung 18+ | fertig im Mock | `lib/birthDate.ts`, Zustimmung „I'm 18 or older“ | Nur selbst angegeben | nein |
+| Bezahl-Fenster | teilweise | `stay/PaySheet.tsx` | Wallet-Knöpfe nur gezeichnet, Kartenfelder statt Stripe Payment Element | Testkarte |
+| Zahlungs-Adapter | Platzhalter | `lib/payments/mock.ts`, `stripe.ts` | Stripe leer: **im Production-Modus schlägt jede Zahlung fehl** | ja |
+| Belege (PDF) | fertig im Mock | `payments/Receipt.tsx` im Me-Reiter | – | Mock-Beleg |
+| Erstattungen | teilweise | `payments/Refund.tsx`, `payments.refund` | Nur gegen den Mock | Mock |
 
 ## 2 Im House
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| House-Bereich: Kopf, Stepper, Crew · Ort · Praktisches | fertig | `stay/MemberHouse.tsx`, `config/house-steps.ts` | Die 48h im Stepper sind fest im Code statt aus `REQUEST_POLICY` gelesen | nein |
-| House-Chat (Systemzeilen, angeheftete Abstimmung) | fertig | `views/ThreadView.tsx` | Die geplanten Reiter im Chat-Kopf fehlen | Mock-Nachrichten |
-| Bogen allgemein (Bausteine je Tiefe) | nur Platzhalter | `config/depth.ts` (`ARC_MODULES`) | Wird außerhalb dieser Datei nirgends benutzt; die Tiefenwahl ist aus | ja (nur Konfiguration) |
-| Vorher: Absicht | fehlt | – | Keine Oberfläche, kein Datenfeld | – |
-| Ankommen: Fragenkarten | fehlt | – | Keine Oberfläche | – |
-| Mittendrin: Halbzeit | fehlt | – | Keine Oberfläche | – |
-| Abschluss: Abschlussrunde | fehlt | – | Keine Oberfläche; im Admin fest „noch nicht gemessen“ | ja |
-| Danach (im Bogen) | teilweise | „Do it again“, Lived-with-Bestätigung, PastHouse | Bewertung, „Absicht erreicht“ und 30-Tage-Frage fehlen | nein |
-| Abstimmung Ort und Daten | fertig | `lib/crewVotes.ts`, `stay/CrewVotes.tsx` | Nur diese zwei Arten | nein |
-| Allgemeine House-Abstimmungen | fehlt | – | Keine freien Abstimmungen; die Regel „Vorauswahl gilt nach 24h“ steht nur in CLAUDE.md | – |
-| House agreement | fehlt | – | Es gibt nur die Hausregeln des Hosts, keine gemeinsame Vereinbarung | – |
-| Melden (Person, Nachricht, House) | teilweise | `safety/SafetyMenu.tsx`, `ReportSheet.tsx` | Meldungen landen nur im lokalen Store. Keine Moderations-Oberfläche, nur ein Warnsignal im Admin | ja |
-| „Something went wrong“ | teilweise | `help/HelpSheet.tsx` | Nur in der Host-Verwaltung und der alten Detailansicht, nicht auf der Mitglieder-House-Seite | Mock-Ticket |
+| House-Bereich mit Reitern Chat · Crew · Plan · Moments · Me · Manage | fertig im Mock | `/h/[id]`, `stay/HouseArea.tsx`; `/h/[id]/manage` leitet auf `?tab=manage` | – | Mock |
+| Stepper der Schritte | teilweise | `config/house-steps.ts` | **`REQUEST_HOURS = 48` fest im Code, die Anfrage läuft aber nach 72 h ab** (`DEADLINES.request`) | nein |
+| House-Chat | teilweise | `views/ThreadView.tsx` | Der Platz für Reiter im Chat-Kopf ist leer („not built yet“) | Mock-Nachrichten |
+| Bogen: Vorher (Absicht, Crew-Seite, Getting there, Practical, Host-Aufgaben) | fertig im Mock | `stay/ArcBefore.tsx`, `config/arc.ts`, `lib/arc.ts` | – | Mock-Absichten |
+| Bogen: Ankommen (I'm here, First night, House agreement) | fertig im Mock | `stay/ArcArrival.tsx`, `config/question-cards.ts` | – | Mock |
+| Bogen: Mittendrin (Moment des Tages, Halbzeit, Höhepunkt) | fertig im Mock | `stay/ArcMiddle.tsx` | – | Mock |
+| Bogen: Abschied (Closing circle, Words for the crew) | fertig im Mock | `stay/ArcGoodbye.tsx` | – | Mock |
+| Bogen-Karten im Chat, E-Mails | fertig im Mock | `chat/ArcChatCard.tsx`, `ArcParts.tsx` (über den Katalog) | Mails nur im Mock | Mock |
+| Programm-Baukasten (Pro Hosts) | fertig im Mock | `stay/ProgramParts.tsx`, `config/program.ts` | – | Vorlagen |
+| Soziale Tiefe | Platzhalter (gebaut, aus) | `config/depth.ts`, Schalter `depthChoiceEnabled: false` | Bewusst aus bis zur Entscheidung | – |
+| Abstimmung Ort und Daten | fertig im Mock | `lib/crewVotes.ts`, `stay/CrewVotes.tsx` | – | nein |
+| Allgemeine Abstimmungen | teilweise | Agreement, Moment des Tages, Höhepunkt | Keine freien Abstimmungen der Crew | – |
+| Melden (Person, Nachricht, House, Foto) und Moderation | fertig im Mock | `safety/ReportSheet.tsx`, Admin › Posteingang › Sicherheit | – | Mock |
+| „Something went wrong“ | fertig im Mock | `help/HelpSheet.tsx` im Me-Reiter | Ticket nur im lokalen Admin-Store | Mock |
 
 ## 3 Danach
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Abschluss-Fragen | fehlt | nur `config/depth.ts` | Keine Oberfläche | ja |
-| Bewertung („Who would you live with again“, Stimmung, Ordnung …) | fehlt | `config/data-points.ts` (`after.*`: planned) | Kein Formular. „Would live again“ ist ein fester Mock-Wert | ja (`TODO(backend)`) |
-| Album / House Memories | fehlt | nur `config/marketing.ts` (nächster Schritt) | Keine Route, keine Komponente | – |
-| „Lived with“ bestätigen | fertig | `store.confirmLivedWith`, `ProfileView.tsx`, `profile/Crews.tsx` | Nur im Client-Store | Mock-Bestätigungen |
-| Your people / Netzwerk | fertig | `/people`, `views/YourPeople.tsx`, `lib/yourPeople.ts` | Die Regeln gelten nur im Client, nicht auf dem Server | Mock-Daten |
-| Einladen (InviteSheet, Einladungsseite) | fertig | `components/InviteSheet.tsx`, `lib/invites.ts`, `/invite/[token]` | Die Tokens leben nur im lokalen Store | nein |
-| Spots for friends | fertig | `InviteSheet.tsx`, `INVITE_POLICY.maxSpotsPerLink` | Die 48h-Reservierung läuft ohne Server | nein |
-| Do it again | fertig | `create/model.ts` (`againHref`, `againForm`) | – | nein |
+| Tag danach (mit wem wieder, Absicht, Bewertung, Tipp) | fertig im Mock | `stay/ArcGoodbye.tsx`, `UserSettings.after` | – | Mock-Antworten der anderen |
+| Gegenseitige Wahl → Your people | fertig im Mock | `mutualChoices`, `revealChosen` | Server-Function fehlt | Mock |
+| +7 Do it again, +30 Tage, Geschichten | fertig im Mock | `stay/ArcAfterwards.tsx`, `lib/pastCrews.ts` | – | Mock |
+| Öffentliche Bewertungen (ab 3) | fertig im Mock | „From past crews“ auf House-Seite und Host-Profil | – | Mock |
+| Album / House Memories | fertig im Mock | `stay/Album.tsx`, `lib/memories.ts` | Dateien nur in IndexedDB im Browser; kein Storage | Anreiz `MEMORIES_PERK` aus |
+| „Lived with“ bestätigen | fertig im Mock | `store.confirmLivedWith` | Nur im Client | Mock |
+| Netzwerk `/people` (4 Ebenen, I'm in for, Nearby, Crews, Jahrestag) | fertig im Mock | `views/YourPeople.tsx`, `lib/nearby.ts` | Regeln nur im Client | Mock |
+| Einladen, Spots for friends (48 h über die Fristen) | fertig im Mock | `InviteSheet.tsx`, `lib/deadlines.ts` | – | nein |
 
 ## 4 Host
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Open a House (Schritte, Review, Veröffentlichen, Erfolg) | fertig | `/create`, `create/CreateEntry.tsx`, `views/CreateStayForm.tsx`, `create/HouseSteps.tsx` | Fotos werden nicht hochgeladen, nur lokal angezeigt | ja (PhotoUploader „nothing is uploaded“) |
-| Fill your House | fertig | `InvitePage` in `InviteSheet.tsx` | – | nein |
-| Open a House vor dem Launch | teilweise | `CreateEntry.tsx` (ApplyAsHost) | Vor dem Launch kann niemand ein House eröffnen; statt dessen ein Platzhalter | ja |
-| Host from your place (Orte, Fenster) | fertig | `lib/ownPlaces.ts`, `places/YourPlaces.tsx`, `store.addPlace` | In Produktion gibt es nie Orte | Mock-Orte |
-| Anfragen verwalten (Accept, Not a fit + Undo, Warteliste, Crew, Als gebucht markieren) | fertig | `/h/[id]/manage`, `stay/HouseDetail.tsx`, `stay/HouseProgress.tsx`, `payments/PaymentsCard.tsx` | „Remind“ zeigt nur einen Toast und schickt keine Erinnerung | ja (Toast) |
-| House bearbeiten | fertig | `/your-houses/[id]/edit`, `views/EditStay.tsx` | – | nein |
-| House absagen | fertig | `stay/CrewMenu.tsx` → `store.closeStay` | Die Erstattung hängt am leeren Stripe-Adapter | Mock |
-| Auszahlungen (Payouts-Seite, Setup, Status) | teilweise | `/your-houses/payouts`, `payouts/PayoutSetup.tsx`, `/settings/payouts` | Stripe Connect ist leer; das Onboarding führt im Mock auf `/dev/stripe-onboarding` | ja (Mock-Ledger) |
-| Founding Host / Bewerbung | fertig (Mock) | `/apply`, `platform/HostApply.tsx`, Admin › Bewerbungen | Mails nur im Mock; Annehmen setzt Founding Host und schaltet Open a House frei | ja |
+| Open a House (inkl. „About the space“) | fertig im Mock | `/create`, `views/CreateStayForm.tsx`, `create/HouseSteps.tsx` | Fotos werden nicht hochgeladen | ja (lokal) |
+| Fill your House | fertig im Mock | `InvitePage` | – | nein |
+| Host-Onboarding und Checkliste | fertig im Mock | `/welcome/host`, `onboarding/HostOnboarding.tsx` | – | Mock |
+| Bewerbung / Founding Host | fertig im Mock | `/apply`, `platform/HostApply.tsx`, Admin › Bewerbungen | Mails nur im Mock | Mock |
+| Host from your place | fertig im Mock | `lib/ownPlaces.ts`, `places/YourPlaces.tsx` | – | Mock-Orte |
+| Verwalten (Anfragen, Crew, Zahlungen, Remind) | fertig im Mock | Manage-Reiter, `stay/HouseManageParts.tsx`, `RemindButtons.tsx` | – | Mock |
+| Tips from Simpulo (Checkliste aus Admin › Host helfen) | fertig im Mock | `stay/HostHelpChecklist.tsx` | – | Mock |
+| House bearbeiten, absagen | fertig im Mock | `/your-houses/[id]/edit`, `store.closeStay` | Erstattung nur im Mock | Mock |
+| Auszahlungen | teilweise | `/your-houses/payouts`, `payouts/PayoutSetup.tsx` | Stripe Connect leer | Mock-Ledger |
+| Host-Kit | fertig im Mock | `share/HostKit.tsx` | – | nein |
+| Host wirbt Host | Platzhalter (gebaut, aus) | `HOST_REFERRAL` | Anteil und Laufzeit offen | ja |
 
 ## 5 Konto
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Login (Apple, Google, Magic Link, Passkey) | nur Platzhalter | `auth/AuthSheet.tsx`, `AuthProvider.tsx` | Keine echte Anmeldung: man wählt einen Mock-Nutzer | ja |
-| Onboarding | fertig (Oberfläche) | `/welcome`, `onboarding/WelcomeView.tsx`, `/settings/profile?setup=1` | Ohne Konten wird nichts dauerhaft gespeichert | Mock |
-| Profil (eigenes, fremdes, Vorschau) | fertig | `/profile`, `/u/[userId]`, `views/ProfileView.tsx` | Mitbewohner-Bewertungen fehlen (laut Plan erst nach dem Launch) | nein |
-| Edit profile | fertig | `/settings/profile`, `views/EditProfile.tsx` | Fotos werden nicht hochgeladen | ja |
-| Settings | teilweise | `/settings`, `views/Settings.tsx` | Sign-in-Methode und Passkey zeigen nur „comes soon“; „Add payment method“ zeigt nur einen Toast; die Sprache ist nur Englisch | ja (Mock-Karte Visa 4242, Mock-E-Mail) |
-| Your data | teilweise | Settings › Privacy, `/settings/delete-account` | Der Download ist echt (JSON). Pausieren und Löschen ändern nur den lokalen Store | ja |
-| Benachrichtigungen | teilweise | `lib/notify`, `channels/inapp` (echt im Store), `push.ts`, `email.ts`, Your houses › Activity | Push und E-Mail schreiben nur in die Konsole und ins Dev-Log | ja (`TODO(push)`, `TODO(email)`) |
-| E-Mails | teilweise | `src/emails/*`, Vorschau `/dev/emails` | Die Vorlagen gibt es, aber es wird nichts verschickt (kein Resend); der Abmeldelink ist nicht signiert | ja |
+| Login (Apple, Google, Magic Link, Passkey) | Platzhalter | `auth/AuthSheet.tsx` | Keine echte Anmeldung: man wählt einen Mock-Nutzer | ja |
+| Zustimmungen (Terms, 18+, Verhaltenskodex, Versionen) | fertig im Mock | `config/consent.ts`, `consent/Agreements.tsx` | Rechtstexte sind Entwürfe | Entwurf |
+| Gast-Onboarding, „Finish your profile“ | fertig im Mock | `/settings/profile?setup=1`, `/welcome/done`, `onboarding/ResumeCard.tsx` | – | Mock |
+| Profil, Edit profile | fertig im Mock | `/profile`, `/u/[id]`, `views/EditProfile.tsx` | Fotos nicht hochgeladen | ja |
+| Settings (alle Bereiche, Notifications mit Ruhezeiten, Wer darf schreiben) | teilweise | `views/Settings.tsx` | Passkey und Anmelde-Methode zeigen nur „comes soon“ | ja |
+| Your data (Export, Pausieren, Löschen mit Sperre) | fertig im Mock | `lib/dataExport.ts`, `lib/accountDeletion.ts` | Wirkt nur im lokalen Store | Mock |
+| Benachrichtigungs-Katalog | fertig im Mock | `config/notifications.ts`, `lib/notify` | 9 Ereignisse ohne Auslöser (siehe Lücken) | – |
+| E-Mails | teilweise | `src/emails/*`, `/dev/emails` | Kein Versand (Resend), Abmelde-Link nicht signiert | ja |
+| Dark Mode | teilweise | Tokens, Schalter in Settings und Avatar-Menü | Die Seiten sind nicht einzeln angepasst (D1–D3) | – |
+| Mehrsprachigkeit | Platzhalter | `i18n/config.ts` (`locales = ["en"]`, `SHOW_LANGUAGE_SETTING = false`) | Zweite Sprache fehlt | vorbereitet |
 
 ## 6 Außen
 
 | Bereich | Status | Route / Datei | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Footer (groß, schlank, keiner) | fertig | `config/footer.ts`, `layout/FooterByRoute.tsx` | Die Warteliste darin ist nur ein Toast; `/host` steht noch als Seite in der Liste, obwohl es weiterleitet | teils (Social-Links ungeprüft) |
-| Landingpage | teilweise | `/` = Explore; vor dem Launch `ExplorePrelaunch` | Für Ausgeloggte gibt es keine eigene Startseite, die Simpulo erklärt | nein |
-| About | teilweise | `/about` | Nur drei Absätze; Team, Geschichte und Bilder fehlen | nein (sehr knapp) |
-| Host-Seite | fehlt | `/host` leitet auf `/faq?role=host` | Keine Seite für Hosts bzw. Founding Hosts | – |
-| Themen | fertig | `/explore?category=`, `/collections/[slug]` | – | nein |
-| Ratgeber / Guides | fehlt | – | Keine Inhalte, keine Routen | – |
-| Hilfe / FAQ (Get help, Share an idea) | fertig | `/faq`, `config/faq.ts`, `help/HelpFeedback.tsx` | Tickets landen nur im lokalen Admin-Store | nein |
-| Ideen-Liste | nur Platzhalter | `/ideas` (Schalter `ideasBoard: false` → 404) | Bewusst aus | – |
-| Impressum | nur Platzhalter | `/impressum` | Alle Felder sind „[Company name] …“ | ja |
-| Datenschutz | nur Platzhalter | `/privacy` | Verantwortlicher, Rechtsgrundlagen, Speicherdauer und Cookies sind „[…]“ | ja |
-| AGB | teilweise | `/terms` | Ausformuliert, aber als Entwurf markiert und nicht juristisch geprüft | ja (Entwurf) |
-| Stornoregeln | teilweise | `/cancellation`, `config/policies.ts` (`draft: true`) | Ausformuliert, aber als Entwurf markiert | ja (Entwurf) |
-| Safety | nur Platzhalter | `/safety` | Unter jeder Überschrift steht „Section text follows.“ | ja |
-| Cookies | fehlt | Footer-Link auf `/privacy#cookies` | Der Abschnitt ist „[…]“; heute ist kein Banner nötig (kein Analytics) | ja |
+| Footer (groß, schlank, keiner) | fertig im Mock | `config/footer.ts`, `layout/FooterByRoute.tsx` | – | nein |
+| Host-Seite | fertig im Mock | `/host`, `views/HostPage.tsx` | Rechenbeispiel ist ein gesetzter Wert (`HOST_FEE_EXAMPLE.perGuest`) | ja (Beispielwert) |
+| About | teilweise | `/about`, `views/AboutPage.tsx` | Gründer-Abschnitt leer (`FOUNDER`) | ja |
+| Ratgeber | fertig im Mock | `/guides`, `/guides/[slug]` (5 Texte) | – | nein |
+| Hilfe-Center | fertig im Mock | `/help`, `help/HelpCenter.tsx` (31 Fragen) | – | nein |
+| Ideen-Liste | Platzhalter | `/ideas` (`ideasBoard: false`) | Bewusst aus | – |
+| Rechtsseiten (Impressum, Privacy, Terms, Cancellation, Cookies, Safety, Community guidelines) | teilweise | `content/legal/*.en.md`, `components/legal/LegalPage.tsx` | **Alle 7 als Entwurf; Impressum-Felder leer** | ja |
+| Inhalte melden, Entscheidungen | fertig im Mock | `/report-content`, `/notices` | – | Mock |
 | Kontakt | teilweise | `/contact` | Nur eine mailto-Zeile, kein Formular | nein |
-| App auf dem Telefon | teilweise | `/get`, `/get/card` | Store-Links und Installationsvideo sind leer (`config/app-links.ts`) | ja |
-| Leere Zustände | fertig | NoHouseYet, BeFirstHere, Your houses (neues Konto), Messages, Saved, Your people (`ui/EmptyState`) | – | nein |
-| Fehlerseiten | teilweise | `app/not-found.tsx`, `app/error.tsx` | Kein `global-error.tsx`: ein Fehler im Root-Layout wird nicht aufgefangen | nein |
-| Passwortseite | fertig | `/preview` | – | nein |
-| SEO (Sitemap, Robots, OG-Bilder) | fertig | `sitemap.ts`, `robots.ts`, OG für House, Stadt, Einladung, Profil | Kein OG-Bild für Sammlungen, About und FAQ | nein |
+| App auf dem Telefon | teilweise | `/get`, `/get/card` | Store-Links und Video leer | ja |
+| Leere Zustände | fertig im Mock | `ui/EmptyState` u. a. | – | nein |
+| Fehlerseiten, offline | fertig im Mock | `error.tsx` je Bereich, `global-error.tsx`, `states/OfflineBanner.tsx` | – | nein |
+| Passwortseite | fertig im Mock | `/preview` | – | nein |
+| SEO (Sitemap, Robots, OG, JSON-LD) | teilweise | `sitemap.ts`, OG für House, Stadt, Einladung, Profil | Kein OG-Bild für Sammlungen | nein |
+| Statistik ohne Cookies | Platzhalter (vorbereitet, aus) | `config/analytics.ts` (`enabled: false`) | PostHog-Key und Freigabe | – |
 
 ## 7 Admin
 
 **Für das ganze Admin gilt:**
-- Die Oberfläche ist sehr weit.
-- Der Zugriffsschutz besteht nur in der Oberfläche (`lib/admin/access.ts`). Den echten Schutz (Custom Claim, Security Rules) bringt erst Phase 4.
+- Zugriffsschutz nur in der Oberfläche (`lib/admin/access.ts`); der echte Schutz kommt mit dem Backend.
 - Änderungen liegen nur im localStorage (`lib/admin/store.ts`).
-- Aktionen nach außen (erinnern, hervorheben, benachrichtigen, antworten) schreiben nur einen Log-Eintrag und zeigen einen Toast.
+- Versand nach außen (Antworten, Nachrichten, Benachrichtigungen) läuft über den Katalog, aber nur im Mock.
 - In Produktion sind alle Admin-Sammlungen leer.
 
 | Seite | Status | Datenquelle | Was fehlt | Platzhalter? |
 |---|---|---|---|---|
-| Übersicht `/admin` | fertig | `metrics.ts` (Mock-Verlauf, sonst aus den Daten berechenbar) | Die Statistik-Dokumente der stündlichen Function (`TODO getStats`) | Mock-Verlauf |
-| Houses `/admin/houses` | teilweise | aus den Daten berechenbar | Die vier Hebel (hervorheben, benachrichtigen, Vorschläge, Ausweichen) schreiben nur ins Log | ja (`TODO(backend)`) |
-| House anlegen `/admin/houses/new` | fertig (Mock) | Store | Claim-Links gibt es nur lokal | Mock |
-| Vorbereitete Houses `/admin/houses/prepared` | fertig | `stay.claim` | – | Mock |
-| Hosts `/admin/hosts` | teilweise | aus den Daten; Follower aus `mockAudienceSize` | „Erinnern“ zeigt nur einen Toast; die Follower-Zahlen sind Mock | ja |
-| Bewerbungen `/admin/applications` | fertig (Mock) | Liste/Detail, Annehmen · Rückfrage · Ablehnen, Log, Mail im Mock | Bewerbungen kommen aus `/apply` | ja |
-| Warteliste `/admin/waitlist` | fertig (Mock) | echte Einträge, Status bestätigt/offen/abgemeldet, Filter Ort/Thema | Nur Bestätigte zählen fürs Launch-Kriterium | ja |
-| Wachstum `/admin/growth` | fertig | Ereignisse (Mock-Saat) | Echte Analytics-Ereignisse fehlen | Mock |
-| Traffic `/admin/traffic` | nur Platzhalter | `MOCK_TRAFFIC` (Kapsel „Demo-Daten“) | Keine Analytics-Anbindung; in Produktion „nicht verfügbar“ | ja |
-| Analyse `/admin/topics` | fertig | Mock-Ergebnisse oder aus den Daten | „Mit dir wieder“ sind Beispielwerte | teils |
-| Algorithmus `/admin/data` | fertig | Konfiguration (`data-points`, `models`, `hypotheses`) | Die Thesen-Ergebnisse sind Mock | teils |
-| Labore `/admin/labore` | fertig (Konzept) | `lib/admin/labs.ts` | Schätzungen, keine Messwerte (gewollt) | Schätzung |
-| Vision `/admin/vision` | fertig | `config/vision.ts` + Live-Zahlen | – | Konzept |
-| Finanzierung `/admin/funding` | fertig | `config/funding.ts`, `metrics.ts` | Die Investoren-Liste ist ein ausgegrauter Platzhalter (bewusst: „nach dem Umzug“) | teils |
-| Posteingang `/admin/posteingang` | teilweise | Aufgabenliste + Tickets | Antworten und Erinnerungen werden nicht verschickt; keine Moderation der Meldungen | ja |
-| Geld `/admin/money` | teilweise | Mock-Payouts, Mock-Kontostand | Keine Anbindung an Stripe oder Qonto | ja |
-| Steuern `/admin/money/taxes` | teilweise | `mock-ledger.ts` | Die Exporte funktionieren; Beleg-Upload ist Mock; DATEV und Xero sind nur Platzhalter | ja |
-| System `/admin/platform` | teilweise | localStorage | Der Phasenwechsel wirkt nur im eigenen Browser | ja |
-| Log `/admin/log` | teilweise | localStorage | Wird nicht auf einem Server gespeichert | ja |
-| Marketing (+ Partner) `/admin/marketing` | teilweise | `config/marketing.ts`, Mock-Kontakte/-Partner | Daten nur lokal; die Launch-Mail wird nicht verschickt; Werkzeuge und Einordnung der Kanäle fehlen größtenteils | Demo-Kontakte |
-| `/admin/overview`, `/admin/algorithm` | – | Weiterleitungen | – | – |
+| Übersicht `/admin` (Drill-down, Woche · Monat · Quartal · Jahr) | fertig im Mock | `metrics.ts` | Stündliche Statistik-Function (`getStats`) | Mock-Verlauf |
+| Houses `/admin/houses` (Frühwarnung, vier Hebel mit Wirkung, Ergebnis) | fertig im Mock | Daten + `lib/houseHelp.ts` | „Angesehen“ wird nicht gespeichert (gewollt) | Mock |
+| Hosts `/admin/hosts` | fertig im Mock | Daten | Follower-Zahlen sind Mock | ja |
+| Bewerbungen, Warteliste | fertig im Mock | Admin-Store | Mails nur Mock | Mock |
+| Wachstum, Traffic | teilweise | Mock-Ereignisse, `MOCK_TRAFFIC` | Keine Analytics-Anbindung | ja |
+| Analyse, Algorithmus, Labore, Vision, Finanzierung | fertig im Mock | Configs + `metrics.ts` | Thesen-Ergebnisse Mock; Finanzierungs-Begründungen offen | teils |
+| Posteingang (Sicherheit mit Moderation, Widersprüche, Tickets) | fertig im Mock | Aufgaben + Tickets | Versand nur Mock | Mock |
+| Geld › Übersicht | teilweise | Mock-Payouts, Mock-Kontostand | Keine Anbindung an Stripe oder Qonto | ja |
+| Geld › Steuern › Buchungsjournal (DATEV-CSV, PDF, Rücklage) | fertig im Mock | Zahlungen der Daten, `config/tax.ts` | Alle Sätze und Konten Platzhalter; Stripe-Gebühren geschätzt | ja |
+| Geld › Steuern › Überblick | fertig im Mock | `mock-ledger.ts` | Beleg-Upload Mock; Xero Platzhalter | ja |
+| System (Einstellungen, Backlog, Launch-Checkliste, Plattform-Pflichten) | fertig im Mock | Configs + Server-Fakten (`lib/launchChecks.ts`) | Phasenwechsel wirkt nur im eigenen Browser | – |
+| Log | teilweise | localStorage | Nicht auf einem Server gespeichert | ja |
+| Marketing (Plan, Kontakte, Partner, Trichter, Content, Schleifen) | teilweise | `config/marketing.ts`, Mock-Kontakte und -Partner | In `MARKETING_CHANNELS` sind 6 von 8 Werkzeug-Listen und alle 8 Notizen leer | Demo-Daten |
 
 ---
 
 ## Buchungsablauf: alle Zustände
 
-Datenmodell: `lib/mock.ts` (RequestStatus, Payment, Stay); Logik: `lib/store.tsx`, `lib/joinFlow.ts`, `lib/requests.ts`.
+Datenmodell: `lib/mock.ts`; Logik: `lib/store.tsx`, `lib/joinFlow.ts`, `lib/requests.ts`, `lib/deadlines.ts`.
 
 | Zustand | Datenmodell | Logik | Gast-Oberfläche | Host-Oberfläche | Anmerkung |
 |---|---|---|---|---|---|
-| angefragt (`pending`) | ja | ja | ja | ja | mit Notiz, Freund und Herkunft |
-| angenommen (`accepted`) | ja | ja | ja | ja | – |
-| abgelehnt (`declined`) | ja | ja (+ Undo) | ja („Didn't work out“ + ähnliche Houses) | ja („Not a fit“) | – |
-| abgelaufen (`expired`, 48h) | ja | ja (Uhr im Browser) | ja (wie abgelehnt) | teilweise | Verschwindet beim Host ohne eigenen Hinweis |
-| Zahlung fällig (`payment_due`) | ja | ja | ja („Pay your share“, Frist) | ja | Zahlung nur im Mock |
-| Zahlung nach 48h verfallen | teilweise (kein eigener Status) | ja (Platz wird frei) | teilweise | ja | Der Gast bekommt nur eine allgemeine Benachrichtigung |
-| bezahlt (`paid`) | ja | ja | ja (Anteil, Beleg) | ja | – |
-| Buchung vom Host bestätigt | ja | ja (sonst nach 48h automatisch erstattet) | ja („Booked ✓“, Adresse) | ja (Nachweis) | – |
-| storniert durch Gast (Leave) | teilweise (die Anfrage wird gelöscht) | ja (Erstattung nach Regel) | ja | ja | – |
-| storniert durch Host („Cancel this House“) | ja (`closed`) | ja (volle Erstattung) | ja | ja | – |
-| vom Host entfernt | ja | ja | **nein** | ja | Der Gast bekommt keinen eigenen Hinweis |
-| erstattet (`refunded`) | ja (+ Betrag) | ja (nur Mock) | ja (RefundNotice, Settings) | teilweise | Echte Erstattung fehlt (Stripe) |
-| Warteliste angefragt / wartend / Angebot 24h | ja | ja | ja | ja | – |
-| eingeladen (`invited`, 48h) | ja | ja | ja | ja | – |
-| vorgemerkt (Beta, `reserved`) | ja | ja | ja | teilweise | Für den Host nicht eigens gekennzeichnet |
-
-**Gebaut:** alle Zustände im Mock.
-**Nicht gebaut:**
-- echtes Geld (bezahlen, erstatten, auszahlen)
-- Server-Fristen
-- ein eigener Hinweis für den Gast bei „entfernt“ und „Zahlung verfallen“
+| angefragt (`pending`) | ja | ja | ja | ja | mit Notiz, Freund, Herkunft, Verhaltenskodex |
+| angenommen | ja | ja | ja | ja | – |
+| abgelehnt | ja | ja (+ Undo) | ja („Didn't work out“ + ähnliche Houses) | ja | – |
+| abgelaufen (72 h) | ja | ja (Fristen, Erinnerungen 24 h / 48 h) | ja | ja | Stepper zeigt noch 48 h |
+| Zahlung fällig | ja | ja (Erinnerungen 24 h / 44 h) | ja | ja | Zahlung nur Mock |
+| Zahlung nach 48 h verfallen | ja (`endedReason: paymentLapsed`) | ja | ja (eigener Hinweis, Direktchat-Zeile, Benachrichtigung) | ja | – |
+| bezahlt | ja | ja | ja (Anteil, Beleg) | ja | – |
+| Buchung bestätigt | ja | ja (sonst Erstattung nach 48 h) | ja | ja | – |
+| storniert durch Gast | ja | ja | ja | ja | – |
+| storniert durch Host | ja | ja (volle Erstattung) | ja | ja | – |
+| vom Host entfernt | ja (`endedReason: removed`) | ja | teilweise | ja | Hinweis im Me-Reiter und Direktchat, aber **keine Benachrichtigung** (Katalog `guestRemoved` ohne Auslöser) |
+| aus Moderation entfernt | ja | ja | ja | – | Benachrichtigung „decision“ |
+| erstattet | ja | ja (Mock) | ja | teilweise | Echte Erstattung fehlt (Stripe) |
+| Warteliste, Angebot 24 h | ja | ja | ja | ja | – |
+| eingeladen (48 h) | ja | ja | ja | ja | – |
+| vorgemerkt (Beta) | ja | ja | ja | teilweise | Für den Host nicht eigens gekennzeichnet |
 
 ---
 
-## Top 10 der größten Lücken für „Desktop fertig“
+## Abgleich mit den Blöcken 1–9
 
-Gemeint: was auf dem Desktop als Produkt fehlt oder nur Platzhalter ist, nach Gewicht. Backend-Anbindungen stehen am Ende, weil sie keine Oberflächenarbeit sind, aber jede Oberfläche davon abhängt.
+Der Block-Plan selbst liegt nicht im Repo. Die Teile sind nach Thema zugeordnet, gestützt auf die Hinweise in den Prompts („Plattform-Pflichten = 6d“, „Fristen-Logik = 4b“).
 
-1. **Der Bogen im House fehlt ganz:** Absicht, Fragenkarten, House agreement, Halbzeit und Abschlussrunde gibt es nur als Konfiguration, ohne jede Oberfläche.
-2. **Die Zeit danach fehlt:** Es gibt keine Bewertung („Mit wem wieder“, Stimmung, Ordnung …) und kein Album bzw. House Memories. Damit fehlen auch die Daten für Your people und das Matching.
-3. **Der House-Bereich für Mitglieder ist unfertig:**
-   - Die Reiter Chat · Crew · Plan · Moments · Me fehlen.
-   - Beleg und „Something went wrong“ liegen nur in der alten Detailansicht.
-   - Die Host-Verwaltung ist eine eigene Seite statt Teil der House-Seite.
-4. **Host-Bewerbung und Warteliste sind Platzhalter:** Es gibt kein Founding-Host-Formular, „Join the waitlist“ zeigt nur einen Toast, und vor dem Launch kann niemand ein House eröffnen. Das ist der Kern der Phase Pre-launch.
-5. **Die Rechtsseiten sind nicht fertig:** Impressum, Datenschutz, Safety und Cookies sind Platzhalter; AGB und Stornoregeln sind Entwürfe.
-6. **Die Seiten für Außenstehende sind dünn:** Es gibt keine eigene Startseite für Ausgeloggte, keine Host-Seite und keine Ratgeber, und About hat nur drei Absätze.
-7. **Melden und Moderation fehlen:** Meldungen landen nur lokal. Im Admin gibt es keine Moderation, nur ein Warnsignal.
-8. **Kleine Lücken im Ablauf:**
-   - Ein entfernter Gast bekommt keinen Hinweis, ebenso wer nach 48h nicht bezahlt hat.
-   - „Remind“ zeigt nur einen Toast.
-   - Die 48h im Stepper sind fest im Code.
-   - Es gibt kein `global-error.tsx`.
-   - Auf der Mitglieder-Seite fehlt der Beleg.
-9. **Echtes Geld fehlt:** Stripe (Payment Element, Connect, Erstattungen, Webhooks) ist leer, und im Production-Modus bricht jede Zahlung ab.
-10. **Echte Konten und Versand fehlen:**
-   - Die Anmeldung ist eine Mock-Auswahl.
-   - Fotos werden nicht hochgeladen.
-   - E-Mail und Push werden nicht verschickt.
-   - Es gibt keine Datenquelle (Firestore) und keine Server-Fristen.
-   - Der Admin ist nur in der Oberfläche geschützt.
+| Block | Teil | Stand | Was fehlt |
+|---|---|---|---|
+| 1 House-Bereich | Reiter Chat · Crew · Plan · Moments · Me · Manage, Zustand in der URL, Ausgeschiedene | fertig | Reiter im Chat-Kopf selbst (Platz frei) |
+| 2a Bogen · Vorher | Absicht, Crew-Seite, Getting there, Practical, Host-Aufgaben | fertig | – |
+| 2b Bogen · Ankommen | I'm here, First night (Fragenkarten), House agreement | fertig | – |
+| 2c Bogen · Mittendrin | Moment des Tages, Halbzeit, Höhepunkt | fertig | – |
+| 2d Bogen · Abschied | Closing circle, Words for the crew | fertig | – |
+| 3a Danach · Tag danach | Mit wem wieder, Absicht, Bewertung, Tipp, gegenseitige Wahl | fertig | Server-Function für die gegenseitige Wahl |
+| 3b Danach · später | +7 Do it again, +30 Tage, öffentliche Bewertungen | fertig | – |
+| 3c Danach · Album | House Memories, Remove me, zwei Zustimmungen | fertig im Mock | Storage, serverseitige Standort-Prüfung, Anreiz aus |
+| 4a Abläufe | Join-Ablauf, Ausgeschiedene, mehrere Houses parallel | fertig | Benachrichtigung „vom Host entfernt“ |
+| 4b Abläufe · Fristen | Fristen in einer Stelle, Bündeln, Remind von Hand, Zeitreise | fertig im Mock | Server-Job; Stepper-Text 48 h statt 72 h |
+| 4c Abläufe · Melden | Melden, Moderation, Widerspruch | fertig im Mock | – |
+| 5a Außen · Startseite | Landing für Ausgeloggte | fertig | – |
+| 5b Außen · SEO | Stadt-, Themen-, Ratgeber-Seiten | fertig | OG-Bild für Sammlungen |
+| 5c Außen · Host und About | `/host`, `/about` | teilweise | Gründer-Abschnitt leer |
+| 5d Außen · Hilfe, Fehler | Hilfe-Center, Fehlerseiten, offline | fertig | Kontaktformular (nur mailto) |
+| 6a Recht · Rechtsseiten | Aufbau, Versionen, Entwürfe, Build-Prüfung | fertig (Aufbau) | Texte geprüft, Impressum gefüllt |
+| 6b Recht · Zustimmungen | Terms, 18+, Verhaltenskodex | fertig im Mock | – |
+| 6c Recht · ohne Cookie-Banner | Speicher-Liste, `/cookies`, Statistik ohne Cookies | fertig | Statistik aus (`enabled: false`) |
+| 6d Recht · Plattform-Pflichten | Inhalte melden, Begründungen, gewerbliche Hosts, DAC7 | fertig im Mock | Anwaltsprüfung 0 von 5; Kontaktstelle leer |
+| 7a Wachstum · Teilen | Teilen-Blatt, Story-Bild, Spots for friends, Herkunft | fertig im Mock | – |
+| 7b Wachstum · Hosts | Founding Host, Host-Kit, Host wirbt Host | fertig; Host wirbt Host aus | Werte für Host wirbt Host |
+| 7c Wachstum · Netzwerk | `/people`, I'm in for, Nearby, Jahrestag | fertig im Mock | – |
+| 7d Wachstum · Programm | Programm-Baukasten für Pro Hosts | fertig im Mock | – |
+| 8a Konto · Settings | Your data, Privatsphäre, Benachrichtigungen | fertig im Mock | Passkey/Anmelde-Methode „comes soon“ |
+| 8b Konto · Onboarding | Gast und Host, Push-Moment, Wiedereinstieg | fertig im Mock | – |
+| 8c Konto · Katalog | 44 Ereignisse, Vorlage, Bündeln, Push ohne Inhalt | fertig im Mock | Versand; 9 Ereignisse ohne Auslöser |
+| 8d Konto · Raum-Daten | „About the space“ | fertig im Mock | – |
+| 9a Admin · Steuern | Buchungsjournal, DATEV-CSV, PDF, Rücklage | fertig im Mock | Sätze und Konten vom Steuerberater |
+| 9b Admin · System | Backlog, Launch-Checkliste, Plattform-Pflichten | fertig im Mock | – |
+| 9c Admin · Houses | Frühwarnung mit vier Hebeln und Ergebnis | fertig im Mock | – |
+
+## Einzel-Prompts
+
+| Prompt | Umgesetzt | Fundstelle |
+|---|---|---|
+| Kopf unter 1100 px (ein Suchfeld, Chip-Reihe) | ja | `layout/header/CompactSearch.tsx`, `.chip-bar` |
+| Avatar-Menü mit Dark-mode-Schalter | ja | `layout/header/AvatarMenu.tsx`, `APPEARANCE_IN_MENU` |
+| Schalter in Salbei | ja | `ui/Switch.tsx`, `--switch-on` |
+| Admin-Seitenleiste ohne Scrollen | ja | `--sidebar-item-h` in `admin-tokens.css` |
+| AdminTabs als Kapseln überall | ja | `.adm-cap` in `admin-tokens.css` |
+| Kein ⓘ an Tabs | ja | `AdminTab.tooltip` statt ⓘ (`AdminLayout.tsx`) |
+| Übersicht mit Drill-down und Woche/Monat/Quartal/Jahr | ja | `DrillChart` in `AdminCharts.tsx`, `?zoom=`, `COMPARE_PERIODS` |
+| Tooltips größer | ja | `.tooltip-box` mit `--text-body` (15px) |
+| Filter erst bei „Show X houses“ | ja | Entwurf in `explore/FilterSheets.tsx` |
+| Spotlight mit Host-Aussparung auf Tablet | ja | `SpotlightCoverflow` ab 744 px |
+| Breiten-Test-Skript | ja | `scripts/breiten-test.mjs`, `npm run test:breiten` (hier noch nicht gelaufen) |
+| Tablet ab 744 px | ja | `--breakpoint-md 46.5rem`, `config/breakpoints.ts` |
+| Marketing mit Kontakten, Partnern, `config/marketing.ts` gefüllt | teilweise | Kontakte und Partner fertig; in `MARKETING_CHANNELS` 6 von 8 Werkzeug-Listen und alle 8 Notizen leer |
+
+## Platzhalter, die Lukas selbst füllen muss
+
+| Was | Wo | Stand |
+|---|---|---|
+| Impressum und Kontaktstelle: Name, Straße, Ort, Land, Vertreter, E-Mail, Telefon, Inhaltlich Verantwortlicher, Datenschutz-E-Mail, Kontaktstelle, Sprachen (Register und USt-ID optional) | `config/company.ts` | alles `null` |
+| Rechtstexte prüfen lassen und `draft: false` setzen | `content/legal/*.en.md` (7 Seiten) | alle Entwurf |
+| Plattform-Pflichten als geprüft markieren | `config/obligations.ts` `REVIEWED_BY_LAWYER` | 0 von 5 |
+| Gründer-Abschnitt: Foto, Vorname, zwei Sätze, E-Mail | `config/pages.ts` `FOUNDER` | `null` |
+| Fotos: 91 der kuratierten Ortsbilder fehlen | `public/destinations/` (`MISSING.md`) | 9 vorhanden |
+| App: App-Store- und Play-Store-Link, Installationsvideo für iOS | `config/app-links.ts` | leer |
+| Werkzeug-Links (Firebase-Projekte, Stripe, Analytics, GitHub-Repo) | `config/app-links.ts` `TOOL_LINKS` | nur allgemeine Startseiten |
+| Link zum Launch-Plan | `config/backlog.ts` `LAUNCH_PLAN_URL` | leer |
+| Steuern: Rücklage-Sätze, USt an/aus und Sätze, Stripe-Gebühr, DATEV-Berater-/Mandantennummer und Konten, Rücklagenkonto | `config/tax.ts` | Platzhalter |
+| Steuerberater-Termine | `config/tax.ts` `TAX_DEADLINES.advisor` | zwei Beispieltermine |
+| Host-Fee-Beispiel der Host-Seite | `config/policies.ts` `HOST_FEE_EXAMPLE.perGuest` | 100 (Beispielwert) |
+| Host wirbt Host: Anteil, Laufzeit, Einschalten | `config/policies.ts` `HOST_REFERRAL` | `null`, aus |
+| Album-Anreiz: Höhe, Einschalten | `config/memories.ts` `MEMORIES_PERK` | `null`, aus |
+| Founding Hosts sehen andere? | `config/platform.ts` `foundingHostsSeeOthers` | offen (false) |
+| Soziale Tiefe einschalten? | `config/platform.ts` `depthChoiceEnabled` | aus |
+| DAC7-Abfrage einschalten | `config/policies.ts` `HOST_TAX_INFO` | aus |
+| Statistik (PostHog EU) einschalten, Key setzen | `config/analytics.ts`, `NEXT_PUBLIC_POSTHOG_KEY` | aus |
+| Finanzierung: Begründungen der Verteilung, Rundenbeträge | `config/funding.ts` (`ALLOCATION.reason` u. a.) | `null` |
+| Vision: Vergleich Börse · Privat · Verkauf | `config/vision.ts` | `null`-Zellen |
+| Marketing-Kanäle: Werkzeuge und Einordnung | `config/marketing.ts` `MARKETING_CHANNELS` | größtenteils leer |
+| Launch-Zeitpunkt prüfen („Opening March 2027“) | `config/platform.ts` `launch` | gesetzt |
+| Eigene Social-Profile prüfen (instagram/tiktok/youtube „@simpulo“) | `lib/social.ts` `SOCIAL_LINKS` | ungeprüft |
+
+---
+
+## Top 10 der verbleibenden Lücken
+
+Nach Gewicht. Die Oberfläche ist für Desktop, Tablet und Telefon im Mock weitgehend fertig; die großen Lücken liegen beim Backend und bei Inhalten, die nur Lukas liefern kann.
+
+1. **Datenquelle und Server:** kein Firestore, keine Server-Fristen (Fristen laufen im Browser), Admin nur in der Oberfläche geschützt. In Produktion ist alles leer.
+2. **Echtes Geld:** Stripe ist leer (Payment Element, Connect, Erstattungen, Webhooks); im Production-Modus bricht jede Zahlung ab.
+3. **Echte Anmeldung:** Apple, Google, Magic Link und Passkey sind eine Mock-Auswahl.
+4. **Versand:** E-Mail und Push laufen nur im Mock (`DELIVERY`). 9 Katalog-Ereignisse haben keinen Auslöser: signIn, welcome, requestSent, guestRemoved, profileTips, waitlistOpen, termsUpdate, accountPaused, accountDeleted.
+5. **Recht:** Alle 7 Rechtsseiten sind Entwürfe, das Impressum ist leer, 0 von 5 Plattform-Pflichten sind geprüft. Ein Live-Build bricht deshalb ab (gewollt).
+6. **Fotos und Uploads:** House-, Profil- und Album-Fotos bleiben im Browser; 91 Ortsbilder und das Gründerfoto fehlen.
+7. **Dark Mode D1–D3:** Das Fundament steht, die Seiten sind nicht einzeln angepasst.
+8. **Mobile/iPad-Durchgang und Breiten-Test:** Der Test ist gebaut, aber hier nie gelaufen (kein Bericht); die Launch-Checkliste zeigt ihn offen.
+9. **Kleine Ablauf-Lücken:**
+   - Der Stepper sagt 48 h, die Anfrage läuft aber nach 72 h ab.
+   - Ein vom Host entfernter Gast bekommt keine Benachrichtigung.
+   - Der Chat-Kopf hat noch keine Reiter.
+   - Sammlungen haben kein OG-Bild.
+   - Kontakt ist nur eine mailto-Zeile.
+   - Passkey und Anmelde-Methode zeigen „comes soon“.
+10. **Offene Entscheidungen und Werte:** Steuersätze und Konten, Host wirbt Host, Album-Anreiz, Host-Fee-Beispiel, Tiefe ein/aus, Founding Hosts sehen andere, Finanzierungs-Begründungen, Marketing-Kanäle.
