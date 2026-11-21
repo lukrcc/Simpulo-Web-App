@@ -474,7 +474,7 @@ function DeliveryLog() {
   const store = useStore();
   const log = useNotifyLog();
   if (log.length === 0) return <p className="px-4 py-4 text-muted">{t("logEmpty")}</p>;
-  const LINE = { push: "logPush", email: "logEmail", emailQueued: "logEmailQueued", emailDigest: "logEmailDigest", emailWeekly: "logEmailWeekly" } as const;
+  const LINE = { push: "logPush", email: "logEmail", emailQueued: "logEmailQueued", emailDaily: "logEmailDaily", emailDigest: "logEmailDigest", emailWeekly: "logEmailWeekly" } as const;
   return (
     <ul className="scroll-pane max-h-80">
       {log.slice(0, LOG_MAX).map((entry) => {

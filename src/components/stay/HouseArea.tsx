@@ -4,6 +4,7 @@
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
 // "Ended"), under it the tabs as capsules – Chat · Crew · Plan · Moments · Me, the host also Manage – their state in the URL (?tab=plan).
 // Visitors keep the public House page (views/StayDetail.tsx). Everything from the store (mock); nothing here is a second copy of Messages.
+import { HostChecklist } from "@/components/onboarding/HostOnboarding";
 import { ProgramEditor, ProgramFeedbackSummary, ProgramView } from "./ProgramParts";
 import { RotateCcw, Share } from "lucide-react";
 import { useHouseShareSheet } from "@/components/share/HouseShare";
@@ -654,6 +655,8 @@ function ManageTab({ stay }: { stay: Stay }) {
   return (
     <div className="flex max-w-[860px] flex-col gap-12">
       {hostOverlapOf(store, stay) && <p className="text-small text-muted">{tOverlap("hostTwo")}</p>}
+      {/* Host onboarding's checklist (welcome · place · payouts · first House) until it's done. */}
+      <HostChecklist />
       <HostProgress stay={stay} requests={requests} chat={chat} onSheet={(sheet) => scrollTo(sheet === "requests" ? "manage-requests" : "manage-payments")} onLock={() => setLocking(true)} />
       <Part id="manage-tasks" title={tTasks("title")}>
         <HostTasks stay={stay} />

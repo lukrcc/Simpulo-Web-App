@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { pageOf, type AppNotification, type NotificationRepository } from "@/lib/data/notifications";
 import { cardTaskOf, TASK_NOTIFICATIONS } from "@/lib/houseTasks";
 import { useNow } from "@/lib/useNow";
-import { unreadThreadCount, useStore } from "@/lib/store";
+import { catalogOf, channelsFor } from "@/lib/notify";
+import { settingsOf, unreadThreadCount, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 
 /** Unread in Messages: chats (crew and direct) and Updates (the notifications) – the dot on the Messages tab and on each segment. */
@@ -15,13 +16,14 @@ export function useMessagesUnread(): { chats: number; updates: number } {
 }
 
 /**
- * The current user's notifications as a NotificationRepository – over the mock store today. In-app is always on (config/notifications.ts);
- * logged out: nothing.
+ * The current user's notifications as a NotificationRepository – over the mock store today. In-app follows the groups' switches
+ * (config/notifications.ts; "Requests & bookings" always); logged out: nothing.
  */
 export function useNotifications(): NotificationRepository & { ready: boolean } {
   const store = useStore();
   const { currentUserId: me, notifications, markNotificationRead, markAllNotificationsRead } = store;
   const now = useNow();
+  const prefs = settingsOf(store.users.find((u) => u.id === me)).notifications;
   const mine = useMemo(() => {
     if (!me) return [];
     const at = now === null ? null : new Date(now).toISOString();
@@ -36,6 +38,8 @@ export function useNotifications(): NotificationRepository & { ready: boolean } 
     return notifications
       // Mock entries dated after now (a "Do it again" after a House that hasn't ended, an invite of a future request) haven't happened yet.
       .filter((n) => n.userId === me && (at === null || n.createdAt <= at))
+      // In-app switched off for a group (Settings › Notifications – never "Requests & bookings"): not shown here.
+      .filter((n) => channelsFor(catalogOf(n.key), prefs).inApp)
       .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
       .filter((n) => {
         const task = taskOnCard(n);

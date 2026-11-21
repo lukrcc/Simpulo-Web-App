@@ -156,7 +156,8 @@ export function useIsStandalone(): boolean {
 // ─── When the install prompt may show ──────────────────────────────────────────────
 
 /** The three good moments: after paying your share, after joining the crew (accepted), when opening the House's group chat. */
-export type InstallTrigger = "paid" | "joined" | "chat";
+/** "requested": right after the first request of an account ("Want to know when {host} replies?" – CLAUDE.md "Onboarding"). */
+export type InstallTrigger = "paid" | "joined" | "chat" | "requested";
 
 /** Never on the first visit, at most once a week, and off for good with "Don't show again" (or Settings › General). */
 export const INSTALL_PROMPT_RULES = { minDaysBetween: 7 } as const;

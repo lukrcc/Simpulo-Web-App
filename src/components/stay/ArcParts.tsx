@@ -12,7 +12,9 @@ import { Textarea } from "@/components/ui/Input";
 import { ARC_PHASES, ARC_STEPS } from "@/config/arc";
 import { track } from "@/lib/analytics";
 import { arcDateLabel, arcStateOf, crewDoneCount, useArc } from "@/lib/arc";
-import { send as sendEmail } from "@/lib/notify/channels/email";
+import { ARC_STEP_EVENT } from "@/config/notifications";
+import { notify } from "@/lib/notify";
+import { shortNameOf } from "@/lib/shortName";
 import { settingsOf, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -153,7 +155,10 @@ export function useArcEmails(stay: Stay) {
   const me = store.currentUserId;
   useEffect(() => {
     // Mock e-mails only (dev, demo): in production the backend sends them – nothing is stored here.
-    if (!arc || !me || arc.muted || !USES_MOCK_DATA) return;
+    // Through the catalogue (config/notifications.ts): each step its entry (the day after, the album, Do it again …, else "arcStep"),
+    // email and push by the House tips' switches; the in-app part is the card in the House chat (recorded).
+    const user = store.users.find((u) => u.id === me);
+    if (!arc || !me || !USES_MOCK_DATA) return;
     for (const d of arc.due) {
       if (!d.step.channels.includes("email")) continue;
       const key = `simpulo:arc-mail:${me}:${stay.id}:${d.step.id}`;
@@ -163,7 +168,15 @@ export function useArcEmails(stay: Stay) {
       } catch {
         continue;
       }
-      sendEmail(me, { subject: `${stay.title}: ${t(`steps.${d.step.id}.title` as "steps.welcome.title", { title: stay.title })}`, text: t(`steps.${d.step.id}.text` as "steps.welcome.text"), url: `/h/${stay.id}?tab=${d.step.tab}&arc=${d.step.id}`, template: "notification" });
+      notify(me, ARC_STEP_EVENT[d.step.id] ?? "arcStep", {
+        recorded: true,
+        house: shortNameOf(stay),
+        text: `${stay.title}: ${t(`steps.${d.step.id}.title` as "steps.welcome.title", { title: stay.title })}`,
+        body: t(`steps.${d.step.id}.text` as "steps.welcome.text"),
+        url: `/h/${stay.id}?tab=${d.step.tab}&arc=${d.step.id}`,
+        prefs: settingsOf(user).notifications,
+        quiet: settingsOf(user).quietHours,
+      });
     }
-  }, [arc, me, stay.id, stay.title, t]);
+  }, [arc, me, stay, t, store.users]);
 }

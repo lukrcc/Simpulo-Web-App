@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { EditProfile } from "@/components/views/EditProfile";
 
@@ -8,5 +9,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function EditProfilePage() {
-  return <EditProfile />;
+  // Suspense: EditProfile reads ?setup=1 with useSearchParams (the onboarding, CLAUDE.md "Onboarding").
+  return (
+    <Suspense fallback={null}>
+      <EditProfile />
+    </Suspense>
+  );
 }

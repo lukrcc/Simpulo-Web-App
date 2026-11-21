@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanSpace } from "@/config/space";
 import { useDepthChoice } from "@/config/platform";
 import { depthLocked } from "@/lib/depth";
 import { suggestedDepth } from "@/config/depth";
@@ -18,6 +19,7 @@ import {
   DatesDetail,
   DetailsList,
   ExtrasStep,
+  SpaceStep,
   HostDetail,
   LanguagesDetail,
   LookingForDetail,
@@ -424,6 +426,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       monthlyRent: Math.round(Number(form.monthlyRent)),
       currency: previewStay.currency,
       allowedToHost: form.allowedToHost,
+      // "About the space" goes with the place – the next House from it starts with it.
+      space: cleanSpace(form.space),
     });
   }
 
@@ -438,6 +442,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setForm(target === "crew" ? { ...filled, ...placeRent(filled, today, place) } : filled);
       return open(target);
     }
+    // A new House: "About the space" (optional) right after "Where and when?", then on as before.
+    if (!editing && !fromList && step === "where") return open("space");
+    if (!editing && !fromList && step === "space") return goOn("where");
     if (isDetail(step) || fromList) {
       setFromList(false);
       return open(home);
@@ -446,7 +453,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     if (step === "cover" && !editing) return open(EXTRAS_STEP);
     if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
     if (step === INVITE_STEP) return open("ready");
-    const following = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
+    goOn(step);
+  }
+
+  /** On to the required step after `from` (with what entering "Crew and price" fills in). */
+  function goOn(from: StepKey) {
+    const following = flowSteps0[flowSteps0.indexOf(from as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
     // A window of the host's own place: the place and its kind are known – straight on to "Where and when?".
     const target: StepKey = form.placeId && (following === "place" || following === "kind") ? "where" : following;
     // Into "Crew and price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
@@ -456,6 +468,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   }
 
   function back() {
+    if (!editing && !fromList && step === "space") return open("where");
+    if (!editing && !fromList && step === flowSteps0[flowSteps0.indexOf("where") + 1]) return open("space");
     if (isDetail(step) || fromList) {
       setFromList(false);
       return open(home);
@@ -552,6 +566,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       {step === "kind" && <KindStep {...stepProps} />}
       {step === "depth" && depthOn && <DepthStep {...stepProps} locked={depthIsLocked} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
+      {step === "space" && <SpaceStep {...stepProps} />}
       {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} rentalNote={rentalNote} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
       {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} rentNote={rentNote} maxSpots={form.placeId && ownPlace ? maxCrewOf(ownPlace) : undefined} />}
@@ -611,7 +626,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const canGoBack = step !== SOURCE_STEP && (step !== "vibe" || hasSource) && !(editing && step === "details");
   const onList = step === "details";
   // A new House: the progress bar over the full width under the header (the six steps and the review).
-  const flowSteps: StepKey[] = [...flowSteps0, EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
+  const flowSteps: StepKey[] = [...flowSteps0.flatMap((k): StepKey[] => (k === "where" ? ["where", "space"] : [k])), EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
   const flowIndex = flowSteps.indexOf(step);
   const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
   // Phones: the fixed Next stands on the keyboard (--vv-kb).
@@ -639,6 +654,12 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     </Button>
   ) : (
     <>
+      {/* "About the space": Skip goes on without it (whatever was answered stays). */}
+      {step === "space" && !editing && !fromList && (
+        <Button variant="tertiary" onClick={() => goOn("where")}>
+          {tFlow("skip")}
+        </Button>
+      )}
       {(step === EXTRAS_STEP || step === INVITE_STEP) && (
         <Button variant="tertiary" onClick={() => (step === EXTRAS_STEP && hasInviteStep ? open(INVITE_STEP) : open("ready"))}>
           {tFlow("skip")}
@@ -646,7 +667,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       )}
       {/* Looks disabled until the step is valid, but a tap still shows what's missing. */}
       <Button size="md" onClick={next} aria-disabled={!stepValid || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:bg-ink/10 aria-disabled:text-muted aria-disabled:hover:bg-ink/10">
-        {isDetail(step) || fromList ? tDetails("done") : t("next")}
+        {(isDetail(step) && !(step === "space" && !editing)) || fromList ? tDetails("done") : t("next")}
       </Button>
     </>
   );

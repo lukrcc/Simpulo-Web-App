@@ -6,8 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { addWaitlistEntry } from "@/lib/admin/store";
 import { track } from "@/lib/analytics";
-import { tEn } from "@/lib/i18n/translate";
-import * as email from "@/lib/notify/channels/email";
+import { notifyByEmail } from "@/lib/notify";
 import type { Vibe, WaitlistEntry } from "@/lib/types";
 
 export interface WaitlistPrefill {
@@ -56,7 +55,7 @@ export const waitlistUnsubscribeHref = (token: string) => `/waitlist/unsubscribe
 export function joinWaitlist(input: { email: string; where: string | null; category: Vibe | null; month: string | null; consent: true; userId?: string; source: string | null; referredBy: string | null; wantsToHost?: boolean }): WaitlistEntry {
   const entry = addWaitlistEntry({ email: input.email.trim(), where: input.where, when: input.month, interests: input.category ? [input.category] : [], wantsToHost: Boolean(input.wantsToHost), source: input.source, referredBy: input.referredBy, consent: input.consent, ...(input.userId && { userId: input.userId }) });
   if (entry.confirmedAt === null) {
-    email.send(entry.userId ?? entry.email, { subject: tEn("platform.waitlist.confirmSubject"), text: tEn("platform.waitlist.confirmText"), url: waitlistConfirmHref(entry.token!), template: "notification" });
+    notifyByEmail(entry.userId ?? entry.email, "waitlistConfirm", { url: waitlistConfirmHref(entry.token!) });
   }
   // Signals only: where from, which parts were given – never the email.
   track("waitlist_joined", { place: Boolean(input.where), category: input.category, month: Boolean(input.month), pending: entry.confirmedAt === null });

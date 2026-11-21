@@ -6,7 +6,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useNotificationText } from "@/i18n/events";
 import { APP_MODE } from "@/lib/appMode";
 import { linkBase } from "@/lib/links";
-import { EVENT_OF, notify } from "@/lib/notify";
+import { catalogOf, notify } from "@/lib/notify";
+import { shortNameOf } from "@/lib/shortName";
 import { setInAppSink } from "@/lib/notify/channels/inapp";
 import { setAnnounce } from "@/lib/notify/log";
 import { findUser, settingsOf, useStore } from "@/lib/store";
@@ -57,7 +58,10 @@ export function NotifyBridge() {
       if (n.mock || n.sent || n.createdAt < from || done.current.has(n.id)) continue;
       done.current.add(n.id);
       const href = hrefOf(n, store.stays, n.userId);
-      notify(n.userId, EVENT_OF[n.key], {
+      const stay = n.stayId ? store.stays.find((s) => s.id === n.stayId) : undefined;
+      notify(n.userId, catalogOf(n.key), {
+        // Push and the lock screen show only the kind and this (the catalogue's short line) – never the text below.
+        house: stay ? shortNameOf(stay) : undefined,
         key: n.key,
         values: n.values,
         eventId: n.eventId,
@@ -66,6 +70,7 @@ export function NotifyBridge() {
         href: n.href,
         text: text(n),
         prefs: settingsOf(findUser(store, n.userId)).notifications,
+        quiet: settingsOf(findUser(store, n.userId)).quietHours,
         recorded: true,
         url: href ? `${linkBase()}${href}` : undefined,
         // Chat: read in Updates, or (for the person using this browser) the chat opened since.

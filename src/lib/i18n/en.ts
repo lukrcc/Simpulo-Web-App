@@ -576,7 +576,56 @@ const en = {
       "adult": "Confirm that you're 18 or older."
     },
     "adult": "I'm 18 or older",
-    "terms": "By continuing, you agree to the <terms>Terms</terms>. See how we handle your data in our <privacy>Privacy Policy</privacy>."
+    "terms": "By continuing, you agree to the <terms>Terms</terms>. See how we handle your data in our <privacy>Privacy Policy</privacy>.",
+    "done": {
+      "metaTitle": "You're set",
+      "eyebrow": "You're set",
+      "title": "Welcome, {name}",
+      "progress": "Your profile is {done} of {total}.",
+      "complete": "Your profile is complete – hosts see it first.",
+      "finish": "Finish it any time in Edit profile →",
+      "housesTitle": "Three Houses to start with",
+      "explore": "Explore Houses",
+      "profile": "See your profile"
+    },
+    "finishCard": {
+      "title": "Finish your profile",
+      "text": "{done} of {total} – hosts look at your profile first.",
+      "action": "Continue",
+      "dismiss": "Dismiss"
+    },
+    "hostCard": {
+      "title": "You're a Founding Host",
+      "titleHost": "Ready to host?",
+      "text": "Three short steps and your first House is open.",
+      "action": "Get started",
+      "dismiss": "Dismiss"
+    },
+    "host": {
+      "metaTitle": "Start hosting",
+      "eyebrow": "Start hosting",
+      "titleFounding": "Welcome, Founding Host",
+      "title": "Welcome to hosting",
+      "intro": "A few steps, in any order. Only the first House is a must – the rest you can do later.",
+      "progress": "{done} of {total} done",
+      "checklistTitle": "Your hosting checklist",
+      "steps": {
+        "welcome": { "title": "You're in", "text": "You're one of the hosts on Simpulo – your profile shows it." },
+        "welcomeFounding": { "title": "You're in", "text": "You're one of the first hosts on Simpulo – your profile carries the Founding Host badge." },
+        "place": { "title": "Save your place", "text": "Hosting where you live? Save it once and open windows from it. Optional.", "action": "Do it in Open a House", "skip": "Skip" },
+        "payouts": { "title": "Set up payouts", "text": "Needed before your first payout – not to open a House. Stripe checks your details.", "action": "Set up payouts", "later": "You can do this later" },
+        "house": { "title": "Open your first House", "text": "A theme, a place, a month, your crew size – then share it.", "action": "Open a House" }
+      },
+      "done": "Done",
+      "skipped": "Skipped",
+      "allDone": "All set – your checklist is done."
+    },
+    "pushAsk": {
+      "title": "Want to know when {host} replies?",
+      "text": "We'll send a notification the moment {host} answers. Email gets there too, either way.",
+      "yes": "Turn on notifications",
+      "no": "Not now"
+    }
   },
   "reportContent": {
     "title": "Report content",
@@ -600,13 +649,11 @@ const en = {
     "emailHint": "We confirm your report and tell you what we decided.",
     "send": "Send report",
     "sentTitle": "Thanks – we got your report",
-    "sentText": "We'll look at it and write to {email} once we've decided.",
-    "confirmSubject": "We got your report",
-    "confirmText": "Thanks for telling us. We'll look at your report and let you know what we decided.",
-    "resultSubject": "Your report to Simpulo"
+    "sentText": "We'll look at it and write to {email} once we've decided."
   },
   "notices": {
     "title": "Decisions about you",
+    "back": "Back",
     "intro": "When Simpulo acts after a report, you see it here – what we did, why, and which rule. If you disagree, appeal: a person looks at it again.",
     "login": "Log in to see them",
     "none": "Nothing here – Simpulo hasn't made any decision about you.",
@@ -1722,6 +1769,14 @@ const en = {
     },
     "unlistedHint": "Your House is live via your link. It appears on Explore once Simpulo opens in your city.",
     "page": {
+      "space": {
+        "title": "The space",
+        "bedrooms": "{count, plural, =0 {No separate bedroom} one {# bedroom} other {# bedrooms}}",
+        "bathrooms": "{count, plural, =0 {No own bathroom} one {# bathroom} other {# bathrooms}}",
+        "rooms": { "private": "Own rooms", "shared": "Shared rooms" },
+        "outdoor": { "none": "No outside space", "balcony": "Balcony", "garden": "Garden", "courtyard": "Courtyard" },
+        "kitchen": { "open": "Open kitchen", "separate": "Separate kitchen" }
+      },
       "back": "Back",
       "share": "Share this House",
       "openGallery": "Open all photos",
@@ -2349,6 +2404,7 @@ const en = {
       "why": "Tell the story",
       "dates": "Set the dates",
       "accommodation": "Where will you stay?",
+      "space": "About the space",
       "host": "Host experience",
       "lookingFor": "Who are you looking for?",
       "rules": "House rules",
@@ -2519,6 +2575,37 @@ const en = {
         "day": "A typical day"
       }
     },
+    "space": {
+      "intro": "Optional – it helps your crew picture the place. Skip anything you don't know.",
+      "roomsTitle": "Rooms",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "rooms": "Rooms",
+      "roomKinds": { "private": "Own rooms", "shared": "Shared rooms" },
+      "sharedTitle": "Shared spaces",
+      "shared": "What's there to share",
+      "sharedSpaces": { "kitchenTable": "Big kitchen table", "living": "Living room", "workspace": "Workspace", "pool": "Pool or garden" },
+      "outdoor": "Outside",
+      "outdoors": { "none": "None", "balcony": "Balcony", "garden": "Garden", "courtyard": "Courtyard" },
+      "kitchen": "Kitchen",
+      "kitchens": { "open": "Open", "separate": "Separate" },
+      "togetherTitle": "Where people meet",
+      "table": "Where's the biggest table?",
+      "tables": { "center": "In the middle", "edge": "At the side", "none": "No big table" },
+      "seats": "How many fit at it",
+      "bathThroughShared": "Does the way to the bathroom go through a shared room?",
+      "retreat": "Is there a quiet place to be alone?",
+      "answers": { "yes": "Yes", "no": "No" },
+      "placeTitle": "The place",
+      "area": "Size, roughly",
+      "areaUnit": "m²",
+      "daylight": "Daylight in the shared room",
+      "daylights": { "low": "Little", "medium": "Some", "high": "Lots" },
+      "setting": "Setting",
+      "settings": { "city": "City", "edge": "Edge of town", "country": "Countryside" },
+      "visibility": "Your House page shows bedrooms, bathrooms, own or shared rooms, outside space and the kitchen. The rest helps us suggest better places – it isn't shown.",
+      "answered": "{count} of {total}"
+    },
     "details": {
       "addDetails": "Add details",
       "progress": "{count} optional",
@@ -2536,6 +2623,7 @@ const en = {
         "why": "Description",
         "dates": "Exact dates",
         "accommodation": "Accommodation",
+        "space": "About the space",
         "host": "Host experience",
         "lookingFor": "Who I'm looking for",
         "rules": "House rules",
@@ -3588,6 +3676,7 @@ const en = {
       "logEmail": "Email to {name}: {text}",
       "logEmailQueued": "Email to {name} if unread in an hour: {text}",
       "logEmailDigest": "Collected email to {name}: {text}",
+      "logEmailDaily": "Into today's bundle for {name}: {text}",
       "logEmailWeekly": "Weekly summary for {name} +1: {text}",
       "paid": "{title}: {name} paid their share",
       "left": "{name} left {title}",
@@ -3853,6 +3942,11 @@ const en = {
       "done": "Done",
       "next": "Next",
       "seeProfile": "See your profile",
+      "setupStep": "Step {step} of {total} – skip anything, finish it later in Edit profile",
+      "setupIntro": "A few steps – skip anything, finish it later in Edit profile",
+      "setupPhotos": "{min}–{max} photos: your face first, then what you love doing.",
+      "skip": "Skip",
+      "finish": "Finish",
       "shownAsAge": "Shown as {age}",
       "birthPlaceholder": "DD / MM / YYYY",
       "verifyDone": "Verified",
@@ -4154,12 +4248,19 @@ const en = {
       "data": {
         "title": "Your data",
         "download": "Download your data",
-        "downloadSub": "A copy of your profile, Houses, requests, payments and messages.",
+        "downloadSub": "Your profile, Houses, bookings, your messages and agreements – one file, readable and as data.",
+        "request": "Request",
+        "preparing": "Ready in a few minutes – we'll email you a link too.",
+        "preparingShort": "Preparing…",
+        "ready": "Ready – a ZIP with data.json and a readable overview.",
+        "downloadButton": "Download",
         "pause": "Pause account",
-        "pauseSub": "Your profile and Houses are hidden. Nothing is deleted – come back any time.",
-        "pausedSub": "Paused since {date} – your profile and Houses are hidden.",
+        "pauseButton": "Pause",
+        "resume": "Resume",
+        "pauseSub": "Your profile and the Houses you host are hidden. Your bookings stay. Nothing is deleted – resume any time.",
+        "pausedSub": "Paused since {date} – your profile and the Houses you host are hidden.",
         "pauseConfirmTitle": "Pause your account?",
-        "pauseConfirmText": "Your profile and your Houses disappear for others until you switch this off again. Nothing is deleted.",
+        "pauseConfirmText": "Others can't see your profile, and the Houses you host disappear from Explore. Houses you're in stay as they are – your crew, the chat, your payments. Nothing is deleted, and you can resume any time.",
         "pauseConfirm": "Pause account",
         "paused": "Account paused",
         "resumed": "Welcome back – your account is visible again",
@@ -4208,11 +4309,38 @@ const en = {
       },
       "privacy": {
         "nobody": "Nobody blocked",
-        "download": "Download your data"
+        "download": "Download your data",
+        "seeTitle": "What others see",
+        "seeStrangers": "Others on Simpulo",
+        "seeStrangersOn": "Your first name and photo in the crews you're in. Logged out, nobody sees them.",
+        "seeStrangersOnAge": "Your first name, photo and age in the crews you're in. Logged out, nobody sees them.",
+        "seeStrangersOff": "Nothing – you're only counted (“+1”).",
+        "seePaused": "Nothing – your account is paused.",
+        "seeCrew": "Your crew",
+        "seeCrewText": "Your full profile – always, in the Houses you share.",
+        "seeHosts": "Hosts you ask",
+        "seeHostsText": "Your full profile with your request.",
+        "seeHostsHidden": "Your profile without your photo until they accept.",
+        "messages": "Who can message me",
+        "messagesOptions": { "crew": "Crew only", "people": "Your people", "afterRequest": "Everyone after a request" },
+        "messagesNote": {
+          "crew": "Only people you share a House with can start a chat. Hosts you asked can still answer.",
+          "people": "Your people and people you share a House with. Hosts you asked can still answer.",
+          "afterRequest": "Anyone with a question about your House, and the hosts you asked to join."
+        }
       },
       "deletePage": {
         "back": "Privacy & safety",
         "title": "Delete your account",
+        "downloadFirst": "Want a copy first? <link>Download your data</link> – your profile, Houses, bookings and messages.",
+        "blockedTitle": "Not yet – a House still depends on you",
+        "blockedText": "Your crews count on you. Once these are over (or settled), you can delete your account.",
+        "blocked": {
+          "host": "You're hosting it. Cancel the House (everyone gets their money back) or wait until it's over.",
+          "hostRunning": "You're hosting it right now. Wait until it's over.",
+          "guest": "You've paid for it. Leave the House (the cancellation rules apply) or wait until it's over.",
+          "guestRunning": "You're in it right now. Wait until it's over."
+        },
         "what": "What happens",
         "points": {
           "profile": "Your profile, photos and links are removed.",
@@ -4282,19 +4410,32 @@ const en = {
       "alwaysOn": "Bookings & payments – always on",
       "alwaysOnText": "Requests, answers, payments, bookings, cancellations and refunds have deadlines – they always reach you in the app, by push and by email.",
       "rows": {
-        "messages": "Chat messages",
-        "nearby": "New Houses near your searches",
-        "news": "News from Simpulo"
+        "messages": "Messages",
+        "arc": "House tips",
+        "people": "Your people",
+        "nearby": "New Houses for your searches",
+        "news": "Product news"
       },
       "notes": {
-        "messages": "Email only if still unread after an hour – several in one",
-        "nearby": "Email as a weekly summary",
-        "news": "Always in the app; email only if you want it"
+        "messages": "Chats with your crews and hosts. Email only if still unread after an hour – several in one.",
+        "arc": "Simpulo's few cards along your House – in the House chat (in-app) and by email.",
+        "people": "When your people plan, go or are nearby.",
+        "nearby": "Email as a weekly summary.",
+        "news": "What's new at Simpulo – off unless you want it."
       },
       "channels": {
+        "email": "Email",
         "push": "Push",
-        "email": "Email"
-      }
+        "inApp": "In-app",
+        "none": "Not available"
+      },
+      "lockedTitle": "Requests & bookings",
+      "lockedText": "Always on – in the app, by push and by email. Requests, payments, bookings and refunds have deadlines; missing one can cost you your spot or your money.",
+      "quietTitle": "Quiet hours",
+      "quiet": "Quiet hours",
+      "quietText": "Push waits until they end – in your local time. Email and the app aren't held.",
+      "quietFrom": "From",
+      "quietTo": "To"
     },
     "preferences": {
       "title": "Preferences",
@@ -4918,6 +5059,8 @@ const en = {
     "paidBenefit": "Add Simpulo to your home screen – booking, address and crew in one tap.",
     "chatTitle": "Keep your crew one tap away",
     "chatBenefit": "With Simpulo on your home screen, new messages arrive like any other chat.",
+    "requestedTitle": "Know when your host replies",
+    "requestedBenefit": "Get Simpulo on your phone – the answer to your request lands there first.",
     "dontShowAgain": "Don't show again",
     "emailAnyway": "Payments, deadlines and your House's updates always come by email too.",
     "card": {
@@ -5145,6 +5288,57 @@ const en = {
     }
   },
   "notifications": {
+    "yourHouse": "your House",
+    "catalog": {
+      "signIn": { "subject": "Your sign-in link for Simpulo", "short": "Sign in to Simpulo", "body": "Tap the button to sign in. The link works once, for 15 minutes. Didn't ask for it? Ignore this email.", "action": "Sign in" },
+      "welcome": { "subject": "Welcome to Simpulo", "short": "Welcome to Simpulo", "body": "Your account is ready. Add a few photos and a sentence about you – hosts look at your profile first.", "action": "Finish your profile" },
+      "requestSent": { "subject": "Your request for {house} is on its way", "short": "Request sent for {house}", "body": "The host answers within 72 hours. Nothing is charged until the crew is complete.", "action": "See your request" },
+      "requestReceived": { "subject": "New request for {house}", "short": "New request for {house}", "body": "Someone wants to join. Answer within 72 hours – after that the request runs out.", "action": "See the request" },
+      "requestAccepted": { "subject": "You're in: {house}", "short": "Good news about {house}", "body": "The host said yes. You pay your share once the crew is complete.", "action": "Open your House" },
+      "requestDeclined": { "subject": "About {house}", "short": "News about {house}", "body": "This one didn't work out. There are similar Houses with free spots.", "action": "See similar Houses" },
+      "requestExpired": { "subject": "Your request for {house} ran out", "short": "News about {house}", "body": "The time to answer has passed. There are similar Houses with free spots.", "action": "See similar Houses" },
+      "invited": { "subject": "A spot for you in {house}", "short": "A spot for you in {house}", "body": "The spot is held for 48 hours – accept it before it's free again.", "action": "See the invite" },
+      "hostReminder": { "subject": "Requests are waiting: {house}", "short": "Requests are waiting for {house}", "body": "Answer them before they run out – people plan around your answer.", "action": "Answer requests" },
+      "friendSpots": { "subject": "Spots for friends are free again: {house}", "short": "Update on {house}", "body": "The 48 hours have passed – the spots you held are open to everyone again.", "action": "Open your House" },
+      "paymentDue": { "subject": "Pay your share: {house}", "short": "Payment due for {house}", "body": "The crew is complete and the place is picked. You have 48 hours to pay your share.", "action": "Pay your share" },
+      "paymentReminder": { "subject": "Reminder: pay your share for {house}", "short": "Payment reminder for {house}", "body": "Your spot is held until the payment window closes. After that it's free again.", "action": "Pay your share" },
+      "paymentLapsed": { "subject": "Your spot in {house} was released", "short": "Update on {house}", "body": "The 48 hours to pay have passed, so your spot is free again. Nothing was charged.", "action": "See similar Houses" },
+      "paid": { "subject": "A payment came in: {house}", "short": "Payment in for {house}", "body": "Someone in the crew paid their share. You see the progress in the House.", "action": "Open your House" },
+      "bookingConfirmed": { "subject": "Booked: {house}", "short": "{house} is booked", "body": "The host confirmed the booking. The address and check-in details follow before you arrive.", "action": "Open your House" },
+      "cancelled": { "subject": "{house} was cancelled", "short": "Update on {house}", "body": "This House won't happen. Any payment comes back to you – the details are in the House.", "action": "See what happens next" },
+      "refund": { "subject": "A refund is on its way: {house}", "short": "Refund for {house}", "body": "The money goes back to how you paid. Banks take 5–10 days.", "action": "See your refund" },
+      "guestRemoved": { "subject": "You're no longer in {house}", "short": "Update on {house}", "body": "The host took you out of this House. Any payment comes back to you.", "action": "See similar Houses" },
+      "houseMilestone": { "subject": "{house}: a step closer", "short": "Update on {house}", "body": "Something changed in your House – the crew, the dates or your arrival.", "action": "Open your House" },
+      "arcStep": { "subject": "{house}: a small next step", "short": "A tip for {house}", "body": "One short thing for your House. Skip it if it doesn't fit.", "action": "Open your House" },
+      "dayAfter": { "subject": "How was {house}?", "short": "A question about {house}", "body": "A few quick questions about your House – who you'd live with again stays private.", "action": "Answer" },
+      "albumReady": { "subject": "Your album from {house} is ready", "short": "Album ready for {house}", "body": "Photos from your crew, only for your crew.", "action": "Open the album" },
+      "doItAgain": { "subject": "Do {house} again?", "short": "Do {house} again?", "body": "Open the next one with the people you'd live with again.", "action": "Open a House" },
+      "thirtyDays": { "subject": "A month after {house}", "short": "A month after {house}", "body": "One question about what stayed with you. Only you see your answer.", "action": "Answer" },
+      "yourPeople": { "subject": "You chose each other", "short": "New in Your people", "body": "Someone from your crew wants to live with you again too. They're in Your people now.", "action": "See Your people" },
+      "anniversary": { "subject": "One year since {house}", "short": "One year since {house}", "body": "Open the album – or open the next House with the same crew.", "action": "Open the album" },
+      "chatMessage": { "subject": "New message in {house}", "short": "New message in {house}", "body": "Someone wrote in your chat.", "action": "Reply" },
+      "newHouse": { "subject": "A new House for your search", "short": "A new House for your search", "body": "A House opened that fits a search you saved.", "action": "See the House" },
+      "profileTips": { "subject": "A tip for your profile", "short": "A tip for your profile", "body": "A small step that helps hosts say yes.", "action": "Open your profile" },
+      "applicationReceived": { "subject": "We got your application", "short": "Application received", "body": "Thanks for applying to host on Simpulo. We'll answer within a few days.", "action": "See your application" },
+      "applicationAccepted": { "subject": "You're a Founding Host", "short": "You're a Founding Host", "body": "Your application is accepted. A few short steps and your first House is open.", "action": "Get started" },
+      "applicationDeclined": { "subject": "About your host application", "short": "About your host application", "body": "Thank you for applying. We can't take every host yet – we'll write when that changes.", "action": "See your application" },
+      "applicationQuestion": { "subject": "A question about your application", "short": "A question about your application", "body": "We have one question before we decide.", "action": "Answer" },
+      "waitlistConfirm": { "subject": "Confirm your email", "short": "Confirm your email", "body": "One click and you're on the list. Didn't sign up? Ignore this email.", "action": "Confirm" },
+      "waitlistOpen": { "subject": "Houses are open", "short": "Houses are open", "body": "Simpulo is open where you wanted to go. You were first on the list.", "action": "See Houses" },
+      "reportReceived": { "subject": "We got your report", "short": "We got your report", "body": "Thanks – we look at it within 24 hours and tell you what we decided.", "action": "Open Simpulo" },
+      "reportDecided": { "subject": "About your report", "short": "About your report", "body": "We looked at what you reported. The result is in Simpulo.", "action": "Open Simpulo" },
+      "decision": { "subject": "A decision about your account", "short": "A decision about your account", "body": "We made a decision about your account or content. You see why and can appeal.", "action": "See the decision" },
+      "supportReply": { "subject": "Simpulo replied to your message", "short": "Simpulo replied", "body": "Our answer is in Messages.", "action": "Read the answer" },
+      "termsUpdate": { "subject": "We've updated our Terms", "short": "We've updated our Terms", "body": "Read what changed – we ask you to agree once, the next time you open Simpulo.", "action": "Read the Terms" },
+      "accountPaused": { "subject": "Your account is paused", "short": "Your account is paused", "body": "Your profile is private and your Houses are off Explore. Nothing is deleted – resume any time.", "action": "Resume" },
+      "accountDeleted": { "subject": "Your account is deleted", "short": "Your account is deleted", "body": "Your account and profile are gone. What the law asks us to keep stays until it may be deleted.", "action": "Open Simpulo" }
+    },
+    "digest": {
+      "subject": "{count, plural, one {# update from Simpulo} other {# updates from Simpulo today}}",
+      "headline": "{count, plural, one {One update} other {# updates}} from today",
+      "intro": "Everything from today in one email. Money and deadlines always come on their own, right away.",
+      "action": "Open Simpulo"
+    },
     "title": "Notifications",
     "markAll": "Mark all as read",
     "seeAll": "See all notifications",
@@ -5764,18 +5958,12 @@ const en = {
       "statusQuestion": "We have a question",
       "statusQuestionText": "We emailed you – reply there and we'll go on.",
       "statusYes": "You're a Founding Host",
-      "statusYesText": "Your application is accepted. You can open your House now.",
+      "getStarted": "Get started",
+    "statusYesText": "Your application is accepted. You can open your House now.",
       "statusNo": "Not this time",
       "statusNoText": "Thank you for applying. We can't take every host yet – we'll write when that changes.",
       "openHouse": "Open a House",
       "applied": "Applied {date}",
-      "confirmSubject": "We got your application",
-      "confirmText": "Thanks for applying to host on Simpulo. We'll answer within a few days.",
-      "acceptedSubject": "You're a Founding Host",
-      "acceptedText": "Your application is accepted – you can open your House on Simpulo now.",
-      "declinedSubject": "About your host application",
-      "declinedText": "Thank you for applying. We can't take every host yet – we'll write when that changes.",
-      "questionSubject": "A question about your application",
       "accountGroup": "Hosting",
       "accountRow": "Host application"
     },
@@ -5799,8 +5987,6 @@ const en = {
       "sentTitle": "Check your inbox",
       "sentText": "We sent a link to {email}. Click it to confirm – then you're on the list.",
       "done": "Done",
-      "confirmSubject": "Confirm your spot on the Simpulo waitlist",
-      "confirmText": "One click and you're on the list. Didn't sign up? Ignore this email.",
       "confirmedTitle": "You're on the list",
       "confirmedText": "We'll email you when Houses open – nothing else.",
       "unknownTitle": "This link doesn't work",
@@ -5870,15 +6056,14 @@ const en = {
     "impressum": "Impressum",
     "privacy": "Privacy",
     "unsubscribe": "Unsubscribe from these emails",
+    "settings": "Notification settings",
+    "always": "You get this email because it's about your booking, your money or your account.",
     "magicLink": {
       "preview": "Tap to sign in – the link works for 15 minutes.",
       "headline": "Sign in to Simpulo",
       "action": "Sign in",
       "body": "Tap the button to sign in. The link works once, for 15 minutes.",
       "ignore": "Didn't ask for it? Ignore this email – nothing happens."
-    },
-    "notification": {
-      "rest": "Everything else is on Simpulo."
     },
     "weekly": {
       "headline": "{count, plural, one {A new House near your search} other {# new Houses near your searches}}",
@@ -5889,21 +6074,6 @@ const en = {
       "headline": "{count, plural, one {{name} wrote to you} other {# unread messages}}",
       "action": "Reply",
       "subject": "{count, plural, one {{subject}} other {# unread messages on Simpulo}}"
-    },
-    "actions": {
-      "requestReceived": "See the request",
-      "requestAnswered": "See similar Houses",
-      "accepted": "Open your House",
-      "paymentDue": "Pay your share",
-      "paymentReminder": "Pay your share",
-      "bookingConfirmed": "See your House",
-      "bookingCancelled": "See what happens next",
-      "refundIssued": "See your refund",
-      "houseArc": "Open your House",
-      "chatMessage": "Reply",
-      "houseNearby": "See the House",
-      "simpuloNews": "Open Simpulo",
-      "supportReply": "Open Simpulo"
     }
   },
   "og": {

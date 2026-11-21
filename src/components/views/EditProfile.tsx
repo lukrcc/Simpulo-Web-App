@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
+import { GUEST_ONBOARDING, ONBOARDING_PHOTOS } from "@/config/onboarding";
+import { markOnboardingThisLoad } from "@/lib/onboarding";
 import { COMMUNITY_NEEDS, type CommunityNeed } from "@/config/depth";
 import { useDepthChoice } from "@/config/platform";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
@@ -157,11 +160,12 @@ const patchOf = (user: User): ProfilePatch => ({
   communityNeed: user.communityNeed,
 });
 
-/** ?setup=1 – the onboarding: read in the browser only (no Suspense boundary needed). */
-const noSubscribe = () => () => {};
+/** ?setup=1 – the onboarding. From Next's search params (the page wraps it in Suspense): after `router.push` from the sign-up the URL in
+ *  `window.location` isn't updated yet when this renders, so reading it there missed the onboarding. */
 function useSetupParam(): boolean {
-  return useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).get("setup") === "1", () => false);
+  return useSearchParams().get("setup") === "1";
 }
+const noSubscribe = () => () => {};
 
 /** ?section=vibe – the own profile's sections open their editing here directly. */
 function useSectionParam(): ProfileSectionKey | null {
@@ -213,9 +217,24 @@ function EditProfileForm({ me }: { me: User }) {
   ) as Record<ProfileSectionKey, ProfileSectionStatus>;
   const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
   const doneCount = counted.filter(({ key }) => statuses[key] === "complete").length;
-  // Onboarding: asked for (?setup=1), or a new account (no photo yet).
+  // Onboarding: asked for (?setup=1), or a new account (no photo yet). Its own order (config/onboarding.ts): name → photos → a sentence → vibe →
+  // socials → "I'm in for"; each step skippable; at the end three Houses (/welcome/done).
   const [setup] = useState(() => setupParam || me.photos.length === 0);
-  const firstOpen = PROFILE_SECTIONS.find(({ key }) => statuses[key] !== "complete")?.key ?? null;
+  const sections = setup ? GUEST_ONBOARDING.map((key) => PROFILE_SECTIONS.find((s) => s.key === key)!) : PROFILE_SECTIONS;
+  const firstOpen = sections.find(({ key }) => statuses[key] !== "complete")?.key ?? sections[0]?.key ?? null;
+  const router = useRouter();
+  const onboardingState = me.settings?.onboarding?.guest;
+  const { setOnboarding } = store;
+  useEffect(() => {
+    if (!setup) return;
+    // The "Finish your profile" card waits for the next visit; the account remembers that onboarding began.
+    markOnboardingThisLoad();
+    if (onboardingState !== "done" && onboardingState !== "started") setOnboarding({ guest: "started" });
+  }, [setup, onboardingState, setOnboarding]);
+  const finish = () => {
+    setOnboarding({ guest: "done" });
+    router.push("/welcome/done");
+  };
   const sectionParam = useSectionParam();
   const [open, setOpen] = useState<ProfileSectionKey | null>(() => (setup ? firstOpen : null));
   // Opened from a section of the own profile (?section=…): that one, once the browser's URL is read.
@@ -224,7 +243,7 @@ function EditProfileForm({ me }: { me: User }) {
     setParamUsed(true);
     setOpen(sectionParam);
   }
-  const order = PROFILE_SECTIONS.map((s) => s.key);
+  const order = sections.map((s) => s.key);
   /** "Done": closes this one and opens the next section still to do (after it, then from the top); none left: all closed. */
   const done = (key: ProfileSectionKey) => {
     const i = order.indexOf(key);
@@ -313,13 +332,23 @@ function EditProfileForm({ me }: { me: User }) {
     }
   };
 
+  const step = open ? order.indexOf(open) + 1 : 0;
   const list = (
     <div className="flex flex-col gap-4">
+      {/* Onboarding: where you are – "Step 3 of 6" and a thin bar; every step can be skipped. */}
+      {setup && (
+        <div data-onboarding-steps className="flex flex-col gap-2">
+          <p className="text-small font-semibold text-ink">{step > 0 ? t("setupStep", { step, total: order.length }) : t("setupIntro")}</p>
+          <div className="h-1 overflow-hidden rounded-full bg-ink/8" aria-hidden>
+            <div className="h-full rounded-full bg-ink/70 transition-[width] duration-300" style={{ width: `${(Math.max(step, 0) / order.length) * 100}%` }} />
+          </div>
+        </div>
+      )}
       <Progress done={doneCount} total={counted.length} />
       <ul className="overflow-hidden rounded-[20px] bg-(--surface)">
-        {PROFILE_SECTIONS.map(({ key, icon: Icon }, i) => {
+        {sections.map(({ key, icon: Icon }, i) => {
           const isOpen = open === key;
-          const isLast = i === PROFILE_SECTIONS.length - 1;
+          const isLast = i === sections.length - 1;
           return (
             <li key={key} className={cn(i > 0 && "border-t border-ink/6")}>
               <button
@@ -350,11 +379,17 @@ function EditProfileForm({ me }: { me: User }) {
               </button>
               {isOpen && (
                 <div id={`section-${key}-body`} role="region" aria-labelledby={`section-${key}`} className="flex flex-col gap-5 px-5 pb-5">
+                  {setup && key === "photos" && <p className="text-small text-muted">{t("setupPhotos", { min: ONBOARDING_PHOTOS.min, max: ONBOARDING_PHOTOS.max })}</p>}
                   {bodyOf(key)}
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-2">
+                    {setup && (
+                      <Button variant="tertiary" size="md" onClick={() => (isLast ? finish() : next(key))}>
+                        {t("skip")}
+                      </Button>
+                    )}
                     {setup && isLast ? (
-                      <Button href="/profile" size="md">
-                        {t("seeProfile")}
+                      <Button size="md" onClick={finish}>
+                        {t("finish")}
                       </Button>
                     ) : (
                       <Button size="md" onClick={() => (setup ? next(key) : done(key))}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import type { AuthReason } from "@/config/auth-copy";
@@ -28,6 +29,7 @@ const AuthContext = createContext<RequireAuth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { currentUserId } = useStore();
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const router = useRouter();
 
   const requireAuth = useCallback<RequireAuth>(
     (action, ask) => {
@@ -46,10 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         reason={pending?.ask?.reason ?? "login"}
         hostName={pending?.ask?.hostName}
         onClose={() => setPending(null)}
-        onSuccess={(userId) => {
+        onSuccess={(userId, info) => {
           const action = pending?.action;
           setPending(null);
           action?.(userId);
+          // A new account signing in for nothing else (no request, no House waiting): the onboarding (CLAUDE.md "Onboarding").
+          if (info?.registered && !action) router.push("/settings/profile?setup=1");
         }}
       />
       {/* The Terms for sessions that didn't come through the sheet (a returning visit, a new version) – never over the sign-in sheet. */}

@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/ActionButton";
 import { BackLink } from "@/components/ui/BackButton";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import Link from "next/link";
+import { deletionBlockers } from "@/lib/accountDeletion";
 import { getCurrentUser, useStore } from "@/lib/store";
+import { useNow } from "@/lib/useNow";
 
 /** What has to be typed to delete the account. */
 const DELETE_WORD = "DELETE";
@@ -46,8 +49,12 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
   const router = useRouter();
   const showToast = useToast();
   const [typed, setTyped] = useState("");
-  const ready = typed.trim() === DELETE_WORD;
   const paused = Boolean(me?.privacy?.paused);
+  const now = useNow();
+  const today = now === null ? null : new Date(now).toISOString().slice(0, 10);
+  // Not while a House depends on you (lib/accountDeletion.ts): each one with what to do.
+  const blockers = me && today ? deletionBlockers(store, me.id, today) : [];
+  const ready = typed.trim() === DELETE_WORD && blockers.length === 0;
   return (
     <>
       <h2 className="mt-8 text-h3 text-ink">{t("what")}</h2>
@@ -56,6 +63,11 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
           <li key={key}>{t(`points.${key}`)}</li>
         ))}
       </ul>
+
+      {/* Your data first: a copy to keep (Settings › Privacy & safety › Your data). */}
+      <p className="mt-6 text-body text-muted">
+        {t.rich("downloadFirst", { link: (c) => <Link href="/settings#privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
+      </p>
 
       {/* The gentler way first: pausing hides everything and deletes nothing. */}
       {!paused && (
@@ -79,6 +91,23 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
         </section>
       )}
 
+      {blockers.length > 0 && (
+        <section data-delete-blocked className="mt-10 rounded-[20px] border border-dashed border-ink/20 p-5">
+          <h2 className="text-h3 text-ink">{t("blockedTitle")}</h2>
+          <p className="mt-1 text-body text-muted">{t("blockedText")}</p>
+          <ul className="mt-4 flex flex-col gap-3">
+            {blockers.map((b) => (
+              <li key={b.stay.id} className="flex flex-col gap-0.5">
+                <Link href={b.role === "host" ? `/h/${b.stay.id}?tab=manage` : `/h/${b.stay.id}?tab=me`} className="text-body font-semibold text-ink underline-offset-4 hover:underline">
+                  {b.stay.title}
+                </Link>
+                <span className="text-small text-muted">{t(`blocked.${b.role}${b.running ? "Running" : ""}` as "blocked.host")}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <form
         className="mt-10"
         onSubmit={(e) => {
@@ -92,7 +121,7 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
         <label htmlFor="delete-word" className="text-small font-semibold text-ink">
           {t("typeToConfirm", { word: DELETE_WORD })}
         </label>
-        <Input id="delete-word" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" className="mt-2 font-mono" />
+        <Input id="delete-word" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" className="mt-2 font-mono" disabled={blockers.length > 0} />
         <Button type="submit" variant="danger" size="md" className="mt-4" disabled={!ready}>
           {t("confirm")}
         </Button>

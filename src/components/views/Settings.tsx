@@ -22,10 +22,13 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
-import { OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notifications";
+import { DEFAULT_QUIET_HOURS, OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notifications";
+import { listItemStyles } from "@/components/ui/listSelection";
 import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
 import { CONSENT_DOCS, CONSENT_KINDS, type ConsentKind } from "@/config/consent";
 import { consentsOf } from "@/lib/consent";
+import { buildDataExport } from "@/lib/dataExport";
+import { DEFAULT_MESSAGE_PERMISSION, MESSAGE_PERMISSIONS, messagePermissionOf } from "@/lib/messagePermission";
 import { HostDuties } from "@/components/settings/HostDuties";
 import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
@@ -154,10 +157,10 @@ function SettingsContent({ me }: { me: User }) {
         </div>
 
         <div className={cn("min-w-0", section === null && "max-lg:hidden")}>
-          {/* The phone: back to the list, like iOS. */}
-          <button type="button" onClick={() => go("")} className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-body text-ink lg:hidden">
+          {/* The phone: back one level, like iOS – from a page behind an area to the area, from an area to the list. */}
+          <button type="button" onClick={() => go(subpage ? shown : "")} className="-ml-1 mb-3 inline-flex min-h-11 items-center gap-0.5 text-body text-ink lg:hidden">
             <ChevronLeft aria-hidden className="size-5" />
-            {tu("back")}
+            {subpage ? tu(`nav.${shown}`) : tu("back")}
           </button>
           {shown === "account" && <AccountArea me={me} />}
           {shown === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
@@ -387,10 +390,6 @@ function PaymentHistory({ me }: { me: User }) {
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
-type Delivery = "both" | "push" | "email" | "off";
-const deliveryOf = ({ push, email }: { push: boolean; email: boolean }): Delivery => (push && email ? "both" : push ? "push" : email ? "email" : "off");
-
-/** "Bookings & payments" always on (a lock, no control); then one choice per switchable group – push and email in one menu. */
 /** Chats: the background every chat starts with (config/chat-themes.ts); a chat's own "…" › Chat background goes over it. */
 function ChatsArea() {
   const t = useTranslations("messages.chatTheme");
@@ -408,46 +407,73 @@ function ChatsArea() {
   );
 }
 
+/**
+ * Notifications (CLAUDE.md "Settings"): "Requests & bookings" on top – always on, and why; then each group with its channels as three
+ * switches (Email · Push · In-app; a channel a group doesn't have isn't offered); House tips' in-app is the arc's cards in the House chat
+ * (the same as "Mute Simpulo tips"); quiet hours at the end.
+ */
 function NotificationsArea({ me }: { me: User }) {
   const t = useTranslations("settings.notifications");
-  const tu = useTranslations("settings.ui.notifications");
   const tNav = useTranslations("settings.ui.nav");
   const store = useStore();
   const saved = useSaved();
-  const prefs = settingsOf(me).notifications;
-
-  function choose(group: OptionalCategory, next: Delivery) {
-    const current = prefs[group];
-    const push = next === "both" || next === "push";
-    const email = next === "both" || next === "email";
-    if (current.push !== push) store.setNotification(group, "push", push);
-    if (current.email !== email) store.setNotification(group, "email", email);
+  const settings = settingsOf(me);
+  const prefs = settings.notifications;
+  const quiet = settings.quietHours ?? DEFAULT_QUIET_HOURS;
+  const valueOf = (group: OptionalCategory, channel: "email" | "push" | "inApp") => (group === "arc" && channel === "inApp" ? !settings.arcMuted : prefs[group][channel]);
+  function toggle(group: OptionalCategory, channel: "email" | "push" | "inApp", on: boolean) {
+    if (group === "arc" && channel === "inApp") store.setArcMuted(!on);
+    else store.setNotification(group, channel, on);
     saved();
   }
-
   return (
     <div className="space-y-8">
       <AreaTitle title={tNav("notifications")} />
       <SettingsGroup>
-        <SettingsRow title={tu("alwaysTitle")} subtitle={tu("alwaysSub")} control={<Lock aria-label={tu("alwaysLocked")} className="size-4 shrink-0 text-muted" />} />
+        <SettingsRow title={t("lockedTitle")} subtitle={t("lockedText")} control={<Lock aria-label={t("lockedTitle")} className="size-4 shrink-0 text-muted" />} />
       </SettingsGroup>
       <SettingsGroup>
-        {OPTIONAL_CATEGORIES.map(({ key, push, email }) => {
-          const options: { value: Delivery; label: string }[] =
-            push && email
-              ? [
-                  { value: "both", label: tu("choices.both") },
-                  { value: "push", label: tu("choices.push") },
-                  { value: "email", label: tu("choices.email") },
-                  { value: "off", label: tu("choices.off") },
-                ]
-              : [
-                  { value: "email", label: tu("choices.emailOnly") },
-                  { value: "off", label: tu("choices.off") },
-                ];
-          const value = deliveryOf({ push: push && prefs[key].push, email: email && prefs[key].email });
-          return <SettingsRow key={key} title={t(`rows.${key}`)} subtitle={tu(`notes.${key}`)} control={<RowSelect label={t(`rows.${key}`)} value={value} options={options} onChange={(next) => choose(key, next)} />} />;
-        })}
+        {OPTIONAL_CATEGORIES.map((group) => (
+          <div key={group.key} data-notify-group={group.key} className="px-4 py-3.5">
+            <p className="text-body text-ink">{t(`rows.${group.key}`)}</p>
+            <p className="mt-0.5 text-small text-muted">{t(`notes.${group.key}`)}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["email", "push", "inApp"] as const).map((channel) =>
+                group[channel] ? (
+                  <button
+                    key={channel}
+                    type="button"
+                    aria-pressed={valueOf(group.key, channel)}
+                    onClick={() => toggle(group.key, channel, !valueOf(group.key, channel))}
+                    className={listItemStyles(valueOf(group.key, channel), "inline-flex min-h-9 items-center gap-1.5 px-4 text-small")}
+                  >
+                    {valueOf(group.key, channel) && <Check aria-hidden className="size-3.5" />}
+                    {t(`channels.${channel}`)}
+                  </button>
+                ) : (
+                  <span key={channel} className="inline-flex min-h-9 items-center px-4 text-small text-muted/70">
+                    {t(`channels.${channel}`)} · {t("channels.none")}
+                  </span>
+                ),
+              )}
+            </div>
+          </div>
+        ))}
+      </SettingsGroup>
+      <SettingsGroup title={t("quietTitle")} footer={t("quietText")}>
+        <SettingsRow title={t("quiet")} control={<Switch on={quiet.on} label={t("quiet")} onChange={(on) => (store.setQuietHours({ ...quiet, on }), saved())} />} />
+        {quiet.on && (
+          <div className="flex flex-wrap items-center gap-4 px-4 py-3">
+            <label className="flex items-center gap-2 text-small text-muted">
+              {t("quietFrom")}
+              <Input type="time" value={quiet.from} onChange={(e) => (store.setQuietHours({ ...quiet, from: e.target.value || quiet.from }), saved())} className="h-10 w-32" />
+            </label>
+            <label className="flex items-center gap-2 text-small text-muted">
+              {t("quietTo")}
+              <Input type="time" value={quiet.to} onChange={(e) => (store.setQuietHours({ ...quiet, to: e.target.value || quiet.to }), saved())} className="h-10 w-32" />
+            </label>
+          </div>
+        )}
       </SettingsGroup>
     </div>
   );
@@ -525,27 +551,37 @@ function PrivacyArea({ me }: { me: User }) {
     showToast(on ? tu("data.paused") : tu("data.resumed"));
   }
 
+  // Download your data: asked for → "Ready in a few minutes" (the backend emails a link later) → ready (in the mock at once) → the ZIP.
+  const [exportState, setExportState] = useState<"idle" | "preparing" | "ready">("idle");
+  function requestExport() {
+    setExportState("preparing");
+    window.setTimeout(() => setExportState("ready"), 900);
+  }
   function downloadData() {
-    const data = {
-      exportedAt: new Date().toISOString(),
-      profile: me,
-      housesHosted: store.stays.filter((s) => s.hostId === me.id),
-      requests: store.joinRequests.filter((r) => r.userId === me.id),
-      payments: store.payments.filter((p) => p.userId === me.id),
-      messages: store.threads.flatMap((th) => th.messages.filter((m) => m.senderId === me.id)),
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const now = new Date();
+    const file = buildDataExport(store, me, now);
+    const url = URL.createObjectURL(new Blob([file], { type: "application/zip" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "simpulo-data.json";
+    a.download = `simpulo-data-${now.toISOString().slice(0, 10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
     showToast(t("downloaded"));
   }
+  const messages = messagePermissionOf(me);
 
   return (
     <div className="space-y-8">
       <AreaTitle title={tu("nav.privacy")} />
+      {/* What others see – in plain words, from the switches below. */}
+      <SettingsGroup title={tu("privacy.seeTitle")}>
+        <SettingsRow
+          title={tu("privacy.seeStrangers")}
+          subtitle={paused ? tu("privacy.seePaused") : privacy.showOnHousePages ? (privacy.showAge ? tu("privacy.seeStrangersOnAge") : tu("privacy.seeStrangersOn")) : tu("privacy.seeStrangersOff")}
+        />
+        <SettingsRow title={tu("privacy.seeCrew")} subtitle={tu("privacy.seeCrewText")} />
+        <SettingsRow title={tu("privacy.seeHosts")} subtitle={privacy.hidePhotoUntilAccepted ? tu("privacy.seeHostsHidden") : tu("privacy.seeHostsText")} />
+      </SettingsGroup>
       <SettingsGroup title={t("visibilityTitle")}>
         <SettingsRow title={t("showOnHousePages")} subtitle={t("showOnHousePagesText")} control={<Switch on={privacy.showOnHousePages} label={t("showOnHousePages")} onChange={(on) => setPrivacy({ showOnHousePages: on })} />} />
         <SettingsRow title={t("showAge")} subtitle={t("showAgeText")} control={<Switch on={privacy.showAge} label={t("showAge")} onChange={(on) => setPrivacy({ showAge: on })} />} />
@@ -553,6 +589,23 @@ function PrivacyArea({ me }: { me: User }) {
         {hosts && <SettingsRow title={t("hostPage")} subtitle={t("hostPageText")} control={<Switch on={privacy.hostPageInSearch} label={t("hostPage")} onChange={(on) => setPrivacy({ hostPageInSearch: on })} />} />}
         {/* Nearby (lib/nearby.ts): consent, off by default – only Your people, only when they turned it on too. */}
         <SettingsRow title={t("nearby")} subtitle={t("nearbyText")} control={<Switch on={privacy.nearby} label={t("nearby")} onChange={(on) => setPrivacy({ nearby: on })} />} />
+      </SettingsGroup>
+      {/* Who can start a direct chat with you (lib/messagePermission.ts) – every chat belongs to a House. */}
+      <SettingsGroup footer={tu(`privacy.messagesNote.${messages}`)}>
+        <SettingsRow
+          title={tu("privacy.messages")}
+          control={
+            <RowSelect
+              label={tu("privacy.messages")}
+              value={messages}
+              onChange={(v) => {
+                store.updateCurrentUser({ privacy: { ...me.privacy, messages: v === DEFAULT_MESSAGE_PERMISSION ? undefined : v } });
+                saved();
+              }}
+              options={MESSAGE_PERMISSIONS.map((value) => ({ value, label: tu(`privacy.messagesOptions.${value}`) }))}
+            />
+          }
+        />
       </SettingsGroup>
       <SettingsGroup title={t("blockedTitle")} footer={t("description")}>
         {blocked.length === 0 ? (
@@ -588,11 +641,35 @@ function PrivacyArea({ me }: { me: User }) {
       {/* Your data, at the end and plainly named: the download, a pause (hidden, nothing deleted, back any time) and – in red – deleting,
           on its own page that explains it first. */}
       <SettingsGroup title={tu("data.title")}>
-        <SettingsRow title={tu("data.download")} subtitle={tu("data.downloadSub")} chevron onClick={downloadData} />
+        <SettingsRow
+          title={tu("data.download")}
+          subtitle={exportState === "preparing" ? tu("data.preparing") : exportState === "ready" ? tu("data.ready") : tu("data.downloadSub")}
+          control={
+            exportState === "ready" ? (
+              <Button size="sm" variant="secondary" className="-mr-1" onClick={downloadData}>
+                {tu("data.downloadButton")}
+              </Button>
+            ) : (
+              <Button size="sm" variant="tertiary" className="-mr-3" disabled={exportState === "preparing"} onClick={requestExport}>
+                {exportState === "preparing" ? tu("data.preparingShort") : tu("data.request")}
+              </Button>
+            )
+          }
+        />
         <SettingsRow
           title={tu("data.pause")}
           subtitle={paused ? tu("data.pausedSub", { date: f.day(me.privacy?.pausedAt ?? new Date().toISOString()) }) : tu("data.pauseSub")}
-          control={<Switch on={paused} label={tu("data.pause")} onChange={(on) => (on ? setPausing(true) : setPaused(false))} />}
+          control={
+            paused ? (
+              <Button size="sm" variant="secondary" className="-mr-1" onClick={() => setPaused(false)}>
+                {tu("data.resume")}
+              </Button>
+            ) : (
+              <Button size="sm" variant="tertiary" className="-mr-3" onClick={() => setPausing(true)}>
+                {tu("data.pauseButton")}
+              </Button>
+            )
+          }
         />
         <SettingsRow title={tu("data.delete")} subtitle={tu("data.deleteSub")} danger chevron href="/settings/delete-account" />
       </SettingsGroup>

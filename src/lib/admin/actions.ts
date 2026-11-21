@@ -5,8 +5,7 @@ import { setPlatformPhase } from "@/config/platform";
 import { HOST_REFERRAL } from "@/config/policies";
 import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
-import { NotifyEvent, notify } from "@/lib/notify";
-import * as email from "@/lib/notify/channels/email";
+import { notify, notifyByEmail } from "@/lib/notify";
 import { tEn } from "@/lib/i18n/translate";
 import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, SupportTicket, TicketStatus } from "@/lib/types";
 import { addContentHouse, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
@@ -39,9 +38,10 @@ export function useAdminActions() {
       // Host brings host (prepared, behind its switch): the accepted host was brought by the host whose link they came through.
       if (HOST_REFERRAL.enabled && account && status === "yes" && application.referredBy) store.setHostReferredBy(account, application.referredBy);
       const to = account ?? application.email ?? application.id;
-      if (status === "yes") email.send(to, { subject: tEn("platform.apply.acceptedSubject"), text: tEn("platform.apply.acceptedText"), url: "/create", template: "notification" });
-      else if (status === "no") email.send(to, { subject: tEn("platform.apply.declinedSubject"), text: tEn("platform.apply.declinedText"), url: "/apply", template: "notification" });
-      else if (status === "maybe" && question) email.send(to, { subject: tEn("platform.apply.questionSubject"), text: question, url: "/apply", template: "notification" });
+      // The answer by email – the catalogue's entries (config/notifications.ts); the question itself is the body.
+      if (status === "yes") notifyByEmail(to, "applicationAccepted");
+      else if (status === "no") notifyByEmail(to, "applicationDeclined");
+      else if (status === "maybe" && question) notifyByEmail(to, "applicationQuestion", { body: question });
     },
     /** A report was opened in the Posteingang – the access goes into the log (once per report and visit). */
     viewReport(report: Report, detail: string) {
@@ -62,7 +62,7 @@ export function useAdminActions() {
       // The form without an account: the result goes to the email given (with an account the store's notification does it).
       if (report.reporterEmail && !report.reporterId) {
         const key = outcome === "unfounded" ? "reportUnfounded" : "reportActioned";
-        email.send(report.reporterEmail, { subject: tEn("reportContent.resultSubject"), text: tEn(`messages.notify.${key}`), template: "notification" });
+        notifyByEmail(report.reporterEmail, "reportDecided", { text: tEn(`messages.notify.${key}`) });
       }
     },
     /** A widerspruch: it stands or it's granted (the store undoes what it can and tells the person) – into the log. */
@@ -78,8 +78,8 @@ export function useAdminActions() {
       const at = new Date().toISOString();
       patchTicket(ticket.id, (t) => ({ replies: [...t.replies, { id: `r-${Date.now().toString(36)}`, from: "admin", by, text, createdAt: at }], status: t.status === "planned" || t.status === "done" ? t.status : "answered" }));
       const line = `Simpulo replied: ${text.length > 80 ? `${text.slice(0, 79)}…` : text}`;
-      if (ticket.userId) notify(ticket.userId, NotifyEvent.SupportReply, { key: "supportReply", values: {}, eventId: `support-${ticket.id}-${Date.now()}`, href: "/", text: line });
-      else email.send(ticket.email, { subject: "Simpulo replied to your message", text, template: "notification" });
+      if (ticket.userId) notify(ticket.userId, "supportReply", { key: "supportReply", values: {}, eventId: `support-${ticket.id}-${Date.now()}`, href: "/messages?id=support", text: line });
+      else notifyByEmail(ticket.email, "supportReply", { body: text });
       appendAdminLog("ticket_replied", ticketLabel(ticket), by);
     },
     setTicketStatus(ticket: SupportTicket, status: TicketStatus) {

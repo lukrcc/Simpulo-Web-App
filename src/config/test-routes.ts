@@ -59,6 +59,8 @@ export const TEST_ROUTES: readonly TestRoute[] = [
   { route: "/get/card", key: "app-karten", label: "QR-Karten (Druck)" },
   { route: "/preview", key: "passwort", label: "Passwortseite" },
   { route: "/welcome", key: "willkommen", label: "Willkommen" },
+  { route: "/welcome/done", key: "welcomeDone", label: "Onboarding fertig (3 Houses)" },
+  { route: "/welcome/host", key: "welcomeHost", label: "Host-Onboarding" },
 
   // Signed in
   { route: "/messages", key: "messages-liste", label: "Messages (Liste)", core: true },

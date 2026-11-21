@@ -1,4 +1,5 @@
 import { suggestedDepth, type Depth } from "@/config/depth";
+import { cleanSpace, spaceAnswered, type HouseSpace } from "@/config/space";
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
 import { INVITE_POLICY } from "@/config/policies";
 import { ACCOMMODATION_CATEGORIES, PRICE_BUDGET_EUR, accommodationOf } from "@/config/accommodation";
@@ -64,7 +65,8 @@ export const EDIT_REQUIRED_STEPS = ["vibe", "where", "crew", "depth"] as const;
 /** Up to this many photos on "Pick a cover"; the first is the cover. */
 export const MAX_COVER_PHOTOS = 6;
 /** Optional, one screen each, reached from the "details" list – before or after opening. */
-export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
+/** "space": "About the space" (config/space.ts) – in a new House also its own optional step right after "Where and when?". */
+export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation", "space", "host", "lookingFor", "rules", "languages", "crewGroup"] as const;
 /**
  * "Host from your place": before step 1, only for hosts with saved places – "Use a place you live in" (one of them: kind, photos, crew size,
  * rules and price are filled in, the flow starts at the first step still open) or "New place" (the flow as always). Not a required step: it
@@ -83,7 +85,7 @@ export function detailsFor(hostExperience: boolean): DetailKey[] {
 /** The optional list on "Ready to open?", grouped. Title and photos are step 4 by then. */
 export const OPTIONAL_GROUPS = [
   { key: "about", details: ["why", "lookingFor", "rules", "languages"] },
-  { key: "place", details: ["dates", "accommodation"] },
+  { key: "place", details: ["dates", "accommodation", "space"] },
   { key: "extras", details: ["host", "crewGroup"] },
 ] as const satisfies ReadonlyArray<{ key: string; details: readonly DetailKey[] }>;
 
@@ -195,6 +197,8 @@ export interface FormState {
   savePlace: boolean;
   /** "I'm allowed to host guests here (sublet or guests allowed by my landlord and local rules)" – required to save a place */
   allowedToHost: boolean;
+  /** "About the space" (config/space.ts): every answer optional */
+  space: HouseSpace;
   /** The host's rental period (YYYY-MM-DD) of a place to save */
   rentFrom: string;
   rentTo: string;
@@ -254,6 +258,7 @@ export const initialForm: FormState = {
   placeId: "",
   savePlace: false,
   allowedToHost: false,
+  space: {},
   rentFrom: "",
   rentTo: "",
   monthlyRent: "",
@@ -286,6 +291,7 @@ export function formFromStay(stay: Stay): FormState {
     placeProposals: placeVote?.options.map((o) => ({ id: o.id, link: o.link ?? "", price: String(o.pricePerPerson ?? "") })) ?? [],
     accommodationDeadline: placeVote?.deadline ?? "",
     rulesText: stay.houseRules.join("\n"),
+    space: stay.space ?? {},
     photos: stay.photos ?? [],
     languages: [stay.language, ...(stay.languages ?? [])].flatMap((code) => nameOf(code) ?? []),
     vibe: stay.vibe,
@@ -366,6 +372,8 @@ export function placeForm(place: Place, last?: Stay): FormState {
     region: place.address.region,
     city: place.address.city,
     rulesText: place.rules.join("\n"),
+    // "About the space" was saved with the place: the next House starts with it.
+    space: place.space ?? base.space,
     currency: place.currency,
     totalPrice: "",
     autoTotal: "",
@@ -528,6 +536,8 @@ export function detailDone(key: DetailKey, form: FormState): boolean {
       return form.languages.length > 0;
     case "crewGroup":
       return form.crewGroupUrl.trim() !== "";
+    case "space":
+      return spaceAnswered(form.space) > 0;
   }
 }
 
@@ -576,6 +586,8 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
     accommodationLink: set ? form.placeLink.trim() || undefined : editing?.accommodationLink,
     // The kind of place (data point create.accommodationType); "Not sure yet" saves none.
     accommodationType: accommodationOf(form.accommodationType)?.type.id ?? editing?.accommodationType,
+    // "About the space" (data points create.space.*): only what was answered.
+    space: cleanSpace(form.space),
     // The social depth (data point create.depth): what was picked, else the topic's suggestion – only while the choice is on (otherwise nothing is
     // saved and the House counts as Balanced); fixed after the first booking (depthLocked).
     depth: depthOn ? (form.depth ?? editing?.depth ?? suggestedDepth(form.vibe || null)) : editing?.depth,

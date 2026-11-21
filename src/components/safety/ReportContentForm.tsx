@@ -13,8 +13,7 @@ import { listItemStyles } from "@/components/ui/listSelection";
 import { appendAdminLog } from "@/lib/admin/store";
 import { track } from "@/lib/analytics";
 import { CONTENT_REASONS, resolveContentLink } from "@/lib/contentReport";
-import { tEn } from "@/lib/i18n/translate";
-import * as email from "@/lib/notify/channels/email";
+import { notifyByEmail } from "@/lib/notify";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { cn, makeId } from "@/lib/utils";
 
@@ -40,7 +39,7 @@ export function ReportContentForm({ initialLink = "" }: { initialLink?: string }
     const id = makeId("rep");
     store.reportContent({ id, reason, text: text.trim().slice(0, 4000), link: link.trim().slice(0, 500), reporterEmail: mail.trim(), createdAt: new Date().toISOString(), ...resolved });
     // The confirmation by email in any case (in-app too with an account – the store); the log keeps only that a report came in.
-    email.send(me?.id ?? mail.trim(), { subject: tEn("reportContent.confirmSubject"), text: tEn("reportContent.confirmText"), template: "notification" });
+    notifyByEmail(me?.id ?? mail.trim(), "reportReceived");
     appendAdminLog("content_reported", `${resolved.target.kind} · ${reason}`, me?.id ?? "public", resolved.stayId);
     track("report_sent", { kind: resolved.target.kind, reason, source: "form" });
     setSent(mail.trim());

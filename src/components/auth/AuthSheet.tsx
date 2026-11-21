@@ -29,7 +29,8 @@ interface AuthSheetProps {
   /** The host's first name, for "join" and "message" */
   hostName?: string;
   onClose: () => void;
-  onSuccess: (userId: string) => void;
+  /** `registered`: a new account that just filled in its profile – AuthProvider then starts the onboarding (when nothing else waits) */
+  onSuccess: (userId: string, info?: { registered?: boolean }) => void;
 }
 
 /**
@@ -50,19 +51,13 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
   const tReason = useTranslations("auth.reasons");
   const host = hostName || tReason("theHost");
   const copy = { title: tReason(`${reason}.title`), subline: tReason(`${reason}.subline`, { hostName: host }) };
-  if (completing) {
-    return (
-      <Sheet open={open} onClose={onClose} title={tOnboarding("title")} focusOverlay>
-        {open && <AuthOptions onSuccess={onSuccess} onCompleting={() => setCompleting(true)} />}
-      </Sheet>
-    );
-  }
+  // One sheet for both steps – switching between two trees remounted AuthOptions and lost the "Complete your profile" step.
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      title={copy.title}
-      subtitle={copy.subline}
+      title={completing ? tOnboarding("title") : copy.title}
+      subtitle={completing ? undefined : copy.subline}
       large
       focusOverlay
     >
@@ -73,8 +68,8 @@ export function AuthSheet({ open, reason, hostName, onClose, onSuccess }: AuthSh
 }
 
 interface AuthOptionsProps {
-  /** Runs after login – for incomplete profiles only once "Complete your profile" was saved. */
-  onSuccess: (userId: string) => void;
+  /** Runs after login – for incomplete profiles only once "Complete your profile" was saved (then with `registered`). */
+  onSuccess: (userId: string, info?: { registered?: boolean }) => void;
   /**
    * The login went through and the "Complete your profile" step is showing. When set, the parent titles that
    * step (e.g. the sheet header); otherwise the step brings its own heading.
@@ -117,7 +112,7 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
 
   const completingUser = completingId ? users.find((u) => u.id === completingId) : undefined;
   if (completingUser) {
-    return <CompleteProfileForm user={completingUser} onDone={onSuccess} heading={!onCompleting} />;
+    return <CompleteProfileForm user={completingUser} onDone={(id) => onSuccess(id, { registered: true })} heading={!onCompleting} />;
   }
 
   // No real auth yet: either provider opens a picker of mock users.

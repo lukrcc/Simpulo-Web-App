@@ -1,6 +1,7 @@
 // The one email layout (mock – rendered by the backend later, sent with Resend): light warm page, the wordmark, the content on a soft
-// card, ONE black button, and a footer with the Impressum and – for groups you can switch off – an unsubscribe link. Tables and inline
-// styles only: that's what mail clients understand.
+// card, ONE black button, and a footer with the notification settings, the Impressum, Privacy and – for groups you can switch off – an
+// unsubscribe link (always-on emails say why they come instead). Tables and inline styles only: that's what mail clients understand.
+// No tracking pixels, no tracked or redirected links, no remote images: every link goes straight to simpulo (CLAUDE.md "Benachrichtigungen").
 import { tEn } from "@/lib/i18n/translate";
 import type { ReactNode } from "react";
 
@@ -16,8 +17,13 @@ export interface EmailLayoutProps {
   action: { label: string; href: string };
   /** Absolute origin for every link (https://simpulo.app) */
   origin: string;
-  /** Only for groups you can switch off (chat, nearby, news): "Unsubscribe from these emails" */
+  /** Only for groups you can switch off (chat, House tips, nearby, news): "Unsubscribe from these emails" – else the line why it comes */
   unsubscribeHref?: string;
+}
+
+/** Groups you can switch off get an unsubscribe link (a signed token from the backend later); the always-on ones don't. */
+export function unsubscribeHref(category: string, alwaysOn: boolean): string | undefined {
+  return alwaysOn ? undefined : `/settings?unsubscribe=${category}#notifications`;
 }
 
 const abs = (origin: string, href: string) => (href.startsWith("http") ? href : `${origin}${href}`);
@@ -55,6 +61,11 @@ export function EmailLayout({ preview, headline, children, action, origin, unsub
                 </tr>
                 <tr>
                   <td style={{ padding: "24px 8px 0", fontSize: 13, lineHeight: 1.5, color: C.muted }}>
+                    {!unsubscribeHref && <p style={{ margin: "0 0 8px" }}>{tEn("emails.always")}</p>}
+                    <a href={`${origin}/settings#notifications`} style={{ color: C.muted }}>
+                      {tEn("emails.settings")}
+                    </a>
+                    {" · "}
                     <a href={`${origin}/impressum`} style={{ color: C.muted }}>
                       {tEn("emails.impressum")}
                     </a>

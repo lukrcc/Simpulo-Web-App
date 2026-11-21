@@ -36,7 +36,7 @@ const SHOW_DELAY_MS = 600;
 const ARM_AFTER_MS = 2000;
 
 type Offer = "desktop" | "ios" | "android";
-type Open = { sheet: "install"; offer: Offer; trigger: InstallTrigger; hostName?: string } | { sheet: "push"; trigger: InstallTrigger };
+type Open = { sheet: "install"; offer: Offer; trigger: InstallTrigger; hostName?: string } | { sheet: "push"; trigger: InstallTrigger; hostName?: string };
 
 /** What this device can be offered: a QR code on a computer, the Safari steps, Chrome's install (only with its event) – or nothing. */
 function offerFor(browser: Browser, hasPrompt: boolean): Offer | null {
@@ -67,16 +67,16 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const offerInstall = useCallback<OfferInstall>((trigger, options) => {
-    if (device.current.open) return;
+    if (device.current.open) return false;
     let next: Open | null = null;
     // Push where it's allowed (the installed app; Android and desktop browsers too); an iPhone's Safari tab can't be notified – there the
     // install sheet with "Install to get notified".
-    if (mayAskForPush()) next = { sheet: "push", trigger };
+    if (mayAskForPush()) next = { sheet: "push", trigger, hostName: options?.hostName };
     else if (!isStandalone()) {
       const offer = offerFor(device.current.browser, device.current.hasPrompt);
       if (offer && mayShowInstallPrompt()) next = { sheet: "install", offer, trigger, hostName: options?.hostName };
     }
-    if (!next) return;
+    if (!next) return false;
     const show = next;
     clearTimeout(timer.current);
     // Let the sheet that caused it close and its confirmation show first.
@@ -85,6 +85,7 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
       else notePushAsked(show.trigger);
       setOpen(show);
     }, SHOW_DELAY_MS);
+    return true;
   }, []);
 
   return (
@@ -101,7 +102,7 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
           }}
         />
       )}
-      {open?.sheet === "push" && <PushSheet trigger={open.trigger} onClose={() => setOpen(null)} />}
+      {open?.sheet === "push" && <PushSheet trigger={open.trigger} hostName={open.hostName} onClose={() => setOpen(null)} />}
     </InstallPromptContext.Provider>
   );
 }
@@ -131,7 +132,9 @@ function InstallTriggers() {
     } catch {
       return; // storage blocked: no triggers
     }
-    const current = [...accepted, ...payments];
+    // Own requests (not invitations): the account's very first one asks "Want to know when {host} replies?" (CLAUDE.md "Onboarding").
+    const requests = store.joinRequests.filter((r) => r.userId === me && r.status !== "invited");
+    const current = [...accepted, ...payments, ...requests.map((r) => `r:${r.id}`)];
     const fresh = seen ? current.filter((id) => !seen.includes(id)) : [];
     if (fresh.length === 0 && seen) return;
     try {
@@ -141,7 +144,12 @@ function InstallTriggers() {
     }
     if (!seen || Date.now() < armedAt.current) return;
     if (fresh.some((id) => id.startsWith("p:"))) offer("paid");
-    else if (fresh.length > 0) offer("joined");
+    else if (fresh.some((id) => id.startsWith("a:"))) offer("joined");
+    else if (requests.length === 1 && fresh.includes(`r:${requests[0].id}`)) {
+      const stay = store.stays.find((s) => s.id === requests[0].stayId);
+      const host = stay ? store.users.find((u) => u.id === stay.hostId) : undefined;
+      offer("requested", { hostName: host?.name.split(" ")[0] });
+    }
   }, [store, me, offer]);
   return null;
 }
@@ -225,13 +233,16 @@ function MockNotification({ android }: { android: boolean }) {
 }
 
 /** In the installed app: first our own short sheet, the browser's question only after "Turn on". */
-function PushSheet({ trigger, onClose }: { trigger: InstallTrigger; onClose: () => void }) {
+function PushSheet({ trigger, hostName, onClose }: { trigger: InstallTrigger; hostName?: string; onClose: () => void }) {
   const t = useTranslations("install");
+  const tAsk = useTranslations("onboarding.pushAsk");
+  // After the first request: the question names the host (CLAUDE.md "Onboarding").
+  const ask = trigger === "requested" && hostName;
   return (
-    <Sheet open onClose={onClose} title={t("pushTitle")} subtitle={t("pushText")} lead={<span className="flex size-10 items-center justify-center rounded-full bg-ink/6"><Bell className="size-5 text-ink" aria-hidden /></span>}>
+    <Sheet open onClose={onClose} title={ask ? tAsk("title", { host: hostName }) : t("pushTitle")} subtitle={ask ? tAsk("text", { host: hostName }) : t("pushText")} lead={<span className="flex size-10 items-center justify-center rounded-full bg-ink/6"><Bell className="size-5 text-ink" aria-hidden /></span>}>
       <div className="flex items-center justify-end gap-3">
         <Button variant="secondary" onClick={onClose}>
-          {t("notNow")}
+          {ask ? tAsk("no") : t("notNow")}
         </Button>
         <Button
           onClick={async () => {
@@ -239,7 +250,7 @@ function PushSheet({ trigger, onClose }: { trigger: InstallTrigger; onClose: () 
             onClose();
           }}
         >
-          {t("pushAllow")}
+          {ask ? tAsk("yes") : t("pushAllow")}
         </Button>
       </div>
     </Sheet>

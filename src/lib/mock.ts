@@ -1,9 +1,11 @@
 import { convert, currencyForCountry, type CurrencyCode } from './currency';
+import type { HouseSpace } from "@/config/space";
 import { shortNameOf } from './shortName';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
 import { CONSENT_DOCS, type ConsentKind } from "@/config/consent";
+import type { QuietHours } from "@/config/notifications";
 import type { ChatThemeId } from "@/config/chat-themes";
 import type { ThemePref } from "./themeScript";
 import type { Locale } from "@/i18n/config";
@@ -95,7 +97,8 @@ export interface User extends Attribution {
   /** Settings › Privacy (config/privacy.ts, lib/privacy.ts): House pages, age, the photo until accepted, the host page in search engines */
   /** `paused`: Settings › Privacy & safety › Your data › Pause account – profile and Houses invisible to others, nothing deleted (pausedAt: when) */
   /** `nearby`: Your people see when you're in the same city (lib/nearby.ts) – consent, off by default */
-  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string; nearby?: boolean };
+  /** `messages`: who can start a direct chat (lib/messagePermission.ts) – none: "Everyone after a request" */
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string; nearby?: boolean; messages?: "crew" | "people" | "afterRequest" };
   deletedAt?: string;       // mock "Delete account"
   suspendedAt?: string;     // Admin › Posteingang › Sicherheit "Konto sperren" (moderation)
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
@@ -183,7 +186,7 @@ export interface Report {
 }
 
 /** The switchable notification groups (config/notifications.ts); "bookings" is always on and has no entry here. */
-export type NotificationGroup = 'messages' | 'nearby' | 'news';
+export type NotificationGroup = 'messages' | 'arc' | 'people' | 'nearby' | 'news';
 
 /** One agreement: what (config/consent.ts), which version (none for "18 or older"), when (ISO). */
 export interface ConsentRecord {
@@ -194,7 +197,14 @@ export interface ConsentRecord {
 
 export interface UserSettings {
   /** Push and email per switchable group; in-app is always on */
-  notifications: Record<NotificationGroup, { push: boolean; email: boolean }>;
+  notifications: Record<NotificationGroup, { push: boolean; email: boolean; inApp: boolean }>;
+  /** Quiet hours (Settings › Notifications): push waits until they end – config/notifications.ts */
+  quietHours?: QuietHours;
+  /**
+   * Onboarding (CLAUDE.md "Onboarding"): the guest's (Edit profile ?setup=1) and the host's (/welcome/host) – started or done; steps a host
+   * skipped; whether the "Finish your profile" card was shown (once).
+   */
+  onboarding?: { guest?: "started" | "done"; host?: "started" | "done"; hostSkipped?: string[]; finishCardSeen?: boolean; hostCardSeen?: boolean };
   blockedUserIds: string[];
   /** Taken out of "Your people" – silently, nobody is told (lib/yourPeople.ts) */
   removedPeopleIds?: string[];
@@ -454,6 +464,8 @@ export interface Stay {
   hostFeePerPerson?: number;
   /** The kind of place (config/accommodation.ts type id: "villa", "surf-camp" …) – admin and data only so far */
   accommodationType?: string;
+  /** "About the space" (config/space.ts, optional): rooms, shared spaces, table, light … – the House page shows PUBLIC_SPACE only */
+  space?: HouseSpace;
   /** Social depth (config/depth.ts): easy · balanced · deep; none = Balanced. Only counts while config/platform.ts depthChoiceEnabled is on. */
   depth?: 'easy' | 'balanced' | 'deep';
   /** What the host fee pays for – a checklist on the House page */
@@ -730,7 +742,7 @@ const coreUsers: Omit<User, 'isPro' | 'canChargeHostFee'>[] = [
     verified: true, socials: [{ platform: 'instagram', value: 'lukas.moves' }, { platform: 'website', value: 'https://simpulo.app' }], savedStayIds: ['s2', 's13', 's19'], hostAlerts: ['u18'],
     email: 'lukas@simpulo.app', signInMethod: 'apple',
     settings: {
-      notifications: { messages: { push: true, email: false }, nearby: { push: true, email: true }, news: { push: false, email: false } },
+      notifications: { messages: { push: true, email: false, inApp: true }, arc: { push: false, email: true, inApp: true }, people: { push: true, email: false, inApp: true }, nearby: { push: true, email: true, inApp: true }, news: { push: false, email: false, inApp: false } },
       // Someone who hosts nothing: Explore shows every House to the default mock user.
       blockedUserIds: ['u17'],
     },
@@ -1753,7 +1765,7 @@ const mockConsents = (user: User): User => {
     { kind: 'guestCode', version: CONSENT_DOCS.guestCode.version, at: SIGNED_UP_AT },
     ...(hostIds.has(user.id) ? [{ kind: 'hostCode' as const, version: CONSENT_DOCS.hostCode.version, at: SIGNED_UP_AT }] : []),
   ];
-  const settings = user.settings ?? { notifications: { messages: { push: true, email: false }, nearby: { push: true, email: true }, news: { push: false, email: false } }, blockedUserIds: [] };
+  const settings = user.settings ?? { notifications: { messages: { push: true, email: false, inApp: true }, arc: { push: false, email: true, inApp: true }, people: { push: true, email: false, inApp: true }, nearby: { push: true, email: true, inApp: true }, news: { push: false, email: false, inApp: false } }, blockedUserIds: [] };
   return { ...user, settings: { ...settings, consents } };
 };
 

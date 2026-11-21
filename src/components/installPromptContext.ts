@@ -4,7 +4,8 @@ import { createContext, useContext } from "react";
 import type { InstallTrigger } from "@/lib/install";
 
 /** Offers getting Simpulo on the phone at a moment that matters (see InstallPrompt); the rules decide whether it really shows. */
-export type OfferInstall = (trigger: InstallTrigger, options?: { hostName?: string }) => void;
+/** true when a sheet will show (the caller can then skip its own confirmation). */
+export type OfferInstall = (trigger: InstallTrigger, options?: { hostName?: string }) => boolean;
 
 /**
  * Its own module: InstallPrompt.tsx then exports only its component, so editing it is a Fast Refresh, not a full reload (a full reload

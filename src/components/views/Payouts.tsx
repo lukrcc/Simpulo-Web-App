@@ -1,5 +1,6 @@
 "use client";
 
+import { HostChecklist } from "@/components/onboarding/HostOnboarding";
 import { HostKit } from "@/components/share/HostKit";
 import { HostsYouBrought } from "@/components/share/HostsYouBrought";
 import { HostRatingsSection } from "@/components/stay/ArcAfterwards";
@@ -142,6 +143,8 @@ function PayoutsContent() {
         )}
         {/* Under the strip, right on the page: sections apart by 1px lines ink 8 %, no boxes. */}
         <div className="mt-10 flex flex-col [&>*+*]:border-t [&>*+*]:border-ink/8 [&>*]:py-10 [&>*:first-child]:pt-0">
+          {/* Host onboarding's checklist until it's done (payouts are one of its steps). */}
+          <HostChecklist />
           <Progress stats={stats} />
           {/* The host kit: story, bio link, community post for your open Houses (?src=hostkit). */}
           {kitStays.length > 0 && <HostKit stays={kitStays} title={tKit("title")} />}

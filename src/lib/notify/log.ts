@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 export interface NotifyLogEntry {
   id: string;
   at: string;
-  channel: "push" | "email" | "emailQueued" | "emailDigest" | "emailWeekly";
+  channel: "push" | "email" | "emailQueued" | "emailDaily" | "emailDigest" | "emailWeekly";
   userId: string;
   text: string;
   /** The email's button, clickable in the Dev menu's log (the waitlist's confirmation link, an application's answer) */

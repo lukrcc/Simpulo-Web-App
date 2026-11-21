@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
+import { BackButton } from "@/components/ui/BackButton";
 import { Textarea } from "@/components/ui/Input";
 import { RULE_OF_REASON } from "@/config/moderation";
 import { useFormat } from "@/i18n/format";
@@ -23,6 +24,8 @@ export function Notices() {
   const mine = store.notices.filter((n) => n.userId === store.currentUserId).toSorted((a, b) => b.at.localeCompare(a.at));
   return (
     <Container page width="narrow">
+      {/* Back: where you came from, else Settings › Privacy & safety (the installed app has no browser back). */}
+      <BackButton fallback="/settings#privacy" label={t("back")} className="-ml-1 mb-2" />
       <h1 className="text-h1 text-ink">{t("title")}</h1>
       <p className="mt-3 text-body-lg text-muted">{t("intro")}</p>
       {!store.currentUserId ? (

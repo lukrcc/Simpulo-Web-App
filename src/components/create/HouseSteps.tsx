@@ -8,6 +8,7 @@ import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, ty
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import { FEE_MODEL, INVITE_POLICY } from "@/config/policies";
 import { DEFAULT_DEPTH, DEPTHS, suggestedDepth } from "@/config/depth";
+import { DAYLIGHT, KITCHENS, OUTDOORS, ROOM_KINDS, SETTINGS, SHARED_SPACES, SPACE_LIMITS, TABLE_SPOTS, type HouseSpace, SPACE_FIELDS, spaceAnswered } from "@/config/space";
 import { PlaceSearch } from "./PlaceSearch";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
@@ -866,6 +867,108 @@ export function ExtrasStep({ form, patch }: StepProps) {
   );
 }
 
+/* ───────────────────────── About the space (optional) ───────────────────────── */
+
+/** A number for the space: digits only, empty = not answered, kept within its bounds. */
+function SpaceNumber({ label, value, onChange, min, max, suffix }: { label: string; value: number | undefined; onChange: (value: number | undefined) => void; min: number; max: number; suffix?: string }) {
+  const id = useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <label htmlFor={id} className="text-small text-muted">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id={id}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          className={cn(formInput, "w-full min-w-0 max-w-[min(160px,100%)]")}
+          value={value ?? ""}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 5);
+            onChange(digits === "" ? undefined : Number(digits));
+          }}
+          onBlur={() => value !== undefined && onChange(Math.min(max, Math.max(min, value)))}
+        />
+        {suffix && <span className="text-body text-muted">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** One answer from a few; tapping the chosen one again takes it back (nothing is required). */
+function SpaceChoice<T extends string>({ label, options, value, onChange, labelOf }: { label: string; options: readonly T[]; value: T | undefined; onChange: (value: T | undefined) => void; labelOf: (option: T) => string }) {
+  return (
+    <Group label={label}>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <Chip key={option} active={value === option} onClick={() => onChange(value === option ? undefined : option)}>
+            {labelOf(option)}
+          </Chip>
+        ))}
+      </div>
+    </Group>
+  );
+}
+
+/**
+ * "About the space" (optional, right after "Where and when?"; editing: a detail): rooms, shared spaces, the kitchen, the biggest table, the
+ * way to the bathroom, a quiet corner, size, light, setting – every answer optional, nothing about people (config/space.ts). The House
+ * page shows bedrooms, bathrooms, own/shared rooms, outdoor space and the kitchen; the rest stays with us (model "Raum-Wirkung").
+ */
+export function SpaceStep({ form, patch }: StepProps) {
+  const t = useTranslations("create.space");
+  const space = form.space;
+  const set = (next: Partial<HouseSpace>) => patch({ space: { ...space, ...next } });
+  const yesNo = ["yes", "no"] as const;
+  const fromBool = (v: boolean | undefined) => (v === undefined ? undefined : v ? "yes" : "no");
+  const toBool = (v: "yes" | "no" | undefined) => (v === undefined ? undefined : v === "yes");
+  return (
+    <div className="space-y-8">
+      <p className="text-body text-muted">{t("intro")}</p>
+      <section className="space-y-5">
+        <h2 className="text-h3 text-ink">{t("roomsTitle")}</h2>
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr))]">
+          <SpaceNumber label={t("bedrooms")} value={space.bedrooms} onChange={(bedrooms) => set({ bedrooms })} {...SPACE_LIMITS.rooms} />
+          <SpaceNumber label={t("bathrooms")} value={space.bathrooms} onChange={(bathrooms) => set({ bathrooms })} {...SPACE_LIMITS.rooms} />
+        </div>
+        <SpaceChoice label={t("rooms")} options={ROOM_KINDS} value={space.rooms} onChange={(rooms) => set({ rooms })} labelOf={(o) => t(`roomKinds.${o}`)} />
+      </section>
+      <section className="space-y-5">
+        <h2 className="text-h3 text-ink">{t("sharedTitle")}</h2>
+        <Group label={t("shared")}>
+          <div className="flex flex-wrap gap-2">
+            {SHARED_SPACES.map((option) => {
+              const on = space.shared?.includes(option) ?? false;
+              return (
+                <Chip key={option} active={on} onClick={() => set({ shared: on ? (space.shared ?? []).filter((s) => s !== option) : [...(space.shared ?? []), option] })}>
+                  {t(`sharedSpaces.${option}`)}
+                </Chip>
+              );
+            })}
+          </div>
+        </Group>
+        <SpaceChoice label={t("outdoor")} options={OUTDOORS} value={space.outdoor} onChange={(outdoor) => set({ outdoor })} labelOf={(o) => t(`outdoors.${o}`)} />
+        <SpaceChoice label={t("kitchen")} options={KITCHENS} value={space.kitchen} onChange={(kitchen) => set({ kitchen })} labelOf={(o) => t(`kitchens.${o}`)} />
+      </section>
+      <section className="space-y-5">
+        <h2 className="text-h3 text-ink">{t("togetherTitle")}</h2>
+        <SpaceChoice label={t("table")} options={TABLE_SPOTS} value={space.table} onChange={(table) => set({ table, ...(table === "none" ? { seats: undefined } : {}) })} labelOf={(o) => t(`tables.${o}`)} />
+        {space.table !== "none" && <SpaceNumber label={t("seats")} value={space.seats} onChange={(seats) => set({ seats })} {...SPACE_LIMITS.seats} />}
+        <SpaceChoice label={t("bathThroughShared")} options={yesNo} value={fromBool(space.bathThroughShared)} onChange={(v) => set({ bathThroughShared: toBool(v) })} labelOf={(o) => t(`answers.${o}`)} />
+        <SpaceChoice label={t("retreat")} options={yesNo} value={fromBool(space.retreat)} onChange={(v) => set({ retreat: toBool(v) })} labelOf={(o) => t(`answers.${o}`)} />
+      </section>
+      <section className="space-y-5">
+        <h2 className="text-h3 text-ink">{t("placeTitle")}</h2>
+        <SpaceNumber label={t("area")} value={space.area} onChange={(area) => set({ area })} {...SPACE_LIMITS.area} suffix={t("areaUnit")} />
+        <SpaceChoice label={t("daylight")} options={DAYLIGHT} value={space.daylight} onChange={(daylight) => set({ daylight })} labelOf={(o) => t(`daylights.${o}`)} />
+        <SpaceChoice label={t("setting")} options={SETTINGS} value={space.setting} onChange={(setting) => set({ setting })} labelOf={(o) => t(`settings.${o}`)} />
+      </section>
+      <p className="text-small text-muted">{t("visibility")}</p>
+    </div>
+  );
+}
+
 /* ───────────────────────── 5 · Cover + title ───────────────────────── */
 
 const COVER_MAX_WIDTH = 1600;
@@ -1392,6 +1495,7 @@ export function DetailsList({ form, details, required, invalid, onOpen }: { form
 
 function useDetailSummary(form: FormState) {
   const t = useTranslations("create.vote");
+  const tSpace = useTranslations("create.space");
   const monthName = useMonthName();
   return (key: DetailKey): string | undefined => {
     if (key === "title") return form.title.trim() || undefined;
@@ -1402,6 +1506,7 @@ function useDetailSummary(form: FormState) {
     if (key === "rules") return form.rulesText.split("\n").find((rule) => rule.trim());
     if (key === "why") return form.whyText.trim() || undefined;
     if (key === "lookingFor") return form.lookingForText.trim() || undefined;
+    if (key === "space" && spaceAnswered(form.space) > 0) return tSpace("answered", { count: spaceAnswered(form.space), total: SPACE_FIELDS.length });
     return undefined;
   };
 }

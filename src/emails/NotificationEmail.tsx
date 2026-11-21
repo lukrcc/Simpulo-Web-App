@@ -1,15 +1,17 @@
-import { tEn } from "@/lib/i18n/translate";
-import { CHANNELS } from "@/config/notifications";
-import type { NotifyEvent } from "@/lib/notify/events";
-import { EmailLayout, EmailText } from "./EmailLayout";
-import { EMAIL_ACTION, unsubscribeHref } from "./actions";
+import { ALWAYS_ON, NOTIFY_CATALOG, type CatalogId } from "@/config/notifications";
+import { catalogText } from "@/lib/notify";
+import { EmailLayout, EmailText, unsubscribeHref } from "./EmailLayout";
 
-/** One notification by email: its line as the headline, one sentence, the action of its kind. */
-export function NotificationEmail({ event, text, href, origin }: { event: NotifyEvent; text: string; href?: string; origin: string }) {
-  const action = EMAIL_ACTION[event];
+/**
+ * One notification by email – every entry of the catalogue (config/notifications.ts) renders here: the line about it as the headline, the
+ * entry's body, its one button. `headline` is the detailed line (the in-app text); without it the subject.
+ */
+export function NotificationEmail({ id, house, headline, body, href, origin }: { id: CatalogId; house?: string; headline?: string; body?: string; href?: string; origin: string }) {
+  const entry = NOTIFY_CATALOG[id];
+  const words = catalogText(id, house);
   return (
-    <EmailLayout preview={text} headline={text} action={{ label: action.label, href: href ?? action.path }} origin={origin} unsubscribeHref={unsubscribeHref(CHANNELS[event].category)}>
-      <EmailText>{tEn("emails.notification.rest")}</EmailText>
+    <EmailLayout preview={words.body} headline={headline ?? words.subject} action={{ label: words.action, href: href ?? entry.path }} origin={origin} unsubscribeHref={unsubscribeHref(entry.category, ALWAYS_ON.includes(entry.category))}>
+      <EmailText>{body ?? words.body}</EmailText>
     </EmailLayout>
   );
 }

@@ -2,6 +2,7 @@ import { HelpFeedbackSheet } from "@/components/help/HelpFeedback";
 import { WaitlistSheet } from "@/components/platform/WaitlistSheet";
 import { OfflineBanner } from "@/components/states/OfflineBanner";
 import { GetAppDialog } from "@/components/GetAppDialog";
+import { ResumeCard } from "@/components/onboarding/ResumeCard";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { Suspense, type ReactNode } from "react";
 import { DemoBand } from "@/components/demo/DemoBand";
@@ -26,6 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <WaitlistSheet />
       <OfflineBanner />
       <GetAppDialog />
+      {/* "Finish your profile" / "Ready to host?" – once, on the visit after a half-done onboarding (CLAUDE.md "Onboarding"). */}
+      <ResumeCard />
       <Suspense fallback={null}>
         <HouseTransitions />
       </Suspense>

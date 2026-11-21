@@ -1,5 +1,6 @@
 "use client";
 
+import { canMessage } from "@/lib/messagePermission";
 import { WhatsPlanned } from "@/components/stay/ProgramParts";
 import { useDevSetting } from "@/lib/devSettings";
 import { firstTouch } from "@/lib/growth";
@@ -38,7 +39,7 @@ import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { useHouseRole } from "@/lib/useHouseRole";
 import { PastCrews } from "@/components/stay/ArcAfterwards";
-import { HouseActions, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
+import { HouseActions, HouseDay, HouseLooking, HouseRules, HouseSpaceFacts, HouseJoinBar, HouseMore, HouseOffer, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
 import { Button } from "@/components/ui/ActionButton";
@@ -278,7 +279,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
   /** Closed Houses: talk to the host directly (log in first if needed). */
   // "Ask {host} a question →" in the text: the existing message to the host about this House – for visitors only.
-  const askHost = !isHost && !stay.isExample && host ? { name: hostFirstName, onClick: messageHost } : undefined;
+  // "Ask {Host} a question" only where the host takes messages from this visitor (their "Who can message me"; logged out: asked after login).
+  const askAllowed = !store.currentUserId || canMessage(store, store.currentUserId, stay.hostId, stay);
+  const askHost = !isHost && !stay.isExample && host && askAllowed ? { name: hostFirstName, onClick: messageHost } : undefined;
 
   function messageHost() {
     if (previewing) return showToast(tPreview("noChanges"));
@@ -583,6 +586,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
               <HouseDay stay={stay} />
               {/* A Pro host's programme as a preview – titles and the arc's own moments; times and places come two days before. */}
               <WhatsPlanned stay={stay} />
+            </div>
+            {/* "The space": the public part of "About the space" (config/space.ts PUBLIC_SPACE). */}
+            <div className="empty:hidden">
+              <HouseSpaceFacts stay={stay} />
             </div>
             <div className="empty:hidden">
               <HouseRules stay={stay} />
@@ -1152,7 +1159,7 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
 
           <Pane active={step === "login"}>
             {/* Mounted only on this step, so the provider picker always starts fresh. */}
-            {step === "login" && <AuthOptions onSuccess={send} />}
+            {step === "login" && <AuthOptions onSuccess={(id) => send(id)} />}
           </Pane>
 
           <Pane active={step === "code"}>

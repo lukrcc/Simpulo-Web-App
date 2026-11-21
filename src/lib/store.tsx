@@ -1,13 +1,14 @@
 "use client";
 
+import { deletionBlockers } from "./accountDeletion";
+import { canMessage } from "./messagePermission";
 import { depthLocked } from "./depth";
 import { dueDeadlines, type DeadlineEvent } from "./deadlines";
 import { clockIso } from "./clock";
 import { subscribeDevSettings } from "./devSettings";
 import { logDeadlineSteps } from "./deadlineLog";
 import { addHostApplication } from "./admin/store";
-import { tEn } from "./i18n/translate";
-import * as emailChannel from "./notify/channels/email";
+import { notifyByEmail } from "./notify";
 import type { HostApplication as AdminHostApplication } from "./types";
 import { markContactDemoSeen } from "./admin/store";
 import type { ThemePref } from "./themeScript";
@@ -86,7 +87,7 @@ import { audienceFit, didntWorkOut } from "./requests";
 import { earningsFor } from "./earnings";
 import { payments } from "./payments";
 import { records as inAppRecords } from "./notify/channels/inapp";
-import { DEFAULT_NOTIFICATION_PREFS, type NotificationPrefs } from "@/config/notifications";
+import { DEFAULT_NOTIFICATION_PREFS, type NotificationPrefs, type QuietHours } from "@/config/notifications";
 import { hasOffer, pendingRequestsOf, WAITLIST_OFFER_HOURS, waitlistOf, waitlistOpen, waitlistReason, waitlistRefund } from "./waitlist";
 
 export { crewThreadId };
@@ -237,6 +238,8 @@ type StoreAction =
   | { type: "noteInviteOpened"; token: string }
   | { type: "setHostReferredBy"; userId: string; referrerId: string }
   | { type: "setProgram"; stayId: string; items: ProgramItem[] }
+  | { type: "setQuietHours"; quiet: QuietHours }
+  | { type: "setOnboarding"; patch: NonNullable<UserSettings["onboarding"]> }
   | { type: "appeal"; noticeId: string; text: string; at: string }
   | { type: "decideAppeal"; noticeId: string; outcome: "upheld" | "reversed"; at: string }
   | { type: "resetConsents" }
@@ -532,6 +535,10 @@ interface StoreActions {
   decideReport: (reportId: string, outcome: ReportOutcome) => void;
   /** The public form (/report-content), with or without an account – the target resolved from the link (lib/contentReport.ts) */
   reportContent: (report: Omit<Report, "reporterId" | "source">) => void;
+  /** Onboarding's state on the account (guest/host started or done, skipped steps, cards seen) */
+  setOnboarding: (patch: NonNullable<UserSettings["onboarding"]>) => void;
+  /** Quiet hours (Settings › Notifications): push waits until they end */
+  setQuietHours: (quiet: QuietHours) => void;
   /** A Pro host's programme (Manage › Programme): the whole day plan at once – only the host, only a House with a host fee */
   setProgram: (stayId: string, items: ProgramItem[]) => void;
   /** Host brings host (prepared): an accepted host was brought by this host – one level only, set once */
@@ -2522,6 +2529,16 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
+    case "setOnboarding": {
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), onboarding: { ...settingsOf(u).onboarding, ...action.patch } } } : u)) };
+    }
+
+    case "setQuietHours": {
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), quietHours: action.quiet } } : u)) };
+    }
+
     case "setProgram": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || stay.hostId !== me || !stay.hostFeePerPerson) return state;
@@ -2598,7 +2615,8 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     }
 
     case "deleteAccount":
-      if (!me) return state;
+      // Not while a House depends on you (lib/accountDeletion.ts) – the page explains it; this keeps the rule even without the page.
+      if (!me || deletionBlockers(state, me, action.at.slice(0, 10)).length > 0) return state;
       return { ...state, currentUserId: null, savedSearches: state.savedSearches.filter((s) => s.userId !== me), users: state.users.map((u) => (u.id === me ? { ...u, deletedAt: action.at } : u)) };
 
     // Only the clock: settlePayments runs after this.
@@ -3022,7 +3040,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addApplication = useCallback(
     (application: Omit<AdminHostApplication, "id" | "createdAt" | "status" | "userId">) => {
       const added = addHostApplication({ ...application, ...(currentUserId && { userId: currentUserId }) });
-      emailChannel.send(currentUserId ?? application.email ?? added.id, { subject: tEn("platform.apply.confirmSubject"), text: tEn("platform.apply.confirmText"), url: "/apply", template: "notification" });
+      notifyByEmail(currentUserId ?? application.email ?? added.id, "applicationReceived");
       return added;
     },
     [currentUserId],
@@ -3151,6 +3169,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       );
       if (existing) return existing.id;
       if (!toHost && !fromHost) return "";
+      // "Who can message me" (Settings › Privacy & safety): the other person's rule.
+      if (!canMessage(state, me, userId, stay)) return "";
       const thread: Thread = {
         id: makeId("direct"),
         type: "direct",
@@ -3161,7 +3181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "createThread", thread });
       return thread.id;
     },
-    [threads, stays, state.joinRequests, state.users, currentUserId],
+    [threads, stays, state, currentUserId],
   );
 
   const acceptRequest = useCallback(
@@ -3295,6 +3315,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const decideReport = useCallback((reportId: string, outcome: ReportOutcome) => dispatch({ type: "decideReport", reportId, outcome, at: new Date().toISOString() }), []);
   const reportContent = useCallback((report: Omit<Report, "reporterId" | "source">) => dispatch({ type: "reportContent", report: { ...report, reporterId: null } }), []);
+  const setOnboarding = useCallback((patch: NonNullable<UserSettings["onboarding"]>) => dispatch({ type: "setOnboarding", patch }), []);
+  const setQuietHours = useCallback((quiet: QuietHours) => dispatch({ type: "setQuietHours", quiet }), []);
   const setProgram = useCallback((stayId: string, items: ProgramItem[]) => dispatch({ type: "setProgram", stayId, items }), []);
   const setHostReferredBy = useCallback((userId: string, referrerId: string) => dispatch({ type: "setHostReferredBy", userId, referrerId }), []);
   const noteInviteOpened = useCallback((token: string) => dispatch({ type: "noteInviteOpened", token }), []);
@@ -3455,6 +3477,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       remindHost,
       remindGuest,
       reportContent,
+      setOnboarding,
+      setQuietHours,
       setProgram,
       setHostReferredBy,
       noteInviteOpened,
@@ -3462,7 +3486,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       decideAppeal,
       decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setProgram, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setOnboarding, setQuietHours, setProgram, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -3530,11 +3554,13 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     after: user?.settings?.after,
     thirty: user?.settings?.thirty,
     consents: user?.settings?.consents ?? [],
+    quietHours: user?.settings?.quietHours,
+    onboarding: user?.settings?.onboarding,
   };
 }
 
 /** The switchable channels of a notification group (in-app is always on). */
-export type NotificationChannel = "push" | "email";
+export type NotificationChannel = "push" | "email" | "inApp";
 
 export type StoreData = Pick<StoreState, "users" | "stays" | "joinRequests" | "currentUserId">;
 

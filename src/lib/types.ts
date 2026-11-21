@@ -1,4 +1,5 @@
 // Domain types live next to the mock data in ./mock.ts (the data contract). App-only types are added here.
+import type { HouseSpace } from "@/config/space";
 import type { Currency, HostTier, Stay, Thread, Vibe } from "./mock";
 
 export type {
@@ -81,7 +82,7 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "waitlistMax" | "friendSpotsMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth" | "placeId">>;
+> & Partial<Pick<Stay, "waitlistMax" | "friendSpotsMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "space" | "depth" | "placeId">>;
 
 /**
  * "Host from your place": a place the host lives in and saved (Your houses › Your places). Each House opened from it is a "window" in
@@ -112,6 +113,8 @@ export interface Place {
   currency: Currency;
   /** "I'm allowed to host guests here (sublet or guests allowed by my landlord and local rules)" – required to save */
   allowedToHost: boolean;
+  /** "About the space", saved with the place – the next House from it starts with it (config/space.ts) */
+  space?: HouseSpace;
   createdAt: string;
 }
 

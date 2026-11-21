@@ -263,6 +263,37 @@ export function HouseRules({ stay }: { stay: Stay }) {
   );
 }
 
+/**
+ * "The space" (config/space.ts): only what's public – bedrooms, bathrooms, own or shared rooms, outside, the kitchen. The other answers of
+ * "About the space" never show (they're for the model "Raum-Wirkung").
+ */
+export function HouseSpaceFacts({ stay }: { stay: Stay }) {
+  const t = useTranslations("house.page.space");
+  const s = stay.space;
+  if (!s) return null;
+  const facts = [
+    s.bedrooms !== undefined && t("bedrooms", { count: s.bedrooms }),
+    s.bathrooms !== undefined && t("bathrooms", { count: s.bathrooms }),
+    s.rooms && t(`rooms.${s.rooms}`),
+    s.outdoor && t(`outdoor.${s.outdoor}`),
+    s.kitchen && t(`kitchen.${s.kitchen}`),
+  ].filter((f): f is string => Boolean(f));
+  if (facts.length === 0) return null;
+  return (
+    <section aria-labelledby="house-space" data-house-space>
+      <SectionHead id="house-space" title={t("title")} />
+      <ul className={cn(ROW, "space-y-3")}>
+        {facts.map((fact) => (
+          <li key={fact} className="flex gap-2 text-body-lg text-ink">
+            <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
+            {fact}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** What the host fee pays for (only with one): a checklist, the fee in the viewer's currency. */
 export function HouseOffer({ stay }: { stay: Stay }) {
   const t = useTranslations("growth.premium");

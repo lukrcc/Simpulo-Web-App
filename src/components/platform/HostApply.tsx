@@ -68,9 +68,10 @@ export function ApplicationStatus({ application, justSent = false }: { applicati
       <p className="text-eyebrow uppercase text-muted">{t("applied", { date: f.day(application.createdAt) })}</p>
       <h1 className="mt-3 text-h1 text-ink">{view.title}</h1>
       <p className="mt-3 max-w-[520px] text-body-lg text-muted">{view.text}</p>
+      {/* Accepted: the host onboarding (welcome · place · payouts · first House) – CLAUDE.md "Onboarding". */}
       {application.status === "yes" && canOpen && (
-        <Button href="/create" className="mt-8">
-          {t("openHouse")}
+        <Button href={me?.settings?.onboarding?.host === "done" ? "/create" : "/welcome/host"} className="mt-8">
+          {me?.settings?.onboarding?.host === "done" ? t("openHouse") : t("getStarted")}
         </Button>
       )}
       {application.status !== "yes" && (
