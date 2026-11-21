@@ -160,6 +160,8 @@ export interface AdminLogEntry {
   /** The admin's user id */
   by: string;
   createdAt: string;
+  /** What it belongs to, when it is a House (its id) – Houses › Verlauf reads the log by it */
+  ref?: string;
 }
 
 export type AdminAction =
@@ -195,7 +197,15 @@ export type AdminAction =
   | "marketing_contact_deleted"
   | "marketing_demo_seen"
   | "marketing_clips"
-  | "marketing_export";
+  | "marketing_export"
+  | "partner_added"
+  | "partner_updated"
+  | "partner_deleted"
+  | "partner_note"
+  | "partner_export"
+  | "house_done"
+  | "host_quote_asked"
+  | "content_marked";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
 

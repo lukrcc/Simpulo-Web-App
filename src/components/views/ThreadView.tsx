@@ -31,7 +31,7 @@ import { useVisualViewport } from "@/lib/useVisualViewport";
 /** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
-  // From 768px the chat lives in /messages beside the list.
+  // From 744px the chat lives in /messages beside the list.
   const isDesktop = useMediaQuery(MEDIA.tabletUp);
   const router = useRouter();
   const t = useTranslations("messages.thread");
@@ -232,7 +232,7 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
       </div>
     );
 
-  // Mobile page (< 768px): its own screen over the whole window – no tab bar, no header; fixed to the visual viewport (--vv-top/--vv-h,
+  // Mobile page (< 744px): its own screen over the whole window – no tab bar, no header; fixed to the visual viewport (--vv-top/--vv-h,
   // useVisualViewport), so with the keyboard open the field sits right on it; under the status bar's strip (--safe-top). md+: below the top
   // header. data-app-pane="always" drops the footer and main's bottom padding – the page itself never scrolls.
   return (

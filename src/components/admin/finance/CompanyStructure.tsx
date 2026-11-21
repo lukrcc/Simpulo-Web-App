@@ -4,10 +4,9 @@
 // with its connections, like the flows in Algorithmus; the rest blocks, capsules and a compact table (CLAUDE.md "Lesbarkeit im Admin").
 // Every text from lib/admin/finance/structure.ts; strategic orientation, no financial or legal advice.
 import { ArrowRight, Building2, CornerDownLeft, Cpu, Diamond, Handshake, Home, Landmark, Layers, Store, Users, Wallet, type LucideIcon } from "lucide-react";
-import { useState } from "react";
 import { STRUCTURE, type StructureBox, type StructureView } from "@/lib/admin/finance/structure";
 import { cn } from "@/lib/utils";
-import { AdminTabs } from "../AdminLayout";
+import { AdminSubTabs } from "../AdminLayout";
 import { BlockMap, type MapColumn } from "../BlockMap";
 
 const S = STRUCTURE;
@@ -65,13 +64,15 @@ function Diagram({ label, columns, links }: { label: string; columns: readonly {
   );
 }
 
-export function CompanyStructure() {
-  const [view, setView] = useState<StructureView>("group");
+/** The tab's sub-navigation (Gruppe · Höfe · Franchise · Phasen) – AdminSubTabs right under the head's row (AdminFunding passes it there). */
+export function CompanyStructureTabs({ view, onChange }: { view: StructureView; onChange: (view: StructureView) => void }) {
+  return <AdminSubTabs label={S.tab} value={view} onChange={onChange} tabs={S.views.map((v) => ({ value: v.key, label: v.label }))} />;
+}
+
+export function CompanyStructure({ view }: { view: StructureView }) {
   return (
     <section aria-label={S.tab}>
-      {/* The tab's sub-navigation. */}
-      <AdminTabs label={S.tab} value={view} onChange={setView} tabs={S.views.map((v) => ({ value: v.key, label: v.label }))} />
-      <div className="mt-(--adm-section)">
+      <div>
         {view === "group" && <Group />}
         {view === "farms" && <Farms />}
         {view === "franchise" && <Franchise />}

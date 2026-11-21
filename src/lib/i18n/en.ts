@@ -262,7 +262,8 @@ const en = {
       "app": "Get the app",
       "admin": "Admin",
       "loggedOut": "Logged out",
-      "preview": "Preview as others see it"
+      "earnings": "Earnings",
+      "darkMode": "Dark mode"
     },
     "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}",
     "compactLabel": "Main",
@@ -844,6 +845,10 @@ const en = {
       "where": "Where?",
       "when": "When?",
       "whereNext": "Where to next?",
+      "anyTime": "Any time",
+      "pillLabel": "Search: {value}",
+      "filtersButton": "Filters",
+      "filtersButtonCount": "Filters, {count} active",
       "wherePlaceholder": "City, region or country",
       "anywhere": "Anywhere",
       "anyMonth": "Any month",
@@ -923,6 +928,77 @@ const en = {
     }
   },
   "house": {
+    "area": {
+      "tabsLabel": "Your House",
+      "tabs": { "chat": "Chat", "crew": "Crew", "plan": "Plan", "moments": "Moments", "me": "Me", "manage": "Manage" },
+      "phase": {
+        "starts": "{days, plural, =0 {Starts today} one {Starts tomorrow} other {Starts in # days}}",
+        "running": "Day {day} of {total}",
+        "ended": "Ended"
+      },
+      "inCrew": "{in} of {total} in",
+      "settings": "House settings",
+      "viewPage": "View page",
+      "chat": {
+        "open": "Open in Messages",
+        "emptyMember": "The crew chat opens once you're in.",
+        "emptyHost": "The crew chat starts when the first guest joins.",
+        "quiet": "No messages yet – say hi to your crew."
+      },
+      "crew": {
+        "host": "Host",
+        "you": "You",
+        "paid": "Paid",
+        "waitingPayment": "Waiting for payment",
+        "in": "In",
+        "yourPeople": "Your people",
+        "livedWith": "Lived with",
+        "noVibe": "No vibe yet",
+        "onlyHost": "Just the host so far – the first spots are still open."
+      },
+      "plan": {
+        "dates": "Dates",
+        "nights": "{count, plural, one {# night} other {# nights}}",
+        "gettingThere": "Getting there",
+        "addressAfterPay": "Around {area}. The exact address shows here once you've paid.",
+        "directions": "Directions",
+        "rhythm": "Rhythm",
+        "rhythmEmpty": "The host hasn't shared a rhythm yet.",
+        "votes": "Votes",
+        "votesEmpty": "Nothing to vote on right now."
+      },
+      "moments": {
+        "title": "Moments",
+        "empty": "No moments yet",
+        "emptyText": "Photos from your time together live here.",
+        "add": "Add the first moment",
+        "addMore": "Add a moment",
+        "local": "Moments you add stay on this device for now.",
+        "place": "The place"
+      },
+      "me": {
+        "booking": "Your booking",
+        "dates": "Dates",
+        "share": "Your share",
+        "shareOpen": "Set once the place is booked",
+        "payment": "Payment",
+        "paid": "Paid",
+        "due": "Due",
+        "notYet": "Not due yet",
+        "pay": "Pay your share",
+        "cancel": "Cancellation",
+        "cancelRules": "Cancellation rules",
+        "leave": "Leave this House",
+        "withdraw": "Withdraw request",
+        "help": "Something went wrong?",
+        "removedTitle": "You're no longer in this House",
+        "removedText": "{host} removed you from {title}. Anything you paid is refunded.",
+        "lapsedTitle": "Your spot was released",
+        "lapsedText": "The 48 hours to pay for {title} ran out, so your spot is open again. If there's still room, you can ask again.",
+        "similar": "Find a similar House",
+        "hostShare": "As the host you pay your share like everyone else."
+      }
+    },
     "notFound": {
       "title": "House not found",
       "description": "This House doesn't exist or isn't public anymore.",
@@ -2882,7 +2958,9 @@ const en = {
       "refund": "{count, plural, one {A paid share was refunded} other {# paid shares were refunded}}",
       "accommodationDecided": "The place is decided – see the House page",
       "datesDecided": "The dates are set – starts {date}",
-      "searchHouseOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else."
+      "searchHouseOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else.",
+      "youWereRemoved": "{host} removed you from {title}. Anything you paid is refunded.",
+      "yourPaymentLapsed": "The 48 hours to pay for {title} ran out, so your spot is open again."
     },
     "notify": {
       "newRequest": "New request from {name} for {title}",
@@ -3455,7 +3533,28 @@ const en = {
       "account": {
         "groupSignIn": "Sign-in",
         "groupDevices": "Devices",
-        "thisDeviceSub": "You're logged in here"
+        "thisDeviceSub": "You're logged in here",
+        "now": "Now",
+        "logOutConfirmTitle": "Log out?",
+        "logOutConfirmText": "You'll be logged out on this device. Your account and Houses stay as they are.",
+        "logOutAllConfirmTitle": "Log out of all devices?",
+        "logOutAllConfirmText": "Every phone, tablet and computer you're logged in on will be logged out – this one too.",
+        "logOutAllConfirm": "Log out everywhere"
+      },
+      "data": {
+        "title": "Your data",
+        "download": "Download your data",
+        "downloadSub": "A copy of your profile, Houses, requests, payments and messages.",
+        "pause": "Pause account",
+        "pauseSub": "Your profile and Houses are hidden. Nothing is deleted – come back any time.",
+        "pausedSub": "Paused since {date} – your profile and Houses are hidden.",
+        "pauseConfirmTitle": "Pause your account?",
+        "pauseConfirmText": "Your profile and your Houses disappear for others until you switch this off again. Nothing is deleted.",
+        "pauseConfirm": "Pause account",
+        "paused": "Account paused",
+        "resumed": "Welcome back – your account is visible again",
+        "delete": "Delete account",
+        "deleteSub": "For good – your profile, Houses and messages."
       },
       "payments": {
         "groupPaying": "Paying",
@@ -3501,6 +3600,22 @@ const en = {
         "nobody": "Nobody blocked",
         "download": "Download your data"
       },
+      "deletePage": {
+        "back": "Privacy & safety",
+        "title": "Delete your account",
+        "what": "What happens",
+        "points": {
+          "profile": "Your profile, photos and links are removed.",
+          "houses": "Houses you host are closed; people who paid get their money back under the cancellation rules.",
+          "messages": "Your messages are removed from your chats.",
+          "final": "This can't be undone – the account can't come back."
+        },
+        "pauseTitle": "Just need a break?",
+        "pauseText": "Pause your account instead: your profile and Houses are hidden, nothing is deleted, and you can come back any time.",
+        "pauseButton": "Pause account instead",
+        "typeToConfirm": "Type {word} to confirm",
+        "confirm": "Delete my account"
+      },
       "general": {
         "currency": "Currency",
         "automaticValue": "Automatic · {label}",
@@ -3522,11 +3637,10 @@ const en = {
         "legal": "Legal"
       },
       "appearance": {
-        "system": "System",
-        "systemSub": "Follows your device's setting",
+        "system": "Match system",
         "light": "Light",
         "dark": "Dark",
-        "hint": "Saved to your account and this device."
+        "hint": "Match system follows your phone or computer automatically."
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -3550,7 +3664,7 @@ const en = {
       "passkeyOn": "On",
       "comesSoon": "This comes with the real login – soon.",
       "logOutAll": "Log out of all devices",
-      "logOutAllSub": "You stay signed in on this device until you log out.",
+      "logOutAllSub": "Every phone, tablet and computer you're logged in on.",
       "loggedOutAll": "Logged out of all devices"
     },
     "notifications": {

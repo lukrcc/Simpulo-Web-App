@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * /h/[id] (the id or the slug): one page for a House, by who's looking (lib/useHouseRole.ts) – visitors see the public page, members (requested,
- * accepted, paid, booked) their way through the House, the host its status and "Manage" (→ /h/[id]/manage).
+ * accepted, paid, booked) their way through the House, the host the same area with a Manage tab (?tab=manage).
  */
 export default function HouseByIdPage({ params }: PageProps<"/h/[id]">) {
   const slugParams = params.then(({ id }) => ({ slug: id }));

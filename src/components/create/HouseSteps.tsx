@@ -1508,7 +1508,7 @@ export function TemplatePicker({ templates, onPick, onRemove, className }: { tem
   );
 }
 
-/** The months of "Where and when?": 12 columns from 768px; on phones one row that scrolls sideways, the picked month scrolled into view. */
+/** The months of "Where and when?": 12 columns from 744px; on phones one row that scrolls sideways, the picked month scrolled into view. */
 function MonthRow({ id, active, children }: { id: string; active: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useTabScroll(ref, active);

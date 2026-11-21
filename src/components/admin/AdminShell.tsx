@@ -4,12 +4,12 @@ import { Compass, FileUser, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
 import { ADMIN_DE, ADMIN_UI_DE } from "@/lib/i18n/admin.de";
-import { SideNav } from "@/components/settings/SideNav";
+import { SideNav, type SideNavItem } from "@/components/settings/SideNav";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
 import type { Status } from "@/lib/admin/metrics";
@@ -132,7 +132,7 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   const counts = taskCounts(useAdminTasks());
   // The open elements: every task and open ticket, once (the same list as the Posteingang).
   const inboxOpen = counts.total;
-  // Tablet (768–1023px): the side list as a sheet from the left, closed again when a page is picked.
+  // Tablet (744–1023px): the side list as a sheet from the left, closed again when a page is picked.
   const [navOpen, setNavOpen] = useState(false);
   const [navPath, setNavPath] = useState(pathname);
   if (navPath !== pathname) {
@@ -165,16 +165,7 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} urgent={a.key === "inbox" && counts.safetyOpen} /> : undefined,
   });
 
-  const navGroups = (
-    <>
-        {GROUPS.map((group, i) => (
-          <div key={group.key} className={cn(i > 0 && "mt-[calc(var(--sidebar-item-h)*0.8)]")}>
-            <p className={cn("mb-1 flex h-7 items-center rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[GROUP_COLOR[group.key]])}>{t(`navGroup.${group.key}`)}</p>
-            <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />
-          </div>
-        ))}
-    </>
-  );
+  const navGroups = <AdminSideList active={active} item={item} needs={needs} />;
 
   return (
     // .admin-scope: the admin colours (styles/admin-tokens.css) exist only in here.
@@ -182,15 +173,16 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     <div className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)] lg:pl-4">
       {/* The side list fills the height: entries --sidebar-item-h (from the window's height), the active one white 8 %; before each area
           capsule 0.8 × an entry. */}
-      <aside className="scroll-pane max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-y-auto lg:overscroll-contain lg:pb-1 lg:pt-(--admin-page-pad)" data-admin-nav>
-        {navGroups}
+      {/* Never scrolls (overflow hidden): the rows follow the window's height; a very flat window folds the other areas (AdminSideList fit). */}
+      <aside className="max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-hidden lg:pb-1 lg:pt-(--adm-page-top)" data-admin-nav>
+        <AdminSideList active={active} item={item} needs={needs} fit />
       </aside>
-      <div className="min-w-0 px-4 pb-(--adm-section) pt-6 md:px-(--adm-page) lg:pt-(--admin-page-pad)">
-        {/* Phones (< 768px): two rows – the four areas (Markt · Wachstum · Betrieb · Launch) as a scrolling row of capsules, under it the
+      <div className="min-w-0 px-4 pb-(--adm-section) pt-(--adm-page-top) md:px-(--adm-page)">
+        {/* Phones (< 744px): two rows – the four areas (Markt · Wachstum · Betrieb · Launch) as a scrolling row of capsules, under it the
             pages of the current area as scrolling tabs (bold, white, underlined – the admin's active state). A capsule opens its area's first
             page. Tablets: every page in one row. */}
         <PhoneNav active={active} item={item} />
-        {/* Tablets (768–1023px): one button with the page you're on – it opens the side list as a sheet from the left (280px, the admin's dark
+        {/* Tablets (744–1023px): one button with the page you're on – it opens the side list as a sheet from the left (280px, the admin's dark
             surface, the page dimmed behind it); a pick, a tap beside it or Escape closes it. From 1024px the side list stands. */}
         <button
           type="button"
@@ -222,6 +214,67 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
 }
 
 /** A count that needs you, right-aligned in a side-list entry: ember, cream number (the admin's "needs you" colour). */
+/**
+ * The admin's side list: the four areas, each its coloured heading (unchanged) and its entries (SideNav compact, sizes from the tokens).
+ * `fit` (the standing side list): it must never scroll – when even the smallest rows don't fit (a very flat window), only the current area
+ * shows its entries; the others show only their heading, a tap opens that one instead (with its count, if something needs you there).
+ */
+function AdminSideList({ active, item, needs, fit = false }: { active: string | undefined; item: (a: Area) => SideNavItem; needs: Partial<Record<AreaKey, number>>; fit?: boolean }) {
+  const t = useTranslations("admin");
+  const current = GROUPS.find((g) => g.areas.some((a) => a.href === active))?.key ?? GROUPS[0].key;
+  const [folded, setFolded] = useState(false);
+  const [open, setOpen] = useState<string>(current);
+  const [openFor, setOpenFor] = useState(current);
+  if (openFor !== current) {
+    setOpenFor(current);
+    setOpen(current);
+  }
+  const probe = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // The whole list, measured in an invisible copy: does it fit the side list's height?
+  useLayoutEffect(() => {
+    if (!fit) return;
+    const check = () => {
+      const full = probe.current?.offsetHeight ?? 0;
+      const room = box.current?.clientHeight ?? 0;
+      setFolded(room > 0 && full > room);
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    if (box.current) observer.observe(box.current);
+    if (probe.current) observer.observe(probe.current);
+    return () => observer.disconnect();
+  }, [fit]);
+  const list = (fold: boolean) =>
+    GROUPS.map((group, i) => {
+      const shown = !fold || group.key === open;
+      const heading = cn("mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[GROUP_COLOR[group.key]]);
+      const waiting = group.areas.reduce((sum, a) => sum + (needs[a.key] ?? 0), 0);
+      return (
+        <div key={group.key} className={cn(i > 0 && "mt-(--sidebar-gap)")}>
+          {fold && !shown ? (
+            <button type="button" aria-expanded={false} onClick={() => setOpen(group.key)} className={cn(heading, "text-left")}>
+              <span className="min-w-0 flex-1 truncate">{t(`navGroup.${group.key}`)}</span>
+              {waiting > 0 && <NavBadge count={waiting} label={t("needsYou", { count: waiting })} />}
+            </button>
+          ) : (
+            <p className={heading}>{t(`navGroup.${group.key}`)}</p>
+          )}
+          {shown && <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
+        </div>
+      );
+    });
+  if (!fit) return <>{list(false)}</>;
+  return (
+    <div ref={box} className="relative h-full overflow-hidden">
+      <div aria-hidden inert ref={probe} className="pointer-events-none invisible absolute inset-x-0 top-0">
+        {list(false)}
+      </div>
+      {list(folded)}
+    </div>
+  );
+}
+
 function NavBadge({ count, label, urgent = false }: { count: number; label: string; /** A safety report is open: red instead of ember */ urgent?: boolean }) {
   return (
     <span className={cn("flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 text-nav-group tabular-nums tracking-normal text-on-signal", urgent ? "bg-danger" : "bg-adm-critical")}>
@@ -233,12 +286,12 @@ function NavBadge({ count, label, urgent = false }: { count: number; label: stri
 
 /**
  * An area's head (AdminPageHeader): no visible title (an sr-only <h1>; the side list shows where you are), the first row the click row –
- * tabs left, controls right. No further capsule rows on the page.
+ * tabs left, settings right (all AdminTabs capsules), the second level (AdminSubTabs) right under it. No further capsule rows on the page.
  */
-export function AdminShell({ title, badge, aside, tabs, children }: { title: string; badge?: string; /** The controls, right in the head's one row */ aside?: ReactNode; /** The tabs, left in that row */ tabs?: ReactNode; children: ReactNode }) {
+export function AdminShell({ title, badge, aside, tabs, subTabs, children }: { title: string; badge?: string; /** The controls, right in the head's one row */ aside?: ReactNode; /** The tabs, left in that row */ tabs?: ReactNode; /** The second level (AdminSubTabs), right under the row */ subTabs?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <AdminPageHeader title={title} badge={badge} tabs={tabs} controls={aside} />
+      <AdminPageHeader title={title} badge={badge} tabs={tabs} controls={aside} subTabs={subTabs} />
       {children}
     </>
   );

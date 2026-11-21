@@ -2,8 +2,7 @@
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
-import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList } from "./AdminLayout";
-import { peopleInFor } from "@/lib/inFor";
+import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
 import { BACKLOG, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogStatus } from "@/config/backlog";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -15,8 +14,6 @@ import { profileHref } from "@/lib/privacy";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
-import { ScrollRow } from "@/components/ui/ScrollRow";
-import { Img } from "@/components/ui/Img";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { TOOL_LINKS } from "@/config/app-links";
@@ -25,220 +22,34 @@ import { examples, launch, phaseRules, PLATFORM_PHASES, usePlatformPhase, type P
 import { useFormat } from "@/i18n/format";
 import { APP_MODE } from "@/lib/appMode";
 import { useAdminActions } from "@/lib/admin/actions";
-import { applicationTier, atRiskHouses, fastestFull, hostOverview, waitlistMatches, type HostOverview, type RiskReason } from "@/lib/admin/metrics";
+import { applicationTier, hostOverview, type HostOverview } from "@/lib/admin/metrics";
 import { HOST_TIERS } from "@/config/admin";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { linkDomain } from "@/lib/links";
 import { socialHandle, socialUrl } from "@/lib/socialLinks";
 import { findUser, useStore } from "@/lib/store";
-import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase, Stay } from "@/lib/types";
-import { cn, housePhotos } from "@/lib/utils";
+import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { compact, eur as formatEur, share } from "@/lib/i18n/adminFormat";
 import { PrepareButton, PreparedList } from "./AdminHouses";
 import { AdminSection, AdminShell } from "./AdminShell";
 
-// ── Houses: early warning ─────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * /admin/houses – "Welche Houses brauchen Hilfe?": an early warning, no table of every House. "Gefährdet": upcoming Houses where a rule
- * holds (config/admin.ts HOUSE_RISK, lib/admin/metrics.ts atRiskHouses), each with its reason in one sentence and the actions that fit;
- * "Läuft gut": the five that filled the fastest; under them a search over all Houses (title, host, place) as a slim list.
- */
-/**
- * /admin/houses (AdminPageHeader + AdminListDetail): tabs Gefährdet · Läuft gut · Alle (each with its count); right the search (only in
- * "Alle") and Sortieren. A row: a small photo · title · "Host · Ort · Datum" · one sentence – the reason (Gefährdet) or "voll in X Tagen"
- * (Läuft gut); no buttons but ✓. The detail right: four levers, each one button and one sentence – Sichtbarkeit, Nachfrage, Host helfen,
- * Ausweichen –, then the House's numbers (fill rate, requests, days to its start). Mock: every lever a toast and a log line.
- */
-export function AdminHouseList() {
-  const t = useTranslations("admin.houses");
-  const tAdmin = useTranslations("admin");
-  const inputs = useAdminInputs();
-  const store = useStore();
-  const f = useFormat();
-  const actions = useAdminActions();
-  const showToast = useToast();
-  const atRisk = atRiskHouses(inputs);
-  const fastest = fastestFull(inputs);
-  const all = store.stays.filter((s) => !s.isExample && s.status !== "draft" && s.status !== "draft_unclaimed");
-  const [tab, setTab] = useState<"atRisk" | "goingWell" | "all">("atRisk");
-  const [sort, setSort] = useState<HouseSort>("start");
-  const [query, setQuery] = useState("");
-  // A link from the Posteingang opens one House (?house=…).
-  const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("house")));
-
-  const reasonText = (r: RiskReason) =>
-    r.key === "deadline" ? t("reason.deadline", { days: r.days, fill: share(r.fill) }) : r.key === "quiet" ? t("reason.quiet", { days: r.days }) : t("reason.unanswered", { hours: r.hours });
-  const q = query.trim().toLowerCase();
-  const base: { stay: Stay; line: string | null; critical: boolean }[] =
-    tab === "atRisk"
-      ? atRisk.map(({ stay, reasons }) => ({ stay, line: reasons.map(reasonText).join(" "), critical: true }))
-      : tab === "goingWell"
-        ? fastest.map(({ stay, days }) => ({ stay, line: t("fullIn", { days }), critical: false }))
-        : all
-            .filter((s) => !q || [s.title, findUser(store, s.hostId)?.name ?? "", s.city, s.region, s.location?.city ?? ""].some((v) => v.toLowerCase().includes(q)))
-            .map((stay) => ({ stay, line: null, critical: false }));
-  const rows = base.toSorted((a, b) => (sort === "fill" ? fillOf(a.stay) - fillOf(b.stay) : sort === "title" ? a.stay.title.localeCompare(b.stay.title) : a.stay.startDate.localeCompare(b.stay.startDate)));
-  const selected = rows.find((r) => r.stay.id === selectedId) ?? null;
-  const risk = selected ? atRisk.find((r) => r.stay.id === selected.stay.id) : undefined;
-
-  return (
-    <AdminShell
-      title={t("title")}
-      tabs={
-        <AdminTabs
-          label={t("tabsLabel")}
-          value={tab}
-          onChange={(next) => (setTab(next), setSelectedId(null))}
-          tabs={[
-            { value: "atRisk", label: t("atRisk"), count: atRisk.length, info: t("info.atRisk") },
-            { value: "goingWell", label: t("goingWell"), count: fastest.length },
-            { value: "all", label: t("all"), count: all.length },
-          ]}
-        />
-      }
-      aside={
-        <>
-          <AdminSearch label={t("search")} value={query} onChange={setQuery} disabled={tab !== "all"} />
-          <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["start", "fill", "title"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />
-        </>
-      }
-    >
-      <AdminListDetail
-        label={t("title")}
-        rows={rows.slice(0, 60).map(({ stay, line, critical }) => {
-          const host = findUser(store, stay.hostId);
-          return {
-            id: stay.id,
-            status: critical ? ("critical" as const) : undefined,
-            media: <Img src={housePhotos(stay, host)[0]} alt="" width={36} height={36} className="size-9 rounded-lg object-cover" />,
-            title: stay.title,
-            meta: line ?? [host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · "),
-            aside: line ? f.stayDates(stay) : undefined,
-          };
-        })}
-        selectedId={selected?.stay.id ?? null}
-        onSelect={setSelectedId}
-        empty={<p className="text-body text-muted">{tab === "atRisk" ? t("atRiskNone") : tab === "goingWell" ? t("goingWellNone") : t("searchEmpty")}</p>}
-        detail={
-          selected ? (
-            <HouseDetailPanel
-              key={selected.stay.id}
-              stay={selected.stay}
-              reasons={risk?.reasons ?? []}
-              reasonText={reasonText}
-              onBack={() => setSelectedId(null)}
-              act={(lever) => {
-                const host = findUser(store, selected.stay.hostId);
-                if (lever === "visibility") {
-                  actions.highlightHouse(selected.stay);
-                  showToast(t("toast.highlight", { title: selected.stay.title }));
-                } else if (lever === "demand") {
-                  const count = waitlistMatches(inputs, selected.stay) + peopleInFor(store.inFor, { ...selected.stay, vibe: selected.stay.vibe ?? "" }, inputs.today).length;
-                  actions.notifyWaitlist(selected.stay, count);
-                  showToast(t("toast.notify", { count, title: selected.stay.title }));
-                } else if (lever === "host") {
-                  actions.sendHostSuggestions(selected.stay, host?.name ?? "");
-                  showToast(t("toast.suggestions", { name: host?.name ?? "" }));
-                } else {
-                  actions.proposeAlternative(selected.stay, host?.name ?? "");
-                  showToast(t("toast.alternative", { name: host?.name ?? "" }));
-                }
-              }}
-            />
-          ) : (
-            <p className="py-2 text-body text-muted">{tAdmin("inbox.pick")}</p>
-          )
-        }
-      />
-    </AdminShell>
-  );
-}
-
-type HouseSort = "start" | "fill" | "title";
-const fillOf = (stay: Stay) => (stay.spotsTotal > 0 ? stay.spotsFilled / stay.spotsTotal : 0);
-type Lever = "visibility" | "demand" | "host" | "alternative";
-const LEVERS: readonly Lever[] = ["visibility", "demand", "host", "alternative"];
-
-/** A House's detail: title, host · place · dates, the reasons; four levers (one button, one sentence each); its numbers. */
-function HouseDetailPanel({ stay, reasons, reasonText, onBack, act }: { stay: Stay; reasons: readonly RiskReason[]; reasonText: (r: RiskReason) => string; onBack: () => void; act: (lever: Lever) => void }) {
-  const t = useTranslations("admin.houses");
-  const store = useStore();
-  const f = useFormat();
-  const { today } = useAdminInputs();
-  const host = findUser(store, stay.hostId);
-  const requests = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "pending").length;
-  const daysToStart = Math.max(0, Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000));
-  return (
-    <article data-house-detail>
-      <BackToList onBack={onBack} />
-      <div className="flex items-start gap-4">
-        <Img src={housePhotos(stay, host)[0]} alt="" width={64} height={64} className="size-16 shrink-0 rounded-xl object-cover" />
-        <div className="min-w-0">
-          <Link href={`/h/${stay.id}`} className="block text-h3 text-ink hover:underline">
-            {stay.title}
-          </Link>
-          <p className="mt-0.5 text-small text-muted">{[host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · ")}</p>
-        </div>
-      </div>
-      {reasons.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-1">
-          {reasons.map((r) => (
-            <li key={r.key} className="flex items-center gap-2 text-small text-ink">
-              <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />
-              {reasonText(r)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {/* The four levers: one button and one sentence each. */}
-      <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
-        {LEVERS.map((lever) => (
-          <li key={lever} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
-            <div className="min-w-0 flex-1 basis-56">
-              <p className="text-eyebrow uppercase text-(--adm-label)">{t(`lever.${lever}.name`)}</p>
-              <p className="mt-0.5 text-small text-muted">{t(`lever.${lever}.text`)}</p>
-            </div>
-            <Button size="sm" variant="secondary" onClick={() => act(lever)}>
-              {t(`lever.${lever}.action`)}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      {/* The House's numbers. */}
-      <dl className="mt-(--adm-inner) grid grid-cols-3">
-        {[
-          { label: t("kpi.fill"), value: share(fillOf(stay)) },
-          { label: t("kpi.requests"), value: String(requests) },
-          { label: t("kpi.daysToStart"), value: String(daysToStart) },
-        ].map((n, i) => (
-          <div key={n.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-4")}>
-            <dt className="truncate text-eyebrow uppercase text-(--adm-label)">{n.label}</dt>
-            <dd className="mt-1 text-adm-figure tabular-nums text-ink">{n.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </article>
-  );
-}
+// ── Houses: early warning – components/admin/AdminHouseWatch.tsx (AdminHouseList) ──────────────────────────────────────────
 
 // ── Host tiers (Applications, Houses › Hosts) ─────────────────────────────────────────────────────────────────────────────────────
 
 
-/** "All 41 · Share 30 · Pro 9 · Anchor 2" – the tier filter. */
+/** "Alle 41 · Share 30 · Pro 9 · Anchor 2" – the tier filter (AdminSubTabs, under the status tabs). */
 function TierFilter({ value, onChange, tiers }: { value: HostTier | "all"; onChange: (tier: HostTier | "all") => void; tiers: readonly HostTier[] }) {
   const t = useTranslations("admin.tiers");
   return (
-    <ScrollRow label={t("filter")} className="max-w-full">
-      <CapsuleGroup
-        size="sm"
-        label={t("filter")}
-        value={value}
-        onChange={onChange}
-        options={(["all", ...HOST_TIERS] as const).map((tier) => ({ value: tier, content: `${t(tier)} ${tier === "all" ? tiers.length : tiers.filter((x) => x === tier).length}` }))}
-      />
-    </ScrollRow>
+    <AdminSubTabs
+      label={t("filter")}
+      value={value}
+      onChange={onChange}
+      tabs={(["all", ...HOST_TIERS] as const).map((tier) => ({ value: tier, label: t(tier), count: tier === "all" ? tiers.length : tiers.filter((x) => x === tier).length }))}
+    />
   );
 }
 
@@ -300,9 +111,9 @@ export function AdminHosts() {
           onChange={(next) => (setTab(next), setSelectedId(null))}
           tabs={[
             { value: "all", label: t("tabs.all"), count: rows.length },
-            ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, info: t(`tabInfo.${tier}`) })),
-            { value: "review", label: t("tabs.review"), count: review.length, info: t("tabInfo.review") },
-            { value: "prepared", label: t("tabs.prepared"), count: prepared, info: t("tabInfo.prepared") },
+            ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, tooltip: t(`tabInfo.${tier}`) })),
+            { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
+            { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
           ]}
         />
       }
@@ -521,28 +332,12 @@ export function AdminApplications() {
   }, [first, decide]);
 
   return (
-    <AdminShell title={t("title")}>
-      <div className="mb-(--adm-inner) flex flex-wrap items-center justify-between gap-4">
-        <CapsuleGroup
-          label={t("filter")}
-          value={status}
-          onChange={setStatus}
-          options={STATUSES.map((value) => ({
-            value,
-            content: (
-              <span className="inline-flex items-center gap-2">
-                {t(`status.${value}`)} {applications.filter((a) => a.status === value).length}
-                {/* Orange only as the signal: open applications waiting. */}
-                {value === "new" && applications.some((a) => a.status === "new") && <span aria-hidden className="size-2 rounded-full bg-signal" />}
-              </span>
-            ),
-          }))}
-        />
-        {first && <span className="text-small text-muted max-md:hidden">{t("keys")}</span>}
-      </div>
-      <div className="mb-(--adm-inner)">
-        <TierFilter value={tier} onChange={setTier} tiers={inStatus.map((a) => applicationTier(a).tier)} />
-      </div>
+    <AdminShell
+      title={t("title")}
+      tabs={<AdminTabs label={t("filter")} value={status} onChange={setStatus} tabs={STATUSES.map((value) => ({ value, label: t(`status.${value}`), count: applications.filter((a) => a.status === value).length }))} />}
+      aside={first ? <span className="text-small text-muted max-md:hidden">{t("keys")}</span> : undefined}
+      subTabs={<TierFilter value={tier} onChange={setTier} tiers={inStatus.map((a) => applicationTier(a).tier)} />}
+    >
       {shown.length === 0 ? (
         <p className="text-body text-muted">{tAdmin("empty")}</p>
       ) : (
@@ -641,13 +436,13 @@ export function AdminPlatform() {
   return (
     <AdminShell
       title={t("title")}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "backlog"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
       aside={
         <Link href="/admin/log" className="text-body font-semibold text-ink hover:underline">
           {t("logLink")}
         </Link>
       }
     >
-      <CapsuleGroup size="sm" label={t("views.label")} value={view} onChange={setView} className="mb-(--adm-section) w-fit" options={(["settings", "backlog"] as const).map((value) => ({ value, content: t(`views.${value}`) }))} />
       {view === "backlog" ? (
         <Backlog />
       ) : (

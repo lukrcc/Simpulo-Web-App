@@ -54,7 +54,7 @@ export function AdminData() {
           tabs={[
             { value: "flow", label: t("tab.flow") },
             { value: "theses", label: t("tab.theses") },
-            { value: "points", label: t("tab.points"), info: t("never") },
+            { value: "points", label: t("tab.points"), tooltip: t("never") },
           ]}
         />
       }

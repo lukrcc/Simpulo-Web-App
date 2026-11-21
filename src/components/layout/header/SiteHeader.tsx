@@ -1,5 +1,6 @@
 "use client";
 import { HeaderBack } from "@/components/layout/HeaderBack";
+import { CompactSearch } from "./CompactSearch";
 import { cn } from "@/lib/utils";
 import { canOpenHouse, usePlatformPhase } from "@/config/platform";
 import { setHeaderSlot } from "@/lib/headerSlot";
@@ -122,10 +123,15 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         <HeaderBack className="mr-2" />
         <Logo className="mr-8 shrink-0" />
         {explorePage ? (
-          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 [--control-h:40px]" />
+          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 max-split:hidden [--control-h:40px]" />
         ) : (
-          <HeaderSearch />
+          <div className="flex min-w-0 flex-1 max-split:hidden">
+            <HeaderSearch />
+          </div>
         )}
+        {/* Below 1100px (tablets): ONE light search field across the width with the filter button inside (CompactSearch) – Explore's quick
+            search, the theme chips and the navigation are elsewhere then (the chip row under the header, the tab bar). */}
+        <CompactSearch className="split:hidden" />
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
         {/* Below 1100px (tablets) the tab bar at the bottom carries the navigation (BottomTabBar) – the header holds the logo, the search and
             Explore's filters only. */}

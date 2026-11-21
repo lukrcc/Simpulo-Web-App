@@ -3,13 +3,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const DELAY_MS = 500;
+/** A short wait before it appears (Regel: Tooltips). */
+const DELAY_MS = 350;
 /** Within this long after one closed, the next opens at once. */
 const WARM_MS = 300;
 const GAP = 8;
 const EDGE = 8;
 /** Icon buttons are small: anything bigger with only an aria-label is a card or an overlay, not a control. */
 const MAX_SIZE = 56;
+/** Touch: a long press this long shows an explanation (data-tooltip-info); it closes on the next touch, on scroll or after a while. */
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE = 10;
+const TOUCH_SHOW_MS = 4000;
 
 /** What gets a tooltip: anything that asks for one, and every button or link that shows only an icon (its aria-label is the text). */
 /** `data-tooltip-info`: an explanation on a badge that shows text ("Pro host" → "Earns a host fee …") – the one case with visible text. */
@@ -45,14 +50,74 @@ function textFor(el: HTMLElement): string | null {
 }
 
 /**
- * The one tooltip, for icon buttons (mounted once, in AppShell): after 500ms of hover, at once on keyboard focus, gone the moment the pointer leaves or
- * clicks; one right after another opens without the wait. Dark glass, under the element, above it at the window's bottom edge. Never on touch, never on a
- * control with visible text. The text is the element's aria-label (or data-tooltip, which then is the same words).
+ * The one tooltip, for icon buttons (mounted once, in AppShell): after 350ms of hover, at once on keyboard focus, gone the moment the pointer leaves or
+ * clicks; one right after another opens without the wait. Dark glass, under the element, above it at the window's bottom edge. Never on a control with
+ * visible text – except an explanation (data-tooltip-info, e.g. the admin's tab capsules), which on touch also shows on a long press (the tap
+ * that follows doesn't count as a click). Icon tooltips never on touch. The text is the element's aria-label (or data-tooltip, then the same words).
  */
 export function Tooltip() {
   const [tip, setTip] = useState<{ text: string; anchor: HTMLElement } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number; below: boolean } | null>(null);
+
+  // Touch: a long press on an explanation (data-tooltip-info) shows it; the release after it is no click.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    let start: { x: number; y: number } | null = null;
+    let swallowUntil = 0;
+    const clear = () => {
+      clearTimeout(timer);
+      start = null;
+    };
+    const close = () => {
+      clearTimeout(hideTimer);
+      setTip((t) => (t ? null : t));
+    };
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      close();
+      const el = (e.target as Element | null)?.closest<HTMLElement>("[data-tooltip-info]");
+      const text = el?.getAttribute("data-tooltip-info");
+      if (!el || !text) return;
+      start = { x: e.clientX, y: e.clientY };
+      timer = setTimeout(() => {
+        swallowUntil = performance.now() + 800;
+        setTip({ text, anchor: el });
+        hideTimer = setTimeout(close, TOUCH_SHOW_MS);
+      }, LONG_PRESS_MS);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > LONG_PRESS_MOVE) clear();
+    };
+    const onClick = (e: MouseEvent) => {
+      if (performance.now() > swallowUntil) return;
+      swallowUntil = 0;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onContext = (e: Event) => {
+      if ((e.target as Element | null)?.closest("[data-tooltip-info]")) e.preventDefault();
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", clear, true);
+    document.addEventListener("pointercancel", clear, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("contextmenu", onContext, true);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      clear();
+      clearTimeout(hideTimer);
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", clear, true);
+      document.removeEventListener("pointercancel", clear, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("contextmenu", onContext, true);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -146,7 +211,7 @@ export function Tooltip() {
       role="tooltip"
       data-tooltip-box
       style={{ left: place?.left ?? -9999, top: place?.top ?? -9999 }}
-      className="pointer-events-none fixed z-[90] max-w-[calc(100vw-16px)] truncate whitespace-nowrap rounded-lg bg-(--tooltip-bg) px-2.5 py-1.5 text-small text-stage-text backdrop-blur-[8px]"
+      className="tooltip-box pointer-events-none fixed z-[90]"
     >
       {tip.text}
     </div>,

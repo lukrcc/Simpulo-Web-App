@@ -46,7 +46,7 @@ function dangerLast(items: MoreMenuItem[]): MoreMenuItem[] {
 }
 
 /**
- * ⋯ button with a small dropdown – from 768px under the button (Anchored, in <body>: inside a card with a backdrop-filter or a transform a
+ * ⋯ button with a small dropdown – from 744px under the button (Anchored, in <body>: inside a card with a backdrop-filter or a transform a
  * fixed layer would be caught in that card); on phones a sheet from the bottom in the same tone (MenuLayer), rows 48px, dangerous entries
  * red at the bottom. It closes on a click beside it, on Escape and after a choice.
  */

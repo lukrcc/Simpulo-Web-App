@@ -3,13 +3,13 @@
 // Houses at risk · new host applications (pre-launch and beta only) · host warnings · the other support tickets. In that order (safety,
 // money, Houses, applications, hosts, support), within a kind the oldest first. A task marked done is gone; one put off ("Später") comes
 // back tomorrow (AdminData.taskStates). Pure: the components render it, lib/admin/actions.ts changes it (and logs).
-import type { PaymentIssue } from "@/lib/data";
+import type { MarketingPartner, PaymentIssue } from "@/lib/data";
 import type { HostApplication, Stay, SupportTicket } from "@/lib/types";
 import { TAX_DEADLINES } from "@/config/admin";
 import { taxDeadlines, type TaxDeadline } from "./ledger";
-import { atRiskHouses, hostOverview, isOpenTicket, launchCriteriaMet, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
+import { atRiskHouses, hostOverview, isOpenTicket, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
 
-export const TASK_KINDS = ["safety", "money", "deadline", "atRisk", "application", "hostWarning", "support"] as const;
+export const TASK_KINDS = ["safety", "money", "deadline", "atRisk", "application", "hostWarning", "partnerStep", "support"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 export type AdminTask =
@@ -18,7 +18,8 @@ export type AdminTask =
   | { id: string; kind: "deadline"; createdAt: string; deadline: TaxDeadline }
   | { id: string; kind: "atRisk"; createdAt: string; stay: Stay; reasons: readonly RiskReason[] }
   | { id: string; kind: "application"; createdAt: string; application: HostApplication }
-  | { id: string; kind: "hostWarning"; createdAt: string; host: HostOverview };
+  | { id: string; kind: "hostWarning"; createdAt: string; host: HostOverview }
+  | { id: string; kind: "partnerStep"; createdAt: string; partner: MarketingPartner };
 
 const DAY_MS = 86_400_000;
 const daysBefore = (today: string, days: number) => new Date(Date.parse(`${today}T12:00:00Z`) - days * DAY_MS).toISOString();
@@ -40,6 +41,10 @@ function buildTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[],
       // A safety report on their House is already its own task.
       .filter((h) => h.warnings.some((w) => w !== "safety"))
       .map((host): AdminTask => ({ id: `host:${host.user.id}`, kind: "hostWarning", createdAt: host.newest || daysBefore(inputs.today, 0), host })),
+    // A partner's next step that is due (Marketing › Partner): as old as its due day; the id carries the step, so a new step is a new task.
+    ...(inputs.admin.marketingPartners ?? [])
+      .filter((p) => partnerStepDue(p, inputs.today))
+      .map((partner): AdminTask => ({ id: `partner:${partner.id}:${partner.nextStep!.due}:${partner.nextStep!.text.length}`, kind: "partnerStep", createdAt: `${partner.nextStep!.due}T09:00:00.000Z`, partner })),
     ...open.filter((t) => t.category !== "safety").map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: "support", createdAt: ticket.createdAt, ticket })),
   ];
   return tasks.toSorted(byKindThenAge);
@@ -78,7 +83,7 @@ export function taskCounts(tasks: readonly AdminTask[]) {
 /** "Braucht dich": one capsule per kind with open tasks, in the list's order (0 left out); in pre-launch and beta then the launch criteria. */
 export function needsYou(tasks: readonly AdminTask[], inputs: Pick<AdminInputs, "stays" | "admin" | "phase">): NeedsYou[] {
   const { byKind } = taskCounts(tasks);
-  const keyOf = { safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", hostWarning: "hostWarning", support: "tickets" } as const;
+  const keyOf = { safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
   const needs: NeedsYou[] = TASK_KINDS.filter((k) => byKind[k] > 0).map((k) => ({ key: keyOf[k], count: byKind[k] }));
   if (inputs.phase !== "live") {
     const { met, total } = launchCriteriaMet(inputs);

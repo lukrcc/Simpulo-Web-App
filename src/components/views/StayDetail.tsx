@@ -29,10 +29,9 @@ import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { HouseHero } from "@/components/stay/HouseHero";
-import { LeaveSheet, MemberHero, MemberSections, MemberTabs, useStepContent } from "@/components/stay/MemberHouse";
+import { HouseArea } from "@/components/stay/HouseArea";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
-import { guestJourney } from "@/config/house-steps";
 import { useHouseRole } from "@/lib/useHouseRole";
 import { HouseActions, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
@@ -44,7 +43,7 @@ import { ModalFooter, PHONE_FOOTER, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref, createHref } from "@/components/create/model";
 import { useFormat } from "@/i18n/format";
-import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite } from "@/lib/store";
+import { crewThreadId, findUser, getCrew, getCurrentUser, getMyRequest, isBlocked, isCrewMember, settingsOf, useStore, validHouseInvite } from "@/lib/store";
 import type { JoinRequest, Stay } from "@/lib/types";
 import { useHouseStage } from "@/lib/houseTransition";
 import { memberStage } from "@/lib/joinFlow";
@@ -187,11 +186,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const summaryRef = useRef<HTMLElement>(null);
   const stage = previewing ? null : memberStage(store, stay, store.currentUserId);
   // Who's looking (lib/useHouseRole.ts): a member (requested, accepted, paying, paid) gets their way through the House instead of "Request to join".
-  const { role: liveRole } = useHouseRole(stay.id);
+  const { role: liveRole, ended } = useHouseRole(stay.id);
   const role = previewing ? "visitor" : liveRole;
-  const [leaving, setLeaving] = useState(false);
-  const journey = guestJourney(stay, myRequest, store.payments.find((p) => p.stayId === stay.id && p.userId === store.currentUserId && p.status !== "refunded"), openedAt, crewInOf(store, stay));
-  const crewThread = getCrewThread(store, stay.id);
   // ?focus= (Needs you, notifications): a member's "pay" opens the pay sheet; the host is sent on to the management page with it.
   const [focusParam, setFocusParam] = useState<string | null>(null);
   useEffect(() => {
@@ -199,7 +195,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     // The step in view: the head (the member's Ember step, the host's status) scrolls up under the header.
     summaryRef.current?.scrollIntoView({ block: "start" });
     // The host: to the management page – except "invite", which opens the invite sheet right here.
-    if (role === "host" && focusParam !== "invite") router.replace(`/h/${stay.id}/manage?focus=${focusParam}`);
+    if (role === "host" && focusParam !== "invite") router.replace(`/h/${stay.id}?tab=manage&focus=${focusParam}`);
   }, [focusParam, role, router, stay.id]);
   // A member's ?focus=pay opens the pay sheet once (closing it clears the focus).
   const payOpen = paying || (role === "member" && focusParam === "pay");
@@ -277,7 +273,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     if (previewing) return showToast(tPreview("noChanges"));
     requireAuth((userId) => {
       if (userId === stay.hostId) {
-        router.push(`/h/${stay.id}/manage`);
+        router.push(`/h/${stay.id}?tab=manage`);
         return;
       }
       // userId is passed explicitly: right after an inline login the store doesn't know the new user yet.
@@ -390,17 +386,20 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
   // The crew-only and host-only panels: between the facts and the House's own story.
   const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (didntWorkOut(myRequest) || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
-  const stepContent = useStepContent(stay, host, journey, { onPay: () => setPaying(true), onInvite: () => (canBring ? setInviting(true) : inviteFriends()), now: openedAt });
   // The host's line in the head: "3 of 6 in · 2 requests" (management lives at /h/[id]/manage).
   const openRequests = store.joinRequests.filter((r) => r.stayId === stay.id && (r.status === "pending" || r.status === "waitlist_requested")).length;
   // Under the host's price only what needs them: "● 1 request to review" (orange dot) → Manage. The crew stands in the right column.
   const hostStatus =
     openRequests > 0 ? (
-      <Link href={`/h/${stay.id}/manage?focus=requests`} className="inline-flex items-center gap-2 font-semibold text-ink underline-offset-4 hover:underline">
+      <Link href={`/h/${stay.id}?tab=manage&focus=requests`} className="inline-flex items-center gap-2 font-semibold text-ink underline-offset-4 hover:underline">
         <span aria-hidden className="size-2 rounded-full bg-accent" />
         {t("page.requestsToReview", { count: openRequests })}
       </Link>
     ) : undefined;
+
+  // Members (a request, a yes, a paid share – or removed / their time to pay ran out) and the host: the House area with its tabs
+  // (stay/HouseArea.tsx). Visitors and the host's "Preview as guest" keep this page.
+  if (!previewing && (role === "member" || role === "host")) return <HouseArea stay={stay} role={role} ended={ended} />;
 
   return (
     <PreviewProvider active={previewing}>
@@ -434,13 +433,6 @@ function StayDetailContent({ stay }: { stay: Stay }) {
       </Container>
     )}
     {/* The House as the page's main object: the full-width band under the header (components/HeroBand). */}
-      {role === "member" ? (
-        <>
-          <MemberHero ref={summaryRef} stay={stay} host={host} crew={crew} journey={journey} content={stepContent} chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} onLeave={() => setLeaving(true)} />
-          {/* Phones: Chat · Crew · Plan as a sticky, sideways-scrolling row. */}
-          <MemberTabs chatHref={myRequest?.status === "accepted" && crewThread ? `/messages/${crewThreadId(stay.id)}` : null} together={stay.accommodationStatus !== "locked"} />
-        </>
-      ) : (
       <HouseHero
           ref={summaryRef}
           stay={stay}
@@ -494,13 +486,11 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             />
           }
         />
-      )}
     <Container className="explore-width">
       {/* Under the band, 32px down – so the window's edge (--stage-peek) cuts under the headings, never through a line of text: the sections
           in one order, 40px apart, right on the page's background. Text reads at most 760px wide. */}
       <div className="mt-8 flex flex-col gap-10">
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
-        {role === "member" && <MemberSections stay={stay} crew={crew} />}
         <div className="flex flex-col gap-6 empty:hidden md:max-w-[760px]">
           {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
           {showOpenYourOwn && !canWaitlist && <OpenYourOwn stay={stay} declined={didntWorkOut(myRequest)} />}
@@ -606,26 +596,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         stay={stay}
         photo={photos[0]}
         joinCardRef={summaryRef}
-        line={role === "member" ? stepContent.title : undefined}
-        cta={
-          role === "member" ? (
-            stepContent.action ? (
-              stepContent.action.href ? (
-                <Button size="md" href={stepContent.action.href} external={stepContent.action.external}>
-                  {stepContent.action.label}
-                </Button>
-              ) : (
-                <Button size="md" onClick={stepContent.action.onClick}>
-                  {stepContent.action.label}
-                </Button>
-              )
-            ) : null
-          ) : (
-            ctaFor(false)
-          )
-        }
+        cta={ctaFor(false)}
       />
-      <LeaveSheet stay={stay} open={leaving} onClose={() => setLeaving(false)} />
 
       <PaySheet
         stay={stay}
@@ -808,7 +780,7 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
   }
   if (isHost) {
     return (
-      <Button variant={variant} size={size} href={`/h/${stay.id}/manage`}>
+      <Button variant={variant} size={size} href={`/h/${stay.id}?tab=manage`}>
         {t("manage")}
       </Button>
     );

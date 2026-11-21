@@ -62,7 +62,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [
   // the one red entry at the very bottom (host: Cancel this House; member: Leave).
   const houseItems: MoreMenuItem[] = [...extraItems, ...(isHost
     ? [
-        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/h/${stay.id}/manage` }]),
+        ...(minimal ? [] : [{ label: t("crewMenu.manage"), href: `/h/${stay.id}?tab=manage` }]),
         ...(minimal ? [] : [{ label: t("crewMenu.edit"), href: `/your-houses/${stay.id}/edit` }]),
         // Taking requests is a setting, not a status to show – it lives here.
         ...(stay.status === "published" || stay.status === "booked"

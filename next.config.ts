@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
+import { assertTestRoutes } from "./scripts/check-test-routes";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -85,4 +87,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+// Every production build checks the width test's route list (src/config/test-routes.ts) against the pages that exist: a new page that isn't
+// listed stops the build with "Neue Seite /xyz nicht im Breiten-Test" (scripts/check-test-routes.ts).
+export default function config(phase: string) {
+  if (phase === PHASE_PRODUCTION_BUILD) assertTestRoutes();
+  return withNextIntl(nextConfig);
+}

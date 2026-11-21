@@ -19,7 +19,7 @@ export function useMediaQuery(query: string): boolean {
 /** Tailwind's md breakpoint – where the site header (SiteHeader) takes over from the mobile chrome. */
 export const MD_QUERY = MEDIA.tabletUp;
 
-/** Phone (< 768px, config/breakpoints.ts) – false on the server and during hydration. */
+/** Phone (< 744px, config/breakpoints.ts) – false on the server and during hydration. */
 export function useIsPhone(): boolean {
   return useMediaQuery(MEDIA.phone);
 }

@@ -5,7 +5,7 @@
 // statistics documents (stats/hourly/{hour}, stats/daily/{day}: counts per channel, referrer, House, funnel steps, money, the month rows);
 // these functions then read those documents – never the raw collections (events, requests, payments). Until then they compute the same
 // numbers from the mock records. TODO(firestore): an adapter `getStats(from, to)` in lib/data and these functions over its result.
-import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, fullHousesTarget, feeModelPerFullHouse, type ChangeMetric, type ComparePeriod, HOUSE_RISK, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
+import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, fullHousesTarget, feeModelPerFullHouse, type ChangeMetric, type ChartLevel, type ComparePeriod, COMPARE_PERIODS, HOUSE_RISK, HOUSE_LEVER_RULES, HOUSE_DONE_RECHECK_DAYS, type HouseLever, PERIOD_CHART, PERIOD_MONTHS, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
 import { FEE_MODEL } from "@/config/policies";
 import { convert, isCurrency } from "@/lib/currency";
 import { VIBES } from "@/lib/catalog";
@@ -14,7 +14,7 @@ import type { HypothesisStatus } from "@/config/hypotheses";
 import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
-import type { AdminData, HouseOutcome, LedgerEntry, MarketingContact, MetricsHistory, OverviewSnapshot } from "@/lib/data";
+import type { AdminData, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
 import { FUNNEL_ASSUMPTIONS, PROJECTION_HOUSES } from "@/config/marketing";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
@@ -97,29 +97,233 @@ export function getChange(metric: ChangeMetric, current: number | null, previous
   return { delta, relative: unit === "percent" || previous <= 0 ? null : delta / round(previous), trend, unit };
 }
 
-/** The day compared with (YYYY-MM-DD): a week back, the same day last month (the 31st → the month's last day), the same day last year. */
-export function compareDate(today: string, period: ComparePeriod): string {
-  const [y, m, d] = today.split("-").map(Number);
-  if (period === "week") return new Date(Date.UTC(y, m - 1, d) - 7 * DAY_MS).toISOString().slice(0, 10);
-  const [ty, tm] = period === "month" ? [y, m - 2] : [y - 1, m - 1];
-  const last = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(ty, tm, Math.min(d, last))).toISOString().slice(0, 10);
+// ── Periods: Tag · Woche · Monat · Quartal · Jahr ─────────────────────────────────────────────────────────────────────────────────────
+
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const dayMs = (date: string) => Date.parse(`${date}T00:00:00Z`);
+const addMonths = (date: string, n: number) => {
+  const [y, m] = date.split("-").map(Number);
+  return isoDay(Date.UTC(y, m - 1 + n, 1));
+};
+
+/** The first day of the period that holds `date`: the day itself, Monday, the 1st, the quarter's first month, 1 January. */
+export function periodStart(date: string, period: ChartLevel): string {
+  const [y, m] = date.split("-").map(Number);
+  if (period === "day") return date;
+  if (period === "week") return isoDay(dayMs(date) - ((new Date(dayMs(date)).getUTCDay() + 6) % 7) * DAY_MS);
+  if (period === "month") return isoDay(Date.UTC(y, m - 1, 1));
+  if (period === "quarter") return isoDay(Date.UTC(y, Math.floor((m - 1) / 3) * 3, 1));
+  return isoDay(Date.UTC(y, 0, 1));
+}
+
+/** The start of the period `n` periods after (negative: before) the one starting at `start`. */
+function shiftPeriod(start: string, period: ChartLevel, n: number): string {
+  if (period === "day") return isoDay(dayMs(start) + n * DAY_MS);
+  if (period === "week") return isoDay(dayMs(start) + 7 * n * DAY_MS);
+  return addMonths(start, n * (period === "month" ? 1 : period === "quarter" ? 3 : 12));
+}
+
+/** The last day of the period that starts at `start` (a week: Sunday). */
+export function periodEnd(start: string, period: ChartLevel): string {
+  return isoDay(dayMs(shiftPeriod(periodStart(start, period), period, 1)) - DAY_MS);
 }
 
 /**
- * The overview's numbers on the day compared with: from the history's snapshots where there are some (the mock), else profit and full Houses
- * from the records – that month up to that day –, the shares unknown (they need stored snapshots).
+ * A stretch (`from` – `to`, at most up to today) and what it is compared with – the same span of the period before: a day the same weekday a
+ * week back (fairer than yesterday), a week/month/quarter/year the period before up to the same day in it (never past its end).
  */
-export function previousOverview(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">, period: ComparePeriod): OverviewSnapshot {
-  const snap = inputs.history?.snapshots?.[period];
-  if (snap) return snap;
-  const date = compareDate(inputs.today, period);
-  const month = monthOf(date);
-  const inMonthUpTo = (iso: string) => monthOf(iso) === month && iso.slice(0, 10) <= date;
-  const profit = inputs.payments.filter((p) => p.status === "paid" && p.paidAt && inMonthUpTo(p.paidAt)).reduce((n, p) => n + keptOf(p), 0);
-  const fullHouses = inputs.stays.filter((s) => isReal(s) && isFull(s) && inMonthUpTo(s.startDate)).length;
-  const sharedNights = inputs.stays.filter((s) => isReal(s) && isFull(s) && inMonthUpTo(s.startDate)).reduce((n, s) => n + s.spotsTotal * nightsOf(s), 0);
-  return { profit: Math.round(profit), fullHouses, reservedShare: null, repeatRate: null, sharedNights };
+export function rangesFor(level: ChartLevel, from: string, to: string, today: string) {
+  const curTo = to < today ? to : today;
+  if (level === "day") {
+    const back = isoDay(dayMs(from) - 7 * DAY_MS);
+    return { current: { from, to: curTo }, previous: { from: back, to: back } };
+  }
+  const prevFrom = level === "week" ? isoDay(dayMs(from) - 7 * DAY_MS) : shiftPeriod(from, level, -1);
+  const prevLast = isoDay(dayMs(from) - DAY_MS);
+  const span = Math.round((dayMs(curTo) - dayMs(from)) / DAY_MS);
+  const prevTo = isoDay(Math.min(dayMs(prevFrom) + span * DAY_MS, dayMs(prevLast)));
+  return { current: { from, to: curTo }, previous: { from: prevFrom, to: prevTo } };
+}
+
+/** The running period up to today and the same span of the period before (rangesFor). */
+export function periodRanges(today: string, period: ComparePeriod) {
+  const from = periodStart(today, period);
+  return rangesFor(period, from, periodEnd(from, period), today);
+}
+
+/** The last day of the range compared with (YYYY-MM-DD) – for "ggü. …". */
+export function compareDate(today: string, period: ComparePeriod): string {
+  return periodRanges(today, period).previous.to;
+}
+
+/** A monthly target on another period (config/admin.ts PERIOD_MONTHS): euros to the nearest 10, counts whole (at least 1). */
+export function periodTarget(monthly: number, period: ChartLevel, format: "eur" | "count"): number {
+  const value = monthly * PERIOD_MONTHS[period];
+  return format === "eur" ? Math.round(value / 10) * 10 : Math.max(1, Math.round(value));
+}
+
+interface DayRow {
+  date: string;
+  profit: number;
+  full: number;
+  nights: number;
+}
+
+/** A calm, fixed rhythm of the days (no randomness): the weekend a little stronger, a small wobble per date. */
+function dayWeight(date: string): number {
+  let h = 2166136261;
+  for (const c of date) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const wobble = ((h >>> 0) % 1000) / 1000;
+  const weekday = new Date(dayMs(date)).getUTCDay();
+  return (weekday === 5 || weekday === 6 || weekday === 0 ? 1.3 : 1) * (0.75 + 0.5 * wobble);
+}
+
+/**
+ * Profit, full Houses and shared nights per day, as far back as known – the one source of every period (TODO(firestore): stats/daily).
+ * With a history (the mock) its monthly values are spread over the month's days in a fixed rhythm (this month up to today), so every period
+ * sums to the same months; without one, the records themselves: profit by the day it was paid, full Houses and their nights by start day.
+ */
+function dailyRows(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">): DayRow[] {
+  const { history, today } = inputs;
+  if (history) {
+    const months = new Map<number, { profit: number; full: number; nights: number }>();
+    for (const o of history.olderMonths ?? []) months.set(o.monthsAgo, { profit: o.profit, full: o.full, nights: o.sharedNights });
+    for (const p of history.profitPerMonth) {
+      const i = 11 - p.monthsAgo;
+      const full = history.fullHousesPerMonth.find((h) => h.monthsAgo === p.monthsAgo)?.full ?? 0;
+      months.set(p.monthsAgo, { profit: p.profit, full, nights: history.series?.sharedNights[i] ?? full * 56 });
+    }
+    const rows: DayRow[] = [];
+    for (const back of [...months.keys()].toSorted((a, b) => b - a)) {
+      const v = months.get(back)!;
+      // The running month's value is the month's level: spread over the whole month, only the days up to today count (monthSoFar).
+      const first = addMonths(periodStart(today, "month"), -back);
+      const last = isoDay(dayMs(addMonths(first, 1)) - DAY_MS);
+      const days: string[] = [];
+      for (let t = dayMs(first); t <= dayMs(last); t += DAY_MS) days.push(isoDay(t));
+      const total = days.reduce((n, d) => n + dayWeight(d), 0);
+      for (const d of days) {
+        if (d > today) break;
+        const share = dayWeight(d) / total;
+        rows.push({ date: d, profit: v.profit * share, full: v.full * share, nights: v.nights * share });
+      }
+    }
+    return rows;
+  }
+  const byDay = new Map<string, DayRow>();
+  const at = (date: string) => byDay.get(date) ?? byDay.set(date, { date, profit: 0, full: 0, nights: 0 }).get(date)!;
+  for (const p of inputs.payments) if (p.status === "paid" && p.paidAt && p.paidAt.slice(0, 10) <= today) at(p.paidAt.slice(0, 10)).profit += keptOf(p);
+  for (const s of inputs.stays) {
+    if (!isReal(s) || !isFull(s) || s.startDate > today) continue;
+    const row = at(s.startDate.slice(0, 10));
+    row.full += 1;
+    row.nights += s.spotsTotal * nightsOf(s);
+  }
+  return [...byDay.values()].toSorted((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * The share of the running month that has passed (weighted like the days, dayWeight): with a history (the mock) its month-0 values are the
+ * month's level, so "this month so far" is that × this share – everywhere the same (profitPerMonth, fullHousesPerMonth, dailyRows).
+ */
+export function monthSoFar(today: string): number {
+  const first = periodStart(today, "month");
+  const last = isoDay(dayMs(addMonths(first, 1)) - DAY_MS);
+  let done = 0;
+  let total = 0;
+  for (let t = dayMs(first); t <= dayMs(last); t += DAY_MS) {
+    const w = dayWeight(isoDay(t));
+    total += w;
+    if (isoDay(t) <= today) done += w;
+  }
+  return total > 0 ? done / total : 1;
+}
+
+/** Profit, full Houses and shared nights from `from` to `to` (both included), rounded once here. */
+export function rangeTotals(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">, from: string, to: string) {
+  const rows = dailyRows(inputs).filter((r) => r.date >= from && r.date <= to);
+  return { profit: Math.round(rows.reduce((n, r) => n + r.profit, 0)), full: Math.round(rows.reduce((n, r) => n + r.full, 0)), nights: Math.round(rows.reduce((n, r) => n + r.nights, 0)) };
+}
+
+/** One bar of the overview's chart (chartBuckets). */
+export interface ChartBucket {
+  level: ChartLevel;
+  /** First and last day it covers (a week inside a month is cut to the month) */
+  from: string;
+  to: string;
+  /** null: still ahead (no bar) */
+  profit: number | null;
+  /** The same span of the period before (rangesFor) – for the tooltip's change */
+  previous: number | null;
+  /** The running one (today lies in it) */
+  current: boolean;
+  /** Days only: what happened that day – new requests, paid stays, new Houses */
+  events?: { requests: number; paid: number; houses: number };
+}
+
+/** A stretch of the overview's chart: the periods' root (`within` null) or one bar opened (drill-down, one level deeper). */
+export interface ChartView {
+  level: ChartLevel;
+  /** The opened bar's stretch; null at the root (the last PERIOD_CHART periods up to today) */
+  within: { from: string; to: string } | null;
+}
+
+/**
+ * The bars of the overview's chart (one source: dailyRows). At the root the last weeks (12), months (12), quarters (8) or every year with
+ * data, oldest first, the running one up to today; opened, the next level inside the opened bar (a year's quarters, a quarter's months, a
+ * month's weeks – cut to the month –, a week's days Mo–So, still-ahead ones without a bar). Each with the same span of the period before.
+ */
+export function chartBuckets(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today" | "joinRequests">, view: ChartView): ChartBucket[] {
+  const rows = dailyRows(inputs);
+  const { today } = inputs;
+  const level = view.level;
+  const starts: { from: string; to: string }[] = [];
+  if (view.within) {
+    for (let s = periodStart(view.within.from, level); s <= view.within.to; s = shiftPeriod(s, level, 1)) {
+      const end = periodEnd(s, level);
+      starts.push({ from: s < view.within.from ? view.within.from : s, to: end > view.within.to ? view.within.to : end });
+    }
+  } else {
+    const period = level as ComparePeriod;
+    const count = PERIOD_CHART[period];
+    const current = periodStart(today, period);
+    const firstData = rows.find((r) => r.profit > 0 || r.full > 0)?.date ?? today;
+    const list: string[] = [];
+    if (count === null) for (let s = periodStart(firstData, period); s <= current; s = shiftPeriod(s, period, 1)) list.push(s);
+    else for (let i = count - 1; i >= 0; i--) list.push(shiftPeriod(current, period, -i));
+    for (const s of list) starts.push({ from: s, to: periodEnd(s, period) });
+  }
+  const sum = (from: string, to: string) => Math.round(rows.filter((r) => r.date >= from && r.date <= to).reduce((n, r) => n + r.profit, 0));
+  const day = (iso: string | undefined | null) => iso?.slice(0, 10);
+  return starts.map(({ from, to }) => {
+    const ahead = from > today;
+    const r = rangesFor(level, from, to, today);
+    const bucket: ChartBucket = { level, from, to, profit: ahead ? null : sum(r.current.from, r.current.to), previous: ahead ? null : sum(r.previous.from, r.previous.to), current: from <= today && today <= to };
+    if (level === "day") {
+      bucket.events = {
+        requests: inputs.joinRequests.filter((q) => day(q.createdAt) === from).length,
+        paid: inputs.payments.filter((p) => p.status === "paid" && day(p.paidAt) === from).length,
+        houses: inputs.stays.filter((st) => !st.isExample && st.status !== "draft" && st.status !== "draft_unclaimed" && day(st.createdAt) === from).length,
+      };
+    }
+    return bucket;
+  });
+}
+
+/**
+ * The overview's main numbers over the period compared with (periodRanges): profit, full Houses and shared nights from the daily rows; the
+ * shares (reservations, repeat guests) from the history's snapshots where there are some (the mock: week, month, year), else from the
+ * monthly series of the month compared with – they need stored daily snapshots (TODO(backend): a nightly aggregate).
+ */
+export function previousOverview(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">, period: ChartLevel, ranges: ReturnType<typeof rangesFor> = periodRanges(inputs.today, period as ComparePeriod)): OverviewSnapshot {
+  const { previous } = ranges;
+  const totals = rangeTotals(inputs, previous.from, previous.to);
+  // The stored snapshots stand for the running period only (the same day of the period before).
+  const running = previous.to === periodRanges(inputs.today, period === "day" ? "week" : period).previous.to;
+  const snap = running ? (inputs.history?.snapshots as Partial<Record<ChartLevel, OverviewSnapshot>> | undefined)?.[period] : undefined;
+  const monthsBack = Math.round((dayMs(periodStart(inputs.today, "month")) - dayMs(periodStart(previous.to, "month"))) / (30.44 * DAY_MS));
+  const repeatFromSeries = inputs.history?.series?.repeatRate.at(-1 - monthsBack) ?? null;
+  return { profit: totals.profit, fullHouses: totals.full, sharedNights: totals.nights, reservedShare: snap?.reservedShare ?? null, repeatRate: snap?.repeatRate ?? repeatFromSeries };
 }
 
 export type HouseKind = "example" | "founding" | "real";
@@ -193,7 +397,8 @@ export function fullHousesPerMonth(inputs: Pick<AdminInputs, "stays" | "history"
   const rows = Array.from({ length: 12 }, (_, i) => {
     const back = 11 - i;
     const month = monthBefore(today, back);
-    const fromHistory = history?.fullHousesPerMonth.find((h) => h.monthsAgo === back)?.full;
+    const level = history?.fullHousesPerMonth.find((h) => h.monthsAgo === back)?.full;
+    const fromHistory = level === undefined ? undefined : back === 0 ? Math.round(level * monthSoFar(today)) : level;
     return { month, full: fromHistory ?? full.filter((s) => monthOf(s.startDate) === month).length };
   });
   const current = rows.at(-1)!.full;
@@ -419,7 +624,10 @@ export function profitPerMonth(inputs: Pick<AdminInputs, "payments" | "history" 
   return Array.from({ length: 12 }, (_, i) => {
     const back = 11 - i;
     const month = monthBefore(inputs.today, back);
-    const profit = inputs.history?.profitPerMonth.find((h) => h.monthsAgo === back)?.profit ?? paid.filter((p) => monthOf(p.paidAt!) === month).reduce((n, p) => n + keptOf(p), 0);
+    const level = inputs.history?.profitPerMonth.find((h) => h.monthsAgo === back)?.profit;
+    // The history's running month is its level – so far is the part of it that has passed (monthSoFar).
+    const fromHistory = level === undefined ? undefined : back === 0 ? level * monthSoFar(inputs.today) : level;
+    const profit = fromHistory ?? paid.filter((p) => monthOf(p.paidAt!) === month).reduce((n, p) => n + keptOf(p), 0);
     return { month, profit: Math.round(profit), status: getStatus("profitPerMonth", profit) };
   });
 }
@@ -442,25 +650,29 @@ export interface CockpitNumber {
 }
 
 /**
- * The overview (Übersicht): the move – profit this month with its change and the streak; ONE number per area – Angebot full Houses this
- * month · Nachfrage Houses with 2+ reservations · Qualität repeat guests · Geld revenue per full House –, each with its target, status and
- * change against the same day of the period before (`period`, COMPARE_PERIODS). Targets: full Houses dynamic (fullHousesTarget: €5,000 over
- * what a full House brings), reservations 60 %, repeat guests 25 %, per full House the fee model. "Braucht dich" comes from the tasks
- * (lib/admin/tasks.ts needsYou). Every other number lives in its tab.
+ * The overview (Übersicht) for a period (Tag · Woche · Monat · Quartal · Jahr): profit, full Houses and shared nights in the running period up
+ * to today (rangeTotals), each against the same span of the period before (periodRanges) and its monthly target scaled to the period
+ * (periodTarget); the shares (reservations, repeat guests) with their fixed targets; the months in a row at €5,000 always monthly (move).
  */
-export function cockpit(inputs: AdminInputs, period: ComparePeriod) {
+export function cockpit(inputs: AdminInputs, period: ComparePeriod, focus: { level: ComparePeriod; from: string } | null = null) {
   const o = overview(inputs);
   const a = algorithmMetrics(inputs);
-  const m = money(inputs);
   const full = fullHousesPerMonth(inputs);
   const pct = (ratio: number | null) => (ratio === null ? null : Math.round(ratio * 100));
   const reserved = pct(o.reservedShare);
   const repeat = pct(a.repeatRate);
-  const prev = previousOverview(inputs, period);
+  // A bar opened in the chart (drill-down): its stretch instead of the running period – the numbers follow it.
+  const level = focus?.level ?? period;
+  const ranges = focus ? rangesFor(focus.level, focus.from, periodEnd(focus.from, focus.level), inputs.today) : periodRanges(inputs.today, period);
+  const now = rangeTotals(inputs, ranges.current.from, ranges.current.to);
+  const prev = previousOverview(inputs, level, ranges);
+  const perHouse = now.full > 0 ? Math.round(now.profit / now.full) : null;
   const prevPerHouse = prev.profit !== null && prev.fullHouses ? Math.round(prev.profit / prev.fullHouses) : null;
   const move = moveProgress(inputs);
 
-  const fullTarget = full.target;
+  // Targets are monthly; counts and euros scale to the period (periodTarget), shares stay.
+  const fullTarget = periodTarget(full.target, level, "count");
+  const profitTarget = periodTarget(MOVE_TARGET.profitPerMonth, level, "eur");
   const perHouseTarget = feeModelPerFullHouse();
   const number = (key: CockpitKey, value: number | null, format: CockpitNumber["format"], target: number, previous: number | null, metric: ChangeMetric): CockpitNumber => ({
     key,
@@ -473,20 +685,27 @@ export function cockpit(inputs: AdminInputs, period: ComparePeriod) {
 
   return {
     period,
-    compareDate: compareDate(inputs.today, period),
-    move: { ...move, change: getChange("profit", move.current, prev.profit) },
+    level,
+    ranges,
+    compareDate: ranges.previous.to,
+    /** Profit in the period up to today, against its target (€5,000 a month, scaled) and the same span of the period before. */
+    profit: { current: now.profit, target: profitTarget, status: statusAgainst(now.profit, profitTarget), change: getChange("profit", now.profit, prev.profit) },
+    /** Shared nights (people × nights in full Houses) in the period – no target. */
+    nights: { current: now.nights, change: getChange("sharedNights", now.nights, prev.sharedNights ?? null) },
+    /** The months in a row at €5,000 – always monthly, whatever the period. */
+    move,
     areas: [
-      { key: "supply", href: "/admin/houses", number: number("fullHouses", full.current, "count", fullTarget, prev.fullHouses, "fullHouses") },
+      { key: "supply", href: "/admin/houses", number: number("fullHouses", now.full, "count", fullTarget, prev.fullHouses, "fullHouses") },
       { key: "demand", href: "/admin/growth", number: number("reservedShare", reserved, "percent", OVERVIEW_TARGETS.reservedShare, prev.reservedShare, "reservedShare") },
       { key: "quality", href: "/admin/data", number: number("repeatRate", repeat, "percent", OVERVIEW_TARGETS.repeatRate, prev.repeatRate, "repeatRate") },
-      { key: "money", href: "/admin/money", number: number("perHouse", m.perHouse, "eur", perHouseTarget, prevPerHouse, "perHouse") },
+      { key: "money", href: "/admin/money", number: number("perHouse", perHouse, "eur", perHouseTarget, prevPerHouse, "perHouse") },
     ] as const,
   };
 }
 
 /** One capsule in "Braucht dich", in order of urgency (lib/admin/tasks.ts needsYou). */
 export type NeedsYou =
-  | { key: "safety" | "money" | "deadline" | "atRisk" | "applications" | "hostWarning" | "tickets"; count: number }
+  | { key: "safety" | "money" | "deadline" | "atRisk" | "applications" | "hostWarning" | "partners" | "tickets"; count: number }
   | { key: "launch"; count: number; met: number; total: number };
 
 /** The launch criteria met (of all) – "Braucht dich" in pre-launch and beta. */
@@ -1045,6 +1264,51 @@ export function atRiskHouses(inputs: Pick<AdminInputs, "stays" | "joinRequests" 
     .toSorted((a, b) => b.reasons.length - a.reasons.length || a.stay.startDate.localeCompare(b.stay.startDate));
 }
 
+/** One House in Admin › Houses › "Braucht Hilfe": its reasons, the days to its start, the free spots, how urgent, the lever to pull first. */
+export interface NeedsHelpRow {
+  stay: Stay;
+  reasons: RiskReason[];
+  daysToStart: number;
+  /** Free spots (spotsTotal − spotsFilled) */
+  missing: number;
+  /** Free spots per day left (missing ÷ days, at least one day): the higher, the more urgent */
+  urgency: number;
+  lever: HouseLever;
+}
+
+/** The lever to pull first for these reasons (config/admin.ts HOUSE_LEVER_RULES). */
+export function recommendedLever(reasons: readonly RiskReason[], daysToStart: number, fill: number): HouseLever {
+  if (reasons.some((r) => r.key === "unanswered")) return "host";
+  if (reasons.some((r) => r.key === "deadline")) return daysToStart <= HOUSE_LEVER_RULES.alternativeDays && fill < HOUSE_LEVER_RULES.alternativeFill ? "alternative" : "visibility";
+  return "demand";
+}
+
+/**
+ * Admin › Houses › "Braucht Hilfe": the Houses at risk (atRiskHouses) as a to-do list, most urgent first – free spots per day left. A House
+ * marked "✓ Erledigt" (AdminData.houseDone) stays away for HOUSE_DONE_RECHECK_DAYS; if it hasn't filled further by then, it comes back.
+ */
+export function needsHelp(inputs: AdminInputs): NeedsHelpRow[] {
+  const now = Date.parse(`${inputs.today}T00:00:00Z`);
+  return atRiskHouses(inputs)
+    .filter(({ stay }) => {
+      const done = inputs.admin.houseDone?.[stay.id];
+      if (!done) return true;
+      const waited = (now - Date.parse(`${done.at}T00:00:00Z`)) / DAY_MS >= HOUSE_DONE_RECHECK_DAYS;
+      return waited && stay.spotsFilled <= done.spotsFilled;
+    })
+    .map(({ stay, reasons }) => {
+      const daysToStart = Math.max(0, Math.ceil((Date.parse(`${stay.startDate}T00:00:00Z`) - now) / DAY_MS));
+      const missing = Math.max(0, stay.spotsTotal - stay.spotsFilled);
+      return { stay, reasons, daysToStart, missing, urgency: missing / Math.max(1, daysToStart), lever: recommendedLever(reasons, daysToStart, fillRateOf(stay)) };
+    })
+    .toSorted((a, b) => b.urgency - a.urgency || a.daysToStart - b.daysToStart);
+}
+
+/** "Braucht Hilfe" now against the month before (the history's snapshot; the real source needs a daily count). */
+export function needsHelpChange(inputs: AdminInputs, count: number): Change | null {
+  return getChange("needsHelp", count, inputs.history?.snapshots?.month?.needsHelp ?? null);
+}
+
 /** "Läuft gut": the real Houses that filled the fastest. */
 export function fastestFull(inputs: Pick<AdminInputs, "stays" | "joinRequests" | "history">, count = 5) {
   const mock = inputs.history?.houseActivity;
@@ -1177,12 +1441,10 @@ export function monthlySeries(inputs: AdminInputs) {
   });
 }
 
-/** The north star this month (so far) and its change against the same day of the period before (OverviewSnapshot.sharedNights). */
+/** The north star in the running period and its change against the same span of the period before (rangeTotals). */
 export function northStar(inputs: AdminInputs, period: ComparePeriod) {
-  const rows = monthlySeries(inputs);
-  const current = rows.at(-1)!.sharedNights;
-  const previous = previousOverview(inputs, period).sharedNights ?? null;
-  return { current, change: getChange("sharedNights", current, previous), rows };
+  const c = cockpit(inputs, period);
+  return { current: c.nights.current, change: c.nights.change, rows: monthlySeries(inputs) };
 }
 
 /**
@@ -1390,8 +1652,9 @@ export function askingHostMetrics(inputs: AdminInputs) {
 // ── Wachstum ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Wachstum's period: the last 7, 30 or 90 days, or everything. */
-export type GrowthPeriod = "7" | "30" | "90" | "all";
-export const GROWTH_PERIODS: readonly GrowthPeriod[] = ["7", "30", "90", "all"];
+/** Wachstum and the partners' effect use the admin's one period (Tag · Woche · Monat · Quartal · Jahr, periodRanges). */
+export type GrowthPeriod = ComparePeriod;
+export const GROWTH_PERIODS: readonly GrowthPeriod[] = COMPARE_PERIODS;
 
 /** One row of Wachstum: a channel, a referrer or a House – visits → requests → paid, and Simpulo's part (≈ EUR). */
 export interface GrowthRow {
@@ -1403,16 +1666,16 @@ export interface GrowthRow {
   revenue: number;
 }
 
-const DAY = 86_400_000;
-/** The events of a period (and of the one before it, for the change). TODO(firestore): stats/daily instead of the raw events. */
-function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, back = 0): GrowthEvent[] {
-  if (period === "all") return back === 0 ? [...events] : [];
-  const days = Number(period);
-  const end = Date.parse(`${today}T23:59:59Z`) - back * days * DAY;
-  const start = end - days * DAY;
+/**
+ * The events of the running period up to today (back 0) or of the same span of the period before (back 1) – periodRanges, the same as the
+ * overview. TODO(firestore): stats/daily instead of the raw events.
+ */
+function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, back: 0 | 1 = 0): GrowthEvent[] {
+  const ranges = periodRanges(today, period);
+  const { from, to } = back === 0 ? ranges.current : ranges.previous;
   return events.filter((e) => {
-    const at = Date.parse(e.at);
-    return at > start && at <= end;
+    const day = e.at.slice(0, 10);
+    return day >= from && day <= to;
   });
 }
 
@@ -1437,14 +1700,14 @@ export function growthRows(events: readonly GrowthEvent[], keyOf: (e: GrowthEven
     .toSorted((a, b) => b.revenue - a.revenue || b.visits - a.visits || a.key.localeCompare(b.key));
 }
 
-/** The funnel on top of Wachstum: visitors · requests · paid in the period, each with its change against the period before ("all": none). */
+/** The funnel on top of Wachstum: visitors · requests · paid in the period, each with its change against the same span of the period before. */
 export function growthFunnel(events: readonly GrowthEvent[], period: GrowthPeriod, today: string) {
   const count = (list: readonly GrowthEvent[], name: GrowthEvent["name"]) => list.filter((e) => e.name === name).length;
   const now = inWindow(events, period, today);
-  const before = period === "all" ? null : inWindow(events, period, today, 1);
+  const before = inWindow(events, period, today, 1);
   const pair = (metric: "visitors" | "requests" | "paid", name: GrowthEvent["name"]) => {
     const value = count(now, name);
-    return { value, change: before ? getChange(metric, value, count(before, name)) : null };
+    return { value, change: getChange(metric, value, count(before, name)) };
   };
   return { visitors: pair("visitors", "house_viewed"), requests: pair("requests", "request_sent"), paid: pair("paid", "payment_completed") };
 }
@@ -1525,5 +1788,46 @@ export function marketingLoops({ stays, joinRequests }: Pick<AdminInputs, "stays
     guestToHost: firstHosted.size ? { value: wasGuestFirst / firstHosted.size, of: firstHosted.size } : null,
     guestBringsGuests: accepted.length ? { value: broughtIn / accepted.length, of: accepted.length } : null,
     hostRecruitsHost: null as { value: number; of: number } | null,
+  };
+}
+
+// ─── Launch › Marketing › Partner ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A partner's Houses: the ones they host (their account) and the ones linked to them – no examples, no unclaimed drafts. */
+export function partnerHouses(stays: readonly Stay[], partner: Pick<MarketingPartner, "hostUserId" | "houseIds">): Stay[] {
+  return stays.filter((s) => !s.isExample && s.status !== "draft_unclaimed" && ((partner.hostUserId !== null && s.hostId === partner.hostUserId) || partner.houseIds.includes(s.id)));
+}
+
+/** Open Houses of a partner: published, taking requests, a spot free. */
+export const partnerOpenHouses = (stays: readonly Stay[], partner: Pick<MarketingPartner, "hostUserId" | "houseIds">) =>
+  partnerHouses(stays, partner).filter((s) => s.status === "published" && s.acceptingRequests && s.spotsFilled < s.spotsTotal).length;
+
+/** The next step is due (today or earlier). */
+export const partnerStepDue = (partner: Pick<MarketingPartner, "nextStep">, today: string) => Boolean(partner.nextStep?.due && partner.nextStep.due <= today);
+
+/**
+ * What a partner brought, in the period: visitors → requests → paid stays → Simpulo's revenue, from the growth events that came through their
+ * own link (?ref=<code> → campaign) or through their own share links as a host (ref = their account). Each against the period before
+ * (getChange). `openShare`: their agreed share of that revenue – shown only, never paid out from here.
+ */
+export function partnerEffect(events: readonly GrowthEvent[], partner: MarketingPartner, period: GrowthPeriod, today: string) {
+  const mine = (e: GrowthEvent) => e.utmCampaign === partner.refCode || (partner.hostUserId !== null && e.refUserId === partner.hostUserId);
+  const sum = (list: readonly GrowthEvent[]) => {
+    const own = list.filter(mine);
+    const count = (name: GrowthEvent["name"]) => own.filter((e) => e.name === name).length;
+    const revenue = own.filter((e) => e.name === "payment_completed").reduce((total, e) => total + convertApprox(e.revenue ?? 0, (e.currency ?? "EUR") as Currency, "EUR"), 0);
+    return { visits: count("house_viewed"), requests: count("request_sent"), paid: count("payment_completed"), revenue: Math.round(revenue) };
+  };
+  const now = sum(inWindow(events, period, today));
+  const before = sum(inWindow(events, period, today, 1));
+  return {
+    ...now,
+    change: {
+      visits: getChange("partnerVisits", now.visits, before?.visits ?? null),
+      requests: getChange("partnerRequests", now.requests, before?.requests ?? null),
+      paid: getChange("partnerPaid", now.paid, before?.paid ?? null),
+      revenue: getChange("partnerRevenue", now.revenue, before?.revenue ?? null),
+    },
+    openShare: Math.round((now.revenue * partner.agreement.sharePercent) / 100),
   };
 }

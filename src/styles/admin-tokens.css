@@ -53,6 +53,10 @@ body:has(.admin-scope) {
   --adm-warning-soft: rgb(227 179 84 / 0.14);
   --adm-critical-soft: rgb(240 124 86 / 0.14);
   --adm-chart-1-soft: rgb(114 170 223 / 0.16);
+  /* The overview's chart: the running period's bar – a lighter tone of its colour (with an outline in the full colour). */
+  --adm-bar-current: rgb(114 170 223 / 0.42);
+  --adm-good-current: rgb(143 194 156 / 0.42);
+  --adm-warning-current: rgb(227 179 84 / 0.42);
   --adm-chart-2-soft: rgb(255 255 255 / 0.08);
   --adm-chart-3-soft: rgb(255 255 255 / 0.06);
 
@@ -97,14 +101,32 @@ body:has(.admin-scope) {
 
   /* Compact spacing. */
   --adm-page: 32px;
-  /* The page top padding: content and side list start on the same line. */
-  --admin-page-pad: 32px;
+  /* The gap under the header – the same for the side list and the content: the first area block (MARKT) and the click row start on one line,
+     right under the header (CLAUDE.md "Admin"). --admin-page-pad is the old name, kept as an alias. */
+  --adm-page-top: 14px;
+  --admin-page-pad: var(--adm-page-top);
   --adm-section: 40px;
   --adm-inner: 16px;
   --adm-row-h: 44px;
   --adm-capsule-h: 32px;
-  /* The side list: entries follow the window's height (13 entries + 4 area capsules ≈ 17 rows under the header), 34–48px. */
-  --sidebar-item-h: clamp(34px, calc((100svh - var(--header-h) - 140px) / 17), 48px);
+  /* The one tab block (AdminTabs, AdminSubTabs, AdminSort, CapsuleGroup in the admin): capsules like the product header's filters. */
+  --adm-subcapsule-h: 28px;
+  --adm-cap-gap: 6px;
+  --adm-cap-pad: 14px;
+  --adm-subcap-pad: 12px;
+  --adm-cap-bg: rgb(255 255 255 / 0.08);
+  --adm-cap-hover: rgb(255 255 255 / 0.12);
+  --adm-cap-text: rgb(255 255 255 / 0.72);
+  --adm-cap-on-bg: #ffffff;
+  --adm-cap-on-text: #141210;
+  /* The side list never scrolls: its rows follow the window's height. 15 entries and 3 gaps between the 4 areas share what's left under the
+     header after the top padding, the 4 area headings (28px each, + 4px) and 16px of air: 28–40px a row; a gap half a row. Room for more
+     entries: the rows shrink first; below 28px the list folds (AdminSideList: only the current area's entries, the others by their heading). */
+  --sidebar-heading-h: 28px;
+  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px) / 16.5), 40px);
+  --sidebar-gap: calc(var(--sidebar-item-h) * 0.5);
+  --sidebar-item-font: 15px;
+  --sidebar-icon: 18px;
   --adm-nav-h: var(--sidebar-item-h);
 
   /* Compact type: page title 28 · big number 48 · figure 32 · text 15 · label 12 caps. */
@@ -132,10 +154,24 @@ body:has(.admin-scope) {
 
 
 /*
- * The active state in the admin (rule): bold, white, underlined – no surface for a choice anywhere; colour surfaces only in the area headings.
- * Side list: the active entry white 100 % semibold, its word underlined (2px, 4px below, only as wide as the word), its icon white; the
- * others white 70 % regular, their icon the area colour muted; hover white 90 %, no surface. The counts stay as they are.
+ * The side list (rule): colour surfaces only in the area headings; its text can't be selected (no blue marking on click). Tabs and choice rows on
+ * the pages: capsules (below). The side list: the active entry white, weight 500, 1px larger – NO underline; its icon white; the
+ * others white 70 % regular, their icon the area colour muted; hover white 90 %, no surface. Rows of a fixed height, so nothing moves. The
+ * sizes are tokens (--sidebar-item-h, --sidebar-item-font, --sidebar-icon, --sidebar-gap).
  */
+.admin-scope [data-admin-nav] nav a,
+.admin-scope [data-admin-nav] button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.admin-scope [data-admin-nav] nav a {
+  font-size: var(--sidebar-item-font);
+  line-height: 1.25;
+}
+.admin-scope [data-admin-nav] nav a svg {
+  width: var(--sidebar-icon);
+  height: var(--sidebar-icon);
+}
 .admin-scope [data-admin-nav] nav a,
 .admin-scope [data-admin-nav] nav a:hover {
   background-color: transparent;
@@ -151,58 +187,134 @@ body:has(.admin-scope) {
 }
 .admin-scope [data-admin-nav] nav a[aria-current="page"] {
   color: var(--adm-active);
-  font-weight: 600;
+  font-weight: 500;
+  font-size: calc(var(--sidebar-item-font) + 1px);
 }
 .admin-scope [data-admin-nav] nav a[aria-current="page"] svg {
   color: var(--adm-active);
   opacity: 1;
 }
-.admin-scope [data-admin-nav] nav a[aria-current="page"] > span.truncate {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+/*
+ * The admin's one tab block (CLAUDE.md "Admin › Umschalter"): AdminTabs, AdminSubTabs, AdminSort, AdminSearch and every CapsuleGroup in the
+ * admin are capsules like the filter capsules in the product's header – inactive white 8 % with muted words, hover 12 %, the chosen one filled
+ * white with dark words (no underline). One height (--adm-capsule-h; second level and small groups --adm-subcapsule-h), one gap. Rows never
+ * wrap: they scroll sideways without a scrollbar.
+ */
+.admin-scope .adm-cap-row {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--adm-cap-gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
-/* Every choice row in the admin (CapsuleGroup – period, chart switch, filters, statuses): no track, no capsule; chosen bold, white,
-   underlined; the others white 60 %. */
+.admin-scope .adm-cap-row::-webkit-scrollbar {
+  display: none;
+}
+.admin-scope .adm-cap {
+  display: inline-flex;
+  height: var(--adm-capsule-h);
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding-inline: var(--adm-cap-pad);
+  background-color: var(--adm-cap-bg);
+  color: var(--adm-cap-text);
+  font-size: var(--text-nav-main);
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 150ms, color 150ms;
+}
+.admin-scope .adm-cap:hover:not(:disabled) {
+  background-color: var(--adm-cap-hover);
+  color: var(--adm-active);
+}
+.admin-scope .adm-cap[data-open] {
+  background-color: var(--adm-cap-hover);
+  color: var(--adm-active);
+}
+.admin-scope .adm-cap[data-on],
+.admin-scope .adm-cap[data-on]:hover {
+  background-color: var(--adm-cap-on-bg);
+  color: var(--adm-cap-on-text);
+  font-weight: 600;
+}
+.admin-scope .adm-cap:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.admin-scope .adm-cap-count {
+  opacity: 0.6;
+}
+.admin-scope .adm-cap-icon {
+  width: var(--adm-capsule-h);
+  justify-content: center;
+  padding-inline: 0;
+}
+.admin-scope [data-adm-tabs="sub"] .adm-cap {
+  height: var(--adm-subcapsule-h);
+  padding-inline: var(--adm-subcap-pad);
+  font-size: var(--text-nav);
+}
+/* CapsuleGroup in the admin: the same capsules – no track, each option its own capsule. */
 .admin-scope [data-capsule-group] {
+  height: var(--adm-capsule-h);
   background-color: transparent;
   padding: 0;
-  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.admin-scope [data-capsule-group]::-webkit-scrollbar {
+  display: none;
+}
+.admin-scope [data-capsule-group] > div {
+  display: flex;
+  gap: var(--adm-cap-gap);
 }
 .admin-scope [data-capsule-group] > div > span[aria-hidden] {
   display: none;
 }
-.admin-scope [data-capsule-group] > div > :is(button, a),
-.admin-scope [data-capsule-group] > div > :is(button, a):hover {
-  background-color: transparent;
+.admin-scope [data-capsule-group] > div > :is(button, a) {
+  flex-shrink: 0;
+  height: var(--adm-capsule-h);
+  padding-inline: var(--adm-cap-pad);
+  background-color: var(--adm-cap-bg);
   box-shadow: none;
-  padding-inline: 8px;
-  color: var(--adm-idle);
+  color: var(--adm-cap-text);
+  font-weight: 500;
+  user-select: none;
+}
+.admin-scope [data-capsule-group][data-size="sm"],
+.admin-scope [data-capsule-group][data-size="sm"] > div > :is(button, a) {
+  height: var(--adm-subcapsule-h);
+}
+.admin-scope [data-capsule-group][data-size="sm"] > div > :is(button, a) {
+  padding-inline: var(--adm-subcap-pad);
 }
 .admin-scope [data-capsule-group] > div > :is(button, a):hover {
-  color: var(--adm-hover);
-}
-.admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]) {
+  background-color: var(--adm-cap-hover);
   color: var(--adm-active);
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
 }
-
-
-
-
-
-
-
+.admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]),
+.admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]):hover {
+  background-color: var(--adm-cap-on-bg);
+  color: var(--adm-cap-on-text);
+  font-weight: 600;
+  text-decoration: none;
+}
 
 /*
- * Admin on phones (< 768px, CLAUDE.md "Mobile" › Admin): read and act quickly, not edit everything.
+ * Admin on phones (< 744px, CLAUDE.md "Mobile" › Admin): read and act quickly, not edit everything.
  * - Main numbers (KeyNumbers) and the overview's four areas: 2-column cards (the block surface, radius 12) instead of columns split by lines.
  * - Tables scroll inside their own box with the first column fixed – no fixed minimum widths there (the content sets the width).
  */
-@media (max-width: 767.98px) {
+@media (max-width: 743.98px) {
   .admin-scope :is([data-key-numbers], [data-area-row]) {
     gap: 8px;
   }
@@ -232,3 +344,13 @@ body:has(.admin-scope) {
     box-shadow: 1px 0 0 var(--line);
   }
 }
+
+/* The switch in the admin (ui/Switch.tsx): on the admin's sage, off white 18 %. */
+.admin-scope,
+body:has(.admin-scope) {
+  --switch-on: var(--adm-good);
+  --switch-off: rgba(255, 255, 255, 0.18);
+}
+
+
+

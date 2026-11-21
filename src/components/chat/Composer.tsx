@@ -14,7 +14,7 @@ import { formatSize } from "./chatUtils";
 import { EmojiPicker } from "./EmojiPicker";
 import { MEDIA } from "@/config/breakpoints";
 
-/** Up to five lines (16px type, 22px lines) and the field's inner padding – four on phones (< 768px), the keyboard takes the rest. */
+/** Up to five lines (16px type, 22px lines) and the field's inner padding – four on phones (< 744px), the keyboard takes the rest. */
 const MAX_HEIGHT = 5 * 22 + 16;
 const MAX_HEIGHT_PHONE = 4 * 22 + 16;
 

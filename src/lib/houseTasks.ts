@@ -34,8 +34,8 @@ type TaskData = StoreData & { payments: Payment[] };
 
 /** Where a House's detail page opens (?focus=): pay opens the pay sheet, requests/invite/booking/chat scroll there and light it up. */
 export type HouseFocus = "pay" | "requests" | "invite" | "booking" | "chat";
-/** The host's tasks: the management page. */
-export const hostManageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}/manage${focus ? `?focus=${focus}` : ""}`;
+/** The host's tasks: the House area's Manage tab (/h/[id]?tab=manage). */
+export const hostManageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}?tab=manage${focus ? `&focus=${focus}` : ""}`;
 /** A guest's tasks: the House page (/h/[id]), which shows their way through it. */
 export const manageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}${focus ? `?focus=${focus}` : ""}`;
 /** Needs you: an entry leads to its House page with the step to show (?step=pay|requests|invite|booking|chat); the page scrolls its head into view. */

@@ -124,7 +124,7 @@ function BlockedProfile({ user }: { user: User }) {
  * Own profile: "Preview" renders the stranger's page, a slim line above the grid says so.
  */
 function ProfileView({ user, isMe }: { user: User; isMe: boolean }) {
-  // "Preview as others see it" comes from the avatar menu and Edit profile as /profile?preview=1 – read once in the browser.
+  // "Preview as others see it" comes from the own profile's button and Edit profile as /profile?preview=1 – read once in the browser.
   const previewParam = useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).get("preview") === "1", () => false);
   const [preview, setPreview] = useState(false);
   const [paramRead, setParamRead] = useState(false);
@@ -261,7 +261,7 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
         <IdentityStage user={user} isMe={isMe} previewing={previewing} view={view} houses={houses} hosted={hosted} viewerId={viewerId} today={today} preview={preview} hideAge={hideAge} />
       </HeroBand>
       {/* Phone exception (CLAUDE.md "Mobile"): Your people and Places as their own sections under the strip and its buttons – on a phone the
-          stage is one long column; from 768px they stay on the stage. */}
+          stage is one long column; from 744px they stay on the stage. */}
       {!preview && (
         <div className="flex flex-col gap-8 px-(--page-margin) pb-10 pt-4 md:hidden">
           <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
@@ -455,7 +455,7 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
     }
   }
 
-  // The buttons: in the strip from 768px; on phones in one row under it, on the light page (they never sit in the strip there).
+  // The buttons: in the strip from 744px; on phones in one row under it, on the light page (they never sit in the strip there).
   const buttons = (
     <>
             {isMe ? (
@@ -463,6 +463,11 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
                 <Button variant="creamOutline" size="md" href="/settings/profile">
                   {done < counted.length ? <ProgressRing done={done} total={counted.length} /> : <Pencil aria-hidden />}
                   {done < counted.length ? tv("editWithProgress", { done, total: counted.length }) : t("editProfile")}
+                </Button>
+                {/* How others see it – moved here from the account menu (CLAUDE.md "Avatar-Menü"). */}
+                <Button variant="creamOutline" size="md" href="/profile?preview=1">
+                  <Eye aria-hidden />
+                  {tv("previewAsOthers")}
                 </Button>
                 <Button variant="brand" size="md" onClick={inviteFriends}>
                   <UserPlus aria-hidden />

@@ -67,5 +67,5 @@ export function hrefOf(n: AppNotification, stays: readonly Stay[], me: string | 
   if (!stay) return null;
   // "Want to do it again?" leads everyone in the crew to the past House (crew, chat, "Do it again").
   if (n.key === "doItAgain") return `/h/${stay.id}`;
-  return stay.hostId === me ? `/h/${stay.id}/manage` : `/h/${stay.id}`;
+  return stay.hostId === me ? `/h/${stay.id}?tab=manage` : `/h/${stay.id}`;
 }

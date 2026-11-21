@@ -5,7 +5,7 @@ import { use, useEffect } from "react";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useStore } from "@/lib/store";
 
-/** /your-houses/[id] → the host to /h/[id]/manage, everyone else to /h/[id]; the query (?focus=) goes along. */
+/** /your-houses/[id] → the host to /h/[id]?tab=manage, everyone else to /h/[id]; the query (?focus=) goes along. */
 export function HouseRedirect({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const store = useStore();
@@ -15,7 +15,7 @@ export function HouseRedirect({ params }: { params: Promise<{ id: string }> }) {
   const isHost = stay !== undefined && stay.hostId === store.currentUserId;
 
   useEffect(() => {
-    router.replace(`/h/${id}${isHost ? "/manage" : ""}${query ? `?${query}` : ""}`);
+    router.replace(`/h/${id}${isHost ? `?tab=manage${query ? `&${query}` : ""}` : query ? `?${query}` : ""}`);
   }, [id, isHost, query, router]);
 
   return <PageSkeleton />;

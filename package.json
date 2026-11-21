@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "dev:lan": "next dev -H 0.0.0.0",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "test:breiten": "tsx scripts/breiten-test.mjs"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.15.1",

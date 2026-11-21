@@ -35,7 +35,7 @@ const COUNT_DELAY_MS = 200;
 
 interface FilterSheetsProps {
   open: boolean;
-  /** From 768px the bar's sheet (BarSheet), on phones the bottom sheet */
+  /** From 744px the bar's sheet (BarSheet), on phones the bottom sheet */
   md: boolean;
   /** Closing without "Show": the draft is dropped, the applied filters stay */
   onClose: () => void;
@@ -60,7 +60,7 @@ interface FilterSheetsProps {
 }
 
 /**
- * Explore's "All filters" – the bar's sheet from 768px, the bottom sheet on phones. Everything set in here is a draft (this component's own
+ * Explore's "All filters" – the bar's sheet from 744px, the bottom sheet on phones. Everything set in here is a draft (this component's own
  * state, so the list behind it doesn't move or redraw while a slider is dragged) until "Show N houses": then it's applied once – URL, list,
  * a scroll to the results. While adjusting only the number is worked out, 200ms after the last change, without cards or pictures; with 0 the
  * button says "No houses – adjust filters" and can't be pressed. Closing without "Show" drops the draft; "Clear all" clears only the draft.
@@ -203,7 +203,7 @@ export function FilterSheets(props: FilterSheetsProps) {
   const phone = rows(false);
   return (
     <>
-      {/* From 768px: one piece with the bar (ui/BarSheet), as wide as the grid; "Clear all" and "Show N houses" at its foot. */}
+      {/* From 744px: one piece with the bar (ui/BarSheet), as wide as the grid; "Clear all" and "Show N houses" at its foot. */}
       <BarSheet
         open={open && md}
         onClose={onClose}

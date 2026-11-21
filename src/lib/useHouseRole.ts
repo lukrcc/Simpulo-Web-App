@@ -8,7 +8,8 @@ import { useDevSetting } from "./devSettings";
 
 export type HouseRole = "visitor" | "member" | "host";
 
-export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null } {
+/** `ended`: was in the House, then removed by the host or the 48 hours to pay ran out – still a member's area, Me says what happened. */
+export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" } {
   const store = useStore();
   // Dev menu "House role" (dev only, always "auto" elsewhere): this view, whatever the real role is.
   const override = useDevSetting("houseRole");
@@ -18,7 +19,7 @@ export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage 
   return { role: override, stage: null };
 }
 
-function realRole(store: ReturnType<typeof useStore>, id: string): { role: HouseRole; stage: MemberStage | null } {
+function realRole(store: ReturnType<typeof useStore>, id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" } {
   const stay = store.stays.find((s) => s.id === id || s.slug === id);
   if (!stay || !store.currentUserId) return { role: "visitor", stage: null };
   if (stay.hostId === store.currentUserId) return { role: "host", stage: null };
@@ -26,5 +27,9 @@ function realRole(store: ReturnType<typeof useStore>, id: string): { role: House
   const reserved = store.joinRequests.some((r) => r.stayId === stay.id && r.userId === store.currentUserId && r.reserved && r.status === "accepted");
   if (reserved) return { role: "visitor", stage: null };
   const stage = memberStage(store, stay, store.currentUserId);
+  if (!stage) {
+    const ended = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId)?.endedReason;
+    if (ended) return { role: "member", stage: null, ended };
+  }
   return { role: stage ? "member" : "visitor", stage };
 }

@@ -13,6 +13,7 @@ import {
   type MouseEvent,
 } from "react";
 import { buttonStyles } from "@/components/ui/ActionButton";
+import { MEDIA } from "@/config/breakpoints";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { CardStatusChip } from "@/components/HouseCard";
 import { CardTab } from "@/components/ui/CardTab";
@@ -44,7 +45,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-const phoneQuery = "(max-width: 767.98px)";
+const phoneQuery = MEDIA.phone;
 
 function subscribePhone(onChange: () => void) {
   const media = window.matchMedia(phoneQuery);

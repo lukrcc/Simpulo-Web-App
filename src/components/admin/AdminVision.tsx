@@ -10,12 +10,10 @@ import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/ActionButton";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { useAdminActions } from "@/lib/admin/actions";
-import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useDepthChoice } from "@/config/platform";
 import { ACCOMMODATION_CATEGORIES, PLACE_PHASES } from "@/config/accommodation";
 import { TRAVEL_OPTIONS } from "@/config/travel";
@@ -73,7 +71,7 @@ import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
 import { AdminSection, AdminShell } from "./AdminShell";
-import { AdminTabs } from "./AdminLayout";
+import { AdminSubTabs, AdminTabs } from "./AdminLayout";
 import { BlockMap, type BlockStatus } from "./BlockMap";
 import { MODELS } from "@/config/models";
 import { goVision, VISION_NAV } from "@/lib/admin/visionNav";
@@ -392,7 +390,7 @@ function Timeline({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (
 }
 
 /**
- * Phones (< 768px): the timeline from top to bottom instead of four columns – each phase a block (number, title, goal, "Du bist hier"; a tap
+ * Phones (< 744px): the timeline from top to bottom instead of four columns – each phase a block (number, title, goal, "Du bist hier"; a tap
  * on the head opens the phase), under it its lanes with what comes new as capsules (Phase 1 all of it), Der Hof's marks and the release.
  */
 function TimelineVertical({ inputs, onOpenPhase }: { inputs: AdminInputs; onOpenPhase: (key: PhaseKey) => void }) {
@@ -1284,9 +1282,7 @@ function TechView({ inputs }: { inputs: AdminInputs }) {
   const [section, setSection] = useState<TechSection>("layers");
   return (
     <>
-      <ScrollRow label="Technik" className="mb-10 max-w-full">
-        <CapsuleGroup size="sm" label="Technik" value={section} onChange={setSection} options={TECH.sections.map((s) => ({ value: s.key, content: s.label }))} />
-      </ScrollRow>
+      <AdminSubTabs label="Technik" className="mb-10" value={section} onChange={setSection} tabs={TECH.sections.map((s) => ({ value: s.key, label: s.label }))} />
       {section === "layers" && <TechLayers />}
       {section === "build" && <TechBuild />}
       {section === "interfaces" && <TechInterfaces />}
@@ -1482,9 +1478,7 @@ function LocationView({ inputs }: { inputs: AdminInputs }) {
   return (
     <>
       <p className="mb-(--adm-inner) text-body text-muted">{LOCATION.note}</p>
-      <ScrollRow label="Standort" className="mb-10 max-w-full">
-        <CapsuleGroup size="sm" label="Standort" value={section} onChange={setSection} options={LOCATION.sections.map((s) => ({ value: s.key, content: s.label }))} />
-      </ScrollRow>
+      <AdminSubTabs label="Standort" className="mb-10" value={section} onChange={setSection} tabs={LOCATION.sections.map((s) => ({ value: s.key, label: s.label }))} />
       {section === "why" && <LocationWhy />}
       {section === "candidates" && <LocationCandidates />}
       {section === "window" && <LocationWindow inputs={inputs} />}

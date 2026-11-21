@@ -6,7 +6,7 @@ import { Anchored } from "./Anchored";
 import { MobileSheet } from "./MobileSheet";
 
 /**
- * Where a popover menu opens: from 768px under its opener (Anchored, the panel with its own look); on phones as a sheet from the bottom
+ * Where a popover menu opens: from 744px under its opener (Anchored, the panel with its own look); on phones as a sheet from the bottom
  * (MobileSheet) in the tone of the surface it comes from – `tone` dark (the header glass) or light (milk glass). The same content in both;
  * `panelRef` is the content either way, so the caller's outside-click check keeps working. Desktop unchanged.
  */
@@ -32,7 +32,7 @@ export function MenuLayer({
   /** The sheet's accessible name on phones */
   label: string;
   tone: "dark" | "light";
-  /** The popover's own look (from 768px) */
+  /** The popover's own look (from 744px) */
   panelClassName?: string;
   /** role, id, aria-label, onClick … – on the popover and on the sheet's content */
   panelProps?: HTMLAttributes<HTMLDivElement>;

@@ -44,7 +44,7 @@ interface BarSheetProps {
  * The bar is the opener's closest [data-bar] – the header's bar, or a filter row in the page (city pages, phones).
  */
 export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, className, children }: BarSheetProps) {
-  // Phones (< 768px): the same content as a sheet from the bottom in the same dark glass (MobileSheet) – nothing hangs from a bar there.
+  // Phones (< 744px): the same content as a sheet from the bottom in the same dark glass (MobileSheet) – nothing hangs from a bar there.
   const phone = useIsPhone();
   const [shown, setShown] = useState(open);
   const [closing, setClosing] = useState(false);

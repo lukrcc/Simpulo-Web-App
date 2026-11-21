@@ -1,6 +1,6 @@
 // ⚠ DEMO DATA: 40 invented creator contacts across three niches for Admin › Launch › Marketing (Kontakte, Trichter) – no real people,
 // fixed values (no randomness), so the funnel and the filters are filled in dev and demo. Production starts empty (Firestore marketingContacts).
-import type { MarketingContact, MarketingContactStatus, MarketingContactWay } from "./data/adapter";
+import type { MarketingContact, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "./data/adapter";
 
 const TODAY = Date.UTC(2026, 10, 19);
 const DAY = 86_400_000;
@@ -82,4 +82,36 @@ export function mockMarketingContacts(): MarketingContact[] {
       };
     }),
   );
+}
+
+/**
+ * ⚠ DEMO DATA: 6 partners – 3 creators, 2 community operators, 1 place – each tied to a mock host, so their Houses and their numbers (visits,
+ * requests, paid stays from their own share links in the seeded growth events) are real mock data. Invented agreements and notes.
+ */
+export function mockMarketingPartners(): MarketingPartner[] {
+  const base = (id: string, p: Omit<MarketingPartner, "id" | "refCode" | "createdAt" | "notes"> & { notes: [number, string][] }): MarketingPartner => ({
+    ...p,
+    id,
+    refCode: id,
+    notes: p.notes.map(([back, text], i) => ({ id: `${id}-n${i}`, at: `${day(back)}T10:00:00.000Z`, text })),
+    createdAt: `${day(60)}T09:00:00.000Z`,
+  });
+  const agreement = (sharePercent: number, status: MarketingPartner["agreement"]["status"], from: number | null, collabPosts = true): MarketingPartner["agreement"] => ({
+    sharePercent,
+    from: from === null ? null : day(from),
+    to: from === null ? null : day(from - 365),
+    payoutAfterPaidStay: true,
+    contentRights: status === "draft" ? "" : "Fotos und Clips aus dem House, 12 Monate, nur Simpulo-Kanäle",
+    collabPosts,
+    contractUrl: "",
+    status,
+  });
+  return [
+    base("mp-demo1", { contactId: "mc-demo01", name: "Mara", kind: "creator", reach: 48_000, channels: ["Instagram", "TikTok"], ladder: 2, foundingHost: true, hostUserId: "u2", agreement: agreement(15, "active", 40), houseIds: [], content: { planned: 6, delivered: 4, approved: 3 }, notes: [[40, "Vereinbarung unterschrieben."], [12, "Zweites House in Lissabon geplant."]], nextStep: { text: "Clips vom Editing House freigeben", due: day(2) } }),
+    base("mp-demo2", { contactId: null, name: "Tom", kind: "creator", reach: 120_000, channels: ["YouTube"], ladder: 3, foundingHost: true, hostUserId: "u3", agreement: agreement(20, "active", 30), houseIds: [], content: { planned: 4, delivered: 2, approved: 2 }, notes: [[30, "„Curated by Tom“ für Ericeira vereinbart."]], nextStep: { text: "Collab-Post zum Frühjahrs-House abstimmen", due: day(-5) } }),
+    base("mp-demo3", { contactId: null, name: "Lena", kind: "creator", reach: 22_000, channels: ["Instagram"], ladder: 1, foundingHost: false, hostUserId: "u8", agreement: agreement(10, "draft", null, false), houseIds: [], content: { planned: 3, delivered: 0, approved: 0 }, notes: [[6, "Will erst selbst ein House hosten."]], nextStep: { text: "Entwurf der Vereinbarung schicken", due: day(-1) } }),
+    base("mp-demo4", { contactId: null, name: "Jonas", kind: "community", reach: 9_000, channels: ["Discord", "Newsletter"], ladder: 2, foundingHost: false, hostUserId: "u5", agreement: agreement(12, "active", 20), houseIds: [], content: { planned: 2, delivered: 1, approved: 1 }, notes: [[20, "Remote-Community in Chiang Mai, 9.000 Mitglieder."]], nextStep: { text: "Newsletter-Beitrag im Dezember", due: day(-14) } }),
+    base("mp-demo5", { contactId: null, name: "Sofia", kind: "community", reach: 14_500, channels: ["Instagram", "WhatsApp-Gruppe"], ladder: 2, foundingHost: false, hostUserId: "u9", agreement: agreement(12, "ended", 200), houseIds: [], content: { planned: 2, delivered: 2, approved: 2 }, notes: [[200, "Pilates-Community Canggu."], [10, "Vereinbarung ausgelaufen – neu ansprechen?"]], nextStep: null }),
+    base("mp-demo6", { contactId: null, name: "Villa Canggu", kind: "brand", reach: 3_200, channels: ["Website", "Instagram"], ladder: 1, foundingHost: false, hostUserId: "u1", agreement: agreement(8, "active", 50, false), houseIds: [], content: { planned: 1, delivered: 1, approved: 0 }, notes: [[50, "Ort für Fitness House Canggu."]], nextStep: { text: "Fotos der Villa freigeben lassen", due: day(-3) } }),
+  ];
 }

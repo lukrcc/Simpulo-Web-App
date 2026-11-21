@@ -961,21 +961,36 @@ function updateThread(threads: Thread[], threadId: string, update: (t: Thread) =
  * Takes an accepted member out of a crew: request removed (they could ask again later), spot freed, out of the
  * crew chat. "Taking requests" stays as the host set it.
  */
-function withoutMember(state: StoreState, stay: Stay, userId: string, systemMessage: Message): StoreState {
+/**
+ * `ended`: the host removed them or their time to pay ran out – then the request stays (status "declined" with the reason, Me shows its note)
+ * and the guest gets one line in the direct chat with the host (Messages). Leaving on your own deletes the request as before.
+ */
+function withoutMember(state: StoreState, stay: Stay, userId: string, systemMessage: Message, ended?: "removed" | "paymentLapsed"): StoreState {
   const request = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted");
   if (!request) return state;
+  const hostName = state.users.find((u) => u.id === stay.hostId)?.name.split(" ")[0] ?? "";
+  const note: Message | null = ended
+    ? systemLine({ id: `${systemMessage.id}-you`, createdAt: systemMessage.createdAt }, "", ended === "removed" ? "youWereRemoved" : "yourPaymentLapsed", { host: hostName, title: stay.title })
+    : null;
+  const direct = state.threads.find((t) => t.type === "direct" && t.houseId === stay.id && t.participantIds.includes(userId) && t.participantIds.includes(stay.hostId));
+  const directId = direct?.id ?? `direct-${stay.id}-${userId}`;
+  const threadsWithNote = !note
+    ? state.threads
+    : direct
+      ? updateThread(state.threads, directId, (t) => ({ ...t, messages: [...t.messages, { ...note, threadId: directId }] }))
+      : [...state.threads, { id: directId, type: "direct" as const, houseId: stay.id, participantIds: [stay.hostId, userId], messages: [{ ...note, threadId: directId }] }];
   // A paid share goes back – the thread says so (how much stays on the House page).
   const refunded = state.payments.some((p) => p.stayId === stay.id && p.userId === userId && p.status === "paid");
   const refund = refunded ? [systemLine({ id: `${systemMessage.id}-refund`, createdAt: systemMessage.createdAt }, systemMessage.threadId, "refund", { count: 1 })] : [];
   return {
     ...state,
-    joinRequests: state.joinRequests.filter((r) => r.id !== request.id),
+    joinRequests: ended ? state.joinRequests.map((r) => (r.id === request.id ? { ...r, status: "declined" as const, endedReason: ended, endedAt: systemMessage.createdAt } : r)) : state.joinRequests.filter((r) => r.id !== request.id),
     // A paid share goes back (mock refund); an open one is simply dropped.
     payments: state.payments
       .filter((p) => !(p.stayId === stay.id && p.userId === userId && p.status === "pending"))
       .map((p) => (p.stayId === stay.id && p.userId === userId && p.status === "paid" ? { ...p, status: "refunded" } : p)),
     stays: state.stays.map((s) => (s.id === stay.id ? { ...s, spotsFilled: Math.max(1, s.spotsFilled - 1) } : s)),
-    threads: updateThread(state.threads, crewThreadId(stay.id), (t) => ({
+    threads: updateThread(threadsWithNote, crewThreadId(stay.id), (t) => ({
       ...t,
       participantIds: t.participantIds.filter((id) => id !== userId),
       messages: [...t.messages, systemMessage, ...refund],
@@ -1017,7 +1032,7 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
           const id = `${stay.id}-lapsed-${payment.userId}-${at}`;
           const others = crewIds(next, stay);
           const current = next.stays.find((s) => s.id === stay.id) ?? stay;
-          next = withoutMember(next, current, payment.userId, systemLine({ id, createdAt: at }, crewThreadId(stay.id), "paymentLapsed", { name }));
+          next = withoutMember(next, current, payment.userId, systemLine({ id, createdAt: at }, crewThreadId(stay.id), "paymentLapsed", { name }), "paymentLapsed");
           next = { ...next, payments: next.payments.filter((p) => !(p.stayId === stay.id && p.userId === payment.userId && p.status === "pending")), notifications: notifyInApp(next, others, "paymentLapsed", { title: stay.title, name }, id, stay.id) };
         }
         patch({ paymentDueAt: undefined });
@@ -1616,7 +1631,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me || action.userId === me) return state;
       const name = state.users.find((u) => u.id === action.userId)?.name.split(" ")[0] ?? "Someone";
-      return withoutMember(state, stay, action.userId, systemLine(action.systemMessage, crewThreadId(stay.id), "removed", { name }));
+      return withoutMember(state, stay, action.userId, systemLine(action.systemMessage, crewThreadId(stay.id), "removed", { name }), "removed");
     }
 
     case "unlockAccommodation": {

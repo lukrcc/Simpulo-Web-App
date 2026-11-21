@@ -1,5 +1,6 @@
 "use client";
 
+import { Switch } from "@/components/ui/Switch";
 import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { useTranslations } from "next-intl";
@@ -256,20 +257,9 @@ function DevRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** On/off: on ink, off ink 12 %. */
+/** On/off: the one switch (ui/Switch.tsx). */
 function DevSwitch({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)", on ? "bg-ink" : "bg-ink/12")}
-    >
-      <span aria-hidden className={cn("absolute left-0.5 top-0.5 size-5 rounded-full bg-surface shadow-(--shadow-knob) transition-transform duration-150 motion-reduce:transition-none", on && "translate-x-4")} />
-    </button>
-  );
+  return <Switch on={on} label={label} onChange={onChange} />;
 }
 
 /** The window's size, live: "1440 × 900". */

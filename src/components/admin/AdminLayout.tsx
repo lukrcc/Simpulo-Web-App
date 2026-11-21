@@ -3,7 +3,8 @@
 // The admin's basic order (CLAUDE.md "Admin › Grundordnung"):
 //   AdminPageHeader – a short noun as the title ("Übersicht", "Houses", "Posteingang"), under it ONE row: tabs left, controls right (period,
 //                     sort as a dropdown, search as an icon). No further capsule rows on the page.
-//   AdminTabs       – the tabs of that row, each with its count; a tab named by a technical term gets an ⓘ with one sentence.
+//   AdminTabs       – the tabs of that row (capsules), each with its count; a tab named by a technical term carries one sentence as a tooltip.
+//   AdminSubTabs    – the second level, smaller capsules right under the row, only when a tab has sub-items.
 //   AdminListDetail – the list left (about 40 %), the detail right. A row: status dot · title · one line of meta · on the right only ✓
 //                     (Erledigt) or nothing. Every other action lives in the detail.
 import { Check, ChevronDown, Search, X } from "lucide-react";
@@ -14,73 +15,85 @@ import { FileText } from "lucide-react";
 import type { Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
 import { useTabScroll } from "@/components/ui/useTabScroll";
+import { COMPARE_PERIODS } from "@/config/admin";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { StatusDot } from "./AdminCharts";
-import { InfoTip } from "./AdminNumbers";
 
 export interface AdminTab<T extends string> {
   value: T;
   label: string;
   count?: number;
-  /** One sentence for a technical term (an ⓘ beside the tab) */
-  info?: string;
+  /** One sentence for a technical term – a tooltip on the capsule itself (hover; long press on touch). No ⓘ beside a tab (Regel). */
+  tooltip?: string;
 }
 
 /**
  * The page head: no visible title – the side list shows where you are. The title stays as an invisible <h1> (and in the browser tab, the
- * page's metadata "Wachstum · Admin"). The first row is the click row: tabs left, controls right (a small badge like "Demo-Daten" with the
- * tabs). A page without tabs or controls starts straight with its numbers.
+ * page's metadata "Wachstum · Admin"). The first row is the click row: tabs left (AdminTabs), settings right in the same capsules (period,
+ * sort, search). `subTabs`: the second level (AdminSubTabs) right under that row, only when a tab has sub-items. A page without tabs or
+ * controls starts straight with its numbers.
  */
-export function AdminPageHeader({ title, badge, tabs, controls }: { title: string; badge?: string; tabs?: ReactNode; controls?: ReactNode }) {
+export function AdminPageHeader({ title, badge, tabs, controls, subTabs }: { title: string; badge?: string; tabs?: ReactNode; controls?: ReactNode; subTabs?: ReactNode }) {
   const row = Boolean(tabs || controls || badge);
   return (
-    <header className={cn(row && "mb-(--adm-section)")}>
+    // Under a row with tabs (or a second level) the section gap; under a row with settings only, the content starts right under it (--adm-inner).
+    <header className={cn((row || Boolean(subTabs)) && (tabs || subTabs ? "mb-(--adm-section)" : "mb-(--adm-inner)"))}>
       <h1 className="sr-only">{title}</h1>
       {row && (
-        <div data-admin-head-row className="flex min-h-(--adm-capsule-h,32px) flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <div data-admin-head-row className="flex min-h-(--adm-capsule-h) items-center justify-between gap-x-6 gap-y-3 max-md:flex-wrap">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             {tabs}
             {badge && <Badge icon={<FileText aria-hidden />}>{badge}</Badge>}
           </div>
-          {controls && <div className="flex flex-wrap items-center justify-end gap-3">{controls}</div>}
+          {controls && <div className="flex shrink-0 flex-wrap items-center justify-end gap-(--adm-cap-gap)">{controls}</div>}
         </div>
       )}
+      {subTabs && <div className={cn(row && "mt-(--adm-cap-gap)", "pt-1")}>{subTabs}</div>}
     </header>
   );
 }
 
-/** The tabs: words with their count – the chosen one bold, white, underlined (2px), no surface; the others white 60 %; an ⓘ after a technical term. */
-export function AdminTabs<T extends string>({ label, tabs, value, onChange }: { label: string; tabs: readonly AdminTab<T>[]; value: T; onChange: (value: T) => void }) {
-  // Phones: one line that scrolls sideways (to the window's edges), the chosen tab scrolled into view (.tab-scroll, useTabScroll).
+/**
+ * The admin's one tab block (CLAUDE.md "Admin › Umschalter"): capsules like the filter capsules in the product's header – inactive a graphite
+ * capsule (white 8 %) with muted words, the chosen one filled white with dark words, no underline. A count inside the capsule ("Pro 31"); an
+ * explanation is a tooltip on the capsule (`tooltip`: hover, long press on touch) – never an ⓘ beside it. One height (--adm-capsule-h; the second level --adm-subcapsule-h), one gap everywhere. Many tabs: the row scrolls sideways, it
+ * never wraps. `level="sub"` is AdminSubTabs.
+ */
+export function AdminTabs<T extends string>({ label, tabs, value, onChange, level = "main", className }: { label: string; tabs: readonly AdminTab<T>[]; value: T; onChange: (value: T) => void; level?: "main" | "sub"; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useTabScroll(ref, value);
   return (
-    <div ref={ref} role="tablist" aria-label={label} data-bleed className="tab-scroll flex flex-wrap items-center gap-1">
+    <div ref={ref} role="tablist" aria-label={label} data-adm-tabs={level} className={cn("adm-cap-row", className)}>
       {tabs.map((tab) => {
         const on = tab.value === value;
         return (
-          <span key={tab.value} className="inline-flex items-center">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={on}
-              onClick={() => onChange(tab.value)}
-              className={cn(
-                "inline-flex h-(--adm-capsule-h,32px) items-center gap-1.5 px-2 text-nav-main transition-colors duration-150 first:pl-0",
-                on ? "font-semibold text-(--adm-active) underline decoration-2 underline-offset-4" : "text-(--adm-idle) hover:text-(--adm-hover)",
-              )}
-            >
-              {tab.label}
-              {tab.count !== undefined && <span className={cn("tabular-nums no-underline", on ? "text-ink/70" : "text-ink/45")}>{tab.count}</span>}
-            </button>
-            {tab.info && <InfoTip text={tab.info} />}
-          </span>
+          <button key={tab.value} type="button" role="tab" aria-selected={on} onClick={() => onChange(tab.value)} className="adm-cap" data-on={on || undefined} data-tooltip-info={tab.tooltip}>
+            {tab.label}
+            {tab.count !== undefined && <span className="adm-cap-count tabular-nums">{tab.count}</span>}
+            {tab.tooltip && <span className="sr-only">. {tab.tooltip}</span>}
+          </button>
         );
       })}
     </div>
   );
 }
 
-/** Sort as a dropdown: "Sortieren: Wert pro Jahr ▾" – a small menu under it. */
+/** The second level: smaller capsules, right under the first row – only when a tab has sub-items. */
+export function AdminSubTabs<T extends string>(props: { label: string; tabs: readonly AdminTab<T>[]; value: T; onChange: (value: T) => void; className?: string }) {
+  return <AdminTabs {...props} level="sub" />;
+}
+
+/**
+ * The admin's one period switch – Tag · Woche · Monat · Quartal · Jahr (config/admin.ts COMPARE_PERIODS), each capsule's tooltip says what
+ * it compares with; the choice is remembered (lib/admin/period.ts) and the same on every page with a period (Übersicht, Wachstum, Partner).
+ */
+export function PeriodTabs({ level = "main" }: { level?: "main" | "sub" }) {
+  const t = useTranslations("admin.cockpit.compare");
+  const [period, setPeriod] = useAdminPeriod();
+  return <AdminTabs level={level} label={t("label")} value={period} onChange={setPeriod} tabs={COMPARE_PERIODS.map((value) => ({ value, label: t(value), tooltip: t(`info.${value}`) }))} />;
+}
+
+/** Sort (or any choice from many): one capsule "Sortieren: Wert pro Jahr ▾" in the tabs' look, a small menu under it. */
 export function AdminSort<T extends string>({ label, options, value, onChange }: { label: string; options: readonly { value: T; label: string }[]; value: T; onChange: (value: T) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -97,9 +110,9 @@ export function AdminSort<T extends string>({ label, options, value, onChange }:
   }, [open]);
   const current = options.find((o) => o.value === value);
   return (
-    <div ref={ref} className="relative">
-      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="inline-flex h-(--adm-capsule-h,32px) items-center gap-1.5 rounded-full px-3 text-nav-main text-ink/80 transition-colors duration-150 hover:bg-ink/6 hover:text-ink">
-        <span className="text-ink/50">{label}:</span>
+    <div ref={ref} className="relative shrink-0">
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="adm-cap" data-open={open || undefined}>
+        <span className="adm-cap-count">{label}:</span>
         {current?.label}
         <ChevronDown aria-hidden className={cn("size-4 transition-transform", open && "rotate-180")} />
       </button>
@@ -137,12 +150,12 @@ export function AdminSearch({ label, value, onChange, disabled = false }: { labe
   }, [open]);
   if (!open)
     return (
-      <button type="button" aria-label={label} disabled={disabled} onClick={() => setOpen(true)} className="inline-flex size-(--adm-capsule-h,32px) items-center justify-center rounded-full text-ink/70 transition-colors duration-150 hover:bg-ink/6 hover:text-ink disabled:opacity-35 disabled:hover:bg-transparent">
+      <button type="button" aria-label={label} disabled={disabled} onClick={() => setOpen(true)} className="adm-cap adm-cap-icon disabled:opacity-35">
         <Search aria-hidden className="size-4" />
       </button>
     );
   return (
-    <span className="inline-flex h-(--adm-capsule-h,32px) w-60 items-center gap-2 rounded-full bg-ink/6 pl-3 pr-1">
+    <span className="inline-flex h-(--adm-capsule-h) w-60 items-center gap-2 rounded-full bg-(--adm-cap-hover) pl-3 pr-1">
       <Search aria-hidden className="size-4 shrink-0 text-ink/60" />
       <input
         ref={input}

@@ -41,7 +41,8 @@ import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminTabs } from "./AdminLayout";
-import { CompanyStructure } from "./finance/CompanyStructure";
+import { CompanyStructure, CompanyStructureTabs } from "./finance/CompanyStructure";
+import type { StructureView } from "@/lib/admin/finance/structure";
 
 const fill = (template: string, values: Record<string, string | number>) => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
 
@@ -50,16 +51,22 @@ export function AdminFunding() {
   // ?tab=structure opens Firmenstruktur (a link from Vision › Der Hof › Eigentum) – Next's search params are current on a client navigation too.
   const opened = useSearchParams().get("tab") === "structure";
   const [tab, setTab] = useState<FundingTab>(opened ? "structure" : "readiness");
+  // Firmenstruktur's second level: AdminSubTabs right under the head's row.
+  const [structure, setStructure] = useState<StructureView>("group");
   return (
     // The tabs in the head's one click row (Grundordnung); the note under it ("Bewertung & Anteile" its own, Firmenstruktur its own at the end).
-    <AdminShell title={FUNDING_TITLE} tabs={<AdminTabs label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))} />}>
+    <AdminShell
+      title={FUNDING_TITLE}
+      tabs={<AdminTabs label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))} />}
+      subTabs={tab === "structure" ? <CompanyStructureTabs view={structure} onChange={setStructure} /> : undefined}
+    >
       {tab !== "structure" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
       {tab === "readiness" && <Readiness inputs={inputs} />}
       {tab === "thesis" && <Thesis />}
       {tab === "rounds" && <Rounds />}
       {tab === "documents" && <Documents inputs={inputs} />}
       {tab === "valuation" && <Valuation inputs={inputs} />}
-      {tab === "structure" && <CompanyStructure />}
+      {tab === "structure" && <CompanyStructure view={structure} />}
     </AdminShell>
   );
 }

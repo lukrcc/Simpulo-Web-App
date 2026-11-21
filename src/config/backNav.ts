@@ -8,7 +8,7 @@
 const ROOTS = ["/", "/explore", "/your-houses", "/messages"];
 
 /** Pages that draw their own arrow (BackButton / BackLink in their head) – the header shows none, so there's only one. */
-const OWN_BACK = ["/house/", "/h/", "/u/", "/profile", "/me", "/settings/profile", "/your-houses/payouts", "/your-houses/all/", "/messages/", "/create", "/admin", "/preview"];
+const OWN_BACK = ["/house/", "/h/", "/u/", "/profile", "/me", "/settings/profile", "/settings/delete-account", "/your-houses/payouts", "/your-houses/all/", "/messages/", "/create", "/admin", "/preview"];
 
 /** Where the arrow leads when there's no page of ours to go back to (a freshly launched app): the sensible parent. */
 const PARENTS: [prefix: string, parent: string][] = [

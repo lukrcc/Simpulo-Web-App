@@ -84,6 +84,18 @@ export const ANCHOR_TARGET = { perTopicAndHub: { min: 1, max: 2 } } as const;
  */
 export const HOUSE_RISK = { deadlineDays: 7, minFill: 0.6, quietDays: 7, unansweredHours: 48 } as const;
 
+/** Admin › Houses: the four levers for a House that needs help. */
+export const HOUSE_LEVERS = ["visibility", "demand", "host", "alternative"] as const;
+export type HouseLever = (typeof HOUSE_LEVERS)[number];
+/**
+ * The recommended lever, by the House's most pressing reason (lib/admin/metrics.ts needsHelp): a request waiting on the host → help the host;
+ * a start within `alternativeDays` at under `alternativeFill` full → suggest moving the dates; otherwise close to the start → visibility; no
+ * requests for a while → demand (tell the people who'd fit).
+ */
+export const HOUSE_LEVER_RULES = { alternativeDays: 3, alternativeFill: 0.4 } as const;
+/** "✓ Erledigt" hides a House this many days; if it hasn't filled further by then, it comes back. */
+export const HOUSE_DONE_RECHECK_DAYS = 3;
+
 /** Admin › Analyse: a group with fewer Houses than this is greyed out ("zu wenig Daten") and never the sweet spot. */
 export const ANALYSIS_MIN_HOUSES = 10;
 
@@ -114,12 +126,27 @@ export const profitMilestones = {
 } as const;
 
 /**
- * Change "like a stock" under every main number of the overview (lib/admin/metrics.ts getChange): compared with the same day of the period
- * before (on the 15th with the state on the 15th of last month), so a running month is fair. The default and the switch's order.
+ * The admin's one period (Woche · Monat · Quartal · Jahr; the switch right in the click row, lib/admin/period.ts remembers the last choice):
+ * the numbers count the running period up to today, the change compares with the same span of the period before – the week before, the
+ * month before, the quarter before, the year before (lib/admin/metrics.ts periodRanges). Days are no tab: the overview's chart opens a week
+ * into its days (drill-down, ChartLevel).
  */
-export const COMPARE_PERIODS = ["week", "month", "year"] as const;
+export const COMPARE_PERIODS = ["week", "month", "quarter", "year"] as const;
 export type ComparePeriod = (typeof COMPARE_PERIODS)[number];
-export const DEFAULT_COMPARE: ComparePeriod = "month";
+export const DEFAULT_COMPARE: ComparePeriod = "week";
+/** A level of the overview's chart: the periods and, one step deeper than a week, its days. */
+export type ChartLevel = "day" | ComparePeriod;
+/** One step deeper (the drill-down): Jahr → Quartale → Monate → Wochen → Tage. */
+export const CHILD_LEVEL: Record<ComparePeriod, ChartLevel> = { year: "quarter", quarter: "month", month: "week", week: "day" };
+
+/**
+ * Targets are monthly values; a period's target is the monthly one × this (lib/admin/metrics.ts periodTarget): a day 12/365 of a month, a
+ * week 12/52, a quarter 3, a year 12 (€5,000 a month → a week ≈ €1,150, a quarter €15,000, a year €60,000). Percent targets stay as they are.
+ */
+export const PERIOD_MONTHS: Record<ChartLevel, number> = { day: 12 / 365, week: 12 / 52, month: 1, quarter: 3, year: 12 };
+
+/** The overview's chart per period: how many bars back (null = every year with data). */
+export const PERIOD_CHART: Record<ComparePeriod, number | null> = { week: 12, month: 12, quarter: 8, year: null };
 
 /**
  * Which way is better, per main number – the change's colour follows better/worse, never more/less (sage better, ember worse, grey ±0).
@@ -132,9 +159,16 @@ export const CHANGE_RULES = {
   mktDemoRate: { better: "higher", unit: "percent" },
   mktHouseRate: { better: "higher", unit: "percent" },
   mktFilledHouses: { better: "higher", unit: "count" },
+  /** Launch › Marketing › Partner › Wirkung */
+  partnerVisits: { better: "higher", unit: "count" },
+  partnerRequests: { better: "higher", unit: "count" },
+  partnerPaid: { better: "higher", unit: "count" },
+  partnerRevenue: { better: "higher", unit: "eur" },
   profit: { better: "higher", unit: "eur" },
   fullHouses: { better: "higher", unit: "count" },
   reservedShare: { better: "higher", unit: "percent" },
+  /** Admin › Houses: Houses that need help (fewer is better) */
+  needsHelp: { better: "lower", unit: "count" },
   repeatRate: { better: "higher", unit: "percent" },
   perHouse: { better: "higher", unit: "eur" },
   daysToFull: { better: "lower", unit: "days" },

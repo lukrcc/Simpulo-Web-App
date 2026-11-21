@@ -97,6 +97,7 @@ export function SearchField({
   autoOpen = false,
   trigger = "split",
   onClose,
+  trailing,
   className,
 }: {
   place: string | null;
@@ -104,8 +105,12 @@ export function SearchField({
   onChange: (next: { place?: string | null; month?: string | null }) => void;
   /** Opens itself once when the URL says ?open=where, then drops the parameter. */
   autoOpen?: boolean;
-  /** "split": Explore's "Where | When" capsule · "whereNext": the header's "Where to next?" on every other page (opens on Where) */
-  trigger?: "split" | "whereNext";
+  /** "split": Explore's "Where | When" capsule · "whereNext": the header's "Where to next?" on every other page (opens on Where) · "pill": the
+   *  header's one search field below 1100px (CompactSearch) – light, across the width, "Where to next? · Any time" or the values, `trailing`
+   *  (the filter button) inside on the right */
+  trigger?: "split" | "whereNext" | "pill";
+  /** "pill": what sits inside the field on the right (the filter button) */
+  trailing?: ReactNode;
   /** The sheet closed (picked, clicked beside it, Escape) */
   onClose?: () => void;
   className?: string;
@@ -154,7 +159,23 @@ export function SearchField({
   const half = "flex h-full min-w-0 items-center gap-2 text-nav-main [&>svg]:size-4 [&>svg]:shrink-0";
   return (
     <>
-      {trigger === "whereNext" ? (
+      {trigger === "pill" ? (
+        // Below 1100px: ONE light field across the header's width – the magnifier, "Where to next? · Any time" (or "Bali · Feb"), and inside
+        // on the right the round filter button. A tap on the field opens Where/When (a popover from 744px, a sheet on phones).
+        <span ref={anchor} data-search-pill className={cn("flex h-11 min-w-0 flex-1 items-center rounded-full bg-(--stage-text) pr-1 text-(--text-inverse)", className)}>
+          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" aria-label={t("pillLabel", { value: value ?? t("whereNext") })} className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-full pl-4 pr-2 text-left text-nav-main">
+            <Search aria-hidden className="size-4 shrink-0" />
+            {value ? (
+              <span className="truncate font-semibold">{value}</span>
+            ) : (
+              <span className="truncate">
+                {t("whereNext")} <span className="opacity-60">· {t("anyTime")}</span>
+              </span>
+            )}
+          </button>
+          {trailing}
+        </span>
+      ) : trigger === "whereNext" ? (
         // Every other page: ONE capsule "Where to next?" (magnifier + words, 40px, at most 360px) – it opens the same sheet on Where.
         <span ref={anchor} className={cn("flex min-w-0 flex-1", className)}>
           <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" className="bar-capsule press inline-flex h-10 w-full max-w-90 max-split:max-w-none items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
@@ -288,7 +309,7 @@ export function MonthOptions({ value, onPick }: { value: string | null; onPick: 
 }
 
 /** Short trips' mark: a filled, slim bolt (18px in the bar, --brand-action) – a little larger than the other icons. */
-function SlimBolt() {
+export function SlimBolt() {
   return (
     <svg aria-hidden viewBox="0 0 24 24" fill="currentColor" className="slim-bolt">
       <path d="M14.2 1.6 5.6 13.4a.6.6 0 0 0 .5 1h5.2l-1.6 7.5c-.1.6.6.9 1 .4l8.6-11.8a.6.6 0 0 0-.5-1h-5.2l1.6-7.5c.1-.6-.6-.9-1-.4Z" />

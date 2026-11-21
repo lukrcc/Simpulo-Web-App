@@ -78,7 +78,7 @@ export async function Footer() {
     <footer className="footer-dark text-small">
       <Container className="pb-10 pt-16">
         <FooterWaitlist />
-        {/* Tablet (768–1099px): two columns (sm:grid-cols-2); the 12-column row from Desktop. */}
+        {/* Tablet (744–1099px): two columns (sm:grid-cols-2); the 12-column row from Desktop. */}
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 split:grid-cols-12 split:gap-6">
           {/* Brand: logo, the line, socials, the QR to the app (desktop). */}
           <div className="flex flex-col items-start gap-4 split:col-span-4">

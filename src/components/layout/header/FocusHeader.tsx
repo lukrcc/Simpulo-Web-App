@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Open a House is a focus mode: the same bar, only the logo and the way out. The draft saves itself, so leaving costs nothing. Phones
- * (< 768px): a 56px bar in the page's flow, sticking under the status bar's strip, the way out as a round ✕ (the progress runs along its foot,
+ * (< 744px): a 56px bar in the page's flow, sticking under the status bar's strip, the way out as a round ✕ (the progress runs along its foot,
  * CreateStayForm); no tab bar.
  */
 export function FocusHeader({ exit = true }: { exit?: boolean }) {

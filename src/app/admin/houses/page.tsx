@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminHouseList } from "@/components/admin/AdminAreas";
+import { AdminHouseList } from "@/components/admin/AdminHouseWatch";
 
 export const metadata: Metadata = { title: "Houses · Admin" };
 

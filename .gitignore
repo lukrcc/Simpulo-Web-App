@@ -42,3 +42,6 @@ next-env.d.ts
 
 # screenshots (scripts/screenshots.mjs)
 screenshots/
+
+# Breiten-Test (scripts/breiten-test.mjs)
+/test-results/

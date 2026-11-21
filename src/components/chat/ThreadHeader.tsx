@@ -159,7 +159,7 @@ export function DirectHeader({ stay, other, embedded, threadId }: { stay: Stay; 
         </Link>
       </div>
       {request && (
-        <Button variant="secondary" size="sm" href={`/h/${stay.id}/manage?focus=requests`}>
+        <Button variant="secondary" size="sm" href={`/h/${stay.id}?tab=manage&focus=requests`}>
           {t("viewRequest")}
         </Button>
       )}

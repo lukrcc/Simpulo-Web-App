@@ -177,7 +177,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   // How many cards a row shows at once: the grid's real column count (4 at 1440px) – "See all" only with more.
   const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
   const cols = useGridColumns(columnProbe) || 4;
-  // Your own Houses' rows: 5 a row from 1440px, 4 from 1100, 3 from 768, else 2 (globals.css --my-cols) – for "See all".
+  // Your own Houses' rows: 5 a row from 1440px, 4 from 1100, 3 from 744, else 2 (globals.css --my-cols) – for "See all".
   const xlUp = useMediaQuery(MEDIA.wide);
   const lgUp = useMediaQuery(MEDIA.desktop);
   const smUp = useMediaQuery(MEDIA.tabletUp);

@@ -17,6 +17,7 @@ import type { ADMIN_DE } from "@/lib/i18n/admin.de";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AdminShell } from "./AdminShell";
+import { CockpitKeyNumber } from "./AdminCockpit";
 import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
 import { InfoTip } from "./AdminNumbers";
 
@@ -54,6 +55,8 @@ export function AdminAnalysis() {
         </>
       }
     >
+      {/* "Pro vollem House" (moved here from the overview) as the number on top. */}
+      <CockpitKeyNumber metric="perHouse" className="mb-(--adm-inner)" />
       <SweetSpot spot={sweetSpot(inputs, period)} />
       <div className="mt-(--adm-section) grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <AnalysisTable dimension={shown} rows={sorted} growth={growth} selected={row?.key ?? null} onSelect={setSelected} />

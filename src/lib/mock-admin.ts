@@ -1,6 +1,6 @@
 // ⚠ MOCK: the admin collections (/admin) – waitlist sign-ups, host applications, the admin log – and the demo traffic. Deterministic: the
 // same entries every time. Only the data adapter reads this file (lib/data/mockAdapter.ts); the real source is Firestore (phase 4).
-import { mockMarketingContacts } from "./mock-marketing";
+import { mockMarketingContacts, mockMarketingPartners } from "./mock-marketing";
 import { MOCK_TAX_QUESTIONS } from "./mock-ledger";
 import type { AdminLogEntry, HostApplication, SupportTicket, Vibe, WaitlistEntry, Withdrawal } from "./types";
 
@@ -154,7 +154,7 @@ export const MOCK_FOUNDING_HOST_IDS: readonly string[] = applications()
 
 export function mockAdminData() {
   const apps = applications();
-  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, backlog: {}, location: { country: null, reason: "" }, marketingContacts: mockMarketingContacts(), marketingSteps: {}, marketingClips: 2 };
+  return { waitlist: waitlist(), applications: apps, log: adminLog(apps), tickets: tickets(), withdrawals: WITHDRAWALS, taskStates: {}, receipts: {}, taxQuestions: MOCK_TAX_QUESTIONS.map((q) => ({ ...q })), fundingMoved: false, fundingDocs: {}, backlog: {}, location: { country: null, reason: "" }, marketingContacts: mockMarketingContacts(), marketingSteps: {}, marketingClips: 2, marketingPartners: mockMarketingPartners(), houseDone: {}, contentHouses: [] };
 }
 
 /** ⚠ DEMO DATA: what Google Analytics will report from phase 4 – visitors per week, countries, sources, the way to the sign-up. */
@@ -185,8 +185,8 @@ export const MOCK_TRAFFIC = {
 } as const;
 
 /**
- * ⚠ MOCK: the admin history the mock data can't hold (it has ~100 Houses, no year of bookings). Months as "months ago" (0 = this month,
- * so far), oldest first: a slow climb with one weaker month (3 months back up to now: 3 months above target in a row).
+ * ⚠ MOCK: the admin history the mock data can't hold (it has ~100 Houses, no year of bookings). Months as "months ago" (0 = this month – its
+ * level for the whole month; the admin counts the part that has passed, lib/admin/metrics.ts monthSoFar), oldest first: a slow climb with one weaker month (3 months back up to now: 3 months above target in a row).
  */
 export const MOCK_METRICS_HISTORY = {
   fullHousesPerMonth: [14, 17, 19, 22, 26, 31, 36, 24, 37, 39, 41, 38].map((full, i, all) => ({ monthsAgo: all.length - 1 - i, full })),
@@ -232,9 +232,17 @@ export const MOCK_METRICS_HISTORY = {
    * The overview's numbers on the same day a week, a month and a year ago (this month so far, as they stood then): a week ago fewer Houses
    * had filled yet; on 15 Oct October stood a little higher in profit, lower in full Houses; a year ago Simpulo was small.
    */
+  /**
+   * ⚠ Example values: the 23 months before the last twelve (Jan 2024 – a year ago), a slow start that grows into the twelve months above –
+   * profit (EUR), full Houses and the shared nights (≈ full Houses × 56). For the overview's quarters and years.
+   */
+  olderMonths: [
+    [60, 1], [90, 1], [120, 1], [150, 2], [210, 2], [260, 3], [300, 3], [240, 2], [330, 3], [380, 4], [420, 4], [400, 4],
+    [450, 5], [520, 5], [580, 6], [640, 6], [710, 7], [790, 8], [860, 9], [700, 7], [930, 10], [1010, 11], [1080, 12],
+  ].map(([profit, full], i, all) => ({ monthsAgo: 12 + all.length - 1 - i, profit, full, sharedNights: full * 56 })),
   snapshots: {
     week: { profit: 3900, fullHouses: 33, reservedShare: 49, repeatRate: 22, sharedNights: 1960 },
-    month: { profit: 4700, fullHouses: 35, reservedShare: 46, repeatRate: 20, sharedNights: 2050 },
+    month: { profit: 4700, fullHouses: 35, reservedShare: 46, repeatRate: 20, sharedNights: 2050, needsHelp: 5 },
     year: { profit: 900, fullHouses: 9, reservedShare: 31, repeatRate: 12, sharedNights: 510 },
   },
   /**

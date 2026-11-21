@@ -23,7 +23,10 @@ import { getVisibleHouses } from "@/lib/data/visibleHouses";
 import { launch, showsExamples, showsPersonalRows, useDepthChoice, usePlatformPhase } from "@/config/platform";
 import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
 import { LaunchIntro } from "@/components/explore/SpotlightIntro";
-import { SearchField, ShortTripsToggle, useMonthName } from "@/components/explore/SearchFields";
+import { SearchField, ShortTripsToggle, SlimBolt, useMonthName } from "@/components/explore/SearchFields";
+import { Chip } from "@/components/ui/Chip";
+import { useIsDesktop } from "@/lib/useIsDesktop";
+import { registerFeed } from "@/lib/exploreBridge";
 import { FilterSheets } from "@/components/explore/FilterSheets";
 import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
@@ -103,6 +106,16 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const filters = useExploreFilters();
   const headerSlot = useHeaderSlot();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // The header's search field below 1100px opens this feed's filter sheet (lib/exploreBridge.ts); /explore?open=filters (from a page without
+  // a feed) opens it once on arrival – the parameter goes at once.
+  useEffect(() => registerFeed(() => setSheetOpen(true)), []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("open") !== "filters") return;
+    url.searchParams.delete("open");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    requestAnimationFrame(() => setSheetOpen(true));
+  }, []);
   // Read by setFilters (an event): is the panel open right now?
   const panelOpenRef = useRef(false);
   useEffect(() => {
@@ -134,7 +147,9 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // example Houses), then listing, head start and blocking.
   const phase = usePlatformPhase();
   const visible = useMemo(() => getVisibleHouses(store.stays, phase), [store.stays, phase]);
-  const listed = useMemo(() => visible.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId)), [visible, store.houseInvites, store.currentUserId, blocked]);
+  // Hosts who paused their account (Settings › Your data): their Houses are off Explore until they're back.
+  const pausedHosts = useMemo(() => new Set(store.users.filter((u) => u.privacy?.paused).map((u) => u.id)), [store.users]);
+  const listed = useMemo(() => visible.filter((s) => (isListedStay(s) || hasHeadStart(s, store.houseInvites, store.currentUserId)) && !blocked.includes(s.hostId) && !pausedHosts.has(s.hostId)), [visible, store.houseInvites, store.currentUserId, blocked, pausedHosts]);
   const base = useMemo(() => listed.filter((s) => inScope(s, scope)), [listed, scope]);
   // The hero (bento / carousel): open Houses with a free spot that haven't started, in the session's weighted order.
   const candidates = useHeroStays(listed, (s) => findUser(store, s.hostId));
@@ -306,13 +321,15 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // Explore (not the city / vibe pages): from md the chips, Sort and Filters are Open Houses' row and the header's tab (ExploreFilterBar);
   // on phones they are a sticky row of their own at the top.
   const md = useMediaQuery(MD_QUERY);
+  const desktop = useIsDesktop();
   // After the bar's All filters closes (from md): to the grid, if something changed there (phones: the Sheet's onClosed).
   useEffect(() => {
     if (sheetOpen || !md || !scrollAfterPanel.current) return;
     scrollAfterPanel.current = false;
     requestAnimationFrame(() => scrollUnderHeader(resultsRef.current));
   }, [sheetOpen, md]);
-  const inBar = !headless && md;
+  // From 1100px the quick search sits in the desktop header's bar; below it the chip row under the header (phones and tablets).
+  const inBar = !headless && desktop;
 
 
   // What Filters counts and clears: what the panel holds – sorting and the four filters, not the category chips.
@@ -334,7 +351,15 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     },
   };
   const openOfVibe = (vibe: Vibe) => listed.filter((s) => s.vibe === vibe && s.acceptingRequests).length;
-  const chipRow = showVibes && <CategoryRow {...vibeRow} />;
+  // Below 1100px: All · Short trips (its bolt orange) · the themes one by one · More – they act at once (not part of the filter draft).
+  const shortTripsOn = filters.lengths.includes("weekend");
+  const toggleShortTrips = () => update({ lengths: shortTripsOn ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] });
+  const shortTripsChip = (
+    <Chip variant="bare" size="lg" role="checkbox" aria-checked={shortTripsOn} active={shortTripsOn} onClick={toggleShortTrips} icon={<span className="text-accent [&_svg]:size-4"><SlimBolt /></span>}>
+      {tf("shortTrips")}
+    </Chip>
+  );
+  const chipRow = <CategoryRow {...vibeRow} chips={showVibes ? vibeRow.chips : []} more={showVibes ? vibeRow.more : []} lead={shortTripsChip} />;
   const preLaunch = !scoped && isPreLaunch(store.stays);
   // Explore itself (not a city / vibe / collection page, not before the launch): scrolled down, header and filters become one compact bar.
   // Explore itself (not a city / vibe / collection page, not before the launch): the quick search lives in the header's bar.
@@ -345,20 +370,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // "All filters" toggles: from md it grows out of the bar (ui/BarSheet), on phones the bottom sheet.
   const openPanel = () => setSheetOpen((o) => !o);
   const closePanel = () => setSheetOpen(false);
-  // Shortcuts only with enough Houses to pay off (src/config/explore.ts); the panel has everything anyway.
-  // Phones: no sort shortcut (Sort is the filter sheet's first row) and "Filters" as a compact icon with the count of active filters.
-  // (By CSS, so the server's HTML is right at every size.)
-  const controls = (
-    <>
-      <span className="contents max-md:hidden">
-        <SortCapsule label={t(`sortOptions.${filters.sort}`)}>
-          <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
-        </SortCapsule>
-        <FiltersButton count={panelCount} onClick={openPanel} expanded={panelOpen} />
-      </span>
-      <FiltersButton variant="icon" count={panelCount} onClick={openPanel} expanded={panelOpen} className="md:hidden" />
-    </>
-  );
   const fields = (
     <>
       <SearchField place={filters.place} month={filters.month} onChange={update} />
@@ -398,10 +409,11 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         )}
       {/* City / vibe pages, and phones: the chips, Sort and Filters as a plain sticky row at the top of the page. */}
       {!inBar && (
-        <div data-bar className={cn("filter-row header-surface sticky top-(--header-total) z-30", !headless && "md:hidden")}>
+        // Below 1100px (phones and tablets): the chip row, sticky under the header, on the header's fixed surface (.chip-bar). The filters
+        // and the sort open from the header's search field (CompactSearch → the feed's filter sheet).
+        <div data-bar className={cn("filter-row chip-bar sticky top-(--header-total) z-30", !headless && "split:hidden")}>
           <RowWrap className="flex h-(--filter-row-h) items-center gap-3">
             <div className="min-w-0 flex-1">{chipRow}</div>
-            <div className="flex shrink-0 items-center gap-2">{controls}</div>
           </RowWrap>
         </div>
       )}
@@ -522,7 +534,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         </div>
       </Wrap>
 
-      {/* "All filters": the bar's sheet from 768px, the bottom sheet on phones – a draft until "Show N houses" (explore/FilterSheets.tsx). */}
+      {/* "All filters": the bar's sheet from 744px, the bottom sheet on phones – a draft until "Show N houses" (explore/FilterSheets.tsx). */}
       <FilterSheets
         open={sheetOpen}
         md={md}

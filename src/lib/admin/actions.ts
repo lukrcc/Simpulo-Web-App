@@ -7,9 +7,9 @@ import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
 import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
-import { addMarketingContact, deleteMarketingContact, patchMarketingContact, setMarketingClips, setMarketingStep } from "./store";
+import { addContentHouse, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
-import type { MarketingContact, TaxQuestion } from "@/lib/data";
+import type { MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 export function useAdminActions() {
   const store = useStore();
@@ -85,22 +85,36 @@ export function useAdminActions() {
      * Early warning (Admin › Houses). Mock: only logged (the caller shows the toast). TODO(backend): "Hervorheben" moves the House up on
      * Explore for a while; "Warteliste informieren" mails the matching sign-ups (lib/notify); "Host erinnern" sends the host a nudge.
      */
-    highlightHouse(stay: { title: string }) {
-      appendAdminLog("house_highlighted", stay.title, by);
+    highlightHouse(stay: { id?: string; title: string }) {
+      appendAdminLog("house_highlighted", stay.title, by, stay.id);
     },
-    notifyWaitlist(stay: { title: string }, count: number) {
-      appendAdminLog("waitlist_notified", `${stay.title} · ${count}`, by);
+    notifyWaitlist(stay: { id?: string; title: string }, count: number) {
+      appendAdminLog("waitlist_notified", `${stay.title} · ${count}`, by, stay.id);
     },
-    remindHost(stay: { title: string }, hostName: string) {
-      appendAdminLog("host_reminded", `${hostName} · ${stay.title}`, by);
+    remindHost(stay: { id?: string; title: string }, hostName: string) {
+      appendAdminLog("host_reminded", `${hostName} · ${stay.title}`, by, stay.id);
     },
-    /** Houses › Host helfen: suggestions to the host (price, photos, text). Mock: only logged. */
-    sendHostSuggestions(stay: { title: string }, hostName: string) {
-      appendAdminLog("host_suggestions", `${hostName} · ${stay.title}`, by);
+    /** Houses › Host helfen: a message to the host from a template (price, photos, text). Mock: only logged, nothing is sent. */
+    sendHostSuggestions(stay: { id?: string; title: string }, hostName: string) {
+      appendAdminLog("host_suggestions", `${hostName} · ${stay.title}`, by, stay.id);
     },
     /** Houses › Ausweichen: suggest moving the dates or merging crews. Mock: only logged. */
-    proposeAlternative(stay: { title: string }, hostName: string) {
-      appendAdminLog("alternative_proposed", `${hostName} · ${stay.title}`, by);
+    proposeAlternative(stay: { id?: string; title: string }, hostName: string) {
+      appendAdminLog("alternative_proposed", `${hostName} · ${stay.title}`, by, stay.id);
+    },
+    /** Houses › "✓ Erledigt": out of "Braucht Hilfe" until it comes back without getting better. */
+    markHouseDone(stay: { id: string; title: string; spotsFilled: number }) {
+      setHouseDone(stay.id, stay.spotsFilled);
+      appendAdminLog("house_done", stay.title, by, stay.id);
+    },
+    /** Houses › Läuft gut: ask the host for a quote (for Marketing). Mock: only logged. */
+    askHostQuote(stay: { id: string; title: string }, hostName: string) {
+      appendAdminLog("host_quote_asked", `${hostName} · ${stay.title}`, by, stay.id);
+    },
+    /** Houses › Läuft gut: put the House aside for Marketing › Content. */
+    markForContent(stay: { id: string; title: string }) {
+      addContentHouse(stay.id);
+      appendAdminLog("content_marked", stay.title, by, stay.id);
     },
     /** Heute: a task done (it's gone) – `label` is how it reads in the log. */
     /** Geld › Steuern: a receipt for a cost (the mock keeps only the file name). */
@@ -158,6 +172,51 @@ export function useAdminActions() {
     /** Marketing › Kontakte: the CSV for one's own records. */
     logMarketingExport(count: number) {
       appendAdminLog("marketing_export", `${count} Kontakte`, by);
+    },
+    /** Marketing › Partner: a partner from a contact ("Als Partner anlegen") – its data taken over, the contact linked back. */
+    partnerFromContact(contact: MarketingContact): MarketingPartner {
+      const added = addMarketingPartner({
+        contactId: contact.id,
+        name: contact.name,
+        kind: "creator",
+        reach: contact.followers,
+        channels: [contact.channel],
+        ladder: 1,
+        foundingHost: false,
+        hostUserId: null,
+        agreement: { sharePercent: 0, from: null, to: null, payoutAfterPaidStay: true, contentRights: "", collabPosts: false, contractUrl: "", status: "draft" },
+        houseIds: [],
+        content: { planned: 0, delivered: 0, approved: 0 },
+        notes: [],
+        nextStep: null,
+      });
+      appendAdminLog("partner_added", `${added.name} (aus Kontakt)`, by);
+      return added;
+    },
+    /** Marketing › Partner: a new one by hand. */
+    addPartner(partner: Omit<MarketingPartner, "id" | "refCode" | "createdAt">): MarketingPartner {
+      const added = addMarketingPartner(partner);
+      appendAdminLog("partner_added", added.name, by);
+      return added;
+    },
+    /** Marketing › Partner: one part changed (`what` names it for the log). */
+    updatePartner(partner: MarketingPartner, patch: Partial<Omit<MarketingPartner, "id" | "refCode" | "createdAt">>, what: string) {
+      patchMarketingPartner(partner.id, patch);
+      appendAdminLog("partner_updated", `${patch.name ?? partner.name} · ${what}`, by);
+    },
+    /** Marketing › Partner › Verlauf: a dated note. */
+    addPartnerNote(partner: MarketingPartner, text: string) {
+      const note = { id: `${partner.id}-n${Date.now().toString(36)}`, at: new Date().toISOString(), text };
+      patchMarketingPartner(partner.id, { notes: [note, ...partner.notes] });
+      appendAdminLog("partner_note", partner.name, by);
+    },
+    /** Marketing › Partner: deleted for good (privacy) – the log keeps only the id. */
+    deletePartner(partner: MarketingPartner) {
+      deleteMarketingPartner(partner.id);
+      appendAdminLog("partner_deleted", partner.id, by);
+    },
+    logPartnerExport(count: number) {
+      appendAdminLog("partner_export", `${count} Partner`, by);
     },
     /** Vision › Standort: the chosen country and why. */
     decideLocation(country: string | null, reason: string) {

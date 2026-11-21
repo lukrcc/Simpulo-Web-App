@@ -2,12 +2,12 @@
  * The screen classes – ONE place for JS (CLAUDE.md "Mobile"). globals.css carries the same values in its @theme (--breakpoint-*), its
  * @custom-variant and its @media rules; change both together.
  *
- *   Phone    < 768px          Tailwind: max-md:            JS: MEDIA.phone
- *   Tablet   768 – 1099px     Tailwind: md:  max-split:    JS: MEDIA.tabletUp && !MEDIA.desktop
+ *   Phone    < 744px          Tailwind: max-md:            JS: MEDIA.phone
+ *   Tablet   744 – 1099px     Tailwind: md:  max-split:    JS: MEDIA.tabletUp && !MEDIA.desktop
  *   Desktop  ≥ 1100px         Tailwind: split:             JS: MEDIA.desktop, useIsDesktop()
  *
  * The other named widths (kept, documented here):
- *   md        768px  = start of Tablet (Tailwind default, written out in globals.css)
+ *   md        744px  = start of Tablet (not Tailwind’s 768: the iPad mini upright, 744px, is a tablet; written out in globals.css)
  *   nav-text  1024px = header tabs as words from here, icons below (= Tailwind lg)
  *   split     1100px = start of Desktop: two-column layouts, the stage side by side, master–detail
  *   nav       1200px = the header's wider spacing
@@ -16,7 +16,7 @@
  */
 export const BREAKPOINTS = {
   /** Phone ends below this; Tablet starts here (Tailwind md) */
-  tablet: 768,
+  tablet: 744,
   /** = Tailwind lg / nav-text */
   lg: 1024,
   /** Desktop starts here (split) */

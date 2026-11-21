@@ -1,36 +1,32 @@
 "use client";
 
-// /admin – the overview ("Wie läuft Simpulo?"), in this order: title · "Braucht dich" · profit this month (the big number, its change, the months
-// in a row) · the four areas · the chart with the milestone ladder. Every main number carries its change "like a stock" (getChange, against
+// /admin – the overview ("Wie läuft Simpulo?"), simple: the click row (period Woche · Monat · Jahr) · ONE row of four numbers (Gewinn with
+// "Monate in Folge", Volle Houses, Gemeinsame Nächte, Wiederkehrer) · the profit chart (12 months, line "Umzug 5.000 €") · the milestone bar. Every main number carries its change "like a stock" (getChange, against
 // the same day of the week / month / year before – the switch top right), its target and an ⓘ. The change's colour follows better/worse
-// (config/admin.ts CHANGE_RULES): sage better, ember worse, grey ±0. Every number from lib/admin/metrics.ts; the capsules from the task list.
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+// (config/admin.ts CHANGE_RULES): sage better, ember worse, grey ±0. Every number from lib/admin/metrics.ts.
 import { useTranslations } from "next-intl";
-import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FormField } from "@/components/form/FormLayout";
 import { Button } from "@/components/ui/ActionButton";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input } from "@/components/ui/Input";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { COMPARE_PERIODS, DEFAULT_COMPARE, profitMilestones, type ComparePeriod } from "@/config/admin";
-import { monthKpis, monthlySeries, northStar, runway, cockpit, companyBalance, getStatus, launchProgress, money, profitPerMonth, type CockpitNumber } from "@/lib/admin/metrics";
+import { CHILD_LEVEL, MOVE_TARGET, profitMilestones, type ChartLevel, type ComparePeriod } from "@/config/admin";
+import { useAdminPeriod } from "@/lib/admin/period";
+import { chartBuckets, getChange, monthKpis, periodEnd, periodStart, runway, cockpit, type ChartView, companyBalance, getStatus, launchProgress, money, profitPerMonth, type CockpitNumber } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { getBankBalance, getPlatformPayouts } from "@/lib/data";
-import { cn } from "@/lib/utils";
-import { ColumnChart, CountBars, LinesChart, ProfitChart, ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
-import { ChangeLine, InfoTip, KeyNumbers } from "./AdminNumbers";
+import { ColumnChart, DrillChart, ProgressBar, StatusDot, type DrillBar } from "./AdminCharts";
+import { ChangeLine, KeyNumbers } from "./AdminNumbers";
+import { AdminTabs, PeriodTabs } from "./AdminLayout";
 import { AdminTaxes } from "./AdminTaxes";
-import { AREA_BG, AdminSection, AdminShell, StatRow, type AreaColor } from "./AdminShell";
+import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
-import { day as dayLabel, dec, eur, month as monthLabel, monthLong, num, pct } from "@/lib/i18n/adminFormat";
-
-/** The area each one leads to – its 2px line on top (area colour, never status). */
-const GROUP_AREA: Record<"supply" | "demand" | "quality" | "money", AreaColor> = { supply: "market", demand: "growth", quality: "growth", money: "market" };
+import { chartTick, chartTitle, day as dayLabel, dec, eur, month as monthLabel, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
 function valueText(value: number | null, format: CockpitNumber["format"]): string {
   if (value === null) return "–";
@@ -39,213 +35,250 @@ function valueText(value: number | null, format: CockpitNumber["format"]): strin
   return num(value);
 }
 
+/** One opened bar in the URL (?zoom=year:2026-01-01,quarter:2026-07-01): its level and first day. */
+interface ZoomStep {
+  level: ComparePeriod;
+  start: string;
+}
+
+/** ?zoom= → the chain of opened bars; only a valid chain that starts at the chosen period (Jahr → Quartal → Monat → Woche). */
+function parseZoom(raw: string | null, period: ComparePeriod): ZoomStep[] {
+  if (!raw) return [];
+  const steps: ZoomStep[] = [];
+  let expect: ChartLevel = period;
+  for (const part of raw.split(",")) {
+    const [level, start] = part.split(":");
+    if (level !== expect || !/^\d{4}-\d{2}-\d{2}$/.test(start ?? "") || level === "day") return [];
+    steps.push({ level: level as ComparePeriod, start: periodStart(start, level as ComparePeriod) });
+    expect = CHILD_LEVEL[level as ComparePeriod];
+  }
+  return steps;
+}
+const zoomParam = (steps: readonly ZoomStep[]) => steps.map((z) => `${z.level}:${z.start}`).join(",");
+
 export function AdminCockpit() {
   const t = useTranslations("admin.cockpit");
-  const tAdmin = useTranslations("admin");
   const inputs = useAdminInputs();
-  const tasks = useAdminTasks();
-  const [period, setPeriod] = useState<ComparePeriod>(DEFAULT_COMPARE);
-  const c = cockpit(inputs, period);
-  const { move } = c;
-  const against =
-    period === "week" ? t("against.week") : period === "month" ? t("against.month", { month: monthLong(c.compareDate) }) : t("against.year", { month: monthLong(c.compareDate), year: c.compareDate.slice(0, 4) });
-  const star = northStar(inputs, period);
-  // The charts' data – built here, the panel itself is memoised: hovering never re-renders the page.
-  const chartData = move.rows.map((r) => ({ label: monthLabel(r.month), value: r.profit }));
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  // Woche · Monat · Quartal · Jahr – the last choice remembered (lib/admin/period.ts), the default Woche.
+  const [period] = useAdminPeriod();
+  // The drill-down: the opened bars in the URL (?zoom=…), so the browser's back works; a chain from another period is dropped.
+  const rawZoom = params.get("zoom");
+  const zoom = useMemo(() => parseZoom(rawZoom, period), [rawZoom, period]);
+  useEffect(() => {
+    if (rawZoom && zoom.length === 0) router.replace(pathname, { scroll: false });
+  }, [rawZoom, zoom.length, router, pathname]);
+  const go = useCallback((steps: readonly ZoomStep[]) => router.push(steps.length ? `${pathname}?zoom=${zoomParam(steps)}` : pathname, { scroll: false }), [router, pathname]);
+
+  const last = zoom.at(-1) ?? null;
+  // The numbers follow the opened bar (its stretch against the one before), else the running period.
+  const c = cockpit(inputs, period, last ? { level: last.level, from: last.start } : null);
+  const { move, profit, nights } = c;
+  const against = c.level === "month" ? t("against.month", { month: monthLong(c.compareDate) }) : c.level === "year" ? t("against.year", { year: c.compareDate.slice(0, 4) }) : t(`against.${c.level}`);
+  const full = c.areas.find((a) => a.key === "supply")!.number;
+  const repeat = c.areas.find((a) => a.key === "quality")!.number;
+
+  // The chart: the root's periods, or one level deeper inside the opened bar.
+  const view: ChartView = last ? { level: CHILD_LEVEL[last.level], within: { from: last.start, to: periodEnd(last.start, last.level) } } : { level: period, within: null };
+  const viewKey = `${view.level}:${view.within?.from ?? "root"}`;
+  const bars = useMemo<DrillBar[]>(() => {
+    const months = view.level === "month";
+    return chartBuckets(inputs, view).map((b) => {
+      const tick = chartTick(b.from, b.to, b.level);
+      return {
+        key: b.from,
+        main: tick.main,
+        sub: tick.sub,
+        title: chartTitle(b.from, b.to, b.level),
+        value: b.profit,
+        change: <ChangeLine change={b.profit === null ? null : getChange("profit", b.profit, b.previous)} against={t("chart.againstPrev")} />,
+        current: b.current,
+        tone: months && b.profit !== null ? (b.profit >= MOVE_TARGET.profitPerMonth ? "good" : "warning") : "neutral",
+        events: b.events,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the view is described by viewKey
+  }, [inputs, viewKey, t]);
+
+  const title = last ? t(`chart.zoomTitle.${view.level as "day" | "week" | "month" | "quarter"}`, { range: chartTitle(last.start, periodEnd(last.start, last.level), last.level) }) : t(`chart.profitTitle.${period}`);
+  const crumbs = [{ label: t(`chart.root.${period}`), steps: [] as ZoomStep[] }, ...zoom.map((z, i) => ({ label: chartTick(z.start, periodEnd(z.start, z.level), z.level).main, steps: zoom.slice(0, i + 1) }))];
 
   return (
-    <AdminShell
-      title={t("title")}
-      aside={<CapsuleGroup size="sm" label={t("compare.label")} value={period} onChange={setPeriod} options={COMPARE_PERIODS.map((value) => ({ value, content: t(`compare.${value}`) }))} />}
-    >
-      {/* What needs you: one line into the Posteingang ("● 30 offen im Posteingang →", the dot only when > 0). */}
-      <InboxLine open={tasks.length} />
+    <AdminShell title={t("title")} aside={<PeriodTabs />}>
+      {/* ONE row of four numbers for the period (or the opened bar), each with its change (the same span of the period before), target
+          (monthly, scaled) and ⓘ: Gewinn (under it "Monate in Folge 0/6" – always monthly) · Volle Houses · Gemeinsame Nächte · Wiederkehrer. */}
+      <KeyNumbers
+        className="lg:grid-cols-4"
+        items={[
+          {
+            key: "profit",
+            label: t("move"),
+            info: `${t("info.profit")} (${against})`,
+            value: eur(profit.current),
+            change: profit.change,
+            target: { text: t("target", { target: eur(profit.target) }), status: profit.status },
+            sub: <span className="tabular-nums">{t("streakShort", { streak: move.streak, of: move.streakOf })}</span>,
+          },
+          { key: "fullHouses", label: t("metric.fullHouses"), info: `${t("info.fullHouses")} (${against})`, value: valueText(full.value, full.format), change: full.change, target: { text: t("target", { target: valueText(full.target, full.format) }), status: full.status } },
+          // No target for the shared nights (CLAUDE.md: "kein Ziel").
+          { key: "northStar", label: t("northStar"), info: `${t("info.northStar")} (${against})`, value: num(nights.current), change: nights.change },
+          { key: "repeatRate", label: t("metric.repeatRate"), info: `${t("info.repeatRate")} (${against})`, value: valueText(repeat.value, repeat.format), change: repeat.change, target: { text: t("target", { target: valueText(repeat.target, repeat.format) }), status: repeat.status } },
+        ]}
+      />
 
-      {/* Profit this month: the big number, its change, the months in a row. */}
-      <section aria-label={t("move")} className="mt-(--adm-inner) flex flex-wrap items-end gap-x-10 gap-y-(--adm-inner)">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
-            {t("move")}
-            <InfoTip text={`${t("info.profit")} (${against})`} />
-          </p>
-          <p className="text-adm-hero tabular-nums text-ink">{eur(move.current)}</p>
-          {/* ONE line: "▼ −300 € (−6,4 %) · Ziel 5.000 €" – the target with its status dot. */}
-          <ChangeLine change={move.change} target={{ text: t("target", { target: eur(move.target) }), status: move.status }} className="mt-1 block" />
-          <span className="sr-only">· {tAdmin(`status.${move.status ?? "none"}`)}</span>
-        </div>
-        {/* Shared nights beside the profit: people × nights in full Houses this month. */}
-        <div className="min-w-0 border-ink/8 lg:border-l lg:pl-10">
-          <p className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
-            {t("northStar")}
-            <InfoTip text={`${t("info.northStar")} (${against})`} />
-          </p>
-          <p className="text-adm-hero tabular-nums text-ink">{num(star.current)}</p>
-          <ChangeLine change={star.change} className="mt-1 block" />
-        </div>
-        <div className="min-w-0 lg:ml-auto">
-          <p className="text-eyebrow uppercase text-(--adm-label)">{t("streak", { streak: move.streak, of: move.streakOf })}</p>
-          <StepMeter reached={move.streak} of={move.streakOf} label={t("streak", { streak: move.streak, of: move.streakOf })} className="mt-2 w-60" />
-        </div>
-      </section>
-
-      <AreaRow areas={c.areas} />
-
-      <ProfitPanel data={chartData} current={move.current} series={star.rows} />
+      <ProfitPanel
+        title={title}
+        bars={bars}
+        viewKey={viewKey}
+        months={view.level === "month"}
+        days={view.level === "day"}
+        current={move.current}
+        onOpen={view.level === "day" ? undefined : (key) => go([...zoom, { level: view.level as ComparePeriod, start: periodStart(key, view.level) }])}
+        crumbs={zoom.length ? crumbs : null}
+        onCrumb={(steps) => go(steps)}
+      />
     </AdminShell>
   );
 }
 
 /**
- * The four areas in one row, no cards: side by side on the page, split by fine vertical lines, a 2px line in the area's colour on top.
- * Each ONE number with ⓘ, its change (coloured by better/worse) and in grey the label with the target (status dot against it). The whole
- * area leads into its tab (a link laid over it; the ⓘ sits above the link).
+ * One of the cockpit's numbers on another page ("2+ Vormerkungen" in Houses, "Pro vollem House" in Analyse): its label, value, change against
+ * the same day of the month before (always monthly), target and ⓘ – the same KeyNumbers row as everywhere.
  */
-function AreaRow({ areas }: { areas: ReturnType<typeof cockpit>["areas"] }) {
+export function CockpitKeyNumber({ metric, className }: { metric: "reservedShare" | "perHouse"; className?: string }) {
   const t = useTranslations("admin.cockpit");
-  const tAdmin = useTranslations("admin");
+  const c = cockpit(useAdminInputs(), "month");
+  const n = c.areas.find((a) => a.number.key === metric)!.number;
+  const against = t("against.month", { month: monthLong(c.compareDate) });
   return (
-    <div data-area-row className="mt-(--adm-section) grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
-      {areas.map((area, i) => {
-        const n = area.number;
-        return (
-          <div key={area.key} className={cn("group relative min-w-0 px-5 pb-1 pt-4 first:pl-0", i > 0 && "border-l border-ink/8", i === 2 && "max-lg:border-l-0 max-lg:pl-0")}>
-            <span aria-hidden className={cn("absolute left-0 right-5 top-0 h-0.5 rounded-full", i > 0 && "left-5", i === 2 && "max-lg:left-0", AREA_BG[GROUP_AREA[area.key]])} />
-            <Link href={area.href} aria-label={t("open", { area: t(`group.${area.key}`) })} data-no-tooltip className="absolute inset-0 rounded-lg" />
-            {/* The area (a short noun, caps) with its arrow · the number + ⓘ (what it counts) · ONE line "▲ +3 · Ziel 44". */}
-            <span className="flex items-center gap-1.5 text-eyebrow uppercase text-(--adm-label)">
-              {t(`metric.${n.key}`)}
-              <ArrowRight aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-            </span>
-            <span className="mt-1 flex items-center gap-2">
-              <span className="text-adm-figure tabular-nums text-ink">{valueText(n.value, n.format)}</span>
-              <InfoTip text={`${t(`group.${area.key}`)}: ${t(`info.${n.key}`)}`} />
-            </span>
-            <ChangeLine change={n.change} target={{ text: t("target", { target: valueText(n.target, n.format) }), status: n.status }} className="mt-1 block" />
-            <span className="sr-only">· {tAdmin(`status.${n.status ?? "none"}`)}</span>
-          </div>
-        );
-      })}
-    </div>
+    <KeyNumbers
+      className={className}
+      items={[{ key: metric, label: t(`metric.${metric}`), info: `${t(`info.${metric}`)} (${against})`, value: valueText(n.value, n.format), change: n.change, target: { text: t("target", { target: valueText(n.target, n.format) }), status: n.status } }]}
+    />
   );
 }
 
 /**
- * The chart with its own state (the switch "Gewinn · Nächte · Vergleich", right above it) – hovering or switching never re-renders the page.
- * The profit axis goes up to the next milestone on its own (no axis switch). The chart's height fills the rest of the window (at least
- * 220px), so the whole overview fits without scrolling (1470 × 814).
+ * The profit chart (DrillChart) with its own state – hovering never re-renders the page: the root's periods or one opened bar a level deeper;
+ * a click on a bar opens it (not on days). Above it, once opened, "‹ {parent}" and the crumbs; the line "Umzug 5.000 €" only where the bars
+ * are months; under a week's days what happened. Under it the milestone bar (always the running month). The chart's height fills the rest of
+ * the window (at least 200px), so the overview fits without scrolling (1440 × 900).
  */
-const ProfitPanel = memo(function ProfitPanel({ data, current, series }: { data: readonly { label: string; value: number }[]; current: number; series: ReturnType<typeof monthlySeries> }) {
+const ProfitPanel = memo(function ProfitPanel({
+  title,
+  bars,
+  viewKey,
+  months,
+  days,
+  current,
+  onOpen,
+  crumbs,
+  onCrumb,
+}: {
+  title: string;
+  bars: readonly (DrillBar & { events?: { requests: number; paid: number; houses: number } })[];
+  viewKey: string;
+  months: boolean;
+  days: boolean;
+  current: number;
+  onOpen?: (key: string) => void;
+  crumbs: readonly { label: string; steps: ZoomStep[] }[] | null;
+  onCrumb: (steps: ZoomStep[]) => void;
+}) {
   const t = useTranslations("admin.cockpit");
-  const [mode, setMode] = useState<"profit" | "nights" | "compare">("profit");
-  const title = mode === "profit" ? t("move") : mode === "nights" ? t("northStar") : t("chart.compareTitle");
   const box = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(260);
   useLayoutEffect(() => {
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined) return;
-      // The rest of the window under the chart's top, less the page's bottom padding; at least 220px.
-      setHeight(Math.max(220, Math.floor(window.innerHeight - (top + window.scrollY) - 40)));
+      // The rest of the window under the chart's top, less the axis' second line, the days' events, the milestone bar (≈ 72px) and the
+      // page's bottom padding; at least 200px.
+      setHeight(Math.max(200, Math.floor(window.innerHeight - (top + window.scrollY) - 72 - 40 - (days ? 56 : 0))));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, []);
-  // The axis: up to the next milestone above the highest month (config/admin.ts profitMilestones.ladder).
-  const max = Math.max(0, ...data.map((d) => d.value));
-  const axisTop = profitMilestones.ladder.find((s) => s.value > max)?.value ?? null;
+  }, [viewKey, days, crumbs]);
+  const parent = crumbs && crumbs.length >= 2 ? crumbs[crumbs.length - 2] : null;
   return (
     <section aria-label={title} className="mt-(--adm-section)">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-eyebrow uppercase text-(--adm-label)">
-          {title}
-          {mode === "compare" && <span className="ml-2 normal-case tracking-normal">· {t("chart.compareNote")}</span>}
-        </h2>
-        <CapsuleGroup size="sm" label={t("chart.label")} value={mode} onChange={setMode} options={(["profit", "nights", "compare"] as const).map((value) => ({ value, content: t(`chart.${value}`) }))} />
+      <div className="mb-3 flex min-h-6 flex-wrap items-center gap-x-4 gap-y-1">
+        {parent && (
+          <button type="button" onClick={() => onCrumb(parent.steps)} className="inline-flex items-center gap-1 text-small font-semibold text-ink hover:underline">
+            <ChevronLeft aria-hidden className="size-4" />
+            {parent.label}
+          </button>
+        )}
+        {crumbs && crumbs.length > 2 && (
+          <nav aria-label={t("chart.crumbs")} className="flex items-center gap-1 text-small text-muted">
+            {crumbs.map((c, i) => (
+              <span key={i} className="inline-flex items-center gap-1">
+                {i > 0 && <span aria-hidden>›</span>}
+                {i < crumbs.length - 1 ? (
+                  <button type="button" onClick={() => onCrumb(c.steps)} className="hover:text-ink hover:underline">
+                    {c.label}
+                  </button>
+                ) : (
+                  <span aria-current="page" className="text-ink">
+                    {c.label}
+                  </span>
+                )}
+              </span>
+            ))}
+          </nav>
+        )}
+        <h2 className="text-eyebrow uppercase text-(--adm-label)">{title}</h2>
+        {onOpen && <span className="text-small text-muted">{t("chart.openHint")}</span>}
       </div>
       <div ref={box}>
-        {mode === "profit" && (
-          <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_160px]">
-            <ProfitChart data={data} label={t("move")} milestoneLabel={t("milestones.move")} fixedTop={axisTop} height={height} />
-            <MilestoneLadder current={current} height={height} />
-          </div>
-        )}
-        {mode === "nights" && <CountBars data={series.map((r) => ({ label: monthLabel(r.month), value: r.sharedNights }))} label={t("northStar")} unit={t("chart.nights")} height={height} />}
-        {mode === "compare" && <CompareChart series={series} height={height} />}
+        <DrillChart
+          bars={bars}
+          label={title}
+          height={height}
+          running={t("chart.running")}
+          line={months ? { value: MOVE_TARGET.profitPerMonth, label: `${t("milestones.move")} ${eur(MOVE_TARGET.profitPerMonth)}` } : null}
+          onOpen={onOpen}
+          below={days ? (bar) => <DayEvents events={(bar as { events?: { requests: number; paid: number; houses: number } }).events} /> : undefined}
+        />
       </div>
+      <MilestoneBar current={current} />
     </section>
   );
 });
 
-type SeriesKey = "bookingVolume" | "sharedNights" | "profit" | "activeUsers" | "repeatRate";
-/** Alles im Vergleich: colours chart-1 to chart-3, sage and slate (plum is chart-2 already), each real value in the tooltip. */
-const COMPARE: readonly { key: SeriesKey; color: string; format: (v: number) => string }[] = [
-  { key: "bookingVolume", color: "var(--adm-chart-1)", format: eur },
-  { key: "sharedNights", color: "var(--adm-chart-2)", format: num },
-  { key: "profit", color: "var(--adm-chart-3)", format: eur },
-  { key: "activeUsers", color: "var(--adm-chart-4)", format: num },
-  { key: "repeatRate", color: "var(--adm-chart-5)", format: pct },
-];
-
-/** Every series as an index (its first month = 100), so they share one axis; the tooltip shows the real values. */
-function CompareChart({ series, height }: { series: ReturnType<typeof monthlySeries>; height: number }) {
-  const t = useTranslations("admin.cockpit.chart");
-  const bases = Object.fromEntries(COMPARE.map((c) => [c.key, series.find((r) => r[c.key] !== null && r[c.key]! > 0)?.[c.key] ?? null])) as Record<SeriesKey, number | null>;
-  const data = series.map((r) => ({
-    label: monthLabel(r.month),
-    ...Object.fromEntries(COMPARE.map((c) => [c.key, r[c.key] !== null && bases[c.key] ? Math.round((r[c.key]! / bases[c.key]!) * 100) : null])),
-  }));
-  const raw = (label: string, key: string) => series.find((r) => monthLabel(r.month) === label)?.[key as SeriesKey] ?? null;
-  return <LinesChart data={data} series={COMPARE.map((c) => ({ ...c, label: t(`series.${c.key}`) }))} label={t("compareTitle")} yFormat={(v) => num(v)} raw={raw} reference={100} height={height} />;
+/** Under a day's bar: what happened – new requests, paid stays, new Houses (only what is above 0; nothing: "–"). */
+function DayEvents({ events }: { events?: { requests: number; paid: number; houses: number } }) {
+  const t = useTranslations("admin.cockpit.chart.events");
+  if (!events) return null;
+  const lines = [events.requests > 0 && t("requests", { count: events.requests }), events.paid > 0 && t("paid", { count: events.paid }), events.houses > 0 && t("houses", { count: events.houses })].filter(Boolean);
+  return <p className="mt-1 text-small text-muted">{lines.length ? lines.map((l) => <span key={String(l)} className="block truncate">{l}</span>) : "–"}</p>;
 }
 
 /**
- * The milestone ladder beside the chart (config/admin.ts profitMilestones.ladder), top = highest: reached steps a sage circle, the next one a
- * ring with its progress in percent, the rest empty circles; a thin line joins them. Below "Du: X €" (profit this month).
+ * The milestones as one slim bar under the chart (config/admin.ts profitMilestones.ladder): the next step "Umzug 5.000 € · 88 %" with its
+ * progress bar, beside it the step after that, muted ("10.000 €").
  */
-function MilestoneLadder({ current, height }: { current: number; height: number }) {
+function MilestoneBar({ current }: { current: number }) {
   const t = useTranslations("admin.cockpit");
   const steps = profitMilestones.ladder;
-  const next = steps.find((s) => current < s.value);
+  const i = steps.findIndex((s) => current < s.value);
+  const next = i >= 0 ? steps[i] : null;
+  const after = i >= 0 ? steps[i + 1] : null;
+  if (!next) return <p className="mt-(--adm-inner) text-small font-semibold text-ink">{t("ladder.allReached", { value: eur(steps.at(-1)!.value) })}</p>;
+  const ratio = Math.min(1, current / next.value);
+  const name = next.key ? `${t(`milestones.${next.key}`)} ` : "";
   return (
-    // Compact: as high as the chart, the steps spread over it.
-    <div className="flex flex-col" style={{ height }}>
-      <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("ladder.title")}</h3>
-      <ol className="relative mt-3 flex flex-1 flex-col-reverse justify-between gap-2">
-        <span aria-hidden className="absolute bottom-2 left-[7px] top-2 w-px bg-ink/10" />
-        {steps.map((s) => {
-          const reached = current >= s.value;
-          const isNext = s === next;
-          return (
-            <li key={s.value} className="relative flex items-center gap-3">
-              <span
-                aria-hidden
-                className={cn("size-[15px] shrink-0 rounded-full", reached ? "bg-adm-good" : isNext ? "border-2 border-ink/70 bg-bg" : "border border-ink/20 bg-bg")}
-              />
-              <span className="min-w-0 text-small">
-                <span className={cn("tabular-nums", reached || isNext ? "font-semibold text-ink" : "text-muted")}>{eur(s.value)}</span>
-                {s.key && <span className="text-muted"> · {t(`milestones.${s.key}`)}</span>}
-                {reached && <span className="sr-only"> · {t("ladder.reached")}</span>}
-                {isNext && <span className="block text-muted">{t("ladder.next", { percent: pct(Math.floor((current / s.value) * 100)) })}</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      <p className="mt-3 text-small font-semibold tabular-nums text-ink">{t("ladder.you", { value: eur(current) })}</p>
+    <div className="mt-(--adm-inner) flex items-center gap-x-6 gap-y-2 max-md:flex-wrap">
+      <span className="shrink-0 text-small font-semibold tabular-nums text-ink">
+        {name}
+        {eur(next.value)} · {pct(Math.floor(ratio * 100))}
+      </span>
+      <ProgressBar ratio={ratio} label={`${name}${eur(next.value)}`} className="min-w-40 flex-1" />
+      {after && <span className="shrink-0 text-small tabular-nums text-muted">{t("ladder.after", { value: `${after.key ? `${t(`milestones.${after.key}`)} ` : ""}${eur(after.value)}` })}</span>}
     </div>
-  );
-}
-
-/** "● 30 offen im Posteingang →" – one line into the Posteingang; the ember dot only when something is open. */
-function InboxLine({ open }: { open: number }) {
-  const t = useTranslations("admin.cockpit");
-  return (
-    <Link href="/admin/posteingang" className="group inline-flex items-center gap-2 text-body text-ink hover:underline">
-      {open > 0 && <span aria-hidden className="size-2 shrink-0 rounded-full bg-adm-critical" />}
-      {open > 0 ? t("inboxLine", { count: open }) : t("inboxEmpty")}
-      <ArrowRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
-    </Link>
   );
 }
 
@@ -287,8 +320,7 @@ export function AdminMoney({ initialView = "overview" }: { initialView?: "overvi
   // Two views in one tab: Übersicht · Steuern. /admin/money/taxes opens Steuern (the links from "Heute" and Vision › Standort).
   const [view, setView] = useState<"overview" | "taxes">(initialView);
   return (
-    <AdminShell title={t("title")}>
-      <CapsuleGroup label={t("views.label")} value={view} onChange={setView} className="mb-10 w-fit" options={(["overview", "taxes"] as const).map((value) => ({ value, content: t(`views.${value}`) }))} />
+    <AdminShell title={t("title")} tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "taxes"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}>
       {view === "taxes" ? <AdminTaxes /> : <MoneyOverview />}
     </AdminShell>
   );

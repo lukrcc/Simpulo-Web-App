@@ -1,0 +1,57 @@
+# Breiten-Test (docs/BREITEN-TEST.md): on every push to main, all pages of src/config/test-routes.ts at every width of the check matrix.
+# The report and the screenshots land as the artifact "breiten-test" on the run's page. Errors mark the run red (and a warning per page),
+# but nothing waits for it: no other workflow depends on this one, so the push and any deployment go ahead.
+name: Breiten-Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: breiten-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  breiten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Chromium für Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Ortsbilder-Liste (wie vor dev und build)
+        run: npx tsx scripts/sync-destination-images.ts
+
+      # Starts its own dev server in the demo mode with a one-time password (nothing secret needed). Red on errors – the steps after it
+      # still run (if: always()), so the artifact is there either way.
+      - name: Breiten-Test
+        run: npm run test:breiten
+
+      - name: Ergebnis hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breiten-test
+          path: test-results/breiten/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Bericht in die Zusammenfassung
+        if: always()
+        run: |
+          if [ -f test-results/breiten/bericht.md ]; then
+            sed -n '1,/^## Einzeln/p' test-results/breiten/bericht.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Kein Bericht – der Test ist vorher abgebrochen (siehe Log)." >> "$GITHUB_STEP_SUMMARY"
+          fi

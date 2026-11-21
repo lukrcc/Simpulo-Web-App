@@ -16,10 +16,19 @@ export type ChannelStatus = "now" | "later" | "no";
 export const CHANNEL_STATUSES: readonly ChannelStatus[] = ["now", "later", "no"];
 
 /**
- * The channels by leverage, 1–8, each with its classification and status. TODO: aus dem Marketing-Plan (Stand 19.11.2026) übernehmen –
- * the plan's channel list wasn't part of the brief, so nothing is made up here. Shape: { rank, name, note, status }.
+ * The channels by leverage, 1–8 (Marketing-Plan): name, its tools and status – jetzt · später · nein. Tools only where the plan names them;
+ * `note` (the classification) only where the plan gives one – nothing is made up, an empty field simply isn't shown.
  */
-export const MARKETING_CHANNELS: readonly { rank: number; name: string; note: string; status: ChannelStatus }[] = [];
+export const MARKETING_CHANNELS: readonly { rank: number; name: string; tools: readonly string[]; note: string; status: ChannelStatus }[] = [
+  { rank: 1, name: "Hosts direkt gewinnen", tools: [], note: "", status: "now" },
+  { rank: 2, name: "House-Link als Werbemittel", tools: [], note: "", status: "now" },
+  { rank: 3, name: "Echte Houses filmen", tools: [], note: "", status: "now" },
+  { rank: 4, name: "Reels, TikTok, Shorts", tools: ["Instagram Reels", "TikTok", "YouTube Shorts"], note: "", status: "now" },
+  { rank: 5, name: "Kleine Creator pro gefülltem House bezahlen", tools: [], note: "", status: "later" },
+  { rank: 6, name: "SEO und KI-Suche", tools: [], note: "", status: "later" },
+  { rank: 7, name: "Communities", tools: ["Skool", "Discord", "Reddit"], note: "", status: "now" },
+  { rank: 8, name: "Bezahlte Anzeigen", tools: [], note: "", status: "no" },
+];
 
 /** The timeline; `from` (YYYY-MM) is when a phase begins – the page marks the one today falls in. */
 export const MARKETING_TIMELINE = [
@@ -29,8 +38,15 @@ export const MARKETING_TIMELINE = [
   { key: "launch", label: "50+ und Launch", when: "danach", from: "2027-05" },
 ] as const;
 
-/** The next steps, ticked off on the page (AdminData.marketingSteps, logged). TODO: aus dem Marketing-Plan übernehmen – not in the brief. */
-export const MARKETING_NEXT_STEPS: readonly { id: string; text: string }[] = [];
+/** The next steps (Marketing-Plan), ticked off on the page (AdminData.marketingSteps, logged); `due` as the plan says it. Ids stay stable. */
+export const MARKETING_NEXT_STEPS: readonly { id: string; text: string; due: string }[] = [
+  { id: "landing", text: "Landingpage öffentlich, Gründer-Abschnitt, Benachrichtigungsfeld", due: "bis Januar" },
+  { id: "series", text: "Cast, 10 Skripte, 2D-Testfolge", due: "bis Januar" },
+  { id: "communities", text: "In 2–3 Communities mitlesen, 15 Min. täglich", due: "ab jetzt" },
+  { id: "contacts", text: "Kontaktliste und Erstnachricht pro Nische", due: "bis Januar" },
+  { id: "loops", text: "House Memories und Gratis-Schleifen ins Produkt", due: "mit Firebase" },
+  { id: "partner", text: "Einen Partner für das erste House gewinnen", due: "Februar" },
+];
 
 /** The funnel's assumptions, each as a share of the contacts written to (from – to). */
 export const FUNNEL_ASSUMPTIONS = {
@@ -49,7 +65,7 @@ export const CONTACT_CHANNELS = ["Instagram", "TikTok", "YouTube", "LinkedIn", "
 
 /** Content › the shot list for a House. */
 export const SHOT_LIST = ["Ankunft", "Rundgang", "Essen", "Arbeiten", "Abschied"] as const;
-/** Content › the 2D series: the cast (4–5 types – TODO: aus dem Plan; not in the brief), the build of a clip, the clips before approaching hosts. */
+/** Content › the 2D series: the cast (4–5 types – they come with the next step "Cast, 10 Skripte, 2D-Testfolge"), the build of a clip, the clips before approaching hosts. */
 export const SERIES_CAST: readonly string[] = [];
 export const SERIES_CAST_SIZE = { from: 4, to: 5 } as const;
 export const SERIES_STRUCTURE = ["Hook", "Situation", "Twist", "Schlussbild"] as const;

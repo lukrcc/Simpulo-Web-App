@@ -69,7 +69,7 @@ function InboxContent() {
   const t = useTranslations("messages.inbox");
   const store = useStore();
   const me = store.currentUserId;
-  // List and chat side by side from 768px (Tablet and Desktop); phones: the list, a chat opens as its own page.
+  // List and chat side by side from 744px (Tablet and Desktop); phones: the list, a chat opens as its own page.
   const isDesktop = useMediaQuery(MEDIA.tabletUp);
   const params = useSearchParams();
   const selectedId = params.get("id");
@@ -189,7 +189,7 @@ function InboxContent() {
           <div className="md:scroll-pane md:-mr-3 md:min-h-0 md:flex-1 md:pr-3 md:pt-1">{chats}</div>
         </>
       }
-      // Mounted from 768px only: on phones it would mark the chat as read without anyone seeing it.
+      // Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
     />
   );

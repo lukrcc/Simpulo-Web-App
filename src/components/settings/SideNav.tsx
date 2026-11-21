@@ -52,7 +52,7 @@ export function SideNav({
         {items.map(({ key, href, label: text, icon: Icon, selected, current, badge }) => {
           const linkClass = cn(
             listItemStyles(selected),
-            compact ? "flex h-(--sidebar-item-h,36px) items-center gap-3 px-3 text-nav-side" : "flex h-11 items-center gap-3 px-4 text-body",
+            compact ? "flex h-(--sidebar-item-h,36px) items-center gap-2.5 px-3 text-nav-side" : "flex h-11 items-center gap-3 px-4 text-body",
             selected ? "font-semibold text-ink" : "text-ink/70",
             plain && "max-lg:border-transparent max-lg:font-normal max-lg:text-ink/70",
           );

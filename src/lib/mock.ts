@@ -83,7 +83,8 @@ export interface User extends Attribution {
   settings?: UserSettings;  // unset = defaults (everything on, nobody blocked)
   /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
   /** Settings › Privacy (config/privacy.ts, lib/privacy.ts): House pages, age, the photo until accepted, the host page in search engines */
-  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean };
+  /** `paused`: Settings › Privacy & safety › Your data › Pause account – profile and Houses invisible to others, nothing deleted (pausedAt: when) */
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string };
   deletedAt?: string;       // mock "Delete account"
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
    *  Security Rules and a check in every Function – this field only decides what the UI shows. */
@@ -416,6 +417,12 @@ export interface JoinRequest extends Attribution {
   reserved?: true;
   /** A friend's request: the request (id) that brought them along */
   pairedWith?: string;
+  /**
+   * Out of the House after being in (status "declined"): the host removed them, or the 48 hours to pay ran out. Kept (not deleted), so the
+   * guest still sees their House area with its own note in "Me" – and a line in Messages (the direct chat with the host).
+   */
+  endedReason?: "removed" | "paymentLapsed";
+  endedAt?: string;
 }
 
 export type MessageType = 'text' | 'image' | 'link' | 'system';
@@ -465,7 +472,9 @@ export interface Message {
  */
 export type SystemEventKey =
   | 'joined' | 'left' | 'removed' | 'closed' | 'crewComplete' | 'bookingConfirmed' | 'addressShared' | 'refund'
-  | 'searchHouseOpened' | 'accommodationDecided' | 'datesDecided' | 'paymentLapsed';
+  | 'searchHouseOpened' | 'accommodationDecided' | 'datesDecided' | 'paymentLapsed'
+  /** To the guest alone, in the direct chat with the host: they were removed / their 48 hours to pay ran out */
+  | 'youWereRemoved' | 'yourPaymentLapsed';
 export interface MessageEvent {
   key: SystemEventKey;
   values: Record<string, string | number>;

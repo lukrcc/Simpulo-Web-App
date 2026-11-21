@@ -18,7 +18,7 @@ import { answersSlowly, responseRate } from "@/lib/requests";
 import { findUser, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { housePhotos } from "@/lib/utils";
-import { HouseRequests } from "./HouseDetail";
+import { HouseRequests } from "./HouseManageParts";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 

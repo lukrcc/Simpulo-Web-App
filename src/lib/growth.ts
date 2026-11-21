@@ -24,13 +24,15 @@ export function attributionFromUrl(url: URL): Attribution | null {
   // A marketing contact's demo link (?ref=mc-…, Admin › Marketing) is no person's share link: it counts as the source "creator-demo",
   // never as a referring user.
   const ref = clean(url.searchParams.get(REF_PARAM));
+  // …and a partner's own link (?ref=mp-…, Admin › Marketing › Partner) counts as the source "partner", the code as the campaign.
   const contactRef = ref?.startsWith("mc-") ?? false;
+  const partnerRef = ref?.startsWith("mp-") ?? false;
   const attribution: Attribution = {
-    refUserId: contactRef ? undefined : ref,
+    refUserId: contactRef || partnerRef ? undefined : ref,
     // ?src= (an invite: src=invite, the QR cards: src=qr) counts as the source when there's no utm_source.
-    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource) ?? url.searchParams.get(SRC_PARAM)) ?? (contactRef ? "creator-demo" : undefined),
+    utmSource: clean(url.searchParams.get(UTM_PARAMS.utmSource) ?? url.searchParams.get(SRC_PARAM)) ?? (contactRef ? "creator-demo" : partnerRef ? "partner" : undefined),
     utmMedium: clean(url.searchParams.get(UTM_PARAMS.utmMedium)),
-    utmCampaign: clean(url.searchParams.get(UTM_PARAMS.utmCampaign)) ?? (contactRef ? ref : undefined),
+    utmCampaign: clean(url.searchParams.get(UTM_PARAMS.utmCampaign)) ?? (contactRef || partnerRef ? ref : undefined),
   };
   return Object.values(attribution).some(Boolean) ? withoutEmpty(attribution) : null;
 }

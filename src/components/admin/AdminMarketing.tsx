@@ -4,13 +4,15 @@
 // from the admin data (lib/admin/store.ts; Firestore marketingContacts later – admins only, firestore.rules), every number from
 // lib/admin/metrics.ts (marketing*), every change through useAdminActions (logged). German, dark, the admin's tokens.
 import { Check, Copy, Minus, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminSection, AdminShell } from "@/components/admin/AdminShell";
 import { AdminListDetail, AdminSort, AdminTabs, BackToList, type AdminTab } from "@/components/admin/AdminLayout";
 import { ProgressBar, StatusDot } from "@/components/admin/AdminCharts";
 import { InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
 import { Button } from "@/components/ui/ActionButton";
+import { Img } from "@/components/ui/Img";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -38,13 +40,15 @@ import { download } from "@/lib/admin/exporters";
 import { tableCsv } from "@/lib/admin/exporters/csv";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import type { MarketingContact, MarketingContactStatus, MarketingContactWay } from "@/lib/data";
+import type { MarketingContact, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "@/lib/data";
+import { PartnerControls, Partners, type PartnerFilters } from "@/components/admin/AdminPartners";
 import { compact, day, num, share } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
-import { cn } from "@/lib/utils";
+import { cn, housePhotos } from "@/lib/utils";
+import { findUser, useStore } from "@/lib/store";
 
-type Tab = "plan" | "contacts" | "funnel" | "content" | "loops";
-const TABS: readonly Tab[] = ["plan", "contacts", "funnel", "content", "loops"];
+type Tab = "plan" | "contacts" | "partners" | "funnel" | "content" | "loops";
+const TABS: readonly Tab[] = ["plan", "contacts", "partners", "funnel", "content", "loops"];
 const STATUSES: readonly MarketingContactStatus[] = ["open", "replied", "demo", "house", "later"];
 const WAYS: readonly MarketingContactWay[] = ["email", "dm", "form"];
 
@@ -61,9 +65,50 @@ export function AdminMarketing() {
   const [status, setStatus] = useState<MarketingContactStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const actions = useAdminActions();
+  // Partner: filters and the open one.
+  const [partnerFilters, setPartnerFilters] = useState<PartnerFilters>({ kind: "all", ladder: "all", due: "all" });
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  // Links from the Posteingang and between the tabs: ?tab=partners&partner=… · ?tab=contacts&contact=… – read once on arrival.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const wanted = params.get("tab");
+    if (wanted !== "partners" && wanted !== "contacts") return;
+    requestAnimationFrame(() => {
+      setTab(wanted);
+      if (wanted === "partners") setPartnerId(params.get("partner"));
+      else setSelectedId(params.get("contact"));
+    });
+  }, []);
+  const partners = data.marketingPartners;
+  const toPartner = (contact: MarketingContact) => {
+    const existing = partners.find((p) => p.contactId === contact.id);
+    const partner = existing ?? actions.partnerFromContact(contact);
+    setTab("partners");
+    setPartnerFilters({ kind: "all", ladder: "all", due: "all" });
+    setPartnerId(partner.id);
+  };
+  const addPartner = () => {
+    const added = actions.addPartner({
+      contactId: null,
+      name: t("partners.newName"),
+      kind: partnerFilters.kind !== "all" ? partnerFilters.kind : "creator",
+      reach: 0,
+      channels: [],
+      ladder: 1,
+      foundingHost: false,
+      hostUserId: null,
+      agreement: { sharePercent: 0, from: null, to: null, payoutAfterPaidStay: true, contentRights: "", collabPosts: false, contractUrl: "", status: "draft" },
+      houseIds: [],
+      content: { planned: 0, delivered: 0, approved: 0 },
+      notes: [],
+      nextStep: null,
+    });
+    setPartnerFilters({ kind: "all", ladder: "all", due: "all" });
+    setPartnerId(added.id);
+  };
   const niches = useMemo(() => [...new Set(contacts.map((c) => c.niche))].toSorted(), [contacts]);
 
-  const tabs: AdminTab<Tab>[] = TABS.map((value) => ({ value, label: t(`tabs.${value}`), count: value === "contacts" ? contacts.length : undefined }));
+  const tabs: AdminTab<Tab>[] = TABS.map((value) => ({ value, label: t(`tabs.${value}`), count: value === "contacts" ? contacts.length : value === "partners" ? partners.length : undefined }));
   const tc = useTranslations("admin.marketing.contacts");
   const addContact = () => {
     const added = actions.addMarketingContact({
@@ -103,12 +148,15 @@ export function AdminMarketing() {
           {tc("add")}
         </Button>
       </div>
+    ) : tab === "partners" ? (
+      <PartnerControls filters={partnerFilters} onFilters={setPartnerFilters} partners={partners} onAdd={addPartner} />
     ) : undefined;
 
   return (
     <AdminShell title={t("title")} tabs={<AdminTabs label={t("title")} tabs={tabs} value={tab} onChange={setTab} />} aside={controls}>
       {tab === "plan" && <Plan />}
-      {tab === "contacts" && <Contacts contacts={contacts} niche={niche} status={status} selectedId={selectedId} onSelect={setSelectedId} />}
+      {tab === "contacts" && <Contacts contacts={contacts} niche={niche} status={status} selectedId={selectedId} onSelect={setSelectedId} partnerOf={(id) => partners.find((p) => p.contactId === id) ?? null} onToPartner={toPartner} />}
+      {tab === "partners" && <Partners partners={partners} filters={partnerFilters} selectedId={partnerId} onSelect={setPartnerId} />}
       {tab === "funnel" && <Funnel contacts={contacts} />}
       {tab === "content" && <Content clips={data.marketingClips} />}
       {tab === "loops" && <Loops />}
@@ -159,16 +207,14 @@ function Plan() {
       </AdminSection>
 
       <AdminSection title={t("channels")}>
-        {MARKETING_CHANNELS.length === 0 ? (
-          <p className="text-body text-muted">{t("channelsEmpty")}</p>
-        ) : (
+        {MARKETING_CHANNELS.length > 0 && (
           <ol className="divide-y divide-ink/8 border-y border-ink/8">
             {MARKETING_CHANNELS.toSorted((a, b) => a.rank - b.rank).map((c) => (
               <li key={c.rank} className="flex min-h-(--adm-row-h) items-center gap-4 py-2">
                 <span className="w-6 shrink-0 tabular-nums text-muted">{c.rank}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-semibold text-ink">{c.name}</span>
-                  <span className="block truncate text-small text-muted">{c.note}</span>
+                  {(c.tools.length > 0 || c.note) && <span className="block truncate text-small text-muted">{[c.tools.join(", "), c.note].filter(Boolean).join(" · ")}</span>}
                 </span>
                 <span className={cn("shrink-0 text-small", c.status === "now" ? "font-semibold text-ink" : "text-muted")}>{t(`channelStatus.${c.status}`)}</span>
               </li>
@@ -193,9 +239,7 @@ function Plan() {
       </AdminSection>
 
       <AdminSection title={t("steps")} aside={MARKETING_NEXT_STEPS.length > 0 ? <span className="text-small text-muted">{t("stepsDone", { done, total: MARKETING_NEXT_STEPS.length })}</span> : undefined}>
-        {MARKETING_NEXT_STEPS.length === 0 ? (
-          <p className="text-body text-muted">{t("stepsEmpty")}</p>
-        ) : (
+        {MARKETING_NEXT_STEPS.length > 0 && (
           <ul className="divide-y divide-ink/8 border-y border-ink/8">
             {MARKETING_NEXT_STEPS.map((step) => {
               const on = Boolean(data.marketingSteps[step.id]);
@@ -203,7 +247,8 @@ function Plan() {
                 <li key={step.id}>
                   <label className="flex min-h-(--adm-row-h) cursor-pointer items-center gap-3 py-2">
                     <input type="checkbox" checked={on} onChange={(e) => actions.setMarketingStep(step.id, step.text, e.target.checked)} className="size-4 accent-(--text)" />
-                    <span className={cn("text-body", on ? "text-muted line-through" : "text-ink")}>{step.text}</span>
+                    <span className={cn("min-w-0 flex-1 text-body", on ? "text-muted line-through" : "text-ink")}>{step.text}</span>
+                    <span className="shrink-0 text-small text-muted">{step.due}</span>
                   </label>
                 </li>
               );
@@ -220,7 +265,7 @@ function Plan() {
 /** The status as a dot: House opened good, demo seen and replied neutral steps, later grey, open none. */
 const statusDot = (s: MarketingContactStatus): Status | null => (s === "house" ? "good" : s === "demo" ? "warning" : null);
 
-function Contacts({ contacts, niche, status, selectedId, onSelect }: { contacts: readonly MarketingContact[]; niche: string; status: MarketingContactStatus | "all"; selectedId: string | null; onSelect: (id: string | null) => void }) {
+function Contacts({ contacts, niche, status, selectedId, onSelect, partnerOf, onToPartner }: { contacts: readonly MarketingContact[]; niche: string; status: MarketingContactStatus | "all"; selectedId: string | null; onSelect: (id: string | null) => void; partnerOf: (contactId: string) => MarketingPartner | null; onToPartner: (contact: MarketingContact) => void }) {
   const t = useTranslations("admin.marketing.contacts");
   const shown = contacts.filter((c) => (niche === "all" || c.niche === niche) && (status === "all" || c.status === status));
   const selected = contacts.find((c) => c.id === selectedId) ?? null;
@@ -238,7 +283,7 @@ function Contacts({ contacts, niche, status, selectedId, onSelect }: { contacts:
       selectedId={selected?.id ?? null}
       onSelect={onSelect}
       empty={<p className="text-body text-muted">{t("empty")}</p>}
-      detail={selected ? <ContactDetail key={selected.id} contact={selected} onBack={() => onSelect(null)} onDeleted={() => onSelect(null)} /> : <p className="text-body text-muted">{t("pick")}</p>}
+      detail={selected ? <ContactDetail key={selected.id} contact={selected} onBack={() => onSelect(null)} onDeleted={() => onSelect(null)} isPartner={partnerOf(selected.id) !== null} onToPartner={() => onToPartner(selected)} /> : <p className="text-body text-muted">{t("pick")}</p>}
     />
   );
 }
@@ -255,7 +300,8 @@ function Field({ label, info, children }: { label: string; info?: string; childr
   );
 }
 
-function ContactDetail({ contact, onBack, onDeleted }: { contact: MarketingContact; onBack: () => void; onDeleted: () => void }) {
+function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: { contact: MarketingContact; onBack: () => void; onDeleted: () => void; isPartner: boolean; onToPartner: () => void }) {
+  const tPartners = useTranslations("admin.marketing.partners");
   const t = useTranslations("admin.marketing.contacts");
   const actions = useAdminActions();
   // Text fields keep their own draft and save when left (one log line per change, not per key).
@@ -276,6 +322,10 @@ function ContactDetail({ contact, onBack, onDeleted }: { contact: MarketingConta
   return (
     <div data-marketing-contact={contact.id} className="flex flex-col gap-5">
       <BackToList onBack={onBack} />
+      {/* A contact that turns into a collaboration: its data over to Partner, the contact linked back. */}
+      <Button size="sm" variant="secondary" className="self-start" onClick={onToPartner}>
+        {isPartner ? tPartners("isPartner") : tPartners("fromContact")}
+      </Button>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("fields.name")}>
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onBlur={() => commit("name")} />
@@ -335,9 +385,7 @@ function ContactDetail({ contact, onBack, onDeleted }: { contact: MarketingConta
             {locked && <InfoTip text={t("launchMailLocked")} />}
           </span>
           {/* Locked without consent – "later" without consent can't get the launch mail. */}
-          <span className={cn(locked && "pointer-events-none")} aria-disabled={locked || undefined}>
-            <Switch on={Boolean(contact.launchMail) && !locked} label={t("fields.launchMail")} onChange={(on) => !locked && save({ launchMail: on }, "launchMail")} />
-          </span>
+          <Switch disabled={locked} on={Boolean(contact.launchMail) && !locked} label={t("fields.launchMail")} onChange={(on) => !locked && save({ launchMail: on }, "launchMail")} />
         </div>
       </div>
       <Field label={t("fields.demoLink")} info={t("demoInfo")}>
@@ -467,6 +515,36 @@ function Funnel({ contacts }: { contacts: readonly MarketingContact[] }) {
 
 // ─── Content ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+/** Houses kept for content (Admin › Houses › Läuft gut → "Für Content vormerken"), newest first – photo, title, the day it was kept. */
+function ContentHouses() {
+  const t = useTranslations("admin.marketing.content");
+  const data = useAdminData();
+  const store = useStore();
+  const kept = data.contentHouses.flatMap((c) => {
+    const stay = store.stays.find((s) => s.id === c.stayId);
+    return stay ? [{ stay, at: c.at }] : [];
+  });
+  return (
+    <AdminSection title={t("houses")}>
+      {kept.length === 0 ? (
+        <p className="text-body text-muted">{t("housesNone")}</p>
+      ) : (
+        <ul className="divide-y divide-ink/8 border-y border-ink/8">
+          {kept.map(({ stay, at }) => (
+            <li key={stay.id} className="flex min-h-(--adm-row-h) items-center gap-3 py-2">
+              <Img src={housePhotos(stay, findUser(store, stay.hostId))[0]} alt="" width={36} height={36} className="size-9 shrink-0 rounded-lg object-cover" />
+              <Link href={`/admin/houses?house=${stay.id}`} className="min-w-0 flex-1 truncate text-body text-ink hover:underline">
+                {stay.title}
+              </Link>
+              <span className="shrink-0 text-small text-muted">{day(at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </AdminSection>
+  );
+}
+
 function Content({ clips }: { clips: number }) {
   const t = useTranslations("admin.marketing.content");
   const actions = useAdminActions();
@@ -481,11 +559,12 @@ function Content({ clips }: { clips: number }) {
           ))}
         </ol>
       </AdminSection>
+      <ContentHouses />
       <AdminSection title={t("series")}>
         <div className="grid gap-(--adm-section) md:grid-cols-3">
           <div>
             <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("cast")}</p>
-            {SERIES_CAST.length === 0 ? <p className="text-body text-muted">{t("castEmpty", { from: SERIES_CAST_SIZE.from, to: SERIES_CAST_SIZE.to })}</p> : <ul className="space-y-1 text-body text-ink">{SERIES_CAST.map((c) => <li key={c}>{c}</li>)}</ul>}
+            {SERIES_CAST.length === 0 ? <p className="text-body text-muted">{t("castPending", { from: SERIES_CAST_SIZE.from, to: SERIES_CAST_SIZE.to })}</p> : <ul className="space-y-1 text-body text-ink">{SERIES_CAST.map((c) => <li key={c}>{c}</li>)}</ul>}
           </div>
           <div>
             <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("structure")}</p>

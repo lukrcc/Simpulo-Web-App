@@ -14,7 +14,7 @@ const CLOSE_SPEED = 0.5;
 let openCount = 0;
 
 /**
- * Phones' sheet from the bottom (< 768px): what opens as a popover or a menu on a larger screen – the account menu, "Where to next?",
+ * Phones' sheet from the bottom (< 744px): what opens as a popover or a menu on a larger screen – the account menu, "Where to next?",
  * every ⋯ menu, the bar's sheets, sort and filter dropdowns, small confirmations. It takes the tone of the surface it comes from
  * (CLAUDE.md "Menüs nehmen den Ton der Fläche an"): `tone="dark"` the header's graphite glass (.bar-sheet), `tone="light"` the light milk
  * glass (.glass-panel). Top corners round (24), a grip, the bottom safe area kept free, at most 85 % high, scrolling inside. It slides up

@@ -36,7 +36,7 @@ const axisWidth = (max: number) => 24 + Math.max(1, num(Math.round(max)).length)
 function ChartTooltip({ active, payload, label, unit }: { active?: boolean; payload?: { value?: number }[]; label?: string; unit?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-ink/85 px-2.5 py-1.5 text-small text-inverse backdrop-blur-sm">
+    <div className="tooltip-box">
       <span className="text-inverse/70">{label}</span> · <span className="font-semibold">{typeof payload[0].value === "number" ? num(payload[0].value) : payload[0].value}</span>
       {unit && ` ${unit}`}
     </div>
@@ -148,7 +148,7 @@ export function profitAxis(max: number, fixed?: number | null): { top: number; t
 function ProfitTooltip({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) {
   if (!active || !payload?.length || typeof payload[0].value !== "number") return null;
   return (
-    <div className="rounded-lg bg-ink/85 px-2.5 py-1.5 text-small text-inverse">
+    <div className="tooltip-box">
       {label} · <span className="font-semibold">{eur(payload[0].value)}</span>
     </div>
   );
@@ -172,6 +172,8 @@ export const ProfitChart = memo(function ProfitChart({
   milestoneLabel,
   fixedTop = null,
   height = 320,
+  target = null,
+  showLine = true,
 }: {
   data: readonly ChartPoint[];
   label: string;
@@ -180,10 +182,18 @@ export const ProfitChart = memo(function ProfitChart({
   /** A fixed top for the value axis; null = it grows with the data */
   fixedTop?: number | null;
   height?: number;
+  /**
+   * The move on another period (the overview's Tag · Woche · Quartal · Jahr – €5,000 a month scaled, metrics.ts periodTarget): bars below it
+   * amber, from it sage, the line at it, a calm axis above both (niceAxis). null = per month (the milestone axis).
+   */
+  target?: number | null;
+  /** The line at the target (off for days – too restless) */
+  showLine?: boolean;
 }) {
-  const rows = useMemo(() => data.map((d) => ({ ...d, good: getStatus("profitPerMonth", d.value) === "good" })), [data]);
-  const { top, ticks } = useMemo(() => profitAxis(Math.max(0, ...data.map((d) => d.value)), fixedTop), [data, fixedTop]);
-  const lines = profitMilestones.lines.filter((m) => m.value <= top);
+  const rows = useMemo(() => data.map((d) => ({ ...d, good: target === null ? getStatus("profitPerMonth", d.value) === "good" : d.value >= target })), [data, target]);
+  const max = Math.max(0, ...data.map((d) => d.value));
+  const { top, ticks } = useMemo(() => (target === null ? profitAxis(max, fixedTop) : niceAxis(Math.max(max, showLine ? target * 1.1 : 0))), [max, fixedTop, target, showLine]);
+  const lines = !showLine ? [] : target === null ? profitMilestones.lines.filter((m) => m.value <= top) : [{ key: "move", value: target }];
   return (
     <div role="img" aria-label={label} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -193,7 +203,7 @@ export const ProfitChart = memo(function ProfitChart({
           <YAxis tickLine={false} axisLine={false} tick={AXIS} width={24 + eur(top).length * 7.5} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} allowDataOverflow />
           <Tooltip cursor={PROFIT_CURSOR} content={PROFIT_TOOLTIP} isAnimationActive={false} />
           {lines.map((m) => (
-            <ReferenceLine key={m.key} y={m.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: milestoneLabel, position: "right", fontSize: 12, fill: "var(--text-muted)" }} />
+            <ReferenceLine key={m.key} y={m.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: milestoneLabel, position: "insideTopRight", fontSize: 12, fill: "var(--text-muted)" }} />
           ))}
           <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false}>
             {rows.map((d) => (
@@ -247,7 +257,7 @@ export interface LineSeries {
 function LinesTooltip({ active, payload, label, series, raw }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string; series: readonly LineSeries[]; raw?: (label: string, key: string) => number | null }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-ink/85 px-3 py-2 text-small text-inverse">
+    <div className="tooltip-box">
       <p className="mb-1 text-inverse/70">{label}</p>
       {series.map((s) => {
         const point = payload.find((p) => p.dataKey === s.key);
@@ -311,6 +321,121 @@ export const LinesChart = memo(function LinesChart({
           </li>
         ))}
       </ul>
+    </div>
+  );
+});
+
+
+// ── The overview's chart with drill-down ──────────────────────────────────────────────────────────────────────────────────────
+
+/** One bar of the overview's chart: its axis label (and a small second line), the tooltip's title and change, its tone. */
+export interface DrillBar {
+  key: string;
+  main: string;
+  sub: string | null;
+  /** The tooltip's title with full dates ("KW 36 · 1.–7. September 2026") */
+  title: string;
+  /** null: still ahead – no bar */
+  value: number | null;
+  /** The change against the period before, rendered by the caller (ChangeLine) */
+  change: ReactNode;
+  /** The running period: a lighter tone of the same colour with an outline, its axis says "läuft" */
+  current: boolean;
+  /** neutral (ocean) – or against the move's €5,000 in the months: good (sage) · warning (amber) */
+  tone: "neutral" | "good" | "warning";
+}
+
+const DRILL_FILL: Record<DrillBar["tone"], { normal: string; current: string; edge: string }> = {
+  neutral: { normal: "fill-adm-chart-1", current: "fill-(--adm-bar-current)", edge: "var(--adm-chart-1)" },
+  good: { normal: "fill-adm-good", current: "fill-(--adm-good-current)", edge: "var(--adm-good)" },
+  warning: { normal: "fill-adm-warning", current: "fill-(--adm-warning-current)", edge: "var(--adm-warning)" },
+};
+const DRILL_MARGIN = { top: 12, right: 56, bottom: 0, left: 0 } as const;
+
+function DrillTick({ x, y, payload, bars, running }: { x?: number; y?: number; payload?: { index: number }; bars: readonly DrillBar[]; running: string }) {
+  const bar = payload ? bars[payload.index] : undefined;
+  if (!bar || x === undefined || y === undefined) return null;
+  const sub = bar.current ? (bar.sub ? `${bar.sub} · ${running}` : running) : bar.sub;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy={12} textAnchor="middle" fontSize={12} fill="var(--text-muted)">
+        {bar.main}
+      </text>
+      {sub && (
+        <text dy={27} textAnchor="middle" fontSize={11} fill={bar.current ? "var(--text)" : "var(--adm-label)"} fontWeight={bar.current ? 600 : 400}>
+          {sub}
+        </text>
+      )}
+    </g>
+  );
+}
+
+function DrillTooltip({ active, payload, bars }: { active?: boolean; payload?: { payload?: { index: number } }[]; bars: readonly DrillBar[] }) {
+  const bar = active && payload?.[0]?.payload ? bars[payload[0].payload.index] : undefined;
+  if (!bar || bar.value === null) return null;
+  return (
+    <div className="tooltip-box flex flex-col gap-0.5">
+      <span className="text-muted">{bar.title}</span>
+      <span className="font-semibold tabular-nums">{eur(bar.value)}</span>
+      <span>{bar.change}</span>
+    </div>
+  );
+}
+
+/**
+ * The overview's profit chart: one bar per period, the running one lighter with an outline and "läuft" under it; a calm axis (niceAxis); the
+ * line "Umzug" only where the bars are months (`line`). A click on a bar opens it one level deeper (`onOpen`, the caller keeps the state in
+ * the URL). `below`: one cell under each bar (the week's days: what happened). Memoised – hovering never re-renders the page.
+ */
+export const DrillChart = memo(function DrillChart({
+  bars,
+  label,
+  height,
+  line,
+  onOpen,
+  running,
+  below,
+}: {
+  bars: readonly DrillBar[];
+  label: string;
+  height: number;
+  line: { value: number; label: string } | null;
+  onOpen?: (key: string) => void;
+  running: string;
+  below?: (bar: DrillBar) => ReactNode;
+}) {
+  const rows = useMemo(() => bars.map((b, index) => ({ index, label: b.key, value: b.value })), [bars]);
+  const max = Math.max(0, ...bars.map((b) => b.value ?? 0));
+  const { top, ticks } = useMemo(() => niceAxis(Math.max(max, line ? line.value * 1.1 : 0)), [max, line]);
+  const yWidth = 24 + eur(top).length * 7.5;
+  return (
+    <div>
+      <div role="img" aria-label={label} style={{ height }} className={cn(onOpen && "[&_.recharts-bar-rectangle]:cursor-pointer")}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={DRILL_MARGIN} barCategoryGap="28%">
+            <CartesianGrid vertical={false} stroke="var(--line)" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={36} tick={<DrillTick bars={bars} running={running} />} />
+            <YAxis tickLine={false} axisLine={false} tick={AXIS} width={yWidth} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} />
+            <Tooltip cursor={PROFIT_CURSOR} content={<DrillTooltip bars={bars} />} isAnimationActive={false} />
+            {line && <ReferenceLine y={line.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: line.label, position: "insideTopRight", fontSize: 12, fill: "var(--text-muted)" }} />}
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false} onClick={onOpen ? (d: { label?: string }) => d.label && onOpen(d.label) : undefined}>
+              {bars.map((b) => {
+                const f = DRILL_FILL[b.tone];
+                return <Cell key={b.key} className={b.current ? f.current : f.normal} stroke={b.current ? f.edge : undefined} strokeWidth={b.current ? 1.5 : 0} />;
+              })}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {below && (
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))`, paddingLeft: yWidth, paddingRight: DRILL_MARGIN.right }}>
+          {bars.map((b) => (
+            <div key={b.key} className="min-w-0 px-1 text-center">
+              {below(b)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 });

@@ -55,7 +55,7 @@ export function LinkPreviewCard({ href, preview, layout = "card" }: LinkPreviewC
   return (
     <div className="overflow-hidden rounded-xl bg-surface shadow-(--shadow-sm)">
       <div className="relative aspect-video bg-bg">
-        {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 768px) 700px, 100vw" className="object-cover" />}
+        {preview.imageUrl && <Img src={preview.imageUrl} alt={preview.title} fill sizes="(min-width: 744px) 700px, 100vw" className="object-cover" />}
       </div>
       <div className="flex items-center gap-3 p-4">
         <div className="min-w-0 flex-1">

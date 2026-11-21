@@ -17,7 +17,7 @@ const FADE = 40;
  * each side only while there's more that way (left from the first pixel scrolled, right until the end), a fade only on that side, a click
  * or ←/→ (focus inside) moves 80 % of the visible width, smoothly (instant with reduced motion). Trackpads and Shift + wheel scroll it
  * natively; a vertical wheel turn is never taken – it scrolls the page. Arrows 28px, round, the words' colour at 10 % (cream on graphite);
- * on touch none (a finger swipes). Phones (< 768px): the fade only on the right (the row starts at the page margin, nothing is cut on the
+ * on touch none (a finger swipes). Phones (< 744px): the fade only on the right (the row starts at the page margin, nothing is cut on the
  * left), and the chosen entry (`active`) is scrolled into view (useTabScroll).
  */
 export function ScrollRow({ children, label, role, className, active }: { children: ReactNode; label?: string; role?: string; className?: string; /** What is chosen inside – when it changes, the chosen entry scrolls into view */ active?: unknown }) {

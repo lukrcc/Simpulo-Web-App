@@ -26,6 +26,8 @@ const askedHost = (data: StoreData, guestId: string, hostId: string) =>
 
 export function getProfileVisibility(data: StoreData, subject: Pick<User, "id" | "privacy">, viewerId: string | null): ProfileVisibility {
   if (viewerId === subject.id) return "full";
+  // A paused account (Settings › Your data › Pause account): nobody else sees the profile until it's back.
+  if (subject.privacy?.paused) return "private";
   if (viewerId && (sharesCrew(data, subject.id, viewerId) || askedHost(data, subject.id, viewerId))) return "full";
   if (hostsPublicly(data, subject.id)) return "host";
   if (!viewerId) return "private";

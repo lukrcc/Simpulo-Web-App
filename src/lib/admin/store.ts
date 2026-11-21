@@ -5,7 +5,7 @@
 // The waitlist and the host application write here (addWaitlistEntry, addHostApplication); admin actions only through lib/admin/actions.ts,
 // which also writes the log.
 import { useSyncExternalStore } from "react";
-import { getAdminData, type AdminData, type MarketingContact, type TaxQuestion } from "@/lib/data";
+import { getAdminData, type AdminData, type MarketingContact, type MarketingPartner, type TaxQuestion } from "@/lib/data";
 import type { AdminAction, AdminLogEntry, ApplicationStatus, HostApplication, SupportTicket, WaitlistEntry, Withdrawal } from "@/lib/types";
 
 /** Under the mock prefix, so "Reset mock data" (lib/store.tsx resetMockData) clears it too. */
@@ -23,7 +23,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses }
       : seed;
   } catch {
     current = seed;
@@ -182,8 +182,8 @@ export function setApplicationStatus(id: string, status: ApplicationStatus) {
 }
 
 /** Internal – every admin action goes through lib/admin/actions.ts, which writes here. */
-export function appendAdminLog(action: AdminAction, target: string, by: string) {
-  const entry: AdminLogEntry = { id: newId("log"), action, target, by, createdAt: new Date().toISOString() };
+export function appendAdminLog(action: AdminAction, target: string, by: string, ref?: string) {
+  const entry: AdminLogEntry = { id: newId("log"), action, target, by, createdAt: new Date().toISOString(), ...(ref ? { ref } : {}) };
   write({ ...read(), log: [entry, ...read().log] });
 }
 
@@ -208,6 +208,17 @@ export function setMarketingStep(id: string, done: boolean) {
   write({ ...read(), marketingSteps: { ...read().marketingSteps, [id]: done } });
 }
 
+/** Internal – Houses › "✓ Erledigt": the House leaves "Braucht Hilfe" until it comes back (needsHelp). */
+export function setHouseDone(stayId: string, spotsFilled: number) {
+  write({ ...read(), houseDone: { ...read().houseDone, [stayId]: { at: new Date().toISOString().slice(0, 10), spotsFilled } } });
+}
+
+/** Internal – Houses › "Für Content vormerken": the House lands in Marketing › Content (once). */
+export function addContentHouse(stayId: string) {
+  if (read().contentHouses.some((c) => c.stayId === stayId)) return;
+  write({ ...read(), contentHouses: [{ stayId, at: new Date().toISOString().slice(0, 10) }, ...read().contentHouses] });
+}
+
 export function setMarketingClips(count: number) {
   write({ ...read(), marketingClips: Math.max(0, count) });
 }
@@ -222,4 +233,22 @@ export function markContactDemoSeen(id: string): MarketingContact | null {
   patchMarketingContact(id, { status: "demo", demoSeenAt: new Date().toISOString() });
   appendAdminLog("marketing_demo_seen", contact.name, "system");
   return contact;
+}
+
+// ─── Launch › Marketing › Partner ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export function addMarketingPartner(partner: Omit<MarketingPartner, "id" | "refCode" | "createdAt">): MarketingPartner {
+  const id = newId("mp");
+  const added: MarketingPartner = { ...partner, id, refCode: id, createdAt: new Date().toISOString() };
+  write({ ...read(), marketingPartners: [added, ...read().marketingPartners] });
+  return added;
+}
+
+export function patchMarketingPartner(id: string, patch: Partial<Omit<MarketingPartner, "id" | "refCode" | "createdAt">>) {
+  write({ ...read(), marketingPartners: read().marketingPartners.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+}
+
+/** Deleting is final (privacy). */
+export function deleteMarketingPartner(id: string) {
+  write({ ...read(), marketingPartners: read().marketingPartners.filter((p) => p.id !== id) });
 }

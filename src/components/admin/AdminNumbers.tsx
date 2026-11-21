@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /** The ⓘ's sentence on touch: this wide at most. */
-const TIP_WIDTH = 260;
+const TIP_WIDTH = 320;
 import { StatusDot } from "./AdminCharts";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +96,7 @@ export function InfoTip({ text }: { text: string }) {
       </button>
       {at &&
         createPortal(
-          <span role="tooltip" data-info-tip style={{ top: at.top, left: at.left, width: `min(${TIP_WIDTH}px, calc(100vw - 32px))` }} className="tooltip-bubble animate-fade-in fixed z-80 rounded-[10px] px-3 py-2 text-small normal-case text-on-image">
+          <span role="tooltip" data-info-tip style={{ top: at.top, left: at.left, width: `min(${TIP_WIDTH}px, calc(100vw - 32px))` }} className="tooltip-box animate-fade-in fixed z-80 normal-case">
             {text}
           </span>,
           document.body,

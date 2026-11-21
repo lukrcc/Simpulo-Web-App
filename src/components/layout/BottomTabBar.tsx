@@ -27,7 +27,7 @@ const CELL = "flex h-full w-full flex-col items-center justify-center gap-1 text
  * evenly. Logged out: Explore · Saved · Log in. Logged in: Explore · Houses · + (Open a House, in the middle, a little set apart – white 16 %,
  * never orange) · Messages (a small orange dot for unread chats, like the desktop) · Profile (the avatar; opens the account menu as a sheet
  * from the bottom). It stays put while scrolling. Not on focus flows or an open chat (nav.ts hidesTabBar). Render inside Suspense.
- * Tablets (768–1099px): the same entries as a floating capsule, centred, at most 560px, 16px above the bottom edge and its safe area; "Houses"
+ * Tablets (744–1099px): the same entries as a floating capsule, centred, at most 560px, 16px above the bottom edge and its safe area; "Houses"
  * says "Your houses"; Profile opens the account menu as a popover above its tab (the header's dark glass), not as a sheet.
  */
 export function BottomTabBar() {
@@ -49,7 +49,7 @@ export function BottomTabBar() {
       delete document.documentElement.dataset.tabbar;
     };
   }, [hidden]);
-  // The admin keeps its own navigation (side list, "Bereiche") from 768px – no tab bar there on tablets (phones keep it).
+  // The admin keeps its own navigation (side list, "Bereiche") from 744px – no tab bar there on tablets (phones keep it).
   const admin = pathname.startsWith("/admin");
   useEffect(() => {
     if (!admin) return;
@@ -182,7 +182,7 @@ function AccountPopover({ anchor, label, onClose }: { anchor: React.RefObject<HT
   }, [anchor, onClose]);
   if (!style) return null;
   return createPortal(
-    <div ref={panel} style={style} data-site-header className="bar-menu z-72 w-64" role="menu" aria-label={label}>
+    <div ref={panel} style={style} data-site-header className="bar-menu z-72 w-72" role="menu" aria-label={label}>
       <AccountMenuList onDone={onClose} />
     </div>,
     document.body,

@@ -39,8 +39,8 @@ export function StripFig({ value, label, href, sub, dot = false, className }: { 
 }
 
 /**
- * The numbers of a strip in a row. Phones (< 768px): one line that scrolls sideways (.tab-scroll – no wrapping, the fade on the right only
- * while more follows); every number stays its own link with its →. From 768px a plain row.
+ * The numbers of a strip in a row. Phones (< 744px): one line that scrolls sideways (.tab-scroll – no wrapping, the fade on the right only
+ * while more follows); every number stays its own link with its →. From 744px a plain row.
  */
 export function StripRow({ children, className }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);

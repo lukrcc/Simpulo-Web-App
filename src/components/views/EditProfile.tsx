@@ -12,7 +12,7 @@ import { VerifyIdSheet } from "@/components/account/VerifyIdSheet";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { FormField } from "@/components/form/FormLayout";
 import { Container } from "@/components/layout/Container";
-import { RequestRow } from "@/components/stay/HouseDetail";
+import { RequestRow } from "@/components/stay/HouseManageParts";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Combobox, type ComboOption } from "@/components/ui/Combobox";

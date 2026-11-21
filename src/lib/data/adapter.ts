@@ -66,6 +66,59 @@ export interface AdminData {
   marketingSteps: Record<string, boolean>;
   /** Launch › Marketing › Content: 2D series clips made so far */
   marketingClips: number;
+  /**
+   * Admin › Houses › "Braucht Hilfe": a House marked done, by its id – when, and how full it was then. It comes back once
+   * HOUSE_DONE_RECHECK_DAYS have passed without it filling further (lib/admin/metrics.ts needsHelp).
+   */
+  houseDone: Record<string, { at: string; spotsFilled: number }>;
+  /** Admin › Houses › "Läuft gut" → "Für Content vormerken": Houses for Marketing › Content */
+  contentHouses: { stayId: string; at: string }[];
+  /** Launch › Marketing › Partner – one record per collaboration (Firestore marketingPartners, admins only: firestore.rules) */
+  marketingPartners: MarketingPartner[];
+}
+
+/** Creator · community operator · connector · place/brand. */
+export type PartnerKind = "creator" | "community" | "connector" | "brand";
+/** The creator ladder: 1 hosts themselves · 2 "{Name}'s people" · 3 "Curated by". */
+export type PartnerLadder = 1 | 2 | 3;
+export type PartnerAgreementStatus = "draft" | "active" | "ended";
+
+/** One collaboration (Admin › Launch › Marketing › Partner). Admins only – never shown in the app. No payouts from here. */
+export interface MarketingPartner {
+  /** "mp-…" */
+  id: string;
+  /** The contact it grew from (Kontakte), if any */
+  contactId: string | null;
+  name: string;
+  kind: PartnerKind;
+  /** Followers / members across their channels */
+  reach: number;
+  channels: string[];
+  ladder: PartnerLadder;
+  foundingHost: boolean;
+  /** Their account when they host (→ Admin › Hosts) */
+  hostUserId: string | null;
+  agreement: {
+    /** Their share in % (of Simpulo's revenue from what they brought) */
+    sharePercent: number;
+    from: string | null;
+    to: string | null;
+    /** Their share only once the stay is paid */
+    payoutAfterPaidStay: boolean;
+    contentRights: string;
+    collabPosts: boolean;
+    contractUrl: string;
+    status: PartnerAgreementStatus;
+  };
+  /** Linked Houses (besides the ones they host themselves) */
+  houseIds: string[];
+  /** Their own ref code – the link /?ref=<code> */
+  refCode: string;
+  content: { planned: number; delivered: number; approved: number };
+  notes: { id: string; at: string; text: string }[];
+  /** The next step and its due day (YYYY-MM-DD); due ones show in the Posteingang */
+  nextStep: { text: string; due: string | null } | null;
+  createdAt: string;
 }
 
 /** How a creator was written to. */
@@ -213,6 +266,11 @@ export interface MetricsHistory {
    */
   houseActivity?: Readonly<Record<string, { quietDays?: number; oldestPendingHours?: number; daysToFull?: number }>>;
   /**
+   * The months before the last twelve (12 = a year ago, oldest first), for the overview's longer periods (8 quarters, every year): profit,
+   * full Houses and the shared nights per month. The mock gives a plausible start (Jan 2024 on); the real source computes them from its records.
+   */
+  olderMonths?: readonly { monthsAgo: number; profit: number; full: number; sharedNights: number }[];
+  /**
    * The overview's main numbers as they stood on the same day of the week, month and year before (Übersicht › change "like a stock"):
    * profit and full Houses of that month up to that day, the shares in percent. The real source computes profit and full Houses from its
    * records up to that day (lib/admin/metrics.ts getChange); the shares need stored daily snapshots (TODO(backend): a nightly aggregate).
@@ -228,6 +286,8 @@ export interface MetricsHistory {
 /** The overview's numbers on one past day (see MetricsHistory.snapshots); null = not known. */
 export interface OverviewSnapshot {
   profit: number | null;
+  /** Admin › Houses: Houses that needed help that day */
+  needsHelp?: number | null;
   /** The north star so far that month */
   sharedNights?: number | null;
   fullHouses: number | null;

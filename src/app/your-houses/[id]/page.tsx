@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("manageHouse"), robots: PRIVATE_ROBOTS };
 }
 
-/** Old links: a House lives on /h/[id] now (guests), its management on /h/[id]/manage (host). ?focus= goes along. */
+/** Old links: a House lives on /h/[id] now (guests), its management on /h/[id]?tab=manage (host). ?focus= goes along. */
 export default function OldManagePage({ params }: PageProps<"/your-houses/[id]">) {
   return (
     <Suspense fallback={<PageSkeleton />}>

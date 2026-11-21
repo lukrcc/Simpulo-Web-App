@@ -219,7 +219,10 @@ export function CategoryRow({
   value,
   onSelect,
   icons = false,
+  lead,
 }: {
+  /** Right after "All", before the categories (below 1100px: Short trips) */
+  lead?: ReactNode;
   label: string;
   allLabel: string;
   moreLabel: string;
@@ -251,6 +254,7 @@ export function CategoryRow({
         <Chip variant="plain" size="lg" role="radio" aria-checked={value.length === 0} active={value.length === 0} onClick={() => onSelect(null)}>
           {allLabel}
         </Chip>
+        {lead}
         {chips.map((o) => (
           <Chip
             key={o.value}

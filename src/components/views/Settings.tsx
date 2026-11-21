@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
-import { FormField } from "@/components/form/FormLayout";
 import { Input } from "@/components/ui/Input";
 import { Container } from "@/components/layout/Container";
 import { currencyLabel, useSetViewerCurrency } from "@/components/layout/CurrencyPicker";
@@ -19,7 +18,7 @@ import { ChatBackgroundPicker } from "@/components/chat/ChatBackground";
 import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notifications";
@@ -61,8 +60,6 @@ const SECTION_ICONS: Record<Section, LucideIcon> = {
 /** ⚠ MOCK: saved cards and wallets (no payment provider yet). */
 const MOCK_CARDS = [{ id: "pm-1", brand: "Visa", last4: "4242", isDefault: true }] as const;
 
-/** What has to be typed to delete the account. */
-const DELETE_WORD = "DELETE";
 
 export function Settings() {
   const t = useTranslations("settings");
@@ -204,11 +201,11 @@ const mockEmailOf = (me: User) => `${me.name.split(" ")[0].toLowerCase().normali
 function AccountArea({ me }: { me: User }) {
   const t = useTranslations("settings.account");
   const tu = useTranslations("settings.ui");
-  const tDanger = useTranslations("settings.danger");
+  const tMenu = useTranslations("nav.menu");
   const store = useStore();
   const router = useRouter();
   const showToast = useToast();
-  const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState<"one" | "all" | null>(null);
   const method = me.signInMethod ?? "email";
   const email = me.email ?? (method === "email" ? mockEmailOf(me) : undefined);
   // ⚠ MOCK: no passkeys yet – "Add" until there is one.
@@ -222,46 +219,27 @@ function AccountArea({ me }: { me: User }) {
         <SettingsRow title={t("signIn")} value={t(`method.${method}`)} chevron onClick={() => showToast(t("comesSoon"))} />
         <SettingsRow title={t("passkey")} value={t(passkey ? "passkeyOn" : "passkeyAdd")} chevron onClick={() => showToast(t("comesSoon"))} />
       </SettingsGroup>
+      {/* Devices: a plain list – no big button here; logging out sits at the very bottom. */}
       <SettingsGroup title={tu("account.groupDevices")}>
-        <SettingsRow
-          title={t("session")}
-          subtitle={tu("account.thisDeviceSub")}
-          control={
-            // A small outline capsule (36px), not bold text.
-            <Button
-              variant="tertiary"
-              size="sm"
-              className="shadow-[inset_0_0_0_1.5px_var(--text)]"
-              onClick={() => {
-                store.logout();
-                router.push("/");
-              }}
-            >
-              {t("logOut")}
-            </Button>
-          }
-        />
-        {/* Every device at once (the mock: this one – there is no other session yet). A session otherwise stays signed in. */}
-        <SettingsRow
-          title={t("logOutAll")}
-          subtitle={t("logOutAllSub")}
-          onClick={() => {
-            store.logout();
-            showToast(t("loggedOutAll"));
-            router.push("/");
-          }}
-        />
+        <SettingsRow title={t("session")} subtitle={tu("account.thisDeviceSub")} value={tu("account.now")} />
       </SettingsGroup>
-      {/* Its own card at the very bottom, 40px under the last group. */}
+      {/* At the very bottom, plain: Log out (this device) and Log out of all devices – each asks first. Deleting the account lives in
+          Privacy & safety › Your data. */}
       <SettingsGroup className="pt-2">
-        <SettingsRow title={tDanger("delete")} danger onClick={() => setDeleting(true)} />
+        <SettingsRow title={t("logOut")} onClick={() => setConfirming("one")} />
+        <SettingsRow title={t("logOutAll")} subtitle={t("logOutAllSub")} onClick={() => setConfirming("all")} />
       </SettingsGroup>
-      <DeleteAccountSheet
-        open={deleting}
-        onClose={() => setDeleting(false)}
+      <ConfirmSheet
+        open={confirming !== null}
+        title={confirming === "all" ? tu("account.logOutAllConfirmTitle") : tu("account.logOutConfirmTitle")}
+        description={confirming === "all" ? tu("account.logOutAllConfirmText") : tu("account.logOutConfirmText")}
+        confirmLabel={confirming === "all" ? tu("account.logOutAllConfirm") : t("logOut")}
+        onClose={() => setConfirming(null)}
         onConfirm={() => {
-          store.deleteAccount();
-          showToast(tDanger("deleted"));
+          const all = confirming === "all";
+          setConfirming(null);
+          store.logout();
+          showToast(all ? t("loggedOutAll") : tMenu("loggedOut"));
           router.push("/");
         }}
       />
@@ -482,6 +460,14 @@ function PrivacyArea({ me }: { me: User }) {
     saved();
   }
 
+  const f = useFormat();
+  const paused = Boolean(me.privacy?.paused);
+  const [pausing, setPausing] = useState(false);
+  function setPaused(on: boolean) {
+    store.updateCurrentUser({ privacy: { ...me.privacy, paused: on, pausedAt: on ? new Date().toISOString() : undefined } });
+    showToast(on ? tu("data.paused") : tu("data.resumed"));
+  }
+
   function downloadData() {
     const data = {
       exportedAt: new Date().toISOString(),
@@ -535,9 +521,28 @@ function PrivacyArea({ me }: { me: User }) {
           ))
         )}
       </SettingsGroup>
-      <SettingsGroup title={t("dataTitle")} footer={t("dataLabel")}>
-        <SettingsRow title={tu("privacy.download")} chevron onClick={downloadData} />
+      {/* Your data, at the end and plainly named: the download, a pause (hidden, nothing deleted, back any time) and – in red – deleting,
+          on its own page that explains it first. */}
+      <SettingsGroup title={tu("data.title")}>
+        <SettingsRow title={tu("data.download")} subtitle={tu("data.downloadSub")} chevron onClick={downloadData} />
+        <SettingsRow
+          title={tu("data.pause")}
+          subtitle={paused ? tu("data.pausedSub", { date: f.day(me.privacy?.pausedAt ?? new Date().toISOString()) }) : tu("data.pauseSub")}
+          control={<Switch on={paused} label={tu("data.pause")} onChange={(on) => (on ? setPausing(true) : setPaused(false))} />}
+        />
+        <SettingsRow title={tu("data.delete")} subtitle={tu("data.deleteSub")} danger chevron href="/settings/delete-account" />
       </SettingsGroup>
+      <ConfirmSheet
+        open={pausing}
+        title={tu("data.pauseConfirmTitle")}
+        description={tu("data.pauseConfirmText")}
+        confirmLabel={tu("data.pauseConfirm")}
+        onClose={() => setPausing(false)}
+        onConfirm={() => {
+          setPausing(false);
+          setPaused(true);
+        }}
+      />
     </div>
   );
 }
@@ -567,7 +572,6 @@ function AppearanceArea() {
           <SettingsRow
             key={option}
             title={tu(`appearance.${option}`)}
-            subtitle={option === "system" ? tu("appearance.systemSub") : undefined}
             control={pref === option ? <Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} /> : undefined}
             onClick={() => choose(option)}
           />
@@ -703,31 +707,3 @@ function LanguagePage() {
 }
 
 // ─── Delete account ────────────────────────────────────────────────────────────
-
-/** Confirm by typing DELETE – the button stays disabled until it matches exactly. */
-function DeleteAccountSheet({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: () => void }) {
-  const t = useTranslations("settings.danger");
-  const [typed, setTyped] = useState("");
-  const ready = typed.trim() === DELETE_WORD;
-  // A fresh start each time it opens: cleared on the way out.
-  const close = () => {
-    setTyped("");
-    onClose();
-  };
-  return (
-    <Sheet open={open} onClose={close} title={t("sheetTitle")}>
-      <p className="text-small leading-relaxed text-muted">{t("sheetDescription")}</p>
-      <div className="mt-5">
-        <FormField label={t("typeToConfirm", { word: DELETE_WORD })}>
-          <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" className="font-mono tracking-widest" />
-        </FormField>
-      </div>
-      <ModalFooter onCancel={close} className="mt-5">
-        <Button variant="primary" size="md" disabled={!ready} onClick={onConfirm}>
-          <Lock aria-hidden />
-          {t("confirm")}
-        </Button>
-      </ModalFooter>
-    </Sheet>
-  );
-}

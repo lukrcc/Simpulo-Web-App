@@ -41,6 +41,7 @@ export function tabOf(task: AdminTask): Exclude<InboxTab, "all"> {
       return "houses";
     case "application":
     case "hostWarning":
+    case "partnerStep":
       return "hosts";
     case "support":
       return task.ticket.category === "idea" ? "ideas" : task.ticket.category === "bug" ? "broken" : "questions";
@@ -73,6 +74,8 @@ function useSentence() {
           .join(" ")}`;
       case "application":
         return t("sentence.application", { name: task.application.name, hub: task.application.hub, topic: f.vibe(task.application.topic) });
+      case "partnerStep":
+        return t("sentence.partner", { name: task.partner.name, step: task.partner.nextStep?.text ?? "" });
       case "hostWarning":
         return t("sentence.host", { name: task.host.user.name, warnings: task.host.warnings.filter((w) => w !== "safety").map((w) => tHosts(`warning.${w}`)).join(" · ") });
     }
@@ -164,7 +167,7 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
   const isTicket = task.kind === "safety" || task.kind === "support";
   // The history: the log lines about this element (its House, its person, its ticket).
   const subject =
-    task.kind === "atRisk" ? task.stay.title : task.kind === "money" ? (task.stay?.title ?? "") : task.kind === "application" ? task.application.name : task.kind === "hostWarning" ? task.host.user.name : isTicket ? task.ticket.id : task.id;
+    task.kind === "atRisk" ? task.stay.title : task.kind === "money" ? (task.stay?.title ?? "") : task.kind === "application" ? task.application.name : task.kind === "hostWarning" ? task.host.user.name : task.kind === "partnerStep" ? task.partner.name : isTicket ? task.ticket.id : task.id;
   const history = log.filter((entry) => subject && entry.target.includes(subject)).slice(0, 8);
 
   let actionsRow: React.ReactNode = null;
@@ -172,7 +175,7 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
     const guest = findUser(store, task.issue.userId);
     actionsRow = (
       <>
-        <Link href={`/h/${task.issue.stayId}/manage`} className={buttonStyles("secondary", "sm")}>
+        <Link href={`/h/${task.issue.stayId}?tab=manage`} className={buttonStyles("secondary", "sm")}>
           {t("action.open")}
         </Link>
         <Button size="sm" variant="secondary" onClick={() => (actions.remindGuest(guest?.name ?? task.issue.userId, task.stay?.title ?? task.issue.stayId), showToast(t("toast.remindGuest", { name: guest?.name ?? "" })))}>
@@ -216,6 +219,12 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
           {tApps("no")}
         </Button>
       </>
+    );
+  } else if (task.kind === "partnerStep") {
+    actionsRow = (
+      <Link href={`/admin/marketing?tab=partners&partner=${task.partner.id}`} className={buttonStyles("secondary", "sm")}>
+        {t("action.open")}
+      </Link>
     );
   } else if (task.kind === "hostWarning") {
     actionsRow = (

@@ -17,9 +17,10 @@ import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { Img } from "@/components/ui/Img";
 import { TOOL_LINKS } from "@/config/app-links";
 import { AdminShell } from "./AdminShell";
-import { AdminSort, AdminTabs } from "./AdminLayout";
+import { AdminTabs, PeriodTabs } from "./AdminLayout";
 import { ChangeLine, InfoTip, KeyNumbers } from "./AdminNumbers";
-import { askingHostMetrics, growthFunnel, growthRows, installRates, monthKpis, GROWTH_PERIODS, type GrowthPeriod, type GrowthRow } from "@/lib/admin/metrics";
+import { askingHostMetrics, growthFunnel, growthRows, installRates, monthKpis, type GrowthPeriod, type GrowthRow } from "@/lib/admin/metrics";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { dec, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
@@ -49,7 +50,8 @@ export function AdminGrowth() {
   const { events } = store;
   const { today } = useAdminInputs();
   const [tab, setTab] = useState<GrowthTab>("channels");
-  const [period, setPeriod] = useState<GrowthPeriod>("30");
+  // The admin's one period (Tag · Woche · Monat · Quartal · Jahr), the same as the overview's.
+  const [period] = useAdminPeriod();
   const [all, setAll] = useState(false);
 
   const byChannel = useMemo(() => growthRows(events, (e) => e.utmSource ?? DIRECT, period, today), [events, period, today]);
@@ -105,12 +107,12 @@ export function AdminGrowth() {
           label={t("tabsLabel")}
           value={tab}
           onChange={(next) => (setTab(next), setAll(false))}
-          tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), info: key === "channels" ? t("channelsInfo") : undefined }))}
+          tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), tooltip: key === "channels" ? t("channelsInfo") : undefined }))}
         />
       }
       aside={
         <>
-          <AdminSort label={t("period.label")} value={period} onChange={setPeriod} options={GROWTH_PERIODS.map((value) => ({ value, label: t(`period.${value}`) }))} />
+          <PeriodTabs />
           {analytics && (
             <a href={analytics} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-body font-semibold text-ink hover:underline">
               {t("analytics")}
@@ -160,11 +162,12 @@ export function AdminGrowth() {
 function FunnelKpis({ period }: { period: GrowthPeriod }) {
   const t = useTranslations("admin.growthArea");
   const tk = useTranslations("admin.growthArea.kpis");
+  const tc = useTranslations("admin.cockpit");
   const store = useStore();
   const inputs = useAdminInputs();
   const f = growthFunnel(store.events, period, inputs.today);
   const k = monthKpis(inputs);
-  const periodText = t(`period.${period}`);
+  const periodText = tc(`compare.info.${period}`);
   return (
     <dl className="grid grid-cols-2 gap-y-(--adm-inner) lg:grid-cols-4">
       {[

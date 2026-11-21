@@ -183,6 +183,7 @@
 .bar-sheet,
 .bar-menu,
 .footer-dark,
+.chip-bar,
 [data-chat-theme="night"],
 .admin-scope,
 body:has(.admin-scope) {
@@ -362,6 +363,7 @@ body:has(.admin-scope) {
 .bar-sheet,
 .bar-menu,
 .footer-dark,
+.chip-bar,
 [data-chat-theme="night"],
 .admin-scope,
 body:has(.admin-scope) {
@@ -747,6 +749,26 @@ body:has(.admin-scope) {
 }
 
 
+/* The one tooltip box (Regel, product and admin): ui/Tooltip.tsx, the admin's ⓘ on touch, the charts' hover boxes. 15px (the body token) with
+   line-height 1.5, at most 320px wide and wrapping, more room inside; cream on the tooltip's dark glass (contrast ≥ 10 : 1). */
+.tooltip-box {
+  max-width: min(320px, calc(100vw - 16px));
+  border-radius: 10px;
+  padding: 8px 12px;
+  background-color: var(--tooltip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--stage-text);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.tooltip-box .text-muted {
+  color: color-mix(in srgb, var(--stage-text) 70%, transparent);
+}
+
 /* The one-time hint bubble at a button (the chat's "…"): the tooltip's dark glass. */
 .tooltip-bubble {
   background-color: var(--tooltip-bg);
@@ -919,3 +941,52 @@ body:has(.admin-scope) {
   --header-pill-active-mobile: rgba(255, 255, 255, 0.22);
   --header-pill-edge-mobile: rgba(255, 255, 255, 0.14);
 }
+
+/* The chip row under the header below 1100px (ExploreFeed [data-bar]): the header's fixed surface continued – a dark ground (the tokens turn
+   round), a 1px line at its foot. Chips are words: cream 70 %, the chosen one white, semibold, underlined 2px (no pill, no orange edge);
+   Short trips keeps its orange bolt. */
+.chip-bar {
+  background-color: var(--header-surface-mobile);
+  box-shadow: inset 0 -1px 0 var(--header-line-mobile);
+  color: var(--text);
+}
+.chip-bar .chip-row :is([role="radio"], [role="checkbox"])[aria-checked="true"],
+.chip-bar .chip-row :is([role="radio"], [role="checkbox"]).pick-on,
+.chip-bar .chip-row button[aria-expanded="true"] {
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--header-fg);
+  font-weight: 600;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+}
+
+/* The one destructive button (Button variant "danger": Delete account) – a deep red with white words (5.4 : 1), fixed in light and dark. */
+:root {
+  --danger-fill: #c4321f;
+  --danger-fill-hover: #a92a1a;
+}
+
+/* ── The switch (ui/Switch.tsx): on = sage (the status colour "on / good"), off = a neutral grey with enough contrast to its ground, the knob
+   white with a fine shadow. Never orange. Light ground: off a mid grey (3.0 : 1 on --bg, 3.3 on --surface), on a deep sage (3.6 / 3.9). Dark grounds and dark
+   mode: off white 18 % (the white knob carries the contrast there), on a lighter sage (≥ 5.8 : 1 on the dark floor). The admin sets its own. ── */
+:root {
+  --switch-on: #4e8a5d;
+  --switch-off: #8f8983;
+  --switch-knob: #ffffff;
+  --switch-knob-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.ember,
+.band-dark,
+[data-site-header],
+.bar-sheet,
+.bar-menu,
+.footer-dark,
+.chip-bar,
+[data-chat-theme="night"],
+:root[data-theme="dark"] {
+  --switch-on: #6aa97a;
+  --switch-off: rgba(255, 255, 255, 0.18);
+}
+

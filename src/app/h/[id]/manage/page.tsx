@@ -1,20 +1,10 @@
-import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { ManageHouse } from "@/components/views/ManageHouse";
-import { PRIVATE_ROBOTS } from "@/lib/seo";
+import { redirect } from "next/navigation";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("meta.pages");
-  return { title: t("manageHouse"), robots: PRIVATE_ROBOTS };
-}
-
-/** The host's management of one House (for now still here; guests have theirs on /h/[id]). */
-export default function HostManagePage({ params }: PageProps<"/h/[id]/manage">) {
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <ManageHouse params={params} />
-    </Suspense>
-  );
+/** Old links: the host's management is the House area's Manage tab now (/h/[id]?tab=manage); ?focus= goes along. */
+export default async function HostManagePage({ params, searchParams }: PageProps<"/h/[id]/manage">) {
+  const { id } = await params;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) if (typeof value === "string") query.set(key, value);
+  query.set("tab", "manage");
+  redirect(`/h/${id}?${query}`);
 }
