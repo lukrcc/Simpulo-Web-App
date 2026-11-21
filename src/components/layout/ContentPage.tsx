@@ -1,87 +1,21 @@
-import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/Badge";
-import { cn } from "@/lib/utils";
 import { Container } from "./Container";
 
 interface ContentPageProps {
   title: string;
   intro?: string;
-  /** Legal pages: 720px measure, 16px body, a "Last updated" line under the title (YYYY-MM-DD). */
-  updated?: string;
   children: ReactNode;
 }
 
-/** Simple reading layout for secondary pages (About, Legal, …). */
-export function ContentPage({ title, intro, updated, children }: ContentPageProps) {
-  const t = useTranslations("legal");
-  const format = useFormatter();
-  const legal = updated !== undefined;
+/** Simple reading layout for secondary pages (Contact …). The legal pages have their own: components/legal/LegalPage.tsx. */
+export function ContentPage({ title, intro, children }: ContentPageProps) {
   return (
-    <Container page width={legal ? "full" : "text"}>
-      <article className={cn(legal && "max-w-180")}>
+    <Container page width="text">
+      <article>
         <h1 className="text-h2 md:text-h1">{title}</h1>
-        {updated && (
-          <p className="mt-2 text-small text-muted">
-            {t("lastUpdated", { date: format.dateTime(new Date(updated), { dateStyle: "long" }) })}
-          </p>
-        )}
         {intro && <p className="mt-3 text-body-lg leading-relaxed text-muted">{intro}</p>}
-        <div className={cn("mt-8 leading-relaxed text-ink", legal ? "space-y-10 text-body" : "space-y-4")}>
-          {children}
-        </div>
+        <div className="mt-8 space-y-4 leading-relaxed text-ink">{children}</div>
       </article>
     </Container>
   );
 }
-
-/** Badge marking copy that still needs a (legal) review. */
-export function DraftPill() {
-  const t = useTranslations("legal");
-  return <Badge>{t("draft")}</Badge>;
-}
-
-interface LegalSectionProps {
-  id: string;
-  title: string;
-  children: ReactNode;
-}
-
-/** One h2 section of a legal page – every body carries the draft pill until the text is reviewed. */
-export function LegalSection({ id, title, children }: LegalSectionProps) {
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24">
-      <h2 id={`${id}-title`} className="text-h3 tracking-tight text-ink md:text-h2 md:tracking-[-0.02em]">
-        {title}
-      </h2>
-      <div className="mt-3">
-        <DraftPill />
-      </div>
-      <div className="mt-3 space-y-3">{children}</div>
-    </section>
-  );
-}
-
-/** Bulleted points inside a legal section. */
-export function LegalList({ items }: { items: string[] }) {
-  return (
-    <ul className="list-disc space-y-2 pl-5 marker:text-muted">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
-
-/** Highlights placeholder copy that must be replaced before launch. */
-export function TodoNote({ children }: { children: ReactNode }) {
-  const t = useTranslations("footer.pages");
-  return (
-    <p className="rounded-xl border border-dashed border-accent/40 bg-(--warn-bg) px-4 py-3 text-body font-medium text-(--warn-text)">
-      {t("todo")} {children}
-    </p>
-  );
-}
-
-/** Shared "Last updated" date of the legal pages (YYYY-MM-DD) – bump it with every reviewed change. */
-export const LEGAL_UPDATED = "2026-10-23";

@@ -54,6 +54,18 @@ export function useAdminActions() {
       if (report.decision) return;
       store.decideReport(report.id, outcome);
       appendAdminLog("report_decided", `${detail} · ${outcome}`, by, report.stayId);
+      // The statement of reasons to the person concerned (store) – in the log too.
+      if (outcome !== "unfounded" && report.subjectId) appendAdminLog("notice_sent", `${detail} · ${outcome}`, by, report.stayId);
+      // The form without an account: the result goes to the email given (with an account the store's notification does it).
+      if (report.reporterEmail && !report.reporterId) {
+        const key = outcome === "unfounded" ? "reportUnfounded" : "reportActioned";
+        email.send(report.reporterEmail, { subject: tEn("reportContent.resultSubject"), text: tEn(`messages.notify.${key}`), template: "notification" });
+      }
+    },
+    /** A widerspruch: it stands or it's granted (the store undoes what it can and tells the person) – into the log. */
+    decideAppeal(noticeId: string, outcome: "upheld" | "reversed", detail: string) {
+      store.decideAppeal(noticeId, outcome);
+      appendAdminLog("appeal_decided", `${detail} · ${outcome}`, by);
     },
     /**
      * An answer to a ticket: added to its replies, sent through lib/notify (in-app + email for an account, email only for a guest – in the

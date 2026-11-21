@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
+import { assertLegal } from "./scripts/check-legal";
 import { assertTestRoutes } from "./scripts/check-test-routes";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
@@ -90,8 +91,13 @@ const nextConfig: NextConfig = {
 };
 
 // Every production build checks the width test's route list (src/config/test-routes.ts) against the pages that exist: a new page that isn't
-// listed stops the build with "Neue Seite /xyz nicht im Breiten-Test" (scripts/check-test-routes.ts).
+// listed stops the build with "Neue Seite /xyz nicht im Breiten-Test" (scripts/check-test-routes.ts). And the legal texts: a draft can't
+// go live (scripts/check-legal.ts).
 export default function config(phase: string) {
-  if (phase === PHASE_PRODUCTION_BUILD) assertTestRoutes();
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    assertTestRoutes();
+    // Legal texts: complete headers; no draft goes live (scripts/check-legal.ts, CLAUDE.md "Rechtsseiten").
+    assertLegal();
+  }
   return withNextIntl(nextConfig);
 }

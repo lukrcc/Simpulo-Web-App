@@ -21,9 +21,11 @@ export interface DevSettings {
   clockHours: number;
   /** "Simulate offline": the app behaves as without a connection (lib/useOnline.ts – the banner, the error pages) */
   simOffline: boolean;
+  /** "Agreements" (lib/consent.ts): simulate a new version of the Terms or of the community guidelines – everyone has to agree again */
+  consentBump: "terms" | "code" | null;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0, simOffline: false };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0, simOffline: false, consentBump: null };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 

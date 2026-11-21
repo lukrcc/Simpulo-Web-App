@@ -23,7 +23,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax }
       : seed;
   } catch {
     current = seed;
@@ -254,6 +254,13 @@ export function setMarketingStep(id: string, done: boolean) {
 }
 
 /** Internal – Houses › "✓ Erledigt": the House leaves "Braucht Hilfe" until it comes back (needsHelp). */
+/** A host's tax details (Settings › Payments & payouts) – stored for the admin only; the log says that they came, never what. */
+export function submitHostTax(userId: string, data: { taxId: string; address: string }) {
+  const at = new Date().toISOString();
+  write({ ...read(), hostTax: { ...(read().hostTax ?? {}), [userId]: { taxId: data.taxId.trim().slice(0, 40), address: data.address.trim().slice(0, 300), at } } });
+  appendAdminLog("host_tax_submitted", userId, userId);
+}
+
 export function setHouseDone(stayId: string, spotsFilled: number) {
   write({ ...read(), houseDone: { ...read().houseDone, [stayId]: { at: new Date().toISOString().slice(0, 10), spotsFilled } } });
 }

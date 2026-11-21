@@ -293,6 +293,8 @@ const en = {
       "cancellation": "Cancellation",
       "hostAHouse": "Host a house",
       "safety": "Safety",
+      "guidelines": "Community guidelines",
+      "reportContent": "Report content",
       "faq": "FAQ",
       "about": "About",
       "impressum": "Impressum",
@@ -301,8 +303,6 @@ const en = {
       "proHosts": "Pro hosts"
     },
     "pages": {
-      "todo": "TODO:",
-      "placeholder": "Placeholder text – replace with the real, legally reviewed version before launch.",
       "about": {
         "title": "What is Simpulo?",
         "intro": "Simpulo matches people, not accommodation. Share a place – and find your people.",
@@ -313,15 +313,6 @@ const en = {
       "contact": {
         "title": "Contact",
         "text": "Questions, feedback or a problem with a House? Write to <mail>{email}</mail>."
-      },
-      "imprint": {
-        "title": "Impressum"
-      },
-      "privacy": {
-        "title": "Privacy Policy"
-      },
-      "terms": {
-        "title": "Terms of Service"
       }
     },
     "columns": {
@@ -354,6 +345,8 @@ const en = {
         "about": "About",
         "howItWorks": "How it works",
         "safety": "Safety",
+        "guidelines": "Community guidelines",
+        "reportContent": "Report content",
         "contact": "Contact",
         "helpCenter": "Help center",
         "getHelp": "Get help",
@@ -379,112 +372,14 @@ const en = {
     }
   },
   "legal": {
-    "lastUpdated": "Last updated: {date}",
-    "draft": "Draft – to be reviewed",
-    "draftNotice": "Placeholder structure – every section must be written and legally reviewed before launch.",
-    "terms": {
-      "intro": "These terms apply to everyone who uses Simpulo – hosts and guests alike.",
-      "role": {
-        "title": "Role of Simpulo",
-        "body": "Simpulo is a platform that connects people who want to share a place. Simpulo is not an accommodation provider, travel agent or party to the rental agreement – the accommodation is booked by the host with a third party."
-      },
-      "hosts": {
-        "title": "Hosts' obligations",
-        "body": "Hosts describe their House honestly, only open Houses they actually intend to book, keep everyone in the House informed, and book the accommodation they locked. Hosts are responsible for complying with local rules on short-term stays."
-      },
-      "payments": {
-        "title": "Payments & fees",
-        "body": "Guests pay their share of the locked accommodation price through Simpulo. Fees, the payment provider, payout timing to the host and currency conversion are described here."
-      },
-      "cancellations": {
-        "title": "Cancellations & refunds",
-        "body": "What happens when plans change:",
-        "hostCancels": "If the host cancels, every guest gets a full refund of their share.",
-        "guestLeaves": "If a guest leaves, their share is forfeited – unless the spot is refilled by someone else.",
-        "bookingProof": "The host uploads proof of the booking within 48 hours after everyone has paid. Without proof, guests are refunded."
-      },
-      "prohibited": {
-        "title": "Prohibited content",
-        "body": "Houses are about sharing a place, not selling something. Not allowed:",
-        "courses": "Selling courses, coaching, trading signals or other products to people in the House.",
-        "commercial": "Commercial listings disguised as Houses – hotels, hostels, agencies or resellers.",
-        "other": "Illegal, hateful, sexual or misleading content and fake profiles."
-      },
-      "safety": {
-        "title": "Safety & reporting",
-        "body": "Users can block and report other users and Houses at any time. Simpulo reviews reports and may hide content, suspend accounts or cooperate with authorities. In an emergency, always contact local emergency services first."
-      },
-      "deletion": {
-        "title": "Account deletion",
-        "body": "You can delete your account in Settings at any time. Open payments, active Houses and legal retention obligations may delay the deletion of some data."
-      }
-    },
-    "privacy": {
-      "intro": "How Simpulo handles your personal data.",
-      "controller": {
-        "title": "Who is responsible",
-        "body": "[Company name, address, email] – the controller for the processing described here. [Data protection officer, if required.]"
-      },
-      "data": {
-        "title": "What data we collect",
-        "body": "Account data (name, email, sign-in method), profile data (photos, bio, languages, social links), Houses and join requests, messages, payment records and technical data (device, logs)."
-      },
-      "purposes": {
-        "title": "Why we use it",
-        "body": "To run the platform, match hosts and guests, process payments, keep users safe and improve Simpulo. [Legal bases per purpose.]"
-      },
-      "sharing": {
-        "title": "Who we share it with",
-        "body": "Other users see your public profile; House members see private contacts you shared. Service providers: [hosting, payment provider, email, analytics]."
-      },
-      "retention": {
-        "title": "How long we keep it",
-        "body": "[Retention periods per data type – e.g. account data until deletion, payment records as required by tax law.]"
-      },
-      "rights": {
-        "title": "Your rights",
-        "body": "Access, correction, deletion, restriction, data portability, objection and the right to complain to a supervisory authority. [How to exercise them.]"
-      },
-      "cookies": {
-        "title": "Cookies & local storage",
-        "body": "[Which cookies and local storage entries are used, and whether consent is needed.]"
-      },
-      "contact": {
-        "title": "Contact",
-        "body": "[Email address for privacy requests.]"
-      }
-    },
-    "imprint": {
-      "intro": "Legal notice.",
-      "provider": {
-        "title": "Service provider",
-        "body": "[Company name and legal form] · [Street and number] · [Postcode, city] · [Country]"
-      },
-      "representative": {
-        "title": "Represented by",
-        "body": "[Managing director(s)]"
-      },
-      "contact": {
-        "title": "Contact",
-        "body": "Email: [address] · Phone: [number]"
-      },
-      "register": {
-        "title": "Register entry",
-        "body": "[Register court] · [Registration number]"
-      },
-      "vat": {
-        "title": "VAT ID",
-        "body": "[VAT identification number]"
-      },
-      "responsible": {
-        "title": "Responsible for content",
-        "body": "[Name and address of the person responsible for editorial content.]"
-      },
-      "disputes": {
-        "title": "Dispute resolution",
-        "body": "[Statement on online dispute resolution and consumer arbitration.]"
-      }
-    }
+    "lastUpdated": "Last updated {date}",
+    "version": "Version {version}",
+    "draft": "Draft – not yet reviewed",
+    "draftText": "This text hasn't been reviewed by a lawyer yet. It can still change.",
+    "contents": "On this page",
+    "gap": "to fill: {field}",
+    "language": "Language",
+    "langs": { "en": "English", "de": "Deutsch" }
   },
   "states": {
     "loading": "Loading",
@@ -515,7 +410,7 @@ const en = {
     "continueWithApple": "Continue with Apple",
     "continueWithGoogle": "Continue with Google",
     "continueWithEmail": "Continue with email",
-    "legal": "By continuing you agree to our <terms>Terms</terms> and <privacy>Privacy Policy</privacy>.",
+    "legal": "By continuing, you agree to the <terms>Terms</terms> and confirm you're 18 or older. See how we handle your data in our <privacy>Privacy Policy</privacy>.",
     "checkInbox": "Check your inbox – we sent a link to <strong>{email}</strong>",
     "emailPlaceholder": "you@email.com",
     "or": "or",
@@ -596,6 +491,10 @@ const en = {
       "errorPage": "Error page",
       "errorPageOpen": "Trigger an error",
       "simOffline": "Simulate offline",
+      "consent": "Agreements",
+      "consentVersions": { "current": "Current", "terms": "New Terms", "code": "New guidelines" },
+      "consentMine": "My agreements",
+      "consentForget": "Forget mine",
       "clockNow": "Now",
       "clockValue": "+{hours} h",
       "clockEarlier": "12 hours earlier",
@@ -672,7 +571,160 @@ const en = {
       "photo": "Add a photo of your face.",
       "name": "Add your first name.",
       "age": "Add your age (18–99).",
-      "country": "Add the country you're from."
+      "country": "Add the country you're from.",
+      "adult": "Confirm that you're 18 or older."
+    },
+    "adult": "I'm 18 or older",
+    "terms": "By continuing, you agree to the <terms>Terms</terms>. See how we handle your data in our <privacy>Privacy Policy</privacy>."
+  },
+  "reportContent": {
+    "title": "Report content",
+    "intro": "Seen something on Simpulo you believe is illegal or breaks our rules? Tell us – you don't need an account.",
+    "emergency": "In danger right now? Call the local emergency number first.",
+    "what": "What are you reporting?",
+    "whatHint": "A link to a House, a profile or anything else on Simpulo.",
+    "why": "Why?",
+    "whyMissing": "Pick a reason.",
+    "reasons": {
+      "illegal": "Illegal content",
+      "scam": "Scam or fraud",
+      "harassment": "Harassment or hate",
+      "privacy": "My privacy – my data or photos",
+      "ip": "Copyright or trademark",
+      "other": "Something else"
+    },
+    "explain": "Tell us more",
+    "explainHint": "What's wrong, and where exactly? Why do you think it's illegal or against the rules?",
+    "email": "Your email",
+    "emailHint": "We confirm your report and tell you what we decided.",
+    "send": "Send report",
+    "sentTitle": "Thanks – we got your report",
+    "sentText": "We'll look at it and write to {email} once we've decided.",
+    "confirmSubject": "We got your report",
+    "confirmText": "Thanks for telling us. We'll look at your report and let you know what we decided.",
+    "resultSubject": "Your report to Simpulo"
+  },
+  "notices": {
+    "title": "Decisions about you",
+    "intro": "When Simpulo acts after a report, you see it here – what we did, why, and which rule. If you disagree, appeal: a person looks at it again.",
+    "login": "Log in to see them",
+    "none": "Nothing here – Simpulo hasn't made any decision about you.",
+    "action": {
+      "warned": "A warning",
+      "removed": "Removed from {title}",
+      "suspended": "Your account is suspended",
+      "houseRemoved": "{title} was taken down",
+      "photoRemoved": "A photo was removed from {title}"
+    },
+    "when": "When",
+    "why": "Why",
+    "rule": "The rule",
+    "house": "House",
+    "reason": {
+      "harassment": "A report of harassment",
+      "safety": "A report about safety",
+      "scam": "A report of a scam",
+      "inappropriate": "A report of inappropriate content",
+      "other": "A report",
+      "illegal": "A report of illegal content",
+      "privacy": "A report about someone's privacy",
+      "ip": "A report about copyright or a trademark"
+    },
+    "rules": {
+      "respect": "Respect everyone",
+      "safety": "Stay safe",
+      "money": "Keep money in Simpulo",
+      "privacy": "Respect privacy",
+      "conduct": "Terms – Living together",
+      "guidelines": "Community guidelines"
+    },
+    "appealLabel": "Disagree? Appeal",
+    "appealHint": "Tell us why you think we got it wrong. A person looks at it again.",
+    "appealSend": "Send appeal",
+    "appealSent": "Appeal sent on {date} – we'll look at it again and tell you.",
+    "upheld": "We looked at your appeal again on {date}. Our decision stays.",
+    "reversed": "We looked at your appeal again on {date} and reversed our decision."
+  },
+  "hostDuties": {
+    "title": "Hosting",
+    "hostingAs": "Hosting as",
+    "private": "Private person",
+    "business": "Business",
+    "footer": "Do you host as a business? Then your Houses say “Hosted by a business”, and guests see who they book with.",
+    "name": "Business name",
+    "address": "Business address",
+    "register": "Register number",
+    "optional": "if you have one",
+    "missing": "Add the business name and address.",
+    "save": "Save",
+    "hostedByBusiness": "Hosted by a business",
+    "tax": {
+      "title": "Tax details",
+      "footer": "Platforms like Simpulo may have to report hosts above a certain amount to tax authorities. Only Simpulo's team sees these details.",
+      "why": "You've had {count, plural, one {# paid booking} other {# paid bookings}} this year – please add your tax details.",
+      "taxId": "Tax ID",
+      "address": "Your address",
+      "send": "Send",
+      "sent": "Sent on {date}",
+      "onlyTeam": "Only Simpulo's team sees them.",
+      "update": "Update"
+    }
+  },
+  "video": {
+    "play": "Play video: {title}",
+    "loadsFrom": "Plays from {host} – loads only when you tap"
+  },
+  "consent": {
+    "terms": {
+      "firstTitle": "Agree to the Terms",
+      "firstText": "Before you go on: the Terms say how Simpulo works – requests, paying, cancelling, living together.",
+      "updatedTitle": "We've updated our Terms",
+      "updatedText": "Version {version} – what changed:",
+      "read": "Read the Terms",
+      "privacy": "See how we handle your data in our <privacy>Privacy Policy</privacy>.",
+      "adult": "I'm 18 or older",
+      "agree": "I agree",
+      "later": "Not now",
+      "summary": {
+        "requests": "Requests run out after {hours} hours without an answer.",
+        "money": "Paying, the service fee and the host fee are explained in one place.",
+        "guidelines": "Everyone follows the Community guidelines.",
+        "account": "You can pause your account instead of deleting it."
+      }
+    },
+    "code": {
+      "guestTitle": "Before your first request",
+      "hostTitle": "Before you open your first House",
+      "updatedTitle": "We've updated our Community guidelines",
+      "guestText": "A House works when everyone feels at home. In short:",
+      "hostText": "As a host you set the tone. Everything guests agree to, and a little more:",
+      "updatedText": "Version {version} – please read them once more:",
+      "hostsToo": "As a host, also:",
+      "read": "Read the full guidelines",
+      "agree": "I agree",
+      "points": {
+        "respect": "Respect everyone – in the House and in chats.",
+        "noMeansNo": "No means no.",
+        "harassment": "Harassment means you leave the House.",
+        "place": "Look after the place like it's your own.",
+        "report": "Something wrong? Report it in one tap.",
+        "honest": "Describe your House honestly.",
+        "book": "Book the place once everyone paid – and confirm it within {hours} hours.",
+        "answer": "Answer every request, yes or no.",
+        "allowed": "Hosting where you live: make sure you're allowed to have guests."
+      }
+    },
+    "settings": {
+      "title": "Agreements",
+      "terms": "Terms",
+      "age": "18 or older",
+      "guestCode": "Community guidelines",
+      "hostCode": "Community guidelines for hosts",
+      "agreed": "Version {version} · {date}",
+      "confirmed": "Confirmed {date}",
+      "never": "Not yet",
+      "history": "Earlier",
+      "historyRow": "{doc} · version {version} · {date}"
     }
   },
   "explore": {
@@ -3402,9 +3454,14 @@ const en = {
       "hostRemindedGuest": "{host} reminds you to pay your share · {title}",
       "reportActioned": "We looked at your report and took action. Thank you for telling us.",
       "reportUnfounded": "We looked at your report and didn't find a breach of the rules. Thank you for telling us.",
-      "accountWarning": "A note from Simpulo: we got a report about you. Please keep to the House rules – next time we'll take action.",
-      "removedModeration": "Simpulo removed you from {title} after a report. Anything you paid is refunded.",
-      "accountSuspended": "Your Simpulo account is suspended after a report. Write to us if you think this is a mistake.",
+      "accountWarning": "A note from Simpulo: we got a report about you. See why – and appeal if you disagree.",
+      "removedModeration": "Simpulo removed you from {title} after a report. Anything you paid is refunded. See why – and appeal if you disagree.",
+      "accountSuspended": "Your Simpulo account is suspended after a report. See why – and appeal if you disagree.",
+      "houseTakenDown": "Simpulo took {title} down after a report. See why – and appeal if you disagree.",
+      "photoTakenDown": "Simpulo removed a photo from the album of {title} after a report. See why – and appeal if you disagree.",
+      "reportReceived": "We got your report and will look at it. You'll hear from us once we've decided.",
+      "appealUpheld": "We looked at your appeal again. Our decision stays – the reasons are on the page.",
+      "appealReversed": "We looked at your appeal again and reversed our decision. Sorry for the trouble.",
       "locked": "{title}: accommodation locked – {price} each, you pay once the crew is complete",
       "paymentDue": "{title}: the crew is complete. Your share is due within 48 hours",
       "paymentLapsed": "{title}: {name} didn't pay in time, so their spot is open again",
@@ -4276,30 +4333,8 @@ const en = {
     "verifiedOnlyText": "Guests verify with an ID through Stripe Identity. Fewer requests, more trust."
   },
   "policy": {
-    "title": "Cancellation",
-    "description": "When you get your money back on Simpulo: before the crew is complete, after paying, and when the host cancels.",
-    "intro": "Simple rules, the same for every House.",
-    "draft": "Draft – the legal review of these rules is still open.",
     "short": "Cancellation: free until the crew is complete. After paying, only by handing your spot to the waitlist (everything back but the Simpulo fee). Full refund if the host cancels or doesn't confirm the booking in 48h.",
-    "link": "Cancellation rules",
-    "rules": {
-      "beforeComplete": {
-        "title": "Before the crew is complete",
-        "body": "Withdraw your request or leave your spot any time, for free. Nothing is paid before the crew is complete and the place is chosen."
-      },
-      "afterPayment": {
-        "title": "After you paid",
-        "body": "You can leave by handing your spot to the next person on the waitlist. Once they take it, you get everything back except the Simpulo fee."
-      },
-      "withoutTransfer": {
-        "title": "Nobody on the waitlist",
-        "body": "If you leave after paying and nobody takes your spot, there's no refund – the crew has booked the place counting on you."
-      },
-      "hostCancels": {
-        "title": "The host cancels or doesn't book",
-        "body": "If the host cancels the House, or doesn't confirm the booking within {hours} hours after everyone paid, you get your whole share back."
-      }
-    }
+    "link": "Cancellation rules"
   },
   "invitePage": {
     "metaTitle": "You're invited",
@@ -4494,6 +4529,8 @@ const en = {
       "closedDescription": "The host closed it – but plenty of other Houses are still looking for people.",
       "blockedTitle": "This House isn't available",
       "blockedDescription": "You blocked the host of this House.",
+      "removedTitle": "This House isn't available",
+      "removedDescription": "Simpulo took it down after a report.",
       "explore": "Explore other Houses",
       "others": "Other open Houses"
     }
@@ -4954,21 +4991,6 @@ const en = {
       "title": "Help center",
       "description": "Answers about joining, hosting, payments and refunds, safety and your account – and a way to get help."
     },
-    "safety": {
-      "title": "Safety",
-      "description": "How Simpulo keeps shared Houses safe: real profiles, host-approved requests, payments only when the place is booked.",
-      "intro": "How we help you live with people you can trust.",
-      "todo": "Placeholder – the real safety page is still being written.",
-      "placeholder": "Section text follows.",
-      "sections": {
-        "profiles": "Real profiles",
-        "requests": "Hosts choose who joins their House",
-        "payments": "Paying safely",
-        "onSite": "At the House",
-        "reporting": "Reporting a problem",
-        "hosts": "For hosts"
-      }
-    },
     "pages": {
       "explore": {
         "title": "Explore Houses",
@@ -4989,18 +5011,6 @@ const en = {
       "contact": {
         "title": "Contact",
         "description": "Questions, feedback or a problem with a House? Get in touch with the Simpulo team."
-      },
-      "privacy": {
-        "title": "Privacy Policy",
-        "description": "How Simpulo handles your personal data."
-      },
-      "terms": {
-        "title": "Terms of Service",
-        "description": "The terms for using Simpulo as a host or guest."
-      },
-      "impressum": {
-        "title": "Impressum",
-        "description": "Legal notice and provider information for Simpulo."
       }
     }
   },
@@ -5372,6 +5382,8 @@ const en = {
     "clear": "Clear",
     "stuckTitle": "Still stuck?",
     "stuckText": "Write to us – we read every message.",
+    "contactPoint": "Contact point for authorities and users: <mail>{email}</mail>",
+    "reportContent": "Report illegal content",
     "getHelp": "Get help",
     "shareIdea": "Share an idea"
   },
@@ -5784,3 +5796,4 @@ export default en;
 
 /** The shape every product language must have (keys and nesting as en). */
 export type ProductMessages = typeof en;
+

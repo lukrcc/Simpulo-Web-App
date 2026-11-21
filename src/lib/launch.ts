@@ -6,7 +6,7 @@ import type { HouseInvite, Stay } from "./types";
  * Explore, not in the sitemap. From that many on, all of them are listed for good.
  */
 
-const isPublished = (stay: Stay) => stay.status === "published" && stay.hostId !== "";
+const isPublished = (stay: Stay) => stay.status === "published" && stay.hostId !== "" && !stay.takenDownAt;
 
 export function isPreLaunch(stays: readonly Stay[]): boolean {
   return stays.filter(isPublished).length < LAUNCH_MIN_HOUSES;

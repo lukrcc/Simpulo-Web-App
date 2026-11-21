@@ -17,6 +17,7 @@ import { mockInFor } from "./mock-inFor";
 import { DEADLINES, INVITE_POLICY, MANUAL_REMINDERS, type DeadlineFlow } from "@/config/policies";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
+import { USES_MOCK_DATA } from "./appMode";
 import { DEFAULT_FLAGS, useFeatureFlag } from "./featureFlags";
 import { useHydrated } from "./useHydrated";
 import { guestFee, paymentSplit } from "./fees";
@@ -45,6 +46,8 @@ import { LOCAL_SEARCH_PREFIX, openSearchesFor, sameSearch, type SavedSearch } fr
 import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { doItAgainDue, type Reminder } from "./reminders";
 import type {
+  ConsentRecord,
+  ModerationNotice,
   ArcArrival,
   ArcAfter,
   ArcThirty,
@@ -102,8 +105,10 @@ interface StoreState {
   payments: Payment[];
   /** threadId → who is "typing" right now (dev-only mock replies) */
   typing: Record<string, string | null>;
-  /** Mock moderation queue (Report sheet) */
+  /** Mock moderation queue (Report sheet, and the public form /report-content) */
   reports: Report[];
+  /** Statements of reasons sent after a decision (one per intervention), with their appeals – lib/types ModerationNotice */
+  notices: ModerationNotice[];
   /** Every notification, one per recipient (in-app under the bell; also email / push – see NotificationToasts). Newest last. */
   notifications: AppNotification[];
   /** Analytics events, oldest first (seeded history + this browser's; also logged to the console) */
@@ -226,6 +231,11 @@ type StoreAction =
   | { type: "markThreadRead"; threadId: string; at: string }
   | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
   | { type: "markHintSeen"; hint: string }
+  | { type: "agree"; records: ConsentRecord[] }
+  | { type: "reportContent"; report: Report }
+  | { type: "appeal"; noticeId: string; text: string; at: string }
+  | { type: "decideAppeal"; noticeId: string; outcome: "upheld" | "reversed"; at: string }
+  | { type: "resetConsents" }
   | { type: "setArcStep"; houseId: string; stepId: string; state: "done" | "skipped" | "open"; note?: string }
   | { type: "setArcMuted"; muted: boolean }
   | { type: "setIntention"; houseId: string; intention: ArcIntention }
@@ -303,6 +313,7 @@ export type ProfilePatch = Partial<
     | "privacy"
     | "houseVibe"
     | "communityNeed"
+    | "hostBusiness"
   >
 >;
 
@@ -414,6 +425,10 @@ interface StoreActions {
   setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
   /** A one-time hint seen – on the account, so it never comes back */
   markHintSeen: (hint: string) => void;
+  /** Agreements (lib/consent.ts): append these records to the current user's – the history stays (config/consent.ts) */
+  agree: (records: ConsentRecord[]) => void;
+  /** Dev only: forget the current user's agreements (to test sign-up and the first request) */
+  resetConsents: () => void;
   /** The arc (config/arc.ts): a step done, skipped or open again – `note`: a private text ("write" steps with visibility private) */
   setArcStep: (houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => void;
   /** "Mute Simpulo tips": no arc cards in any House chat */
@@ -511,6 +526,12 @@ interface StoreActions {
   report: (target: Report["target"], reason: ReportReason, options?: { text?: string; block?: boolean; extra?: Pick<Report, "subjectId" | "stayId" | "memorySrc"> }) => void;
   /** Admin › Posteingang › Sicherheit: Verwarnen · Aus dem House entfernen · Konto sperren · Unbegründet – both sides hear it (mock: in-app + email log) */
   decideReport: (reportId: string, outcome: ReportOutcome) => void;
+  /** The public form (/report-content), with or without an account – the target resolved from the link (lib/contentReport.ts) */
+  reportContent: (report: Omit<Report, "reporterId" | "source">) => void;
+  /** "Appeal" on a statement of reasons (/notices) – once, by the person it's about */
+  appeal: (noticeId: string, text: string) => void;
+  /** Admin: the appeal stands or is granted (granted undoes the account, House or photo) */
+  decideAppeal: (noticeId: string, outcome: "upheld" | "reversed") => void;
   /** Mock: marks the account deleted and logs out (nothing else is removed). */
   deleteAccount: () => void;
   /** Dev: fires a computed reminder now – notification (email/push mock), plus a crew chat line if crew-related. */
@@ -752,6 +773,7 @@ function buildInitialState({ stays: unplaced, users, joinRequests: rawRequests, 
     payments,
     typing: {},
     reports: [],
+    notices: [],
     events: growthEventsFor({ stays, joinRequests, payments }),
     alerts: [],
     applications: [],
@@ -790,7 +812,7 @@ const GROWTH_KEY = "simpulo:growth";
  * The whole mock state, per data state, so a reload keeps requests, payments, messages (the login has its own key). Versioned: a new
  * MOCK_VERSION drops what an older build saved. Dev menu › "Reset mock data" clears it (resetMockData).
  */
-const MOCK_VERSION = 21;
+const MOCK_VERSION = 23;
 const MOCK_PREFIX = "simpulo:mock:";
 const mockKey = (phase: PlatformPhase) => `${MOCK_PREFIX}v${MOCK_VERSION}:${phase}`;
 /** Saved before the phases, under the data state's old name (launch → beta, full → live): moved over once. */
@@ -2144,6 +2166,16 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), arcMuted: action.muted || undefined } } : u)) };
     }
 
+    case "agree": {
+      if (!me || !action.records.length) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), consents: [...(settingsOf(u).consents ?? []), ...action.records] } } : u)) };
+    }
+
+    case "resetConsents": {
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), consents: [] } } : u)) };
+    }
+
     case "markHintSeen": {
       if (!me) return state;
       return {
@@ -2445,13 +2477,44 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         const excerpt = at < 0 ? [] : said.slice(Math.max(0, at - REPORT_CONTEXT), at + REPORT_CONTEXT + 1).map((m) => ({ id: m.id, senderId: m.senderId, text: m.text, at: m.createdAt, ...(m.id === r.target.id && { reported: true as const }) }));
         context = { subjectId: said[at]?.senderId, stayId: thread?.houseId, excerpt };
       }
-      const report: Report = { ...r, ...context, ...r.subjectId && { subjectId: r.subjectId }, ...r.stayId && { stayId: r.stayId }, reporterId: me };
+      const report: Report = { ...r, ...context, ...r.subjectId && { subjectId: r.subjectId }, ...r.stayId && { stayId: r.stayId }, reporterId: me, source: "app" };
       const blocked = r.blocked && report.subjectId && report.subjectId !== me;
       return {
         ...state,
         reports: [...state.reports, report],
         ...(blocked && { users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), blockedUserIds: [...new Set([...settingsOf(u).blockedUserIds, report.subjectId!])] } } : u)) }),
       };
+    }
+
+    // The public form (/report-content): with or without an account. The target was resolved from the link (lib/contentReport.ts); the
+    // confirmation goes out at once (in-app with an account, the email in any case – sent by the caller).
+    case "reportContent": {
+      const report: Report = { ...action.report, reporterId: me ?? null, source: "form" };
+      return {
+        ...state,
+        reports: [...state.reports, report],
+        ...(me && { notifications: notifyInApp(state, [me], "reportReceived", {}, `${report.id}-received`) }),
+      };
+    }
+
+    case "appeal": {
+      const notice = state.notices.find((n) => n.id === action.noticeId);
+      if (!notice || notice.userId !== me || notice.appeal || !action.text.trim()) return state;
+      return { ...state, notices: state.notices.map((n) => (n.id === notice.id ? { ...n, appeal: { text: action.text.trim().slice(0, 2000), at: action.at } } : n)) };
+    }
+
+    // Admin: the appeal stands or is granted. Granted undoes what can be undone – the account, the House, the photo come back; someone taken
+    // out of a House isn't put back by itself (the admin talks to the host). The person hears it either way.
+    case "decideAppeal": {
+      const notice = state.notices.find((n) => n.id === action.noticeId);
+      if (!notice?.appeal || notice.appeal.decision) return state;
+      let next: StoreState = { ...state, notices: state.notices.map((n) => (n.id === notice.id ? { ...n, appeal: { ...n.appeal!, decision: { outcome: action.outcome, at: action.at } } } : n)) };
+      if (action.outcome === "reversed") {
+        if (notice.action === "suspended") next = { ...next, users: next.users.map((u) => (u.id === notice.userId ? { ...u, suspendedAt: undefined } : u)) };
+        if (notice.action === "houseRemoved" && notice.stayId) next = { ...next, stays: next.stays.map((s) => (s.id === notice.stayId ? { ...s, takenDownAt: undefined } : s)) };
+        if (notice.action === "photoRemoved" && notice.memoryId) next = { ...next, memories: next.memories.filter((m) => !(m.id === notice.memoryId && m.removedBy === "moderation")) };
+      }
+      return { ...next, notifications: notifyInApp(next, [notice.userId], action.outcome === "reversed" ? "appealReversed" : "appealUpheld", {}, `${notice.id}-appeal`, undefined, undefined, { href: `/notices#${notice.id}` }) };
     }
 
     case "decideReport": {
@@ -2465,10 +2528,23 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         next = withoutMember(next, stay, subject, systemLine({ id: `${report.id}-removed`, createdAt: action.at }, crewThreadId(stay.id), "removed", { name: firstNameOf(next, subject) }), "moderation");
       }
       if (action.outcome === "suspended" && subject) next = { ...next, users: next.users.map((u) => (u.id === subject ? { ...u, suspendedAt: action.at } : u)) };
-      // The reporter hears that it was looked at – never what happened to the other person.
-      next = { ...next, notifications: notifyInApp(next, [report.reporterId], action.outcome === "unfounded" ? "reportUnfounded" : "reportActioned", {}, `${report.id}-reporter`) };
-      const subjectKey = action.outcome === "warned" ? "accountWarning" : action.outcome === "removed" && stay ? "removedModeration" : action.outcome === "suspended" ? "accountSuspended" : null;
-      if (subject && subjectKey) next = { ...next, notifications: notifyInApp(next, [subject], subjectKey, { title: stay?.title ?? "" }, `${report.id}-subject`, stay?.id) };
+      // A House taken down: off Explore and its page (lib/launch.ts isPublished) – the host keeps the page and gets the reasons.
+      if (action.outcome === "houseRemoved" && stay) next = { ...next, stays: next.stays.map((s) => (s.id === stay.id ? { ...s, takenDownAt: action.at } : s)) };
+      // A photo taken down: kept as a removal record so it never comes back (like "Remove me").
+      const memoryId = report.target.kind === "memory" ? report.target.id : undefined;
+      if (action.outcome === "photoRemoved" && memoryId) {
+        const known = next.memories.find((m) => m.id === memoryId);
+        const removed: HouseMemory = { ...(known ?? { id: memoryId, houseId: report.stayId ?? "", userId: subject ?? "", kind: "photo" as const, src: report.memorySrc, at: report.createdAt, crewConsent: true as const, simpuloUse: false }), removedAt: action.at, removedBy: "moderation" };
+        next = { ...next, memories: [...next.memories.filter((m) => m.id !== memoryId), removed] };
+      }
+      // The reporter hears that it was looked at – never what happened to the other person (the form's email: sent by the caller).
+      if (report.reporterId) next = { ...next, notifications: notifyInApp(next, [report.reporterId], action.outcome === "unfounded" ? "reportUnfounded" : "reportActioned", {}, `${report.id}-reporter`) };
+      // The person concerned: the statement of reasons – what, why, which rule, and "Appeal" (/notices).
+      if (subject && action.outcome !== "unfounded") {
+        const notice: ModerationNotice = { id: `${report.id}-notice`, userId: subject, action: action.outcome, reason: report.reason, reportId: report.id, ...(stay && { stayId: stay.id }), ...(memoryId && { memoryId }), at: action.at };
+        const key = action.outcome === "warned" ? "accountWarning" : action.outcome === "removed" ? "removedModeration" : action.outcome === "suspended" ? "accountSuspended" : action.outcome === "houseRemoved" ? "houseTakenDown" : "photoTakenDown";
+        next = { ...next, notices: [...next.notices, notice], notifications: notifyInApp(next, [subject], key, { title: stay?.title ?? "" }, `${report.id}-subject`, stay?.id, undefined, { href: `/notices#${notice.id}` }) };
+      }
       return next;
     }
 
@@ -2617,7 +2693,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Saved shortly after each change (not the login, not who's "typing").
   useEffect(() => {
-    if (!mockRestored.current) return;
+    if (!mockRestored.current || !USES_MOCK_DATA) return;
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(mockKey(readPlatformPhase()), JSON.stringify({ ...state, currentUserId: null, sessionRestored: false, typing: {} }));
@@ -2651,7 +2727,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!growthRestored.current) return;
+    if (!growthRestored.current || !USES_MOCK_DATA) return;
     try {
       localStorage.setItem(GROWTH_KEY, JSON.stringify(persistedGrowth(state)));
     } catch {
@@ -3054,6 +3130,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [threads],
   );
   const markHintSeen = useCallback((hint: string) => dispatch({ type: "markHintSeen", hint }), []);
+  const agree = useCallback((records: ConsentRecord[]) => dispatch({ type: "agree", records }), []);
+  const resetConsents = useCallback(() => dispatch({ type: "resetConsents" }), []);
   const setArcStep = useCallback((houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => dispatch({ type: "setArcStep", houseId, stepId, state, note }), []);
   const setArcMuted = useCallback((muted: boolean) => dispatch({ type: "setArcMuted", muted }), []);
   const setIntention = useCallback((houseId: string, intention: ArcIntention) => dispatch({ type: "setIntention", houseId, intention }), []);
@@ -3163,6 +3241,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
   const decideReport = useCallback((reportId: string, outcome: ReportOutcome) => dispatch({ type: "decideReport", reportId, outcome, at: new Date().toISOString() }), []);
+  const reportContent = useCallback((report: Omit<Report, "reporterId" | "source">) => dispatch({ type: "reportContent", report: { ...report, reporterId: null } }), []);
+  const appeal = useCallback((noticeId: string, text: string) => dispatch({ type: "appeal", noticeId, text, at: new Date().toISOString() }), []);
+  const decideAppeal = useCallback((noticeId: string, outcome: "upheld" | "reversed") => dispatch({ type: "decideAppeal", noticeId, outcome, at: new Date().toISOString() }), []);
   const deleteAccount = useCallback(() => {
     dispatch({ type: "deleteAccount", at: new Date().toISOString() });
     try {
@@ -3266,6 +3347,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       setChatTheme,
       markHintSeen,
+      agree,
+      resetConsents,
       setArcStep,
       setArcMuted,
       setIntention,
@@ -3315,9 +3398,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lapsePaymentWindow,
       remindHost,
       remindGuest,
+      reportContent,
+      appeal,
+      decideAppeal,
       decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -3384,6 +3470,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     halftime: user?.settings?.halftime,
     after: user?.settings?.after,
     thirty: user?.settings?.thirty,
+    consents: user?.settings?.consents ?? [],
   };
 }
 

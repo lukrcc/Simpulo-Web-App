@@ -3,6 +3,7 @@
 import { DEV_SETTINGS_KEY, readDevSetting, subscribeDevSettings } from "./devSettings";
 import { useSyncExternalStore } from "react";
 import { track } from "./analytics";
+import { removeObsoleteStorage } from "./storage";
 
 export type Platform = "ios" | "android" | "desktop" | "unknown";
 
@@ -12,6 +13,7 @@ export interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// iOS has no appinstalled event: installs there aren't counted (that would need a mark on the device – CLAUDE.md "Speicherung und Tracker").
 // The event fires once, early, on any page. Catch it at module load (this module is imported from the root
 // layout) so /install can still use it after a client-side navigation.
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
@@ -33,37 +35,22 @@ if (typeof window !== "undefined") {
 
 // ─── Where a visitor came from (?ref=), kept for the session ─────────────────────
 
-const REF_KEY = "simpulo:ref";
+// Kept in memory for this page load only – nothing stored (CLAUDE.md "Speicherung und Tracker").
+let landing: string | null | undefined;
 function rememberLandingRef() {
+  if (landing !== undefined) return;
   try {
     const query = new URLSearchParams(window.location.search);
     // ?src= (the printed and profile QR codes: src=qr; invites: src=invite) or ?ref= (where a link was seen – on an invite it's the sharer's id,
     // so src comes first)
-    const ref = query.get("src") ?? query.get("ref");
-    if (ref && !sessionStorage.getItem(REF_KEY)) sessionStorage.setItem(REF_KEY, ref);
+    landing = query.get("src") ?? query.get("ref");
   } catch {
-    // storage blocked – no ref then
+    landing = null;
   }
 }
-/** The ?ref= (or ?src=) this session started with ("footer", "get", "house-qr", "qr" …), or null. */
+/** The ?ref= (or ?src=) this page load started with ("footer", "get", "house-qr", "qr" …), or null. */
 export function landingRef(): string | null {
-  try {
-    return sessionStorage.getItem(REF_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** The first start as an installed app counts as an install too (iOS has no appinstalled event). */
-const STANDALONE_SEEN_KEY = "simpulo:standalone-seen";
-function noteFirstStandaloneStart() {
-  try {
-    if (!isStandalone() || localStorage.getItem(STANDALONE_SEEN_KEY)) return;
-    localStorage.setItem(STANDALONE_SEEN_KEY, "1");
-    track("app_installed", { via: "first_standalone_start", platform: detectPlatform(), ref: landingRef() });
-  } catch {
-    // storage blocked
-  }
+  return landing ?? null;
 }
 
 function subscribePrompt(listener: () => void) {
@@ -172,15 +159,12 @@ export function useIsStandalone(): boolean {
 export type InstallTrigger = "paid" | "joined" | "chat";
 
 /** Never on the first visit, at most once a week, and off for good with "Don't show again" (or Settings › General). */
-export const INSTALL_PROMPT_RULES = { minDaysBetween: 7, minVisits: 2 } as const;
+export const INSTALL_PROMPT_RULES = { minDaysBetween: 7 } as const;
 
+/** When the hint last showed and "Don't show again" – no counters, no visit counting (never on a first visit: the moments need an account). */
 const PROMPT_KEY = "simpulo:install-prompt:v2";
-const VISITS_KEY = "simpulo:visits";
-const VISIT_SESSION_KEY = "simpulo:visit-counted";
 
 interface PromptLog {
-  shown: number;
-  dismissed: number;
   lastShownAt: string | null;
   /** "Don't show again" – no install hint any more */
   off: boolean;
@@ -190,7 +174,8 @@ interface PromptLog {
 function readLog(): PromptLog | null {
   try {
     const raw = localStorage.getItem(PROMPT_KEY);
-    return raw ? { ...(JSON.parse(raw) as PromptLog), off: (JSON.parse(raw) as Partial<PromptLog>).off === true } : { shown: 0, dismissed: 0, lastShownAt: null, off: false };
+    const saved = raw ? (JSON.parse(raw) as Partial<PromptLog>) : {};
+    return { lastShownAt: saved.lastShownAt ?? null, off: saved.off === true };
   } catch {
     return null;
   }
@@ -205,40 +190,20 @@ function writeLog(log: PromptLog) {
   logListeners.forEach((l) => l());
 }
 
-/** Counts visits: one per browser session. */
-function countVisit() {
-  try {
-    if (sessionStorage.getItem(VISIT_SESSION_KEY)) return;
-    sessionStorage.setItem(VISIT_SESSION_KEY, "1");
-    localStorage.setItem(VISITS_KEY, String(Number(localStorage.getItem(VISITS_KEY) ?? 0) + 1));
-  } catch {
-    // blocked
-  }
-}
-function visits(): number {
-  try {
-    return Number(localStorage.getItem(VISITS_KEY) ?? 0);
-  } catch {
-    return 0;
-  }
-}
-
 /** Whether the install prompt may show now (the rules above). */
 export function mayShowInstallPrompt(now = Date.now()): boolean {
   const log = readLog();
-  if (!log || log.off || visits() < INSTALL_PROMPT_RULES.minVisits) return false;
+  if (!log || log.off) return false;
   return !log.lastShownAt || now - Date.parse(log.lastShownAt) >= INSTALL_PROMPT_RULES.minDaysBetween * 86_400_000;
 }
 
 export function noteInstallPromptShown(trigger: InstallTrigger) {
   const log = readLog();
-  if (log) writeLog({ ...log, shown: log.shown + 1, lastShownAt: new Date().toISOString() });
+  if (log) writeLog({ ...log, lastShownAt: new Date().toISOString() });
   track("install_prompt_shown", { trigger, ref: landingRef() });
 }
 
 export function noteInstallPromptDismissed(trigger: InstallTrigger) {
-  const log = readLog();
-  if (log) writeLog({ ...log, dismissed: log.dismissed + 1 });
   track("install_prompt_dismissed", { trigger, ref: landingRef() });
 }
 
@@ -322,6 +287,6 @@ export function dismissInAppHint() {
 // At the end: everything above (keys, queries) exists by now.
 if (typeof window !== "undefined") {
   rememberLandingRef();
-  noteFirstStandaloneStart();
-  countVisit();
+  // What older builds stored and no longer do (first touch, visit counts …) – removed from this browser once (config/storage.ts).
+  removeObsoleteStorage();
 }

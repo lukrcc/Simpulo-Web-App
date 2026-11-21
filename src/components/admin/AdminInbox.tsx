@@ -23,7 +23,7 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { share } from "@/lib/i18n/adminFormat";
 import { findUser, useStore } from "@/lib/store";
 import { profileHref } from "@/lib/privacy";
-import type { Report, ReportOutcome } from "@/lib/types";
+import type { ModerationNotice, Report, ReportOutcome } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { InfoTip } from "./AdminNumbers";
@@ -38,6 +38,7 @@ const TABS: readonly InboxTab[] = ["all", "safety", "money", "houses", "hosts", 
 export function tabOf(task: AdminTask): Exclude<InboxTab, "all"> {
   switch (task.kind) {
     case "report":
+    case "appeal":
     case "safety":
       return "safety";
     case "money":
@@ -71,6 +72,8 @@ function useSentence() {
         const house = task.report.stayId ? store.stays.find((x) => x.id === task.report.stayId)?.title : undefined;
         return t("sentence.report", { reason: tReports(`reason.${task.report.reason}`), subject: subject ?? tReports("someone"), house: house ? ` · ${house}` : "" });
       }
+      case "appeal":
+        return tReports("appeal.sentence", { action: tReports(`outcome.${task.notice.action}`), name: findUser(store, task.notice.userId)?.name ?? tReports("someone") });
       case "safety":
       case "support":
         return task.ticket.message.split("\n")[0];
@@ -166,7 +169,7 @@ function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
   const store = useStore();
   const actions = useAdminActions();
   const showToast = useToast();
-  const reporter = findUser(store, report.reporterId);
+  const reporter = report.reporterId ? findUser(store, report.reporterId) : undefined;
   const subject = report.subjectId ? findUser(store, report.subjectId) : undefined;
   const stay = report.stayId ? store.stays.find((x) => x.id === report.stayId) : undefined;
   const detail = `${t(`reason.${report.reason}`)} · ${subject?.name ?? t("someone")}${stay ? ` · ${stay.title}` : ""}`;
@@ -194,7 +197,10 @@ function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
       <dl className="grid gap-4 sm:grid-cols-2">
         {field(t("labelReason"), t(`reason.${report.reason}`))}
         {field(t("labelWhat"), t(`target.${report.target.kind}`))}
-        {field(t("labelBy"), reporter?.name ?? report.reporterId)}
+        {field(t("labelBy"), reporter?.name ?? report.reporterId ?? t("noAccount"))}
+        {field(t("labelSource"), t(`source.${report.source ?? "app"}`))}
+        {report.reporterEmail && field(t("labelEmail"), report.reporterEmail)}
+        {report.link && field(t("labelLink"), <span className="break-all">{report.link}</span>)}
         {field(
           t("labelSubject"),
           subject ? (
@@ -271,6 +277,16 @@ function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
               <Button size="sm" variant="secondary" disabled={!subject} onClick={() => decide("suspended")}>
                 {t("actions.suspended")}
               </Button>
+              {report.target.kind === "stay" && stay && (
+                <Button size="sm" variant="secondary" onClick={() => decide("houseRemoved")}>
+                  {t("actions.houseRemoved")}
+                </Button>
+              )}
+              {report.target.kind === "memory" && (
+                <Button size="sm" variant="secondary" onClick={() => decide("photoRemoved")}>
+                  {t("actions.photoRemoved")}
+                </Button>
+              )}
               <Button size="sm" variant="tertiary" onClick={() => decide("unfounded")}>
                 {t("actions.unfounded")}
               </Button>
@@ -278,8 +294,64 @@ function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
             {harassment && <p className="text-small text-muted">{t("harassmentRule")}</p>}
             {!inHouse && stay && <p className="text-small text-muted">{t("noRemove")}</p>}
             <p className="text-small text-muted">{t("messagesHint")}</p>
+            <p className="text-small text-muted">{t("noticeHint")}</p>
           </section>
         )
+      )}
+    </div>
+  );
+}
+
+/** A widerspruch: what was done and why, the original report, the person's words – it stands or it's granted. */
+function AppealDetail({ notice, sentence }: { notice: ModerationNotice; sentence: string }) {
+  const t = useTranslations("admin.reports");
+  const f = useFormat();
+  const store = useStore();
+  const actions = useAdminActions();
+  const showToast = useToast();
+  const report = store.reports.find((r) => r.id === notice.reportId);
+  const person = findUser(store, notice.userId);
+  const stay = notice.stayId ? store.stays.find((x) => x.id === notice.stayId) : undefined;
+  const decide = (outcome: "upheld" | "reversed") => {
+    actions.decideAppeal(notice.id, outcome, sentence);
+    showToast(t("appeal.toast", { outcome: t(`appeal.outcome.${outcome}`) }));
+  };
+  const field = (label: string, value: React.ReactNode) => (
+    <div>
+      <dt className="text-eyebrow uppercase text-(--adm-label)">{label}</dt>
+      <dd className="mt-1 text-body text-ink">{value}</dd>
+    </div>
+  );
+  return (
+    <div className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        {field(t("appeal.labelAction"), t(`outcome.${notice.action}`))}
+        {field(t("labelReason"), t(`reason.${notice.reason}`))}
+        {field(t("labelSubject"), person ? <Link href={profileHref(person.id)} className="hover:underline">{person.name}</Link> : t("someone"))}
+        {stay && field(t("labelHouse"), <Link href={`/admin/houses?house=${stay.id}`} className="hover:underline">{stay.title}</Link>)}
+        {field(t("appeal.labelWhen"), f.day(notice.at))}
+        {report?.text && field(t("appeal.labelOriginal"), `„${report.text}“`)}
+      </dl>
+      {notice.appeal && (
+        <section>
+          <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("appeal.labelAppeal")}</h3>
+          <p className="mt-2 whitespace-pre-line text-body text-ink">{notice.appeal.text}</p>
+        </section>
+      )}
+      {notice.appeal?.decision ? (
+        <p className="text-body font-semibold text-ink">{t("appeal.decided", { outcome: t(`appeal.outcome.${notice.appeal.decision.outcome}`), date: f.day(notice.appeal.decision.at) })}</p>
+      ) : (
+        <section className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => decide("upheld")}>
+              {t("appeal.upheld")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => decide("reversed")}>
+              {t("appeal.reversed")}
+            </Button>
+          </div>
+          <p className="text-small text-muted">{t("appeal.reversedNoUndo")}</p>
+        </section>
       )}
     </div>
   );
@@ -379,6 +451,19 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
           {t("action.remind")}
         </Button>
       </>
+    );
+  }
+
+  if (task.kind === "appeal") {
+    return (
+      <article data-inbox-detail>
+        <BackToList onBack={onBack} />
+        <p className="text-eyebrow uppercase text-(--adm-label)">
+          {t(`kind.${task.kind}`)} · {f.day(task.createdAt)}
+        </p>
+        <p className="mt-2 text-h3 text-ink">{sentence}</p>
+        <AppealDetail notice={task.notice} sentence={sentence} />
+      </article>
     );
   }
 

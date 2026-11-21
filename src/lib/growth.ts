@@ -1,5 +1,5 @@
-// Growth: attribution (first touch), share links, analytics events and the demand/host records collected along
-// the way. Mock only – everything lives in the store and in this browser's localStorage.
+// Growth: attribution (this visit's ref/UTM, in memory), share links, analytics events and the demand/host records collected along
+// the way. The records are mock (the store; saved in this browser only in dev and demo).
 import type { Attribution } from "./mock";
 
 export type { Attribution };
@@ -13,8 +13,11 @@ export const REF_PARAM = "ref";
 export const SRC_PARAM = "src";
 const UTM_PARAMS = { utmSource: "utm_source", utmMedium: "utm_medium", utmCampaign: "utm_campaign" } as const;
 
-/** First touch of this browser: written once, on the first visit that carried a ref or UTM tags. */
-const FIRST_TOUCH_KEY = "simpulo:first-touch";
+/**
+ * Where this visit came from – read once from the first URL of the page load and kept in memory only. Nothing is stored on the device
+ * (CLAUDE.md "Speicherung und Tracker"): a reload after the URL was cleaned counts as direct.
+ */
+let touch: Attribution | null = null;
 
 const MAX_PARAM_LENGTH = 80;
 const clean = (value: string | null) => value?.trim().slice(0, MAX_PARAM_LENGTH) || undefined;
@@ -42,25 +45,17 @@ function withoutEmpty(attribution: Attribution): Attribution {
 }
 
 /**
- * The browser's first-touch attribution ({} = came direct). The first call that sees a ref/UTM in the current
- * URL stores it – so it can run from any component's effect, in any order, before the URL is cleaned.
+ * This visit's attribution ({} = came direct). The first call reads ref/UTM from the current URL and keeps it in memory – so it can run
+ * from any component's effect, in any order, before the URL is cleaned.
  */
 export function firstTouch(): Attribution {
+  if (touch) return touch;
   try {
-    const stored = localStorage.getItem(FIRST_TOUCH_KEY);
-    if (stored) return JSON.parse(stored) as Attribution;
-    const fromUrl = attributionFromUrl(new URL(window.location.href));
-    if (!fromUrl) return {};
-    localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(fromUrl));
-    return fromUrl;
+    touch = attributionFromUrl(new URL(window.location.href)) ?? {};
   } catch {
-    // storage unavailable: attribute this page view from the URL, nothing is remembered
-    try {
-      return attributionFromUrl(new URL(window.location.href)) ?? {};
-    } catch {
-      return {};
-    }
+    touch = {};
   }
+  return touch;
 }
 
 /** Takes ref and utm_* out of the address bar (after firstTouch() saw them), so they aren't shared on. */

@@ -16,6 +16,7 @@ import { findUser, useStore } from "@/lib/store";
 import { waitlistStatus, type Vibe } from "@/lib/types";
 import { BarList, ColumnChart, TrendChart } from "./AdminCharts";
 import { LaunchCriteria } from "./AdminCockpit";
+import type { LegalChecklist } from "@/lib/legal/status";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
 import { day as dayLabel, month as monthLabel, num, share as percent } from "@/lib/i18n/adminFormat";
@@ -31,6 +32,42 @@ function VibeLabel({ vibe }: { vibe: Vibe }) {
   );
 }
 
+/**
+ * Launch checklist › Rechtstexte: a warning while a legal page is a draft (not reviewed by a lawyer – the live build stops on it,
+ * scripts/check-legal.ts) or a company field for the imprint is empty (config/company.ts).
+ */
+function LegalLaunchCheck({ legal }: { legal: LegalChecklist }) {
+  const t = useTranslations("admin.overview.legal");
+  const drafts = legal.pages.filter((p) => p.draft);
+  const ok = drafts.length === 0 && legal.companyGaps.length === 0;
+  return (
+    <div data-legal-check={ok ? "ok" : "warning"} className="mt-6 border-t border-ink/8 pt-5">
+      <div className="flex items-baseline justify-between gap-3 text-body">
+        <span className="flex min-w-0 items-center gap-2 text-ink">
+          <StatusDot status={ok ? "good" : "warning"} />
+          <span>{t("title")}</span>
+          <span className="sr-only">{ok ? t("ok") : t("warning")}</span>
+        </span>
+        <span className="shrink-0 tabular-nums text-muted">{t("reviewed", { done: legal.pages.length - drafts.length, total: legal.pages.length })}</span>
+      </div>
+      {!ok && (
+        <ul className="mt-3 flex flex-col gap-1.5 text-small text-muted">
+          {drafts.map((p) => (
+            <li key={`${p.slug}.${p.lang}`} data-legal-draft-row={p.slug}>
+              <a href={`/${p.slug}`} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                {p.title}
+              </a>{" "}
+              · {t("draftRow", { version: p.version, lang: p.lang.toUpperCase() })}
+            </li>
+          ))}
+          {legal.companyGaps.length > 0 && <li data-legal-company-gaps={legal.companyGaps.length}>{t("company", { count: legal.companyGaps.length })}</li>}
+          <li>{t("rule")}</li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Waitlist ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -38,7 +75,7 @@ function VibeLabel({ vibe }: { vibe: Vibe }) {
  * on the right; on top the confirmed count against the launch criterion (≥ 1.000 – only confirmed count), the launch criteria, the trend,
  * sources and interests, and the list.
  */
-export function AdminWaitlist() {
+export function AdminWaitlist({ legal }: { legal?: LegalChecklist }) {
   const tOverview = useTranslations("admin.overview");
   const t = useTranslations("admin.waitlist");
   const f = useFormat();
@@ -92,6 +129,7 @@ export function AdminWaitlist() {
       {/* The launch criteria live here (no longer on the overview): each against its target. */}
       <AdminSection title={tOverview("launch")}>
         <LaunchCriteria />
+        {legal && <LegalLaunchCheck legal={legal} />}
       </AdminSection>
       <AdminSection title={t("latest")}>
         {list.length === 0 ? (

@@ -73,6 +73,11 @@ export interface AdminData {
   houseDone: Record<string, { at: string; spotsFilled: number }>;
   /** Admin › Houses › "Läuft gut" → "Für Content vormerken": Houses for Marketing › Content */
   contentHouses: { stayId: string; at: string }[];
+  /**
+   * Tax details hosts entered (Settings › Payments & payouts, only past HOST_TAX_INFO's threshold, behind its switch) – Admin only; the host
+   * never sees them again after saving. Later Firestore, readable by admins only.
+   */
+  hostTax?: Record<string, HostTaxData & { at: string }>;
   /** Launch › Marketing › Partner – one record per collaboration (Firestore marketingPartners, admins only: firestore.rules) */
   marketingPartners: MarketingPartner[];
 }

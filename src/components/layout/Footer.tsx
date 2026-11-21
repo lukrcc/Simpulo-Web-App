@@ -5,7 +5,7 @@ import { SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import type { IconType } from "react-icons";
 import { SupportLink } from "@/components/help/HelpFeedback";
 import { FooterInstallHint } from "@/components/InstallHint";
-import { FOOTER_COLUMNS, FOOTER_PLACES, FOOTER_THEMES, type FooterLink } from "@/config/footer";
+import { FOOTER_COLUMNS, FOOTER_LEGAL, FOOTER_PLACES, FOOTER_THEMES, type FooterLink } from "@/config/footer";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
 import { CurrencyPicker } from "./CurrencyPicker";
@@ -30,14 +30,10 @@ const COPYRIGHT_YEAR = 2026;
 
 const LINK = "inline-flex min-h-11 items-center text-muted transition-colors hover:text-ink md:min-h-8";
 
+/** The legal line – the one list in config/footer.ts (FOOTER_LEGAL). */
 async function legalLinks() {
   const t = await getTranslations("footer");
-  return [
-    { href: "/impressum", label: t("links.impressum") },
-    { href: "/privacy", label: t("links.privacy") },
-    { href: "/terms", label: t("links.terms") },
-    { href: "/privacy#cookies", label: t("links.cookies") },
-  ];
+  return FOOTER_LEGAL.flatMap((l) => (l.href && !l.hidden ? [{ href: l.href, label: t(`links.${l.key}` as "links.privacy") }] : []));
 }
 
 function Socials({ label, size }: { label: (network: SocialNetwork) => string; size: "sm" | "md" }) {
@@ -148,7 +144,7 @@ export async function Footer() {
   );
 }
 
-/** The slim footer: one line on the light ground – Get help · Impressum · Privacy · Terms · Cookies. */
+/** The slim footer: one line on the light ground – Get help · Report content · Impressum · Privacy · Terms · Cookies. */
 export async function SlimFooter() {
   const t = await getTranslations("footer");
   const tl = await getTranslations("footer.large");
@@ -158,7 +154,7 @@ export async function SlimFooter() {
       <Container className="flex min-h-(--footer-slim-h) items-center py-(--footer-slim-pad) text-small text-muted">
         <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
           <SupportLink kind="help" className="min-h-11 md:min-h-0" label={tl("links.getHelp")} />
-          {legal.map(({ href, label }) => (
+          {[{ href: "/report-content", label: tl("links.reportContent") }, ...legal].map(({ href, label }) => (
             <span key={href} className="flex items-center gap-1.5">
               <span aria-hidden>·</span>
               <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">

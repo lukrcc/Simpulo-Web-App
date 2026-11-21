@@ -4,7 +4,7 @@ import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/
 import { useMyApplication } from "@/components/platform/HostApply";
 import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
@@ -24,6 +24,9 @@ import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { OPTIONAL_CATEGORIES, type OptionalCategory } from "@/config/notifications";
 import { PRIVACY_DEFAULTS, showsOnHousePages } from "@/config/privacy";
+import { CONSENT_DOCS, CONSENT_KINDS, type ConsentKind } from "@/config/consent";
+import { consentsOf } from "@/lib/consent";
+import { HostDuties } from "@/components/settings/HostDuties";
 import { useFormat } from "@/i18n/format";
 import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrencySnapshot, subscribeViewerCurrency, viewerCurrencySnapshot, type CurrencyCode } from "@/lib/currency";
 import { setInstallHintsOff, useInstallHintsOff, useIsStandalone } from "@/lib/install";
@@ -266,6 +269,7 @@ function PaymentsArea({ me }: { me: User }) {
   const showToast = useToast();
   const payout = usePayoutAccount();
   const identity = useIdentity();
+  const saved = useSaved();
   const { start: startOnboarding } = useStartOnboarding();
   const router = useRouter();
   const [setupOpen, setSetupOpen] = useState(false);
@@ -325,6 +329,8 @@ function PaymentsArea({ me }: { me: User }) {
         {identityRow}
         <SettingsRow title={tu("payoutHistory")} chevron href="/your-houses/payouts" />
       </SettingsGroup>
+      {/* Hosts: private or business, and – behind its switch, past the threshold – the tax details (CLAUDE.md "Plattform-Pflichten"). */}
+      <HostDuties me={me} onSaved={saved} />
       <SettingsGroup title={tu("groupHistory")}>
         <SettingsRow title={tu("paymentHistory")} chevron onClick={() => go("payments/history")} />
       </SettingsGroup>
@@ -449,9 +455,50 @@ function NotificationsArea({ me }: { me: User }) {
 
 // ─── Privacy & safety ──────────────────────────────────────────────────────────
 
+/**
+ * Agreements (config/consent.ts): what you agreed to, which version, when – the latest of each, linked to its text; earlier versions
+ * underneath as the history. Nothing to change here: a new version asks by itself.
+ */
+function AgreementsGroup({ me }: { me: User }) {
+  const t = useTranslations("consent.settings");
+  const format = useFormatter();
+  // With the year – an agreement is a record.
+  const day = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
+  const all = consentsOf(me);
+  const latest = CONSENT_KINDS.map((kind) => ({ kind, record: all.find((c) => c.kind === kind) }));
+  const earlier = all.filter((c) => latest.every((l) => l.record !== c));
+  const href = (kind: ConsentKind) => (kind === "age" ? undefined : CONSENT_DOCS[kind].href);
+  return (
+    <>
+      <SettingsGroup title={t("title")}>
+        {latest
+          // The hosts' guidelines only for someone who agreed to them (hosts).
+          .filter((l) => l.kind !== "hostCode" || l.record)
+          .map(({ kind, record }) => (
+            <SettingsRow
+              key={kind}
+              title={t(kind)}
+              value={!record ? t("never") : record.version ? t("agreed", { version: record.version, date: day(record.at) }) : t("confirmed", { date: day(record.at) })}
+              href={href(kind)}
+              chevron={Boolean(href(kind))}
+            />
+          ))}
+      </SettingsGroup>
+      {earlier.length > 0 && (
+        <SettingsGroup title={t("history")}>
+          {earlier.map((c) => (
+            <SettingsRow key={`${c.kind}-${c.at}`} title={t("historyRow", { doc: t(c.kind), version: c.version ?? "–", date: day(c.at) })} />
+          ))}
+        </SettingsGroup>
+      )}
+    </>
+  );
+}
+
 function PrivacyArea({ me }: { me: User }) {
   const t = useTranslations("settings.privacy");
   const tu = useTranslations("settings.ui");
+  const tNotices = useTranslations("notices");
   const store = useStore();
   const showToast = useToast();
   const saved = useSaved();
@@ -529,6 +576,11 @@ function PrivacyArea({ me }: { me: User }) {
             />
           ))
         )}
+      </SettingsGroup>
+      <AgreementsGroup me={me} />
+      {/* Simpulo's decisions about you, with the reasons and "Appeal" (CLAUDE.md "Plattform-Pflichten"). */}
+      <SettingsGroup>
+        <SettingsRow title={tNotices("title")} chevron href="/notices" />
       </SettingsGroup>
       {/* Your data, at the end and plainly named: the download, a pause (hidden, nothing deleted, back any time) and – in red – deleting,
           on its own page that explains it first. */}
@@ -641,12 +693,14 @@ function GeneralArea({ me }: { me: User }) {
         <SettingsRow title={tu("general.help")} chevron onClick={openGetHelp} />
         <SettingsRow title={tu("general.idea")} chevron onClick={openShareIdea} />
       </SettingsGroup>
-      {/* Legal: Impressum, Privacy, Terms, Cookies – reachable from every page without a footer (Messages, Admin) via the avatar menu › Settings. */}
+      {/* Legal: Impressum, Privacy, Terms, Cookies, Cancellation, Community guidelines – reachable from every page without a footer (Messages, Admin) via the avatar menu › Settings. */}
       <SettingsGroup title={tu("general.legal")}>
         <SettingsRow title={tFooter("links.impressum")} chevron href="/impressum" />
         <SettingsRow title={tFooter("links.privacy")} chevron href="/privacy" />
         <SettingsRow title={tFooter("links.terms")} chevron href="/terms" />
-        <SettingsRow title={tFooter("links.cookies")} chevron href="/privacy#cookies" />
+        <SettingsRow title={tFooter("links.cookies")} chevron href="/cookies" />
+        <SettingsRow title={tFooter("links.cancellation")} chevron href="/cancellation" />
+        <SettingsRow title={tFooter("links.guidelines")} chevron href="/community-guidelines" />
       </SettingsGroup>
     </div>
   );

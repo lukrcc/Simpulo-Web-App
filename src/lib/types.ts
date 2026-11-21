@@ -27,6 +27,8 @@ export type {
   HouseInviteStatus,
   Reaction,
   Report,
+  ModerationNotice,
+  HostBusiness,
   HouseVibe,
   HostTier,
   ReportReason,
@@ -44,6 +46,7 @@ export type {
   Thread,
   User,
   UserSettings,
+  ConsentRecord,
   Vibe,
 } from "./mock";
 
@@ -204,6 +207,12 @@ export type AdminAction =
   | "deadline_step"
   | "report_viewed"
   | "report_decided"
+  | "content_reported"
+  | "notice_sent"
+  | "appeal_received"
+  | "appeal_decided"
+  | "host_business_set"
+  | "host_tax_submitted"
   | "founding_host_added"
   | "ticket_replied"
   | "ticket_status"

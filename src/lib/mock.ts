@@ -3,6 +3,7 @@ import { shortNameOf } from './shortName';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
 // paths in ./mock-images). Map placeholders still come from picsum.photos (next.config: images.remotePatterns).
+import { CONSENT_DOCS, type ConsentKind } from "@/config/consent";
 import type { ChatThemeId } from "@/config/chat-themes";
 import type { ThemePref } from "./themeScript";
 import type { Locale } from "@/i18n/config";
@@ -37,6 +38,15 @@ export interface Attribution {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+}
+
+/** Hosting privately or as a business (Settings › Payments & payouts); a business shows "Hosted by a business" on its Houses. */
+export interface HostBusiness {
+  kind: 'private' | 'business';
+  name?: string;
+  address?: string;
+  register?: string;
+  updatedAt: string;
 }
 
 export interface User extends Attribution {
@@ -96,6 +106,8 @@ export interface User extends Attribution {
   hostTier?: HostTier;
   /** Followers across their social links (mock values; later from the platforms' APIs) – admin only */
   audienceSize?: number;
+  /** Private or business host (Settings › Payments & payouts) – none: not asked yet, counts as private */
+  hostBusiness?: HostBusiness;
 }
 
 /** Admin › Hosts: share (supply) · pro (core revenue) · anchor (a creator with reach) */
@@ -111,8 +123,27 @@ export interface HouseVibe {
 }
 
 /** Why something is reported (the report sheet, Admin › Posteingang › Sicherheit). */
-export type ReportReason = 'harassment' | 'safety' | 'scam' | 'inappropriate' | 'other';
-export type ReportOutcome = 'warned' | 'removed' | 'suspended' | 'unfounded';
+/** The app's report sheet uses the first five; the public form (/report-content) adds illegal, privacy and ip. */
+export type ReportReason = 'harassment' | 'safety' | 'scam' | 'inappropriate' | 'other' | 'illegal' | 'privacy' | 'ip';
+/** removed: out of the House (a guest) · houseRemoved: a House taken down · photoRemoved: an album photo taken down */
+export type ReportOutcome = 'warned' | 'removed' | 'suspended' | 'unfounded' | 'houseRemoved' | 'photoRemoved';
+
+/**
+ * A statement of reasons (CLAUDE.md "Plattform-Pflichten"): whenever Simpulo acts against someone – a warning, out of a House, a House or
+ * photo taken down, an account suspended – that person gets one, with the reason, the rule (a link) and "Appeal". The appeal lands in Admin ›
+ * Posteingang; its decision reaches the person too.
+ */
+export interface ModerationNotice {
+  id: string;
+  userId: string;
+  action: Exclude<ReportOutcome, 'unfounded'>;
+  reason: ReportReason;
+  reportId: string;
+  stayId?: string;
+  memoryId?: string;
+  at: string;
+  appeal?: { text: string; at: string; decision?: { outcome: 'upheld' | 'reversed'; at: string } };
+}
 
 /** Mock moderation queue entry (Report sheet). */
 /**
@@ -122,8 +153,16 @@ export type ReportOutcome = 'warned' | 'removed' | 'suspended' | 'unfounded';
  */
 export interface Report {
   id: string;
-  reporterId: string;
-  target: { kind: 'user' | 'stay' | 'message' | 'memory'; id: string };
+  /** null: sent through the public form without an account (then `reporterEmail`) */
+  reporterId: string | null;
+  /** The public form (/report-content): the email the confirmation and the result go to */
+  reporterEmail?: string;
+  /** app – the report sheet; form – /report-content */
+  source?: 'app' | 'form';
+  /** The form: what was reported, as given (a link) */
+  link?: string;
+  /** "link": the form named something that isn't a House or profile here */
+  target: { kind: 'user' | 'stay' | 'message' | 'memory' | 'link'; id: string };
   reason: ReportReason;
   text?: string;
   createdAt: string;
@@ -141,6 +180,13 @@ export interface Report {
 /** The switchable notification groups (config/notifications.ts); "bookings" is always on and has no entry here. */
 export type NotificationGroup = 'messages' | 'nearby' | 'news';
 
+/** One agreement: what (config/consent.ts), which version (none for "18 or older"), when (ISO). */
+export interface ConsentRecord {
+  kind: ConsentKind;
+  version: string | null;
+  at: string;
+}
+
 export interface UserSettings {
   /** Push and email per switchable group; in-app is always on */
   notifications: Record<NotificationGroup, { push: boolean; email: boolean }>;
@@ -155,6 +201,11 @@ export interface UserSettings {
   chatTheme?: ChatThemeId;
   /** …and per chat ({ [threadId]: theme }), over the one for all */
   chatThemes?: Record<string, ChatThemeId>;
+  /**
+   * What this person agreed to (config/consent.ts): every agreement with its version and time – the latest of a kind counts, older ones stay
+   * as the history (Settings › Privacy & safety › Agreements). Legal basis: contract (config/data-points.ts consent.*).
+   */
+  consents?: ConsentRecord[];
   /** One-time hints this person has seen ("chatTheme": "New: pick your chat background") – never shown again, on any device */
   seenHints?: string[];
   /** Light or dark: System (none) · Light · Dark – Settings › Appearance; on every device (this device also keeps it in a cookie, lib/theme.ts) */
@@ -222,7 +273,7 @@ export interface HouseMemory {
   crewConsent: true;
   simpuloUse: boolean;
   removedAt?: string;
-  removedBy?: "uploader" | "pictured";
+  removedBy?: "uploader" | "pictured" | "moderation";
 }
 
 /** "Your intention": one question (skippable) and two optional ones. */
@@ -302,6 +353,8 @@ export interface Stay {
   visibility?: 'unlisted' | 'listed';
   /** ISO. Until then only the people whose search it answers see it (src/lib/launch.ts). */
   priorityUntil?: string;
+  /** Taken down by Simpulo after a report (Admin › Posteingang): gone from Explore and its page for everyone but the host; an appeal can bring it back */
+  takenDownAt?: string;
   slug: string;
   title: string;
   /** Short name for small places, at most 14 characters ("Surf Bali"); without it, shortNameOf derives one */
@@ -1657,9 +1710,28 @@ const mockPrivacy = (user: User): User => {
   return { ...user, privacy: { showAge: n % 3 !== 0, ...(user.id === "u4" && { showOnHousePages: false }) } };
 };
 
+/**
+ * Agreements (config/consent.ts): everyone with a complete profile agreed to the Terms, confirmed 18+ and agreed to the guidelines when
+ * they signed up (1 Sep 2026, the versions of then = today's); hosts also to the hosts' version. New accounts (no photo yet: Noah, Emma)
+ * haven't – they go through it at sign-up and before their first request.
+ */
+const SIGNED_UP_AT = '2026-09-01T10:00:00Z';
+const hostIds = new Set([...coreStays.map((s) => s.hostId), ...extraHosts.map((h) => h.id)]);
+const mockConsents = (user: User): User => {
+  if (!user.photos[0]) return user;
+  const consents: ConsentRecord[] = [
+    { kind: 'terms', version: CONSENT_DOCS.terms.version, at: SIGNED_UP_AT },
+    { kind: 'age', version: null, at: SIGNED_UP_AT },
+    { kind: 'guestCode', version: CONSENT_DOCS.guestCode.version, at: SIGNED_UP_AT },
+    ...(hostIds.has(user.id) ? [{ kind: 'hostCode' as const, version: CONSENT_DOCS.hostCode.version, at: SIGNED_UP_AT }] : []),
+  ];
+  const settings = user.settings ?? { notifications: { messages: { push: true, email: false }, nearby: { push: true, email: true }, news: { push: false, email: false } }, blockedUserIds: [] };
+  return { ...user, settings: { ...settings, consents } };
+};
+
 export const users: User[] = [
-  ...coreUsers.map((user) => mockPrivacy({ ...user, isPro: false, canChargeHostFee: user.verified })),
-  ...extraHosts.map((host) => mockPrivacy(hostToUser(host))),
+  ...coreUsers.map((user) => mockConsents(mockPrivacy({ ...user, isPro: false, canChargeHostFee: user.verified }))),
+  ...extraHosts.map((host) => mockConsents(mockPrivacy(hostToUser(host)))),
 ];
 
 /** Mock prices are written in EUR; a House stores its own country's currency (Bali IDR, London GBP, Dubai AED), rounded to two figures. */

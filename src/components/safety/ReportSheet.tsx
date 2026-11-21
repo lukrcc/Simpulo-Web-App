@@ -15,7 +15,7 @@ import { useStore } from "@/lib/store";
 import type { Report, ReportReason } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export const REPORT_REASONS: readonly ReportReason[] = ["harassment", "safety", "scam", "inappropriate", "other"];
+export const REPORT_REASONS = ["harassment", "safety", "scam", "inappropriate", "other"] as const satisfies readonly ReportReason[];
 
 interface ReportSheetProps {
   open: boolean;

@@ -21,7 +21,7 @@ import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
-import { TICKET_CATEGORIES, waitlistStatus, type WaitlistEntry, type Report, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
+import { TICKET_CATEGORIES, waitlistStatus, type WaitlistEntry, type Report, type ModerationNotice, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
 
 export interface AdminInputs {
   stays: readonly Stay[];
@@ -36,6 +36,8 @@ export interface AdminInputs {
   outcomes: readonly HouseOutcome[] | null;
   /** Reports people sent (Admin › Hosts › Review) */
   reports: readonly Report[];
+  /** Statements of reasons and their appeals (the store) */
+  notices: readonly ModerationNotice[];
   /** The bookkeeping journal (lib/admin/ledger.ts); null without one */
   ledger: readonly LedgerEntry[] | null;
   /** The chats (only their counts and times are read – never their content) */

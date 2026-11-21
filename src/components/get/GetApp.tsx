@@ -71,7 +71,8 @@ export function GetApp() {
  * frame with Safari's Share symbol in place of the video.
  */
 function IosInstallVideo() {
-  const src = APP_LINKS.iosInstallVideo;
+  // Only our own file (public/) plays by itself – anything from elsewhere would go through VideoEmbed (CLAUDE.md "Speicherung und Tracker").
+  const src = APP_LINKS.iosInstallVideo.startsWith("/") ? APP_LINKS.iosInstallVideo : "";
   const frame = "aspect-[9/16] w-[104px] overflow-hidden rounded-[20px] bg-surface-2";
   if (src) return <video src={src} className={frame} autoPlay loop muted playsInline aria-hidden />;
   return (

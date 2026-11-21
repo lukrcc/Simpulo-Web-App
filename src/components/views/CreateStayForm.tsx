@@ -111,6 +111,7 @@ import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { MenuLayer } from "@/components/ui/MenuLayer";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { useCodeGate } from "@/components/consent/Agreements";
 
 const noSubscribe = () => () => {};
 
@@ -374,8 +375,16 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     router.push(`/h/${editing.id}?tab=manage`);
   }
 
+  // The hosts' community guidelines before the first House goes live (and after a new version).
+  const hostCode = useCodeGate("hostCode");
+
   function publishDraft() {
     if (!editing || !profileReady || !validateAll()) return;
+    if (store.currentUserId) return hostCode.gate(store.currentUserId, publishDraftNow);
+  }
+
+  function publishDraftNow() {
+    if (!editing) return;
     store.updateStay(editing.id, input());
     store.publishStay(editing.id);
     showToast(tDraft("publishedToast"));
@@ -385,7 +394,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   function publish() {
     if (!profileReady || !validateAll()) return;
     // Logged out: log in first, then publish – the draft is still in state, nothing is lost.
-    requireAuth(() => {
+    requireAuth((userId) => hostCode.gate(userId, () => {
       // "I live here": the place is saved to Your places first (only with the host's statement), and this House is its first window.
       const savedPlaceId = form.placeMode === "set" && form.savePlace && !form.placeId && form.allowedToHost ? savePlace() : null;
       const { id, linkToken } = store.createStay({ ...input(), ...(savedPlaceId && { placeId: savedPlaceId }) }, [], { invite: [], againFrom: form.againFrom || undefined, link: false });
@@ -394,7 +403,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       setNotified(demand.count);
       setOpenedId(id);
       window.scrollTo({ top: 0 });
-    }, { reason: "open" });
+    }), { reason: "open" });
   }
 
   /** The place found for this House, saved as the host's own: kind, photos, rooms (free spots + the host's), rules, city, rental, rent. */
@@ -744,6 +753,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title={t("livePreview")}>
         <div className="mx-auto max-w-90">{card}</div>
       </Sheet>
+      {hostCode.sheet}
     </>
   );
 }

@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { TabBar } from "@/components/ui/TabBar";
+import { COMPANY } from "@/config/company";
 import { CATEGORY_OF_ROLE, HELP, HELP_CATEGORIES, categoryOf, type HelpCategory, type HelpItem } from "@/config/help";
 import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 
@@ -127,6 +128,15 @@ export function HelpCenter() {
             {t("shareIdea")}
           </Button>
         </div>
+        {/* The contact point for authorities and users (config/company.ts) – only once it's set; until then the gap shows on /impressum. */}
+        {COMPANY.contactPoint && (
+          <p data-contact-point className="text-small text-muted">
+            {t.rich("contactPoint", { email: COMPANY.contactPoint, mail: (c) => <a href={`mailto:${COMPANY.contactPoint}`} className="font-semibold text-ink underline underline-offset-4">{c}</a> })}
+          </p>
+        )}
+        <Link href="/report-content" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {t("reportContent")} →
+        </Link>
       </section>
     </div>
   );

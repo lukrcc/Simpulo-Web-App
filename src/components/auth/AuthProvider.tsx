@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import type { AuthReason } from "@/config/auth-copy";
+import { TermsGate } from "@/components/consent/Agreements";
 import { AuthSheet } from "./AuthSheet";
 
 /**
@@ -51,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           action?.(userId);
         }}
       />
+      {/* The Terms for sessions that didn't come through the sheet (a returning visit, a new version) – never over the sign-in sheet. */}
+      {pending === null && <TermsGate />}
     </AuthContext.Provider>
   );
 }

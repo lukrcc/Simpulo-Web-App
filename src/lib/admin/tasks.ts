@@ -4,16 +4,18 @@
 // money, Houses, applications, hosts, support), within a kind the oldest first. A task marked done is gone; one put off ("Später") comes
 // back tomorrow (AdminData.taskStates). Pure: the components render it, lib/admin/actions.ts changes it (and logs).
 import type { MarketingPartner, PaymentIssue } from "@/lib/data";
-import type { HostApplication, Report, Stay, SupportTicket } from "@/lib/types";
+import type { HostApplication, ModerationNotice, Report, Stay, SupportTicket } from "@/lib/types";
 import { TAX_DEADLINES } from "@/config/admin";
 import { taxDeadlines, type TaxDeadline } from "./ledger";
 import { atRiskHouses, hostOverview, isOpenTicket, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
 
-export const TASK_KINDS = ["report", "safety", "money", "deadline", "atRisk", "application", "hostWarning", "partnerStep", "support"] as const;
+export const TASK_KINDS = ["report", "appeal", "safety", "money", "deadline", "atRisk", "application", "hostWarning", "partnerStep", "support"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 export type AdminTask =
   | { id: string; kind: "report"; createdAt: string; report: Report }
+  /** An appeal against a statement of reasons (/notices) – open until decided */
+  | { id: string; kind: "appeal"; createdAt: string; notice: ModerationNotice }
   | { id: string; kind: "safety" | "support"; createdAt: string; ticket: SupportTicket }
   | { id: string; kind: "money"; createdAt: string; issue: PaymentIssue; stay: Stay | undefined }
   | { id: string; kind: "deadline"; createdAt: string; deadline: TaxDeadline }
@@ -30,6 +32,7 @@ function buildTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[],
   const tasks: AdminTask[] = [
     // Reports (Melden): open until the admin decides – first of all.
     ...inputs.reports.filter((r) => !r.decision).map((report): AdminTask => ({ id: `report:${report.id}`, kind: "report", createdAt: report.createdAt, report })),
+    ...inputs.notices.filter((n) => n.appeal && !n.appeal.decision).map((notice): AdminTask => ({ id: `appeal:${notice.id}`, kind: "appeal", createdAt: notice.appeal!.at, notice })),
     ...open.filter((t) => t.category === "safety").map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: "safety", createdAt: ticket.createdAt, ticket })),
     ...paymentIssues.map((issue): AdminTask => ({ id: `payment:${issue.id}`, kind: "money", createdAt: issue.at, issue, stay: inputs.stays.find((s) => s.id === issue.stayId) })),
     // A tax deadline shows up `showInTodayDays` (7) days before it (Geld › Steuern › Fristen).
@@ -68,7 +71,8 @@ export function doneAdminTasks(inputs: AdminInputs, paymentIssues: readonly Paym
   const marked = buildTasks(inputs, paymentIssues, inputs.admin.tickets.filter(isOpenTicket)).filter((task) => state[task.id]?.done);
   const tickets = finished.map((ticket): AdminTask => ({ id: `ticket:${ticket.id}`, kind: ticket.category === "safety" ? "safety" : "support", createdAt: ticket.createdAt, ticket }));
   const decided = inputs.reports.filter((r) => r.decision).map((report): AdminTask => ({ id: `report:${report.id}`, kind: "report", createdAt: report.createdAt, report }));
-  return [...marked, ...tickets, ...decided].toSorted(byKindThenAge);
+  const appeals = inputs.notices.filter((n) => n.appeal?.decision).map((notice): AdminTask => ({ id: `appeal:${notice.id}`, kind: "appeal", createdAt: notice.appeal!.at, notice }));
+  return [...marked, ...tickets, ...decided, ...appeals].toSorted(byKindThenAge);
 }
 
 /** The day after today (YYYY-MM-DD) – "Später" shows a task again then. */
@@ -81,13 +85,13 @@ export const tomorrowOf = (today: string) => new Date(Date.parse(`${today}T12:00
  */
 export function taskCounts(tasks: readonly AdminTask[]) {
   const by = Object.fromEntries(TASK_KINDS.map((k) => [k, tasks.filter((t) => t.kind === k).length])) as Record<TaskKind, number>;
-  return { total: tasks.length, byKind: by, support: by.safety + by.support, applications: by.application, safetyOpen: by.safety + by.report > 0 };
+  return { total: tasks.length, byKind: by, support: by.safety + by.support, applications: by.application, safetyOpen: by.safety + by.report + by.appeal > 0 };
 }
 
 /** "Braucht dich": one capsule per kind with open tasks, in the list's order (0 left out); in pre-launch and beta then the launch criteria. */
 export function needsYou(tasks: readonly AdminTask[], inputs: Pick<AdminInputs, "stays" | "admin" | "phase">): NeedsYou[] {
   const { byKind } = taskCounts(tasks);
-  const keyOf = { report: "safety", safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
+  const keyOf = { report: "safety", appeal: "safety", safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
   const needs: NeedsYou[] = TASK_KINDS.filter((k) => byKind[k] > 0).map((k) => ({ key: keyOf[k], count: byKind[k] }));
   if (inputs.phase !== "live") {
     const { met, total } = launchCriteriaMet(inputs);

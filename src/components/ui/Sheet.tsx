@@ -44,13 +44,13 @@ export const PHONE_FOOTER = "max-md:sticky max-md:bottom-0 max-md:z-10 max-md:mt
 let openDialogs = 0;
 
 /** A modal's foot: the one action on the right, "Cancel" as a text link on the left. Never full width. */
-export function ModalFooter({ onCancel, className, children }: { onCancel?: () => void; className?: string; children: ReactNode }) {
+export function ModalFooter({ onCancel, cancelLabel, className, children }: { onCancel?: () => void; cancelLabel?: string; className?: string; children: ReactNode }) {
   const t = useTranslations("common");
   return (
     <div className={cn("flex items-center justify-between gap-4", className)}>
       {onCancel ? (
         <Button type="button" variant="tertiary" onClick={onCancel} className="-ml-4">
-          {t("cancel")}
+          {cancelLabel ?? t("cancel")}
         </Button>
       ) : (
         <span />

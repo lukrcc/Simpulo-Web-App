@@ -2,7 +2,7 @@
 
 import { profileHref } from "@/lib/privacy";
 import { BackButton } from "@/components/ui/BackButton";
-import { ArrowRight, ArrowUpRight, Home, KeyRound, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, Home, KeyRound, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
 import { hostLivesHere } from "@/lib/ownPlaces";
 import { depthOf } from "@/config/depth";
 import { useDepthChoice } from "@/config/platform";
@@ -82,6 +82,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const tBack = useTranslations("common");
   const t = useTranslations("house.page");
   const tHero = useTranslations("house.page.hero");
+  const tDuties = useTranslations("hostDuties");
   const depthOn = useDepthChoice();
   const tDepth = useTranslations("depth.capsule");
   const tPlatform = useTranslations("platform");
@@ -179,6 +180,13 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
           <li className="ember-chip">
             <Venus aria-hidden className="size-3.5" />
             {tHero("womenOnly")}
+          </li>
+        )}
+        {/* A business host (Settings › Payments & payouts): guests see who they book with – CLAUDE.md "Plattform-Pflichten". */}
+        {host?.hostBusiness?.kind === "business" && (
+          <li className="ember-chip" data-hosted-by-business>
+            <Building2 aria-hidden className="size-3.5" />
+            {tDuties("hostedByBusiness")}
           </li>
         )}
         {/* "Host from your place": the host lives here and is one of the crew (lib/ownPlaces.ts). */}

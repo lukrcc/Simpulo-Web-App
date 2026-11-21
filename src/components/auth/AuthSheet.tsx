@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { ListRow } from "@/components/ui/ListRow";
 import { Sheet } from "@/components/ui/Sheet";
+import { TermsAgreement, useTermsTitle } from "@/components/consent/Agreements";
+import { consentState, useConsentVersions } from "@/lib/consent";
 import { isProfileComplete, useStore } from "@/lib/store";
+import type { User } from "@/lib/types";
 import type { AuthReason } from "@/config/auth-copy";
 
 type Provider = "Apple" | "Google";
@@ -92,6 +95,9 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
   const [provider, setProvider] = useState<Provider | null>(null);
   /** Logged in as this user, who still has to complete their profile. */
   const [completingId, setCompletingId] = useState<string | null>(null);
+  /** Logged in as this user, who still has to agree to the Terms (first time or a new version) – before handing back. */
+  const [termsId, setTermsId] = useState<string | null>(null);
+  const versions = useConsentVersions();
 
   // Decide by the id just logged in – `currentUserId` from useStore() may still be the old value this render.
   function loggedIn(userId: string) {
@@ -99,10 +105,15 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
     if (user && !isProfileComplete(user)) {
       setCompletingId(userId);
       onCompleting?.();
+    } else if (user && consentState(user, "terms", versions) !== "ok") {
+      setTermsId(userId);
     } else {
       onSuccess(userId);
     }
   }
+
+  const termsUser = termsId ? users.find((u) => u.id === termsId) : undefined;
+  if (termsUser) return <TermsStep user={termsUser} onDone={() => onSuccess(termsUser.id)} />;
 
   const completingUser = completingId ? users.find((u) => u.id === completingId) : undefined;
   if (completingUser) {
@@ -167,6 +178,18 @@ export function AuthOptions({ onSuccess, onCompleting }: AuthOptionsProps) {
           ),
         })}
       </p>
+    </div>
+  );
+}
+
+/** The Terms inside the sign-in sheet: its own heading, then the step (components/consent/Agreements.tsx). */
+function TermsStep({ user, onDone }: { user: User; onDone: () => void }) {
+  const versions = useConsentVersions();
+  const title = useTermsTitle(consentState(user, "terms", versions) === "outdated" ? "outdated" : "none");
+  return (
+    <div>
+      <h2 className="mb-3 text-h3 text-ink">{title}</h2>
+      <TermsAgreement user={user} onDone={onDone} />
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { hostPageInSearch, profileHref } from "@/lib/privacy";
 const STATIC_UPDATED = new Date("2026-10-28");
 
 /** Static public pages (indexable). /explore is left out: it's canonicalised to the home page. */
-const STATIC_PAGES = ["/", "/help", "/host", "/about", "/guides", "/apply", "/safety", "/cancellation", "/contact", "/impressum", "/privacy", "/terms"];
+const STATIC_PAGES = ["/", "/help", "/host", "/about", "/guides", "/apply", "/safety", "/cancellation", "/contact", "/impressum", "/privacy", "/terms", "/cookies", "/community-guidelines"];
 
 /**
  * Every indexable public page: the static ones (start page, help center, /host, /about, the guides …), every public House, the city and

@@ -4,6 +4,8 @@
 // through lib/admin/actions.ts (and into the log).
 import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
 import { BACKLOG, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogStatus } from "@/config/backlog";
+import { DUTIES, dutyStatus } from "@/config/obligations";
+import { StatusDot } from "./AdminCharts";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -501,19 +503,21 @@ export function AdminPlatform() {
   const { changePhase } = useAdminActions();
   const [pending, setPending] = useState<PlatformPhase | null>(null);
   // Unterreiter: Einstellungen (phase, tools, values) · Backlog (decided building blocks, config/backlog.ts).
-  const [view, setView] = useState<"settings" | "backlog">("settings");
+  const [view, setView] = useState<"settings" | "backlog" | "duties">("settings");
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "backlog"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "backlog", "duties"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
       aside={
         <Link href="/admin/log" className="text-body font-semibold text-ink hover:underline">
           {t("logLink")}
         </Link>
       }
     >
-      {view === "backlog" ? (
+      {view === "duties" ? (
+        <Duties />
+      ) : view === "backlog" ? (
         <Backlog />
       ) : (
       <>
@@ -603,6 +607,39 @@ export function AdminPlatform() {
  * System › Backlog: the decided building blocks (config/backlog.ts) – title, one line, phase, status. The status switches in the row and is
  * stored through the adapter (AdminData.backlog, logged); a filter by status; "X offen" on top; done items grey and at the end.
  */
+/**
+ * System › Pflichten: what's prepared for a platform's duties (config/obligations.ts) – each with its status: vorbereitet · aktiv · vom
+ * Anwalt geprüft, and where it lives.
+ */
+function Duties() {
+  const t = useTranslations("admin.platform.duties");
+  const items = DUTIES.map((d) => ({ ...d, status: dutyStatus(d) }));
+  const dot = { prepared: "warning", active: null, reviewed: "good" } as const;
+  return (
+    <>
+      <p className="text-h3 text-ink tabular-nums">{t("count", { reviewed: items.filter((i) => i.status === "reviewed").length, total: items.length, active: items.filter((i) => i.status !== "prepared").length })}</p>
+      <p className="mt-2 text-small text-muted">{t("note")}</p>
+      <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
+        {items.map((item) => (
+          <li key={item.id} data-duty={item.id} data-duty-status={item.status} className="flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-3">
+            <div className="min-w-0 flex-1 basis-[320px]">
+              <p className="text-body font-semibold text-ink">{t(`items.${item.id}.title`)}</p>
+              <p className="text-small text-muted">{t(`items.${item.id}.text`)}</p>
+            </div>
+            <span className="flex w-44 shrink-0 items-center gap-2 text-small text-ink">
+              <StatusDot status={dot[item.status]} />
+              {t(`status.${item.status}`)}
+            </span>
+            <Link href={item.href} target="_blank" className="shrink-0 text-small font-semibold text-ink hover:underline">
+              {t("open")} ↗
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function Backlog() {
   const t = useTranslations("admin.platform.backlog");
   const data = useAdminData();

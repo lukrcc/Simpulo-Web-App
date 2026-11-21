@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/ActionButton";
 import { Combobox } from "@/components/ui/Combobox";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
+import Link from "next/link";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { clockIso } from "@/lib/clock";
+import { consentRecords, consentState, useConsentVersions } from "@/lib/consent";
 import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { countryNames } from "@/lib/utils";
 
-type FieldKey = "photo" | "name" | "age" | "country";
+type FieldKey = "photo" | "name" | "age" | "country" | "adult";
 type Errors = Partial<Record<FieldKey, true>>;
 
 interface FormState {
@@ -20,6 +24,8 @@ interface FormState {
   age: string;
   country: string;
   languages: string[];
+  /** "I'm 18 or older" – its own tick at sign-up (config/consent.ts "age"), stored with the Terms */
+  adult: boolean;
 }
 
 function validate(form: FormState): Errors {
@@ -29,6 +35,7 @@ function validate(form: FormState): Errors {
   const age = Number(form.age);
   if (!(Number.isInteger(age) && age >= 18 && age <= 99)) errors.age = true;
   if (!form.country.trim()) errors.country = true;
+  if (!form.adult) errors.adult = true;
   return errors;
 }
 
@@ -48,12 +55,15 @@ interface CompleteProfileFormProps {
 export function CompleteProfileForm({ user, onDone, heading = false }: CompleteProfileFormProps) {
   const t = useTranslations("onboarding");
   const store = useStore();
+  const versions = useConsentVersions();
   const [form, setForm] = useState<FormState>(() => ({
     photos: user.photos.slice(0, 1),
     name: user.name,
     age: user.age > 0 ? String(user.age) : "",
     country: user.country,
     languages: user.languages,
+    // Already confirmed once (an account from before): no need to tick again.
+    adult: consentState(user, "age", versions) === "ok",
   }));
   const [errors, setErrors] = useState<Errors>({});
   const locale = useLocale();
@@ -78,6 +88,9 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
       country: form.country.trim(),
       languages: form.languages,
     });
+    // Signing up: the Terms in their current version and "18 or older", with the time (config/consent.ts).
+    const kinds = [...(consentState(user, "terms", versions) === "ok" ? [] : (["terms"] as const)), ...(consentState(user, "age", versions) === "ok" ? [] : (["age"] as const))];
+    store.agree(consentRecords(kinds, versions, clockIso()));
     onDone(user.id);
   }
 
@@ -143,6 +156,20 @@ export function CompleteProfileForm({ user, onDone, heading = false }: CompleteP
       <FormField label={t("languages")} optional group>
         <LanguageInput languages={form.languages} onChange={(languages) => update("languages", languages)} />
       </FormField>
+
+      <div>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <Checkbox checked={form.adult} onChange={(e) => update("adult", e.target.checked, "adult")} aria-invalid={errors.adult} data-consent-adult />
+          <span className="text-body text-ink">{t("adult")}</span>
+        </label>
+        {errors.adult && <p className="text-small text-danger">{t("errors.adult")}</p>}
+        <p className="mt-2 text-small text-muted">
+          {t.rich("terms", {
+            terms: (c) => <Link href="/terms" target="_blank" className="underline underline-offset-2 hover:text-ink">{c}</Link>,
+            privacy: (c) => <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-ink">{c}</Link>,
+          })}
+        </p>
+      </div>
 
       <Button type="submit" size="md" className="w-full">
         {t("continue")}

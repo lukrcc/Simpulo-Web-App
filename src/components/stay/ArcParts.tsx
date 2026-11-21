@@ -5,6 +5,7 @@
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { USES_MOCK_DATA } from "@/lib/appMode";
 import { Button } from "@/components/ui/ActionButton";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Input";
@@ -151,7 +152,8 @@ export function useArcEmails(stay: Stay) {
   const arc = useArc(stay);
   const me = store.currentUserId;
   useEffect(() => {
-    if (!arc || !me || arc.muted) return;
+    // Mock e-mails only (dev, demo): in production the backend sends them – nothing is stored here.
+    if (!arc || !me || arc.muted || !USES_MOCK_DATA) return;
     for (const d of arc.due) {
       if (!d.step.channels.includes("email")) continue;
       const key = `simpulo:arc-mail:${me}:${stay.id}:${d.step.id}`;

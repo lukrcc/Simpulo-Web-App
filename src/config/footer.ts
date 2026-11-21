@@ -70,6 +70,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { key: "about", href: "/about" },
       { key: "howItWorks", href: "/help?cat=joining" },
       { key: "safety", href: "/safety" },
+      { key: "guidelines", href: "/community-guidelines" },
       { key: "contact", href: "/contact" },
     ],
   },
@@ -80,6 +81,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { key: "getHelp", action: "help" },
       { key: "shareIdea", action: "idea" },
       { key: "cancellation", href: "/cancellation" },
+      { key: "reportContent", href: "/report-content" },
     ],
   },
 ];
@@ -89,7 +91,7 @@ export const FOOTER_LEGAL: readonly FooterLink[] = [
   { key: "impressum", href: "/impressum" },
   { key: "privacy", href: "/privacy" },
   { key: "terms", href: "/terms" },
-  { key: "cookies", href: "/privacy#cookies" },
+  { key: "cookies", href: "/cookies" },
 ];
 
 /** Every link a footer may show (places and themes included) – for the build check. */

@@ -99,7 +99,12 @@ export type NotifyEventKey =
   | "reportUnfounded"
   | "accountWarning"
   | "removedModeration"
-  | "accountSuspended";
+  | "accountSuspended"
+  | "houseTakenDown"
+  | "photoTakenDown"
+  | "reportReceived"
+  | "appealUpheld"
+  | "appealReversed";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -154,6 +159,11 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   accountWarning: "system",
   removedModeration: "system",
   accountSuspended: "system",
+  houseTakenDown: "system",
+  photoTakenDown: "system",
+  reportReceived: "system",
+  appealUpheld: "system",
+  appealReversed: "system",
 };
 
 /** One notification of one person. */

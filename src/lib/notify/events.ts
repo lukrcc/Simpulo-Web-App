@@ -78,4 +78,9 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   accountWarning: NotifyEvent.SupportReply,
   removedModeration: NotifyEvent.SupportReply,
   accountSuspended: NotifyEvent.SupportReply,
+  houseTakenDown: NotifyEvent.SupportReply,
+  photoTakenDown: NotifyEvent.SupportReply,
+  reportReceived: NotifyEvent.SupportReply,
+  appealUpheld: NotifyEvent.SupportReply,
+  appealReversed: NotifyEvent.SupportReply,
 };

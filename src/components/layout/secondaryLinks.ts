@@ -5,6 +5,7 @@ export const LEGAL_LINKS = [
   { href: "/impressum", labelKey: "imprint" },
   { href: "/privacy", labelKey: "privacy" },
   { href: "/terms", labelKey: "terms" },
+  { href: "/cookies", labelKey: "cookies" },
 ] as const;
 
 export { CONTACT_EMAIL } from "@/config/contact";

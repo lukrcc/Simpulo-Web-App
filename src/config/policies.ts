@@ -1,5 +1,5 @@
-// Cancellation rules – the one place they're decided. The texts (messages "policy") are a DRAFT: legal review still open.
-// Shown in full on /cancellation, in short in the pay sheet and on the House page; the store follows the same rules.
+// Cancellation rules – the one place they're decided. The full text is content/legal/cancellation.en.md (a draft until the legal review,
+// its header says so); in short in the pay sheet and on the House page; the store follows the same rules.
 /**
  * The clocks of joining (lib/joinFlow.ts uses these): a member whose share is due has this many hours to pay; after everyone paid, the
  * host confirms the booking within this many hours, otherwise everything is refunded.
@@ -11,8 +11,6 @@ export const PAYMENT_POLICY = {
 } as const;
 
 export const CANCELLATION_POLICY = {
-  /** Draft until the legal review: the page says so. */
-  draft: true,
   /** Until the crew is complete: a request or a spot can be withdrawn any time, for free (nothing is paid before). */
   freeUntil: "crew_complete",
   /** After paying: out only by handing the spot to someone on the waitlist – back is everything but Simpulo's fee. */
@@ -116,6 +114,25 @@ export type DeadlineStepId = (typeof DEADLINES)[DeadlineFlow][number]["id"];
 /** A full House's waitlist: a free spot goes to the first waiting person as an offer for this many hours (lib/waitlist.ts). */
 export const WAITLIST_POLICY = { offerHours: 24 } as const;
 
+/**
+ * Hosts' tax details, prepared for the platform's later reporting duties (DAC7 in the EU; CLAUDE.md "Plattform-Pflichten"): off until Lukas
+ * and the lawyer switch it on. Asked only from this threshold on – DAC7 leaves out sellers with fewer than 30 activities AND at most €2,000
+ * in a year (to be confirmed with the lawyer); a host who reaches either is asked in Settings › Payments & payouts. Stored for Admin only.
+ */
+export const HOST_TAX_INFO = {
+  enabled: false,
+  /** Paid shares received in the calendar year */
+  minActivities: 30,
+  /** Received in the calendar year, in EUR */
+  minPayoutEur: 2000,
+} as const;
+
+/** Everyone on Simpulo is at least this old (asked at the first request, lib/birthDate.ts; the terms say so). */
+export const MIN_AGE = 18;
+
+/** Reports (components/safety/ReportSheet.tsx): Simpulo looks at every report within this many hours – the sheet and /safety say so. */
+export const REPORT_POLICY = { reviewHours: 24 } as const;
+
 /** "Something went wrong" (the House's help): from this many days before the first day until this many after the last (components/help/HelpSheet.tsx). */
 export const HELP_WINDOW = { daysBefore: 3, daysAfter: 2 } as const;
 
@@ -133,8 +150,6 @@ export const REQUEST_POLICY = {
   responseRateBar: 0.7,
 } as const;
 
-/** Rule keys in reading order (messages policy.rules.*). */
-export const POLICY_RULES = ["beforeComplete", "afterPayment", "withoutTransfer", "hostCancels"] as const;
 
 /**
  * Several Houses at once. Allowed: any number of requests at the same time (overlapping too), any number of Houses one after another, and

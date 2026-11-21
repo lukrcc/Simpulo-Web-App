@@ -73,6 +73,7 @@ function DevSwitcherInner() {
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
   const simOffline = useDevSetting("simOffline");
+  const consentBump = useDevSetting("consentBump");
   const adminRole = useDevSetting("adminRole");
   const phase = usePlatformPhase();
 
@@ -196,6 +197,24 @@ function DevSwitcherInner() {
                 <DevRow label={t("clock")}>
                   <ClockControl />
                 </DevRow>
+                {/* Agreements (lib/consent.ts): simulate a new version of the Terms or the community guidelines – asked again at the next
+                    visit / the next request or House; "Forget mine" clears the signed-in user's agreements (sign-up and first request again). */}
+                <DevRow label={t("consent")}>
+                  <CapsuleGroup
+                    size="sm"
+                    label={t("consent")}
+                    value={consentBump ?? "current"}
+                    onChange={(next) => setDevSetting("consentBump", next === "current" ? null : next)}
+                    options={(["current", "terms", "code"] as const).map((value) => ({ value, content: t(`consentVersions.${value}`) }))}
+                  />
+                </DevRow>
+                {currentUserId && (
+                  <DevRow label={t("consentMine")}>
+                    <button type="button" onClick={store.resetConsents} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+                      {t("consentForget")}
+                    </button>
+                  </DevRow>
+                )}
                 {/* Social depth (config/platform.ts depthChoiceEnabled): the step, the capsule, the filter and Analyse › Tiefe. */}
                 <DevRow label={t("depthChoice")}>
                   <DevSwitch label={t("depthChoice")} on={depthChoice} onChange={(on) => setFeatureFlag("depthChoice", on)} />

@@ -1,7 +1,9 @@
 // Date of birth → age. The date stays private; profiles only ever show the age.
 import { useSyncExternalStore } from "react";
 
-export const MIN_AGE = 18;
+// The minimum age lives in config/policies.ts (the legal texts quote it too).
+import { MIN_AGE } from "@/config/policies";
+export { MIN_AGE };
 /** Oldest year the Year select offers, counted back from today */
 export const MAX_AGE = 100;
 

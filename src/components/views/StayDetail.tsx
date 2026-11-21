@@ -5,7 +5,7 @@ import { firstTouch } from "@/lib/growth";
 import { paidOverlapOf } from "@/lib/overlap";
 import { shortNameOf } from "@/lib/shortName";
 import Link from "next/link";
-import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, Plus, RotateCcw, SearchX, Share, UserPlus, UserX } from "lucide-react";
+import { Camera, Check, DoorClosed, ExternalLink, Lock, MailOpen, Plus, RotateCcw, SearchX, Share, ShieldX, UserPlus, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
@@ -18,6 +18,8 @@ import { HOST_APPLY_HREF } from "@/components/platform/useJoinWaitlist";
 import { openWaitlist } from "@/lib/waitlistSignup";
 import { hasOffer, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
+import { CodeAgreement, codeNeeded, useCodeGate, useCodeTitle } from "@/components/consent/Agreements";
+import { useConsentVersions } from "@/lib/consent";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
 import { PreviewBanner, PreviewProvider } from "@/components/PreviewMode";
 import { PhotoSheet } from "@/components/PhotoSheet";
@@ -53,6 +55,9 @@ import { cn, housePhotos, openSpots, typicalDayOf } from "@/lib/utils";
 import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { inHeadStart, isListedStay } from "@/lib/launch";
 
+/** Houses already counted as viewed in this page load (memory only). */
+const viewedHouses = new Set<string>();
+
 export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const store = useStore();
@@ -67,11 +72,13 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   if (isBlocked(store, stay.hostId)) return <StayUnavailable reason="blocked" exceptId={stay.id} />;
   // Closed: gone for everyone but the host and the crew (isCrewMember counts the host), who still need the page.
   if (stay.status === "closed" && !isCrewMember(store, stay, store.currentUserId)) return <StayUnavailable reason="closed" exceptId={stay.id} />;
+  // Taken down after a report (Admin › Posteingang): gone for everyone but the host, who has the reasons in /notices.
+  if (stay.takenDownAt && stay.hostId !== store.currentUserId) return <StayUnavailable reason="removed" exceptId={stay.id} />;
 
   return <StayDetailContent stay={stay} />;
 }
 
-const UNAVAILABLE_ICONS = { notFound: SearchX, closed: DoorClosed, blocked: UserX } as const;
+const UNAVAILABLE_ICONS = { notFound: SearchX, closed: DoorClosed, blocked: UserX, removed: ShieldX } as const;
 const MAX_OTHER_HOUSES = 3;
 
 /** Missing, closed or blocked-host House: one friendly line, the way back, and a few open Houses to go on with. */
@@ -206,16 +213,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
 
   const { track } = store;
   const viewedByHost = stay.hostId === store.currentUserId;
-  // Analytics: one view per House and browser tab (not the host looking at their own House).
+  // Analytics: one view per House and page load (kept in memory – nothing stored on the device), not the host looking at their own House.
   useEffect(() => {
-    if (viewedByHost) return;
-    const key = `simpulo:viewed:${stay.id}`;
-    try {
-      if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, "1");
-    } catch {
-      // no session storage – count it anyway
-    }
+    if (viewedByHost || viewedHouses.has(stay.id)) return;
+    viewedHouses.add(stay.id);
     track("house_viewed", { houseId: stay.id });
   }, [stay.id, viewedByHost, track]);
 
@@ -245,12 +246,16 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   }
 
   /** Opened from a friend's link: request too, paired with theirs. */
+  const codeGate = useCodeGate("guestCode");
   function confirmWithFriend(pairedWith: string) {
     requireAuth((userId) => {
       if (userId === stay.hostId) return showToast(t("ownHouse"));
-      store.requestToJoin(stay.id, "", { pairedWith });
-      setFriendParam(null);
-      showToast(tInvite("friendDone", { name: friendName }));
+      // A request like any other: the guidelines first when this is the first one.
+      codeGate.gate(userId, () => {
+        store.requestToJoin(stay.id, "", { pairedWith });
+        setFriendParam(null);
+        showToast(tInvite("friendDone", { name: friendName }));
+      });
     }, { reason: "join", hostName: host?.name.split(" ")[0] });
   }
 
@@ -615,6 +620,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           setFocusParam(null);
         }}
       />
+      {codeGate.sheet}
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       {canBring && (
         <InviteSheet
@@ -982,8 +988,8 @@ interface RequestSheetProps {
   blockedNote?: string;
 }
 
-type RequestStep = "message" | "login" | "sent";
-const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "sent"];
+type RequestStep = "message" | "login" | "code" | "sent";
+const REQUEST_STEPS: readonly RequestStep[] = ["message", "login", "code", "sent"];
 
 /**
  * One fixed-size modal, three steps sliding horizontally: message → (logged out) login → sent.
@@ -1007,8 +1013,12 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
   const tooYoung = (iso: string) => ageOn(iso, today) < MIN_AGE;
   const refused = Boolean(me?.birthDate && tooYoung(me.birthDate));
   const [refusedNow, setRefusedNow] = useState(false);
+  // The community guidelines before the first request (and after a new version): a step of its own, then the request goes out.
+  const versions = useConsentVersions();
+  const [codeFor, setCodeFor] = useState<{ userId: string; state: "none" | "outdated" } | null>(null);
+  const codeTitle = useCodeTitle("guestCode", codeFor?.state ?? "none");
 
-  function send(userId: string) {
+  function send(userId: string, agreed = false) {
     const user = store.users.find((u) => u.id === userId);
     const date = user?.birthDate || birth;
     // Logged in just now and no date of birth yet: back to the form, which asks for it.
@@ -1018,6 +1028,11 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
       return setStep("message");
     }
     if (!user?.birthDate) store.updateCurrentUser({ birthDate: date });
+    const code = agreed ? null : codeNeeded(user, "guestCode", versions);
+    if (code) {
+      setCodeFor({ userId, state: code });
+      return setStep("code");
+    }
     if (onSend(message, userId)) setStep("sent");
   }
 
@@ -1050,9 +1065,9 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
     <Sheet
       open={open}
       onClose={close}
-      title={t(step === "login" ? "steps.login" : waitlist ? "steps.waitlist" : "steps.message")}
+      title={step === "code" ? codeTitle : t(step === "login" ? "steps.login" : waitlist ? "steps.waitlist" : "steps.message")}
       subtitle={step === "login" ? t("loginSubtitle", { name: hostName }) : undefined}
-      onBack={step === "login" ? () => setStep("message") : undefined}
+      onBack={step === "login" || step === "code" ? () => setStep("message") : undefined}
       // Phones: the full height, the head fixed, "Send" at the bottom over the keyboard (PHONE_FOOTER).
       fullOnPhone
     >
@@ -1131,6 +1146,10 @@ function RequestSheet({ waitlist = false, stay, photo, open, hostName, loggedIn,
           <Pane active={step === "login"}>
             {/* Mounted only on this step, so the provider picker always starts fresh. */}
             {step === "login" && <AuthOptions onSuccess={send} />}
+          </Pane>
+
+          <Pane active={step === "code"}>
+            {step === "code" && codeFor && <CodeAgreement kind="guestCode" state={codeFor.state} onCancel={() => setStep("message")} onDone={() => send(codeFor.userId, true)} />}
           </Pane>
 
           <Pane active={step === "sent"}>

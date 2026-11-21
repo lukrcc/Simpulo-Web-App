@@ -20,6 +20,9 @@ import { AlbumAsk, AlbumReady } from "@/components/stay/Album";
 import { DoItAgainPanel } from "@/components/stay/ArcAfterwards";
 import { cn } from "@/lib/utils";
 
+/** Cards already counted as seen in this page load (memory only). */
+const seenCards = new Set<string>();
+
 export function ArcChatCard({ stay, stepId, at, now }: { stay: Stay; stepId: string; at: number; now: number }) {
   const t = useTranslations("house.arc");
   const store = useStore();
@@ -29,15 +32,11 @@ export function ArcChatCard({ stay, stepId, at, now }: { stay: Stay; stepId: str
   // "You and Ana chose each other" – the card names the people (only mutual choices).
   const chosenTitle = useChosenTitle(stay);
 
-  // "Card seen" once per House and step in this tab (a signal, data point arc.cardSeen).
+  // "Card seen" once per House and step and page load (a signal, data point arc.cardSeen) – kept in memory, nothing stored.
   useEffect(() => {
-    const key = `simpulo:arc-seen:${stay.id}:${stepId}`;
-    try {
-      if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, "1");
-    } catch {
-      // no session storage – count it anyway
-    }
+    const key = `${stay.id}:${stepId}`;
+    if (seenCards.has(key)) return;
+    seenCards.add(key);
     track("arc_card_seen", { house: stay.id, step: stepId });
   }, [stay.id, stepId]);
 

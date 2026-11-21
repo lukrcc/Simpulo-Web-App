@@ -54,7 +54,9 @@ export function AdminTaxes() {
   const journal = useMemo(() => getLedger() ?? [], []);
   const all = useMemo(() => withReceipts(journal, inputs.admin.receipts), [journal, inputs.admin.receipts]);
   const bank = useMemo(() => getBankBalance(), []);
-  const taxData = useMemo(() => getHostTaxData(), []);
+  // The adapter's data, and what hosts entered themselves (Settings › Payments & payouts) on top.
+  const entered = inputs.admin.hostTax;
+  const taxData = useMemo(() => ({ ...getHostTaxData(), ...Object.fromEntries(Object.entries(entered ?? {}).map(([id, d]) => [id, { taxId: d.taxId, address: d.address }])) }), [entered]);
 
   const period = periodAt(kind, inputs.today, offset);
   const before = previousPeriod(period);
