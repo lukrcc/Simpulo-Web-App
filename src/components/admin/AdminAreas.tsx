@@ -5,6 +5,8 @@
 import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
 import { BACKLOG, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogStatus } from "@/config/backlog";
 import { DUTIES, dutyStatus } from "@/config/obligations";
+import { FOUNDING_HOST } from "@/config/policies";
+import { isFoundingHost } from "@/lib/founding";
 import { StatusDot } from "./AdminCharts";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -80,7 +82,7 @@ function Followers({ count }: { count: number }) {
  * profile, the tier (confirm or change – logged; "vorgeschlagen" only here), the numbers, the warnings, the actions. Vorbereitet: the
  * prepared Houses.
  */
-type HostTab = "all" | HostTier | "review" | "prepared";
+type HostTab = "all" | HostTier | "founding" | "review" | "prepared";
 type HostSort = "value" | "houses" | "newest";
 const NEW_HOST_DAYS = 30;
 
@@ -100,7 +102,7 @@ export function AdminHosts() {
   const isNew = (r: HostOverview) => r.houses.length <= 1 && r.newest !== "" && Date.parse(inputs.today) - Date.parse(r.newest) <= NEW_HOST_DAYS * 86_400_000;
   const review = rows.filter((r) => r.warnings.length > 0 || isNew(r));
   const prepared = store.stays.filter((s) => s.claim).length;
-  const inTab = (r: HostOverview) => (tab === "all" ? true : tab === "review" ? review.includes(r) : r.tier === tab);
+  const inTab = (r: HostOverview) => (tab === "all" ? true : tab === "review" ? review.includes(r) : tab === "founding" ? isFoundingHost(r.user) : r.tier === tab);
   const shown = rows.filter(inTab).toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
   const selected = shown.find((r) => r.user.id === selectedId) ?? null;
 
@@ -115,6 +117,7 @@ export function AdminHosts() {
           tabs={[
             { value: "all", label: t("tabs.all"), count: rows.length },
             ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, tooltip: t(`tabInfo.${tier}`) })),
+            { value: "founding", label: t("tabs.founding"), count: rows.filter((r) => isFoundingHost(r.user)).length, tooltip: t("tabInfo.founding", { limit: FOUNDING_HOST.limit }) },
             { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
             { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
           ]}
@@ -455,6 +458,8 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
               {t("contactOpen", { name: contact.name })}
             </Link>,
           )}
+        {/* Host wirbt Host (vorbereitet): wer diese Bewerbung über seinen Link gebracht hat. */}
+        {application.referredBy && row(t("referredBy"), findUser(store, application.referredBy)?.name ?? application.referredBy)}
       </dl>
       {application.pitch && row(t("pitch"), `„${application.pitch}“`)}
       {application.question && <p className="text-small text-muted">{t("questionSent", { date: f.day(application.question.at) })}: „{application.question.text}“</p>}

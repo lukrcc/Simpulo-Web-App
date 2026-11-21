@@ -17,7 +17,8 @@ import { inviteSuggestions, useCanInvite } from "@/lib/invites";
 import { friendInviteLink } from "@/lib/links";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { shortNameOf } from "@/lib/shortName";
-import { findUser, isConnection, useStore, type InviteResult } from "@/lib/store";
+import { findUser, friendSpotsFor, isConnection, useStore, type InviteResult } from "@/lib/store";
+import { shareUrl } from "@/lib/growth";
 import type { HouseInvite, Stay, User } from "@/lib/types";
 import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
 
@@ -236,13 +237,16 @@ function ShareLink({ stay }: { stay: Stay }) {
   const store = useStore();
   const showToast = useToast();
   const [invite, setInvite] = useState<HouseInvite | null>(null);
-  const maxSpots = Math.max(1, Math.min(INVITE_POLICY.maxSpotsPerLink, openSpots(stay)));
+  // Spots for friends (store friendSpotsFor): the host always, a member once paid, up to the House's limit – 0: the link holds no spot.
+  const maxSpots = friendSpotsFor(store, stay, store.currentUserId);
   const [spots, setSpots] = useState(1);
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const desktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !isTouchDevice();
   const urlOf = (made: HouseInvite) => friendInviteLink(stay.slug, made.token, store.currentUserId);
   const ensure = () => {
     if (invite) return urlOf(invite);
+    // No spot to hold (not paid yet, or the host set 0): the House's own link, with who shared it and where (?ref, ?src).
+    if (maxSpots === 0) return shareUrl(`/house/${stay.slug}`, { refUserId: store.currentUserId, channel: "invite" });
     const made = store.createHouseInvite(stay.id, { spots: Math.min(spots, maxSpots) });
     if (!made) {
       showToast(t("linkFailed"));
@@ -275,6 +279,7 @@ function ShareLink({ stay }: { stay: Stay }) {
     <section>
       <h3 className="mb-3 text-eyebrow uppercase text-ink/55">{t("shareTitle")}</h3>
       {/* Spots for friends: chosen before the link exists; the link then holds exactly these. */}
+      {maxSpots === 0 && <p className="mb-4 text-small text-muted">{t("spotsAfterPaying")}</p>}
       {(invite || maxSpots > 1) && (
         <div className="mb-4">
           <p className="mb-2 text-small font-semibold text-ink">{t("spotsForFriends")}</p>
@@ -310,7 +315,7 @@ function ShareLink({ stay }: { stay: Stay }) {
           </Button>
         )}
       </div>
-      <p className="mt-2 text-small text-muted">{t("spotsForFriendsText", { count: invite ? held : Math.min(spots, maxSpots) })}</p>
+      {maxSpots > 0 && <p className="mt-2 text-small text-muted">{t("spotsForFriendsText", { count: invite ? held : Math.min(spots, maxSpots) })}</p>}
       {/* On a computer: the link's QR code, to open it on the phone. */}
       {desktop && invite && (
         <div className="mt-4 flex items-center gap-4">

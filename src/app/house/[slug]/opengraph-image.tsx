@@ -9,18 +9,23 @@ export const alt = tEn("og.house.alt");
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
-/** Share card for a House (also every friend's invite link): cover, title, dates · place, price pp, the crew, "2 of 6 in · 4 spots left", the wordmark. */
+/**
+ * Share card for a House (also every friend's invite link): cover, "Hosted by {name}", title, dates · place, price pp, the host's face,
+ * "2 of 6 in · 4 spots left", the wordmark. Rendered from the House as it is – it changes when the House does.
+ */
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const record = await getStayRecord(slug);
   // Drafts never get a card of their own.
   const stay = record && record.status !== "draft" && record.status !== "draft_unclaimed" ? record : undefined;
   const crew = stay ? await getCrew(stay) : [];
+  const host = stay ? crew.find((u) => u.id === stay.hostId) : undefined;
   const [pictures, fonts] = await Promise.all([stay ? ogPictures(stay, crew) : Promise.resolve({ cover: null, faces: [] }), loadOgFonts()]);
   return new ImageResponse(
     stay ? (
       <OgCard
         cover={pictures.cover}
+        eyebrow={host ? tEn("og.house.hostedBy", { name: host.name.split(" ")[0] }) : undefined}
         title={stay.title}
         line={`${ogDates(stay.startDate, stay.endDate)} · ${stay.city || stay.region}`}
         strong={ogPrice(stay)}

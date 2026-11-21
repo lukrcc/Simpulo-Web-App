@@ -108,6 +108,9 @@ export const ARC_STEPS: readonly ArcStep[] = [
   // 30 days after (email + Me, no card): what you still do since the House, still in touch (yes/no – a signal); private, optionally shared as
   // a story (public only with consent, with a preview).
   { id: "thirtyDays", phase: "after", when: { at: "after", days: 30, hour: 10 }, audience: ALL, channels: ["area", "email"], tab: "me", action: "write", visibility: "private", priority: 60 },
+  // A year after the last day: "One year since {House}" – a card to the crew in its chat, with the album and "Do it again" (CLAUDE.md
+  // "Netzwerk-Seite": the crew stays).
+  { id: "anniversary", phase: "after", when: { at: "after", days: 365, hour: 10 }, audience: ALL, channels: ["card", "area"], tab: "moments", action: "open", visibility: "crew", priority: 55 },
 ];
 
 /**

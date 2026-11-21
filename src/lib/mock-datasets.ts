@@ -11,7 +11,7 @@ import { MOCK_FOUNDING_HOST_IDS, mockAudienceSize, mockRunsAsPro } from "./mock-
 /** The founding hosts the admin said "Yes" to (mock-admin.ts) – in every phase, like their accounts. */
 const users = mockUsers.map((u) => ({
   ...u,
-  ...(MOCK_FOUNDING_HOST_IDS.includes(u.id) ? { foundingHost: true } : {}),
+  ...(MOCK_FOUNDING_HOST_IDS.includes(u.id) ? { foundingHost: true, foundingHostNo: MOCK_FOUNDING_HOST_IDS.indexOf(u.id) + 1 } : {}),
   // Followers only for people with social links (admin › Hosts).
   ...(u.socials?.length ? { audienceSize: mockAudienceSize(u.id) } : {}),
   // No link twice (the same handle on two platforms reads as a duplicate), at most three per person.

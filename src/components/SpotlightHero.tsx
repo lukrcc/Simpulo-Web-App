@@ -1,5 +1,7 @@
 "use client";
 
+import { FoundingBadge } from "@/components/ui/FoundingBadge";
+import { isFoundingHost } from "@/lib/founding";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -406,6 +408,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
               <p className="mt-2 hidden items-center gap-1 text-small text-on-image/85 md:flex">
                 {stay.isExample ? tPlatform("example.house") : t("withHost", { name: firstName(host) })}
                 {host.verified && !stay.isExample && <VerifiedBadge onDark />}
+                {isFoundingHost(host) && !stay.isExample && <FoundingBadge size={14} />}
               </p>
               <p className="mt-2 max-w-full text-small text-on-image/85">
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">

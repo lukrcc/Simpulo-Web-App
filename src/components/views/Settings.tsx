@@ -508,6 +508,7 @@ function PrivacyArea({ me }: { me: User }) {
     showAge: me.privacy?.showAge ?? PRIVACY_DEFAULTS.showAge,
     hidePhotoUntilAccepted: hidesPhotoUntilAccepted(me),
     hostPageInSearch: hostPageInSearch(me),
+    nearby: Boolean(me.privacy?.nearby),
   };
   // The host page switch only for people who host publicly (lib/privacy.ts).
   const hosts = hostsPublicly(store, me.id);
@@ -550,6 +551,8 @@ function PrivacyArea({ me }: { me: User }) {
         <SettingsRow title={t("showAge")} subtitle={t("showAgeText")} control={<Switch on={privacy.showAge} label={t("showAge")} onChange={(on) => setPrivacy({ showAge: on })} />} />
         <SettingsRow title={t("hidePhoto")} subtitle={t("hidePhotoText")} control={<Switch on={privacy.hidePhotoUntilAccepted} label={t("hidePhoto")} onChange={(on) => setPrivacy({ hidePhotoUntilAccepted: on })} />} />
         {hosts && <SettingsRow title={t("hostPage")} subtitle={t("hostPageText")} control={<Switch on={privacy.hostPageInSearch} label={t("hostPage")} onChange={(on) => setPrivacy({ hostPageInSearch: on })} />} />}
+        {/* Nearby (lib/nearby.ts): consent, off by default – only Your people, only when they turned it on too. */}
+        <SettingsRow title={t("nearby")} subtitle={t("nearbyText")} control={<Switch on={privacy.nearby} label={t("nearby")} onChange={(on) => setPrivacy({ nearby: on })} />} />
       </SettingsGroup>
       <SettingsGroup title={t("blockedTitle")} footer={t("description")}>
         {blocked.length === 0 ? (

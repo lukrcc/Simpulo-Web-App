@@ -5,7 +5,7 @@
 // (getChange) and ⓘ. Kanäle, Empfehler, Houses: rows without a frame – an icon or photo, the name, a mini bar visits → requests → paid with the
 // three numbers, the revenue right; the top 10, "Alle zeigen" opens the full list in the detail. Verhalten: app installs and asking the host.
 // Every number from lib/admin/metrics.ts (later from the pre-computed statistics, see there).
-import { Link2, MessageCircle, MousePointerClick, Search, Globe, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { Link2, MessageCircle, MousePointerClick, Search, Globe, ArrowUpRight, type LucideIcon, MessageSquare, Share, Ticket, QrCode, ImageIcon, Megaphone, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, type ComponentType, type ReactNode } from "react";
@@ -39,6 +39,13 @@ const CHANNEL_ICONS: Record<string, ComponentType<{ className?: string }> | Luci
   twitch: SOCIAL_ICONS.twitch.icon,
   whatsapp: MessageCircle,
   copy: Link2,
+  messages: MessageSquare,
+  story: ImageIcon,
+  native: Share,
+  invite: Ticket,
+  qr: QrCode,
+  hostkit: Megaphone,
+  hostref: UserPlus,
   google: Search,
   [DIRECT]: MousePointerClick,
 };

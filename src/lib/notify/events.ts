@@ -83,4 +83,7 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   reportReceived: NotifyEvent.SupportReply,
   appealUpheld: NotifyEvent.SupportReply,
   appealReversed: NotifyEvent.SupportReply,
+  // Spots for friends ran out (lib/deadlines.ts flow "invite") – a held spot is about joining a House
+  friendSpotsExpired: NotifyEvent.RequestReceived,
+  friendSpotExpiredForYou: NotifyEvent.RequestReceived,
 };

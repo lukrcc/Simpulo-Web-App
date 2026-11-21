@@ -4,12 +4,13 @@
 //
 //   request (since it was sent):  24 h reminder to the host · 48 h last reminder · 60 h Admin › Houses "Braucht Hilfe" · 72 h it runs out
 //   payment (its 48-hour window): 24 h reminder to the guest · 44 h last reminder · 48 h the spot is free again
+//   invite  (spots for friends):  48 h the held spots are free again – the inviter and the friends who opened the link hear it
 //
 // A step is taken once (JoinRequest.deadlines / Payment.deadlines). When the clock jumps past several, the earlier notices are left out
 // (superseded) – only the latest goes out; every step is still marked, and the admin log shows what was done.
-import { DEADLINES, PAYMENT_POLICY, type DeadlineFlow } from "@/config/policies";
+import { DEADLINES, INVITE_POLICY, PAYMENT_POLICY, type DeadlineFlow } from "@/config/policies";
 import type { NotifyEventKey } from "./data/notifications";
-import type { JoinRequest, Payment, Stay } from "./types";
+import type { HouseInvite, JoinRequest, Payment, Stay } from "./types";
 
 const HOUR_MS = 3_600_000;
 
@@ -28,9 +29,11 @@ export interface DeadlineEvent {
   notice: NotifyEventKey | null;
   /** A later step of the same flow is due as well: marked, but no notice */
   superseded: boolean;
+  /** Spots for friends: the friends who opened the link hear it too, in their own words */
+  others?: { to: string[]; notice: NotifyEventKey };
 }
 
-type Data = { stays: readonly Stay[]; joinRequests: readonly JoinRequest[]; payments: readonly Payment[] };
+type Data = { stays: readonly Stay[]; joinRequests: readonly JoinRequest[]; payments: readonly Payment[]; houseInvites?: readonly HouseInvite[] };
 
 /** When a payment's 48 hours started (its House's paymentDueAt minus the window); null when no window runs. */
 export function paymentWindowStart(stay: Pick<Stay, "paymentDueAt">): number | null {
@@ -65,6 +68,18 @@ export function dueDeadlines(data: Data, now: number): DeadlineEvent[] {
     if (start === null) continue;
     for (const { step, dueAt, superseded } of dueSteps("payment", start, now, p.deadlines)) {
       events.push({ flow: "payment", step: step.id, targetId: p.id, stayId: stay.id, guestId: p.userId, dueAt, to: step.to === "host" ? [stay.hostId] : step.to === "guest" ? [p.userId] : [], notice: (step.notice as NotifyEventKey | null) ?? null, superseded });
+    }
+  }
+  // Spots for friends: a pending link with its inviter (the search head starts and the host's named invites without one aren't friends' spots).
+  for (const i of data.houseInvites ?? []) {
+    if (i.status !== "pending" || i.priority || !i.invitedBy) continue;
+    const stay = data.stays.find((s) => s.id === i.houseId);
+    if (!stay) continue;
+    // The 48 hours count from the last (re)send: expiresAt minus the hold.
+    const start = Date.parse(i.expiresAt) - INVITE_POLICY.inviteHoldHours * HOUR_MS;
+    for (const { step, dueAt, superseded } of dueSteps("invite", start, now, i.deadlines)) {
+      const friends = (i.openedBy ?? []).filter((id) => id !== i.invitedBy);
+      events.push({ flow: "invite", step: step.id, targetId: i.token, stayId: stay.id, guestId: i.invitedBy, dueAt, to: [i.invitedBy], notice: (step.notice as NotifyEventKey | null) ?? null, superseded, ...(friends.length && { others: { to: friends, notice: "friendSpotExpiredForYou" } }) });
     }
   }
   return events.toSorted((a, b) => a.dueAt.localeCompare(b.dueAt));

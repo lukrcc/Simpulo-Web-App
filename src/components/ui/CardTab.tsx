@@ -1,4 +1,6 @@
 import { profileHref } from "@/lib/privacy";
+import { FoundingBadge } from "@/components/ui/FoundingBadge";
+import { isFoundingHost } from "@/lib/founding";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { VerifiedBadge } from "./VerifiedBadge";
@@ -8,7 +10,7 @@ import { cn, firstName } from "@/lib/utils";
 import { PersonPhoto } from "./PersonPhoto";
 
 interface CardTabProps {
-  host: Pick<User, "id" | "name" | "photos" | "verified">;
+  host: Pick<User, "id" | "name" | "photos" | "verified" | "foundingHost" | "foundingHostNo">;
   /** Must match what's behind the card, so the tab reads as cut out of it. */
   bg?: string;
   /** Instead of the first name, e.g. "You" on your own House */
@@ -50,6 +52,8 @@ export function CardTab({ host, bg = "var(--bg)", label, suffix, className, cont
       <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-nav text-ink">
         <span className="min-w-0 truncate">{label ?? firstName(host)}</span>
         {host.verified && !label && !anonymous && <VerifiedBadge size={14} className="shrink-0" />}
+        {/* One of the first hosts (lib/founding.ts) – the mark alone in the notch, its words in the tooltip. */}
+        {isFoundingHost(host) && !label && !anonymous && <FoundingBadge size={14} />}
         {suffix && <span className="shrink-0 font-normal text-muted">· {suffix}</span>}
       </span>
     </span>

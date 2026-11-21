@@ -17,11 +17,18 @@ const confirmed = (data: PeopleData, from: string, to: string) => data.livedWith
 /** Both confirmed: the pair counts as having lived together. */
 export const livedTogether = (data: PeopleData, a: string, b: string) => confirmed(data, a, b) && confirmed(data, b, a);
 
-/** `userId`'s people, most recent House first: both confirmed, not removed, not blocked. */
+/** Blocked in either direction (CLAUDE.md "Netzwerk-Seite"): I blocked them, or they blocked me – then neither shows in the other's lists. */
+export function blockedEitherWay(data: Pick<StoreData, "users">, a: string, b: string): boolean {
+  const ua = data.users.find((u) => u.id === a);
+  const ub = data.users.find((u) => u.id === b);
+  return settingsOf(ua).blockedUserIds.includes(b) || settingsOf(ub).blockedUserIds.includes(a);
+}
+
+/** `userId`'s people, most recent House first: both confirmed, not removed, not blocked (either way). */
 export function yourPeople(data: PeopleData, userId: string): PersonOfYours[] {
   const me = data.users.find((u) => u.id === userId);
   const settings = settingsOf(me);
-  const left = new Set([...settings.blockedUserIds, ...(settings.removedPeopleIds ?? [])]);
+  const left = new Set([...settings.blockedUserIds, ...(settings.removedPeopleIds ?? []), ...data.users.filter((u) => settingsOf(u).blockedUserIds.includes(userId)).map((u) => u.id)]);
   return livedWithFor(data, userId)
     .filter((entry) => !left.has(entry.user.id) && livedTogether(data, userId, entry.user.id))
     .map((entry) => ({ user: entry.user, house: entry.house }));

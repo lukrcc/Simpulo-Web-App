@@ -4,7 +4,11 @@
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
 // "Ended"), under it the tabs as capsules – Chat · Crew · Plan · Moments · Me, the host also Manage – their state in the URL (?tab=plan).
 // Visitors keep the public House page (views/StayDetail.tsx). Everything from the store (mock); nothing here is a second copy of Messages.
-import { RotateCcw } from "lucide-react";
+import { ProgramEditor, ProgramFeedbackSummary, ProgramView } from "./ProgramParts";
+import { RotateCcw, Share } from "lucide-react";
+import { useHouseShareSheet } from "@/components/share/HouseShare";
+import { InviteSheet } from "@/components/InviteSheet";
+import { useCanInvite } from "@/lib/invites";
 import { againHref } from "@/components/create/model";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -19,7 +23,7 @@ import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { Receipt } from "@/components/payments/Receipt";
 import { RefundNotice } from "@/components/payments/Refund";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
-import { HostShareTools } from "@/components/share/HostShareTools";
+import { HostKit } from "@/components/share/HostKit";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
@@ -122,10 +126,24 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
   }, [focus]);
 
   const place = stay.location.area ? `${stay.location.area}, ${stay.location.city || stay.city}` : stay.location.city || stay.city || stay.region.split(",")[0];
+  const share = useHouseShareSheet(stay);
+  // ?focus=invite (a member: "Invite a friend", Needs you "Fill spots"): the invite sheet once – the host's goes to Manage.
+  const canBring = useCanInvite(stay.id);
+  const [inviting, setInviting] = useState(false);
+  const focusedInvite = useRef(false);
+  useEffect(() => {
+    if (focus === "invite" && !isHost && canBring && !focusedInvite.current) {
+      focusedInvite.current = true;
+      setInviting(true);
+    }
+  }, [focus, isHost, canBring]);
+  const tShare = useTranslations("growth.share");
   const phaseText = phase.key === "starts" ? t("phase.starts", { days: phase.days }) : phase.key === "running" ? t("phase.running", { day: phase.day, total: phase.total }) : t("phase.ended");
 
   return (
     <>
+      {share.sheet}
+      {!isHost && canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
       {/* The stage: the HeroBand pattern (CLAUDE.md "Vollbild-Band") – the photos left, the House on the light band right. */}
       <HeroBand media={<HeroPhotos photos={housePhotos(stay, host)} />} mediaFit="house" height="split:h-[clamp(320px,40vh,420px)]" aria-labelledby="house-area-title">
         <div className="flex h-full min-w-0 flex-col gap-5">
@@ -143,6 +161,10 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {/* Share: the one share sheet (components/share/HouseShare.tsx) – the link carries your ref and the channel. */}
+              <button type="button" onClick={share.open} aria-label={tShare("button")} className={iconButtonStyles("sm")}>
+                <Share aria-hidden />
+              </button>
               <Button variant="secondary" size="sm" href={isHost ? `/house/${stay.slug}?preview=guest` : `/house/${stay.slug}`}>
                 {t("viewPage")}
               </Button>
@@ -287,6 +309,7 @@ function ArcSlot({ slot, stay }: { slot: ArcSlotKey; stay: Stay }) {
 /** Dates · getting there (the exact place once you've paid) · the rhythm of a day · votes. */
 function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const t = useTranslations("house.area.plan");
+  const tProgram = useTranslations("program");
   const tBefore = useTranslations("house.before");
   const tArrival = useTranslations("house.arrival");
   const tFirst = useTranslations("house.firstNight");
@@ -314,6 +337,12 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
       <Part id="plan-practical" title={tBefore("practical.title")}>
         <Practical stay={stay} isHost={isHost} />
       </Part>
+      {/* A Pro host's programme: in full from two days before, a preview until then. */}
+      {stay.hostFeePerPerson ? (
+        <Part id="plan-program" title={tProgram("planTitle")}>
+          <ProgramView stay={stay} isHost={isHost} />
+        </Part>
+      ) : null}
       {/* Day 1: who's here · the first night's cards · Day 1–2: the House agreement (kept here, the crew sees it). */}
       <Part id="plan-arrived" title={tArrival("title")}>
         <ArrivedPanel stay={stay} />
@@ -601,8 +630,8 @@ function ManageTab({ stay }: { stay: Stay }) {
   const tDetail = useTranslations("houses.detail");
   const tArea = useTranslations("house.area");
   const tTasks = useTranslations("house.before.tasks");
-  const tMiddleM = useTranslations("house.middle");
   const tGoodbyeM = useTranslations("house.goodbye");
+  const tProgram = useTranslations("program");
   const afterOpen = useArcNow(stay) >= afterAt(stay);
   const store = useStore();
   const showToast = useToast();
@@ -629,11 +658,17 @@ function ManageTab({ stay }: { stay: Stay }) {
       <Part id="manage-tasks" title={tTasks("title")}>
         <HostTasks stay={stay} />
       </Part>
-      {/* A Pro host: halftime as the crew's anonymous average – never anyone's own number. */}
+      {/* A Pro host: the programme (day plan, templates, own arc moments) and the crew's progress – halftime as the anonymous average, never
+          anyone's own number (from 3 answers). */}
       {stay.hostFeePerPerson ? (
-        <Part id="manage-halftime" title={tMiddleM("halftimeTitle")}>
-          <HalftimeAverage stay={stay} />
-        </Part>
+        <>
+          <Part id="manage-program" title={tProgram("title")}>
+            <ProgramEditor stay={stay} />
+          </Part>
+          <Part id="manage-halftime" title={tProgram("crewProgress")}>
+            <HalftimeAverage stay={stay} />
+          </Part>
+        </>
       ) : null}
       {/* After the House: the crew's rating (averages, without names) and their sentences for the host. */}
       {afterOpen && (
@@ -641,6 +676,11 @@ function ManageTab({ stay }: { stay: Stay }) {
           <HostAfterSummary stay={stay} />
         </Part>
       )}
+      {afterOpen && stay.hostFeePerPerson ? (
+        <Part id="manage-program-feedback" title={tProgram("feedbackTitle")}>
+          <ProgramFeedbackSummary stay={stay} />
+        </Part>
+      ) : null}
       <Part id="manage-requests" title={t("requests")}>
         <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
       </Part>
@@ -654,7 +694,8 @@ function ManageTab({ stay }: { stay: Stay }) {
       {!draft && (
         <Part id="manage-share" title={t("share")}>
           {open && <HostInvitesSection stay={stay} />}
-          <HostShareTools stay={stay} />
+          {/* The host kit: story, bio link, community post – filled in, Copy and Download (?src=hostkit). */}
+          <HostKit stays={[stay]} />
         </Part>
       )}
       <Part title={tArea("settings")}>

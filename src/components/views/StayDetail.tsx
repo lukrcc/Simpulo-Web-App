@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsPlanned } from "@/components/stay/ProgramParts";
 import { useDevSetting } from "@/lib/devSettings";
 import { firstTouch } from "@/lib/growth";
 import { paidOverlapOf } from "@/lib/overlap";
@@ -26,7 +27,7 @@ import { PhotoSheet } from "@/components/PhotoSheet";
 import { SafetyMenu } from "@/components/safety/SafetyMenu";
 import { HouseQrSheet } from "@/components/stay/HouseQrSheet";
 import { MoreMenu } from "@/components/ui/MoreMenu";
-import { useHouseShare } from "@/components/share/HouseShare";
+import { useHouseShareSheet } from "@/components/share/HouseShare";
 import { HouseCard } from "@/components/HouseCard";
 import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
@@ -151,6 +152,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     setFocusParam(null);
     if (!sent) return; // closed mid-way: keep the message for next time
     setRequestKey((k) => k + 1);
+    // After a request: bring a friend along – the share sheet, one tap away (CLAUDE.md "Teilen und Einladen").
+    showToast(tShare("afterRequest"), "done", undefined, { action: { label: tShare("button"), onClick: () => houseShare.open() }, ms: 8000 });
   }
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -159,9 +162,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   // ?invite=token – read in its own boundary, like ?preview.
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
-  // Share: the system dialog where there is one, else the link is copied (see useHouseShare).
-  const inviteFriends = useHouseShare(stay);
+  // Share: the one share sheet (Copy link · WhatsApp · Messages · Instagram Story · More) – components/share/HouseShare.tsx.
+  const houseShare = useHouseShareSheet(stay);
   const tInvite = useTranslations("invite");
+  const tShare = useTranslations("growth.share");
   // Host or crew, a free spot, not started: the invite sheet (lib/invites.ts).
   const canBring = useCanInvite(stay.id);
   // A friend's link (?with=): their open "with a friend" request in this House.
@@ -479,7 +483,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
             <HouseActions
               share={
                 previewing ? undefined : (
-                  <button type="button" onClick={inviteFriends} aria-label={tInvite("share")} className={iconButtonStyles("sm")}>
+                  <button type="button" onClick={houseShare.open} aria-label={tInvite("share")} className={iconButtonStyles("sm")}>
                     <Share className="size-4" aria-hidden />
                   </button>
                 )
@@ -577,6 +581,8 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           <div className="flex min-w-0 flex-col gap-12 split:col-span-5">
             <div className="empty:hidden">
               <HouseDay stay={stay} />
+              {/* A Pro host's programme as a preview – titles and the arc's own moments; times and places come two days before. */}
+              <WhatsPlanned stay={stay} />
             </div>
             <div className="empty:hidden">
               <HouseRules stay={stay} />
@@ -621,6 +627,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
         }}
       />
       {codeGate.sheet}
+      {houseShare.sheet}
       <PhotoSheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} />
       {canBring && (
         <InviteSheet

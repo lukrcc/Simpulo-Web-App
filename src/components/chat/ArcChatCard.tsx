@@ -3,6 +3,7 @@
 // A Simpulo card in the House chat (CLAUDE.md "Bogen"): an arc step that's due (config/arc.ts, lib/arc.ts) – sender "Simpulo", title, a short
 // text, its action (opens the tab that keeps the result, ?tab=…&arc=…) and "Skip". Done: "Done · 4 of 5". Never stored as a message: the
 // list adds it when it's due. Signals only (seen, done, skipped) – never what anyone wrote.
+import { againHref } from "@/components/create/model";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -64,6 +65,16 @@ export function ArcChatCard({ stay, stepId, at, now }: { stay: Stay; stepId: str
       <AlbumReady stay={stay} />
     ) : stepId === "doItAgain" ? (
       <DoItAgainPanel stay={stay} compact />
+    ) : stepId === "anniversary" ? (
+      // A year on: the album and "Do it again" (the old crew picked in Fill your House) – no skip needed, it's a hello.
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/h/${stay.id}?tab=moments`} className={buttonStyles("primary", "sm")}>
+          {t("steps.anniversary.action")}
+        </Link>
+        <Link href={againHref(stay.id)} className={buttonStyles("secondary", "sm")}>
+          {t("steps.anniversary.doItAgain")}
+        </Link>
+      </div>
     ) : null;
   const href = `/h/${stay.id}?tab=${step.tab}&arc=${stepId}`;
   return (
@@ -72,12 +83,12 @@ export function ArcChatCard({ stay, stepId, at, now }: { stay: Stay; stepId: str
         <Sparkles aria-hidden className="size-3.5" />
         {t("sender")}
       </p>
-      <p className="mt-1.5 text-body font-semibold text-ink">{stepId === "chosen" && chosenTitle ? chosenTitle : t(`steps.${stepId}.title` as "steps.welcome.title")}</p>
+      <p className="mt-1.5 text-body font-semibold text-ink">{stepId === "chosen" && chosenTitle ? chosenTitle : t(`steps.${stepId}.title` as "steps.welcome.title", { title: stay.title })}</p>
       <p className="mt-0.5 text-small text-muted">{t(`steps.${stepId}.text` as "steps.welcome.text")}</p>
       {inline && (
         <div className="mt-3 flex flex-col gap-2">
           {inline}
-          {state === "open" && stepId !== "chosen" && stepId !== "albumReady" && !(stepId === "agreement" && agreementOf(store, stay, now).closed) && (
+          {state === "open" && stepId !== "chosen" && stepId !== "albumReady" && stepId !== "anniversary" && !(stepId === "agreement" && agreementOf(store, stay, now).closed) && (
             <button
               type="button"
               onClick={() => {

@@ -337,6 +337,10 @@ function ClockControl() {
       <button type="button" aria-label={t("clockLater")} onClick={() => setDevSetting("clockHours", hours + 12)} className={small}>
         +
       </button>
+      {/* A year on (the anniversary card, /people › Crews). */}
+      <button type="button" onClick={() => setDevSetting("clockHours", hours + 365 * 24)} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+        {t("clockYear")}
+      </button>
       {hours !== 0 && (
         <button type="button" onClick={() => setDevSetting("clockHours", 0)} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
           {t("clockNow")}

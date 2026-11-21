@@ -15,6 +15,8 @@ import { canOpenHouseAs, usePlatformPhase } from "@/config/platform";
 import { useFormat } from "@/i18n/format";
 import { useAdminData } from "@/lib/admin/store";
 import { track } from "@/lib/analytics";
+import { firstTouch } from "@/lib/growth";
+import { HOST_REFERRAL } from "@/config/policies";
 import { VIBES } from "@/lib/catalog";
 import { getCurrentUser, useStore } from "@/lib/store";
 import type { HostApplication, Vibe } from "@/lib/types";
@@ -115,6 +117,8 @@ function ApplyForm({ onSent }: { onSent: (application: HostApplication) => void 
   const submit = () => {
     setTouched(true);
     if (!complete) return;
+    const touch = firstTouch();
+    const referrer = HOST_REFERRAL.enabled && touch.utmSource === "hostref" && touch.refUserId && touch.refUserId !== me?.id ? touch.refUserId : null;
     const reach = Math.max(0, Math.round(Number(form.reach.replace(/\D/g, "")) || 0));
     const added = store.addApplication({
       name: form.name.trim(),
@@ -127,6 +131,8 @@ function ApplyForm({ onSent }: { onSent: (application: HostApplication) => void 
       audienceSize: reach,
       pitch: form.why.trim(),
       when: form.when || null,
+      // Host brings host (prepared, off): a host's own link (?ref={host}&src=hostref) marks who brought this one.
+      ...(referrer && { referredBy: referrer }),
     });
     // Signals only: the theme, a reach given, a period given – never the words.
     track("host_application_sent", { topic: added.topic, reach: reach > 0, when: Boolean(form.when) });

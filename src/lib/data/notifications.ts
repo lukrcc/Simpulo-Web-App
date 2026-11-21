@@ -104,7 +104,9 @@ export type NotifyEventKey =
   | "photoTakenDown"
   | "reportReceived"
   | "appealUpheld"
-  | "appealReversed";
+  | "appealReversed"
+  | "friendSpotsExpired"
+  | "friendSpotExpiredForYou";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -164,6 +166,8 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   reportReceived: "system",
   appealUpheld: "system",
   appealReversed: "system",
+  friendSpotsExpired: "crew_invite",
+  friendSpotExpiredForYou: "crew_invite",
 };
 
 /** One notification of one person. */

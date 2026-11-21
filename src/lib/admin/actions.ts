@@ -2,6 +2,7 @@
 
 // Every admin action – and each writes its line in the admin log. No admin component changes data any other way.
 import { setPlatformPhase } from "@/config/platform";
+import { HOST_REFERRAL } from "@/config/policies";
 import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
@@ -35,6 +36,8 @@ export function useAdminActions() {
         store.setFoundingHost(account, status === "yes");
         if (status === "yes") appendAdminLog("founding_host_added", application.name, by);
       }
+      // Host brings host (prepared, behind its switch): the accepted host was brought by the host whose link they came through.
+      if (HOST_REFERRAL.enabled && account && status === "yes" && application.referredBy) store.setHostReferredBy(account, application.referredBy);
       const to = account ?? application.email ?? application.id;
       if (status === "yes") email.send(to, { subject: tEn("platform.apply.acceptedSubject"), text: tEn("platform.apply.acceptedText"), url: "/create", template: "notification" });
       else if (status === "no") email.send(to, { subject: tEn("platform.apply.declinedSubject"), text: tEn("platform.apply.declinedText"), url: "/apply", template: "notification" });

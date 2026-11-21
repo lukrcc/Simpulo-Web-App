@@ -1,5 +1,7 @@
 "use client";
 
+import { FoundingBadge } from "@/components/ui/FoundingBadge";
+import { isFoundingHost } from "@/lib/founding";
 import { profileHref } from "@/lib/privacy";
 import { BackButton } from "@/components/ui/BackButton";
 import { ArrowRight, ArrowUpRight, Building2, Home, KeyRound, Languages, Layers, MapPin, Sparkles, Users, Venus, Zap } from "lucide-react";
@@ -400,6 +402,7 @@ function HostTile({ host, stay }: { host: User; stay: Stay }) {
           <span className="truncate">{firstName(host)}</span>
           {host.verified && <VerifiedBadge />}
         </span>
+        {isFoundingHost(host) && <FoundingBadge label className="text-ink" />}
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-small text-muted">{format.ageAndCountry(host, showsAge(host, store.currentUserId))}</span>
           <SocialLinks user={host} variant="icons" tone="dark" nested />

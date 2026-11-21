@@ -35,7 +35,7 @@ export function ArcBar({ stay }: { stay: Stay }) {
         ))}
       </ol>
       <p className="mt-3 text-body text-ink">
-        {arc.next ? t("next", { title: t(`steps.${arc.next.step.id}.title` as "steps.welcome.title"), date: arcDateLabel(stay, arc.next.at) }) : t("allDone")}
+        {arc.next ? t("next", { title: t(`steps.${arc.next.step.id}.title` as "steps.welcome.title", { title: stay.title }), date: arcDateLabel(stay, arc.next.at) }) : t("allDone")}
       </p>
     </section>
   );
@@ -67,7 +67,7 @@ export function ArcStepPanel({ stay, stepId }: { stay: Stay; stepId: string }) {
   return (
     <section data-arc-step={stepId} className="rounded-[20px] border border-ink/10 bg-(--surface) p-5">
       <p className="text-eyebrow uppercase text-(--text-faint)">{t("sender")}</p>
-      <h2 className="mt-1 text-h3 text-ink">{t(`steps.${stepId}.title` as "steps.welcome.title")}</h2>
+      <h2 className="mt-1 text-h3 text-ink">{t(`steps.${stepId}.title` as "steps.welcome.title", { title: stay.title })}</h2>
       <p className="mt-1 text-body text-muted">{t(`steps.${stepId}.text` as "steps.welcome.text")}</p>
       <p className="mt-2 text-small text-muted">{t(`visibility.${step.visibility}`)}</p>
       {state === "open" && formInTab ? (
@@ -163,7 +163,7 @@ export function useArcEmails(stay: Stay) {
       } catch {
         continue;
       }
-      sendEmail(me, { subject: `${stay.title}: ${t(`steps.${d.step.id}.title` as "steps.welcome.title")}`, text: t(`steps.${d.step.id}.text` as "steps.welcome.text"), url: `/h/${stay.id}?tab=${d.step.tab}&arc=${d.step.id}`, template: "notification" });
+      sendEmail(me, { subject: `${stay.title}: ${t(`steps.${d.step.id}.title` as "steps.welcome.title", { title: stay.title })}`, text: t(`steps.${d.step.id}.text` as "steps.welcome.text"), url: `/h/${stay.id}?tab=${d.step.tab}&arc=${d.step.id}`, template: "notification" });
     }
   }, [arc, me, stay.id, stay.title, t]);
 }

@@ -106,7 +106,13 @@ export const DEADLINES = {
     /** 48 hours: the spot is free again – the guest hears it, the host and crew too (store settlePayments) */
     { id: "lapse", afterHours: 48, to: "guest", notice: "deadlineYourPaymentLapsed" },
   ],
-} as const satisfies Record<"request" | "payment", readonly { id: string; afterHours: number; to: "host" | "guest" | "admin"; notice: string | null }[]>;
+  /**
+   * "Spots for friends" (a member's or the host's invite link, HouseInvite.spots): the spots are held 48 hours (INVITE_POLICY.inviteHoldHours);
+   * then they're free again – the one who saved them hears it ("guest" here = the inviter), and so does every signed-in friend who opened the
+   * link (HouseInvite.openedBy).
+   */
+  invite: [{ id: "inviteExpire", afterHours: 48, to: "guest", notice: "friendSpotsExpired" }],
+} as const satisfies Record<"request" | "payment" | "invite", readonly { id: string; afterHours: number; to: "host" | "guest" | "admin"; notice: string | null }[]>;
 export type DeadlineFlow = keyof typeof DEADLINES;
 export type DeadlineStepId = (typeof DEADLINES)[DeadlineFlow][number]["id"];
 
@@ -125,6 +131,27 @@ export const HOST_TAX_INFO = {
   minActivities: 30,
   /** Received in the calendar year, in EUR */
   minPayoutEur: 2000,
+} as const;
+
+/**
+ * Founding Hosts (CLAUDE.md "Founding Host"): the first this-many hosts whose application was accepted carry the badge – on their profile,
+ * their House cards (beside the host notch) and House page ("One of the first 50 hosts on Simpulo"). Numbered in order of acceptance
+ * (User.foundingHostNo); later accepted hosts can open Houses all the same, without the badge.
+ */
+export const FOUNDING_HOST = { limit: 50 } as const;
+
+/**
+ * Host brings host (CLAUDE.md "Host wirbt Host") – prepared, off. A host's own link (/host?ref={id}&src=hostref) marks a new host as
+ * "brought by" (HostApplication.referredBy → User.hostReferredBy). The share and how long it runs are still open (null: to be decided by
+ * Lukas); it would be paid only after the brought host's first paid stay, and only one level (a host brought by a brought host earns the
+ * first nothing).
+ */
+export const HOST_REFERRAL = {
+  enabled: false,
+  /** Of Simpulo's fees on the brought host's Houses, in percent – open */
+  sharePercent: null as number | null,
+  /** For how many months after the brought host's first paid stay – open */
+  months: null as number | null,
 } as const;
 
 /** Everyone on Simpulo is at least this old (asked at the first request, lib/birthDate.ts; the terms say so). */

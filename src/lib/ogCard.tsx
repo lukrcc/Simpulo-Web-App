@@ -53,9 +53,13 @@ export function ogDates(start: string, end: string): string {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).formatRange(new Date(start), new Date(end));
 }
 
-/** The pictures a card needs, loaded in parallel: the cover and up to five crew faces. */
+/**
+ * The pictures a card needs, loaded in parallel: the cover and the host's face. Share cards are public – guests' faces never show there
+ * (CLAUDE.md "Privatsphäre der Profile": logged out, only the number of the crew), the host is public.
+ */
 export async function ogPictures(stay: Stay, crew: User[]): Promise<{ cover: string | null; faces: string[] }> {
-  const [cover, ...faces] = await Promise.all([loadOgImage(housePhotos(stay)[0]), ...crew.slice(0, 5).map((u) => loadOgImage(u.photos[0], 96))]);
+  const host = crew.find((u) => u.id === stay.hostId);
+  const [cover, ...faces] = await Promise.all([loadOgImage(housePhotos(stay)[0]), ...(host ? [loadOgImage(host.photos[0], 96)] : [])]);
   return { cover, faces: faces.filter((f): f is string => Boolean(f)) };
 }
 

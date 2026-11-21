@@ -76,6 +76,47 @@ export function peopleInFor(list: readonly InFor[], house: InForQuery, today: st
   return [...new Set(ids)];
 }
 
+/**
+ * "I'm in for" is seen only between Your people (CLAUDE.md "Netzwerk-Seite"): the person themselves, or someone they both chose
+ * (`isMine` / `together` come from lib/yourPeople.ts livedTogether). Everyone else: nothing.
+ */
+export function visibleInForOf(list: readonly InFor[], userId: string, today: string, viewer: { isMe: boolean; together: boolean }): InFor[] {
+  return viewer.isMe || viewer.together ? activeInForOf(list, userId, today) : [];
+}
+
+export interface AlsoInFor {
+  userId: string;
+  placeId: string;
+  /** The first month both are in for (YYYY-MM, not before this month) */
+  month: string;
+  /** A theme both named – or the one one of you named, when the other left it open; null: none named */
+  category: Vibe | null;
+}
+
+/**
+ * "Ana is also in for Surf in Ericeira in March": for each of your people, the first of their running signals that meets one of yours – same
+ * place, overlapping months, a theme in common (an empty one fits any). One line per person.
+ */
+export function alsoInFor(list: readonly InFor[], me: string, peopleIds: readonly string[], today: string): AlsoInFor[] {
+  const now = today.slice(0, 7);
+  const mine = activeInForOf(list, me, today);
+  const found: AlsoInFor[] = [];
+  for (const id of peopleIds) {
+    outer: for (const b of activeInForOf(list, id, today)) {
+      for (const a of mine) {
+        if (a.placeId !== b.placeId) continue;
+        const month = [a.monthFrom, b.monthFrom, now].toSorted().at(-1)!;
+        if (month > a.monthTo || month > b.monthTo) continue;
+        const both = a.categories.filter((c) => b.categories.includes(c));
+        if (a.categories.length && b.categories.length && both.length === 0) continue;
+        found.push({ userId: id, placeId: a.placeId, month, category: both[0] ?? a.categories[0] ?? b.categories[0] ?? null });
+        break outer;
+      }
+    }
+  }
+  return found;
+}
+
 export interface SharedInFor {
   /** The two people, in the order they were passed in */
   userIds: [string, string];

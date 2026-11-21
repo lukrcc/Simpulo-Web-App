@@ -1,5 +1,7 @@
 "use client";
 
+import { FoundingBadge } from "@/components/ui/FoundingBadge";
+import { isFoundingHost } from "@/lib/founding";
 import { PastCrewsLine } from "@/components/stay/ArcAfterwards";
 import { getProfileVisibility, hostsPublicly, photoHiddenFor, profileHref, userByProfileId, visibleHostedHouses } from "@/lib/privacy";
 import { currentHouseOf, profileMetrics } from "@/lib/metrics/profile";
@@ -37,7 +39,7 @@ import { PROFILE_SECTIONS, sectionDone, type ProfileSectionKey } from "@/config/
 import { useFormat } from "@/i18n/format";
 import { cityPlaceIdOf } from "@/lib/data/places";
 import { placeImageOf } from "@/config/place-images";
-import { activeInForOf } from "@/lib/inFor";
+import { activeInForOf, visibleInForOf } from "@/lib/inFor";
 import { canInvite } from "@/lib/invites";
 import { simpuloInviteLink } from "@/lib/links";
 import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
@@ -45,7 +47,7 @@ import { findUser, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib
 import type { Stay, User } from "@/lib/types";
 import { userAccentOf } from "@/lib/stageTint";
 import { cn, firstName, housePhotos } from "@/lib/utils";
-import { yourPeople } from "@/lib/yourPeople";
+import { livedTogether, yourPeople } from "@/lib/yourPeople";
 
 export function MyProfile() {
   const t = useTranslations("profile");
@@ -247,7 +249,7 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
         // The stage's right column, a column with space between: "Hosting & going" on top (when there's something this viewer may see, or
         // it's yours), "Places" at its foot.
         rightColumn={
-          !preview && (isMe || houses.length > 0 || hasPlaces(store, view, user.id, today)) ? (
+          !preview && (isMe || houses.length > 0 || hasPlaces(store, view, user.id, today, isMe)) ? (
             <div className="flex h-full min-h-0 flex-col justify-between gap-8">
               {isMe || houses.length > 0 ? <HostingGoing user={user} isMe={isMe} houses={houses} today={today} /> : <span />}
               {/* Phones: Places stands under the strip instead (below). */}
@@ -328,6 +330,7 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
                 </span>
               )}
             </h1>
+            {isFoundingHost(user) && <FoundingBadge label className="mt-1 text-ink" />}
             {meta && <p className="mt-2 text-body-lg text-muted">{meta}</p>}
             {nowIn && <p className="mt-1 text-body-lg text-ink">{tv("nowInHouse", { place: nowIn })}</p>}
           </div>
@@ -705,8 +708,14 @@ function PeopleSection({ user, isMe, view, viewerId }: { user: User; isMe: boole
 const PLACES_SHOWN = 3;
 
 /** Whether "Places" has anything for this viewer: lived-in places or active "I'm in for". */
-function hasPlaces(store: { inFor: Parameters<typeof activeInForOf>[0] }, view: ProfileVisibility, userId: string, today: string) {
-  return view.places.length > 0 || activeInForOf(store.inFor, userId, today).length > 0;
+function hasPlaces(store: Parameters<typeof livedTogether>[0] & { inFor: Parameters<typeof activeInForOf>[0]; currentUserId: string | null }, view: ProfileVisibility, userId: string, today: string, isMe: boolean) {
+  return view.places.length > 0 || inForFor(store, userId, today, isMe).length > 0;
+}
+
+/** "I'm in for" only between Your people (lib/inFor.ts visibleInForOf): yourself, or someone you both chose. */
+function inForFor(store: Parameters<typeof livedTogether>[0] & { inFor: Parameters<typeof activeInForOf>[0]; currentUserId: string | null }, userId: string, today: string, isMe: boolean) {
+  const together = Boolean(store.currentUserId && livedTogether(store, store.currentUserId, userId));
+  return visibleInForOf(store.inFor, userId, today, { isMe, together });
 }
 
 /**
@@ -723,7 +732,7 @@ function PlacesSection({ user, isMe, view, today }: { user: User; isMe: boolean;
     const placeId = cityPlaceIdOf(city) ?? null;
     return { key: city, name: city, placeId, image: coverOf(stay) ?? (placeId ? placeImageOf(placeId) : null) ?? null };
   });
-  const inFor = activeInForOf(store.inFor, user.id, today);
+  const inFor = inForFor(store, user.id, today, isMe);
   if (lived.length === 0 && inFor.length === 0 && !isMe) return null;
   return (
     <section aria-labelledby="col-places" className="min-w-0">

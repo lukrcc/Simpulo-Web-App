@@ -496,6 +496,7 @@ const en = {
       "consentMine": "My agreements",
       "consentForget": "Forget mine",
       "clockNow": "Now",
+      "clockYear": "+1 year",
       "clockValue": "+{hours} h",
       "clockEarlier": "12 hours earlier",
       "clockLater": "12 hours later",
@@ -669,6 +670,115 @@ const en = {
       "onlyTeam": "Only Simpulo's team sees them.",
       "update": "Update"
     }
+  },
+  "program": {
+    "title": "Programme",
+    "intro": "Your plan for each day – your crew sees it in full two days before the House, a preview on the House page until then.",
+    "day": "Day {day}",
+    "dayDate": "Day {day} · {date}",
+    "daysLabel": "Days",
+    "empty": "Nothing planned for this day yet.",
+    "add": "Add to this day",
+    "time": "Time",
+    "itemTitle": "What",
+    "place": "Where",
+    "text": "A few words",
+    "optional": "optional",
+    "save": "Add",
+    "remove": "Remove",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "drag": "Drag to sort",
+    "template": "Use the {theme} template",
+    "templateGeneric": "Use a template",
+    "copyAll": "Copy this day to every day",
+    "copied": "Copied to every day",
+    "moment": "Arc moment",
+    "momentNone": "—",
+    "moments": { "kickoff": "Kick-off", "peak": "High point", "closing": "Closing" },
+    "momentsHint": "Mark your own kick-off, high point and closing – Simpulo then sends no card of its own for them.",
+    "momentBadge": "{moment}",
+    "proOnly": "The programme is for hosts who lead their House (with a host fee).",
+    "planTitle": "Programme",
+    "planPreview": "The full programme with times and places shows two days before the House.",
+    "planEmpty": "{host} hasn't shared a programme yet.",
+    "whatsPlanned": "What's planned",
+    "whatsPlannedMore": "The full programme comes two days before the House.",
+    "crewProgress": "Crew progress",
+    "feedbackTitle": "Your programme, from the crew",
+    "feedbackAverage": "Programme · {average} of 5 · {count, plural, one {# rating} other {# ratings}}",
+    "feedbackWait": "The average shows from {min} ratings – so nobody's own answer can be told.",
+    "feedbackNotes": "What they said about it",
+    "feedbackNone": "No sentences yet.",
+    "rateQ": "How was the programme?",
+    "rateNote": "One thing about the programme for {host}",
+    "rateHint": "Only {host} sees it, without your name.",
+    "templates": {
+      "morningTraining": { "title": "Morning training", "text": "Strength or conditioning, all levels." },
+      "lunch": { "title": "Lunch together", "text": "" },
+      "mobility": { "title": "Mobility & stretch", "text": "" },
+      "focus": { "title": "Focus block", "text": "Phones away, deep work." },
+      "standup": { "title": "Lunch & stand-up", "text": "What you did, what's next, where you're stuck." },
+      "focus2": { "title": "Focus block", "text": "" },
+      "demo": { "title": "Demo evening", "text": "Show what you built today." },
+      "surf": { "title": "Surf session", "text": "" },
+      "breakfast": { "title": "Breakfast together", "text": "" },
+      "surf2": { "title": "Second session", "text": "" },
+      "deepWork": { "title": "Deep work", "text": "" },
+      "walk": { "title": "Walk", "text": "" },
+      "shoot": { "title": "Shoot", "text": "" },
+      "edit": { "title": "Edit", "text": "" },
+      "screening": { "title": "Screening", "text": "Watch what everyone made." },
+      "yoga": { "title": "Yoga", "text": "" },
+      "breathwork": { "title": "Breathwork", "text": "" },
+      "together": { "title": "Something together", "text": "" },
+      "dinner": { "title": "Dinner together", "text": "" }
+    }
+  },
+  "hostKit": {
+    "title": "Host kit",
+    "intro": "Ready to post: words and pictures for your House, filled in for you. Every link counts who it brought.",
+    "pick": "House",
+    "copied": "Copied",
+    "downloaded": "Saved",
+    "downloadFailed": "Couldn't save it – try again.",
+    "story": {
+      "title": "Story",
+      "hint": "The story image with a QR code, and a caption to go with it.",
+      "copy": "Copy caption",
+      "download": "Download image",
+      "caption": "I'm hosting {title} – {place}, {dates}. {spots, plural, =0 {The crew is complete} one {# spot left} other {# spots left}}. Come along: {url}"
+    },
+    "bio": {
+      "title": "Bio link",
+      "hint": "For your bio or link page – and its QR code for print.",
+      "copy": "Copy link",
+      "download": "Download QR code"
+    },
+    "post": {
+      "title": "Community post",
+      "hint": "For a group, a newsletter or a forum – with the House's card as the picture.",
+      "copy": "Copy text",
+      "download": "Download picture",
+      "text": "{title}\n{place} · {dates}\n\n{note}\n\n{spots, plural, =0 {The crew is complete – follow along for the next one.} one {# spot left. Request to join:} other {# spots left. Request to join:}} {url}"
+    }
+  },
+  "hostReferral": {
+    "title": "Hosts you brought",
+    "terms": "Bring another host with your link. Once their first guest has paid, you get {percent} % of Simpulo's fees on their Houses for {months} months – for the hosts you bring yourself, not the ones they bring.",
+    "termsOpen": "Bring another host with your link. What you get is being decided – it starts only once their first guest has paid, and counts only for the hosts you bring yourself.",
+    "copy": "Copy your link",
+    "copied": "Copied",
+    "none": "Nobody yet – share your link with someone who'd host well.",
+    "status": {
+      "accepted": "Accepted – no House yet",
+      "hosting": "Hosting – no paid stay yet",
+      "paidStay": "First paid stay {date}"
+    }
+  },
+  "founding": {
+    "label": "Founding Host",
+    "tooltip": "One of the first {count} hosts on Simpulo"
   },
   "video": {
     "play": "Play video: {title}",
@@ -1057,7 +1167,8 @@ const en = {
         "albumReady": { "title": "Your album is ready", "text": "Everything your crew added – only you and your crew see it.", "action": "See the album" },
         "chosen": { "title": "Chosen each other", "text": "Someone you'd live with again chose you too.", "action": "See who" },
         "doItAgain": { "title": "Do it again?", "text": "You chose each other with someone from your crew. The next House could be yours.", "action": "Open the next one together" },
-        "thirtyDays": { "title": "30 days later", "text": "What do you still do since the House – and are you still in touch? Only you see it.", "action": "Answer" }
+        "thirtyDays": { "title": "30 days later", "text": "What do you still do since the House – and are you still in touch? Only you see it.", "action": "Answer" },
+        "anniversary": { "title": "One year since {title}", "text": "A year ago today you left this House. Look back at the album – or do it again.", "action": "Open the album", "doItAgain": "Do it again" }
       }
     },
     "middle": {
@@ -1931,6 +2042,8 @@ const en = {
     "house": {
       "waitlistMax": "Waitlist",
       "waitlistMaxHint": "People who can wait for a spot once the House is full – they move up automatically.",
+      "friendSpotsMax": "Spots for friends",
+      "friendSpotsMaxHint": "How many spots one person in the crew can hold for friends, for {hours} hours. Members can do it once they've paid.",
       "crewSizeQuestion": "How many people, including you?",
       "placePhoto": "Add a photo of the place",
       "placePhotoChange": "Change photo of the place",
@@ -3462,6 +3575,8 @@ const en = {
       "reportReceived": "We got your report and will look at it. You'll hear from us once we've decided.",
       "appealUpheld": "We looked at your appeal again. Our decision stays – the reasons are on the page.",
       "appealReversed": "We looked at your appeal again and reversed our decision. Sorry for the trouble.",
+      "friendSpotsExpired": "{count, plural, one {{title}: the spots you saved for friends are free again} other {The spots you saved for friends in # Houses are free again}}",
+      "friendSpotExpiredForYou": "{count, plural, one {{name}'s spot for you in {title} ran out – you can still ask to join} other {# spots saved for you ran out – you can still ask to join}}",
       "locked": "{title}: accommodation locked – {price} each, you pay once the crew is complete",
       "paymentDue": "{title}: the crew is complete. Your share is due within 48 hours",
       "paymentLapsed": "{title}: {name} didn't pay in time, so their spot is open again",
@@ -4210,7 +4325,9 @@ const en = {
       "hidePhoto": "Hide my photo until I'm accepted",
       "hidePhotoText": "Hosts see your first name and what you wrote – your photo once they said yes.",
       "hostPage": "Show my host page in search engines",
-      "hostPageText": "Your first name, photo, short profile and Houses can be found on Google. Guests are never shown."
+      "hostPageText": "Your first name, photo, short profile and Houses can be found on Google. Guests are never shown.",
+      "nearby": "Nearby",
+      "nearbyText": "Your people see when you're in the same city or going there – from your Houses, only while you both have this on."
     },
     "danger": {
       "delete": "Delete account",
@@ -4353,6 +4470,7 @@ const en = {
     "expiredTitle": "This invite has expired",
     "expiredText": "Invite links hold a spot for 48 hours, once. Ask the host for a new one – or have a look at the House.",
     "savedYou": "{name} saved you a spot",
+    "savedYouIn": "{name} saved you a spot in {title}",
     "savedYouMany": "{name} saved {count} spots for friends",
     "left": "{hours}h left",
     "leftMinutes": "{minutes} min left",
@@ -4561,13 +4679,25 @@ const en = {
       "hostTitle": "Share your House",
       "hostText": "Your link and a story image – the image carries a QR code to this House.",
       "prefill": "{title} · {place} · {dates} – {spots, plural, one {# spot} other {# spots}} left. Join: {url}",
-      "linkCopied": "Link copied"
+      "linkCopied": "Link copied",
+      "houseTitle": "Share {title}",
+      "houseSubtitle": "Your link carries your name – so we know who brought whom.",
+      "menu": {
+        "copy": "Copy link",
+        "whatsapp": "WhatsApp",
+        "messages": "Messages",
+        "story": "Instagram Story",
+        "storyHint": "Saves the story image with a QR code",
+        "more": "More…"
+      },
+      "storyShareText": "{title} on Simpulo",
+      "afterRequest": "Request sent – want a friend along?"
     },
     "story": {
       "join": "Join on simpulo.app",
       "scan": "Scan to join",
       "hostedBy": "Hosted by {name}",
-      "spotsOpen": "{count, plural, one {# spot open} other {# spots open}}"
+      "spotsOpen": "{count, plural, one {# spot left} other {# spots left}}"
     },
     "demand": {
       "title": "No House for these dates yet",
@@ -5061,9 +5191,32 @@ const en = {
       "tabs": {
         "people": "Your people",
         "lived": "Lived with",
-        "saved": "Saved profiles"
+        "saved": "Saved",
+        "crews": "Crews"
       },
       "search": "Search by name or House",
+      "inForTitle": "You're in for",
+      "inForNone": "Nothing yet – tell your people where you'd go next.",
+      "inForAdd": "+ Add what you're in for",
+      "inForPrivate": "Only your people see this.",
+      "alsoInFor": "{name} is also in for {place} in {month}",
+      "alsoInForTheme": "{name} is also in for {theme} in {place} in {month}",
+      "planTogether": "Plan it together",
+      "nearbyTitle": "Nearby",
+      "nearbyOff": "Turn on <link>Nearby</link> to see when your people are in the same city – only those who turned it on too.",
+      "nearbyNone": "Nobody of your people is in the same city soon.",
+      "nearbyLine": "{name} is in {city} too · {dates}",
+      "crewYear": "One year since {title}",
+      "crewPeople": "Who was in it",
+      "crewChat": "Chat",
+      "crewAlbum": "Album",
+      "crewAgain": "Do it again",
+      "empty": {
+        "people": { "title": "Your people show up here after your first House", "text": "Live together, then choose who you'd live with again – when it's mutual, they're your people." },
+        "lived": { "title": "Everyone you lived with shows up here", "text": "After your first House, your whole crew is here." },
+        "saved": { "title": "No saved profiles yet", "text": "Save a profile with the bookmark on it – only you see this list." },
+        "crews": { "title": "Your crews stay here", "text": "After your first House, its crew stays as a group – with the chat, the album and “Do it again”." }
+      },
       "livedIn": "Lived together in {place}",
       "remove": "Remove",
       "removed": "{name} is no longer in Your people",
@@ -5073,11 +5226,6 @@ const en = {
       "invite": "Invite to a House",
       "inFor": "In for {line}",
       "hint": "{a} and {b} are in for {place} in {month} – <link>open a House?</link>",
-      "emptyPeople": "Your people appear after you live together.",
-      "emptyPeopleDescription": "After a House, everyone you both confirm living with shows up here.",
-      "emptyLived": "Nobody yet – everyone from your past crews shows up here.",
-      "emptySaved": "No saved profiles yet.",
-      "emptySavedDescription": "Save a profile with the bookmark on it – only you see this list.",
       "explore": "Find a House",
       "loginTitle": "Your people",
       "loginDescription": "Log in to see the people you lived with."
@@ -5170,6 +5318,7 @@ const en = {
     "shareTitle": "Share",
     "spotsForFriends": "Spots for friends",
     "spotsForFriendsText": "{count, plural, one {The link holds # spot for 48h} other {The link holds # spots for 48h}} – then {count, plural, one {it's} other {they're}} free again.",
+    "spotsAfterPaying": "Once you've paid your share, your link can hold spots for friends for 48h. Until then it's the House's link.",
     "spotCount": "{count, plural, one {# spot} other {# spots}}",
     "scanToJoin": "Scan to open the invite",
     "yourPeopleText": "Pick several – they get it in the app and by email.",
@@ -5773,7 +5922,8 @@ const en = {
     "priceTbd": "Price set with crew",
     "house": {
       "alt": "A House on Simpulo: cover, title, dates, place, price, crew and free spots",
-      "crewLine": "{in} of {total} in · {spots}"
+      "crewLine": "{in} of {total} in · {spots}",
+      "hostedBy": "Hosted by {name}"
     },
     "coLiving": {
       "alt": "Co-living on Simpulo: open Houses in this city",

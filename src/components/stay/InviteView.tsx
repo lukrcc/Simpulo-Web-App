@@ -5,6 +5,7 @@ import { openWaitlist } from "@/lib/waitlistSignup";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { use, useEffect, useState } from "react";
+import { clockNow } from "@/lib/clock";
 import { canPay, canReserve, usePlatformPhase } from "@/config/platform";
 import { Avatar } from "@/components/ui/Avatar";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
@@ -32,10 +33,10 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
   const router = useRouter();
   const requireAuth = useRequireAuth();
   const showToast = useToast();
-  const [now, setNow] = useState(() => Date.now());
-  // The countdown: every 30 seconds (the minutes show in the last hour).
+  // The countdown on the one clock (lib/clock.ts – in dev with the time travel): every 30 seconds, the minutes in the last hour.
+  const [now, setNow] = useState(() => clockNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    const id = setInterval(() => setNow(clockNow()), 30_000);
     return () => clearInterval(id);
   }, []);
   const phase = usePlatformPhase();
@@ -44,6 +45,11 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
   const stay = invite && store.stays.find((s) => s.id === invite.houseId);
   const host = stay && findUser(store, stay.hostId);
   const valid = invite && stay && invite.status === "pending" && Date.parse(invite.expiresAt) > now && (!invite.priority || !store.currentUserId || invite.invitedUserId === store.currentUserId);
+  // A signed-in friend who opened the link: noted, so they hear it too if the spot runs out (lib/deadlines.ts flow "invite").
+  const { currentUserId, noteInviteOpened } = store;
+  useEffect(() => {
+    if (valid && currentUserId && invite.invitedBy && currentUserId !== invite.invitedBy) noteInviteOpened(invite.token);
+  }, [valid, currentUserId, invite?.token, invite?.invitedBy, noteInviteOpened]);
 
   if (!invite || !stay || !valid) {
     return (
@@ -107,7 +113,8 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
           <HouseCard stay={stay} host={host} crew={getCrew(store, stay)} />
         </div>
         <div className="flex flex-col items-start gap-5">
-          <h1 className="text-h1 text-ink">{stay.title}</h1>
+          {/* "Ana saved you a spot in Surf Bali" – the page says who and where; a saved search's head start says the House. */}
+          <h1 className="text-h1 text-ink">{inviter && !invite.priority ? t("savedYouIn", { name: firstName(inviter), title: stay.title }) : stay.title}</h1>
           <p className="text-body-lg text-muted">
             {f.stayDatesLong(stay)} · {f.placeName(stay)}
           </p>

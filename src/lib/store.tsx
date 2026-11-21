@@ -48,6 +48,7 @@ import { doItAgainDue, type Reminder } from "./reminders";
 import type {
   ConsentRecord,
   ModerationNotice,
+  ProgramItem,
   ArcArrival,
   ArcAfter,
   ArcThirty,
@@ -233,6 +234,9 @@ type StoreAction =
   | { type: "markHintSeen"; hint: string }
   | { type: "agree"; records: ConsentRecord[] }
   | { type: "reportContent"; report: Report }
+  | { type: "noteInviteOpened"; token: string }
+  | { type: "setHostReferredBy"; userId: string; referrerId: string }
+  | { type: "setProgram"; stayId: string; items: ProgramItem[] }
   | { type: "appeal"; noticeId: string; text: string; at: string }
   | { type: "decideAppeal"; noticeId: string; outcome: "upheld" | "reversed"; at: string }
   | { type: "resetConsents" }
@@ -528,6 +532,12 @@ interface StoreActions {
   decideReport: (reportId: string, outcome: ReportOutcome) => void;
   /** The public form (/report-content), with or without an account – the target resolved from the link (lib/contentReport.ts) */
   reportContent: (report: Omit<Report, "reporterId" | "source">) => void;
+  /** A Pro host's programme (Manage › Programme): the whole day plan at once – only the host, only a House with a host fee */
+  setProgram: (stayId: string, items: ProgramItem[]) => void;
+  /** Host brings host (prepared): an accepted host was brought by this host – one level only, set once */
+  setHostReferredBy: (userId: string, referrerId: string) => void;
+  /** A signed-in friend opened a spots-for-friends link – they hear it too when the spots run out */
+  noteInviteOpened: (token: string) => void;
   /** "Appeal" on a statement of reasons (/notices) – once, by the person it's about */
   appeal: (noticeId: string, text: string) => void;
   /** Admin: the appeal stands or is granted (granted undoes the account, House or photo) */
@@ -1211,20 +1221,29 @@ function applyDeadlineEvents(state: StoreState, events: readonly DeadlineEvent[]
       return steps.length ? { ...x, deadlines: { ...x.deadlines, ...Object.fromEntries(steps.map((e) => [e.step, at])) } } : x;
     });
   const expired = new Set(events.filter((e) => e.flow === "request" && e.step === "expire").map((e) => e.targetId));
+  // Spots for friends past their 48 hours: the link is spent, its held spots are free again (withInvites recounts spotsReserved).
+  const invitesDue = new Map(events.filter((e) => e.flow === "invite").map((e) => [e.targetId, e.step]));
   let next: StoreState = {
     ...state,
     joinRequests: mark(state.joinRequests, "request").map((r) => (expired.has(r.id) && r.status === "pending" ? { ...r, status: "expired" as const } : r)),
     payments: mark(state.payments, "payment"),
   };
+  if (invitesDue.size) {
+    next = withInvites(
+      next,
+      next.houseInvites.map((i) => (invitesDue.has(i.token) ? { ...i, deadlines: { ...i.deadlines, [invitesDue.get(i.token)!]: at }, ...(i.status === "pending" && { status: "expired" as const }) } : i)),
+    );
+  }
   // Bundle: per recipient and notice, how many – and the first one's words.
   const groups = new Map<string, { to: string; key: NotifyEventKey; count: number; event: DeadlineEvent }>();
   for (const e of events) {
     if (!e.notice || e.superseded) continue;
-    for (const to of e.to) {
-      const k = `${to}|${e.notice}`;
+    const targets: [string, NotifyEventKey][] = [...e.to.map((to): [string, NotifyEventKey] => [to, e.notice!]), ...(e.others?.to ?? []).map((to): [string, NotifyEventKey] => [to, e.others!.notice])];
+    for (const [to, key] of targets) {
+      const k = `${to}|${key}`;
       const g = groups.get(k);
       if (g) g.count++;
-      else groups.set(k, { to, key: e.notice, count: 1, event: e });
+      else groups.set(k, { to, key, count: 1, event: e });
     }
   }
   const day = at.slice(0, 10);
@@ -1232,7 +1251,7 @@ function applyDeadlineEvents(state: StoreState, events: readonly DeadlineEvent[]
     const stay = next.stays.find((s) => s.id === g.event.stayId);
     const step = DEADLINES[g.event.flow].find((s) => s.id === g.event.step);
     const values = { count: g.count, title: stay?.title ?? "", name: firstNameOf(next, g.event.guestId), hours: Math.max(0, PAYMENT_WINDOW_HOURS - (step?.afterHours ?? 0)) };
-    const href = g.key === "deadlineRequestExpired" ? "/your-houses?tab=past" : g.event.flow === "payment" ? `/h/${g.event.stayId}?focus=pay` : g.count > 1 ? "/your-houses" : `/h/${g.event.stayId}?tab=manage&focus=requests`;
+    const href = g.event.flow === "invite" ? `/h/${g.event.stayId}` : g.key === "deadlineRequestExpired" ? "/your-houses?tab=past" : g.event.flow === "payment" ? `/h/${g.event.stayId}?focus=pay` : g.count > 1 ? "/your-houses" : `/h/${g.event.stayId}?tab=manage&focus=requests`;
     const same = next.notifications.find((n) => n.userId === g.to && n.key === g.key && n.createdAt.slice(0, 10) === day && n.eventId.startsWith("deadline-"));
     if (same) {
       // The same kind already went out today: it now counts these too – no second message.
@@ -1528,9 +1547,12 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return withInvites(state, state.houseInvites.map((i) => (i === invite ? { ...i, status: "cancelled" } : i)));
     }
 
+    // Links without an inviter (a saved search's head start, older host links) lapse here; spots for friends (with `invitedBy`) run out through
+    // the deadlines (lib/deadlines.ts flow "invite"), which also tell the inviter and the friends.
     case "expireHouseInvites": {
-      if (!state.houseInvites.some((i) => i.status === "pending" && i.expiresAt <= action.at)) return state;
-      return withInvites(state, state.houseInvites.map((i) => (i.status === "pending" && i.expiresAt <= action.at ? { ...i, status: "expired" } : i)));
+      const lapses = (i: HouseInvite) => i.status === "pending" && i.expiresAt <= action.at && (i.priority || !i.invitedBy);
+      if (!state.houseInvites.some(lapses)) return state;
+      return withInvites(state, state.houseInvites.map((i) => (lapses(i) ? { ...i, status: "expired" } : i)));
     }
 
     case "redeemHouseInvite": {
@@ -2225,8 +2247,11 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "sessionRestored":
       return state.sessionRestored ? state : { ...state, sessionRestored: true };
-    case "setFoundingHost":
-      return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, foundingHost: action.on || undefined } : u)) };
+    // Accepting numbers the host in order (the badge goes to the first FOUNDING_HOST.limit); taking it back frees the number.
+    case "setFoundingHost": {
+      const next = Math.max(0, ...state.users.map((u) => u.foundingHostNo ?? 0)) + 1;
+      return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, foundingHost: action.on || undefined, foundingHostNo: action.on ? (u.foundingHostNo ?? next) : undefined } : u)) };
+    }
     case "setHostTier":
       return { ...state, users: state.users.map((u) => (u.id === action.userId ? { ...u, hostTier: action.tier } : u)) };
     case "setAcceptingRequests":
@@ -2495,6 +2520,30 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
         reports: [...state.reports, report],
         ...(me && { notifications: notifyInApp(state, [me], "reportReceived", {}, `${report.id}-received`) }),
       };
+    }
+
+    case "setProgram": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || stay.hostId !== me || !stay.hostFeePerPerson) return state;
+      // One item per moment: a moment set on an item moves there.
+      const seen = new Set<string>();
+      const items = action.items.toReversed().map((i) => (i.moment && seen.has(i.moment) ? { ...i, moment: undefined } : (i.moment && seen.add(i.moment), i))).toReversed();
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, program: items } : s)) };
+    }
+
+    // One level: only the host whose link brought them; set once; never yourself; the referrer must host (or be accepted) themselves.
+    case "setHostReferredBy": {
+      const user = state.users.find((u) => u.id === action.userId);
+      const referrer = state.users.find((u) => u.id === action.referrerId);
+      if (!user || !referrer || user.hostReferredBy || user.id === referrer.id) return state;
+      if (!referrer.foundingHost && !state.stays.some((s) => s.hostId === referrer.id && s.status !== "draft")) return state;
+      return { ...state, users: state.users.map((u) => (u.id === user.id ? { ...u, hostReferredBy: referrer.id } : u)) };
+    }
+
+    case "noteInviteOpened": {
+      const invite = state.houseInvites.find((i) => i.token === action.token);
+      if (!me || !invite || invite.status !== "pending" || invite.invitedBy === me || invite.openedBy?.includes(me)) return state;
+      return { ...state, houseInvites: state.houseInvites.map((i) => (i === invite ? { ...i, openedBy: [...(i.openedBy ?? []), me] } : i)) };
     }
 
     case "appeal": {
@@ -2906,9 +2955,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const createHouseInvite = useCallback(
     (stayId: string, to: { name?: string; email?: string; spots?: number }): HouseInvite | null => {
       const stay = stays.find((s) => s.id === stayId);
-      if (!stay || !currentUserId || !(stay.hostId === currentUserId || state.joinRequests.some((r) => r.stayId === stayId && r.userId === currentUserId && r.status === "accepted")) || openSpots(stay) === 0) return null;
-      const spots = Math.max(1, Math.min(INVITE_POLICY.maxSpotsPerLink, to.spots ?? 1, openSpots(stay)));
-      const now = new Date().toISOString();
+      if (!stay || !currentUserId) return null;
+      // Spots for friends: the host, or a member once paid – at most the House's limit (friendSpotsFor); 0: no link that holds a spot.
+      const limit = friendSpotsFor(state, stay, currentUserId);
+      if (limit === 0) return null;
+      const spots = Math.max(1, Math.min(limit, to.spots ?? 1));
+      // On the one clock (lib/clock.ts): the 48 hours run with the time travel too.
+      const now = clockIso();
       const email = to.email?.trim().toLowerCase() || undefined;
       const invite: HouseInvite = {
         token: inviteToken(),
@@ -2924,7 +2977,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "createHouseInvite", invite });
       return invite;
     },
-    [stays, state.joinRequests, currentUserId],
+    [stays, state, currentUserId],
   );
   const resendHouseInvite = useCallback((token: string) => dispatch({ type: "resendHouseInvite", token, at: new Date().toISOString() }), []);
   const cancelHouseInvite = useCallback((token: string) => dispatch({ type: "cancelHouseInvite", token }), []);
@@ -3242,6 +3295,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const decideReport = useCallback((reportId: string, outcome: ReportOutcome) => dispatch({ type: "decideReport", reportId, outcome, at: new Date().toISOString() }), []);
   const reportContent = useCallback((report: Omit<Report, "reporterId" | "source">) => dispatch({ type: "reportContent", report: { ...report, reporterId: null } }), []);
+  const setProgram = useCallback((stayId: string, items: ProgramItem[]) => dispatch({ type: "setProgram", stayId, items }), []);
+  const setHostReferredBy = useCallback((userId: string, referrerId: string) => dispatch({ type: "setHostReferredBy", userId, referrerId }), []);
+  const noteInviteOpened = useCallback((token: string) => dispatch({ type: "noteInviteOpened", token }), []);
   const appeal = useCallback((noticeId: string, text: string) => dispatch({ type: "appeal", noticeId, text, at: new Date().toISOString() }), []);
   const decideAppeal = useCallback((noticeId: string, outcome: "upheld" | "reversed") => dispatch({ type: "decideAppeal", noticeId, outcome, at: new Date().toISOString() }), []);
   const deleteAccount = useCallback(() => {
@@ -3399,11 +3455,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       remindHost,
       remindGuest,
       reportContent,
+      setProgram,
+      setHostReferredBy,
+      noteInviteOpened,
       appeal,
       decideAppeal,
       decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setProgram, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -3502,6 +3561,21 @@ export function getCrew(store: StoreData, stay: Stay): User[] {
       .map((r) => r.userId),
   ];
   return memberIds.map((id) => findUser(store, id)).filter((u): u is User => Boolean(u));
+}
+
+/**
+ * "Spots for friends" (CLAUDE.md "Teilen und Einladen"): how many spots one link of this person may hold – the host always, a member once their
+ * share is paid (beta: their spot reserved), at most the House's limit (Stay.friendSpotsMax, else INVITE_POLICY.maxSpotsPerLink) and the open
+ * spots. 0: none.
+ */
+export function friendSpotsFor(store: StoreData & Pick<StoreState, "payments">, stay: Stay, userId: string | null): number {
+  if (!userId || !isCrewMember(store, stay, userId) || (stay.status !== "published" && stay.status !== "booked")) return 0;
+  const paid =
+    stay.hostId === userId ||
+    store.payments.some((p) => p.stayId === stay.id && p.userId === userId && p.status === "paid") ||
+    store.joinRequests.some((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted" && r.reserved);
+  if (!paid) return 0;
+  return Math.max(0, Math.min(stay.friendSpotsMax ?? INVITE_POLICY.maxSpotsPerLink, INVITE_POLICY.maxSpotsPerLink, openSpots(stay)));
 }
 
 export function isCrewMember(store: StoreData, stay: Stay, userId: string | null): boolean {

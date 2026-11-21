@@ -5,6 +5,8 @@
 // statistics documents (stats/hourly/{hour}, stats/daily/{day}: counts per channel, referrer, House, funnel steps, money, the month rows);
 // these functions then read those documents – never the raw collections (events, requests, payments). Until then they compute the same
 // numbers from the mock records. TODO(firestore): an adapter `getStats(from, to)` in lib/data and these functions over its result.
+import { HOST_REFERRAL } from "@/config/policies";
+import { firstPaidStayOf } from "@/lib/hostReferral";
 import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, fullHousesTarget, feeModelPerFullHouse, type ChangeMetric, type ChartLevel, type ComparePeriod, COMPARE_PERIODS, HOUSE_RISK, HOUSE_LEVER_RULES, HOUSE_DONE_RECHECK_DAYS, type HouseLever, PERIOD_CHART, PERIOD_MONTHS, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
 import { FEE_MODEL } from "@/config/policies";
 import { convert, isCurrency } from "@/lib/currency";
@@ -21,7 +23,7 @@ import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
-import { TICKET_CATEGORIES, waitlistStatus, type WaitlistEntry, type Report, type ModerationNotice, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
+import { TICKET_CATEGORIES, waitlistStatus, type WaitlistEntry, type Report, type ModerationNotice, type HouseInvite, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
 
 export interface AdminInputs {
   stays: readonly Stay[];
@@ -1793,17 +1795,54 @@ export function againstAssumption(rate: number | null, range: { from: number; to
  * guests bring guests (accepted requests that came through someone's link or as "with a friend", of all accepted); host recruits host – not
  * in the product yet (null).
  */
-export function marketingLoops({ stays, joinRequests }: Pick<AdminInputs, "stays" | "joinRequests">) {
+export type LoopStatus = "product" | "prepared";
+export interface LoopMetric {
+  status: LoopStatus;
+  /** The main share (0–1) and what it's out of – null while nothing can be measured */
+  main: { value: number; of: number } | null;
+  /** Further numbers, by key (the words in admin.marketing.loops.extra.<key>) */
+  extra: { key: string; value: number }[];
+}
+
+/**
+ * The three loops (Admin › Marketing › Schleifen):
+ *   Gast wird Host    – hosts of real Houses who were accepted into a crew before their first House
+ *   Gast bringt Gäste – accepted requests that came through someone's link (ref) or "Request with a friend"; spots for friends redeemed
+ *   Host wirbt Host   – hosts brought by another host (User.hostReferredBy), and how many have had their first paid stay; behind HOST_REFERRAL
+ */
+export function marketingLoops({ stays, joinRequests, users, payments, houseInvites }: Pick<AdminInputs, "stays" | "joinRequests" | "users" | "payments"> & { houseInvites?: readonly HouseInvite[] }): Record<"guestToHost" | "guestBringsGuests" | "hostRecruitsHost", LoopMetric> {
   const hosted = stays.filter((s) => isReal(s) && s.status !== "draft" && s.status !== "draft_unclaimed");
   const firstHosted = new Map<string, string>();
   for (const s of hosted) if (!firstHosted.has(s.hostId) || s.createdAt < firstHosted.get(s.hostId)!) firstHosted.set(s.hostId, s.createdAt);
   const accepted = joinRequests.filter((r) => r.status === "accepted");
   const wasGuestFirst = [...firstHosted].filter(([hostId, at]) => accepted.some((r) => r.userId === hostId && r.createdAt < at)).length;
-  const broughtIn = accepted.filter((r) => r.refUserId || r.withFriend).length;
+  const viaLink = accepted.filter((r) => r.refUserId).length;
+  const withFriend = accepted.filter((r) => r.withFriend || r.pairedWith).length;
+  const broughtIn = accepted.filter((r) => r.refUserId || r.withFriend || r.pairedWith).length;
+  const friendSpots = (houseInvites ?? []).filter((i) => i.invitedBy && !i.priority).reduce((n, i) => n + (i.usedByAll?.length ?? (i.usedBy ? 1 : 0)), 0);
+  const brought = users.filter((u) => u.hostReferredBy);
+  const broughtPaid = brought.filter((u) => firstPaidStayOf(u.id, stays, payments)).length;
   return {
-    guestToHost: firstHosted.size ? { value: wasGuestFirst / firstHosted.size, of: firstHosted.size } : null,
-    guestBringsGuests: accepted.length ? { value: broughtIn / accepted.length, of: accepted.length } : null,
-    hostRecruitsHost: null as { value: number; of: number } | null,
+    guestToHost: { status: "product", main: firstHosted.size ? { value: wasGuestFirst / firstHosted.size, of: firstHosted.size } : null, extra: [{ key: "guestFirst", value: wasGuestFirst }] },
+    guestBringsGuests: {
+      status: "product",
+      main: accepted.length ? { value: broughtIn / accepted.length, of: accepted.length } : null,
+      extra: [
+        { key: "viaLink", value: viaLink },
+        { key: "withFriend", value: withFriend },
+        { key: "friendSpots", value: friendSpots },
+      ],
+    },
+    hostRecruitsHost: {
+      status: HOST_REFERRAL.enabled ? "product" : "prepared",
+      main: HOST_REFERRAL.enabled && firstHosted.size ? { value: brought.length / firstHosted.size, of: firstHosted.size } : null,
+      extra: HOST_REFERRAL.enabled
+        ? [
+            { key: "brought", value: brought.length },
+            { key: "broughtPaid", value: broughtPaid },
+          ]
+        : [],
+    },
   };
 }
 

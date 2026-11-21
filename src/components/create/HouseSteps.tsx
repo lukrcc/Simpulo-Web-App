@@ -6,7 +6,7 @@ import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPI
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
 import { useTabScroll } from "@/components/ui/useTabScroll";
-import { FEE_MODEL } from "@/config/policies";
+import { FEE_MODEL, INVITE_POLICY } from "@/config/policies";
 import { DEFAULT_DEPTH, DEPTHS, suggestedDepth } from "@/config/depth";
 import { PlaceSearch } from "./PlaceSearch";
 import { useMonthName } from "@/components/explore/SearchFields";
@@ -589,6 +589,19 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
             options={Array.from({ length: WAITLIST_MAX_LIMIT + 1 }, (_, n) => ({ value: n, label: String(n) }))}
           />
           <p className="mt-2 text-small text-muted">{t("waitlistMaxHint")}</p>
+        </Group>
+      )}
+      {/* Spots for friends: how many spots one person's link may hold for 48h (0 = none) – only when editing. */}
+      {editing && (
+        <Group label={t("friendSpotsMax")}>
+          <SegmentedControl
+            label={t("friendSpotsMax")}
+            className="max-w-80"
+            value={form.friendSpotsMax}
+            onChange={(friendSpotsMax) => patch({ friendSpotsMax })}
+            options={Array.from({ length: INVITE_POLICY.maxSpotsPerLink + 1 }, (_, n) => ({ value: n, label: String(n) }))}
+          />
+          <p className="mt-2 text-small text-muted">{t("friendSpotsMaxHint", { hours: INVITE_POLICY.inviteHoldHours })}</p>
         </Group>
       )}
       {editing && (

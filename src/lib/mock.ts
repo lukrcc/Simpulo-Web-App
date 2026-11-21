@@ -94,7 +94,8 @@ export interface User extends Attribution {
   /** Who sees them (config/privacy.ts): on House pages (default on), their age (default off) */
   /** Settings › Privacy (config/privacy.ts, lib/privacy.ts): House pages, age, the photo until accepted, the host page in search engines */
   /** `paused`: Settings › Privacy & safety › Your data › Pause account – profile and Houses invisible to others, nothing deleted (pausedAt: when) */
-  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string };
+  /** `nearby`: Your people see when you're in the same city (lib/nearby.ts) – consent, off by default */
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string; nearby?: boolean };
   deletedAt?: string;       // mock "Delete account"
   suspendedAt?: string;     // Admin › Posteingang › Sicherheit "Konto sperren" (moderation)
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
@@ -102,6 +103,10 @@ export interface User extends Attribution {
   role?: 'user' | 'admin';
   /** A founding host of the beta (admin › Applications "Yes") */
   foundingHost?: boolean;
+  /** Their place among the accepted hosts (1 = the first) – the badge for the first FOUNDING_HOST.limit (lib/founding.ts) */
+  foundingHostNo?: number;
+  /** Host brings host (HOST_REFERRAL, prepared): the host whose link brought this one – one level only */
+  hostReferredBy?: string;
   /** Admin only: the host tier set by hand (unset = the suggestion from config/admin.ts HOST_TIER_RULES) */
   hostTier?: HostTier;
   /** Followers across their social links (mock values; later from the platforms' APIs) – admin only */
@@ -251,6 +256,9 @@ export interface ArcAfter {
   intention?: "yes" | "partly" | "no";
   ratings?: Partial<Record<"overall" | "mood" | "tidiness" | "noise", number>>;
   note?: string;
+  /** A Pro host's House: how the programme was (1–5) and one sentence about it – only for the host, without names */
+  programme?: number;
+  programmeNote?: string;
   tip?: string;
   tipPublic?: boolean;
   idea?: string;
@@ -336,6 +344,18 @@ export type VoteKind = 'accommodation' | 'dates';
 export interface TypicalDayStop {
   time: string;
   label: string;
+}
+
+/** One item of a Pro host's day plan (Manage › Programme): a House day (1 = the first), a time, a title, where, a few words – and maybe one of
+ *  the arc's moments (config/program.ts: kickoff · peak · closing), which replaces Simpulo's card for it. The order in the list is the host's. */
+export interface ProgramItem {
+  id: string;
+  day: number;
+  time?: string;
+  title: string;
+  place?: string;
+  text?: string;
+  moment?: "kickoff" | "peak" | "closing";
 }
 
 /** What the host fills in before the House (Manage › Host tasks; Plan › Practical): check-in, what to bring, the Pro host's programme. */
@@ -459,6 +479,8 @@ export interface Stay {
   accommodationIdeas?: string[];
   /** Places on the waitlist (requested + waitlisted), 0–5; unset = 3 (src/lib/waitlist.ts) */
   waitlistMax?: number;
+  /** "Spots for friends": how many spots one link may hold (0–3, INVITE_POLICY.maxSpotsPerLink when unset) – the host sets it when editing */
+  friendSpotsMax?: number;
   /** Spots offered to someone on the waitlist (24h) – held, like reserved ones. Derived (syncWaitlist). */
   spotsOffered?: number;
   /** Only ID-verified guests can request (the host's choice; voluntary verification, see CLAUDE.md "Verifizierung") */
@@ -479,6 +501,8 @@ export interface Stay {
   peak?: { hostText?: string; hostDate?: string; votes?: Record<string, boolean> };
   /** The Pro host leads the closing circle themselves: no "Closing circle" card */
   closingLed?: boolean;
+  /** A Pro host's programme (Manage › Programme): the day plan, in the host's order; guests see it in full from 2 days before */
+  program?: ProgramItem[];
   /** "Leave a few words for the crew" after the closing circle: written, only the crew sees it (Moments) */
   crewWords?: Record<string, { text: string; at: string }>;
 }
@@ -553,6 +577,10 @@ export interface HouseInvite {
   usedByAll?: string[];
   /** Who made the link (host or crew) – "{Name} saved you a spot", and the referrer of whoever joins through it (mkt.referral) */
   invitedBy?: string;
+  /** Signed-in people who opened the link (/invite/[token]) – they hear it too when the spots run out */
+  openedBy?: string[];
+  /** The deadline steps taken (lib/deadlines.ts, flow "invite"): step id → when */
+  deadlines?: Partial<Record<string, string>>;
 }
 
 export interface Payment extends Attribution {

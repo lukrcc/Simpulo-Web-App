@@ -71,10 +71,13 @@ export const SERIES_CAST_SIZE = { from: 4, to: 5 } as const;
 export const SERIES_STRUCTURE = ["Hook", "Situation", "Twist", "Schlussbild"] as const;
 export const SERIES_CLIP_TARGET = { from: 6, to: 9 } as const;
 
-/** The loops: whether the product has them yet; their number once it can be measured (lib/admin/metrics.ts marketingLoops). */
+/**
+ * The loops (Admin › Marketing › Schleifen): what drives each, its status, and its numbers (lib/admin/metrics.ts marketingLoops). The status
+ * of "Host wirbt Host" follows its switch (config/policies.ts HOST_REFERRAL): built but off = "vorbereitet".
+ */
 export const MARKETING_LOOPS = [
-  { key: "guestToHost", label: "Gast wird Host", status: "product" },
-  { key: "guestBringsGuests", label: "Gast bringt Gäste", status: "product" },
-  { key: "hostRecruitsHost", label: "Host wirbt Host", status: "planned" },
+  { key: "guestToHost", label: "Gast wird Host" },
+  { key: "guestBringsGuests", label: "Gast bringt Gäste" },
+  { key: "hostRecruitsHost", label: "Host wirbt Host" },
 ] as const;
 export type MarketingLoopKey = (typeof MARKETING_LOOPS)[number]["key"];

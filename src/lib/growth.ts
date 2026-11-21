@@ -7,7 +7,7 @@ export type { Attribution };
 /** Channels a share link can be made for (the share sheet). `story` is the downloadable story image's QR code. */
 export const SHARE_CHANNELS = ["whatsapp", "instagram", "tiktok", "twitch", "copy"] as const;
 /** Plus the host tools (story image) and the system share dialog (navigator.share). */
-export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "native";
+export type ShareChannel = (typeof SHARE_CHANNELS)[number] | "story" | "native" | "messages" | "invite" | "hostkit" | "hostref";
 
 export const REF_PARAM = "ref";
 export const SRC_PARAM = "src";
@@ -90,8 +90,8 @@ export function siteOrigin(): string {
 }
 
 /**
- * A share link: `path` plus ?ref={sharer}&utm_source={channel} (and utm_medium/utm_campaign when given).
- * Logged out, there's no ref – the channel is still tagged.
+ * A share link: `path` plus ?ref={sharer}&src={channel} (CLAUDE.md "Teilen und Einladen"; utm_medium/utm_campaign when given). Logged out,
+ * there's no ref – the channel is still tagged. attributionFromUrl reads src as the source (utm_source still wins for outside campaigns).
  */
 export function shareUrl(
   path: string,
@@ -99,7 +99,7 @@ export function shareUrl(
 ): string {
   const url = new URL(path, siteOrigin() || "https://simpulo.app");
   if (refUserId) url.searchParams.set(REF_PARAM, refUserId);
-  url.searchParams.set(UTM_PARAMS.utmSource, channel);
+  url.searchParams.set(SRC_PARAM, channel);
   if (medium) url.searchParams.set(UTM_PARAMS.utmMedium, medium);
   if (campaign) url.searchParams.set(UTM_PARAMS.utmCampaign, campaign);
   return url.toString();

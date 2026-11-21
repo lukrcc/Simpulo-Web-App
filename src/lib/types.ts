@@ -28,6 +28,7 @@ export type {
   Reaction,
   Report,
   ModerationNotice,
+  ProgramItem,
   HostBusiness,
   HouseVibe,
   HostTier,
@@ -80,7 +81,7 @@ export type NewStayInput = Pick<
   | "interests"
   | "houseRules"
   | "hostNote"
-> & Partial<Pick<Stay, "waitlistMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth" | "placeId">>;
+> & Partial<Pick<Stay, "waitlistMax" | "friendSpotsMax" | "verifiedGuestsOnly" | "accommodationPhoto" | "currency" | "customVibe" | "hostFeePerPerson" | "accommodationVote" | "datesVote" | "datesOpen" | "languages" | "photos" | "totalPrice" | "who" | "audience" | "ageRange" | "accommodationType" | "depth" | "placeId">>;
 
 /**
  * "Host from your place": a place the host lives in and saved (Your houses › Your places). Each House opened from it is a "window" in
@@ -184,6 +185,8 @@ export interface HostApplication {
   question?: { text: string; at: string };
   /** When it was decided (yes / no) */
   decidedAt?: string;
+  /** Host brings host (HOST_REFERRAL, prepared): the host whose link (/host?ref=…&src=hostref) brought this application */
+  referredBy?: string;
 }
 
 /** Every admin action, newest first in the Log. */

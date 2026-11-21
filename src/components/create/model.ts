@@ -1,5 +1,6 @@
 import { suggestedDepth, type Depth } from "@/config/depth";
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
+import { INVITE_POLICY } from "@/config/policies";
 import { ACCOMMODATION_CATEGORIES, PRICE_BUDGET_EUR, accommodationOf } from "@/config/accommodation";
 import { convert } from "@/lib/currency";
 import { placeById, placeKindOf } from "@/lib/data/places";
@@ -151,6 +152,8 @@ export interface FormState {
   spotsTotal: number;
   /** Places on the waitlist once the House is full, 0–5 (src/lib/waitlist.ts) */
   waitlistMax: number;
+  /** Spots for friends per link, 0–3 (Stay.friendSpotsMax) */
+  friendSpotsMax: number;
   /** Only ID-verified guests can request */
   verifiedGuestsOnly: boolean;
   /** Optional: the host's own photo of the place, for when the link has none ("" = none) */
@@ -226,6 +229,7 @@ export const initialForm: FormState = {
   accommodationDeadline: "",
   spotsTotal: 4,
   waitlistMax: WAITLIST_MAX_DEFAULT,
+  friendSpotsMax: INVITE_POLICY.maxSpotsPerLink,
   verifiedGuestsOnly: false,
   accommodationPhoto: "",
   currency: "",
@@ -292,6 +296,7 @@ export function formFromStay(stay: Stay): FormState {
     endDate: stay.endDate,
     spotsTotal: stay.spotsTotal,
     waitlistMax: waitlistMaxOf(stay),
+    friendSpotsMax: stay.friendSpotsMax ?? INVITE_POLICY.maxSpotsPerLink,
     verifiedGuestsOnly: Boolean(stay.verifiedGuestsOnly),
     accommodationPhoto: stay.accommodationPhoto ?? "",
     currency: stay.currency,
@@ -556,6 +561,7 @@ export function toInput(form: FormState, { me, editing, today = "", fallbackTitl
         : undefined,
     spotsTotal: form.spotsTotal,
     waitlistMax: form.waitlistMax,
+    friendSpotsMax: form.friendSpotsMax,
     verifiedGuestsOnly: form.verifiedGuestsOnly || undefined,
     accommodationPhoto: form.accommodationPhoto || undefined,
     vibe: form.customVibe !== null || !form.vibe ? "social" : form.vibe,

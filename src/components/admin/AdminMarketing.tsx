@@ -674,21 +674,35 @@ function Content({ clips }: { clips: number }) {
 
 // ─── Schleifen ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Schleifen: the three loops – their status (im Produkt · vorbereitet, Host wirbt Host follows its switch), the main share and the numbers
+ * behind it (lib/admin/metrics.ts marketingLoops).
+ */
 function Loops() {
   const t = useTranslations("admin.marketing.loops");
-  const loops = marketingLoops(useAdminInputs());
+  const { houseInvites } = useStore();
+  const loops = marketingLoops({ ...useAdminInputs(), houseInvites });
   return (
     <ul className="divide-y divide-ink/8 border-y border-ink/8">
       {MARKETING_LOOPS.map((loop) => {
         const m = loops[loop.key];
         return (
-          <li key={loop.key} data-marketing-loop={loop.key} className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-1 py-3">
+          <li key={loop.key} data-marketing-loop={loop.key} data-loop-status={m.status} className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-2 py-3">
             <span className="flex w-56 shrink-0 items-center gap-1 text-body font-semibold text-ink">
               {loop.label}
               <InfoTip text={t(`info.${loop.key}`)} />
             </span>
-            <span className={cn("shrink-0 rounded-full bg-(--adm-pill) px-3 py-1 text-small", loop.status === "product" ? "text-ink" : "text-muted")}>{t(`status.${loop.status}`)}</span>
-            <span className="min-w-0 flex-1 text-body text-muted">{m ? t(`metric.${loop.key}`, { value: share(m.value), of: num(m.of) }) : t("notYet")}</span>
+            <span className={cn("shrink-0 rounded-full bg-(--adm-pill) px-3 py-1 text-small", m.status === "product" ? "text-ink" : "text-muted")}>{t(`status.${m.status}`)}</span>
+            <span className="min-w-0 flex-1 basis-[280px] text-body text-muted">{m.main ? t(`metric.${loop.key}`, { value: share(m.main.value), of: num(m.main.of) }) : m.status === "prepared" ? t("off") : t("notYet")}</span>
+            {m.extra.length > 0 && (
+              <span className="flex shrink-0 flex-wrap gap-x-5 gap-y-1 text-small text-muted">
+                {m.extra.map((x) => (
+                  <span key={x.key}>
+                    <span className="font-semibold tabular-nums text-ink">{num(x.value)}</span> {t(`extra.${x.key}` as "extra.viaLink")}
+                  </span>
+                ))}
+              </span>
+            )}
           </li>
         );
       })}

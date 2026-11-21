@@ -21,24 +21,29 @@ import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { TabBar } from "@/components/ui/TabBar";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { useTodayIso } from "@/lib/birthDate";
 import { placeById } from "@/lib/data/places";
-import { activeInForOf, inForPlaceName, sharedInFor } from "@/lib/inFor";
+import { activeInForOf, alsoInFor, inForPlaceName, sharedInFor, type AlsoInFor } from "@/lib/inFor";
+import { nearbyPeople, type NearbyMatch } from "@/lib/nearby";
+import { useNow } from "@/lib/useNow";
+import { againHref } from "@/components/create/model";
+import { crewThreadId } from "@/lib/links";
+import { InForSheet } from "@/components/InFor";
 import { canInvite } from "@/lib/invites";
 import { profileHref } from "@/lib/privacy";
 import { shortNameOf } from "@/lib/shortName";
-import { isCrewMember, settingsOf, useStore } from "@/lib/store";
+import { getCrew, isCrewMember, settingsOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { firstName, housePhotos } from "@/lib/utils";
-import { livedTogether } from "@/lib/yourPeople";
+import { blockedEitherWay, livedTogether } from "@/lib/yourPeople";
 
 /** The search shows from this many people on (in the open tab). */
 const SEARCH_FROM = 9;
 
-type Tab = "people" | "lived" | "saved";
-const TABS: readonly Tab[] = ["people", "lived", "saved"];
-/** The tab's value in the URL (`?tab=lived|saved`; Your people without one). */
-const tabOfParam = (value: string | null): Tab => (value === "lived" || value === "saved" ? value : "people");
+type Tab = "people" | "lived" | "saved" | "crews";
+const TABS: readonly Tab[] = ["people", "lived", "saved", "crews"];
+/** The tab's value in the URL (`?tab=lived|saved|crews`; Your people without one). */
+const tabOfParam = (value: string | null): Tab => (value === "lived" || value === "saved" || value === "crews" ? value : "people");
+const YEAR_MS = 365 * 86_400_000;
 
 /** Statuses that mean the person is already in, invited to or asking for a House. */
 const TAKEN = ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"];
@@ -50,9 +55,13 @@ interface Group {
 }
 
 /**
- * /people (avatar menu and the own profile → "Your people"): three tabs – Your people (both confirmed), Lived with (everyone from your past
- * crews) and Saved profiles (private bookmarks). The first two grouped by House, the most recent first. Per person "Invite to a House",
- * their running "I'm in for" and a silent "Remove". On top at most one hint when two of your people are in for the same place and month.
+ * /people (avatar menu and the own profile → "Your people", CLAUDE.md "Netzwerk-Seite"): four tabs, every list private –
+ *   Your people – the ones you chose each other with (both confirmed); on top what you're in for, who of them is in for the same
+ *                 ("Plan it together"), and – with Nearby on on both sides – who's in the same city at the same time
+ *   Lived with  – everyone from your past crews
+ *   Saved       – profiles you bookmarked
+ *   Crews       – every past crew as a group: its chat, its album, "Do it again"; a year on "One year since …"
+ * People grouped by House, the most recent first. Per person "Invite to a House", their "I'm in for" and a silent "Remove" (nobody is told).
  */
 export function YourPeople() {
   const t = useTranslations("people.page");
@@ -66,7 +75,9 @@ export function YourPeople() {
 function PeopleContent() {
   const t = useTranslations("people.page");
   const store = useStore();
-  const today = useTodayIso();
+  // The one clock (lib/useNow.ts – in dev with the Clock's time travel, e.g. +1 year for the anniversary).
+  const now = useNow();
+  const today = now === null ? null : new Date(now).toISOString().slice(0, 10);
   const showToast = useToast();
   const me = store.currentUserId;
   const meUser = store.users.find((u) => u.id === me);
@@ -93,7 +104,8 @@ function PeopleContent() {
   // Every past crew of mine, one group per House: Lived with = all of them (minus blocked and removed), Your people = only both confirmed.
   const { lived, mutual } = useMemo(() => {
     if (!me) return { lived: [] as Group[], mutual: [] as Group[] };
-    const gone = new Set([...settings.blockedUserIds, ...(settings.removedPeopleIds ?? [])]);
+    // Blocked either way (they blocked me too) and the ones I removed – silently gone from every list.
+    const gone = new Set([...settings.blockedUserIds, ...(settings.removedPeopleIds ?? []), ...store.users.filter((u) => settingsOf(u).blockedUserIds.includes(me)).map((u) => u.id)]);
     const byHouse = new Map<string, Group>();
     for (const entry of store.livedWith) {
       if (entry.userId !== me || gone.has(entry.otherUserId)) continue;
@@ -111,13 +123,26 @@ function PeopleContent() {
   }, [store, me, settings.blockedUserIds, settings.removedPeopleIds]);
 
   const saved = useMemo(
-    () => (settings.savedPeopleIds ?? []).flatMap((id) => store.users.find((u) => u.id === id && !u.deletedAt && !settings.blockedUserIds.includes(id)) ?? []),
-    [store.users, settings.savedPeopleIds, settings.blockedUserIds],
+    () => (settings.savedPeopleIds ?? []).flatMap((id) => store.users.find((u) => u.id === id && !u.deletedAt && !(me && blockedEitherWay(store, me, id))) ?? []),
+    [store, me, settings.savedPeopleIds],
   );
 
   // Your people, each once, in the order of the groups (most recent House first) – for the hint.
   const mutualIds = useMemo(() => [...new Set(mutual.flatMap((g) => g.people.map((u) => u.id)))], [mutual]);
   const shared = today ? sharedInFor(store.inFor, mutualIds, today) : null;
+  // "Ana is also in for Surf in Ericeira in March" – only your people; and who of them is nearby (both turned it on).
+  const also = me && today ? alsoInFor(store.inFor, me, mutualIds, today) : [];
+  const nearby = me && today ? nearbyPeople(store, me, mutualIds, today) : [];
+
+  // Crews: every past House of mine (host or crew), the people in it (blocked and deleted left out) – it stays as a group.
+  const blockedIds = new Set(settings.blockedUserIds);
+  const crews =
+    me && today
+      ? store.stays
+          .filter((s) => s.endDate < today && !s.isExample && (s.status === "published" || s.status === "booked" || s.status === "completed") && isCrewMember(store, s, me))
+          .map((house) => ({ house, people: getCrew(store, house).filter((u) => u.id !== me && !blockedIds.has(u.id) && !blockedEitherWay(store, me, u.id) && !u.deletedAt) }))
+          .toSorted((a, b) => b.house.endDate.localeCompare(a.house.endDate))
+      : [];
 
   // My Houses with a free spot someone could be invited to (not one they're in or asking for already).
   const invitableFor = (user: User): Stay[] =>
@@ -130,11 +155,12 @@ function PeopleContent() {
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const groups = tab === "people" ? mutual : tab === "lived" ? lived : [];
-  const count = tab === "saved" ? saved.length : new Set(groups.flatMap((g) => g.people.map((u) => u.id))).size;
+  const count = tab === "saved" ? saved.length : tab === "crews" ? crews.length : new Set(groups.flatMap((g) => g.people.map((u) => u.id))).size;
   const matches = (user: User, house?: Stay) => !needle || user.name.toLowerCase().includes(needle) || (house ? shortNameOf(house).toLowerCase().includes(needle) : false);
   const shownGroups = groups.map((g) => ({ ...g, people: g.people.filter((u) => matches(u, g.house)) })).filter((g) => g.people.length > 0);
   const shownSaved = saved.filter((u) => matches(u));
-  const nothingShown = tab === "saved" ? shownSaved.length === 0 : shownGroups.length === 0;
+  const shownCrews = crews.filter((c) => !needle || shortNameOf(c.house).toLowerCase().includes(needle) || c.people.some((u) => u.name.toLowerCase().includes(needle)));
+  const nothingShown = tab === "saved" ? shownSaved.length === 0 : tab === "crews" ? shownCrews.length === 0 : shownGroups.length === 0;
 
   const remove = (user: User) => {
     if (tab === "saved") {
@@ -172,26 +198,37 @@ function PeopleContent() {
       </div>
       <TabBar className="mt-6" label={t("tabsLabel")} value={tab} onChange={chooseTab} options={TABS.map((value) => ({ value, label: t(`tabs.${value}`) }))} />
 
-      {shared && <SharedHint shared={shared} />}
+      {tab === "people" && (
+        <>
+          {shared && <SharedHint shared={shared} />}
+          <InForPanel also={also} hasPeople={mutualIds.length > 0} />
+          <NearbyPanel matches={nearby} on={Boolean(meUser?.privacy?.nearby)} hasPeople={mutualIds.length > 0} />
+        </>
+      )}
 
       {count === 0 ? (
         <div className="mt-10">
-          {tab === "people" && (
-            <EmptyState
-              title={t("emptyPeople")}
-              description={t("emptyPeopleDescription")}
-              action={
-                <Button href="/" variant="secondary">
+          {/* Empty: what shows up here and when – with the way to a first House. */}
+          <EmptyState
+            title={t(`empty.${tab}.title`)}
+            description={t(`empty.${tab}.text`)}
+            action={
+              tab === "saved" ? undefined : (
+                <Button href="/explore" variant="secondary">
                   {t("explore")}
                 </Button>
-              }
-            />
-          )}
-          {tab === "lived" && <EmptyState title={t("emptyLived")} />}
-          {tab === "saved" && <EmptyState title={t("emptySaved")} description={t("emptySavedDescription")} />}
+              )
+            }
+          />
         </div>
       ) : nothingShown ? (
         <p className="mt-10 text-muted">{t("noMatch")}</p>
+      ) : tab === "crews" ? (
+        <ul className="mt-10 grid grid-cols-[repeat(auto-fill,minmax(min(360px,100%),1fr))] gap-x-10 gap-y-10">
+          {shownCrews.map((c) => (
+            <CrewItem key={c.house.id} house={c.house} people={c.people} now={now ?? 0} />
+          ))}
+        </ul>
       ) : tab === "saved" ? (
         <ul className="mt-10 grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-x-10 gap-y-8">{shownSaved.map((u) => row(u, u.id))}</ul>
       ) : (
@@ -286,5 +323,133 @@ function SharedHint({ shared }: { shared: NonNullable<ReturnType<typeof sharedIn
         ),
       })}
     </p>
+  );
+}
+
+/**
+ * What you're in for, and who of your people is in for the same – "Ana is also in for Surf in Ericeira in March" with "Plan it together"
+ * (Open a House with place, month and theme filled in, Ana picked in Fill your House). Only between your people (lib/inFor.ts).
+ */
+function InForPanel({ also, hasPeople }: { also: AlsoInFor[]; hasPeople: boolean }) {
+  const t = useTranslations("people.page");
+  const format = useFormat();
+  const store = useStore();
+  const monthName = useMonthName();
+  const line = useInForLine();
+  const now = useNow();
+  const today = now === null ? null : new Date(now).toISOString().slice(0, 10);
+  const [adding, setAdding] = useState(false);
+  const mine = store.currentUserId && today ? activeInForOf(store.inFor, store.currentUserId, today) : [];
+  return (
+    <section aria-labelledby="people-in-for" className="mt-8 md:max-w-[720px]">
+      <h2 id="people-in-for" className="text-eyebrow uppercase text-ink/55">
+        {t("inForTitle")}
+      </h2>
+      {mine.length > 0 ? (
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {mine.map((s) => (
+            <li key={s.id} className="rounded-full border border-ink/12 px-3 py-1 text-small text-ink">
+              {line(s)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-body text-muted">{t("inForNone")}</p>
+      )}
+      <Button variant="tertiary" size="sm" className="-ml-4 mt-2" onClick={() => setAdding(true)}>
+        {t("inForAdd")}
+      </Button>
+      {also.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-3">
+          {also.map((a) => {
+            const user = store.users.find((u) => u.id === a.userId);
+            if (!user) return null;
+            const href = `${createHrefOf({ place: placeById(a.placeId), month: a.month, category: a.category })}&invite=${encodeURIComponent(user.id)}`;
+            return (
+              <li key={a.userId} data-also-in-for={a.userId} className="flex flex-wrap items-center gap-3">
+                <PersonPhoto src={user.photos[0]} alt="" size={40} className="size-10 shrink-0" />
+                <p className="min-w-0 flex-1 basis-[240px] text-body text-ink">
+                  {a.category
+                    ? t("alsoInForTheme", { name: firstName(user), theme: format.vibe(a.category), place: inForPlaceName(a), month: monthName(a.month) })
+                    : t("alsoInFor", { name: firstName(user), place: inForPlaceName(a), month: monthName(a.month) })}
+                </p>
+                <Button href={href} variant="secondary" size="sm">
+                  {t("planTogether")}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {!hasPeople && mine.length > 0 && <p className="mt-3 text-small text-muted">{t("inForPrivate")}</p>}
+      <InForSheet open={adding} onClose={() => setAdding(false)} />
+    </section>
+  );
+}
+
+/** Nearby (consent on both sides, off by default): who of your people is in the same city at the same time – from Houses, never a location. */
+function NearbyPanel({ matches, on, hasPeople }: { matches: NearbyMatch[]; on: boolean; hasPeople: boolean }) {
+  const t = useTranslations("people.page");
+  const format = useFormat();
+  const store = useStore();
+  if (!hasPeople) return null;
+  return (
+    <section aria-labelledby="people-nearby" className="mt-8 md:max-w-[720px]">
+      <h2 id="people-nearby" className="text-eyebrow uppercase text-ink/55">
+        {t("nearbyTitle")}
+      </h2>
+      {!on ? (
+        <p className="mt-2 text-body text-muted">
+          {t.rich("nearbyOff", { link: (c) => <Link href="/settings#privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
+        </p>
+      ) : matches.length === 0 ? (
+        <p className="mt-2 text-body text-muted">{t("nearbyNone")}</p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-3">
+          {matches.map((m) => {
+            const user = store.users.find((u) => u.id === m.userId);
+            if (!user) return null;
+            return (
+              <li key={m.userId} data-nearby={m.userId} className="flex items-center gap-3">
+                <PersonPhoto src={user.photos[0]} alt="" size={40} className="size-10 shrink-0" />
+                <p className="min-w-0 text-body text-ink">{t("nearbyLine", { name: firstName(user), city: m.city, dates: format.shortRange(m.from, m.to) ?? "" })}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** A past crew, kept as a group: the House, who was in it, its chat, its album, "Do it again"; a year on "One year since …". */
+function CrewItem({ house, people, now }: { house: Stay; people: User[]; now: number }) {
+  const t = useTranslations("people.page");
+  const year = now >= Date.parse(`${house.endDate}T12:00:00Z`) + YEAR_MS;
+  return (
+    <li data-crew={house.id} className="flex flex-col gap-4">
+      <GroupHead house={house} />
+      {year && <p className="text-small font-semibold text-ink">{t("crewYear", { title: shortNameOf(house) })}</p>}
+      <ul className="flex flex-wrap gap-2" aria-label={t("crewPeople")}>
+        {people.map((u) => (
+          <li key={u.id}>
+            <Link href={profileHref(u.id)} aria-label={firstName(u)} className="block rounded-full">
+              <PersonPhoto src={u.photos[0]} alt={firstName(u)} size={40} className="size-10" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <Button href={`/messages/${crewThreadId(house.id)}`} variant="secondary" size="sm">
+          {t("crewChat")}
+        </Button>
+        <Button href={`/h/${house.id}?tab=moments`} variant="secondary" size="sm">
+          {t("crewAlbum")}
+        </Button>
+        <Button href={againHref(house.id, people.map((u) => u.id))} variant="tertiary" size="sm">
+          {t("crewAgain")}
+        </Button>
+      </div>
+    </li>
   );
 }

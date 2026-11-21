@@ -169,6 +169,7 @@ function Scale({ label, value, onChange }: { label: string; value: number | unde
  * sentence for the host, a tip for the next crew (public only when ticked) and an idea for your next House (a signal for matching).
  */
 export function AfterForm({ stay, isHost }: { stay: Stay; isHost: boolean }) {
+  const tProgram = useTranslations("program");
   const t = useTranslations("house.goodbye");
   const store = useStore();
   const showToast = useToast();
@@ -176,7 +177,7 @@ export function AfterForm({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const saved = settingsOf(me).after?.[stay.id];
   const crew = getCrew(store, stay).filter((u) => u.id !== store.currentUserId);
   const host = firstName(findUser(store, stay.hostId));
-  const [draft, setDraft] = useState<Omit<ArcAfter, "at">>(() => ({ again: saved?.again ?? [], intention: saved?.intention, ratings: saved?.ratings ?? {}, note: saved?.note ?? "", tip: saved?.tip ?? "", tipPublic: saved?.tipPublic ?? false, idea: saved?.idea ?? "" }));
+  const [draft, setDraft] = useState<Omit<ArcAfter, "at">>(() => ({ again: saved?.again ?? [], intention: saved?.intention, ratings: saved?.ratings ?? {}, programme: saved?.programme, programmeNote: saved?.programmeNote ?? "", note: saved?.note ?? "", tip: saved?.tip ?? "", tipPublic: saved?.tipPublic ?? false, idea: saved?.idea ?? "" }));
   const [editing, setEditing] = useState(!saved);
   const set = (patch: Partial<Omit<ArcAfter, "at">>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -237,6 +238,20 @@ export function AfterForm({ stay, isHost }: { stay: Stay; isHost: boolean }) {
             ))}
             <p className="text-small text-muted">{t("ratingScale")}</p>
           </div>
+          {/* A Pro host's House: the programme – a rating and one sentence, only for the host, without names (CLAUDE.md "Programm-Baukasten"). */}
+          {stay.hostFeePerPerson ? (
+            <div className="flex flex-col gap-3">
+              <Scale label={tProgram("rateQ")} value={draft.programme} onChange={(n) => set({ programme: n })} />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-body font-semibold text-ink">
+                  {tProgram("rateNote", { host })}
+                  {optional}
+                </span>
+                <Textarea value={draft.programmeNote ?? ""} onChange={(e) => set({ programmeNote: e.target.value })} rows={2} maxLength={200} />
+                <span className="text-small text-muted">{tProgram("rateHint", { host })}</span>
+              </label>
+            </div>
+          ) : null}
           <label className="flex flex-col gap-1.5">
             <span className="text-body font-semibold text-ink">
               {t("noteQ", { host })}
@@ -276,7 +291,7 @@ export function AfterForm({ stay, isHost }: { stay: Stay; isHost: boolean }) {
           size="sm"
           onClick={() => {
             const trim = (v?: string) => v?.trim() || undefined;
-            store.setAfter(stay.id, { ...draft, note: trim(draft.note), tip: trim(draft.tip), tipPublic: Boolean(trim(draft.tip) && draft.tipPublic), idea: trim(draft.idea) });
+            store.setAfter(stay.id, { ...draft, programmeNote: trim(draft.programmeNote), note: trim(draft.note), tip: trim(draft.tip), tipPublic: Boolean(trim(draft.tip) && draft.tipPublic), idea: trim(draft.idea) });
             store.setArcStep(stay.id, "again", "done");
             // Signals only (data points after.*): how many chosen, which parts answered – never the words.
             track("arc_action_done", { house: stay.id, step: "again", chosen: draft.again.length, intention: Boolean(draft.intention), rated: Object.keys(draft.ratings ?? {}).length, tip: Boolean(trim(draft.tip)), tipPublic: Boolean(trim(draft.tip) && draft.tipPublic), idea: Boolean(trim(draft.idea)) });

@@ -3,10 +3,11 @@
 // The arc's clock (CLAUDE.md "Bogen"): when each step of config/arc.ts is due for one person in one House, in the House's local time; at most
 // one Simpulo card per House and day; muted per person; every step skippable. Progress (done / skipped) lives in each person's settings
 // (UserSettings.arc) – Simpulo only reads signals from it (lib/analytics.ts arc_*), never what anyone wrote.
+import { replacedArcSteps } from "./program";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { AGREEMENT_HOURS, AGREEMENT_QUESTIONS, ARC_CARDS_PER_DAY, ARC_PHASES, AFTER_RATINGS, ARC_STEPS, CHOSEN_AFTER_DAYS, NEXT_HOUSES, DAY_MOMENTS, HALFTIME_MIN_ANSWERS, MOMENT_MIN_YES, PEAK_IDEAS, type ArcAudience, type ArcPhase, type ArcStep } from "@/config/arc";
 import { APP_MODE } from "./appMode";
-import { readArcDay, subscribeDevSettings } from "./devSettings";
+import { readArcDay, readDevSetting, subscribeDevSettings } from "./devSettings";
 import { getCrew, getMyPayment, settingsOf, useStore, type StoreData } from "./store";
 import type { ArcArrival, ArcIntention, Message, Stay, User } from "./types";
 import { mockArrival, mockIntention } from "./mock-arc";
@@ -53,8 +54,11 @@ function rawSchedule(stay: Stay, audience: ArcAudience, paidAt: string | null): 
   const end = dayMs(stay.endDate);
   const days = Math.max(1, Math.round((end - start) / DAY_MS));
   const out: ArcDue[] = [];
+  // A Pro host's own moments (kick-off, high point, closing in the programme) replace Simpulo's card for them (lib/program.ts).
+  const replaced = replacedArcSteps(stay);
   for (const step of ARC_STEPS) {
     if (!step.audience.includes(audience)) continue;
+    if (replaced.has(step.id)) continue;
     // A Pro host who set their own high point: the crew gets no proposal.
     if (step.id === "peakVote" && stay.peak?.hostText) continue;
     // A Pro host who leads the closing circle themselves: no card for it.
@@ -168,8 +172,10 @@ export function arcNowOf(stay: Pick<Stay, "startDate" | "lng"> | null, simDay: n
 /** A clock for many Houses at once (House page, profile, Earnings): each House at the Dev menu's "House day", else the real now. */
 export function useArcClock(): (stay: Pick<Stay, "startDate" | "lng"> | null) => number {
   const simDay = useSyncExternalStore(subscribeDevSettings, readArcDay, () => null);
-  // The real now, read once when the page opens (render stays pure).
-  const [opened] = useState(() => Date.now());
+  // The real now, read once when the page opens (render stays pure), plus the Dev menu's Clock (lib/clock.ts – "+1 year" …; 0 outside dev).
+  const [real] = useState(() => Date.now());
+  const shiftHours = useSyncExternalStore(subscribeDevSettings, () => readDevSetting("clockHours"), () => 0);
+  const opened = real + shiftHours * 3_600_000;
   return useMemo(() => (stay: Pick<Stay, "startDate" | "lng"> | null) => arcNowOf(stay, simDay, opened), [simDay, opened]);
 }
 

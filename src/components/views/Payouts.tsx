@@ -1,5 +1,7 @@
 "use client";
 
+import { HostKit } from "@/components/share/HostKit";
+import { HostsYouBrought } from "@/components/share/HostsYouBrought";
 import { HostRatingsSection } from "@/components/stay/ArcAfterwards";
 import { BackLink } from "@/components/ui/BackButton";
 import { ArrowLeft, ArrowRight, CalendarClock, Check, Download, Info, MapPin, Trophy, Users } from "lucide-react";
@@ -98,6 +100,9 @@ function PayoutsContent() {
   const earnings = useMemo(() => earningsFor(store, me, today, { withoutHostFees: shareScenario }), [store, me, today, shareScenario]);
   const stats = useMemo(() => hostStatsFor(store, earnings, me, today, shareScenario), [store, earnings, me, today, shareScenario]);
   const pro = stats.type === "pro";
+  const tKit = useTranslations("hostKit");
+  // Open Houses you host – the ones worth posting about.
+  const kitStays = useMemo(() => store.stays.filter((s) => s.hostId === me && !s.isExample && (s.status === "published" || s.status === "booked") && s.endDate >= today), [store.stays, me, today]);
   const { status } = usePayoutAccount();
   const [setup, setSetup] = useState(false);
   // ?setup=payouts (the Your houses strip's payouts status): the set-up window opens once, the parameter leaves the URL.
@@ -138,6 +143,10 @@ function PayoutsContent() {
         {/* Under the strip, right on the page: sections apart by 1px lines ink 8 %, no boxes. */}
         <div className="mt-10 flex flex-col [&>*+*]:border-t [&>*+*]:border-ink/8 [&>*]:py-10 [&>*:first-child]:pt-0">
           <Progress stats={stats} />
+          {/* The host kit: story, bio link, community post for your open Houses (?src=hostkit). */}
+          {kitStays.length > 0 && <HostKit stays={kitStays} title={tKit("title")} />}
+          {/* Host brings host – only while its switch is on (config/policies.ts HOST_REFERRAL). */}
+          <HostsYouBrought />
           {/* Your ratings across your Houses – averages and the sentences for you, without names. */}
           <HostRatingsSection />
           {earnings.rows.length > 0 && <MonthChart earnings={earnings} today={today} pro={pro} />}
