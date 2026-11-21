@@ -36,13 +36,18 @@ import { hostOverlapOf } from "@/lib/overlap";
 import { profileHref } from "@/lib/privacy";
 import { crewThreadId, findUser, getCrew, getCrewThread, getMyPayment, paymentStatus, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
-import { cn, googleMapsUrl, housePhotos, typicalDayOf } from "@/lib/utils";
+import { cn, housePhotos, typicalDayOf } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
+import { intentionOf, useArc, useArcNow } from "@/lib/arc";
 import { CrewMenu, CloseStayConfirm } from "./CrewMenu";
 import { CrewVotes } from "./CrewVotes";
 import { HostInvitesSection } from "./HouseInvites";
 import { ChatBody, CrewRows, openRequestsOf, RequestsTab, WaitlistRows } from "./HouseManageParts";
 import { GuestProgress, HostProgress } from "./HouseProgress";
+import { ArcBar, ArcMute, ArcStepPanel, useArcEmails } from "./ArcParts";
+import { GettingThere, HostTasks, IntentionForm, IntentionView, Practical, sayHiDraft } from "./ArcBefore";
+import { AgreementPanel, ArrivedPanel, FirstNightPanel, QuestionCardsEntry } from "./ArcArrival";
+import { AgreedMoments, HalftimeAverage, HalftimeForm, PeakPanel } from "./ArcMiddle";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 
@@ -79,8 +84,13 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
   const request = store.joinRequests.findLast((r) => r.stayId === stay.id && r.userId === store.currentUserId);
   const thread = getCrewThread(store, stay.id);
   const inChat = Boolean(thread) && (isHost || request?.status === "accepted");
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  // Today – or the Dev menu's simulated House day (lib/arc.ts useArcNow, never in production).
+  const nowMs = useArcNow(stay);
+  const today = new Date(nowMs).toISOString().slice(0, 10);
   const phase = phaseOf(stay, today);
+  useArcEmails(stay);
+  // A Simpulo card opened this tab (?arc=step): the step on top of it.
+  const arcStep = params.get("arc");
 
   // The tab: ?tab= (the browser's back walks through them); without one, where you'd look first.
   const tabs: readonly Tab[] = isHost ? [...MEMBER_TABS, "manage"] : MEMBER_TABS;
@@ -93,6 +103,7 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
     const q = new URLSearchParams(params.toString());
     q.set("tab", next);
     q.delete("focus");
+    q.delete("arc");
     router.push(`${pathname}?${q}`, { scroll: false });
   };
   // ?focus=pay opens the pay sheet once.
@@ -158,8 +169,13 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
           />
         </div>
         <div className="pb-(--space-section) pt-4">
+          {arcStep && (
+            <div className="mb-8 max-w-[760px]">
+              <ArcStepPanel key={arcStep} stay={stay} stepId={arcStep} />
+            </div>
+          )}
           {tab === "chat" && <ChatBody stay={stay} empty={isHost ? t("chat.emptyHost") : t("chat.emptyMember")} />}
-          {tab === "crew" && <CrewTab stay={stay} crew={crew} />}
+          {tab === "crew" && <CrewTab stay={stay} crew={crew} inChat={inChat} />}
           {tab === "plan" && <PlanTab stay={stay} isHost={isHost} />}
           {tab === "moments" && <MomentsTab stay={stay} />}
           {tab === "me" && <MeTab stay={stay} isHost={isHost} ended={ended} over={phase.key === "ended"} onPay={() => setPaying(true)} chat={inChat ? `/messages/${crewThreadId(stay.id)}` : null} />}
@@ -187,18 +203,21 @@ function Part({ title, id, children, aside }: { title: string; id?: string; chil
 // ── Crew ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Everyone in: photo, first name, vibe, where they stand (paid / waiting for payment / in), how you know them; the host first, in blue. */
-function CrewTab({ stay, crew }: { stay: Stay; crew: User[] }) {
+function CrewTab({ stay, crew, inChat }: { stay: Stay; crew: User[]; inChat: boolean }) {
   const t = useTranslations("house.area.crew");
+  const tBefore = useTranslations("house.before");
   const tVibe = useTranslations("profile.vibe");
   const store = useStore();
+  const router = useRouter();
   const me = store.currentUserId;
+  const myName = findUser(store, me ?? "")?.name.split(" ")[0] ?? "";
   const mine = useMemo(() => new Set(me ? yourPeople(store, me).map((p) => p.user.id) : []), [store, me]);
   const lived = (id: string) => Boolean(me) && store.livedWith.some((l) => (l.userId === me && l.otherUserId === id) || (l.userId === id && l.otherUserId === me));
   const ordered = [...crew.filter((u) => u.id === stay.hostId), ...crew.filter((u) => u.id !== stay.hostId)];
   const locked = stay.accommodationStatus === "locked";
   if (ordered.length <= 1) return <EmptyState title={t("onlyHost")} />;
   return (
-    <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))]">
+    <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))]">
       {ordered.map((member) => {
         const isHost = member.id === stay.hostId;
         const vibe = hasVibe(member.houseVibe) ? member.houseVibe : undefined;
@@ -216,6 +235,22 @@ function CrewTab({ stay, crew }: { stay: Stay; crew: User[] }) {
                 {member.verified && <VerifiedBadge />}
               </p>
               <p className={cn("mt-0.5 text-small", isHost ? "text-on-image/80" : "text-muted")}>{vibe ? HOUSE_VIBE_SCALES.flatMap(({ key }) => (vibe[key] ? [tVibe(`${key}.${vibe[key]}`)] : [])).join(" · ") : t("noVibe")}</p>
+              <div className="mt-3">
+                <IntentionView intention={intentionOf(store, member, stay)} onImage={isHost} />
+              </div>
+              {member.id !== me && inChat && (
+                <Button
+                  size="sm"
+                  variant={isHost ? "cream" : "secondary"}
+                  className="mt-3"
+                  onClick={() => {
+                    sayHiDraft(crewThreadId(stay.id), tBefore("crew.hiDraft", { name: myName }));
+                    router.push(`/messages/${crewThreadId(stay.id)}`);
+                  }}
+                >
+                  {tBefore("crew.sayHi")}
+                </Button>
+              )}
               <p className="mt-2 flex flex-wrap gap-1.5">
                 {isHost && <span className="rounded-full bg-on-image/20 px-2.5 py-0.5 text-small font-semibold">{t("host")}</span>}
                 {status && <span className={cn("rounded-full px-2.5 py-0.5 text-small", paid ? "bg-success/15 text-ink" : "bg-ink/6 text-ink")}>{status}</span>}
@@ -247,34 +282,48 @@ function ArcSlot({ slot, stay }: { slot: ArcSlotKey; stay: Stay }) {
 /** Dates · getting there (the exact place once you've paid) · the rhythm of a day · votes. */
 function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const t = useTranslations("house.area.plan");
+  const tBefore = useTranslations("house.before");
+  const tArrival = useTranslations("house.arrival");
+  const tFirst = useTranslations("house.firstNight");
+  const tAgreement = useTranslations("house.agreement");
+  const tMiddle = useTranslations("house.middle");
   const f = useFormat();
-  const store = useStore();
-  const paid = isHost || getMyPayment(store, stay.id)?.status === "paid" || Boolean(stay.bookingConfirmedAt && isHost);
   const nights = Math.max(0, Math.round((dayOf(stay.endDate) - dayOf(stay.startDate)) / DAY_MS));
   const stops = typicalDayOf(stay);
-  const area = stay.location.area ?? stay.location.city ?? stay.city;
   return (
     <div className="flex max-w-[760px] flex-col gap-10">
+      {/* The Arc: where the House stands (Before · Arrival · Together · Goodbye · After) and the next step. */}
+      <ArcBar stay={stay} />
       <ArcSlot slot="before" stay={stay} />
       <Part title={t("dates")}>
         <p className="text-body-lg text-ink">
           {f.stayDatesLong(stay)} · {t("nights", { count: nights })}
         </p>
       </Part>
-      <Part title={t("gettingThere")}>
-        {paid ? (
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-lg text-ink">
-            {[stay.location.area, stay.location.city ?? stay.city, stay.location.country].filter(Boolean).join(", ")}
-            <a href={googleMapsUrl(stay)} target="_blank" rel="noopener noreferrer" className="text-body font-semibold underline-offset-4 hover:underline">
-              {t("directions")} ↗
-            </a>
-          </p>
-        ) : (
-          <p className="text-body-lg text-muted">{t("addressAfterPay", { area })}</p>
-        )}
+      {/* A week before: how everyone gets there – nothing is booked. */}
+      <Part id="plan-getting-there" title={t("gettingThere")}>
+        <GettingThere stay={stay} />
+      </Part>
+      {/* Two days before: the exact address, check-in, House rules, what to bring (and the Pro host's programme). */}
+      <Part id="plan-practical" title={tBefore("practical.title")}>
+        <Practical stay={stay} isHost={isHost} />
+      </Part>
+      {/* Day 1: who's here · the first night's cards · Day 1–2: the House agreement (kept here, the crew sees it). */}
+      <Part id="plan-arrived" title={tArrival("title")}>
+        <ArrivedPanel stay={stay} />
+      </Part>
+      <Part id="plan-first-night" title={tFirst("title")}>
+        <FirstNightPanel stay={stay} isHost={isHost} />
+      </Part>
+      <Part id="plan-agreement" title={tAgreement("title")}>
+        <AgreementPanel stay={stay} isHost={isHost} />
       </Part>
       <ArcSlot slot="arrive" stay={stay} />
-      <Part title={t("rhythm")}>
+      <Part id="plan-rhythm" title={t("rhythm")}>
+        {/* What the crew agreed on (the moment of the day), then the House's usual day. */}
+        <div className="mb-5">
+          <AgreedMoments stay={stay} />
+        </div>
         {stops.length === 0 ? (
           <p className="text-body text-muted">{t("rhythmEmpty")}</p>
         ) : (
@@ -289,6 +338,10 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
         )}
       </Part>
       <ArcSlot slot="middle" stay={stay} />
+      {/* The high point (second half): the Pro host's own – or the crew's vote on a proposal. */}
+      <Part id="plan-peak" title={tMiddle("peakTitle")}>
+        <PeakPanel stay={stay} isHost={isHost} />
+      </Part>
       <Part title={t("votes")}>{stay.accommodationVote || stay.datesVote ? <CrewVotes stay={stay} /> : <p className="text-body text-muted">{t("votesEmpty")}</p>}</Part>
       <ArcSlot slot="closing" stay={stay} />
       <ArcSlot slot="after" stay={stay} />
@@ -315,6 +368,8 @@ function MomentsTab({ stay }: { stay: Stay }) {
   return (
     <div className="flex flex-col gap-10">
       {picker}
+      {/* The first night's question cards – any evening. */}
+      <QuestionCardsEntry />
       {moments.length === 0 ? (
         <EmptyState
           icon={Images}
@@ -371,6 +426,10 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
   const tWithdraw = useTranslations("withdraw");
   const tHouses = useTranslations("houses");
   const tView = useTranslations("houses.view");
+  const tBefore = useTranslations("house.before");
+  const tMiddle = useTranslations("house.middle");
+  const arc = useArc(stay);
+  const halfDue = Boolean(arc?.due.some((d) => d.step.id === "halftime"));
   const format = useFormatter();
   const f = useFormat();
   const store = useStore();
@@ -434,6 +493,17 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
           extra={refunded && refundReason ? <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} /> : undefined}
         />
       )}
+      {!over && (
+        <Part id="me-intention" title={tBefore("intention.title")}>
+          <IntentionForm stay={stay} />
+        </Part>
+      )}
+      {/* Halftime – private (guests): from the middle of the House. */}
+      {!isHost && halfDue && (
+        <Part id="me-halftime" title={tMiddle("halftimeTitle")}>
+          <HalftimeForm stay={stay} />
+        </Part>
+      )}
       <Part title={t("booking")}>
         <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-3">
           <div>
@@ -477,6 +547,7 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
         </Part>
       )}
       <Part title={t("help")}>{helpAvailable(stay, now) ? <HelpButton stay={stay} /> : <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} />}</Part>
+      <ArcMute />
 
       <ConfirmSheet
         open={leaving}
@@ -519,6 +590,8 @@ function ManageTab({ stay }: { stay: Stay }) {
   const tOverlap = useTranslations("overlap");
   const tDetail = useTranslations("houses.detail");
   const tArea = useTranslations("house.area");
+  const tTasks = useTranslations("house.before.tasks");
+  const tMiddleM = useTranslations("house.middle");
   const store = useStore();
   const showToast = useToast();
   const params = useSearchParams();
@@ -541,6 +614,15 @@ function ManageTab({ stay }: { stay: Stay }) {
     <div className="flex max-w-[860px] flex-col gap-12">
       {hostOverlapOf(store, stay) && <p className="text-small text-muted">{tOverlap("hostTwo")}</p>}
       <HostProgress stay={stay} requests={requests} chat={chat} onSheet={(sheet) => scrollTo(sheet === "requests" ? "manage-requests" : "manage-payments")} onLock={() => setLocking(true)} />
+      <Part id="manage-tasks" title={tTasks("title")}>
+        <HostTasks stay={stay} />
+      </Part>
+      {/* A Pro host: halftime as the crew's anonymous average – never anyone's own number. */}
+      {stay.hostFeePerPerson ? (
+        <Part id="manage-halftime" title={tMiddleM("halftimeTitle")}>
+          <HalftimeAverage stay={stay} />
+        </Part>
+      ) : null}
       <Part id="manage-requests" title={t("requests")}>
         <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
       </Part>

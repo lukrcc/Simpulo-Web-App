@@ -9,6 +9,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
 import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Message, Thread } from "@/lib/types";
+import { arcCardMessages, useArc } from "@/lib/arc";
+import { ArcChatCard } from "./ArcChatCard";
 import { DayDivider, SystemLine } from "./ChatCards";
 import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
 import type { ReplyDraft } from "./Composer";
@@ -55,7 +57,14 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     return thread.messages.find((m) => m.createdAt > readAt && m.senderId !== me)?.id ?? null;
   });
 
-  const rows = useMemo(() => buildRows(thread.messages, firstUnreadId), [thread.messages, firstUnreadId]);
+  // The House chat: the arc's Simpulo cards that are due (lib/arc.ts – never stored), merged in by time.
+  const house = thread.type === "house" ? (store.stays.find((s) => s.id === thread.houseId) ?? null) : null;
+  const arc = useArc(house);
+  const messages = useMemo(
+    () => (house && arc && arc.cards.length ? [...thread.messages, ...arcCardMessages(house, thread.id, arc.cards)].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)) : thread.messages),
+    [thread.messages, thread.id, house, arc],
+  );
+  const rows = useMemo(() => buildRows(messages, firstUnreadId), [messages, firstUnreadId]);
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
   const typingId = store.typing[thread.id];
   const typingUser = typingId && !isBlocked(store, typingId) ? findUser(store, typingId) : undefined;
@@ -175,6 +184,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
               </div>
             );
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
+          if (row.kind === "arc") return house && arc ? <ArcChatCard key={row.key} stay={house} stepId={row.message.arcStep!} at={Date.parse(row.message.createdAt)} now={arc.now} /> : null;
 
           const { message } = row;
           const original = message.replyToId ? byId.get(message.replyToId) : undefined;

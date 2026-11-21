@@ -144,6 +144,39 @@ export interface UserSettings {
   appearance?: ThemePref;
   /** The interface language (i18n/config.ts locales; none = "en"). Prepared, not shown in Settings yet (SHOW_LANGUAGE_SETTING). */
   language?: Locale;
+  /** The arc (config/arc.ts): per House, each step this person did or skipped (open: missing) – Simpulo reads only these signals */
+  arc?: Record<string, Record<string, "done" | "skipped">>;
+  /** Private notes from arc steps ("write" with visibility private: the intention, who you'd live with again) – only this person sees them */
+  arcNotes?: Record<string, Record<string, string>>;
+  /** "Mute Simpulo tips" (House area › Me): no Simpulo cards in any House chat; the Arc bar stays */
+  arcMuted?: boolean;
+  /** The arc's intention per House (config/arc.ts "intention"): the crew sees it on the Crew page – never public, never analysed */
+  intentions?: Record<string, ArcIntention>;
+  /** How this person gets to each House (Plan › Getting there): the crew sees it – nothing is booked */
+  arrivals?: Record<string, ArcArrival>;
+  /** "I'm here" per House (when, ISO): the crew sees who has arrived */
+  arrived?: Record<string, string>;
+  /** Halftime per House: how close to the intention (1–5) and what would help – private; a Pro host sees only the crew's average */
+  halftime?: Record<string, { score: number; help?: string; at?: string }>;
+}
+
+/** "Your intention": one question (skippable) and two optional ones. */
+export interface ArcIntention {
+  /** "When you leave this House, what do you want to be true that isn't true today?" */
+  main?: string;
+  /** "What could you teach someone here in one evening?" */
+  teach?: string;
+  /** "What do you want people to ask you about?" */
+  askMe?: string;
+  at?: string;
+}
+
+/** One arrival: the day and local time, how, and where (an airport, a station, "by car"). */
+export interface ArcArrival {
+  date: string;
+  time: string;
+  mode: "plane" | "train" | "bus" | "car" | "ferry" | "other";
+  place: string;
 }
 
 /** The platforms a profile can link to. */
@@ -187,6 +220,15 @@ export type VoteKind = 'accommodation' | 'dates';
 export interface TypicalDayStop {
   time: string;
   label: string;
+}
+
+/** What the host fills in before the House (Manage › Host tasks; Plan › Practical): check-in, what to bring, the Pro host's programme. */
+export interface StayPractical {
+  checkIn?: string;
+  bring?: string;
+  /** Pro hosts: the day's programme */
+  programme?: string;
+  updatedAt?: string;
 }
 
 export interface Stay {
@@ -307,6 +349,16 @@ export interface Stay {
   accommodationPhoto?: string;
   /** "Host from your place": the saved Place (lib/types.ts) this House is a window of – the host lives there ("Host lives here") */
   placeId?: string;
+  /** Practical things the host shares before the House (check-in, what to bring, the programme) */
+  practical?: StayPractical;
+  /** The arc's first night: when the host started it – the only thing kept of it (a signal, nothing that was said) */
+  firstNightStartedAt?: string;
+  /** The House agreement (config/arc.ts AGREEMENT_QUESTIONS): each person's vote per question; the host confirms the result */
+  agreement?: { votes: Record<string, Record<string, string>>; confirmedAt?: string };
+  /** The moment of the day: per proposal day (YYYY-MM-DD, House time) who's in (true) or out (false) */
+  dayMoments?: Record<string, Record<string, boolean>>;
+  /** The high point: the Pro host's own (then no proposal) – or the crew's votes on the proposal (true = in) */
+  peak?: { hostText?: string; hostDate?: string; votes?: Record<string, boolean> };
 }
 
 /**
@@ -464,6 +516,8 @@ export interface Message {
   /** Contact details were taken out when it was sent (src/lib/contactFilter.ts) */
   contactsHidden?: boolean;
   event?: MessageEvent;     // app-generated lines (joined, crew complete …) – rendered from translations; text stays ''
+  /** A Simpulo card of the arc (config/arc.ts step id) – never stored: added to the House chat when it's due (lib/arc.ts), sender "simpulo" */
+  arcStep?: string;
 }
 
 /**

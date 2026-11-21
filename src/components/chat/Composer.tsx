@@ -64,6 +64,28 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
     if (replyTo) textareaRef.current?.focus();
   }, [replyTo]);
 
+  // A draft left for this chat (the Crew page's "Say hi": "Hi, I'm Lukas – "): taken once, the field focused at its end.
+  useEffect(() => {
+    const key = `simpulo:draft:${threadId}`;
+    let draft: string | null = null;
+    try {
+      draft = sessionStorage.getItem(key);
+      if (draft) sessionStorage.removeItem(key);
+    } catch {
+      // no draft
+    }
+    if (!draft) return;
+    const value = draft;
+    queueMicrotask(() => {
+      setText(value);
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        requestAnimationFrame(() => el.setSelectionRange(value.length, value.length));
+      }
+    });
+  }, [threadId]);
+
   const canSend = text.trim() !== "" || files.length > 0;
   // The preview only while the pasted link is still in the text.
   const preview = pastedUrl && text.includes(pastedUrl) ? pastedUrl : null;

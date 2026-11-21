@@ -37,6 +37,9 @@ import { LOCAL_SEARCH_PREFIX, openSearchesFor, sameSearch, type SavedSearch } fr
 import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { doItAgainDue, type Reminder } from "./reminders";
 import type {
+  ArcArrival,
+  ArcIntention,
+  StayPractical,
   Attachment,
   Attribution,
   Crew,
@@ -209,6 +212,19 @@ type StoreAction =
   | { type: "markThreadRead"; threadId: string; at: string }
   | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
   | { type: "markHintSeen"; hint: string }
+  | { type: "setArcStep"; houseId: string; stepId: string; state: "done" | "skipped" | "open"; note?: string }
+  | { type: "setArcMuted"; muted: boolean }
+  | { type: "setIntention"; houseId: string; intention: ArcIntention }
+  | { type: "setArrival"; houseId: string; arrival: ArcArrival | null }
+  | { type: "setPractical"; stayId: string; patch: StayPractical }
+  | { type: "setArrived"; houseId: string; arrived: boolean; at?: string }
+  | { type: "startFirstNight"; stayId: string; at?: string }
+  | { type: "voteAgreement"; stayId: string; questionId: string; option: string }
+  | { type: "confirmAgreement"; stayId: string }
+  | { type: "voteMoment"; stayId: string; day: string; in: boolean }
+  | { type: "votePeak"; stayId: string; in: boolean }
+  | { type: "setHostPeak"; stayId: string; text: string; date: string }
+  | { type: "setHalftime"; houseId: string; score: number; help?: string }
   | { type: "setAppearance"; appearance: ThemePref }
   | {
       type: "lockAccommodation";
@@ -370,6 +386,32 @@ interface StoreActions {
   setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
   /** A one-time hint seen – on the account, so it never comes back */
   markHintSeen: (hint: string) => void;
+  /** The arc (config/arc.ts): a step done, skipped or open again – `note`: a private text ("write" steps with visibility private) */
+  setArcStep: (houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => void;
+  /** "Mute Simpulo tips": no arc cards in any House chat */
+  setArcMuted: (muted: boolean) => void;
+  /** The arc's intention for a House (the crew sees it) */
+  setIntention: (houseId: string, intention: ArcIntention) => void;
+  /** How you get to a House (the crew sees it; null removes it) */
+  setArrival: (houseId: string, arrival: ArcArrival | null) => void;
+  /** The host: check-in, what to bring, the programme (Manage › Host tasks) */
+  setPractical: (stayId: string, patch: StayPractical) => void;
+  /** "I'm here" (or undone) for a House – the crew sees it */
+  setArrived: (houseId: string, arrived: boolean, at?: string) => void;
+  /** The host starts the first night (only the moment is kept – a signal) */
+  startFirstNight: (stayId: string, at?: string) => void;
+  /** A crew member's vote on one question of the House agreement */
+  voteAgreement: (stayId: string, questionId: string, option: string) => void;
+  /** The host confirms the House agreement */
+  confirmAgreement: (stayId: string) => void;
+  /** The moment of the day: in or out for the proposal of `day` (House time) */
+  voteMoment: (stayId: string, day: string, inFor: boolean) => void;
+  /** The high point's proposal: in or out */
+  votePeak: (stayId: string, inFor: boolean) => void;
+  /** A Pro host sets their own high point (then the crew gets no proposal) */
+  setHostPeak: (stayId: string, text: string, date: string) => void;
+  /** Halftime – private: how close to the intention (1–5), what would help */
+  setHalftime: (houseId: string, score: number, help?: string) => void;
   /** Light or dark on the account (Settings › Appearance; lib/theme.ts applies it on the device) */
   setAppearance: (appearance: ThemePref) => void;
   /**
@@ -1826,6 +1868,112 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "createThread":
       return { ...state, threads: [...state.threads, action.thread] };
 
+    case "setArcStep": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const settings = settingsOf(u);
+          const house = { ...(settings.arc?.[action.houseId] ?? {}) };
+          if (action.state === "open") delete house[action.stepId];
+          else house[action.stepId] = action.state;
+          const notes = action.note !== undefined ? { ...settings.arcNotes, [action.houseId]: { ...(settings.arcNotes?.[action.houseId] ?? {}), [action.stepId]: action.note } } : settings.arcNotes;
+          return { ...u, settings: { ...settings, arc: { ...settings.arc, [action.houseId]: house }, arcNotes: notes } };
+        }),
+      };
+    }
+
+    case "setIntention": {
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), intentions: { ...settingsOf(u).intentions, [action.houseId]: { ...action.intention, at: new Date().toISOString() } } } } : u)) };
+    }
+
+    case "setArrival": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const arrivals = { ...settingsOf(u).arrivals };
+          if (action.arrival) arrivals[action.houseId] = action.arrival;
+          else delete arrivals[action.houseId];
+          return { ...u, settings: { ...settingsOf(u), arrivals } };
+        }),
+      };
+    }
+
+    case "setPractical": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, practical: { ...s.practical, ...action.patch, updatedAt: new Date().toISOString() } } : s)) };
+    }
+
+    case "setArrived": {
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const arrived = { ...settingsOf(u).arrived };
+          if (action.arrived) arrived[action.houseId] = action.at ?? new Date().toISOString();
+          else delete arrived[action.houseId];
+          return { ...u, settings: { ...settingsOf(u), arrived } };
+        }),
+      };
+    }
+
+    case "startFirstNight": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me || stay.firstNightStartedAt) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, firstNightStartedAt: action.at ?? new Date().toISOString() } : s)) };
+    }
+
+    case "voteAgreement": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.agreement?.confirmedAt) return state;
+      const inCrew = stay.hostId === me || state.joinRequests.some((r) => r.stayId === stay.id && r.userId === me && r.status === "accepted");
+      if (!inCrew) return state;
+      const votes = { ...stay.agreement?.votes, [action.questionId]: { ...(stay.agreement?.votes[action.questionId] ?? {}), [me]: action.option } };
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, agreement: { ...s.agreement, votes } } : s)) };
+    }
+
+    case "confirmAgreement": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, agreement: { votes: s.agreement?.votes ?? {}, confirmedAt: new Date().toISOString() } } : s)) };
+    }
+
+    case "voteMoment": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me) return state;
+      const day = { ...(stay.dayMoments?.[action.day] ?? {}), [me]: action.in };
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, dayMoments: { ...s.dayMoments, [action.day]: day } } : s)) };
+    }
+
+    case "votePeak": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.peak?.hostText) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, peak: { ...s.peak, votes: { ...s.peak?.votes, [me]: action.in } } } : s)) };
+    }
+
+    case "setHostPeak": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, peak: { ...s.peak, hostText: action.text, hostDate: action.date } } : s)) };
+    }
+
+    case "setHalftime": {
+      if (!me) return state;
+      const score = Math.min(5, Math.max(1, Math.round(action.score)));
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), halftime: { ...settingsOf(u).halftime, [action.houseId]: { score, help: action.help, at: new Date().toISOString() } } } } : u)) };
+    }
+
+    case "setArcMuted": {
+      if (!me) return state;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), arcMuted: action.muted || undefined } } : u)) };
+    }
+
     case "markHintSeen": {
       if (!me) return state;
       return {
@@ -2673,6 +2821,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [threads],
   );
   const markHintSeen = useCallback((hint: string) => dispatch({ type: "markHintSeen", hint }), []);
+  const setArcStep = useCallback((houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => dispatch({ type: "setArcStep", houseId, stepId, state, note }), []);
+  const setArcMuted = useCallback((muted: boolean) => dispatch({ type: "setArcMuted", muted }), []);
+  const setIntention = useCallback((houseId: string, intention: ArcIntention) => dispatch({ type: "setIntention", houseId, intention }), []);
+  const setArrival = useCallback((houseId: string, arrival: ArcArrival | null) => dispatch({ type: "setArrival", houseId, arrival }), []);
+  const setPractical = useCallback((stayId: string, patch: StayPractical) => dispatch({ type: "setPractical", stayId, patch }), []);
+  const setArrived = useCallback((houseId: string, arrived: boolean, at?: string) => dispatch({ type: "setArrived", houseId, arrived, at }), []);
+  const startFirstNight = useCallback((stayId: string, at?: string) => dispatch({ type: "startFirstNight", stayId, at }), []);
+  const voteAgreement = useCallback((stayId: string, questionId: string, option: string) => dispatch({ type: "voteAgreement", stayId, questionId, option }), []);
+  const confirmAgreement = useCallback((stayId: string) => dispatch({ type: "confirmAgreement", stayId }), []);
+  const voteMoment = useCallback((stayId: string, day: string, inFor: boolean) => dispatch({ type: "voteMoment", stayId, day, in: inFor }), []);
+  const votePeak = useCallback((stayId: string, inFor: boolean) => dispatch({ type: "votePeak", stayId, in: inFor }), []);
+  const setHostPeak = useCallback((stayId: string, text: string, date: string) => dispatch({ type: "setHostPeak", stayId, text, date }), []);
+  const setHalftime = useCallback((houseId: string, score: number, help?: string) => dispatch({ type: "setHalftime", houseId, score, help }), []);
   const setAppearance = useCallback((appearance: ThemePref) => dispatch({ type: "setAppearance", appearance }), []);
   const setChatTheme = useCallback((threadId: string | null, theme: ChatThemeId | null) => dispatch({ type: "setChatTheme", threadId, theme }), []);
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
@@ -2837,6 +2998,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       setChatTheme,
       markHintSeen,
+      setArcStep,
+      setArcMuted,
+      setIntention,
+      setArrival,
+      setPractical,
+      setArrived,
+      startFirstNight,
+      voteAgreement,
+      confirmAgreement,
+      voteMoment,
+      votePeak,
+      setHostPeak,
+      setHalftime,
       setAppearance,
       toggleReaction,
       lockAccommodation,
@@ -2865,7 +3039,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -2923,6 +3097,13 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     seenHints: user?.settings?.seenHints ?? [],
     appearance: user?.settings?.appearance,
     language: user?.settings?.language,
+    arc: user?.settings?.arc,
+    arcNotes: user?.settings?.arcNotes,
+    arcMuted: user?.settings?.arcMuted,
+    intentions: user?.settings?.intentions,
+    arrivals: user?.settings?.arrivals,
+    arrived: user?.settings?.arrived,
+    halftime: user?.settings?.halftime,
   };
 }
 

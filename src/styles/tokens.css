@@ -175,7 +175,8 @@
   --strip-edge: transparent;
 }
 
-/* ── The dark grounds: Ember tiles (.ember), Explore's dark band (.band-dark), Messages, the header, the bar's sheets and menus ── */
+/* ── The dark grounds: Ember tiles (.ember), Explore's dark band (.band-dark), Messages, the header, the bar's sheets and menus, the first
+   night's question cards (full screen, [data-question-deck]) ── */
 .ember,
 .band-dark,
 .bubble-own,
@@ -185,6 +186,7 @@
 .footer-dark,
 .chip-bar,
 [data-chat-theme="night"],
+[data-question-deck],
 .admin-scope,
 body:has(.admin-scope) {
   color-scheme: dark;

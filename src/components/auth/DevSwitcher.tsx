@@ -1,5 +1,6 @@
 "use client";
 
+import { ARC_SIM_DAYS } from "@/config/arc";
 import { Switch } from "@/components/ui/Switch";
 import { Bell, MoreHorizontal, ScrollText } from "lucide-react";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
@@ -177,6 +178,10 @@ function DevSwitcherInner() {
                 <DevRow label={t("installedApp")}>
                   <DevSwitch label={t("installedApp")} on={installedApp} onChange={(on) => setDevSetting("installedApp", on)} />
                 </DevRow>
+                {/* Time travel for the arc (lib/arc.ts useArcNow): every House pretends it's this day of it (1 = its first day). */}
+                <DevRow label={t("houseDay")}>
+                  <HouseDayControl />
+                </DevRow>
                 {/* Social depth (config/platform.ts depthChoiceEnabled): the step, the capsule, the filter and Analyse › Tiefe. */}
                 <DevRow label={t("depthChoice")}>
                   <DevSwitch label={t("depthChoice")} on={depthChoice} onChange={(on) => setFeatureFlag("depthChoice", on)} />
@@ -254,6 +259,34 @@ function DevRow({ label, children }: { label: string; children: ReactNode }) {
       <span className="shrink-0 text-body text-ink">{label}</span>
       <span className="flex min-w-0 items-center justify-end gap-2">{children}</span>
     </div>
+  );
+}
+
+/** "House day": − Day 4 + and "Today" – the arc's simulated day, −7 … +30 (no day 0: −1 is the day before the first). */
+function HouseDayControl() {
+  const t = useTranslations("auth.dev");
+  const day = useDevSetting("arcDay");
+  const step = (by: 1 | -1) => {
+    let next = (day ?? 1) + by;
+    if (next === 0) next += by;
+    setDevSetting("arcDay", Math.min(ARC_SIM_DAYS.to, Math.max(ARC_SIM_DAYS.from, next)));
+  };
+  const small = "flex size-9 items-center justify-center rounded-full text-ink ring-1 ring-ink/12 disabled:opacity-40";
+  return (
+    <>
+      <button type="button" aria-label={t("houseDayEarlier")} onClick={() => step(-1)} disabled={day === ARC_SIM_DAYS.from} className={small}>
+        −
+      </button>
+      <span className="w-16 text-center text-body tabular-nums text-ink">{day === null ? t("houseDayToday") : t("houseDayValue", { day })}</span>
+      <button type="button" aria-label={t("houseDayLater")} onClick={() => step(1)} disabled={day === ARC_SIM_DAYS.to} className={small}>
+        +
+      </button>
+      {day !== null && (
+        <button type="button" onClick={() => setDevSetting("arcDay", null)} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {t("houseDayToday")}
+        </button>
+      )}
+    </>
   );
 }
 

@@ -21,6 +21,8 @@ export type ChatRow =
   | { kind: "unread"; key: string }
   /** System and payment lines – centered, never grouped */
   | { kind: "line"; key: string; message: Message }
+  /** A Simpulo card of the arc (message.arcStep) – centered, never grouped */
+  | { kind: "arc"; key: string; message: Message }
   /** A person's message; first/last mark the edges of a same-sender group */
   | { kind: "message"; key: string; message: Message; first: boolean; last: boolean };
 
@@ -44,6 +46,11 @@ export function buildRows(messages: Message[], firstUnreadId: string | null): Ch
     if (newDay) rows.push({ kind: "day", key: `day-${dayOf(message.createdAt)}`, day: dayOf(message.createdAt) });
     if (unread) rows.push({ kind: "unread", key: "unread" });
 
+    if (message.arcStep) {
+      open = null;
+      rows.push({ kind: "arc", key: message.id, message });
+      return;
+    }
     if (isLine(message)) {
       open = null;
       rows.push({ kind: "line", key: message.id, message });

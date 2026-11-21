@@ -94,6 +94,10 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "stay.arrived", moment: "inTheHouse", captures: "Angekommen (Check-in bestätigt)", purpose: "Wer wirklich kam", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
   { id: "stay.leftEarly", moment: "inTheHouse", captures: "Vor dem Ende abgereist (Datum)", purpose: "Frühe Abreisen als Warnsignal", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
   { id: "stay.report", moment: "inTheHouse", captures: "Meldungen und „Something went wrong“-Fälle (Kategorie, kein Chat-Inhalt)", purpose: "Sicherheit; ein House, das nicht funktioniert", models: ["houseChemistry"], legalBasis: "contract", status: "collecting" },
+  // Der Bogen (config/arc.ts): nur Signale – welche Karte, welcher Schritt, wann. Nie, was jemand geschrieben oder gesagt hat.
+  { id: "arc.cardSeen", moment: "inTheHouse", captures: "Simpulo-Karte im House-Chat gesehen (Schritt-Id, House, Zeitpunkt)", purpose: "Welche Schritte ankommen; Zeitpunkte des Bogens", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
+  { id: "arc.actionDone", moment: "inTheHouse", captures: "Aktion eines Bogen-Schritts ausgeführt (Schritt-Id, House, Zeitpunkt) – ohne Inhalt", purpose: "Welche Schritte Crews nutzen; Bogen verbessern", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
+  { id: "arc.stepSkipped", moment: "inTheHouse", captures: "Bogen-Schritt übersprungen oder Tipps stummgeschaltet (Schritt-Id, House)", purpose: "Welche Schritte stören; weniger, bessere Karten", models: ["houseChemistry"], legalBasis: "contract", status: "planned" },
 
   // ── After the stay (the rating: its own form, a later prompt) ──
   { id: "after.livedWith", moment: "afterTheStay", captures: "„Lived with“ bestätigt, in beide Richtungen", purpose: "Your people; Vertrauen", models: ["crewFit", "houseChemistry", "placeFit"], legalBasis: "contract", status: "used" },

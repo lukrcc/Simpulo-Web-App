@@ -15,9 +15,11 @@ export interface DevSettings {
   installedApp: boolean;
   /** "Admin role": off = the admin (Lukas) is treated as a user – /admin is a 404 (lib/admin/access.ts) */
   adminRole: boolean;
+  /** "House day" (time travel, lib/arc.ts useArcNow): the day of every House the arc pretends it is (1 = its first day); null = today */
+  arcDay: number | null;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 
@@ -65,4 +67,9 @@ export function readDevSetting<K extends keyof DevSettings>(key: K): DevSettings
 
 export function useDevSetting<K extends keyof DevSettings>(key: K): DevSettings[K] {
   return useSyncExternalStore(subscribeDevSettings, () => readDevSetting(key), () => DEFAULTS[key]);
+}
+
+/** The simulated House day (lib/arc.ts) – for useSyncExternalStore; always null outside dev. */
+export function readArcDay(): number | null {
+  return DEV && typeof window !== "undefined" ? read().arcDay : null;
 }
