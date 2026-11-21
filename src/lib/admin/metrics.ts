@@ -1831,3 +1831,52 @@ export function partnerEffect(events: readonly GrowthEvent[], partner: Marketing
     openShare: Math.round((now.revenue * partner.agreement.sharePercent) / 100),
   };
 }
+
+// ── Danach (der Bogen nach dem House) – vorbereitet ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The three numbers after a House (CLAUDE.md "Bogen › Danach"), from the recorded answers (UserSettings.after / .thirty) of Houses that
+ * ended by `today`; the host doesn't count as a guest. Prepared – not shown yet. TODO(backend): from the precomputed stats; until people
+ * answer, the demo has few rows (the others' demo choices in lib/arc.ts are not records).
+ * - connectionRate: of the guests who answered "Who would you live with again?", the share with at least one mutual choice (Ziel 60 %)
+ * - intentionReached: of those who answered, Yes = 1, Partly = ½, No = 0
+ * - stillInTouch: of those who answered after 30 days, the share "Yes"
+ * Values in percent (0–100), null without any answer; `answered` = how many answers each rests on.
+ */
+export function afterMetrics(inputs: Pick<AdminInputs, "stays" | "users" | "joinRequests" | "today">) {
+  const ended = inputs.stays.filter((s) => s.endDate.slice(0, 10) < inputs.today && !s.isExample);
+  const byId = new Map(inputs.users.map((u) => [u.id, u]));
+  let chose = 0;
+  let connected = 0;
+  let intentions = 0;
+  let intentionScore = 0;
+  let touchAnswers = 0;
+  let inTouch = 0;
+  for (const stay of ended) {
+    const guests = inputs.joinRequests.filter((r) => r.stayId === stay.id && r.status === "accepted" && r.userId !== stay.hostId).map((r) => r.userId);
+    const crew = new Set([stay.hostId, ...guests]);
+    const againOf = (id: string) => byId.get(id)?.settings?.after?.[stay.id]?.again ?? [];
+    for (const id of guests) {
+      const after = byId.get(id)?.settings?.after?.[stay.id];
+      if (after) {
+        chose++;
+        if (after.again.some((other) => crew.has(other) && againOf(other).includes(id))) connected++;
+        if (after.intention) {
+          intentions++;
+          intentionScore += after.intention === "yes" ? 1 : after.intention === "partly" ? 0.5 : 0;
+        }
+      }
+      const thirty = byId.get(id)?.settings?.thirty?.[stay.id];
+      if (thirty?.inTouch !== undefined) {
+        touchAnswers++;
+        if (thirty.inTouch) inTouch++;
+      }
+    }
+  }
+  const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : null);
+  return {
+    connectionRate: { value: pct(connected, chose), answered: chose },
+    intentionReached: { value: pct(intentionScore, intentions), answered: intentions },
+    stillInTouch: { value: pct(inTouch, touchAnswers), answered: touchAnswers },
+  };
+}

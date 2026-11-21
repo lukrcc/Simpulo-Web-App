@@ -10,3 +10,9 @@ export const QUESTION_CARDS: Readonly<Record<QuestionLevel, readonly string[]>> 
   deeper: ["inTheMiddle", "tryHere", "missNow"],
   personal: ["proudUnseen", "hopeCrew", "figuringOut"],
 };
+
+/**
+ * The closing circle on the last evening (CLAUDE.md "Bogen › Abschied"): three questions, asked out loud, nothing saved – words in en.ts
+ * house.questions.closing.<id>.
+ */
+export const CLOSING_CARDS: readonly string[] = ["fiveYears", "takingHome", "changedSomething"];

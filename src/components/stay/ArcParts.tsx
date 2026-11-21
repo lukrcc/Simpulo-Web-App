@@ -41,7 +41,7 @@ export function ArcBar({ stay }: { stay: Stay }) {
 }
 
 /** Steps with their own form in the tab (below the panel). */
-const FORM_STEPS: readonly string[] = ["intention", "gettingThere", "hostCheckIn", "arrive", "firstNight", "agreement", "moment", "halftime", "peakPlan", "peakVote"];
+const FORM_STEPS: readonly string[] = ["intention", "gettingThere", "hostCheckIn", "arrive", "firstNight", "agreement", "moment", "halftime", "peakPlan", "peakVote", "closing", "again", "chosen", "albumReady", "doItAgain", "thirtyDays"];
 
 /** The step a card opened (?arc=step): its words, who sees what comes of it, and its action – Done (a private note for "write") or Skip. */
 export function ArcStepPanel({ stay, stepId }: { stay: Stay; stepId: string }) {

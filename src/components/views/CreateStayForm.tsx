@@ -40,6 +40,7 @@ import {
 } from "@/components/create/HouseSteps";
 import {
   AGAIN_PARAM,
+  WITH_PARAM,
   EDIT_REQUIRED_STEPS,
   EXTRAS,
   EXTRAS_STEP,
@@ -189,6 +190,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // after hydration), over any draft.
   const [againId, setAgainId] = useState<string | null>(null);
   const [againApplied, setAgainApplied] = useState(false);
+  // …with ?with=a,b: only those of the old crew picked (the mutual choices).
+  const [againWith, setAgainWith] = useState<string[] | null>(null);
   // "Invite to a House" from People (/create?invite=<user>): that person is invited on publish, once they're known.
   const [inviteId, setInviteId] = useState<string | null>(null);
   const [inviteApplied, setInviteApplied] = useState(false);
@@ -201,6 +204,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const pendingFocus = useRef<string | null>(null);
   function readLinkParams(params: URLSearchParams) {
     setAgainId(params.get(AGAIN_PARAM));
+    setAgainWith(params.get(WITH_PARAM)?.split(",").filter(Boolean) ?? null);
     setInviteId(params.get(INVITE_PARAM));
     setWindowId(params.get(WINDOW_PARAM));
     // "Add a host fee" (Payouts, share hosts): straight to "Crew and price", the host fee field focused.
@@ -244,7 +248,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const hasInviteStep = false;
   if (againId && againSource && !againApplied) {
     setAgainApplied(true);
-    const crewIds = getCrew(store, againSource).map((u) => u.id).filter((id) => invitePeople.some((p) => p.user.id === id));
+    const crewIds = getCrew(store, againSource)
+      .map((u) => u.id)
+      .filter((id) => id !== me?.id && (!againWith || againWith.includes(id)) && invitePeople.some((p) => p.user.id === id));
     // Everything of the old House but the dates – the flow starts at "Where and when".
     setForm(againForm(againSource, crewIds));
     setContinuing(null);

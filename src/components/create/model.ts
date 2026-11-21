@@ -903,11 +903,14 @@ export function createHref({ region, city, from, to, vibe }: { region?: string; 
 }
 
 /** "Open again": /create?again=<the completed House> – every field but the dates, its crew invited on publish. */
-export function againHref(stayId: string): string {
-  return `/create?${AGAIN_PARAM}=${encodeURIComponent(stayId)}`;
+export function againHref(stayId: string, withIds?: readonly string[]): string {
+  const base = `/create?${AGAIN_PARAM}=${encodeURIComponent(stayId)}`;
+  return withIds?.length ? `${base}&${WITH_PARAM}=${withIds.map(encodeURIComponent).join(",")}` : base;
 }
 
 export const AGAIN_PARAM = "again";
+/** "Open the next one together" (the arc's Do it again): only these of the old crew are picked in "Fill your House" – the ones you chose each other with. */
+export const WITH_PARAM = "with";
 
 /** "Invite to a House" without an open House: /create?invite=<user> – that person is invited on publish. */
 export function inviteHref(userId: string): string {

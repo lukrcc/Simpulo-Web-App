@@ -4,7 +4,7 @@
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
 // "Ended"), under it the tabs as capsules – Chat · Crew · Plan · Moments · Me, the host also Manage – their state in the URL (?tab=plan).
 // Visitors keep the public House page (views/StayDetail.tsx). Everything from the store (mock); nothing here is a second copy of Messages.
-import { ImagePlus, Images, Plus, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { againHref } from "@/components/create/model";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -38,7 +38,7 @@ import { crewThreadId, findUser, getCrew, getCrewThread, getMyPayment, paymentSt
 import type { Stay, User } from "@/lib/types";
 import { cn, housePhotos, typicalDayOf } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
-import { intentionOf, useArc, useArcNow } from "@/lib/arc";
+import { afterAt, chosenAt, intentionOf, thirtyAt, useArc, useArcNow } from "@/lib/arc";
 import { CrewMenu, CloseStayConfirm } from "./CrewMenu";
 import { CrewVotes } from "./CrewVotes";
 import { HostInvitesSection } from "./HouseInvites";
@@ -48,6 +48,9 @@ import { ArcBar, ArcMute, ArcStepPanel, useArcEmails } from "./ArcParts";
 import { GettingThere, HostTasks, IntentionForm, IntentionView, Practical, sayHiDraft } from "./ArcBefore";
 import { AgreementPanel, ArrivedPanel, FirstNightPanel, QuestionCardsEntry } from "./ArcArrival";
 import { AgreedMoments, HalftimeAverage, HalftimeForm, PeakPanel } from "./ArcMiddle";
+import { AlbumReady, AlbumSection } from "./Album";
+import { DoItAgainPanel, ThirtyDaysForm } from "./ArcAfterwards";
+import { AfterForm, ChosenPanel, ClosingPanel, CrewWordsList, HostAfterSummary, useChosenReveal } from "./ArcGoodbye";
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 
@@ -89,6 +92,8 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
   const today = new Date(nowMs).toISOString().slice(0, 10);
   const phase = phaseOf(stay, today);
   useArcEmails(stay);
+  // A day after the day after: mutual "with you again" become Your people.
+  useChosenReveal(stay);
   // A Simpulo card opened this tab (?arc=step): the step on top of it.
   const arcStep = params.get("arc");
 
@@ -287,6 +292,7 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const tFirst = useTranslations("house.firstNight");
   const tAgreement = useTranslations("house.agreement");
   const tMiddle = useTranslations("house.middle");
+  const tGoodbye = useTranslations("house.goodbye");
   const f = useFormat();
   const nights = Math.max(0, Math.round((dayOf(stay.endDate) - dayOf(stay.startDate)) / DAY_MS));
   const stops = typicalDayOf(stay);
@@ -343,6 +349,10 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
         <PeakPanel stay={stay} isHost={isHost} />
       </Part>
       <Part title={t("votes")}>{stay.accommodationVote || stay.datesVote ? <CrewVotes stay={stay} /> : <p className="text-body text-muted">{t("votesEmpty")}</p>}</Part>
+      {/* The last evening: the closing circle (three questions out loud) and, optional, a few words for the crew. */}
+      <Part id="plan-closing" title={tGoodbye("closingTitle")}>
+        <ClosingPanel stay={stay} isHost={isHost} />
+      </Part>
       <ArcSlot slot="closing" stay={stay} />
       <ArcSlot slot="after" stay={stay} />
     </div>
@@ -354,54 +364,19 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
 /** Photos from the time together: none stored yet – what you add stays on this device for now; under them the place's own photos. */
 function MomentsTab({ stay }: { stay: Stay }) {
   const t = useTranslations("house.area.moments");
+  const tGoodbye = useTranslations("house.goodbye");
   const store = useStore();
-  const [moments, setMoments] = useState<string[]>([]);
-  const input = useRef<HTMLInputElement>(null);
-  const add = (files: FileList | null) => {
-    if (!files) return;
-    setMoments((list) => [...list, ...Array.from(files).map((file) => URL.createObjectURL(file))]);
-  };
-  const picker = (
-    <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
-  );
   const photos = housePhotos(stay, findUser(store, stay.hostId));
   return (
     <div className="flex flex-col gap-10">
-      {picker}
+      {/* The album: photos and clips from the crew – only the crew sees it (Album.tsx). */}
+      <AlbumSection stay={stay} />
       {/* The first night's question cards – any evening. */}
       <QuestionCardsEntry />
-      {moments.length === 0 ? (
-        <EmptyState
-          icon={Images}
-          title={t("empty")}
-          description={t("emptyText")}
-          action={
-            <Button onClick={() => input.current?.click()}>
-              <ImagePlus aria-hidden />
-              {t("add")}
-            </Button>
-          }
-        />
-      ) : (
-        <Part
-          title={t("title")}
-          aside={
-            <Button variant="secondary" size="sm" onClick={() => input.current?.click()}>
-              <Plus aria-hidden />
-              {t("addMore")}
-            </Button>
-          }
-        >
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {moments.map((src) => (
-              <li key={src} className="relative aspect-square overflow-hidden rounded-2xl bg-ink/6">
-                <Img src={src} alt="" fill sizes="(min-width: 744px) 25vw, 50vw" className="object-cover" />
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-small text-muted">{t("local")}</p>
-        </Part>
-      )}
+      {/* The crew's words from the last evening – only the crew sees them. */}
+      <Part id="moments-words" title={tGoodbye("wordsMoments")}>
+        <CrewWordsList stay={stay} />
+      </Part>
       {photos.length > 0 && (
         <Part title={t("place")}>
           <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -430,6 +405,15 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
   const tMiddle = useTranslations("house.middle");
   const arc = useArc(stay);
   const halfDue = Boolean(arc?.due.some((d) => d.step.id === "halftime"));
+  // The day after (private) – for everyone in the crew; the reveal of mutual choices a day later.
+  const afterDue = Boolean(arc && arc.now >= afterAt(stay));
+  const tGoodbye = useTranslations("house.goodbye");
+  const tAlbum = useTranslations("house.album");
+  const albumReady = Boolean(arc?.due.some((d) => d.step.id === "albumReady"));
+  // A week after (with a mutual choice): Do it again · 30 days after: the private question.
+  const againDue = Boolean(arc?.due.some((d) => d.step.id === "doItAgain"));
+  const thirtyDue = Boolean(arc && arc.now >= thirtyAt(stay));
+  const tAfterwards = useTranslations("house.afterwards");
   const format = useFormatter();
   const f = useFormat();
   const store = useStore();
@@ -499,9 +483,35 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
         </Part>
       )}
       {/* Halftime – private (guests): from the middle of the House. */}
-      {!isHost && halfDue && (
+      {!isHost && halfDue && !afterDue && (
         <Part id="me-halftime" title={tMiddle("halftimeTitle")}>
           <HalftimeForm stay={stay} />
+        </Part>
+      )}
+      {(arc?.mutual.length ?? 0) > 0 && arc!.now >= chosenAt(stay) && (
+        <Part id="me-chosen" title={tGoodbye("chosenHeading")}>
+          <ChosenPanel stay={stay} />
+        </Part>
+      )}
+      {thirtyDue && (
+        <Part id="me-thirty" title={tAfterwards("thirtyTitle")}>
+          <ThirtyDaysForm stay={stay} />
+        </Part>
+      )}
+      {againDue && (
+        <Part id="me-again" title={tAfterwards("againTitle")}>
+          <DoItAgainPanel stay={stay} />
+        </Part>
+      )}
+      {/* From "Your album is ready" on, Me links to the album for good. */}
+      {albumReady && (
+        <Part id="me-album" title={tAlbum("readyTitle")}>
+          <AlbumReady stay={stay} />
+        </Part>
+      )}
+      {afterDue && (
+        <Part id="me-after" title={tGoodbye("afterTitle")}>
+          <AfterForm stay={stay} isHost={isHost} />
         </Part>
       )}
       <Part title={t("booking")}>
@@ -592,6 +602,8 @@ function ManageTab({ stay }: { stay: Stay }) {
   const tArea = useTranslations("house.area");
   const tTasks = useTranslations("house.before.tasks");
   const tMiddleM = useTranslations("house.middle");
+  const tGoodbyeM = useTranslations("house.goodbye");
+  const afterOpen = useArcNow(stay) >= afterAt(stay);
   const store = useStore();
   const showToast = useToast();
   const params = useSearchParams();
@@ -623,6 +635,12 @@ function ManageTab({ stay }: { stay: Stay }) {
           <HalftimeAverage stay={stay} />
         </Part>
       ) : null}
+      {/* After the House: the crew's rating (averages, without names) and their sentences for the host. */}
+      {afterOpen && (
+        <Part id="manage-after" title={tGoodbyeM("hostTitle")}>
+          <HostAfterSummary stay={stay} />
+        </Part>
+      )}
       <Part id="manage-requests" title={t("requests")}>
         <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
       </Part>

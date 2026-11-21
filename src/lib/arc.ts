@@ -4,12 +4,14 @@
 // one Simpulo card per House and day; muted per person; every step skippable. Progress (done / skipped) lives in each person's settings
 // (UserSettings.arc) – Simpulo only reads signals from it (lib/analytics.ts arc_*), never what anyone wrote.
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { AGREEMENT_HOURS, AGREEMENT_QUESTIONS, ARC_CARDS_PER_DAY, ARC_PHASES, ARC_STEPS, DAY_MOMENTS, HALFTIME_MIN_ANSWERS, MOMENT_MIN_YES, PEAK_IDEAS, type ArcAudience, type ArcPhase, type ArcStep } from "@/config/arc";
+import { AGREEMENT_HOURS, AGREEMENT_QUESTIONS, ARC_CARDS_PER_DAY, ARC_PHASES, AFTER_RATINGS, ARC_STEPS, CHOSEN_AFTER_DAYS, NEXT_HOUSES, DAY_MOMENTS, HALFTIME_MIN_ANSWERS, MOMENT_MIN_YES, PEAK_IDEAS, type ArcAudience, type ArcPhase, type ArcStep } from "@/config/arc";
 import { APP_MODE } from "./appMode";
 import { readArcDay, subscribeDevSettings } from "./devSettings";
 import { getCrew, getMyPayment, settingsOf, useStore, type StoreData } from "./store";
 import type { ArcArrival, ArcIntention, Message, Stay, User } from "./types";
 import { mockArrival, mockIntention } from "./mock-arc";
+import { albumOf } from "./memories";
+import { audienceFit } from "./requests";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -55,6 +57,8 @@ function rawSchedule(stay: Stay, audience: ArcAudience, paidAt: string | null): 
     if (!step.audience.includes(audience)) continue;
     // A Pro host who set their own high point: the crew gets no proposal.
     if (step.id === "peakVote" && stay.peak?.hostText) continue;
+    // A Pro host who leads the closing circle themselves: no card for it.
+    if (step.id === "closing" && stay.closingLed) continue;
     const w = step.when;
     if (w.at === "paid") {
       if (paidAt) out.push({ step, at: Date.parse(paidAt) });
@@ -78,7 +82,7 @@ function rawSchedule(stay: Stay, audience: ArcAudience, paidAt: string | null): 
  * The schedule after the rule "at most one Simpulo card per House and local day" (only chat cards count): by priority, each step takes its day; a later one on a
  * taken day moves to the next free day (same hour); a daily step only fills free days and is dropped otherwise. Oldest first.
  */
-export function arcSchedule(stay: Stay, audience: ArcAudience, paidAt: string | null): ArcDue[] {
+export function arcSchedule(stay: Stay, audience: ArcAudience, paidAt: string | null, /** Steps that don't apply to this person (no mutual choice, an empty album) – they take no day */ omit: ReadonlySet<string> = new Set()): ArcDue[] {
   // How far a step may move: to the end of its phase (before: the day before the first; arrival: day 2; together: the day before the last;
   // goodbye: the last day; after: a week).
   const start = localAt(stay, dayMs(stay.startDate), 0);
@@ -86,7 +90,7 @@ export function arcSchedule(stay: Stay, audience: ArcAudience, paidAt: string | 
   const phaseEnd = (item: ArcDue) => ({ before: start, arrival: start + 2 * DAY_MS, together: end - DAY_MS, goodbye: end + DAY_MS, after: item.at + 7 * DAY_MS })[item.step.phase];
   const taken = new Map<string, number>();
   const placed: ArcDue[] = [];
-  const raw = rawSchedule(stay, audience, paidAt).toSorted((a, b) => b.step.priority - a.step.priority || a.at - b.at);
+  const raw = rawSchedule(stay, audience, paidAt).filter((d) => !omit.has(d.step.id)).toSorted((a, b) => b.step.priority - a.step.priority || a.at - b.at);
   for (const item of raw) {
     let at = item.at;
     // Only chat cards count for "one a day" – a step for the House area (or email) alone keeps its moment; so does the first night, the one
@@ -151,13 +155,22 @@ export function crewDoneCount(data: StoreData, stay: Stay, stepId: string, dueAt
 
 /** The Dev menu's "House day" (dev and demo only, never production): the simulated now – that day of the House at 21:00 local. */
 export function useArcNow(stay: Pick<Stay, "startDate" | "lng"> | null): number {
+  const clock = useArcClock();
+  return useMemo(() => clock(stay), [clock, stay]);
+}
+
+/** The simulated now of a House on the Dev menu's "House day" (null: the real `opened`). Pure – lists of many Houses use it per House. */
+export function arcNowOf(stay: Pick<Stay, "startDate" | "lng"> | null, simDay: number | null, opened: number): number {
+  if (!stay || simDay === null || APP_MODE === "production") return opened;
+  return localAt(stay, dayMs(stay.startDate) + (simDay > 0 ? simDay - 1 : simDay) * DAY_MS, 21);
+}
+
+/** A clock for many Houses at once (House page, profile, Earnings): each House at the Dev menu's "House day", else the real now. */
+export function useArcClock(): (stay: Pick<Stay, "startDate" | "lng"> | null) => number {
   const simDay = useSyncExternalStore(subscribeDevSettings, readArcDay, () => null);
   // The real now, read once when the page opens (render stays pure).
   const [opened] = useState(() => Date.now());
-  return useMemo(() => {
-    if (!stay || simDay === null || APP_MODE === "production") return opened;
-    return localAt(stay, dayMs(stay.startDate) + (simDay > 0 ? simDay - 1 : simDay) * DAY_MS, 21);
-  }, [simDay, stay, opened]);
+  return useMemo(() => (stay: Pick<Stay, "startDate" | "lng"> | null) => arcNowOf(stay, simDay, opened), [simDay, opened]);
 }
 
 /** The arc for the person looking: the schedule, the cards due by now (unless muted), the phase, the next open step. */
@@ -171,13 +184,19 @@ export function useArc(stay: Stay | null) {
   return useMemo(() => {
     if (!me || !stay) return null;
     const audience = arcAudienceOf(stay, me);
-    const schedule = arcSchedule(stay, audience, paidAt);
+    // "You and Ana chose each other" only when there is a mutual choice – a one-sided one leaves no trace.
+    const mutual = mutualChoices(store, stay, me);
+    // "Your album is ready" only with photos in it.
+    const album = albumOf(store, stay, now).length;
+    // "Chosen each other" and "Do it again" only with a mutual choice; "Your album is ready" only with photos.
+    const omit = new Set([...(mutual.length ? [] : ["chosen", "doItAgain"]), ...(album ? [] : ["albumReady"])]);
+    const schedule = arcSchedule(stay, audience, paidAt, omit);
     const muted = Boolean(settingsOf(user as User).arcMuted);
     const due = schedule.filter((d) => d.at <= now);
     const cards = muted ? [] : due.filter((d) => d.step.channels.includes("card"));
     const next = schedule.find((d) => d.at > now && arcStateOf(user, stay.id, d.step.id) === "open") ?? null;
-    return { audience, schedule, due, cards, next, phase: arcPhaseAt(stay, now), now, muted };
-  }, [stay, me, user, paidAt, now]);
+    return { audience, schedule, due, cards, next, phase: arcPhaseAt(stay, now), now, muted, mutual };
+  }, [stay, me, user, paidAt, now, store]);
 }
 
 /** The House chat's Simpulo cards as list entries (never stored): one per due card step, at its moment, sender "simpulo". */
@@ -337,4 +356,104 @@ export function halftimeAt(stay: Stay): number {
   const start = dayMs(stay.startDate);
   const days = Math.max(1, Math.round((dayMs(stay.endDate) - start) / DAY_MS));
   return localAt(stay, start + Math.floor(days / 2) * DAY_MS, 18);
+}
+
+// ── The goodbye: the closing circle, the day after, "with you again" ────────────────────────────────────────────────────────────
+
+/** When the mutual choices are revealed (CHOSEN_AFTER_DAYS after the House, 10:00 local). */
+export function chosenAt(stay: Stay): number {
+  return localAt(stay, dayMs(stay.endDate) + CHOSEN_AFTER_DAYS * DAY_MS, 10);
+}
+
+/**
+ * Did `from` choose `to` ("Who would you live with again?")? Their own answer – in the mock, for others: a fixed share, by id. Private for
+ * ever: only ever used to find a mutual choice, never shown on its own. TODO(backend): a Function compares both answers at the reveal.
+ */
+function chose(data: Pick<StoreData, "currentUserId">, from: Pick<User, "id" | "settings">, to: string, stay: Stay): boolean {
+  const own = settingsOf(from as User).after?.[stay.id];
+  if (own) return own.again.includes(to);
+  return APP_MODE !== "production" && from.id !== data.currentUserId && hashUnit(`${from.id}:${stay.id}:again:${to}`) < 0.6;
+}
+
+/** Whoever `userId` chose and who chose them back – the only "with you again" anyone ever sees (Regel). */
+export function mutualChoices(data: StoreData, stay: Stay, userId: string | null): User[] {
+  if (!userId) return [];
+  const me = data.users.find((u) => u.id === userId);
+  const mine = me ? settingsOf(me).after?.[stay.id]?.again : undefined;
+  if (!mine?.length) return [];
+  return getCrew(data, stay).filter((u) => u.id !== userId && mine.includes(u.id) && chose(data, u, userId, stay));
+}
+
+/**
+ * Internal only (Regel: no public "would live again"): how many of a person's housemates in a House chose them – a signal for matching
+ * (Crew fit), never shown to anyone. TODO(backend): server-side only.
+ */
+export function chosenBySignal(data: StoreData, stay: Stay, userId: string): number {
+  return getCrew(data, stay).filter((u) => u.id !== userId && chose(data, u, userId, stay)).length;
+}
+
+/** When the day after comes (the "again" step: the day after the last day, 10:00 local). */
+export function afterAt(stay: Stay): number {
+  return localAt(stay, dayMs(stay.endDate) + DAY_MS, 10);
+}
+
+/**
+ * The host's view of the day after (only the House's own rating, without names): the guests' rating averages and their sentences for the
+ * host – their own answers; in the mock the others' numbers once the day after has come (no invented sentences). Never who chose whom.
+ */
+export function afterAnswers(data: StoreData, stay: Stay, now: number) {
+  return summarizeRatings(afterRows(data, stay, now));
+}
+
+export type RatingRow = { ratings: Partial<Record<(typeof AFTER_RATINGS)[number], number>>; note?: string };
+
+/** One House's ratings after its day after: the guests' own – in the mock the others' numbers too (never invented sentences). */
+export function afterRows(data: StoreData, stay: Stay, now: number): RatingRow[] {
+  const guests = getCrew(data, stay).filter((u) => u.id !== stay.hostId);
+  const live = now >= afterAt(stay);
+  if (!live) return [];
+  return guests.flatMap((u): RatingRow[] => {
+    const own = settingsOf(u).after?.[stay.id];
+    if (own?.ratings && Object.keys(own.ratings).length) return [{ ratings: own.ratings, note: own.note }];
+    if (APP_MODE !== "production" && u.id !== data.currentUserId && hashUnit(`${u.id}:${stay.id}:rate`) > 0.25) {
+      const n = (k: string) => 3 + Math.floor(hashUnit(`${u.id}:${stay.id}:${k}`) * 3);
+      return [{ ratings: { overall: n("overall"), mood: n("mood"), tidiness: n("tidiness"), noise: n("noise") } }];
+    }
+    return [];
+  });
+}
+
+/** Averages per rating (one decimal) and the sentences for the host, shuffled out of order (sorted) – never who wrote them. */
+export function summarizeRatings(rows: readonly RatingRow[]) {
+  const averages = Object.fromEntries(
+    AFTER_RATINGS.map((r) => {
+      const xs = rows.map((row) => row.ratings[r]).filter((x): x is number => typeof x === "number");
+      return [r, xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10 : null];
+    }),
+  ) as Record<(typeof AFTER_RATINGS)[number], number | null>;
+  const notes = rows.flatMap((row) => (row.note ? [row.note] : [])).toSorted();
+  return { count: rows.length, averages, notes };
+}
+
+/** When the 30-day question comes (30 days after the last day, 10:00 local). */
+export function thirtyAt(stay: Stay): number {
+  return localAt(stay, dayMs(stay.endDate) + 30 * DAY_MS, 10);
+}
+
+/**
+ * "Do it again": NEXT_HOUSES.count open Houses like this one – the same theme, a similar length (nights within lengthShare), starting after
+ * `now`, not ones you host or are in; the closest length first, then the soonest. Example Houses are left out.
+ */
+export function nextHousesLike(data: StoreData, stay: Stay, now: number, userId: string | null): Stay[] {
+  const nights = (s: Stay) => Math.max(1, Math.round((dayMs(s.endDate) - dayMs(s.startDate)) / DAY_MS));
+  const n = nights(stay);
+  const today = new Date(now).toISOString().slice(0, 10);
+  return data.stays
+    .filter((s) => s.id !== stay.id && s.vibe === stay.vibe && !s.isExample && s.status === "published" && s.visibility !== "unlisted" && s.startDate.slice(0, 10) > today)
+    .filter((s) => Math.abs(nights(s) - n) <= Math.max(2, n * NEXT_HOUSES.lengthShare))
+    .filter((s) => !userId || (s.hostId !== userId && !getCrew(data, s).some((u) => u.id === userId)))
+    // Not a House the profile can't request (a women-only House for a man).
+    .filter((s) => audienceFit(s, data.users.find((u) => u.id === userId)) !== "blocked")
+    .toSorted((a, b) => Math.abs(nights(a) - n) - Math.abs(nights(b) - n) || a.startDate.localeCompare(b.startDate))
+    .slice(0, NEXT_HOUSES.count);
 }

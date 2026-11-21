@@ -10,6 +10,9 @@ export type AnalyticsEvent =
   /** The arc's signals (config/data-points.ts arc.*): a Simpulo card seen, its action done, a step skipped – ids only, never what anyone wrote */
   | "arc_card_seen"
   | "arc_action_done"
+  | "arc_closing_led"
+  | "memory_uploaded"
+  | "memory_removed"
   | "arc_step_skipped";
 
 export function track(name: AnalyticsEvent, props: Record<string, string | number | boolean | null | undefined> = {}) {

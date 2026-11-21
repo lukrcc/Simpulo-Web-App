@@ -46,6 +46,9 @@ import { compact, day, num, share } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
 import { cn, housePhotos } from "@/lib/utils";
 import { findUser, useStore } from "@/lib/store";
+import { memoriesStats } from "@/lib/memories";
+import { useMemorySrc } from "@/lib/memoryMedia";
+import type { HouseMemory } from "@/lib/types";
 
 type Tab = "plan" | "contacts" | "partners" | "funnel" | "content" | "loops";
 const TABS: readonly Tab[] = ["plan", "contacts", "partners", "funnel", "content", "loops"];
@@ -545,6 +548,67 @@ function ContentHouses() {
   );
 }
 
+/** A House Memory's file (the demo's public one, or the upload kept in this browser). */
+function MemoryThumb({ memory }: { memory: HouseMemory }) {
+  const src = useMemorySrc(memory);
+  if (!src) return <span className="block size-9 shrink-0 rounded-lg bg-(--adm-block)" />;
+  if (memory.kind === "clip") return <video src={src} muted playsInline preload="metadata" className="size-9 shrink-0 rounded-lg object-cover" />;
+  return <Img src={src} alt="" width={36} height={36} className="size-9 shrink-0 rounded-lg object-cover" />;
+}
+
+/**
+ * House Memories: uploaded (in all albums, removed ones not counted) and approved for Simpulo's own posts – and the approved files. Only
+ * what people explicitly approved is listed. TODO(backend): precomputed stats and the storage's files.
+ */
+function HouseMemories() {
+  const t = useTranslations("admin.marketing.content");
+  const store = useStore();
+  const [now] = useState(() => Date.now());
+  const stats = memoriesStats(store, now);
+  const [all, setAll] = useState(false);
+  const shown = all ? stats.approvedList : stats.approvedList.slice(0, 10);
+  return (
+    <AdminSection title={t("memories")}>
+      <dl className="grid max-w-[480px] grid-cols-2 gap-4">
+        <div>
+          <dt className="text-eyebrow uppercase text-(--adm-label)">{t("uploaded")}</dt>
+          <dd data-memories-uploaded className="mt-1 text-h1 tabular-nums text-ink">{num(stats.uploaded)}</dd>
+        </div>
+        <div>
+          <dt className="text-eyebrow uppercase text-(--adm-label)">{t("approved")}</dt>
+          <dd data-memories-approved className="mt-1 text-h1 tabular-nums text-ink">{num(stats.approved)}</dd>
+        </div>
+      </dl>
+      {stats.approved === 0 ? (
+        <p className="mt-3 text-body text-muted">{t("memoriesNone")}</p>
+      ) : (
+        <>
+          <ul className="mt-4 divide-y divide-ink/8 border-y border-ink/8">
+            {shown.map((m) => {
+              const stay = store.stays.find((x) => x.id === m.houseId);
+              return (
+                <li key={m.id} className="flex min-h-(--adm-row-h) items-center gap-3 py-2">
+                  <MemoryThumb memory={m} />
+                  <span className="min-w-0 flex-1 truncate text-body text-ink">{stay?.title ?? m.houseId}</span>
+                  <span className="shrink-0 text-small text-muted">
+                    {t(m.kind === "clip" ? "memoryClip" : "memoryPhoto")} · {findUser(store, m.userId)?.name.split(" ")[0] ?? ""} · {day(m.at)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {stats.approvedList.length > shown.length && (
+            <Button size="sm" variant="tertiary" className="mt-2" onClick={() => setAll(true)}>
+              {t("memoriesAll", { count: stats.approvedList.length })}
+            </Button>
+          )}
+        </>
+      )}
+      <p className="mt-2 text-small text-muted">{t("memoriesHint")}</p>
+    </AdminSection>
+  );
+}
+
 function Content({ clips }: { clips: number }) {
   const t = useTranslations("admin.marketing.content");
   const actions = useAdminActions();
@@ -593,19 +657,7 @@ function Content({ clips }: { clips: number }) {
           </div>
         </div>
       </AdminSection>
-      <AdminSection title={t("memories")}>
-        <dl className="grid max-w-[480px] grid-cols-2 gap-4 opacity-60">
-          <div>
-            <dt className="text-eyebrow uppercase text-(--adm-label)">{t("uploaded")}</dt>
-            <dd className="mt-1 text-h1 tabular-nums text-ink">–</dd>
-          </div>
-          <div>
-            <dt className="text-eyebrow uppercase text-(--adm-label)">{t("approved")}</dt>
-            <dd className="mt-1 text-h1 tabular-nums text-ink">–</dd>
-          </div>
-        </dl>
-        <p className="mt-2 text-small text-muted">{t("memoriesLater")}</p>
-      </AdminSection>
+      <HouseMemories />
     </>
   );
 }

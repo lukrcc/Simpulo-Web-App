@@ -62,6 +62,12 @@ export const STATUS_RULES = {
   openTickets: { better: "lower", good: 10, warning: 25 },
   /** An open safety ticket is always critical */
   openSafetyTickets: { better: "lower", good: 0, warning: 0 },
+  /** In percent: guests with at least one mutual "with you again" (Ziel 6 von 10) */
+  connectionRate: { better: "higher", good: 60, warning: 40 },
+  /** In percent: of those who answered, "Yes" to "Did you reach your intention?" (Partly zählt halb) – Ziel vorläufig, mit den Gründern festlegen */
+  intentionReached: { better: "higher", good: 60, warning: 40 },
+  /** In percent: still in touch with someone of the crew 30 days after – Ziel vorläufig */
+  stillInTouch: { better: "higher", good: 50, warning: 30 },
 } as const satisfies Record<string, { better: "higher" | "lower"; good: number; warning: number }>;
 
 export type StatusMetric = keyof typeof STATUS_RULES;
@@ -188,6 +194,10 @@ export const CHANGE_RULES = {
   costPerGuest: { better: "lower", unit: "eur" },
   valueToCost: { better: "higher", unit: "ratio" },
   runwayMonths: { better: "higher", unit: "ratio" },
+  /** Danach (Bogen): prepared – Verbindungsrate, Absicht erreicht, noch in Kontakt nach 30 Tagen */
+  connectionRate: { better: "higher", unit: "percent" },
+  intentionReached: { better: "higher", unit: "percent" },
+  stillInTouch: { better: "higher", unit: "percent" },
   /** Wachstum: the funnel of the chosen period against the one before */
   visitors: { better: "higher", unit: "count" },
   requests: { better: "higher", unit: "count" },

@@ -53,8 +53,8 @@ export interface ArcStep {
   visibility: ArcVisibility;
   /**
    * Several due on one day (Regel "one card a day"): the more important step wins – the higher priority; the others move to the next free day
-   * inside their phase (daily ones are dropped). Order of importance: first night · closing round 100 > arriving 95 > welcome · agreement ·
-   * again 90 > hostCheckIn 88 > intention · practical 85 > gettingThere 80 > highlight 75 > halftime 70 > thirtyDays 60 > moment of the day 10.
+   * inside their phase (daily ones are dropped). Order of importance: first night · closing circle 100 > arriving 95 > chosen 92 >
+   * welcome · agreement · again 90 > hostCheckIn 88 > albumReady 86 > intention · practical 85 > gettingThere · doItAgain 80 > highlight 75 > halftime 70 > thirtyDays 60 > moment of the day 10.
    */
   priority: number;
   /**
@@ -91,9 +91,23 @@ export const ARC_STEPS: readonly ArcStep[] = [
   // The high point (second half): a Pro host sets their own (then no proposal), everyone else votes on a proposal by theme (PEAK_IDEAS).
   { id: "peakPlan", phase: "together", when: { at: "half", hour: 10 }, audience: ["hostPro"], channels: ["card", "area"], tab: "plan", action: "write", visibility: "crew", priority: 75 },
   { id: "peakVote", phase: "together", when: { at: "peak", hour: 10 }, audience: GUESTS, channels: ["card", "area"], tab: "plan", action: "vote", visibility: "crew", priority: 75 },
+  // The last evening: the closing circle – three questions out loud (QuestionDeck "closing"), nothing saved; then, optional, a few written
+  // words for the crew (Moments). A Pro host who leads it themselves (Stay.closingLed): no card.
   { id: "closing", phase: "goodbye", when: { at: "day", day: -1, hour: 19, fromEnd: true }, audience: ALL, channels: ["card", "area"], tab: "plan", action: "talk", visibility: "spoken", priority: 100 },
+  // The day after: private – who you'd live with again (only mutual choices ever show), your intention reached?, the House's rating (guests),
+  // one tip for the next crew (public only when ticked), one idea for your next House (private, a signal for matching).
   { id: "again", phase: "after", when: { at: "after", days: 1, hour: 10 }, audience: ALL, channels: ["card", "area", "email"], tab: "me", action: "write", visibility: "private", priority: 90 },
-  { id: "thirtyDays", phase: "after", when: { at: "after", days: 30, hour: 10 }, audience: ALL, channels: ["card", "area", "email"], tab: "me", action: "write", visibility: "private", priority: 60 },
+  // A day later: whoever chose each other – "You and Ana chose each other", both become Your people. Only when there is a mutual choice; a
+  // one-sided choice never leaves a trace (lib/arc.ts mutualChoices).
+  // A day after the day after: "Your album is ready" – six photos as a preview (only when the album has any); Me links to it for good.
+  { id: "albumReady", phase: "after", when: { at: "after", days: 2, hour: 12 }, audience: ALL, channels: ["card", "area"], tab: "moments", action: "open", visibility: "crew", priority: 86 },
+  { id: "chosen", phase: "after", when: { at: "after", days: 2, hour: 10 }, audience: ALL, channels: ["card", "area"], tab: "me", action: "open", visibility: "private", priority: 92 },
+  // A week after: "Do it again" – only when you and someone of the crew chose each other: open the next House together (Open a House with
+  // the theme and them invited – a guest becomes a host) and three new Houses like it (same theme, similar length).
+  { id: "doItAgain", phase: "after", when: { at: "after", days: 7, hour: 10 }, audience: ALL, channels: ["card", "area", "email"], tab: "me", action: "open", visibility: "private", priority: 80 },
+  // 30 days after (email + Me, no card): what you still do since the House, still in touch (yes/no – a signal); private, optionally shared as
+  // a story (public only with consent, with a preview).
+  { id: "thirtyDays", phase: "after", when: { at: "after", days: 30, hour: 10 }, audience: ALL, channels: ["area", "email"], tab: "me", action: "write", visibility: "private", priority: 60 },
 ];
 
 /**
@@ -192,3 +206,18 @@ export const PEAK_IDEAS: Readonly<Record<Theme | "general", readonly string[]>> 
 export const MOMENT_MIN_YES = 2;
 /** Halftime: the Pro host sees the average only from this many answers (anonymous). */
 export const HALFTIME_MIN_ANSWERS = 3;
+
+/** The day after: the House's rating (guests only), each 1–5 – words in en.ts house.after.ratings.<id>. */
+export const AFTER_RATINGS = ["overall", "mood", "tidiness", "noise"] as const;
+export type AfterRating = (typeof AFTER_RATINGS)[number];
+/** "Did you reach your intention?" */
+export const INTENTION_REACHED = ["yes", "partly", "no"] as const;
+/** The host sees the crew's rating averages only from this many answers (anonymous). */
+export const AFTER_MIN_ANSWERS = 3;
+/** The mutual reveal ("chosen") comes this many days after the House; Your people from then on. */
+export const CHOSEN_AFTER_DAYS = 2;
+
+/** Ratings show on a House page and a host's profile only from this many ratings (averages, never one person's). */
+export const PUBLIC_RATINGS_MIN = 3;
+/** "Do it again": this many new Houses like it (same theme; length within this share of the old one's nights). */
+export const NEXT_HOUSES = { count: 3, lengthShare: 0.5 } as const;

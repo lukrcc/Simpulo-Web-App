@@ -12,7 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useToast } from "@/components/ui/Toast";
-import { QUESTION_CARDS, QUESTION_LEVELS, type QuestionLevel } from "@/config/question-cards";
+import { CLOSING_CARDS, QUESTION_CARDS, QUESTION_LEVELS, type QuestionLevel } from "@/config/question-cards";
 import { track } from "@/lib/analytics";
 import { agreementOf, arcDateLabel, arrivedAt, useArcNow } from "@/lib/arc";
 import { findUser, getCrew, useStore } from "@/lib/store";
@@ -120,13 +120,16 @@ export function FirstNightPanel({ stay, isHost }: { stay: Stay; isHost: boolean 
  * The question cards, full screen: a level switch (Light · Deeper · Personal), one big card, swipe or tap ‹ › (arrow keys too), the hint
  * on top "Ask out loud. Nothing here is saved." – nothing is stored, no answers exist.
  */
-export function QuestionDeck({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function QuestionDeck({ open, onClose, deck = "firstNight" }: { open: boolean; onClose: () => void; /** "closing": the closing circle's three questions, no levels */ deck?: "firstNight" | "closing" }) {
   const t = useTranslations("house.firstNight");
+  const tg = useTranslations("house.goodbye");
   const tq = useTranslations("house.questions");
   const [level, setLevel] = useState<QuestionLevel>("light");
   const [index, setIndex] = useState(0);
   const start = useRef<number | null>(null);
-  const cards = QUESTION_CARDS[level];
+  const closing = deck === "closing";
+  const cards = closing ? CLOSING_CARDS : QUESTION_CARDS[level];
+  const cardKey = (id: string) => (closing ? `closing.${id}` : `${level}.${id}`) as "light.realReason";
   const go = (by: 1 | -1) => setIndex((i) => Math.min(cards.length - 1, Math.max(0, i + by)));
 
   useEffect(() => {
@@ -134,7 +137,7 @@ export function QuestionDeck({ open, onClose }: { open: boolean; onClose: () => 
     const unlock = lockScroll();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight") setIndex((i) => Math.min(QUESTION_CARDS[level].length - 1, i + 1));
+      else if (e.key === "ArrowRight") setIndex((i) => Math.min((closing ? CLOSING_CARDS : QUESTION_CARDS[level]).length - 1, i + 1));
       else if (e.key === "ArrowLeft") setIndex((i) => Math.max(0, i - 1));
     };
     window.addEventListener("keydown", onKey);
@@ -142,18 +145,18 @@ export function QuestionDeck({ open, onClose }: { open: boolean; onClose: () => 
       unlock();
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose, level]);
+  }, [open, onClose, level, closing]);
 
   if (!open || typeof document === "undefined") return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={t("title")} data-question-deck className="fixed inset-0 z-80 flex flex-col bg-stage text-stage-text">
+    <div role="dialog" aria-modal="true" aria-label={closing ? tg("closingTitle") : t("title")} data-question-deck className="fixed inset-0 z-80 flex flex-col bg-stage text-stage-text">
       <div className="flex items-center justify-between gap-4 px-(--page-margin) pt-[calc(var(--safe-top)+16px)]">
         <p className="text-small text-stage-text/70">{t("hint")}</p>
         <button type="button" onClick={onClose} aria-label={t("close")} className="flex size-11 items-center justify-center rounded-full bg-stage-text/10 hover:bg-stage-text/16">
           <X aria-hidden className="size-5" />
         </button>
       </div>
-      <div className="mt-4 flex justify-center px-(--page-margin)">
+      <div className={cn("mt-4 flex justify-center px-(--page-margin)", closing && "hidden")}>
         <CapsuleGroup
           label={t("title")}
           value={level}
@@ -179,8 +182,8 @@ export function QuestionDeck({ open, onClose }: { open: boolean; onClose: () => 
           <ChevronLeft aria-hidden className="size-6" />
         </button>
         <button type="button" onClick={() => go(1)} aria-label={t("next")} data-no-tooltip className="flex aspect-[4/5] w-full max-w-[440px] select-none flex-col justify-between rounded-[28px] bg-stage-text p-8 text-left text-stage shadow-(--shadow-float)">
-          <span className="text-eyebrow uppercase opacity-60">{t(`levels.${level}`)}</span>
-          <span className="text-h1">{tq(`${level}.${cards[index]}` as "light.realReason")}</span>
+          <span className="text-eyebrow uppercase opacity-60">{closing ? tg("closingTitle") : t(`levels.${level}`)}</span>
+          <span className="text-h1">{tq(cardKey(cards[index]))}</span>
           <span className="text-small opacity-60">{t("counter", { n: index + 1, total: cards.length })}</span>
         </button>
         <button type="button" onClick={() => go(1)} disabled={index === cards.length - 1} aria-label={t("next")} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-stage-text/10 disabled:opacity-30 max-md:hidden">

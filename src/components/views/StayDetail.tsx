@@ -33,6 +33,7 @@ import { HouseArea } from "@/components/stay/HouseArea";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { useHouseRole } from "@/lib/useHouseRole";
+import { PastCrews } from "@/components/stay/ArcAfterwards";
 import { HouseActions, HouseDay, HouseLooking, HouseRules, HouseJoinBar, HouseMore, HouseOffer, HouseWhy, RequestSummary } from "@/components/stay/HouseSections";
 import { PaySheet } from "@/components/stay/PaySheet";
 import { InviteBanner, InviteJoinSheet } from "@/components/stay/HouseInvites";
@@ -581,6 +582,10 @@ function StayDetailContent({ stay }: { stay: Stay }) {
               </div>
             )}
           </div>
+        </div>
+        {/* What past crews of this host's Houses left: ratings (averages from 3), public tips, shared stories – nothing when there's none. */}
+        <div className="mt-16 empty:hidden">
+          <PastCrews stay={stay} />
         </div>
       </div>
     </Container>

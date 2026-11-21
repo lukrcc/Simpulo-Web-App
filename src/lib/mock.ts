@@ -158,6 +158,54 @@ export interface UserSettings {
   arrived?: Record<string, string>;
   /** Halftime per House: how close to the intention (1–5) and what would help – private; a Pro host sees only the crew's average */
   halftime?: Record<string, { score: number; help?: string; at?: string }>;
+  /** The day after each House (config/arc.ts "again"): private – see ArcAfter */
+  after?: Record<string, ArcAfter>;
+  /** 30 days after each House: what you still do since, still in touch (a signal); private – public as a story only with `story` */
+  thirty?: Record<string, ArcThirty>;
+}
+
+/** 30 days after a House: what you still do since (private), still in touch with someone of the crew (yes/no), shared as a story (consent). */
+export interface ArcThirty {
+  still?: string;
+  inTouch?: boolean;
+  story?: boolean;
+  at: string;
+}
+
+/**
+ * The day after a House, for one person. `again`: who they'd live with again – private for ever; only a mutual choice is ever shown (to the
+ * two of them, lib/arc.ts mutualChoices). `intention` private. `ratings` and `note` (guests only): the House's rating 1–5 and one sentence for
+ * the host only – never public without consent. `tip` for the next crew – public only with `tipPublic`. `idea` for the next House – private,
+ * a signal for matching. Simpulo reads only signals (data points after.*), never the free text.
+ */
+export interface ArcAfter {
+  again: string[];
+  intention?: "yes" | "partly" | "no";
+  ratings?: Partial<Record<"overall" | "mood" | "tidiness" | "noise", number>>;
+  note?: string;
+  tip?: string;
+  tipPublic?: boolean;
+  idea?: string;
+  at: string;
+}
+
+/**
+ * One photo or clip in a House's album (House Memories). Only the crew sees it. `crewConsent` – "Everyone in this photo is okay with the
+ * crew seeing it" – is required to upload; `simpuloUse` – "Simpulo may use this for Simpulo's own posts" – optional, off by default. Removed
+ * by its uploader or by anyone of the crew in it ("Remove me", no reason asked): kept only as `removedAt` so it never comes back.
+ * `src`: a public file (the demo) – an upload's file lives in this browser (lib/memoryMedia.ts) until there is a storage backend.
+ */
+export interface HouseMemory {
+  id: string;
+  houseId: string;
+  userId: string;
+  kind: "photo" | "clip";
+  src?: string;
+  at: string;
+  crewConsent: true;
+  simpuloUse: boolean;
+  removedAt?: string;
+  removedBy?: "uploader" | "pictured";
 }
 
 /** "Your intention": one question (skippable) and two optional ones. */
@@ -359,6 +407,10 @@ export interface Stay {
   dayMoments?: Record<string, Record<string, boolean>>;
   /** The high point: the Pro host's own (then no proposal) – or the crew's votes on the proposal (true = in) */
   peak?: { hostText?: string; hostDate?: string; votes?: Record<string, boolean> };
+  /** The Pro host leads the closing circle themselves: no "Closing circle" card */
+  closingLed?: boolean;
+  /** "Leave a few words for the crew" after the closing circle: written, only the crew sees it (Moments) */
+  crewWords?: Record<string, { text: string; at: string }>;
 }
 
 /**

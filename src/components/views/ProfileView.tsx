@@ -1,5 +1,6 @@
 "use client";
 
+import { PastCrewsLine } from "@/components/stay/ArcAfterwards";
 import { getProfileVisibility, hostsPublicly, photoHiddenFor, profileHref, userByProfileId, visibleHostedHouses } from "@/lib/privacy";
 import { currentHouseOf, profileMetrics } from "@/lib/metrics/profile";
 import { placeShortOf } from "@/lib/shortName";
@@ -351,6 +352,9 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
           )}
         </div>
       </div>
+
+      {/* A host: what past crews said (averages, tips, stories) – one line, the rest in a sheet. */}
+      {hosted > 0 && !preview && <PastCrewsLine hostId={user.id} />}
 
       <Editable section="about" on={editable} label={tv("editPart", { part: tv("partAbout") })} className="mt-4 max-w-[56ch]">
         <div data-preview-part="about">

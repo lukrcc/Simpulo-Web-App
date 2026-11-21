@@ -4,7 +4,10 @@ import type { Currency, HostTier, Stay, Thread, Vibe } from "./mock";
 export type {
   AccommodationStatus,
   ArcArrival,
+  ArcAfter,
+  ArcThirty,
   ArcIntention,
+  HouseMemory,
   StayPractical,
   Attribution,
   Currency,

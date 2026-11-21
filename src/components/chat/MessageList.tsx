@@ -10,6 +10,7 @@ import { useMessageText } from "@/i18n/events";
 import { findUser, isBlocked, useStore } from "@/lib/store";
 import type { Message, Thread } from "@/lib/types";
 import { arcCardMessages, useArc } from "@/lib/arc";
+import { useChosenReveal } from "@/components/stay/ArcGoodbye";
 import { ArcChatCard } from "./ArcChatCard";
 import { DayDivider, SystemLine } from "./ChatCards";
 import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
@@ -60,6 +61,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   // The House chat: the arc's Simpulo cards that are due (lib/arc.ts – never stored), merged in by time.
   const house = thread.type === "house" ? (store.stays.find((s) => s.id === thread.houseId) ?? null) : null;
   const arc = useArc(house);
+  // Mutual "with you again" become Your people at the reveal – also when only the chat is open.
+  useChosenReveal(house);
   const messages = useMemo(
     () => (house && arc && arc.cards.length ? [...thread.messages, ...arcCardMessages(house, thread.id, arc.cards)].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)) : thread.messages),
     [thread.messages, thread.id, house, arc],

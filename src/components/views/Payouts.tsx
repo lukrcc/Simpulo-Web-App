@@ -1,5 +1,6 @@
 "use client";
 
+import { HostRatingsSection } from "@/components/stay/ArcAfterwards";
 import { BackLink } from "@/components/ui/BackButton";
 import { ArrowLeft, ArrowRight, CalendarClock, Check, Download, Info, MapPin, Trophy, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -137,6 +138,8 @@ function PayoutsContent() {
         {/* Under the strip, right on the page: sections apart by 1px lines ink 8 %, no boxes. */}
         <div className="mt-10 flex flex-col [&>*+*]:border-t [&>*+*]:border-ink/8 [&>*]:py-10 [&>*:first-child]:pt-0">
           <Progress stats={stats} />
+          {/* Your ratings across your Houses – averages and the sentences for you, without names. */}
+          <HostRatingsSection />
           {earnings.rows.length > 0 && <MonthChart earnings={earnings} today={today} pro={pro} />}
           {earnings.rows.length > 0 && (
             <div>

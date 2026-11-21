@@ -38,7 +38,10 @@ import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { doItAgainDue, type Reminder } from "./reminders";
 import type {
   ArcArrival,
+  ArcAfter,
+  ArcThirty,
   ArcIntention,
+  HouseMemory,
   StayPractical,
   Attachment,
   Attribution,
@@ -115,6 +118,8 @@ interface StoreState {
   inFor: InFor[];
   /** "Host from your place": the places hosts live in and saved (Your houses › Your places); their Houses carry `placeId` */
   places: Place[];
+  /** House Memories uploaded here, and removals ("Remove me") – the demo's other photos are added by lib/memories.ts */
+  memories: HouseMemory[];
 }
 
 export type SupportCategory = "place" | "host" | "safety" | "payment" | "other";
@@ -225,6 +230,13 @@ type StoreAction =
   | { type: "votePeak"; stayId: string; in: boolean }
   | { type: "setHostPeak"; stayId: string; text: string; date: string }
   | { type: "setHalftime"; houseId: string; score: number; help?: string }
+  | { type: "setAfter"; houseId: string; after: Omit<ArcAfter, "at"> }
+  | { type: "setClosingLed"; stayId: string; led: boolean }
+  | { type: "setCrewWords"; stayId: string; text: string }
+  | { type: "addMemories"; items: HouseMemory[] }
+  | { type: "setThirty"; houseId: string; thirty: Omit<ArcThirty, "at"> }
+  | { type: "removeMemory"; memory: HouseMemory; at: string }
+  | { type: "revealChosen"; houseId: string; otherIds: string[]; endedAt: string; at: string }
   | { type: "setAppearance"; appearance: ThemePref }
   | {
       type: "lockAccommodation";
@@ -412,6 +424,20 @@ interface StoreActions {
   setHostPeak: (stayId: string, text: string, date: string) => void;
   /** Halftime – private: how close to the intention (1–5), what would help */
   setHalftime: (houseId: string, score: number, help?: string) => void;
+  /** The day after a House (private): who you'd live with again, intention, rating, tip, idea */
+  setAfter: (houseId: string, after: Omit<ArcAfter, "at">) => void;
+  /** A Pro host leads the closing circle themselves (no card) */
+  setClosingLed: (stayId: string, led: boolean) => void;
+  /** 30 days after a House (private; a story only with consent) */
+  setThirty: (houseId: string, thirty: Omit<ArcThirty, "at">) => void;
+  /** Add photos or clips to a House's album (the crew's consent is part of each) */
+  addMemories: (items: HouseMemory[]) => void;
+  /** Take one out of the album: its uploader, or anyone of the crew in it ("Remove me") – no reason asked */
+  removeMemory: (memory: HouseMemory) => void;
+  /** "Leave a few words for the crew" (empty removes them) */
+  setCrewWords: (stayId: string, text: string) => void;
+  /** Mutual "with you again" once revealed: both become Your people (Lived with, confirmed both ways). TODO(backend): a Function at the reveal. */
+  revealChosen: (houseId: string, otherIds: string[], endedAt: string) => void;
   /** Light or dark on the account (Settings › Appearance; lib/theme.ts applies it on the device) */
   setAppearance: (appearance: ThemePref) => void;
   /**
@@ -709,6 +735,7 @@ function buildInitialState({ stays: unplaced, users, joinRequests: rawRequests, 
     supportCases: [],
     inFor: mockInFor(stays, users),
     places,
+    memories: [],
     notifications: [...mockInbox(stays, joinRequests, users, chat.threads), ...mockCrewInbox(stays, joinRequests, users, crews)],
   };
 }
@@ -757,7 +784,7 @@ function readPersistedMock(phase: PlatformPhase): StoreState | null {
     // House): it's dropped, like the request could never have been sent.
     const stayOf = (id: string) => saved.stays.find((s) => s.id === id);
     const userOf = (id: string) => saved.users.find((u) => u.id === id);
-    return { ...saved, places: Array.isArray(saved.places) ? saved.places : [], joinRequests: saved.joinRequests.filter((r) => { const stay = stayOf(r.stayId); return !stay || audienceFit(stay, userOf(r.userId)) !== "blocked"; }) };
+    return { ...saved, places: Array.isArray(saved.places) ? saved.places : [], memories: Array.isArray(saved.memories) ? saved.memories : [], joinRequests: saved.joinRequests.filter((r) => { const stay = stayOf(r.stayId); return !stay || audienceFit(stay, userOf(r.userId)) !== "blocked"; }) };
   } catch {
     return null;
   }
@@ -1969,6 +1996,82 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), halftime: { ...settingsOf(u).halftime, [action.houseId]: { score, help: action.help, at: new Date().toISOString() } } } } : u)) };
     }
 
+    case "setAfter": {
+      if (!me) return state;
+      const stay = state.stays.find((s) => s.id === action.houseId);
+      if (!stay) return state;
+      // Only the crew can be chosen; never yourself.
+      const crew = new Set(getCrew(state, stay).map((u) => u.id));
+      const again = action.after.again.filter((id) => id !== me && crew.has(id));
+      const after: ArcAfter = { ...action.after, again, at: new Date().toISOString() };
+      // The host doesn't rate their own House.
+      if (stay.hostId === me) {
+        delete after.ratings;
+        delete after.note;
+        delete after.tip;
+        delete after.tipPublic;
+      }
+      if (!after.tip) delete after.tipPublic;
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), after: { ...settingsOf(u).after, [action.houseId]: after } } } : u)) };
+    }
+
+    case "setClosingLed": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || stay.hostId !== me || !stay.hostFeePerPerson) return state;
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, closingLed: action.led || undefined } : s)) };
+    }
+
+    case "setThirty": {
+      const stay = state.stays.find((s) => s.id === action.houseId);
+      if (!me || !stay || !getCrew(state, stay).some((u) => u.id === me)) return state;
+      const still = action.thirty.still?.trim().slice(0, 200) || undefined;
+      // A story needs words.
+      const thirty: ArcThirty = { still, inTouch: action.thirty.inTouch, story: Boolean(still && action.thirty.story) || undefined, at: new Date().toISOString() };
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), thirty: { ...settingsOf(u).thirty, [action.houseId]: thirty } } } : u)) };
+    }
+
+    case "addMemories": {
+      if (!me) return state;
+      const items = action.items.filter((m) => {
+        const stay = state.stays.find((s) => s.id === m.houseId);
+        return m.userId === me && m.crewConsent === true && stay && getCrew(state, stay).some((u) => u.id === me);
+      });
+      return items.length ? { ...state, memories: [...state.memories, ...items] } : state;
+    }
+
+    case "removeMemory": {
+      const stay = state.stays.find((s) => s.id === action.memory.houseId);
+      if (!me || !stay || !getCrew(state, stay).some((u) => u.id === me)) return state;
+      const removed: HouseMemory = { ...action.memory, removedAt: action.at, removedBy: action.memory.userId === me ? "uploader" : "pictured" };
+      return { ...state, memories: [...state.memories.filter((m) => m.id !== action.memory.id), removed] };
+    }
+
+    case "setCrewWords": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay || !me || !getCrew(state, stay).some((u) => u.id === me)) return state;
+      const words = { ...stay.crewWords };
+      if (action.text.trim()) words[me] = { text: action.text.trim().slice(0, 280), at: new Date().toISOString() };
+      else delete words[me];
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, crewWords: words } : s)) };
+    }
+
+    case "revealChosen": {
+      if (!me || action.otherIds.length === 0) return state;
+      const pairs = action.otherIds.flatMap((other) => [
+        [me, other],
+        [other, me],
+      ]);
+      let livedWith = state.livedWith;
+      for (const [userId, otherUserId] of pairs) {
+        const entry = livedWith.find((l) => l.userId === userId && l.otherUserId === otherUserId && l.houseId === action.houseId);
+        if (entry?.confirmedAt) continue;
+        livedWith = entry
+          ? livedWith.map((l) => (l === entry ? { ...l, confirmedAt: action.at } : l))
+          : [...livedWith, { userId, otherUserId, houseId: action.houseId, endedAt: action.endedAt, confirmedAt: action.at }];
+      }
+      return livedWith === state.livedWith ? state : { ...state, livedWith };
+    }
+
     case "setArcMuted": {
       if (!me) return state;
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), arcMuted: action.muted || undefined } } : u)) };
@@ -2834,6 +2937,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const votePeak = useCallback((stayId: string, inFor: boolean) => dispatch({ type: "votePeak", stayId, in: inFor }), []);
   const setHostPeak = useCallback((stayId: string, text: string, date: string) => dispatch({ type: "setHostPeak", stayId, text, date }), []);
   const setHalftime = useCallback((houseId: string, score: number, help?: string) => dispatch({ type: "setHalftime", houseId, score, help }), []);
+  const setAfter = useCallback((houseId: string, after: Omit<ArcAfter, "at">) => dispatch({ type: "setAfter", houseId, after }), []);
+  const setClosingLed = useCallback((stayId: string, led: boolean) => dispatch({ type: "setClosingLed", stayId, led }), []);
+  const setThirty = useCallback((houseId: string, thirty: Omit<ArcThirty, "at">) => dispatch({ type: "setThirty", houseId, thirty }), []);
+  const addMemories = useCallback((items: HouseMemory[]) => dispatch({ type: "addMemories", items }), []);
+  const removeMemory = useCallback((memory: HouseMemory) => dispatch({ type: "removeMemory", memory, at: new Date().toISOString() }), []);
+  const setCrewWords = useCallback((stayId: string, text: string) => dispatch({ type: "setCrewWords", stayId, text }), []);
+  const revealChosen = useCallback((houseId: string, otherIds: string[], endedAt: string) => dispatch({ type: "revealChosen", houseId, otherIds, endedAt, at: new Date().toISOString() }), []);
   const setAppearance = useCallback((appearance: ThemePref) => dispatch({ type: "setAppearance", appearance }), []);
   const setChatTheme = useCallback((threadId: string | null, theme: ChatThemeId | null) => dispatch({ type: "setChatTheme", threadId, theme }), []);
   const setFoundingHost = useCallback((userId: string, on: boolean) => dispatch({ type: "setFoundingHost", userId, on }), []);
@@ -3011,6 +3121,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       votePeak,
       setHostPeak,
       setHalftime,
+      setAfter,
+      setClosingLed,
+      setCrewWords,
+      addMemories,
+      removeMemory,
+      setThirty,
+      revealChosen,
       setAppearance,
       toggleReaction,
       lockAccommodation,
@@ -3039,7 +3156,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fireReminder,
       lapsePaymentWindow,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -3104,6 +3221,8 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     arrivals: user?.settings?.arrivals,
     arrived: user?.settings?.arrived,
     halftime: user?.settings?.halftime,
+    after: user?.settings?.after,
+    thirty: user?.settings?.thirty,
   };
 }
 
