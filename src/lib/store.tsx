@@ -50,6 +50,7 @@ import type {
   ConsentRecord,
   ModerationNotice,
   ProgramItem,
+  HostHelpItem,
   ArcArrival,
   ArcAfter,
   ArcThirty,
@@ -238,6 +239,9 @@ type StoreAction =
   | { type: "noteInviteOpened"; token: string }
   | { type: "setHostReferredBy"; userId: string; referrerId: string }
   | { type: "setProgram"; stayId: string; items: ProgramItem[] }
+  | { type: "boostHouse"; stayId: string; until: string | null }
+  | { type: "setHostHelp"; stayId: string; items: HostHelpItem[]; at: string }
+  | { type: "toggleHostHelp"; stayId: string; item: HostHelpItem }
   | { type: "setQuietHours"; quiet: QuietHours }
   | { type: "setOnboarding"; patch: NonNullable<UserSettings["onboarding"]> }
   | { type: "appeal"; noticeId: string; text: string; at: string }
@@ -541,6 +545,12 @@ interface StoreActions {
   setQuietHours: (quiet: QuietHours) => void;
   /** A Pro host's programme (Manage › Programme): the whole day plan at once – only the host, only a House with a host fee */
   setProgram: (stayId: string, items: ProgramItem[]) => void;
+  /** Admin › Houses › Sichtbarkeit: higher in Explore until then (null ends it) – the admin's action decides (limits in lib/admin/actions.ts) */
+  boostHouse: (stayId: string, until: string | null) => void;
+  /** Admin › Houses › Host helfen: Simpulo's tips for this House – the host's checklist in Manage */
+  setHostHelp: (stayId: string, items: HostHelpItem[]) => void;
+  /** The host ticks a tip off (or back) */
+  toggleHostHelp: (stayId: string, item: HostHelpItem) => void;
   /** Host brings host (prepared): an accepted host was brought by this host – one level only, set once */
   setHostReferredBy: (userId: string, referrerId: string) => void;
   /** A signed-in friend opened a spots-for-friends link – they hear it too when the spots run out */
@@ -2539,6 +2549,19 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), quietHours: action.quiet } } : u)) };
     }
 
+    case "boostHouse":
+      return { ...state, stays: state.stays.map((s) => (s.id === action.stayId ? { ...s, boostUntil: action.until ?? undefined } : s)) };
+
+    case "setHostHelp":
+      return { ...state, stays: state.stays.map((s) => (s.id === action.stayId ? { ...s, hostHelp: { items: action.items, at: action.at, done: [] } } : s)) };
+
+    case "toggleHostHelp": {
+      const stay = state.stays.find((s) => s.id === action.stayId);
+      if (!stay?.hostHelp || stay.hostId !== me) return state;
+      const done = stay.hostHelp.done.includes(action.item) ? stay.hostHelp.done.filter((i) => i !== action.item) : [...stay.hostHelp.done, action.item];
+      return { ...state, stays: state.stays.map((s) => (s.id === stay.id ? { ...s, hostHelp: { ...stay.hostHelp!, done } } : s)) };
+    }
+
     case "setProgram": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || stay.hostId !== me || !stay.hostFeePerPerson) return state;
@@ -3318,6 +3341,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setOnboarding = useCallback((patch: NonNullable<UserSettings["onboarding"]>) => dispatch({ type: "setOnboarding", patch }), []);
   const setQuietHours = useCallback((quiet: QuietHours) => dispatch({ type: "setQuietHours", quiet }), []);
   const setProgram = useCallback((stayId: string, items: ProgramItem[]) => dispatch({ type: "setProgram", stayId, items }), []);
+  const boostHouse = useCallback((stayId: string, until: string | null) => dispatch({ type: "boostHouse", stayId, until }), []);
+  const setHostHelp = useCallback((stayId: string, items: HostHelpItem[]) => dispatch({ type: "setHostHelp", stayId, items, at: new Date().toISOString() }), []);
+  const toggleHostHelp = useCallback((stayId: string, item: HostHelpItem) => dispatch({ type: "toggleHostHelp", stayId, item }), []);
   const setHostReferredBy = useCallback((userId: string, referrerId: string) => dispatch({ type: "setHostReferredBy", userId, referrerId }), []);
   const noteInviteOpened = useCallback((token: string) => dispatch({ type: "noteInviteOpened", token }), []);
   const appeal = useCallback((noticeId: string, text: string) => dispatch({ type: "appeal", noticeId, text, at: new Date().toISOString() }), []);
@@ -3480,13 +3506,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setOnboarding,
       setQuietHours,
       setProgram,
+      boostHouse,
+      setHostHelp,
+      toggleHostHelp,
       setHostReferredBy,
       noteInviteOpened,
       appeal,
       decideAppeal,
       decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setOnboarding, setQuietHours, setProgram, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, agree, resetConsents, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, reportContent, setOnboarding, setQuietHours, setProgram, boostHouse, setHostHelp, toggleHostHelp, setHostReferredBy, noteInviteOpened, appeal, decideAppeal, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

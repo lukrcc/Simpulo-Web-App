@@ -25,8 +25,13 @@ export function supportThreadOf(tickets: readonly SupportTicket[], userId: strin
   const mine = supportTicketsOf(tickets, userId);
   if (mine.length === 0) return null;
   const messages: Message[] = mine.flatMap((ticket): Message[] => [
-    { id: `${ticket.id}-about`, threadId: SUPPORT_THREAD_ID, senderId: "system", text: label(ticket), createdAt: ticket.createdAt },
-    { id: ticket.id, threadId: SUPPORT_THREAD_ID, senderId: userId, text: ticket.message, createdAt: ticket.createdAt },
+    // A conversation the team opened (Admin › Houses): no request of the person before Simpulo's message.
+    ...(ticket.fromTeam
+      ? []
+      : [
+          { id: `${ticket.id}-about`, threadId: SUPPORT_THREAD_ID, senderId: "system", text: label(ticket), createdAt: ticket.createdAt },
+          { id: ticket.id, threadId: SUPPORT_THREAD_ID, senderId: userId, text: ticket.message, createdAt: ticket.createdAt },
+        ]),
     ...ticket.replies.map((reply): Message => ({ id: reply.id, threadId: SUPPORT_THREAD_ID, senderId: reply.from === "admin" ? SUPPORT_SENDER : userId, text: reply.text, createdAt: reply.createdAt })),
   ]);
   return { id: SUPPORT_THREAD_ID, type: "support", participantIds: [userId, SUPPORT_SENDER], messages: messages.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)) };

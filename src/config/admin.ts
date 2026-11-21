@@ -239,46 +239,13 @@ export const WARNING_SHARE = 0.6;
 /** "Months in a row at €5,000: X / 6" */
 export const STREAK_MONTHS = MOVE_TARGET.months;
 
-/** Admin › Money: the share of profit set aside for taxes, before "left in the company". Not tax advice – a rough reserve. */
-export const TAX_RESERVE_PERCENT = 30;
-
 /** Vision › Technik › Anbieter heute: a provider's cost in % of revenue – from `warning` amber, from `critical` ember with "Selbermachen prüfen". */
 export const PROVIDER_COST = { warning: 5, critical: 10 } as const;
 
-// ── Geld › Steuern ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Orientierung, keine Steuerberatung: every rate and date here is a placeholder until the tax advisor sets it.
-
-/**
- * The tax reserve split (Geld › Steuern): income tax and trade tax as a share of the profit after costs; VAT is not a rate here – it is the
- * VAT owed from the journal (output tax − input tax, lib/admin/ledger.ts). ⚠ Platzhalter – mit Steuerberater festlegen.
- */
-export const TAX_RESERVE_RATES = {
-  /** TODO: mit Steuerberater festlegen */
-  incomeTaxPercent: 25,
-  /** TODO: mit Steuerberater festlegen */
-  tradeTaxPercent: 14,
-} as const;
+// Geld › Steuern: every rate, account and date lives in config/tax.ts (placeholders – mit Steuerberater klären).
+export { TAX_DEADLINES, TAX_RESERVE_PERCENT, TAX_RESERVE_RATES } from "./tax";
 
 /** Cost categories that count as investments ("Für die Bewertung beim Umzug"): software, brand and legal, since the start. */
 export const INVESTMENT_CATEGORIES = ["Software", "Marke", "Recht"] as const;
 
-/**
- * Tax deadlines (Geld › Steuern › Fristen, and "Heute" from `showInTodayDays` days before). Recurring dates as rules, the advisor's
- * appointments as dates. ⚠ Platzhalter – mit Steuerberater festlegen (e.g. monthly or quarterly VAT returns, an extension of the deadline).
- */
-export const TAX_DEADLINES = {
-  showInTodayDays: 7,
-  /** USt-Voranmeldung: on this day of every month (for the month before) */
-  vatReturn: { day: 10 },
-  /** Einkommensteuer-Vorauszahlung: these months, this day */
-  incomeTaxPrepayment: { months: [3, 6, 9, 12], day: 10 },
-  /** Gewerbesteuer-Vorauszahlung */
-  tradeTaxPrepayment: { months: [2, 5, 8, 11], day: 15 },
-  /** DAC7 report for the year before */
-  dac7: { month: 1, day: 31 },
-  /** Appointments with the tax advisor (YYYY-MM-DD, the topic) */
-  advisor: [
-    { date: "2026-12-03", topic: "Jahresgespräch und Fragenliste" },
-    { date: "2027-03-11", topic: "Jahresabschluss 2026" },
-  ],
-} as const;
+

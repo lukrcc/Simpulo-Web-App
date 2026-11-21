@@ -22,8 +22,9 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getBankBalance, getPlatformPayouts } from "@/lib/data";
 import { ColumnChart, DrillChart, ProgressBar, StatusDot, type DrillBar } from "./AdminCharts";
 import { ChangeLine, KeyNumbers } from "./AdminNumbers";
-import { AdminTabs, PeriodTabs } from "./AdminLayout";
+import { AdminSubTabs, AdminTabs, PeriodTabs } from "./AdminLayout";
 import { AdminTaxes } from "./AdminTaxes";
+import { AdminTaxJournal } from "./AdminTaxJournal";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
 import { chartTick, chartTitle, day as dayLabel, dec, eur, month as monthLabel, monthLong, num, pct } from "@/lib/i18n/adminFormat";
@@ -319,9 +320,15 @@ export function AdminMoney({ initialView = "overview" }: { initialView?: "overvi
   const t = useTranslations("admin.money");
   // Two views in one tab: Übersicht · Steuern. /admin/money/taxes opens Steuern (the links from "Heute" and Vision › Standort).
   const [view, setView] = useState<"overview" | "taxes">(initialView);
+  // Steuern has a second level: Buchungsjournal (the bookings, sums, reserve, DATEV and PDF) · Überblick (the ledger: countries, receipts, DAC7 …).
+  const [taxView, setTaxView] = useState<"journal" | "overview">("journal");
   return (
-    <AdminShell title={t("title")} tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "taxes"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}>
-      {view === "taxes" ? <AdminTaxes /> : <MoneyOverview />}
+    <AdminShell
+      title={t("title")}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "taxes"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      subTabs={view === "taxes" ? <AdminSubTabs label={t("taxViews.label")} value={taxView} onChange={setTaxView} tabs={(["journal", "overview"] as const).map((value) => ({ value, label: t(`taxViews.${value}`) }))} /> : undefined}
+    >
+      {view === "taxes" ? taxView === "journal" ? <AdminTaxJournal /> : <AdminTaxes /> : <MoneyOverview />}
     </AdminShell>
   );
 }

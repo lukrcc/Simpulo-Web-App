@@ -5,6 +5,7 @@ const LOCALE = "de-DE";
 const number = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
 const euro = new Intl.NumberFormat(LOCALE, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const euroCents = new Intl.NumberFormat(LOCALE, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const compactNumber = new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 });
 const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", timeZone: "UTC" });
 const monthShort = new Intl.DateTimeFormat(LOCALE, { month: "short", timeZone: "UTC" });
@@ -17,6 +18,8 @@ export const num = (n: number) => number.format(n);
 export const dec = (n: number) => decimal.format(n);
 /** 4.400 € */
 export const eur = (n: number) => euro.format(n);
+/** "1.234,50 €" – with cents (the booking journal) */
+export const eurCents = (n: number) => euroCents.format(n);
 /** 38 % – from a value 0–100 */
 export const pct = (n: number) => `${number.format(n)} %`;
 /** 38 % – from a share 0–1; "–" without one */

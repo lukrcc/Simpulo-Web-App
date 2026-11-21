@@ -2,7 +2,8 @@
 // receipts as ZIP, DATEV/Xero later, the DAC7 preparation). Pure functions over the journal (lib/data getLedger: mock example data now, built
 // from Stripe and the bank later), the receipts attached by hand and today's date. Orientation, no tax advice: the rates are placeholders
 // (config/admin.ts TAX_RESERVE_RATES), set with the tax advisor. New export formats only as adapters in lib/admin/exporters/.
-import { INVESTMENT_CATEGORIES, TAX_DEADLINES, TAX_RESERVE_RATES } from "@/config/admin";
+import { INVESTMENT_CATEGORIES } from "@/config/admin";
+import { TAX_DEADLINES, TAX_RESERVE_RATES } from "@/config/tax";
 import type { HostTaxData, LedgerEntry } from "@/lib/data";
 
 export type { LedgerEntry, LedgerKind } from "@/lib/data";

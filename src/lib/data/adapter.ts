@@ -1,4 +1,5 @@
 // The one contract between the app and where its data comes from: the mock (dev, demo) or the real source (production).
+import type { HouseAction } from "@/lib/houseHelp";
 import type { HypothesisStatus } from "@/config/hypotheses";
 import type { SavedSearch } from "../savedSearches";
 import type { LinkPreview } from "../links";
@@ -58,6 +59,8 @@ export interface AdminData {
   fundingDocs: Record<string, "missing" | "inProgress" | "done">;
   /** Admin › System › Backlog: each item's status (config/backlog.ts ids), over the start value there */
   backlog: Record<string, "open" | "inProgress" | "done">;
+  /** Admin › System › Launch: points confirmed by hand (config/launch.ts ids) → when */
+  launchChecks?: Record<string, string>;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
   location: { country: string | null; reason: string };
   /** Launch › Marketing › Kontakte – creators written to (Firestore marketingContacts, admins only: firestore.rules) */
@@ -73,6 +76,10 @@ export interface AdminData {
   houseDone: Record<string, { at: string; spotsFilled: number }>;
   /** Admin › Houses › "Läuft gut" → "Für Content vormerken": Houses for Marketing › Content */
   contentHouses: { stayId: string; at: string }[];
+  /** Admin › Houses: every lever pulled, with the House's spots at that moment – its result is read later (lib/houseHelp.ts actionOutcome) */
+  houseActions?: HouseAction[];
+  /** Admin › Houses › Nachfrage: who was told about a House on which day (account id or email → YYYY-MM-DD) – at most one a day (NUDGE_POLICY) */
+  nudged?: Record<string, string>;
   /**
    * Tax details hosts entered (Settings › Payments & payouts, only past HOST_TAX_INFO's threshold, behind its switch) – Admin only; the host
    * never sees them again after saving. Later Firestore, readable by admins only.

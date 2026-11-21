@@ -3,7 +3,9 @@
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
 import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
-import { BACKLOG, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogStatus } from "@/config/backlog";
+import { BACKLOG, BACKLOG_PHASES, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogPhase, type BacklogStatus } from "@/config/backlog";
+import type { LaunchFacts } from "@/lib/launchChecks";
+import { AdminLaunch } from "./AdminLaunch";
 import { DUTIES, dutyStatus } from "@/config/obligations";
 import { FOUNDING_HOST } from "@/config/policies";
 import { isFoundingHost } from "@/lib/founding";
@@ -502,27 +504,32 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
 
 const RULE_KEYS: readonly (keyof PhaseRules)[] = ["request", "reserve", "pay", "openHouse", "applyAsHost"];
 
-export function AdminPlatform() {
+export function AdminPlatform({ facts = null }: { /** What only the server sees (lib/launchChecks.ts) – for the launch checklist */ facts?: LaunchFacts | null }) {
   const t = useTranslations("admin.platform");
   const phase = usePlatformPhase();
   const { changePhase } = useAdminActions();
   const [pending, setPending] = useState<PlatformPhase | null>(null);
-  // Unterreiter: Einstellungen (phase, tools, values) · Backlog (decided building blocks, config/backlog.ts).
-  const [view, setView] = useState<"settings" | "backlog" | "duties">("settings");
+  // Einstellungen (phase, tools, values) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
+  // config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
+  const [view, setView] = useState<"settings" | "prepare">("settings");
+  const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "backlog", "duties"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      subTabs={view === "prepare" ? <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} /> : undefined}
       aside={
         <Link href="/admin/log" className="text-body font-semibold text-ink hover:underline">
           {t("logLink")}
         </Link>
       }
     >
-      {view === "duties" ? (
+      {view === "prepare" && prep === "duties" ? (
         <Duties />
-      ) : view === "backlog" ? (
+      ) : view === "prepare" && prep === "launch" ? (
+        <AdminLaunch facts={facts} />
+      ) : view === "prepare" ? (
         <Backlog />
       ) : (
       <>
@@ -650,15 +657,19 @@ function Backlog() {
   const data = useAdminData();
   const { setBacklogStatus } = useAdminActions();
   const [filter, setFilter] = useState<BacklogStatus | "all">("all");
+  const [phase, setPhase] = useState<BacklogPhase | "all">("all");
   const items = BACKLOG.map((item) => ({ ...item, status: data.backlog?.[item.id] ?? item.status }));
   const open = items.filter((i) => i.status !== "done").length;
   // Done at the end, otherwise the config's order.
-  const shown = items.filter((i) => filter === "all" || i.status === filter).toSorted((a, b) => Number(a.status === "done") - Number(b.status === "done"));
+  const shown = items.filter((i) => (filter === "all" || i.status === filter) && (phase === "all" || i.phase === phase)).toSorted((a, b) => Number(a.status === "done") - Number(b.status === "done"));
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <p className="text-h3 text-ink tabular-nums">{t("open", { count: open })}</p>
-        <CapsuleGroup size="sm" label={t("filterLabel")} value={filter} onChange={setFilter} options={(["all", ...BACKLOG_STATUSES] as const).map((value) => ({ value, content: value === "all" ? t("all") : t(`status.${value}`) }))} />
+        <span className="flex flex-wrap items-center gap-3">
+          <AdminSort label={t("phaseLabel")} value={phase} onChange={setPhase} options={(["all", ...BACKLOG_PHASES] as const).map((value) => ({ value, label: value === "all" ? t("allPhases") : t(`phase.${value}`) }))} />
+          <CapsuleGroup size="sm" label={t("filterLabel")} value={filter} onChange={setFilter} options={(["all", ...BACKLOG_STATUSES] as const).map((value) => ({ value, content: value === "all" ? t("all") : t(`status.${value}`) }))} />
+        </span>
       </div>
       <p className="mt-2 text-small text-muted">
         {t("note")}

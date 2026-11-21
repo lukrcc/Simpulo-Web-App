@@ -1,13 +1,14 @@
 // Geld › Steuern › Export: every format as an adapter over the bookkeeping journal (lib/admin/ledger.ts). New formats only here.
+// DATEV lives in the Buchungsjournal (lib/admin/bookingJournal.ts datevCsv, the PDF overview in journalPdf.ts).
 import { csvExporter } from "./csv";
 import { jsonExporter } from "./json";
-import { datevExporter, xeroExporter } from "./placeholders";
+import { xeroExporter } from "./placeholders";
 import { pdfExporter } from "./reportPdf";
 import { receiptsZipExporter } from "./receiptsZip";
 import type { Exporter } from "./types";
 import { xlsxExporter } from "./xlsx";
 
-export const EXPORTERS: readonly Exporter[] = [csvExporter, xlsxExporter, jsonExporter, pdfExporter, receiptsZipExporter, datevExporter, xeroExporter];
+export const EXPORTERS: readonly Exporter[] = [csvExporter, xlsxExporter, jsonExporter, pdfExporter, receiptsZipExporter, xeroExporter];
 
 export type { ExportContext, Exporter, ExporterId } from "./types";
 export { tableCsv } from "./csv";

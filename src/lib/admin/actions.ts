@@ -2,18 +2,21 @@
 
 // Every admin action – and each writes its line in the admin log. No admin component changes data any other way.
 import { setPlatformPhase } from "@/config/platform";
-import { HOST_REFERRAL } from "@/config/policies";
+import { readPlatformPhase } from "@/lib/data";
+import { HIGHLIGHT_POLICY, HOST_REFERRAL } from "@/config/policies";
+import type { NudgeAudience } from "@/lib/houseHelp";
 import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { notify, notifyByEmail } from "@/lib/notify";
 import { tEn } from "@/lib/i18n/translate";
-import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, SupportTicket, TicketStatus } from "@/lib/types";
-import { addContentHouse, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
-import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, Stay, SupportTicket, TicketStatus } from "@/lib/types";
+import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 /** Reports opened in this visit (the log line once each). */
 const viewedReports = new Set<string>();
+const currentPhase = (): PlatformPhase => readPlatformPhase();
 
 export function useAdminActions() {
   const store = useStore();
@@ -130,22 +133,62 @@ export function useAdminActions() {
      * Early warning (Admin › Houses). Mock: only logged (the caller shows the toast). TODO(backend): "Hervorheben" moves the House up on
      * Explore for a while; "Warteliste informieren" mails the matching sign-ups (lib/notify); "Host erinnern" sends the host a nudge.
      */
-    highlightHouse(stay: { id?: string; title: string }) {
-      appendAdminLog("house_highlighted", stay.title, by, stay.id);
+    /**
+     * Houses › Sichtbarkeit: "Im Explore hervorheben" – the House moves up in Explore's default order for HIGHLIGHT_POLICY.days (as if it
+     * started HIGHLIGHT_POLICY.rankShiftDays earlier); at most HIGHLIGHT_POLICY.maxConcurrent at once (the button says so before). Logged.
+     */
+    highlightHouse(stay: Stay) {
+      const until = new Date(Date.now() + HIGHLIGHT_POLICY.days * 86_400_000).toISOString();
+      store.boostHouse(stay.id, until);
+      addHouseAction({ stayId: stay.id, lever: "visibility", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
+      appendAdminLog("house_highlighted", `${stay.title} · bis ${day(until)}`, by, stay.id);
     },
-    notifyWaitlist(stay: { id?: string; title: string }, count: number) {
-      appendAdminLog("waitlist_notified", `${stay.title} · ${count}`, by, stay.id);
+    /**
+     * Houses › Nachfrage: "Passende Leute benachrichtigen" – the audience of lib/houseHelp.ts nudgeAudience (consent given, nobody twice a day):
+     * accounts through notify() (catalogue "houseNudge": push + the daily bundle), waitlist sign-ups without an account by email. Mock: the
+     * Dev menu's log. Logged with how many were reached.
+     */
+    nudgeHouse(stay: Stay, audience: NudgeAudience, today: string) {
+      const keys = [...new Set([...audience.waitlist, ...audience.inFor, ...audience.saved])];
+      const house = stay.shortName ?? stay.title;
+      for (const key of keys) {
+        const user = store.users.find((u) => u.id === key);
+        if (user) notify(user.id, "houseNudge", { house, url: `/house/${stay.slug}`, prefs: user.settings?.notifications });
+        else notifyByEmail(key, "houseNudge", { house, url: `/house/${stay.slug}` });
+      }
+      markNudged(keys, today);
+      addHouseAction({ stayId: stay.id, lever: "demand", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal, reached: keys.length });
+      appendAdminLog("waitlist_notified", `${stay.title} · ${keys.length}`, by, stay.id);
     },
     remindHost(stay: { id?: string; title: string }, hostName: string) {
       appendAdminLog("host_reminded", `${hostName} · ${stay.title}`, by, stay.id);
     },
-    /** Houses › Host helfen: a message to the host from a template (price, photos, text). Mock: only logged, nothing is sent. */
-    sendHostSuggestions(stay: { id?: string; title: string }, hostName: string) {
-      appendAdminLog("host_suggestions", `${hostName} · ${stay.title}`, by, stay.id);
+    /**
+     * Houses › Host helfen: the message (from the template, as edited) to the host as "Simpulo Support" in Messages, and the tips that follow
+     * from the comparison as a checklist in the host's Manage tab (Stay.hostHelp). Logged.
+     */
+    sendHostSuggestions(stay: Stay, text: string, items: HostHelpItem[]) {
+      const host = store.users.find((u) => u.id === stay.hostId);
+      if (!host) return;
+      addTeamMessage({ userId: host.id, email: host.email ?? "", text, by, stayId: stay.id, phase: currentPhase() });
+      notify(host.id, "teamMessage", { house: stay.shortName ?? stay.title, url: "/messages?id=support", prefs: host.settings?.notifications });
+      store.setHostHelp(stay.id, items);
+      addHouseAction({ stayId: stay.id, lever: "host", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
+      appendAdminLog("host_suggestions", `${host.name.split(" ")[0]} · ${stay.title}`, by, stay.id);
     },
-    /** Houses › Ausweichen: suggest moving the dates or merging crews. Mock: only logged. */
-    proposeAlternative(stay: { id?: string; title: string }, hostName: string) {
-      appendAdminLog("alternative_proposed", `${hostName} · ${stay.title}`, by, stay.id);
+    /**
+     * Houses › Ausweichen: only a suggestion to the host(s) – move the dates or join a similar House – as "Simpulo Support"; nothing changes
+     * by itself (guests would have to agree or are refunded – the message says so). Logged.
+     */
+    proposeAlternative(stay: Stay, text: string, otherHostId?: string) {
+      for (const id of [stay.hostId, ...(otherHostId && otherHostId !== stay.hostId ? [otherHostId] : [])]) {
+        const host = store.users.find((u) => u.id === id);
+        if (!host) continue;
+        addTeamMessage({ userId: host.id, email: host.email ?? "", text, by, stayId: stay.id, phase: currentPhase() });
+        notify(host.id, "teamMessage", { house: stay.shortName ?? stay.title, url: "/messages?id=support", prefs: host.settings?.notifications });
+      }
+      addHouseAction({ stayId: stay.id, lever: "alternative", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
+      appendAdminLog("alternative_proposed", stay.title, by, stay.id);
     },
     /** Houses › "✓ Erledigt": out of "Braucht Hilfe" until it comes back without getting better. */
     markHouseDone(stay: { id: string; title: string; spotsFilled: number }) {
@@ -153,12 +196,14 @@ export function useAdminActions() {
       appendAdminLog("house_done", stay.title, by, stay.id);
     },
     /** Houses › Läuft gut: ask the host for a quote (for Marketing). Mock: only logged. */
-    askHostQuote(stay: { id: string; title: string }, hostName: string) {
+    askHostQuote(stay: Stay, hostName: string) {
+      addHouseAction({ stayId: stay.id, lever: "quote", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
       appendAdminLog("host_quote_asked", `${hostName} · ${stay.title}`, by, stay.id);
     },
     /** Houses › Läuft gut: put the House aside for Marketing › Content. */
-    markForContent(stay: { id: string; title: string }) {
+    markForContent(stay: Stay) {
       addContentHouse(stay.id);
+      addHouseAction({ stayId: stay.id, lever: "content", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
       appendAdminLog("content_marked", stay.title, by, stay.id);
     },
     /** Heute: a task done (it's gone) – `label` is how it reads in the log. */
@@ -187,6 +232,11 @@ export function useAdminActions() {
     setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done", statusLabel: string) {
       setBacklog(id, status);
       appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
+    },
+    /** System › Launch: a point confirmed by hand (or taken back). */
+    confirmLaunchCheck(id: string, label: string, confirmed: boolean) {
+      setLaunchCheck(id, confirmed ? new Date().toISOString() : null);
+      appendAdminLog("launch_check", `${label} · ${confirmed ? "bestätigt" : "zurückgenommen"}`, by);
     },
     /** Marketing › Plan: a next step ticked off (or back). */
     setMarketingStep(id: string, text: string, done: boolean) {

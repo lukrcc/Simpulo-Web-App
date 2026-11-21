@@ -4,6 +4,8 @@
 // (getAdminData – the mock now, Firestore later) and this browser keeps its changes (localStorage, try/catch; "Reset mock data" clears it).
 // The waitlist and the host application write here (addWaitlistEntry, addHostApplication); admin actions only through lib/admin/actions.ts,
 // which also writes the log.
+import type { PlatformPhase } from "@/lib/types";
+import type { HouseAction } from "@/lib/houseHelp";
 import { useSyncExternalStore } from "react";
 import { getAdminData, type AdminData, type MarketingContact, type MarketingPartner, type TaxQuestion } from "@/lib/data";
 import type { AdminAction, AdminLogEntry, ApplicationStatus, HostApplication, SupportTicket, WaitlistEntry, Withdrawal } from "@/lib/types";
@@ -23,7 +25,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged }
       : seed;
   } catch {
     current = seed;
@@ -211,6 +213,12 @@ export function setFundingDoc(key: string, status: AdminData["fundingDocs"][stri
   write({ ...read(), fundingDocs: { ...read().fundingDocs, [key]: status } });
 }
 
+/** Internal – lib/admin/actions.ts confirms a launch point by hand (System › Launch) or takes it back; logged there. */
+export function setLaunchCheck(id: string, at: string | null) {
+  const rest = Object.fromEntries(Object.entries(read().launchChecks ?? {}).filter(([key]) => key !== id));
+  write({ ...read(), launchChecks: at ? { ...rest, [id]: at } : rest });
+}
+
 /** Internal – lib/admin/actions.ts sets a backlog item's status (System › Backlog) and logs it. */
 export function setBacklog(id: string, status: AdminData["backlog"][string]) {
   write({ ...read(), backlog: { ...read().backlog, [id]: status } });
@@ -263,6 +271,41 @@ export function submitHostTax(userId: string, data: { taxId: string; address: st
 
 export function setHouseDone(stayId: string, spotsFilled: number) {
   write({ ...read(), houseDone: { ...read().houseDone, [stayId]: { at: new Date().toISOString().slice(0, 10), spotsFilled } } });
+}
+
+/** Internal – Houses: a lever pulled, kept with the House's spots at that moment (its result is read later). */
+export function addHouseAction(action: Omit<HouseAction, "id">) {
+  write({ ...read(), houseActions: [{ ...action, id: newId("ha") }, ...(read().houseActions ?? [])] });
+}
+
+/** Internal – Houses › Nachfrage: these people were told today (one a day each). */
+export function markNudged(keys: readonly string[], day: string) {
+  write({ ...read(), nudged: { ...(read().nudged ?? {}), ...Object.fromEntries(keys.map((k) => [k, day])) } });
+}
+
+/** Internal – a message from the team that opens a "Simpulo Support" conversation (Houses › Host helfen, Ausweichen): answered at once. */
+export function addTeamMessage(input: { userId: string; email: string; text: string; by: string; stayId?: string; phase: PlatformPhase }): SupportTicket {
+  const at = new Date().toISOString();
+  const ticket: SupportTicket = {
+    id: newId("t"),
+    userId: input.userId,
+    email: input.email,
+    category: "question",
+    message: "",
+    fromTeam: true,
+    // Sent from the admin, not from a device: the context names the House only.
+    context: { page: input.stayId ? `/h/${input.stayId}` : "/", ...(input.stayId && { houseId: input.stayId }), device: "Admin", screenWidth: 0, phase: input.phase },
+    attachments: [],
+    status: "answered",
+    priority: "normal",
+    tags: ["houses"],
+    votes: 0,
+    adminNotes: "",
+    replies: [{ id: newId("r"), from: "admin", by: input.by, text: input.text, createdAt: at }],
+    createdAt: at,
+  };
+  write({ ...read(), tickets: [ticket, ...read().tickets] });
+  return ticket;
 }
 
 /** Internal – Houses › "Für Content vormerken": the House lands in Marketing › Content (once). */

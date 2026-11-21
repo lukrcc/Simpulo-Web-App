@@ -10,14 +10,18 @@ import { Button } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
 import { useToast } from "@/components/ui/Toast";
 import { HOUSE_LEVERS, type HouseLever } from "@/config/admin";
+import { HIGHLIGHT_POLICY } from "@/config/policies";
 import { useFormat } from "@/i18n/format";
+import { Textarea } from "@/components/ui/Input";
+import { activeBoosts, actionOutcome, alternativeFor, exploreRank, hostComparison, isBoosted, nudgeAudience, type HostComparisonRow, type HouseAction } from "@/lib/houseHelp";
+import { tEn } from "@/lib/i18n/translate";
+import { catalogText } from "@/lib/notify";
 import { useAdminActions } from "@/lib/admin/actions";
-import { cockpit, fastestFull, hostOverview, needsHelp, needsHelpChange, waitlistMatches, type NeedsHelpRow, type RiskReason } from "@/lib/admin/metrics";
+import { cockpit, fastestFull, hostOverview, needsHelp, needsHelpChange, type NeedsHelpRow, type RiskReason } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { VIBES } from "@/lib/catalog";
-import { eur, num, pct, share } from "@/lib/i18n/adminFormat";
-import { peopleInFor } from "@/lib/inFor";
+import { day, eur, num, pct, share } from "@/lib/i18n/adminFormat";
 import { convertApprox } from "@/lib/rates";
 import { findUser, useStore } from "@/lib/store";
 import type { AdminLogEntry, Currency, Stay } from "@/lib/types";
@@ -25,6 +29,12 @@ import { cn, housePhotos } from "@/lib/utils";
 import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList } from "./AdminLayout";
 import { KeyNumbers } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
+
+/** A date for the English messages to hosts: "8 Feb". */
+const enDayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const enDay = (iso: string) => enDayFormat.format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
+const enMoney = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const enNumber = new Intl.NumberFormat("en-GB");
 
 type Tab = "atRisk" | "goingWell" | "all";
 type HouseSort = "urgency" | "start" | "fill" | "title";
@@ -183,7 +193,7 @@ function HouseDetail({
       </div>
 
       {help ? (
-        <NeedsHelpDetail stay={stay} help={help} reasonText={reasonText} hostName={hostName} />
+        <NeedsHelpDetail key={stay.id} stay={stay} help={help} reasonText={reasonText} hostName={hostName} />
       ) : fullIn !== null ? (
         <GoingWellDetail stay={stay} fullIn={fullIn} hostName={hostName} />
       ) : (
@@ -221,50 +231,179 @@ function HouseDetail({
   );
 }
 
-/** Braucht Hilfe: every reason as a sentence, the recommended lever on top (highlighted), the other three below – each one concrete action. */
+/**
+ * Braucht Hilfe: every reason as a sentence, the recommended lever on top (highlighted), the other three below – each with what it would do
+ * and one concrete action (lib/houseHelp.ts): Sichtbarkeit (the ranking bonus, its place in Explore, the limit), Nachfrage (who may be told,
+ * the message), Host helfen (the comparison with similar full Houses, the message as Simpulo Support, the checklist), Ausweichen (later
+ * dates or a similar House to join – only a suggestion).
+ */
 function NeedsHelpDetail({ stay, help, reasonText, hostName }: { stay: Stay; help: NeedsHelpRow; reasonText: (r: RiskReason, stay: Stay) => string; hostName: string }) {
   const t = useTranslations("admin.houses");
   const inputs = useAdminInputs();
   const store = useStore();
+  const data = useAdminData();
   const actions = useAdminActions();
   const showToast = useToast();
-  const fitting = waitlistMatches(inputs, stay) + peopleInFor(store.inFor, { ...stay, vibe: stay.vibe ?? "" }, inputs.today).length;
-  const act = (lever: HouseLever) => {
-    if (lever === "visibility") {
+  const f = useFormat();
+  const now = Date.parse(`${inputs.today}T12:00:00Z`);
+  const first = hostName.split(" ")[0];
+
+  // Sichtbarkeit
+  const boosted = activeBoosts(store.stays, now);
+  const isOn = isBoosted(stay, now);
+  const atLimit = !isOn && boosted.length >= HIGHLIGHT_POLICY.maxConcurrent;
+  const rank = exploreRank(store.stays, stay, now);
+
+  // Nachfrage – consent and once a day (NUDGE_POLICY)
+  const involved = new Set(store.joinRequests.filter((r) => r.stayId === stay.id && r.status !== "declined" && r.status !== "expired").map((r) => r.userId));
+  const nudgedToday = new Set(Object.entries(data.nudged ?? {}).filter(([, d]) => d === inputs.today).map(([k]) => k));
+  const audience = nudgeAudience(stay, { users: store.users, waitlist: data.waitlist, inFor: store.inFor, involved, nudgedToday, today: inputs.today });
+  const nudge = catalogText("houseNudge", stay.shortName ?? stay.title);
+
+  // Host helfen
+  const comparison = hostComparison(stay, store.stays, store.users);
+  const behind = comparison.rows.filter((r) => r.behind);
+  const money = (n: number | null) => (n === null ? "–" : eur(n));
+  const shown = (r: HostComparisonRow, v: number | null) => (v === null ? "–" : r.key === "price" ? money(v) : num(Math.round(v)));
+  // In the English message to the host: "€540", "1,200".
+  const shownEn = (r: HostComparisonRow, v: number | null) => (v === null ? "–" : r.key === "price" ? enMoney.format(v) : enNumber.format(Math.round(v)));
+  const hostTemplate = [
+    tEn("houseHelp.hostIntro", { name: first, title: stay.title, missing: help.missing, days: help.daysToStart }),
+    ...(behind.length ? [tEn("houseHelp.hostCompare"), ...behind.map((r) => `– ${tEn(`houseHelp.hostLines.${r.key}`, { median: shownEn(r, r.median), value: shownEn(r, r.value) })}`)] : [tEn("houseHelp.hostNone")]),
+    behind.length ? tEn("houseHelp.hostOutro") : tEn("houseHelp.hostOutroNone"),
+  ].join("\n");
+  const [hostText, setHostText] = useState(hostTemplate);
+
+  // Ausweichen
+  const alt = alternativeFor(stay, store.stays);
+  const altTemplate = tEn("houseHelp.alternative", {
+    name: first,
+    title: stay.title,
+    days: help.daysToStart,
+    in: stay.spotsFilled,
+    total: stay.spotsTotal,
+    // The host reads English: English dates ("8 Feb–12 Feb"), not the admin's German ones.
+    later: `${enDay(alt.later.start)}–${enDay(alt.later.end)}`,
+    join: alt.join ? tEn("houseHelp.alternativeJoin", { title: alt.join.title, date: `${enDay(alt.join.startDate)}–${enDay(alt.join.endDate)}` }) : "",
+  });
+  const [altText, setAltText] = useState(altTemplate);
+
+  const order = [help.lever, ...HOUSE_LEVERS.filter((l) => l !== help.lever)];
+  const body = (l: HouseLever) => {
+    if (l === "visibility")
+      return (
+        <div className="flex flex-col gap-1 text-small text-muted">
+          <p className="text-ink">{t("vis.rank", { now: rank.now, without: rank.without, boosted: rank.boosted })}</p>
+          {isOn && stay.boostUntil && <p>{t("vis.until", { date: day(stay.boostUntil) })}</p>}
+          {atLimit && <p className="text-adm-warning">{t("vis.limit", { count: boosted.length, max: HIGHLIGHT_POLICY.maxConcurrent })}</p>}
+          <p>{t("vis.rule", { days: HIGHLIGHT_POLICY.days, shift: HIGHLIGHT_POLICY.rankShiftDays })}</p>
+        </div>
+      );
+    if (l === "demand")
+      return (
+        <div className="flex flex-col gap-1 text-small text-muted">
+          <p className="text-ink">{t("demand.sources", { waitlist: audience.waitlist.length, inFor: audience.inFor.length, saved: audience.saved.length })}</p>
+          <p>{[t("demand.viewed"), t("demand.today", { count: audience.alreadyToday })].filter(Boolean).join(" · ")}</p>
+          <p>{t("demand.rule")}</p>
+          <p className="mt-1 text-eyebrow uppercase text-(--adm-label)">{t("demand.preview")}</p>
+          <p className="text-ink">
+            <span className="font-semibold">{nudge.subject}</span> – {nudge.body}
+          </p>
+        </div>
+      );
+    if (l === "host")
+      return (
+        <div className="flex flex-col gap-3">
+          {comparison.similar === 0 ? (
+            <p className="text-small text-muted">{t("compare.none")}</p>
+          ) : (
+            <table data-host-compare className="w-full text-left text-small tabular-nums">
+              <caption className="mb-1 text-left text-eyebrow uppercase text-(--adm-label)">{t("compare.title", { count: comparison.similar })}</caption>
+              <thead>
+                <tr className="text-muted">
+                  <th scope="col" className="py-1 pr-3 font-normal" />
+                  <th scope="col" className="py-1 pr-3 text-right font-normal">{t("compare.this")}</th>
+                  <th scope="col" className="py-1 text-right font-normal">{t("compare.median")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.rows.map((r) => (
+                  <tr key={r.key} className="border-t border-ink/8">
+                    <th scope="row" className="py-1.5 pr-3 font-normal text-ink">{t(`compare.rows.${r.key}`)}</th>
+                    <td className="py-1.5 pr-3 text-right text-ink">
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.behind && <span aria-hidden className="size-1.5 rounded-full bg-adm-critical" />}
+                        {shown(r, r.value)}
+                        {r.behind && <span className="sr-only">{t("compare.behind")}</span>}
+                      </span>
+                    </td>
+                    <td className="py-1.5 text-right text-muted">{shown(r, r.median)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <label className="flex flex-col gap-1">
+            <span className="text-eyebrow uppercase text-(--adm-label)">{t("message")}</span>
+            <Textarea rows={5} value={hostText} onChange={(e) => setHostText(e.target.value)} />
+          </label>
+        </div>
+      );
+    return (
+      <div className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-1 text-small text-ink">
+          <li>{t("alt.later", { from: day(alt.later.start), to: day(alt.later.end) })}</li>
+          <li>{alt.join ? t("alt.join", { title: alt.join.title, date: f.stayDates(alt.join), free: alt.join.spotsTotal - alt.join.spotsFilled }) : <span className="text-muted">{t("alt.noJoin")}</span>}</li>
+        </ul>
+        <p className="text-small text-muted">{t("alt.rule")}</p>
+        <label className="flex flex-col gap-1">
+          <span className="text-eyebrow uppercase text-(--adm-label)">{t("message")}</span>
+          <Textarea rows={5} value={altText} onChange={(e) => setAltText(e.target.value)} />
+        </label>
+      </div>
+    );
+  };
+  const act = (l: HouseLever) => {
+    if (l === "visibility") {
       actions.highlightHouse(stay);
       showToast(t("toast.highlight", { title: stay.title }));
-    } else if (lever === "demand") {
-      actions.notifyWaitlist(stay, fitting);
-      showToast(t("toast.notify", { count: fitting, title: stay.title }));
-    } else if (lever === "host") {
-      actions.sendHostSuggestions(stay, hostName);
-      showToast(t("toast.suggestions", { name: hostName }));
+    } else if (l === "demand") {
+      actions.nudgeHouse(stay, audience, inputs.today);
+      showToast(t("toast.notify", { count: audience.total, title: stay.title }));
+    } else if (l === "host") {
+      actions.sendHostSuggestions(stay, hostText.trim(), behind.map((r) => r.key));
+      showToast(t("toast.suggestions", { name: first }));
     } else {
-      actions.proposeAlternative(stay, hostName);
-      showToast(t("toast.alternative", { name: hostName }));
+      actions.proposeAlternative(stay, altText.trim(), alt.join?.hostId);
+      showToast(t("toast.alternative", { name: first }));
     }
   };
-  const order = [help.lever, ...HOUSE_LEVERS.filter((l) => l !== help.lever)];
-  const lever = (l: HouseLever, recommended: boolean) => (
-    <div key={l} className={cn("flex flex-wrap items-center justify-between gap-x-6 gap-y-2", recommended ? "rounded-xl bg-(--adm-block) p-4 ring-1 ring-(--adm-chart-1)/45" : "py-3")}>
-      <div className="min-w-0 flex-1 basis-56">
-        <p className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
-          {t(`lever.${l}.name`)}
-          {recommended && <span className="rounded-full bg-(--adm-chart-1-soft) px-2 text-adm-chart-1">{t("recommended")}</span>}
-        </p>
-        <p className="mt-0.5 text-small text-muted">{t(`lever.${l}.text`)}</p>
-        {l === "host" && recommended && (
-          <blockquote className="mt-2 border-l-2 border-ink/15 pl-3 text-small text-ink">
-            <span className="block text-eyebrow uppercase text-(--adm-label)">{t("template.label")}</span>
-            {t("template.text", { name: hostName, title: stay.title })}
-          </blockquote>
-        )}
-      </div>
-      <Button size="sm" variant={recommended ? "primary" : "secondary"} disabled={l === "demand" && fitting === 0} onClick={() => act(l)}>
-        {l === "demand" ? t("lever.demand.action", { count: fitting }) : t(`lever.${l}.action`)}
-      </Button>
-    </div>
-  );
+  const buttonOf = (l: HouseLever) => {
+    if (l === "visibility") return { label: t("lever.visibility.action"), disabled: isOn || atLimit };
+    if (l === "demand") return { label: t("lever.demand.action", { count: audience.total }), disabled: audience.total === 0 };
+    if (l === "host") return { label: t("sendHost"), disabled: hostText.trim() === "" };
+    return { label: alt.join && alt.join.hostId !== stay.hostId ? t("alt.sendBoth") : t("alt.send"), disabled: altText.trim() === "" };
+  };
+  const lever = (l: HouseLever, recommended: boolean) => {
+    const button = buttonOf(l);
+    return (
+      <section key={l} data-lever={l} data-recommended={recommended || undefined} className={cn("flex flex-col gap-3", recommended ? "rounded-xl bg-(--adm-block) p-4 ring-1 ring-(--adm-chart-1)/45" : "py-4")}>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0 flex-1 basis-56">
+            <h3 className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
+              {t(`lever.${l}.name`)}
+              {recommended && <span className="rounded-full bg-(--adm-chart-1-soft) px-2 text-adm-chart-1">{t("recommended")}</span>}
+            </h3>
+            <p className="mt-0.5 text-small text-muted">{t(`lever.${l}.text`)}</p>
+          </div>
+          <Button size="sm" variant={recommended ? "primary" : "secondary"} disabled={button.disabled} onClick={() => act(l)}>
+            {button.label}
+          </Button>
+        </div>
+        {body(l)}
+      </section>
+    );
+  };
   return (
     <>
       <ul className="flex flex-col gap-1">
@@ -340,25 +479,46 @@ function GoingWellDetail({ stay, fullIn, hostName }: { stay: Stay; fullIn: numbe
   );
 }
 
-/** Verlauf: what was done for this House, newest first – the admin log by the House's id (older lines by its title). */
+/**
+ * Verlauf: what was done for this House, newest first – the admin log by the House's id (older lines by its title), System or Admin, and for
+ * each lever pulled what happened since (lib/houseHelp.ts actionOutcome: full · +N · unchanged) – the ground for later automation.
+ */
 function History({ stay }: { stay: Stay }) {
   const t = useTranslations("admin.houses");
   const tLog = useTranslations("admin.log");
   const f = useFormat();
-  const log = useAdminData().log.filter((e: AdminLogEntry) => e.ref === stay.id || (!e.ref && e.target.includes(stay.title))).slice(0, 8);
+  const data = useAdminData();
+  const log = data.log.filter((e: AdminLogEntry) => e.ref === stay.id || (!e.ref && e.target.includes(stay.title))).slice(0, 10);
+  const outcomes = (data.houseActions ?? []).filter((a) => a.stayId === stay.id);
+  const LEVER_ACTION: Partial<Record<string, HouseAction["lever"]>> = { house_highlighted: "visibility", waitlist_notified: "demand", host_suggestions: "host", alternative_proposed: "alternative", host_quote_asked: "quote", content_marked: "content" };
+  const outcomeOf = (entry: AdminLogEntry) => {
+    const lever = LEVER_ACTION[entry.action];
+    // The action recorded closest to this log line (same lever, within a minute).
+    const action = lever ? outcomes.find((a) => a.lever === lever && Math.abs(Date.parse(a.at) - Date.parse(entry.createdAt)) < 60_000) : undefined;
+    if (!action) return null;
+    const o = actionOutcome(action, stay);
+    return o.kind === "more" ? t("outcome.more", { count: o.gained }) : t(`outcome.${o.kind}`);
+  };
   return (
-    <section>
+    <section data-house-history>
       <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("history")}</h3>
       {log.length === 0 ? (
         <p className="mt-2 text-small text-muted">{t("historyNone")}</p>
       ) : (
         <ul className="mt-2 divide-y divide-ink/8">
-          {log.map((entry) => (
-            <li key={entry.id} className="flex items-baseline justify-between gap-4 py-2 text-small">
-              <span className="min-w-0 truncate text-ink">{tLog(`action.${entry.action}`)}</span>
-              <span className="shrink-0 text-muted">{f.day(entry.createdAt)}</span>
-            </li>
-          ))}
+          {log.map((entry) => {
+            const outcome = outcomeOf(entry);
+            return (
+              <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 text-small">
+                <span className="min-w-0 truncate text-ink">
+                  {tLog(`action.${entry.action}`)}
+                  <span className="text-muted"> · {entry.by === "system" ? t("by.system") : t("by.admin")}</span>
+                  {outcome && <span className="text-muted"> · {outcome}</span>}
+                </span>
+                <span className="shrink-0 text-muted">{f.day(entry.createdAt)}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

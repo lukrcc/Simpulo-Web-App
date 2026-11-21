@@ -1,5 +1,8 @@
 import { convert, currencyForCountry, type CurrencyCode } from './currency';
 import type { HouseSpace } from "@/config/space";
+
+/** Admin › Houses › Host helfen: what Simpulo suggests, from the comparison with similar full Houses (lib/houseHelp.ts) */
+export type HostHelpItem = "price" | "photos" | "text" | "answers";
 import { shortNameOf } from './shortName';
 // src/lib/mock.ts – Simpulo mock data (no backend)
 // Images: local WebP files in public/mock, fetched once from Pixabay by scripts/fetch-mock-images.ts (queries and
@@ -466,6 +469,10 @@ export interface Stay {
   accommodationType?: string;
   /** "About the space" (config/space.ts, optional): rooms, shared spaces, table, light … – the House page shows PUBLIC_SPACE only */
   space?: HouseSpace;
+  /** Admin › Houses › "Im Explore hervorheben": until then (ISO) the House sits higher in Explore's default order (config/policies.ts HIGHLIGHT_POLICY) */
+  boostUntil?: string;
+  /** Admin › Houses › Host helfen: Simpulo's tips for this House (lib/houseHelp.ts) – a checklist in the host's Manage tab, ticked by the host */
+  hostHelp?: { items: HostHelpItem[]; at: string; done: HostHelpItem[] };
   /** Social depth (config/depth.ts): easy · balanced · deep; none = Balanced. Only counts while config/platform.ts depthChoiceEnabled is on. */
   depth?: 'easy' | 'balanced' | 'deep';
   /** What the host fee pays for – a checklist on the House page */

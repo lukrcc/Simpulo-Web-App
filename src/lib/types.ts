@@ -9,6 +9,7 @@ export type {
   ArcThirty,
   ArcIntention,
   HouseMemory,
+  HostHelpItem,
   StayPractical,
   Attribution,
   Currency,
@@ -242,6 +243,7 @@ export type AdminAction =
   | "funding_moved"
   | "funding_doc"
   | "backlog_status"
+  | "launch_check"
   | "location_decided"
   | "marketing_step"
   | "marketing_contact_added"
@@ -304,6 +306,8 @@ export interface SupportTicket {
   votes: number;
   /** A duplicate: the ticket it was merged into */
   mergedInto?: string;
+  /** Opened by the team (Admin › Houses › Host helfen, Ausweichen): no message of the person – the conversation starts with Simpulo's */
+  fromTeam?: true;
   /** Internal, never shown to the person */
   adminNotes: string;
   replies: readonly TicketReply[];

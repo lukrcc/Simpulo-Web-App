@@ -79,6 +79,7 @@ export const NOTIFY_CATALOG = {
   anniversary: tip("stay/ArcParts › useArcEmails (anniversary)", "arc"),
   // ── Chat, searches, news ──
   chatMessage: { trigger: "store › sendMessage", to: "crew", category: "messages", mandatory: false, email: "unreadAfter", push: true, inApp: true, path: "/messages" },
+  houseNudge: { trigger: "lib/admin/actions › nudgeHouse (Admin › Houses › Nachfrage)", to: "account", category: "nearby", mandatory: false, email: "daily", push: true, inApp: false, path: "/explore" },
   newHouse: { trigger: "store › announceToSearches", to: "account", category: "nearby", mandatory: false, email: "weekly", push: true, inApp: true, path: "/explore" },
   profileTips: { trigger: null, to: "account", category: "news", mandatory: false, email: "optIn", push: false, inApp: true, path: "/settings/profile" },
   // ── Applications, waitlist ──
@@ -92,6 +93,7 @@ export const NOTIFY_CATALOG = {
   reportReceived: account("store › reportContent, safety/ReportContentForm", "reporter", "/", { inApp: true }),
   reportDecided: account("store › decideReport (lib/admin/actions › moderate)", "reporter", "/", { inApp: true }),
   decision: account("store › decideReport, decideAppeal", "reported", "/notices", { inApp: true }),
+  teamMessage: account("lib/admin/actions › sendHostSuggestions, proposeAlternative (Admin › Houses)", "host", "/messages?id=support", { push: true }),
   supportReply: account("lib/admin/actions › reply", "account", "/messages?id=support", { inApp: true }),
   // ── Terms and the account ──
   termsUpdate: account(null, "account", "/terms"),
@@ -170,6 +172,12 @@ export const EVENT_OF: Record<NotifyEventKey, CatalogId> = {
 
 /** The arc's steps that email (config/arc.ts) – each to its catalogue entry; the rest are "arcStep". */
 export const ARC_STEP_EVENT: Partial<Record<string, CatalogId>> = { again: "dayAfter", albumReady: "albumReady", doItAgain: "doItAgain", thirtyDays: "thirtyDays", chosen: "yourPeople", anniversary: "anniversary" };
+
+/**
+ * How email and push are delivered: "mock" (console + Dev menu log) until the backend sends for real – then "resend" / "fcm". Admin › System
+ * › Launch reads it ("E-Mail-Versand aktiv", "Push aktiv"). TODO(backend): switch when the senders exist.
+ */
+export const DELIVERY: { email: "mock" | "resend"; push: "mock" | "fcm" } = { email: "mock", push: "mock" };
 
 /** The daily bundle goes out at this local hour (the server's job later), with everything collected that day. */
 export const DAILY_BUNDLE_HOUR = 18;

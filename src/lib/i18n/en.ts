@@ -627,6 +627,31 @@ const en = {
       "no": "Not now"
     }
   },
+  "houseHelp": {
+    "hostIntro": "Hi {name}, {title} still has {missing, plural, one {# spot} other {# spots}} open and starts in {days, plural, one {# day} other {# days}}.",
+    "hostCompare": "Similar Houses that filled up have:",
+    "hostLines": {
+      "price": "a price per person around {median} (yours: {value})",
+      "photos": "{median} photos (yours: {value})",
+      "text": "a fuller description – around {median} characters (yours: {value})",
+      "answers": "answers within {median} h (yours: {value} h)"
+    },
+    "hostNone": "Your House looks a lot like the ones that filled – sometimes it just takes a little longer.",
+    "hostOutro": "You'll find these as a short checklist in your Manage tab. Reply here if we can help.",
+    "hostOutroNone": "Reply here if we can help.",
+    "alternative": "Hi {name}, {title} starts in {days, plural, one {# day} other {# days}} with {in} of {total} in. Two options, only if they suit you: move the dates to {later}{join}. Nothing changes on its own – your guests would have to agree, or they get a full refund. Reply here and we'll help.",
+    "alternativeJoin": ", or join {title} ({date}) with your crew",
+    "checklist": {
+      "title": "Tips from Simpulo",
+      "intro": "From Houses like yours that filled up. Tick them off as you go.",
+      "items": {
+        "price": "Check your price per person against similar Houses",
+        "photos": "Add more photos – lead with your brightest one",
+        "text": "Say more in your description: the place, a typical day, who you're looking for",
+        "answers": "Answer requests within a day"
+      }
+    }
+  },
   "reportContent": {
     "title": "Report content",
     "intro": "Seen something on Simpulo you believe is illegal or breaks our rules? Tell us – you don't need an account.",
@@ -5317,6 +5342,7 @@ const en = {
       "yourPeople": { "subject": "You chose each other", "short": "New in Your people", "body": "Someone from your crew wants to live with you again too. They're in Your people now.", "action": "See Your people" },
       "anniversary": { "subject": "One year since {house}", "short": "One year since {house}", "body": "Open the album – or open the next House with the same crew.", "action": "Open the album" },
       "chatMessage": { "subject": "New message in {house}", "short": "New message in {house}", "body": "Someone wrote in your chat.", "action": "Reply" },
+      "houseNudge": { "subject": "{house} has spots for you", "short": "A House you might like: {house}", "body": "It fits what you're looking for – a few spots are still open.", "action": "See the House" },
       "newHouse": { "subject": "A new House for your search", "short": "A new House for your search", "body": "A House opened that fits a search you saved.", "action": "See the House" },
       "profileTips": { "subject": "A tip for your profile", "short": "A tip for your profile", "body": "A small step that helps hosts say yes.", "action": "Open your profile" },
       "applicationReceived": { "subject": "We got your application", "short": "Application received", "body": "Thanks for applying to host on Simpulo. We'll answer within a few days.", "action": "See your application" },
@@ -5328,6 +5354,7 @@ const en = {
       "reportReceived": { "subject": "We got your report", "short": "We got your report", "body": "Thanks – we look at it within 24 hours and tell you what we decided.", "action": "Open Simpulo" },
       "reportDecided": { "subject": "About your report", "short": "About your report", "body": "We looked at what you reported. The result is in Simpulo.", "action": "Open Simpulo" },
       "decision": { "subject": "A decision about your account", "short": "A decision about your account", "body": "We made a decision about your account or content. You see why and can appeal.", "action": "See the decision" },
+      "teamMessage": { "subject": "A message from Simpulo about {house}", "short": "A message from Simpulo", "body": "We wrote to you in Messages – a few ideas for your House.", "action": "Read the message" },
       "supportReply": { "subject": "Simpulo replied to your message", "short": "Simpulo replied", "body": "Our answer is in Messages.", "action": "Read the answer" },
       "termsUpdate": { "subject": "We've updated our Terms", "short": "We've updated our Terms", "body": "Read what changed – we ask you to agree once, the next time you open Simpulo.", "action": "Read the Terms" },
       "accountPaused": { "subject": "Your account is paused", "short": "Your account is paused", "body": "Your profile is private and your Houses are off Explore. Nothing is deleted – resume any time.", "action": "Resume" },

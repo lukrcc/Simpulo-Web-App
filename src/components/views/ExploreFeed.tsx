@@ -1,6 +1,7 @@
 "use client";
 
 import { depthOf, depthShiftDays } from "@/config/depth";
+import { boostShiftDays } from "@/lib/houseHelp";
 import { blockHighlight } from "@/lib/highlight";
 import { useTodayIso } from "@/lib/birthDate";
 import { useHeaderSlot } from "@/lib/headerSlot";
@@ -173,9 +174,10 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
   // default order (config/depth.ts depthShiftDays) – a recommendation, never a filter. Only while the depth choice is on.
   const depthOn = useDepthChoice();
   const need = getCurrentUser(store)?.communityNeed;
+  // Admin › Houses › "Im Explore hervorheben": a House that needs help sits higher for a while (lib/houseHelp.ts, config/policies.ts HIGHLIGHT_POLICY).
   const shiftDaysOf = useCallback(
-    (s: Stay) => (slowHosts.has(s.hostId) ? SLOW_HOST_SHIFT_DAYS : 0) + (depthOn ? depthShiftDays(depthOf(s, true), need) : 0),
-    [slowHosts, depthOn, need],
+    (s: Stay) => (slowHosts.has(s.hostId) ? SLOW_HOST_SHIFT_DAYS : 0) + (depthOn ? depthShiftDays(depthOf(s, true), need) : 0) + (today === null ? 0 : boostShiftDays(s, today)),
+    [slowHosts, depthOn, need, today],
   );
   const hostPremium = useFeatureFlag("hostPremium");
 

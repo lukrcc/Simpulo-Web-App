@@ -210,6 +210,18 @@ export const DIRECT_MESSAGE_POLICY = {
  * sheet – holds a spot this many hours. Invites to people who aren't Your people, aren't saved and didn't say they're in for it: at most
  * this many a day. Whoever is invited can say "Don't invite me again" (to that person). No friend list, no followers, no requests.
  */
+/**
+ * Admin › Houses › Sichtbarkeit ("Im Explore hervorheben"): a House that needs help moves up in Explore's default order for a while – as if it
+ * started `rankShiftDays` earlier (lib/houseHelp.ts). At most `maxConcurrent` Houses at once, each for `days`.
+ */
+export const HIGHLIGHT_POLICY = { days: 7, maxConcurrent: 3, rankShiftDays: 21 } as const;
+
+/**
+ * Admin › Houses › Nachfrage ("Passende Leute benachrichtigen"): at most `perPersonPerDay` such message per person and day, and only to people
+ * who said yes – a confirmed waitlist sign-up, or an account whose "New Houses for your searches" is on (push or email).
+ */
+export const NUDGE_POLICY = { perPersonPerDay: 1 } as const;
+
 export const INVITE_POLICY = {
   inviteHoldHours: 48,
   inviteNonConnectionsPerDay: 5,
