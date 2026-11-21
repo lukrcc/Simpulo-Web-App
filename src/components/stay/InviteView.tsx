@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Link2Off } from "lucide-react";
+import { openWaitlist } from "@/lib/waitlistSignup";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { use, useEffect, useState } from "react";
@@ -73,7 +74,7 @@ export function InviteView({ params }: { params: Promise<{ token: string }> }) {
   const live = canPay(phase);
   const beta = !live && canReserve(phase);
   function joinWaitlist() {
-    showToast(t("waitlistToast"));
+    openWaitlist({ where: stay?.location.city || stay?.city || null, category: stay?.vibe ?? null, month: stay?.startDate.slice(0, 7) ?? null, from: "invite" });
   }
   function accept() {
     requireAuth(async (userId) => {

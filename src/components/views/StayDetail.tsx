@@ -15,6 +15,7 @@ import { ageOn, MIN_AGE } from "@/lib/birthDate";
 import { audienceFit, didntWorkOut } from "@/lib/requests";
 import { canApplyAsHost, canPay, canRequest, canReserve, launch, usePlatformPhase } from "@/config/platform";
 import { HOST_APPLY_HREF } from "@/components/platform/useJoinWaitlist";
+import { openWaitlist } from "@/lib/waitlistSignup";
 import { hasOffer, waitlistOpen, waitlistPosition, waitlistReason } from "@/lib/waitlist";
 import { AuthOptions } from "@/components/auth/AuthSheet";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
@@ -361,7 +362,9 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const requestsOpen = canRequest(phase);
   // An example House (pre-launch, beta): never bookable – "Join the waitlist", and "Host one like this" beside it.
   const example = Boolean(stay.isExample);
-  const phaseAction = example ? { kind: "waitlist" as const, onClick: () => showToast(t("page.phase.waitlistToast")) } : isHost || isMember || myRequest ? undefined : canApplyAsHost(phase) ? { kind: "waitlist" as const, onClick: () => showToast(t("page.phase.waitlistToast")) } : canReserve(phase) ? { kind: "reserve" as const, onClick: () => requireAuth(() => { store.reserveSpot(stay.id); showToast(t("page.phase.reservedToast")); }, { reason: "join", hostName: hostFirstName }) } : undefined;
+  // The waitlist sheet, with this House's place and theme filled in (lib/waitlistSignup.ts).
+  const joinHouseWaitlist = () => openWaitlist({ where: stay.location.city || stay.city || null, category: stay.vibe, month: stay.startDate.slice(0, 7), from: "house" });
+  const phaseAction = example ? { kind: "waitlist" as const, onClick: joinHouseWaitlist } : isHost || isMember || myRequest ? undefined : canApplyAsHost(phase) ? { kind: "waitlist" as const, onClick: joinHouseWaitlist } : canReserve(phase) ? { kind: "reserve" as const, onClick: () => requireAuth(() => { store.reserveSpot(stay.id); showToast(t("page.phase.reservedToast")); }, { reason: "join", hostName: hostFirstName }) } : undefined;
   const ctaFor = (withSecondary: boolean) => (
     <StayCta
       phaseAction={phaseAction}

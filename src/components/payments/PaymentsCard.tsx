@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleCheck, Clock, FileUp, Loader2, Wallet } from "lucide-react";
+import { RemindGuestButton } from "@/components/stay/RemindButtons";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { ListRow } from "@/components/stay/DetailSection";
@@ -83,7 +84,6 @@ function PaymentRow({ payment, stay, onPay }: { payment: Payment; stay: Stay; on
   const tSection = useTranslations("houses.detail.sections");
   const f = useFormat();
   const store = useStore();
-  const showToast = useToast();
   const user = findUser(store, payment.userId);
   const isMe = payment.userId === store.currentUserId;
   const firstName = user?.name.split(" ")[0] ?? "";
@@ -107,9 +107,8 @@ function PaymentRow({ payment, stay, onPay }: { payment: Payment; stay: Stay; on
               {t("payNow")}
             </Button>
           ) : (
-            <Button variant="tertiary" aria-label={t("remindFor", { name: firstName })} onClick={() => showToast(t("remindedToast", { name: firstName }))}>
-              {t("remind")}
-            </Button>
+            // Once per guest (config/policies.ts MANUAL_REMINDERS); then "Reminded".
+            <RemindGuestButton payment={payment} name={firstName} />
           ))
         }
       />

@@ -83,7 +83,17 @@ export type NotifyEventKey =
   | "systemVerify"
   | "systemPhoto"
   // Simpulo answered "Help & feedback"
-  | "supportReply";
+  | "supportReply"
+  // Deadlines (lib/deadlines.ts, config/policies.ts DEADLINES) – bundled per person and day ({count})
+  | "deadlineHostReminder"
+  | "deadlineHostLastDay"
+  | "deadlineRequestExpired"
+  | "deadlinePayReminder"
+  | "deadlinePayLastHours"
+  | "deadlineYourPaymentLapsed"
+  // "Remind" by hand (once each)
+  | "guestRemindedHost"
+  | "hostRemindedGuest";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -125,6 +135,14 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   systemVerify: "system",
   systemPhoto: "system",
   supportReply: "system",
+  deadlineHostReminder: "request_received",
+  deadlineHostLastDay: "request_received",
+  deadlineRequestExpired: "request_declined",
+  deadlinePayReminder: "payment_due",
+  deadlinePayLastHours: "payment_due",
+  deadlineYourPaymentLapsed: "payment_due",
+  guestRemindedHost: "request_received",
+  hostRemindedGuest: "payment_due",
 };
 
 /** One notification of one person. */

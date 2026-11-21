@@ -2,8 +2,10 @@
 
 // The read-only areas of /admin: Waitlist, Topics, Algorithm, Traffic, Log. Every number comes from lib/admin/metrics.ts.
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
-import { TOPIC_WEIGHTS } from "@/config/admin";
+import { useMemo, useState } from "react";
+import { LAUNCH_CRITERIA, TOPIC_WEIGHTS } from "@/config/admin";
+import { AdminSort, AdminTabs } from "./AdminLayout";
+import { StatusDot } from "./AdminCharts";
 import { VIBE_ICONS } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
 import { algorithmMetrics, topicScores, waitlistMetrics } from "@/lib/admin/metrics";
@@ -11,7 +13,7 @@ import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getTrafficReport } from "@/lib/data";
 import { findUser, useStore } from "@/lib/store";
-import type { Vibe } from "@/lib/types";
+import { waitlistStatus, type Vibe } from "@/lib/types";
 import { BarList, ColumnChart, TrendChart } from "./AdminCharts";
 import { LaunchCriteria } from "./AdminCockpit";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
@@ -31,27 +33,93 @@ function VibeLabel({ vibe }: { vibe: Vibe }) {
 
 // ── Waitlist ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * /admin/waitlist (Launch › Warteliste): the real sign-ups (double opt-in). Tabs Alle · Bestätigt · Offen · Abgemeldet, filters Ort and Thema
+ * on the right; on top the confirmed count against the launch criterion (≥ 1.000 – only confirmed count), the launch criteria, the trend,
+ * sources and interests, and the list.
+ */
 export function AdminWaitlist() {
   const tOverview = useTranslations("admin.overview");
   const t = useTranslations("admin.waitlist");
   const f = useFormat();
   const inputs = useAdminInputs();
   const w = waitlistMetrics(inputs);
-  const latest = inputs.admin.waitlist.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
+  const [status, setStatus] = useState<"all" | WaitlistStatus>("all");
+  const [place, setPlace] = useState("all");
+  const [theme, setTheme] = useState<"all" | Vibe>("all");
+  const places = [...new Set(inputs.admin.waitlist.map((e) => e.where).filter((x): x is string => Boolean(x)))].toSorted((a, b) => a.localeCompare(b, "de"));
+  const themes = [...new Set(inputs.admin.waitlist.flatMap((e) => e.interests))];
+  const list = inputs.admin.waitlist
+    .filter((e) => status === "all" || waitlistStatus(e) === status)
+    .filter((e) => place === "all" || e.where === place)
+    .filter((e) => theme === "all" || e.interests.includes(theme))
+    .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const [all, setAll] = useState(false);
+  const shown = all ? list : list.slice(0, 20);
+  const count = (s: WaitlistStatus) => inputs.admin.waitlist.filter((e) => waitlistStatus(e) === s).length;
 
   return (
-    <AdminShell title={t("title")}>
+    <AdminShell
+      title={t("title")}
+      tabs={
+        <AdminTabs
+          label={t("statusLabel")}
+          value={status}
+          onChange={setStatus}
+          tabs={[
+            { value: "all" as const, label: t("statusAll"), count: inputs.admin.waitlist.length },
+            { value: "confirmed" as const, label: t("statusConfirmed"), count: count("confirmed"), tooltip: t("statusConfirmedInfo") },
+            { value: "pending" as const, label: t("statusPending"), count: count("pending"), tooltip: t("statusPendingInfo") },
+            { value: "unsubscribed" as const, label: t("statusUnsubscribed"), count: count("unsubscribed") },
+          ]}
+        />
+      }
+      aside={
+        <>
+          <AdminSort label={t("place")} value={place} onChange={setPlace} options={[{ value: "all", label: t("anywhere") }, ...places.map((p) => ({ value: p, label: p }))]} />
+          <AdminSort label={t("theme")} value={theme} onChange={setTheme} options={[{ value: "all" as const, label: t("allThemes") }, ...themes.map((v) => ({ value: v, label: f.vibe(v) }))]} />
+        </>
+      }
+    >
       <StatRow
         stats={[
-          { label: t("total"), value: num(w.total) },
+          { label: t("confirmed"), value: `${num(w.confirmed)} / ${num(LAUNCH_CRITERIA.waitlist)}`, focus: true },
+          { label: t("pending"), value: num(w.pending) },
           { label: t("lastWeek"), value: `+${num(w.lastWeek)}` },
           { label: t("wantsToHost"), value: num(w.wantsToHost) },
-          { label: t("referred"), value: num(w.referred) },
         ]}
       />
       {/* The launch criteria live here (no longer on the overview): each against its target. */}
       <AdminSection title={tOverview("launch")}>
         <LaunchCriteria />
+      </AdminSection>
+      <AdminSection title={t("latest")}>
+        {list.length === 0 ? (
+          <p className="text-body text-muted">{t("none")}</p>
+        ) : (
+          <ul className="divide-y divide-ink/8">
+            {shown.map((e) => {
+              const s = waitlistStatus(e);
+              return (
+                <li key={e.id} data-waitlist-entry={s} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-body">
+                  <span className="flex min-w-0 items-center gap-2 truncate text-ink">
+                    <StatusDot status={s === "confirmed" ? "good" : s === "pending" ? "warning" : null} />
+                    {e.email}
+                    <span className="text-small text-muted">{t(`state.${s}`)}</span>
+                  </span>
+                  <span className="text-small text-muted">
+                    {[e.where ?? t("anywhere"), e.when ? monthLabel(e.when) : t("anytime"), e.interests.map((v) => f.vibe(v)).join(", "), e.source ?? t("direct"), e.wantsToHost ? t("hostTag") : null, f.day(e.createdAt)].filter(Boolean).join(" · ")}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {list.length > shown.length && (
+          <button type="button" onClick={() => setAll(true)} className="mt-3 text-small font-semibold text-ink underline-offset-4 hover:underline">
+            {t("showAll", { count: list.length })}
+          </button>
+        )}
       </AdminSection>
       <AdminSection title={t("overTime")}>
         <TrendChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total }))} />
@@ -64,21 +132,11 @@ export function AdminWaitlist() {
           <BarList tone="chart-3" rows={w.byInterest.map((s) => ({ key: s.key, label: <VibeLabel vibe={s.key} />, value: s.count }))} />
         </AdminSection>
       </div>
-      <AdminSection title={t("latest")}>
-        <ul className="divide-y divide-ink/8">
-          {latest.map((e) => (
-            <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-body">
-              <span className="min-w-0 truncate text-ink">{e.email}</span>
-              <span className="text-small text-muted">
-                {[e.where ?? t("anywhere"), e.when ? monthLabel(e.when) : t("anytime"), e.interests.map((v) => f.vibe(v)).join(", "), e.source ?? t("direct"), e.wantsToHost ? t("hostTag") : null, f.day(e.createdAt)].filter(Boolean).join(" · ")}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </AdminSection>
     </AdminShell>
   );
 }
+
+type WaitlistStatus = ReturnType<typeof waitlistStatus>;
 
 // ── Topics ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -237,7 +295,7 @@ export function AdminLog() {
               {/* An entry of an action that no longer exists (saved in this browser) shows its raw name. */}
               <span className="font-semibold text-ink">{t.has(`action.${entry.action}`) ? t(`action.${entry.action}`) : entry.action}</span>
               <span className="min-w-0 truncate text-ink">{target(entry)}</span>
-              <span className="text-small text-muted md:text-body">{t("by", { name: findUser(store, entry.by)?.name ?? entry.by })}</span>
+              <span className="text-small text-muted md:text-body">{t("by", { name: entry.by === "system" ? t("system") : (findUser(store, entry.by)?.name ?? entry.by) })}</span>
             </li>
           ))}
         </ul>

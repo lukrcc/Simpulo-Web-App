@@ -63,4 +63,13 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   systemVerify: NotifyEvent.SimpuloNews,
   systemPhoto: NotifyEvent.SimpuloNews,
   supportReply: NotifyEvent.SupportReply,
+  // Deadlines: money and time – the always-on channels (in-app, push, email)
+  deadlineHostReminder: NotifyEvent.RequestReceived,
+  deadlineHostLastDay: NotifyEvent.RequestReceived,
+  deadlineRequestExpired: NotifyEvent.RequestAnswered,
+  deadlinePayReminder: NotifyEvent.PaymentReminder,
+  deadlinePayLastHours: NotifyEvent.PaymentReminder,
+  deadlineYourPaymentLapsed: NotifyEvent.BookingCancelled,
+  guestRemindedHost: NotifyEvent.RequestReceived,
+  hostRemindedGuest: NotifyEvent.PaymentReminder,
 };

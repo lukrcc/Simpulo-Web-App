@@ -1,12 +1,20 @@
 "use client";
 
 import { depthLocked } from "./depth";
+import { dueDeadlines, type DeadlineEvent } from "./deadlines";
+import { clockIso } from "./clock";
+import { subscribeDevSettings } from "./devSettings";
+import { logDeadlineSteps } from "./deadlineLog";
+import { addHostApplication } from "./admin/store";
+import { tEn } from "./i18n/translate";
+import * as emailChannel from "./notify/channels/email";
+import type { HostApplication as AdminHostApplication } from "./types";
 import { markContactDemoSeen } from "./admin/store";
 import type { ThemePref } from "./themeScript";
 import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
 import { mockInFor } from "./mock-inFor";
-import { INVITE_POLICY } from "@/config/policies";
+import { DEADLINES, INVITE_POLICY, MANUAL_REMINDERS, type DeadlineFlow } from "@/config/policies";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
 import { DEFAULT_FLAGS, useFeatureFlag } from "./featureFlags";
@@ -69,7 +77,7 @@ import type {
 } from "./types";
 import { findUrls, makeId, openSpots, slugify } from "./utils";
 import { bindPaymentsMock } from "./payments/mock";
-import { audienceFit, didntWorkOut, requestExpiresAt } from "./requests";
+import { audienceFit, didntWorkOut } from "./requests";
 import { earningsFor } from "./earnings";
 import { payments } from "./payments";
 import { records as inAppRecords } from "./notify/channels/inapp";
@@ -266,6 +274,9 @@ type StoreAction =
   | { type: "report"; report: Omit<Report, "reporterId"> }
   | { type: "deleteAccount"; at: string }
   | { type: "settlePayments"; at: string }
+  | { type: "applyDeadlines"; events: DeadlineEvent[]; at: string }
+  | { type: "remindHost"; requestId: string; at: string }
+  | { type: "remindGuest"; paymentId: string; at: string }
   | { type: "lapsePaymentWindow"; stayId: string; at: string }
   | { type: "fireReminder"; reminder: Reminder; message: Pick<Message, "id" | "createdAt"> }
   | { type: "setAcceptingRequests"; stayId: string; accepting: boolean }
@@ -348,8 +359,11 @@ interface StoreActions {
   markAllNotificationsRead: () => void;
   /** The in-app channel's sink: records made by notify() outside the reducer */
   addNotifications: (records: AppNotification[]) => void;
-  /** /host application form. */
-  addApplication: (application: Omit<HostApplication, "id" | "createdAt" | "userId">) => void;
+  /**
+   * "Become a host" (/apply): the application goes through the adapter into Admin › Bewerbungen (lib/admin/store.ts addHostApplication –
+   * the one list), linked to the account when logged in; the applicant gets the confirmation (mock email).
+   */
+  addApplication: (application: Omit<AdminHostApplication, "id" | "createdAt" | "status" | "userId">) => AdminHostApplication;
   /** Crew member (not the host) leaves: spot freed, out of the crew chat. */
   leaveStay: (stayId: string) => void;
   /** Host: takes back "Not a fit" right after (the toast's Undo) – the request is open again, the guest's notification gone. */
@@ -494,6 +508,10 @@ interface StoreActions {
   fireReminder: (reminder: Reminder) => void;
   /** Dev: as if the House's open 48 hours (payment, then booking) were over now */
   lapsePaymentWindow: (stayId: string) => void;
+  /** The guest reminds the host of their open request – once, from MANUAL_REMINDERS.guestToHost.afterHours on */
+  remindHost: (requestId: string) => void;
+  /** The host reminds a guest to pay – once per payment */
+  remindGuest: (paymentId: string) => void;
 }
 
 type StoreValue = StoreState & StoreActions;
@@ -1099,7 +1117,8 @@ function settlePayments(state: StoreState, at: string, announce: boolean): Store
         for (const payment of lapsed) {
           const name = firstNameOf(next, payment.userId);
           const id = `${stay.id}-lapsed-${payment.userId}-${at}`;
-          const others = crewIds(next, stay);
+          // The crew and host hear it – not the person whose spot it was (they get their own notice, the deadline's lapse step).
+          const others = crewIds(next, stay).filter((id) => id !== payment.userId);
           const current = next.stays.find((s) => s.id === stay.id) ?? stay;
           next = withoutMember(next, current, payment.userId, systemLine({ id, createdAt: at }, crewThreadId(stay.id), "paymentLapsed", { name }), "paymentLapsed");
           next = { ...next, payments: next.payments.filter((p) => !(p.stayId === stay.id && p.userId === payment.userId && p.status === "pending")), notifications: notifyInApp(next, others, "paymentLapsed", { title: stay.title, name }, id, stay.id) };
@@ -1144,14 +1163,51 @@ function expireInvites(state: StoreState, at: string): StoreState {
   };
 }
 
-/** Open requests past their 48 hours become "expired"; the guest gets the same words as for a no. */
-function expireRequests(state: StoreState, at: string): StoreState {
-  const due = state.joinRequests.filter((r) => r.status === "pending" && requestExpiresAt(r) <= at);
-  if (due.length === 0) return state;
-  let next: StoreState = { ...state, joinRequests: state.joinRequests.map((r) => (due.some((d) => d.id === r.id) ? { ...r, status: "expired" as const } : r)) };
-  for (const r of due) {
-    const stay = state.stays.find((s) => s.id === r.stayId);
-    if (stay) next = { ...next, notifications: notifyInApp(next, [r.userId], "requestExpired", { title: stay.title }, `${r.id}-expired`, stay.id, undefined, { href: "/your-houses?tab=past" }) };
+
+/**
+ * The deadlines' steps (lib/deadlines.ts) on the records: each marked once (JoinRequest.deadlines / Payment.deadlines), a request at its last
+ * step runs out ("expired" – the guest hears it like a no, with similar Houses in Your houses › Past), a lapsed payment is freed by
+ * settlePayments right after (same `at`). The notices are bundled: one per person, kind and day ({count}) – a second one that day updates
+ * the first instead of sending another (CLAUDE.md "Fristen": money and deadlines are outside "one Simpulo card a day", but never a pile).
+ */
+function applyDeadlineEvents(state: StoreState, events: readonly DeadlineEvent[], at: string): StoreState {
+  if (events.length === 0) return state;
+  const mark = <T extends { id: string; deadlines?: Partial<Record<string, string>> }>(list: T[], flow: DeadlineFlow) =>
+    list.map((x) => {
+      const steps = events.filter((e) => e.flow === flow && e.targetId === x.id);
+      return steps.length ? { ...x, deadlines: { ...x.deadlines, ...Object.fromEntries(steps.map((e) => [e.step, at])) } } : x;
+    });
+  const expired = new Set(events.filter((e) => e.flow === "request" && e.step === "expire").map((e) => e.targetId));
+  let next: StoreState = {
+    ...state,
+    joinRequests: mark(state.joinRequests, "request").map((r) => (expired.has(r.id) && r.status === "pending" ? { ...r, status: "expired" as const } : r)),
+    payments: mark(state.payments, "payment"),
+  };
+  // Bundle: per recipient and notice, how many – and the first one's words.
+  const groups = new Map<string, { to: string; key: NotifyEventKey; count: number; event: DeadlineEvent }>();
+  for (const e of events) {
+    if (!e.notice || e.superseded) continue;
+    for (const to of e.to) {
+      const k = `${to}|${e.notice}`;
+      const g = groups.get(k);
+      if (g) g.count++;
+      else groups.set(k, { to, key: e.notice, count: 1, event: e });
+    }
+  }
+  const day = at.slice(0, 10);
+  for (const g of groups.values()) {
+    const stay = next.stays.find((s) => s.id === g.event.stayId);
+    const step = DEADLINES[g.event.flow].find((s) => s.id === g.event.step);
+    const values = { count: g.count, title: stay?.title ?? "", name: firstNameOf(next, g.event.guestId), hours: Math.max(0, PAYMENT_WINDOW_HOURS - (step?.afterHours ?? 0)) };
+    const href = g.key === "deadlineRequestExpired" ? "/your-houses?tab=past" : g.event.flow === "payment" ? `/h/${g.event.stayId}?focus=pay` : g.count > 1 ? "/your-houses" : `/h/${g.event.stayId}?tab=manage&focus=requests`;
+    const same = next.notifications.find((n) => n.userId === g.to && n.key === g.key && n.createdAt.slice(0, 10) === day && n.eventId.startsWith("deadline-"));
+    if (same) {
+      // The same kind already went out today: it now counts these too – no second message.
+      const count = Number(same.values.count ?? 1) + g.count;
+      next = { ...next, notifications: next.notifications.map((n) => (n === same ? { ...n, values: { ...n.values, count }, readAt: undefined, href: count > 1 && g.event.flow === "request" && g.key !== "deadlineRequestExpired" ? "/your-houses" : n.href } : n)) };
+    } else {
+      next = { ...next, notifications: notifyInApp(next, [g.to], g.key, values, `deadline-${g.key}-${g.to}-${day}`, g.count === 1 ? g.event.stayId : undefined, undefined, { href }) };
+    }
   }
   return next;
 }
@@ -1206,14 +1262,14 @@ function reducer(state: StoreState, action: StoreAction): StoreState {
 
 function reduce(state: StoreState, action: StoreAction): StoreState {
   const applied = applyAction(state, action);
-  const moved = action.type === "settlePayments" || applied.stays !== state.stays || applied.payments !== state.payments;
+  const moved = action.type === "settlePayments" || action.type === "applyDeadlines" || applied.stays !== state.stays || applied.payments !== state.payments;
   // The clock's own tick only finds Houses that were already complete when the data loaded: nothing new to tell anyone.
   const at = "at" in action && action.at ? action.at : new Date().toISOString();
   const settled = moved ? settlePayments(applied, at, action.type !== "settlePayments") : applied;
   // The waitlist follows every change and every tick of the clock: offers run out, free spots are offered.
   const synced = moved || applied.joinRequests !== state.joinRequests ? syncWaitlist(settled, at) : settled;
-  // Open requests expire after 48h (config/policies.ts): the guest hears it like a no – "didn't work out".
-  const next = moved ? expireInvites(expireRequests(synced, at), at) : synced;
+  // Open requests run out through the deadlines (lib/deadlines.ts, the "applyDeadlines" action) – not here.
+  const next = moved ? expireInvites(synced, at) : synced;
   if (next.stays === state.stays) return next;
   const stays = withLaunchVisibility(next.stays);
   return stays === next.stays ? next : { ...next, stays };
@@ -2376,6 +2432,32 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "settlePayments":
       return state;
 
+    case "applyDeadlines":
+      return applyDeadlineEvents(state, action.events, action.at);
+
+    case "remindHost": {
+      const request = state.joinRequests.find((r) => r.id === action.requestId);
+      const stay = request && state.stays.find((s) => s.id === request.stayId);
+      if (!request || !stay || request.userId !== me || request.status !== "pending" || request.remindedAt) return state;
+      if (Date.parse(action.at) - Date.parse(request.createdAt) < MANUAL_REMINDERS.guestToHost.afterHours * HOUR_MS) return state;
+      return {
+        ...state,
+        joinRequests: state.joinRequests.map((r) => (r.id === request.id ? { ...r, remindedAt: action.at } : r)),
+        notifications: notifyInApp(state, [stay.hostId], MANUAL_REMINDERS.guestToHost.notice, { name: firstNameOf(state, request.userId), title: stay.title }, `remind-host-${request.id}`, stay.id, undefined, { href: `/h/${stay.id}?tab=manage&focus=requests` }),
+      };
+    }
+
+    case "remindGuest": {
+      const payment = state.payments.find((p) => p.id === action.paymentId);
+      const stay = payment && state.stays.find((s) => s.id === payment.stayId);
+      if (!payment || !stay || stay.hostId !== me || payment.status !== "pending" || payment.remindedAt || !stay.paymentDueAt) return state;
+      return {
+        ...state,
+        payments: state.payments.map((p) => (p.id === payment.id ? { ...p, remindedAt: action.at } : p)),
+        notifications: notifyInApp(state, [payment.userId], MANUAL_REMINDERS.hostToGuest.notice, { host: firstNameOf(state, stay.hostId), title: stay.title }, `remind-guest-${payment.id}`, stay.id, undefined, { href: `/h/${stay.id}?focus=pay` }),
+      };
+    }
+
     case "lapsePaymentWindow":
       return { ...state, stays: state.stays.map((s) => (s.id !== action.stayId ? s : { ...s, ...(s.paymentDueAt && { paymentDueAt: action.at }), ...(s.allPaidAt && { allPaidAt: new Date(Date.parse(action.at) - BOOKING_WINDOW_HOURS * HOUR_MS).toISOString() }) })) };
 
@@ -2761,11 +2843,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const markAllNotificationsRead = useCallback(() => dispatch({ type: "markAllNotificationsRead", at: new Date().toISOString() }), []);
   const addNotifications = useCallback((records: AppNotification[]) => dispatch({ type: "addNotifications", records }), []);
   const addApplication = useCallback(
-    (application: Omit<HostApplication, "id" | "createdAt" | "userId">) =>
-      dispatch({
-        type: "addApplication",
-        application: { ...application, id: makeId("app"), createdAt: new Date().toISOString(), ...(currentUserId && { userId: currentUserId }) },
-      }),
+    (application: Omit<AdminHostApplication, "id" | "createdAt" | "status" | "userId">) => {
+      const added = addHostApplication({ ...application, ...(currentUserId && { userId: currentUserId }) });
+      emailChannel.send(currentUserId ?? application.email ?? added.id, { subject: tEn("platform.apply.confirmSubject"), text: tEn("platform.apply.confirmText"), url: "/apply", template: "notification" });
+      return added;
+    },
     [currentUserId],
   );
   const leaveStay = useCallback(
@@ -3042,13 +3124,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const lapsePaymentWindow = useCallback((stayId: string) => dispatch({ type: "lapsePaymentWindow", stayId, at: new Date().toISOString() }), []);
-  // The clock runs in the browser for now (later a server job): on load, and once a minute.
+  const remindHost = useCallback((requestId: string) => dispatch({ type: "remindHost", requestId, at: clockIso() }), []);
+  const remindGuest = useCallback((paymentId: string) => dispatch({ type: "remindGuest", paymentId, at: clockIso() }), []);
+  // The clock runs in the browser for now (later a server job, the same lib/deadlines.ts as a Cloud Function every hour): on load, once a
+  // minute and when the Dev menu shifts the time (lib/clock.ts). First the deadlines (each due step once; every one taken goes into the
+  // admin log as "System"), then the payments.
+  const clockState = useRef(state);
   useEffect(() => {
-    const settle = () => dispatch({ type: "settlePayments", at: new Date().toISOString() });
-    settle();
-    const timer = window.setInterval(settle, SETTLE_EVERY_MS);
-    return () => window.clearInterval(timer);
+    clockState.current = state;
+  });
+  const tick = useCallback(() => {
+    // Only on the browser's own data (after the saved mock and the login are back) – never on the first render's: the deadlines first, so
+    // a lapse is always their step (with its notice and log line), then the payments with the same moment.
+    if (!clockState.current.sessionRestored) return;
+    const at = clockIso();
+    const events = dueDeadlines(clockState.current, Date.parse(at));
+    if (events.length > 0) {
+      dispatch({ type: "applyDeadlines", events, at });
+      logDeadlineSteps(events, clockState.current);
+    }
+    dispatch({ type: "settlePayments", at });
   }, []);
+  useEffect(() => {
+    tick();
+    const timer = window.setInterval(tick, SETTLE_EVERY_MS);
+    const unsub = subscribeDevSettings(tick);
+    return () => {
+      window.clearInterval(timer);
+      unsub();
+    };
+  }, [tick]);
+  // Right after the browser's data is back: one tick for what fell due meanwhile.
+  useEffect(() => {
+    if (state.sessionRestored) tick();
+  }, [state.sessionRestored, tick]);
   const fireReminder = useCallback(
     (reminder: Reminder) => dispatch({ type: "fireReminder", reminder, message: { id: makeId("m"), createdAt: new Date().toISOString() } }),
     [],
@@ -3155,8 +3264,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       fireReminder,
       lapsePaymentWindow,
+      remindHost,
+      remindGuest,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

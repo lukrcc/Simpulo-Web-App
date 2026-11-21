@@ -26,7 +26,7 @@ Stand 21. Nov. 2026 · nur gelesen, nichts am Code geändert. Grundlage: der Cod
 | House-Seite Mitglied | teilweise | `stay/MemberHouse.tsx` (MemberHero, Stepper, MemberSections) | Die Reiter Chat · Crew · Plan · Moments · Me fehlen (nur als Kommentar geplant). Beleg und „Something went wrong“ gibt es nur in der alten Detailansicht | ja (Kommentar „Later: …“) |
 | Buchungsleiste, schwebende Kapsel, JoinSteps | fertig | `HouseSections.tsx` (HouseJoinBar), `StayDetail.tsx` (StayCta) | – | nein |
 | Warteliste eines vollen House | fertig | `lib/waitlist.ts`, Store `requestWaitlist` / `takeWaitlistSpot` / `syncWaitlist` | Die Uhr läuft nur im Browser | Mock |
-| Warteliste vor dem Launch („Join the waitlist“) | nur Platzhalter | `platform/useJoinWaitlist.ts` | Es wird nichts gespeichert, nur ein Toast gezeigt | ja |
+| Warteliste vor dem Launch („Join the waitlist“) | fertig (Mock) | `lib/waitlistSignup.ts`, `platform/WaitlistSheet.tsx`, `/waitlist/confirm`, `/waitlist/unsubscribe` | Double-Opt-in und Mails nur im Mock (Dev-Log); kein echter Versand | ja |
 | Request with a friend | fertig | `StayDetail.tsx` (`withFriend`, `?with=`) | – | nein |
 | Beispiel- und Founding-Houses | fertig | `lib/data/visibleHouses.ts`, `HouseCard.tsx`, `HouseHero.tsx` | „Host one like this“ führt auf `/create`, nicht auf eine Bewerbung | ja (`HOST_APPLY_HREF = "/create"`) |
 | Anfrage-Fenster (Notiz 300 Zeichen) | fertig | `StayDetail.tsx` (RequestSheet) | – | nein |
@@ -81,7 +81,7 @@ Stand 21. Nov. 2026 · nur gelesen, nichts am Code geändert. Grundlage: der Cod
 | House bearbeiten | fertig | `/your-houses/[id]/edit`, `views/EditStay.tsx` | – | nein |
 | House absagen | fertig | `stay/CrewMenu.tsx` → `store.closeStay` | Die Erstattung hängt am leeren Stripe-Adapter | Mock |
 | Auszahlungen (Payouts-Seite, Setup, Status) | teilweise | `/your-houses/payouts`, `payouts/PayoutSetup.tsx`, `/settings/payouts` | Stripe Connect ist leer; das Onboarding führt im Mock auf `/dev/stripe-onboarding` | ja (Mock-Ledger) |
-| Founding Host / Bewerbung | nur Platzhalter | `CreateEntry.tsx` (ApplyAsHost), `HOST_APPLY_HREF` | Es gibt kein Bewerbungsformular; `addApplication` wird nirgends aufgerufen. Entscheiden lässt sich nur im Admin | ja („comes in its own step“) |
+| Founding Host / Bewerbung | fertig (Mock) | `/apply`, `platform/HostApply.tsx`, Admin › Bewerbungen | Mails nur im Mock; Annehmen setzt Founding Host und schaltet Open a House frei | ja |
 
 ## 5 Konto
 
@@ -137,8 +137,8 @@ Stand 21. Nov. 2026 · nur gelesen, nichts am Code geändert. Grundlage: der Cod
 | House anlegen `/admin/houses/new` | fertig (Mock) | Store | Claim-Links gibt es nur lokal | Mock |
 | Vorbereitete Houses `/admin/houses/prepared` | fertig | `stay.claim` | – | Mock |
 | Hosts `/admin/hosts` | teilweise | aus den Daten; Follower aus `mockAudienceSize` | „Erinnern“ zeigt nur einen Toast; die Follower-Zahlen sind Mock | ja |
-| Bewerbungen `/admin/applications` | teilweise | Mock-Startdaten, localStorage | Es kommen keine echten Bewerbungen herein (kein Formular in der App) | ja |
-| Warteliste `/admin/waitlist` | teilweise | Mock-Startdaten | Die Warteliste der App schreibt nicht hinein (nur Toast) | ja |
+| Bewerbungen `/admin/applications` | fertig (Mock) | Liste/Detail, Annehmen · Rückfrage · Ablehnen, Log, Mail im Mock | Bewerbungen kommen aus `/apply` | ja |
+| Warteliste `/admin/waitlist` | fertig (Mock) | echte Einträge, Status bestätigt/offen/abgemeldet, Filter Ort/Thema | Nur Bestätigte zählen fürs Launch-Kriterium | ja |
 | Wachstum `/admin/growth` | fertig | Ereignisse (Mock-Saat) | Echte Analytics-Ereignisse fehlen | Mock |
 | Traffic `/admin/traffic` | nur Platzhalter | `MOCK_TRAFFIC` (Kapsel „Demo-Daten“) | Keine Analytics-Anbindung; in Produktion „nicht verfügbar“ | ja |
 | Analyse `/admin/topics` | fertig | Mock-Ergebnisse oder aus den Daten | „Mit dir wieder“ sind Beispielwerte | teils |

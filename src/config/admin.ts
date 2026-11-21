@@ -1,5 +1,5 @@
 // The admin dashboard's targets and weights (/admin). The numbers are computed in lib/admin/metrics.ts – never in the UI.
-import { FEE_MODEL, stayExample } from "@/config/policies";
+import { DEADLINES, FEE_MODEL, stayExample } from "@/config/policies";
 
 /** When Simpulo is ready to launch (admin › Overview, as progress bars). */
 export const LAUNCH_CRITERIA = {
@@ -88,7 +88,8 @@ export const ANCHOR_TARGET = { perTopicAndHub: { min: 1, max: 2 } } as const;
  * Admin › Houses ("Welche Houses brauchen Hilfe?"): an upcoming House is at risk when one rule holds – it starts in under `deadlineDays`
  * days and is under `minFill` full; no request for `quietDays` days; a request unanswered for longer than `unansweredHours`.
  */
-export const HOUSE_RISK = { deadlineDays: 7, minFill: 0.6, quietDays: 7, unansweredHours: 48 } as const;
+/** `unansweredHours`: a request without an answer this long puts the House on "Braucht Hilfe" – the needsHelp step of DEADLINES.request. */
+export const HOUSE_RISK = { deadlineDays: 7, minFill: 0.6, quietDays: 7, unansweredHours: DEADLINES.request.find((s) => s.id === "needsHelp")!.afterHours } as const;
 
 /** Admin › Houses: the four levers for a House that needs help. */
 export const HOUSE_LEVERS = ["visibility", "demand", "host", "alternative"] as const;

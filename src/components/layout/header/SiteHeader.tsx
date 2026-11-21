@@ -1,8 +1,8 @@
 "use client";
 import { HeaderBack } from "@/components/layout/HeaderBack";
+import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { cn } from "@/lib/utils";
-import { canOpenHouse, usePlatformPhase } from "@/config/platform";
 import { setHeaderSlot } from "@/lib/headerSlot";
 import { Plus, UserRound } from "lucide-react";
 
@@ -61,10 +61,8 @@ function SiteHeaderByRoute() {
 
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
   const t = useTranslations("nav");
-  const tPlatform = useTranslations("platform.apply");
-  // Before the launch the "+" is "Apply as a host" (config/platform.ts).
-  const phase = usePlatformPhase();
-  const tOpen = useTranslations("common.ui.openHouse");
+  // "Open a House" – before the launch without an accepted application "Apply to host" (to /apply).
+  const openEntry = useOpenHouseEntry();
   const store = useStore();
   const requireAuth = useRequireAuth();
   const router = useRouter();
@@ -177,13 +175,9 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <span className="ml-2 flex">{profile}</span>
           {/* "Open a House": the capsule (headerActionStyles) with "+" and its words on every width the header has (tablets too, CLAUDE.md
               "Tablet"); only on Explore below 1100px its "+" alone (tooltip "Open a House") – the filters need the room. */}
-          <Link
-            href="/create"
-            aria-label={canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}
-            className={cn(headerActionStyles, "ml-2", explorePage && "max-split:w-9 max-split:px-0")}
-          >
+          <Link href={openEntry.href} aria-label={openEntry.label} className={cn(headerActionStyles, "ml-2", explorePage && "max-split:w-9 max-split:px-0")}>
             <Plus aria-hidden strokeWidth={2.25} />
-            <span className={explorePage ? "max-split:hidden" : undefined}>{canOpenHouse(phase) ? tOpen("label") : tPlatform("plus")}</span>
+            <span className={explorePage ? "max-split:hidden" : undefined}>{openEntry.label}</span>
           </Link>
         </nav>
       </div>

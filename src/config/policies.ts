@@ -5,6 +5,7 @@
  * host confirms the booking within this many hours, otherwise everything is refunded.
  */
 export const PAYMENT_POLICY = {
+  /** The 48 hours to pay once the crew is complete – the lapse step of DEADLINES.payment must match */
   paymentWindowHours: 48,
   hostBookingWindowHours: 48,
 } as const;
@@ -67,8 +68,45 @@ export function stayExample() {
  * ("Didn't work out"). A host who lets too many expire (under 70 % answered, last 90 days) gets a nudge and sits a little lower in recommended
  * orders – never shown publicly.
  */
+/**
+ * Every deadline of a request and of a payment – one place (CLAUDE.md "Fristen"). lib/deadlines.ts computes from these which steps are due
+ * (today in the browser's clock with the Dev menu's time shift, later 1:1 as a Cloud Function every hour). Each step: after how many hours
+ * (a request: since it was sent; a payment: since its 48-hour window opened), who hears it, and the text key of the notice (the words are in
+ * lib/i18n/en.ts messages.notify.<notice> – the i18n rule). These notices are about money and deadlines: the arc's "one Simpulo card a
+ * day" doesn't hold for them, but several for one person on one day become one (bundled, `count`).
+ */
+export const DEADLINES = {
+  request: [
+    /** A day without an answer: the host is reminded */
+    { id: "hostReminder", afterHours: 24, to: "host", notice: "deadlineHostReminder" },
+    /** Two days: the second (last) reminder */
+    { id: "hostReminderLast", afterHours: 48, to: "host", notice: "deadlineHostLastDay" },
+    /** 60 hours: the House shows in Admin › Houses "Braucht Hilfe" (no notice to anyone) */
+    { id: "needsHelp", afterHours: 60, to: "admin", notice: null },
+    /** Three days: the request runs out – the guest hears "didn't work out" and sees three similar Houses */
+    { id: "expire", afterHours: 72, to: "guest", notice: "deadlineRequestExpired" },
+  ],
+  payment: [
+    /** A day into the 48 hours: the guest is reminded */
+    { id: "payReminder", afterHours: 24, to: "guest", notice: "deadlinePayReminder" },
+    /** Four hours left */
+    { id: "payReminderLast", afterHours: 44, to: "guest", notice: "deadlinePayLastHours" },
+    /** 48 hours: the spot is free again – the guest hears it, the host and crew too (store settlePayments) */
+    { id: "lapse", afterHours: 48, to: "guest", notice: "deadlineYourPaymentLapsed" },
+  ],
+} as const satisfies Record<"request" | "payment", readonly { id: string; afterHours: number; to: "host" | "guest" | "admin"; notice: string | null }[]>;
+export type DeadlineFlow = keyof typeof DEADLINES;
+export type DeadlineStepId = (typeof DEADLINES)[DeadlineFlow][number]["id"];
+
+/** "Remind" by hand: the guest the host once per request (from 24 hours on), the host a guest once per payment. Then the button rests. */
+export const MANUAL_REMINDERS = {
+  guestToHost: { afterHours: 24, perRequest: 1, notice: "guestRemindedHost" },
+  hostToGuest: { perPayment: 1, notice: "hostRemindedGuest" },
+} as const;
+
 export const REQUEST_POLICY = {
-  requestExpiryHours: 48,
+  /** When an open request runs out – the last step of DEADLINES.request */
+  requestExpiryHours: DEADLINES.request.find((s) => s.id === "expire")!.afterHours,
   /** Under this many hours left the countdown turns ink */
   urgentHours: 12,
   responseWindowDays: 90,

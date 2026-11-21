@@ -9,7 +9,7 @@ import { FOOTER_PLACES, FOOTER_THEMES } from "@/config/footer";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
 import { CurrencyPicker } from "./CurrencyPicker";
-import { FooterWaitlist, FoundingHostsLink } from "./FooterPhase";
+import { FooterWaitlist, FoundingHostsLink, OpenHouseFooterLink } from "./FooterPhase";
 import { Logo } from "./Logo";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
 import { cn } from "@/lib/utils";
@@ -64,10 +64,8 @@ export async function Footer() {
   const t = await getTranslations("footer");
   const tl = await getTranslations("footer.large");
   const legal = await legalLinks();
-  const host = [
-    { href: "/create", label: t("links.openHouse") },
-    { href: "/faq?role=host", label: tl("howHosting") },
-  ];
+  // "Open a House" is its own (client) link: before the launch it may say "Apply to host" (FooterPhase.tsx).
+  const host = [{ href: "/faq?role=host", label: tl("howHosting") }];
   const simpulo = [
     { href: "/about", label: t("links.about") },
     { href: "/faq", label: t("links.howItWorks") },
@@ -123,6 +121,7 @@ export async function Footer() {
           <nav aria-label={tl("host")} className="split:col-span-2">
             <h2 className={HEAD}>{tl("host")}</h2>
             <ul className="mt-3">
+              <OpenHouseFooterLink className={LINK} />
               {host.map(({ href, label }) => (
                 <li key={href}>
                   <Link href={href} className={LINK}>

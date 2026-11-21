@@ -87,10 +87,10 @@ export function NoHouseYet({ draft, stays = [], title: own, onClear }: { draft: 
  * Before the launch and in the beta, when a search finds nothing: "Be the first here" – "Join the waitlist" (primary) and "Host here" (the
  * host application); "Clear filters" when filters did it. No "No House here yet", no suggestions.
  */
-export function BeFirstHere({ onClear }: { /** The search that found nothing (kept for the later "notify me here") */ draft: SearchDraft; onClear?: () => void }) {
+export function BeFirstHere({ draft, onClear }: { /** The search that found nothing – its place, theme and month go into the waitlist */ draft: SearchDraft; onClear?: () => void }) {
   const t = useTranslations("platform");
   const tSearch = useTranslations("explore.search");
-  const joinWaitlist = useJoinWaitlist();
+  const joinWaitlist = useJoinWaitlist({ where: placeNameOf(draft) ?? null, category: draft.category, month: draft.month, from: "emptySearch" });
   return (
     <div className="flex flex-col items-center py-(--space-inner) text-center">
       <h2 className="max-w-160 text-h2 text-ink">{t("empty.title")}</h2>

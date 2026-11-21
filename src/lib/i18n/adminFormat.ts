@@ -38,6 +38,9 @@ export const signed = (n: number, as: (n: number) => string = num) => `${n > 0 ?
 export const signedPct = (ratio: number) => `${ratio > 0 ? "+" : ratio < 0 ? "−" : "±"}${relative.format(Math.abs(ratio * 100))} %`;
 /** Oktober – from YYYY-MM-DD */
 export const monthLong = (value: string) => monthLongFmt.format(toDate(value));
+const monthYearFmt = new Intl.DateTimeFormat(LOCALE, { month: "long", year: "numeric", timeZone: "UTC" });
+/** Februar 2027 – from YYYY-MM */
+export const monthYear = (value: string) => monthYearFmt.format(toDate(`${value}-01`));
 
 const weekdayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: "long", timeZone: "UTC" });
 /** Freitag – from YYYY-MM-DD */

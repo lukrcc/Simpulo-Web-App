@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { showsExamples, usePlatformPhase } from "@/config/platform";
+import { openWaitlist } from "@/lib/waitlistSignup";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
@@ -78,8 +80,15 @@ export function useSaveSearch(draft: SearchDraft) {
   const guard = usePreviewGuard();
   const [asking, setAsking] = useState(false);
   const me = store.currentUserId;
+  const phase = usePlatformPhase();
   const save = () =>
     guard(() => {
+      // Before the launch (pre-launch and beta) "Save this search" is the waitlist – with this search's place, theme and month, and its
+      // double opt-in. The search itself is saved too when there's an account.
+      if (showsExamples(phase)) {
+        if (me) store.saveSearch({ ...draft, userId: me, consent: true });
+        return openWaitlist({ where: draft.place?.name.split(",")[0].trim() ?? null, category: draft.category, month: draft.month, from: "saveSearch" });
+      }
       if (!me) return setAsking(true);
       store.saveSearch({ ...draft, userId: me, consent: true });
     });

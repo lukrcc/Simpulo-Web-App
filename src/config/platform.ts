@@ -89,6 +89,11 @@ export const canReserve = (phase: PlatformPhase) => phaseRules[phase].reserve;
 export const canPay = (phase: PlatformPhase) => phaseRules[phase].pay;
 export const canOpenHouse = (phase: PlatformPhase) => phaseRules[phase].openHouse;
 export const canApplyAsHost = (phase: PlatformPhase) => phaseRules[phase].applyAsHost;
+/**
+ * Whether this person may open a House now (Regel: before the launch only with an accepted application). Pre-launch: only founding hosts –
+ * an accepted application makes one (Admin › Bewerbungen); everyone else sees "Apply to host" at every way in. Beta and live: the phase.
+ */
+export const canOpenHouseAs = (phase: PlatformPhase, user: { foundingHost?: boolean } | null | undefined) => canOpenHouse(phase) || (canApplyAsHost(phase) && Boolean(user?.foundingHost));
 export const showsWaitlist = (phase: PlatformPhase) => phaseRules[phase].waitlist;
 export const showsFoundingHosts = (phase: PlatformPhase) => phaseRules[phase].foundingHosts;
 

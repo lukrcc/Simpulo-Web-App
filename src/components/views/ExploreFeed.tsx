@@ -249,7 +249,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // Not during the prerender (the shelves read the clock): only once the browser's clock is there.
   const browsing = !scoped && !filtered && !headless && today !== null;
   const showPeople = browsing && peopleGoing.length > 0 && showsPersonalRows(phase);
-  const joinWaitlist = useJoinWaitlist();
+  const joinWaitlist = useJoinWaitlist({ from: "landing" });
   const launchHero = showsExamples(phase) ? { label: launch.targetLabel, onJoin: joinWaitlist, hostHref: HOST_APPLY_HREF } : undefined;
   // The bands between the grid's rows (browsing only): Just opened, then Short trips – never the same House in two of them.
   // The bands of the rhythm (EXPLORE_RHYTHM): in their order, empty ones skipped, never the same House in two of them.

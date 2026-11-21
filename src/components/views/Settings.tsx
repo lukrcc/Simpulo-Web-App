@@ -1,6 +1,7 @@
 "use client";
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
+import { useMyApplication } from "@/components/platform/HostApply";
 import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -210,6 +211,8 @@ function AccountArea({ me }: { me: User }) {
   const email = me.email ?? (method === "email" ? mockEmailOf(me) : undefined);
   // ⚠ MOCK: no passkeys yet – "Add" until there is one.
   const passkey = false;
+  const application = useMyApplication();
+  const tApply = useTranslations("platform.apply");
   return (
     <div className="space-y-8">
       <AreaTitle title={tu("nav.account")} />
@@ -219,6 +222,12 @@ function AccountArea({ me }: { me: User }) {
         <SettingsRow title={t("signIn")} value={t(`method.${method}`)} chevron onClick={() => showToast(t("comesSoon"))} />
         <SettingsRow title={t("passkey")} value={t(passkey ? "passkeyOn" : "passkeyAdd")} chevron onClick={() => showToast(t("comesSoon"))} />
       </SettingsGroup>
+      {/* Your host application, while you have one: where it stands (→ /apply). */}
+      {application && (
+        <SettingsGroup title={tApply("accountGroup")}>
+          <SettingsRow title={tApply("accountRow")} value={tApply(application.status === "yes" ? "statusYes" : application.status === "no" ? "statusNo" : application.status === "maybe" ? "statusQuestion" : "statusNew")} chevron href="/apply" />
+        </SettingsGroup>
+      )}
       {/* Devices: a plain list – no big button here; logging out sits at the very bottom. */}
       <SettingsGroup title={tu("account.groupDevices")}>
         <SettingsRow title={t("session")} subtitle={tu("account.thisDeviceSub")} value={tu("account.now")} />

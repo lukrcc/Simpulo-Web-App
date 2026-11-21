@@ -212,9 +212,10 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
         <Button size="sm" variant="secondary" onClick={() => actions.decide(task.application, "yes")}>
           {tApps("yes")}
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => actions.decide(task.application, "maybe")}>
+        {/* Rückfrage needs its text (the template) – in the application's detail. */}
+        <Link href={`/admin/applications?app=${task.application.id}`} className={buttonStyles("secondary", "sm")}>
           {tApps("maybe")}
-        </Button>
+        </Link>
         <Button size="sm" variant="tertiary" onClick={() => actions.decide(task.application, "no")}>
           {tApps("no")}
         </Button>

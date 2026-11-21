@@ -1,6 +1,7 @@
 "use client";
 
 import { LogIn, Plus } from "lucide-react";
+import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
@@ -37,6 +38,8 @@ export function BottomTabBar() {
   const requireAuth = useRequireAuth();
   const t = useTranslations("nav");
   const unread = useMessagesUnread().chats;
+  // The "+": Open a House – before the launch without an accepted application "Apply to host".
+  const openEntry = useOpenHouseEntry();
   const [account, setAccount] = useState(false);
   const phone = useIsPhone();
   const profileRef = useRef<HTMLButtonElement>(null);
@@ -98,7 +101,7 @@ export function BottomTabBar() {
               {tab("/your-houses", t("items.houses"), undefined, t("items.yourHouses"))}
               <li className="flex flex-1 items-center justify-center">
                 {/* Open a House: in the middle, a little set apart (the capsule's white 16 %), never orange. */}
-                <Link href="/create" aria-label={t("openHouse")} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink transition-colors duration-150 active:bg-(--header-pill-hover)">
+                <Link href={openEntry.href} aria-label={openEntry.allowed ? t("openHouse") : openEntry.label} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink transition-colors duration-150 active:bg-(--header-pill-hover)">
                   <Plus aria-hidden className="size-6" strokeWidth={2.25} />
                 </Link>
               </li>

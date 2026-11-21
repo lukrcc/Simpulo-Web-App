@@ -1,11 +1,12 @@
 "use client";
 
 import { CalendarPlus, Check, Clock, Home, MapPin, MessageCircle } from "lucide-react";
+import { useNow } from "@/lib/useNow";
+import { RemindAllButton, RemindHostButton } from "./RemindButtons";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { openVote } from "@/lib/crewVotes";
 import { downloadIcs } from "@/lib/ics";
@@ -111,7 +112,6 @@ export function HostProgress({ stay, requests, chat, onSheet, onLock }: { stay: 
   const t = useTranslations("houses.overview");
   const f = useFormat();
   const store = useStore();
-  const showToast = useToast();
   const [now] = useState(() => Date.now());
   const progress = paymentProgress(store, stay.id);
   const locked = stay.accommodationStatus === "locked";
@@ -161,7 +161,7 @@ export function HostProgress({ stay, requests, chat, onSheet, onLock }: { stay: 
         <>
           {sentence(t("next.paymentsOpen", { open: progress.count - progress.paidCount, date: due }))}
           <CrewPaid stay={stay} />
-          {action(<Button size="md" onClick={() => showToast(t("next.reminded"))}>{t("next.remind")}</Button>)}
+          {action(<RemindAllButton payments={store.payments.filter((p) => p.stayId === stay.id && p.userId !== stay.hostId)} />)}
         </>
       )
     ) : current === "booked" ? (
@@ -263,7 +263,9 @@ export function GuestProgress({
   const store = useStore();
   const viewer = usePreferredCurrency();
   const left = useLeft();
-  const [now] = useState(() => Date.now());
+  // The shared clock (lib/useNow.ts – with the Dev menu's time shift): the countdowns follow the deadlines.
+  const [opened] = useState(() => Date.now());
+  const now = useNow() ?? opened;
   const mine = getMyPayment(store, stay.id);
   const accepted = request?.status === "accepted";
   const paid = accepted && mine?.status === "paid";
@@ -302,6 +304,8 @@ export function GuestProgress({
           <p className="min-w-0 flex-1 text-body-lg text-ink">{request.status === "waitlisted" ? tCard("onWaitlist") : t("next.waiting", { name: hostName })}</p>
           {!waitlist && <CardChip>{left(hoursLeft(request, now))}</CardChip>}
         </div>
+        {/* Remind the host – once, from 24 hours on (config/policies.ts MANUAL_REMINDERS). */}
+        {!waitlist && request.status === "pending" && <RemindHostButton request={request} hostName={hostName} />}
         {onWithdraw && (
           <button type="button" onClick={onWithdraw} className="self-start text-small font-semibold text-ink underline-offset-4 hover:underline">
             {tCard("withdraw")}

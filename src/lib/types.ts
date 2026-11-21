@@ -129,6 +129,22 @@ export interface WaitlistEntry {
   source: string | null;
   /** The person (user id or waitlist id) whose link brought them */
   referredBy: string | null;
+  /** Ticked "Email me when Houses open here" – required to be taken in */
+  consent?: boolean;
+  /** Double opt-in: set when they clicked the link in the confirmation email; null = waiting for it. (Unset: from before the double opt-in – counts as confirmed.) */
+  confirmedAt?: string | null;
+  /** Unsubscribed (the link in every email) – no more emails, not counted */
+  unsubscribedAt?: string;
+  /** The secret in the confirm and unsubscribe links */
+  token?: string;
+  /** Their account, when they were logged in */
+  userId?: string;
+}
+
+/** Where a sign-up stands: waiting for the confirmation click, confirmed, or unsubscribed. */
+export function waitlistStatus(e: Pick<WaitlistEntry, "confirmedAt" | "unsubscribedAt">): "pending" | "confirmed" | "unsubscribed" {
+  if (e.unsubscribedAt) return "unsubscribed";
+  return e.confirmedAt === null ? "pending" : "confirmed";
 }
 
 export type ApplicationStatus = "new" | "yes" | "maybe" | "no";
@@ -150,10 +166,20 @@ export interface HostApplication {
   audienceLinks: string[];
   /** Followers across those links (mock values) */
   audienceSize: number;
-  /** One or two sentences: the House they have in mind */
+  /** One or two sentences: the House they have in mind ("Why I want to host") */
   pitch?: string;
   status: ApplicationStatus;
   createdAt: string;
+  /** Their email (the confirmation and the answers go there) */
+  email?: string;
+  /** Roughly when ("YYYY-MM"), null = open */
+  when?: string | null;
+  /** The Marketing › Kontakte entry with the same email, linked on arrival */
+  contactId?: string;
+  /** The last question the admin sent (Rückfrage) – with its time */
+  question?: { text: string; at: string };
+  /** When it was decided (yes / no) */
+  decidedAt?: string;
 }
 
 /** Every admin action, newest first in the Log. */
@@ -173,6 +199,8 @@ export interface AdminLogEntry {
 export type AdminAction =
   | "phase_changed"
   | "application_decided"
+  | "application_question"
+  | "deadline_step"
   | "founding_host_added"
   | "ticket_replied"
   | "ticket_status"

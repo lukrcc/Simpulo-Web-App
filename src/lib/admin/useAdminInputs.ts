@@ -14,5 +14,5 @@ export function useAdminInputs(): AdminInputs {
   const admin = useAdminData();
   // The browser's clock (no clock reads while rendering on the server); the admin areas only render in the browser anyway (AdminFrame).
   const now = useNow();
-  return { stays, users, reports, joinRequests, livedWith, payments, threads, admin, history: getMetricsHistory(), outcomes: getHouseOutcomes(), ledger: getLedger(), phase, today: new Date(now ?? 0).toISOString().slice(0, 10) };
+  return { stays, users, reports, joinRequests, livedWith, payments, threads, admin, history: getMetricsHistory(), outcomes: getHouseOutcomes(), ledger: getLedger(), phase, today: new Date(now ?? 0).toISOString().slice(0, 10), now: now ?? undefined };
 }

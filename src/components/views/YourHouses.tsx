@@ -1,6 +1,7 @@
 "use client";
 
 import { profileHref } from "@/lib/privacy";
+import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { BackLink } from "@/components/ui/BackButton";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
@@ -477,14 +478,15 @@ function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelet
 /** Under Hosting, last (only while you host fewer than two): a MyHouseTile's size – the picture area dashed ink 15 % with "+", under it "Open a House" and "Your crew chips in". */
 function OpenHouseTile() {
   const t = useTranslations("houses.home");
+  const entry = useOpenHouseEntry();
   return (
-    <Link href="/create" data-house-card="open" className="group block min-w-0 rounded-2xl">
+    <Link href={entry.href} data-house-card="open" className="group block min-w-0 rounded-2xl">
       <span className="flex aspect-16/10 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/15 transition-colors duration-150 group-hover:border-ink/30 group-hover:bg-ink/3">
         <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
           <Plus className="size-5" aria-hidden />
         </span>
       </span>
-      <span className="mt-3 block truncate text-body-lg font-semibold text-ink">{t("openHouse")}</span>
+      <span className="mt-3 block truncate text-body-lg font-semibold text-ink">{entry.allowed ? t("openHouse") : entry.label}</span>
       <span className="block truncate text-small text-muted">{t("crewChipsIn")}</span>
     </Link>
   );
@@ -493,6 +495,7 @@ function OpenHouseTile() {
 /** A new account: nothing hosted, nothing joined – a calm, centred invitation with the two ways in. */
 function NewHere() {
   const t = useTranslations("houses.home.new");
+  const entry = useOpenHouseEntry();
   return (
     <Container className="flex min-h-[calc(100dvh-var(--header-total)-var(--space-section))] flex-col items-center justify-center py-(--space-section) text-center">
       <h1 className="text-h1 text-ink">{t("title")}</h1>
@@ -501,8 +504,8 @@ function NewHere() {
         <Link href="/" className={buttonStyles("primary", "md")}>
           {t("find")}
         </Link>
-        <Link href="/create" className={buttonStyles("secondary", "md")}>
-          {t("open")}
+        <Link href={entry.href} className={buttonStyles("secondary", "md")}>
+          {entry.allowed ? t("open") : entry.label}
         </Link>
       </div>
     </Container>
@@ -538,6 +541,7 @@ interface TodoEntry {
 function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: JoinRequest; now: string; news?: ActivitySummary | null }) {
   const t = useTranslations("houses.home");
   const td = useTranslations("houses.home.dash");
+  const openEntry = useOpenHouseEntry();
   const format = useFormat();
   const store = useStore();
   const router = useRouter();
@@ -553,8 +557,8 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
             <Button variant="cream" href="/">
               {td("explore")}
             </Button>
-            <Button variant="creamOutline" href="/create">
-              {t("openHouse")}
+            <Button variant="creamOutline" href={openEntry.href}>
+              {openEntry.allowed ? t("openHouse") : openEntry.label}
             </Button>
           </div>
         </div>

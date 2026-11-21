@@ -497,6 +497,10 @@ export interface Payment extends Attribution {
   /** Refunded: how much went back, when less than `total` (a paid spot that went to the waitlist keeps Simpulo's fee) */
   refundedAmount?: number;
   paidAt?: string;
+  /** The deadline steps already taken (lib/deadlines.ts, config/policies.ts DEADLINES): step id → when */
+  deadlines?: Partial<Record<string, string>>;
+  /** "Remind" by hand – once: the host reminded this guest to pay */
+  remindedAt?: string;
 }
 
 export interface JoinRequest extends Attribution {
@@ -527,6 +531,10 @@ export interface JoinRequest extends Attribution {
    */
   endedReason?: "removed" | "paymentLapsed";
   endedAt?: string;
+  /** The deadline steps already taken (lib/deadlines.ts, config/policies.ts DEADLINES): step id → when */
+  deadlines?: Partial<Record<string, string>>;
+  /** "Remind" by hand – once: the guest reminded the host (from 24 hours on) */
+  remindedAt?: string;
 }
 
 export type MessageType = 'text' | 'image' | 'link' | 'system';

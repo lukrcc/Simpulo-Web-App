@@ -308,13 +308,15 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
   const t = useTranslations("admin.marketing.contacts");
   const actions = useAdminActions();
   // Text fields keep their own draft and save when left (one log line per change, not per key).
-  const [draft, setDraft] = useState({ name: contact.name, niche: contact.niche, followers: String(contact.followers), note: contact.note });
+  const [draft, setDraft] = useState({ name: contact.name, email: contact.email ?? "", niche: contact.niche, followers: String(contact.followers), note: contact.note });
+  // A host application with the same email (Launch › Bewerbungen) – linked both ways.
+  const application = useAdminData().applications.find((a) => a.contactId === contact.id || (contact.email && a.email?.toLowerCase() === contact.email.toLowerCase()));
   const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
   const save = (patch: Partial<Omit<MarketingContact, "id" | "createdAt">>, what: WhatKey) => actions.updateMarketingContact(contact, patch, t(`what.${what}`));
-  const commit = (key: "name" | "niche" | "note") => {
+  const commit = (key: "name" | "email" | "niche" | "note") => {
     const value = draft[key].trim();
-    if (value !== contact[key] && (key === "note" || value !== "")) save({ [key]: value }, key);
+    if (value !== (contact[key] ?? "") && (key === "note" || key === "email" || value !== "")) save({ [key]: value || undefined }, key);
   };
   const commitFollowers = () => {
     const value = Math.max(0, Math.round(Number(draft.followers.replace(/\D/g, "")) || 0));
@@ -325,6 +327,11 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
   return (
     <div data-marketing-contact={contact.id} className="flex flex-col gap-5">
       <BackToList onBack={onBack} />
+      {application && (
+        <Link href={`/admin/applications?app=${application.id}`} className="self-start text-body font-semibold text-ink underline-offset-4 hover:underline">
+          {t("application", { status: t(`applicationStatus.${application.status}`) })} →
+        </Link>
+      )}
       {/* A contact that turns into a collaboration: its data over to Partner, the contact linked back. */}
       <Button size="sm" variant="secondary" className="self-start" onClick={onToPartner}>
         {isPartner ? tPartners("isPartner") : tPartners("fromContact")}
@@ -332,6 +339,9 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("fields.name")}>
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onBlur={() => commit("name")} />
+        </Field>
+        <Field label={t("fields.email")}>
+          <Input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} onBlur={() => commit("email")} />
         </Field>
         <Field label={t("fields.channel")}>
           <select value={contact.channel} onChange={(e) => save({ channel: e.target.value }, "channel")} className="h-12 w-full rounded-xl border border-ink/10 bg-transparent px-3 text-body text-ink">
@@ -437,7 +447,7 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
   );
 }
 /** The field names the log may say (no personal values). */
-type WhatKey = "name" | "channel" | "niche" | "followers" | "contactWay" | "firstMessage" | "followUps" | "status" | "consent" | "launchMail" | "note";
+type WhatKey = "name" | "email" | "channel" | "niche" | "followers" | "contactWay" | "firstMessage" | "followUps" | "status" | "consent" | "launchMail" | "note";
 
 // ─── Trichter ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 

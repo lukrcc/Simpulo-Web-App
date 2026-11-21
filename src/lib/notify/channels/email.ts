@@ -16,9 +16,10 @@ export interface EmailItem {
   template: "notification" | "chatDigest" | "weeklyDigest";
 }
 
+/** `userId`: an account – or, for people without one (the waitlist, a host application), their email address. */
 export function send(userId: string, item: EmailItem) {
   console.info("[email]", userId, item);
-  logDelivery({ channel: "email", userId, text: item.subject });
+  logDelivery({ channel: "email", userId, text: item.subject, url: item.url });
   announceDelivery("email", userId, item.subject);
 }
 

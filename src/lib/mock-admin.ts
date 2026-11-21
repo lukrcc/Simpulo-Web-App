@@ -51,6 +51,11 @@ function waitlist(): WaitlistEntry[] {
       when: rand() < 0.3 ? null : MONTHS[Math.floor(rand() * MONTHS.length)],
       source,
       referredBy: source === "friend" ? (rand() < 0.5 ? "u1" : `wl-${Math.max(1, i - 3)}`) : null,
+      consent: true,
+      // About one in eight hasn't clicked the confirmation link yet; one has unsubscribed.
+      confirmedAt: i % 8 === 5 ? null : iso(TODAY - daysAgo * DAY + 3 * 3_600_000),
+      ...(i === 11 && { unsubscribedAt: iso(TODAY - Math.max(0, daysAgo - 4) * DAY) }),
+      token: `wlt-${i + 1}-${(i * 7919) % 10007}`,
     };
   });
 }

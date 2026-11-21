@@ -53,17 +53,62 @@ export function useAdminData(): AdminData {
 
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** "Join the waitlist" (its own prompt) – the one way in. */
-export function addWaitlistEntry(entry: Omit<WaitlistEntry, "id" | "createdAt">): WaitlistEntry {
-  const added: WaitlistEntry = { ...entry, id: newId("wl"), createdAt: new Date().toISOString() };
-  write({ ...read(), waitlist: [...read().waitlist, added] });
+const sameEmail = (a?: string, b?: string) => Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
+/**
+ * "Join the waitlist" – the one way in. One entry per email: signing up again updates the wishes (and, if they had unsubscribed, starts the
+ * double opt-in again). New entries wait for the confirmation click (confirmedAt null).
+ */
+export function addWaitlistEntry(entry: Omit<WaitlistEntry, "id" | "createdAt" | "confirmedAt" | "token">): WaitlistEntry {
+  const data = read();
+  const existing = data.waitlist.find((e) => sameEmail(e.email, entry.email));
+  if (existing) {
+    const again = Boolean(existing.unsubscribedAt);
+    const next: WaitlistEntry = { ...existing, ...entry, interests: entry.interests.length ? entry.interests : existing.interests, where: entry.where ?? existing.where, when: entry.when ?? existing.when, token: existing.token ?? newId("wlt"), ...(again && { unsubscribedAt: undefined, confirmedAt: null }) };
+    write({ ...data, waitlist: data.waitlist.map((e) => (e.id === existing.id ? next : e)) });
+    return next;
+  }
+  const added: WaitlistEntry = { ...entry, id: newId("wl"), createdAt: new Date().toISOString(), confirmedAt: null, token: newId("wlt") };
+  write({ ...data, waitlist: [...data.waitlist, added] });
   return added;
 }
 
-/** "Apply as a host" (its own prompt) – the one way in; it starts as "new". */
+/** The confirmation link (double opt-in): the entry with this token is confirmed. Returns it (null: no such link). */
+export function confirmWaitlist(token: string): WaitlistEntry | null {
+  const data = read();
+  const entry = data.waitlist.find((e) => e.token === token);
+  if (!entry) return null;
+  if (entry.confirmedAt || entry.unsubscribedAt) return entry;
+  const next = { ...entry, confirmedAt: new Date().toISOString() };
+  write({ ...data, waitlist: data.waitlist.map((e) => (e.id === entry.id ? next : e)) });
+  return next;
+}
+
+/** The unsubscribe link (in every waitlist email): no more emails, not counted. Returns it (null: no such link). */
+export function unsubscribeWaitlist(token: string): WaitlistEntry | null {
+  const data = read();
+  const entry = data.waitlist.find((e) => e.token === token);
+  if (!entry) return null;
+  if (entry.unsubscribedAt) return entry;
+  const next = { ...entry, unsubscribedAt: new Date().toISOString() };
+  write({ ...data, waitlist: data.waitlist.map((e) => (e.id === entry.id ? next : e)) });
+  return next;
+}
+
+/** A waitlist entry by its link token (the confirm and unsubscribe pages). */
+export function waitlistByToken(token: string): WaitlistEntry | null {
+  return read().waitlist.find((e) => e.token === token) ?? null;
+}
+
+/**
+ * "Become a host" – the one way in; it starts as "new". The Marketing › Kontakte entry with the same email is linked (contactId) – the
+ * contact's detail shows the application, and the application the contact.
+ */
 export function addHostApplication(application: Omit<HostApplication, "id" | "createdAt" | "status">): HostApplication {
-  const added: HostApplication = { ...application, id: newId("app"), status: "new", createdAt: new Date().toISOString() };
-  write({ ...read(), applications: [...read().applications, added] });
+  const data = read();
+  const contact = application.email ? data.marketingContacts.find((c) => sameEmail(c.email, application.email)) : undefined;
+  const added: HostApplication = { ...application, ...(contact && { contactId: contact.id }), id: newId("app"), status: "new", createdAt: new Date().toISOString() };
+  write({ ...data, applications: [...data.applications, added] });
   return added;
 }
 

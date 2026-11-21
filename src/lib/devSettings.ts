@@ -17,9 +17,11 @@ export interface DevSettings {
   adminRole: boolean;
   /** "House day" (time travel, lib/arc.ts useArcNow): the day of every House the arc pretends it is (1 = its first day); null = today */
   arcDay: number | null;
+  /** "Clock" (time travel for deadlines, lib/clock.ts): hours added to now – requests, payments, reminders, countdowns; 0 = real time */
+  clockHours: number;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0 };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 

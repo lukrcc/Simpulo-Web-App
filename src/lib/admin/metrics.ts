@@ -21,7 +21,7 @@ import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
 import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
-import { TICKET_CATEGORIES, type Report, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
+import { TICKET_CATEGORIES, waitlistStatus, type WaitlistEntry, type Report, type HostApplication, type HostTier, type User, type JoinRequest, type LivedWith, type Payment, type PlatformPhase, type Stay, type SupportTicket, type TicketCategory, type Vibe } from "@/lib/types";
 
 export interface AdminInputs {
   stays: readonly Stay[];
@@ -43,6 +43,8 @@ export interface AdminInputs {
   phase: PlatformPhase;
   /** YYYY-MM-DD */
   today: string;
+  /** Now in ms (the browser's clock with the Dev menu's time shift, lib/clock.ts) – for hours-precise rules (open requests); else today noon */
+  now?: number;
 }
 
 // ── Status ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -359,7 +361,7 @@ export function overview({ stays, admin }: Pick<AdminInputs, "stays" | "admin">)
     realHouses: real.length,
     /** 0–1; null without real Houses */
     reservedShare: real.length ? reserved / real.length : null,
-    waitlist: admin.waitlist.length,
+    waitlist: confirmedWaitlist(admin.waitlist).length,
     openApplications: admin.applications.filter((a) => a.status === "new").length,
   };
 }
@@ -376,7 +378,8 @@ export function launchProgress({ stays, admin }: Pick<AdminInputs, "stays" | "ad
     hubs: progress(hubs, LAUNCH_CRITERIA.hubs.min),
     /** In percent points, so value and target read the same ("38 of 60 %") */
     reservedShare: progress(real.length ? Math.round((reserved / real.length) * 100) : 0, Math.round(LAUNCH_CRITERIA.reservedShare * 100)),
-    waitlist: progress(admin.waitlist.length, LAUNCH_CRITERIA.waitlist),
+    // Only confirmed sign-ups count (double opt-in; unsubscribed ones never).
+    waitlist: progress(confirmedWaitlist(admin.waitlist).length, LAUNCH_CRITERIA.waitlist),
   };
 }
 
@@ -447,6 +450,11 @@ export function houseKindCounts(rows: readonly HouseRow[]): Record<HouseKind, nu
 // ── Waitlist ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Sign-ups over time (the running total per week, the last 12 weeks), by source (?src, none = "direct") and by category. */
+/** The waitlist that counts: confirmed (double opt-in) and not unsubscribed. */
+export function confirmedWaitlist(list: readonly WaitlistEntry[]): WaitlistEntry[] {
+  return list.filter((e) => waitlistStatus(e) === "confirmed");
+}
+
 export function waitlistMetrics({ admin, today }: Pick<AdminInputs, "admin" | "today">) {
   const end = Date.parse(today) + DAY_MS;
   const weeks = Array.from({ length: 12 }, (_, i) => end - (11 - i) * 7 * DAY_MS);
@@ -455,6 +463,9 @@ export function waitlistMetrics({ admin, today }: Pick<AdminInputs, "admin" | "t
   const byInterest = countBy(admin.waitlist.flatMap((e) => e.interests));
   return {
     total: admin.waitlist.length,
+    confirmed: confirmedWaitlist(admin.waitlist).length,
+    pending: admin.waitlist.filter((e) => waitlistStatus(e) === "pending").length,
+    unsubscribed: admin.waitlist.filter((e) => waitlistStatus(e) === "unsubscribed").length,
     wantsToHost: admin.waitlist.filter((e) => e.wantsToHost).length,
     referred: admin.waitlist.filter((e) => e.referredBy).length,
     lastWeek: admin.waitlist.filter((e) => Date.parse(e.createdAt) >= end - 7 * DAY_MS).length,
@@ -1233,21 +1244,24 @@ export function hostOverview(inputs: AdminInputs): HostOverview[] {
 export type RiskReason = { key: "deadline"; days: number; fill: number } | { key: "quiet"; days: number } | { key: "unanswered"; hours: number };
 
 /** How lively a House is – from the history where there is one (the mock), else from its requests. */
-function activityOf(inputs: Pick<AdminInputs, "joinRequests" | "history" | "today">, stay: Stay) {
-  const now = Date.parse(`${inputs.today}T12:00:00Z`);
+function activityOf(inputs: Pick<AdminInputs, "joinRequests" | "history" | "today" | "now">, stay: Stay) {
+  const now = inputs.now ?? Date.parse(`${inputs.today}T12:00:00Z`);
+  const requests = inputs.joinRequests.filter((r) => r.stayId === stay.id);
+  // The real open requests always count (the deadlines' 60-hour step, config/policies.ts DEADLINES) – also beside the mock history.
+  const pending = requests.filter((r) => r.status === "pending").map((r) => (now - Date.parse(r.createdAt)) / 3_600_000);
+  const realOldest = pending.length ? Math.max(...pending) : null;
   const mock = inputs.history?.houseActivity;
   if (mock) {
     const a = mock[stay.id] ?? {};
-    return { quietDays: a.quietDays ?? 0, oldestPendingHours: a.oldestPendingHours ?? null };
+    const oldest = Math.max(a.oldestPendingHours ?? -1, realOldest ?? -1);
+    return { quietDays: a.quietDays ?? 0, oldestPendingHours: oldest < 0 ? null : oldest };
   }
-  const requests = inputs.joinRequests.filter((r) => r.stayId === stay.id);
   const last = requests.reduce((max, r) => (r.createdAt > max ? r.createdAt : max), stay.createdAt);
-  const pending = requests.filter((r) => r.status === "pending").map((r) => (now - Date.parse(r.createdAt)) / 3_600_000);
-  return { quietDays: Math.floor((now - Date.parse(last)) / DAY_MS), oldestPendingHours: pending.length ? Math.max(...pending) : null };
+  return { quietDays: Math.floor((now - Date.parse(last)) / DAY_MS), oldestPendingHours: realOldest };
 }
 
 /** Upcoming real Houses where a rule holds, most reasons first, then the soonest. */
-export function atRiskHouses(inputs: Pick<AdminInputs, "stays" | "joinRequests" | "history" | "today">) {
+export function atRiskHouses(inputs: Pick<AdminInputs, "stays" | "joinRequests" | "history" | "today" | "now">) {
   const now = Date.parse(`${inputs.today}T00:00:00Z`);
   return inputs.stays
     .filter((s) => isLiveReal(s) && s.status === "published" && s.startDate > inputs.today)
@@ -1258,7 +1272,7 @@ export function atRiskHouses(inputs: Pick<AdminInputs, "stays" | "joinRequests" 
       const reasons: RiskReason[] = [];
       if (days < HOUSE_RISK.deadlineDays && fill < HOUSE_RISK.minFill) reasons.push({ key: "deadline", days, fill });
       if (fill < 1 && activity.quietDays >= HOUSE_RISK.quietDays) reasons.push({ key: "quiet", days: activity.quietDays });
-      if (activity.oldestPendingHours !== null && activity.oldestPendingHours > HOUSE_RISK.unansweredHours) reasons.push({ key: "unanswered", hours: Math.round(activity.oldestPendingHours) });
+      if (activity.oldestPendingHours !== null && activity.oldestPendingHours >= HOUSE_RISK.unansweredHours) reasons.push({ key: "unanswered", hours: Math.round(activity.oldestPendingHours) });
       return reasons.length ? [{ stay, reasons }] : [];
     })
     .toSorted((a, b) => b.reasons.length - a.reasons.length || a.stay.startDate.localeCompare(b.stay.startDate));

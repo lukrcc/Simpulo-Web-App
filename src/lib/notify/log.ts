@@ -9,6 +9,8 @@ export interface NotifyLogEntry {
   channel: "push" | "email" | "emailQueued" | "emailDigest" | "emailWeekly";
   userId: string;
   text: string;
+  /** The email's button, clickable in the Dev menu's log (the waitlist's confirmation link, an application's answer) */
+  url?: string;
 }
 
 const MAX = 50;

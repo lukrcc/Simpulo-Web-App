@@ -6,6 +6,7 @@ import { day, eur } from "@/lib/i18n/adminFormat";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
+import { tEn } from "@/lib/i18n/translate";
 import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
 import { addContentHouse, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
@@ -15,15 +16,26 @@ export function useAdminActions() {
   const store = useStore();
   const by = getCurrentUser(store)?.id ?? "unknown";
   return {
-    /** Yes / Maybe / No on an application. "Yes" makes the applicant a founding host; moving away from "Yes" takes it back. */
-    decide(application: HostApplication, status: ApplicationStatus) {
-      if (application.status === status) return;
+    /**
+     * Annehmen (yes) · Rückfrage (maybe) · Ablehnen (no) on an application – each into the log, each with an email to the applicant (mock: the
+     * Dev menu's log). "Annehmen" makes the account a founding host (pre-launch: that unlocks Open a House – config/platform.ts
+     * canOpenHouseAs); without an account the account with the same email is linked first. Moving away from "yes" takes it back.
+     */
+    decide(application: HostApplication, status: ApplicationStatus, question?: string) {
+      if (application.status === status && status !== "maybe") return;
+      const at = new Date().toISOString();
+      const account = application.userId ?? (application.email ? store.users.find((u) => u.email?.toLowerCase() === application.email!.toLowerCase())?.id : undefined);
       setApplicationStatus(application.id, status);
-      appendAdminLog("application_decided", `${application.name} · ${status}`, by);
-      if (application.userId && (status === "yes" || application.status === "yes")) {
-        store.setFoundingHost(application.userId, status === "yes");
+      patchApplication(application.id, { ...(account && !application.userId && { userId: account }), ...(status === "yes" || status === "no" ? { decidedAt: at } : {}), ...(status === "maybe" && question ? { question: { text: question, at } } : {}) });
+      appendAdminLog(status === "maybe" ? "application_question" : "application_decided", `${application.name} · ${status}`, by);
+      if (account && (status === "yes" || application.status === "yes")) {
+        store.setFoundingHost(account, status === "yes");
         if (status === "yes") appendAdminLog("founding_host_added", application.name, by);
       }
+      const to = account ?? application.email ?? application.id;
+      if (status === "yes") email.send(to, { subject: tEn("platform.apply.acceptedSubject"), text: tEn("platform.apply.acceptedText"), url: "/create", template: "notification" });
+      else if (status === "no") email.send(to, { subject: tEn("platform.apply.declinedSubject"), text: tEn("platform.apply.declinedText"), url: "/apply", template: "notification" });
+      else if (status === "maybe" && question) email.send(to, { subject: tEn("platform.apply.questionSubject"), text: question, url: "/apply", template: "notification" });
     },
     /**
      * An answer to a ticket: added to its replies, sent through lib/notify (in-app + email for an account, email only for a guest – in the

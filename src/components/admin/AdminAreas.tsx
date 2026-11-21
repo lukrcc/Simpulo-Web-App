@@ -31,7 +31,8 @@ import { socialHandle, socialUrl } from "@/lib/socialLinks";
 import { findUser, useStore } from "@/lib/store";
 import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { compact, eur as formatEur, share } from "@/lib/i18n/adminFormat";
+import { compact, eur as formatEur, monthYear, share } from "@/lib/i18n/adminFormat";
+import { Textarea } from "@/components/ui/Input";
 import { PrepareButton, PreparedList } from "./AdminHouses";
 import { AdminSection, AdminShell } from "./AdminShell";
 
@@ -302,66 +303,104 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
 
 const STATUSES: readonly ApplicationStatus[] = ["new", "maybe", "yes", "no"];
 
-/** Founding host applications as cards, decided like the swipe review of pro Houses: Yes · Maybe · No (keys → ↓ ← on the first open one). */
+/**
+ * /admin/applications (Launch › Bewerbungen): list left, detail right (AdminListDetail). Tabs Neu · Rückfrage · Angenommen · Abgelehnt, the
+ * tier filter under them. The detail: everything the applicant sent, the tier, the linked Marketing contact and account, and the actions
+ * Annehmen · Ablehnen · Rückfrage (with a template) – each logged and mailed (lib/admin/actions.ts decide). ?app= opens one.
+ */
 export function AdminApplications() {
   const t = useTranslations("admin.applications");
   const tAdmin = useTranslations("admin");
+  const f = useFormat();
   const { applications } = useAdminData();
   const { decide } = useAdminActions();
   const [status, setStatus] = useState<ApplicationStatus>("new");
   const [tier, setTier] = useState<HostTier | "all">("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ?app=… (from Marketing › Kontakte, the Posteingang): that application, in its tab – read once on arrival.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("app");
+    const app = id ? applications.find((a) => a.id === id) : undefined;
+    if (!app) return;
+    requestAnimationFrame(() => {
+      setStatus(app.status);
+      setSelectedId(app.id);
+    });
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const inStatus = applications.filter((a) => a.status === status);
   const shown = inStatus
     .filter((a) => tier === "all" || applicationTier(a).tier === tier)
     .toSorted((a, b) => (status === "new" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)));
-  const first = status === "new" ? shown[0] : undefined;
+  const selected = shown.find((a) => a.id === selectedId) ?? (status === "new" ? shown[0] : undefined) ?? null;
 
-  // The swipe review's keys: → Yes, ↓ Maybe, ← No – on the oldest open application, never while typing.
+  // Keys on the chosen application: → Annehmen, ← Ablehnen – never while typing.
   useEffect(() => {
-    if (!first) return;
+    if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (e.metaKey || e.ctrlKey || e.altKey || target?.closest("input, textarea, select, [contenteditable]")) return;
-      const next = ({ ArrowRight: "yes", ArrowDown: "maybe", ArrowLeft: "no" } as const)[e.key as "ArrowRight" | "ArrowDown" | "ArrowLeft"];
+      const next = ({ ArrowRight: "yes", ArrowLeft: "no" } as const)[e.key as "ArrowRight" | "ArrowLeft"];
       if (!next) return;
       e.preventDefault();
-      decide(first, next);
+      decide(selected, next);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [first, decide]);
+  }, [selected, decide]);
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("filter")} value={status} onChange={setStatus} tabs={STATUSES.map((value) => ({ value, label: t(`status.${value}`), count: applications.filter((a) => a.status === value).length }))} />}
-      aside={first ? <span className="text-small text-muted max-md:hidden">{t("keys")}</span> : undefined}
+      tabs={<AdminTabs label={t("filter")} value={status} onChange={(next) => { setStatus(next); setSelectedId(null); }} tabs={STATUSES.map((value) => ({ value, label: t(`status.${value}`), count: applications.filter((a) => a.status === value).length }))} />}
+      aside={selected ? <span className="text-small text-muted max-md:hidden">{t("keys")}</span> : undefined}
       subTabs={<TierFilter value={tier} onChange={setTier} tiers={inStatus.map((a) => applicationTier(a).tier)} />}
     >
-      {shown.length === 0 ? (
-        <p className="text-body text-muted">{tAdmin("empty")}</p>
-      ) : (
-        <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {shown.map((application) => (
-            <ApplicationCard key={application.id} application={application} onDecide={(next) => decide(application, next)} highlighted={application === first} />
-          ))}
-        </ul>
-      )}
+      <AdminListDetail
+        label={t("list")}
+        rows={shown.map((a) => ({
+          id: a.id,
+          status: a.status === "new" ? "critical" : null,
+          media: (
+            <span aria-hidden className="flex size-9 items-center justify-center rounded-full bg-ink/6 text-body font-semibold text-ink">
+              {a.name.slice(0, 1)}
+            </span>
+          ),
+          title: a.name,
+          meta: `${f.vibe(a.topic)} · ${a.hub}`,
+          aside: f.day(a.createdAt),
+        }))}
+        selectedId={selected?.id ?? null}
+        onSelect={setSelectedId}
+        detail={selected ? <ApplicationDetail key={selected.id} application={selected} onBack={() => setSelectedId(null)} /> : <p className="text-body text-muted">{t("pick")}</p>}
+        empty={<p className="text-body text-muted">{tAdmin("empty")}</p>}
+      />
     </AdminShell>
   );
 }
 
-function ApplicationCard({ application, onDecide, highlighted }: { application: HostApplication; onDecide: (status: ApplicationStatus) => void; highlighted: boolean }) {
+function ApplicationDetail({ application, onBack }: { application: HostApplication; onBack: () => void }) {
   const t = useTranslations("admin.applications");
   const f = useFormat();
   const store = useStore();
+  const { marketingContacts } = useAdminData();
+  const { decide, setApplicationTier } = useAdminActions();
   const user = application.userId ? findUser(store, application.userId) : undefined;
-  const { setApplicationTier } = useAdminActions();
+  const contact = marketingContacts.find((c) => c.id === application.contactId || (c.email && application.email && c.email.toLowerCase() === application.email.toLowerCase()));
   const tier = applicationTier(application);
   const Icon = VIBE_ICONS[application.topic];
+  const [asking, setAsking] = useState(false);
+  const [question, setQuestion] = useState(() => t("questionTemplate", { name: application.name.split(" ")[0] }));
+  const row = (label: string, value: React.ReactNode) => (
+    <div>
+      <dt className="text-eyebrow uppercase text-(--adm-label)">{label}</dt>
+      <dd className="mt-1 text-body text-ink">{value}</dd>
+    </div>
+  );
   return (
-    // One light surface on the page (--card, radius 20) – nothing boxed inside it.
-    <li className={cn("flex flex-col rounded-[20px] bg-(--surface) p-5", highlighted && "ring-2 ring-ink/25")}>
+    <div data-application={application.id} className="flex flex-col gap-6">
+      <BackToList onBack={onBack} />
       <div className="flex items-center gap-3">
         {user ? (
           <Avatar user={user} size="md" />
@@ -373,51 +412,82 @@ function ApplicationCard({ application, onDecide, highlighted }: { application: 
         <div className="min-w-0 flex-1">
           <p className="truncate text-h3 text-ink">{application.name}</p>
           <p className="truncate text-small text-muted">
-            {t(`hostType.${application.hostType}`)} · {application.hub} · {t("applied", { date: f.day(application.createdAt) })}
+            {t(`status.${application.status}`)} · {t("applied", { date: f.day(application.createdAt) })}
+            {application.decidedAt && ` · ${t("decided", { date: f.day(application.decidedAt) })}`}
           </p>
         </div>
         {user?.foundingHost && <span className="shrink-0 rounded-full border border-ink/12 px-2.5 py-0.5 text-small font-medium text-ink">{t("foundingHost")}</span>}
       </div>
-      <div className="mt-4">
-        <TierPicker tier={tier.tier} manual={tier.manual} name={application.name} onChange={(next) => setApplicationTier(application, next)} />
-      </div>
-      <p className="mt-4 flex items-center gap-2 text-body font-semibold text-ink">
-        <Icon aria-hidden className="size-4 text-ink/60" strokeWidth={1.75} />
-        {f.vibe(application.topic)}
-      </p>
-      {application.pitch && <p className="mt-1 line-clamp-3 text-body text-muted">{application.pitch}</p>}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-small">
-        {application.audienceLinks.length === 0 ? (
-          <span className="text-muted">{t("noLinks")}</span>
-        ) : (
-          application.audienceLinks.map((url) => (
-            <a key={url} href={url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-ink hover:underline">
-              {linkDomain(url)}
-              {url.split("/").filter(Boolean).at(-1) && <span className="text-muted">/{url.split("/").filter(Boolean).at(-1)}</span>}
-              <ExternalLink aria-hidden className="size-3 text-muted" />
-            </a>
-          ))
+      <TierPicker tier={tier.tier} manual={tier.manual} name={application.name} onChange={(next) => setApplicationTier(application, next)} />
+      <dl className="grid gap-4 sm:grid-cols-2">
+        {row(
+          t("topicPlace"),
+          <span className="inline-flex items-center gap-2">
+            <Icon aria-hidden className="size-4 text-ink/60" strokeWidth={1.75} />
+            {f.vibe(application.topic)} · {application.hub}
+          </span>,
         )}
-        <Followers count={application.audienceSize ?? 0} />
-      </div>
-      <div className="mt-auto flex flex-wrap gap-2 pt-5">
-        <Button size="sm" variant={application.status === "yes" ? "primary" : "secondary"} aria-pressed={application.status === "yes"} onClick={() => onDecide("yes")}>
+        {row(t("when"), application.when ? monthYear(application.when) : t("whenOpen"))}
+        {application.email && row(t("email"), application.email)}
+        {row(
+          t("links"),
+          application.audienceLinks.length === 0 ? (
+            <span className="text-muted">{t("noLinks")}</span>
+          ) : (
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {application.audienceLinks.map((url) => (
+                <a key={url} href={url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-ink hover:underline">
+                  {linkDomain(url)}
+                  <ExternalLink aria-hidden className="size-3 text-muted" />
+                </a>
+              ))}
+              <Followers count={application.audienceSize ?? 0} />
+            </span>
+          ),
+        )}
+        {row(t("account"), user ? user.name : <span className="text-muted">{t("accountNone")}</span>)}
+        {contact &&
+          row(
+            t("contact"),
+            <Link href={`/admin/marketing?tab=contacts&contact=${contact.id}`} className="text-ink hover:underline">
+              {t("contactOpen", { name: contact.name })}
+            </Link>,
+          )}
+      </dl>
+      {application.pitch && row(t("pitch"), `„${application.pitch}“`)}
+      {application.question && <p className="text-small text-muted">{t("questionSent", { date: f.day(application.question.at) })}: „{application.question.text}“</p>}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={application.status === "yes" ? "primary" : "secondary"} aria-pressed={application.status === "yes"} onClick={() => decide(application, "yes")}>
           {t("yes")}
         </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          aria-pressed={application.status === "maybe"}
-          onClick={() => onDecide("maybe")}
-          className={cn(application.status === "maybe" && "border-ink")}
-        >
+        <Button size="sm" variant="secondary" aria-pressed={asking} onClick={() => setAsking((x) => !x)}>
           {t("maybe")}
         </Button>
-        <Button size="sm" variant="tertiary" aria-pressed={application.status === "no"} onClick={() => onDecide("no")} className={cn(application.status === "no" && "underline")}>
+        <Button size="sm" variant="tertiary" aria-pressed={application.status === "no"} onClick={() => decide(application, "no")} className={cn(application.status === "no" && "underline")}>
           {t("no")}
         </Button>
       </div>
-    </li>
+      {asking && (
+        <div className="flex flex-col gap-2">
+          <label className="text-eyebrow uppercase text-(--adm-label)" htmlFor={`q-${application.id}`}>
+            {t("questionLabel")}
+          </label>
+          <Textarea id={`q-${application.id}`} value={question} onChange={(e) => setQuestion(e.target.value)} rows={4} maxLength={600} />
+          <Button
+            size="sm"
+            className="self-start"
+            disabled={!question.trim()}
+            onClick={() => {
+              decide(application, "maybe", question.trim());
+              setAsking(false);
+            }}
+          >
+            {t("questionSend")}
+          </Button>
+        </div>
+      )}
+      <p className="text-small text-muted">{t("mailHint")}</p>
+    </div>
   );
 }
 

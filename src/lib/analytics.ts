@@ -12,6 +12,12 @@ export type AnalyticsEvent =
   | "arc_action_done"
   | "arc_closing_led"
   | "memory_uploaded"
+  | "waitlist_opened"
+  | "waitlist_joined"
+  | "waitlist_confirmed"
+  | "waitlist_unsubscribed"
+  | "host_application_sent"
+  | "deadline_remind"
   | "memory_removed"
   | "arc_step_skipped";
 

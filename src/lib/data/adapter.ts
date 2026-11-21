@@ -131,6 +131,8 @@ export interface MarketingContact {
   /** "mc-…" – also the demo link's ?ref= */
   id: string;
   name: string;
+  /** Their email, when known – a host application with the same email is linked to the contact */
+  email?: string;
   /** Instagram, TikTok, YouTube … */
   channel: string;
   niche: string;

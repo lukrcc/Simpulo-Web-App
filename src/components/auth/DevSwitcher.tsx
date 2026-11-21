@@ -182,6 +182,10 @@ function DevSwitcherInner() {
                 <DevRow label={t("houseDay")}>
                   <HouseDayControl />
                 </DevRow>
+                {/* Time travel for deadlines (lib/clock.ts): hours added to now – requests to 72 h, payments to 48 h. */}
+                <DevRow label={t("clock")}>
+                  <ClockControl />
+                </DevRow>
                 {/* Social depth (config/platform.ts depthChoiceEnabled): the step, the capsule, the filter and Analyse › Tiefe. */}
                 <DevRow label={t("depthChoice")}>
                   <DevSwitch label={t("depthChoice")} on={depthChoice} onChange={(on) => setFeatureFlag("depthChoice", on)} />
@@ -284,6 +288,29 @@ function HouseDayControl() {
       {day !== null && (
         <button type="button" onClick={() => setDevSetting("arcDay", null)} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
           {t("houseDayToday")}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** The deadlines' clock: −12 h · +12 h, "Now" back to real time (lib/clock.ts). Every step it passes runs at once (lib/deadlines.ts). */
+function ClockControl() {
+  const t = useTranslations("auth.dev");
+  const hours = useDevSetting("clockHours");
+  const small = "flex size-9 items-center justify-center rounded-full text-ink ring-1 ring-ink/12 disabled:opacity-40";
+  return (
+    <>
+      <button type="button" aria-label={t("clockEarlier")} onClick={() => setDevSetting("clockHours", Math.max(0, hours - 12))} disabled={hours === 0} className={small}>
+        −
+      </button>
+      <span className="w-16 text-center text-body tabular-nums text-ink">{hours === 0 ? t("clockNow") : t("clockValue", { hours })}</span>
+      <button type="button" aria-label={t("clockLater")} onClick={() => setDevSetting("clockHours", hours + 12)} className={small}>
+        +
+      </button>
+      {hours !== 0 && (
+        <button type="button" onClick={() => setDevSetting("clockHours", 0)} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {t("clockNow")}
         </button>
       )}
     </>
@@ -422,6 +449,12 @@ function DeliveryLog() {
         return (
           <li key={entry.id} className="px-4 py-2 text-muted">
             {tNotify(LINE[entry.channel], { name, text: entry.text })}
+            {/* The email's button: clickable here (e.g. the waitlist's confirmation link). */}
+            {entry.url && (
+              <a href={entry.url} className="ml-1 font-semibold text-ink underline underline-offset-2">
+                {t("logOpen")}
+              </a>
+            )}
           </li>
         );
       })}

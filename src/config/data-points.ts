@@ -133,6 +133,10 @@ export const DATA_POINTS: readonly DataPoint[] = [
   { id: "afterwards.moai", moment: "afterwards", captures: "Crew trifft sich wieder (Moai, jährlich)", purpose: "Ob aus einer Crew ein Kreis wird", models: [], legalBasis: "consent", status: "planned" },
 
   // ── Marketing ──
+  // Vor dem Launch: Warteliste (Double-Opt-in) und Host-Bewerbung.
+  { id: "waitlist.signup", moment: "marketing", captures: "Warteliste: E-Mail, optional Ort, Thema, Monat; Häkchen „Email me when Houses open here“ (Pflicht)", purpose: "Launch-Mail; Nachfrage-Karte vor dem Launch", models: ["demandMap"], legalBasis: "consent", status: "collecting" },
+  { id: "waitlist.confirmed", moment: "marketing", captures: "Bestätigungslink geklickt (Double-Opt-in) bzw. abgemeldet – mit Zeitpunkt", purpose: "Nachweis der Einwilligung; Launch-Kriterium zählt nur Bestätigte", models: [], legalBasis: "consent", status: "collecting" },
+  { id: "host.application", moment: "marketing", captures: "Host-Bewerbung: Name, E-Mail, Link, Reichweite (optional), Thema, Ort, Zeitraum, ein Satz – und die Entscheidung", purpose: "Founding Hosts auswählen", models: ["demandMap"], legalBasis: "contract", status: "collecting" },
   { id: "mkt.src", moment: "marketing", captures: "?src= des Links, über den sie kamen (erster Kontakt)", purpose: "Welcher Kanal Leute bringt", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
   { id: "mkt.utm", moment: "marketing", captures: "utm_source / medium / campaign", purpose: "Welche Kampagne Leute bringt", models: ["marketingImpact"], legalBasis: "consent", status: "collecting" },
   { id: "mkt.video", moment: "marketing", captures: "Serie und Folge im Link (?src=serie-folge)", purpose: "Welche Serie und welches Video funktioniert", models: ["marketingImpact"], legalBasis: "consent", status: "planned" },

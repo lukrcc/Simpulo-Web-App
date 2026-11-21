@@ -1,6 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { clockNow } from "./clock";
+import { subscribeDevSettings } from "./devSettings";
 
 // One shared browser clock for relative times and countdowns ("2h ago", "Expires in 31h"). The snapshot is a cached value that only
 // changes on the minute tick – reading Date.now() in getSnapshot would give React a new value on every call (an infinite-loop warning).
@@ -9,10 +11,16 @@ const listeners = new Set<() => void>();
 let now = 0;
 let timer: ReturnType<typeof setInterval> | undefined;
 
-const roundedNow = () => Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+// The dev menu's clock shift (lib/clock.ts) counts too: countdowns follow the time travel.
+const roundedNow = () => Math.floor(clockNow() / MINUTE_MS) * MINUTE_MS;
 
+let unsubDev: (() => void) | undefined;
 function subscribe(onChange: () => void) {
   listeners.add(onChange);
+  unsubDev ??= subscribeDevSettings(() => {
+    now = roundedNow();
+    for (const listener of listeners) listener();
+  });
   timer ??= setInterval(() => {
     now = roundedNow();
     for (const listener of listeners) listener();
