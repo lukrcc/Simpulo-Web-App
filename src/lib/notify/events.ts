@@ -72,4 +72,10 @@ export const EVENT_OF: Record<NotifyEventKey, NotifyEvent> = {
   deadlineYourPaymentLapsed: NotifyEvent.BookingCancelled,
   guestRemindedHost: NotifyEvent.RequestReceived,
   hostRemindedGuest: NotifyEvent.PaymentReminder,
+  // Moderation: in-app and email, always (like an answer from Simpulo)
+  reportActioned: NotifyEvent.SupportReply,
+  reportUnfounded: NotifyEvent.SupportReply,
+  accountWarning: NotifyEvent.SupportReply,
+  removedModeration: NotifyEvent.SupportReply,
+  accountSuspended: NotifyEvent.SupportReply,
 };

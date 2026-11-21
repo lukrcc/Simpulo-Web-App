@@ -30,6 +30,7 @@ export type {
   HouseVibe,
   HostTier,
   ReportReason,
+  ReportOutcome,
   NotificationGroup,
   Payment,
   SocialLink,
@@ -201,6 +202,8 @@ export type AdminAction =
   | "application_decided"
   | "application_question"
   | "deadline_step"
+  | "report_viewed"
+  | "report_decided"
   | "founding_host_added"
   | "ticket_replied"
   | "ticket_status"

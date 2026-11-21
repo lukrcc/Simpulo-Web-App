@@ -73,7 +73,7 @@ function phaseOf(stay: Stay, today: string): { key: "starts"; days: number } | {
  * The House area. `ended`: the guest was removed by the host or their 48 hours to pay ran out – they still see it, Me opens with what
  * happened (also a line in Messages, the direct chat with the host).
  */
-export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | "host"; ended?: "removed" | "paymentLapsed" }) {
+export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | "host"; ended?: "removed" | "paymentLapsed" | "moderation" }) {
   const t = useTranslations("house.area");
   const tBack = useTranslations("common");
   const f = useFormat();
@@ -395,7 +395,7 @@ function MomentsTab({ stay }: { stay: Stay }) {
 // ── Me ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Your booking (dates, your share), where your payment stands, the receipt, cancelling with its rules, help, leaving – or what happened. */
-function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost: boolean; ended?: "removed" | "paymentLapsed"; /** The House is over: "Lived in" and the ways on instead of the step */ over: boolean; onPay: () => void; chat: string | null }) {
+function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost: boolean; ended?: "removed" | "paymentLapsed" | "moderation"; /** The House is over: "Lived in" and the ways on instead of the step */ over: boolean; onPay: () => void; chat: string | null }) {
   const t = useTranslations("house.area.me");
   const tHelp = useTranslations("help");
   const tWithdraw = useTranslations("withdraw");
@@ -438,8 +438,8 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
     return (
       <div className="flex max-w-[640px] flex-col gap-6">
         <div className="card-soft rounded-[20px] p-6">
-          <h2 className="text-h3 text-ink">{ended === "removed" ? t("removedTitle") : t("lapsedTitle")}</h2>
-          <p className="mt-2 text-body text-muted">{ended === "removed" ? t("removedText", { host: hostName, title: stay.title }) : t("lapsedText", { title: stay.title })}</p>
+          <h2 className="text-h3 text-ink">{ended === "paymentLapsed" ? t("lapsedTitle") : t("removedTitle")}</h2>
+          <p className="mt-2 text-body text-muted">{ended === "removed" ? t("removedText", { host: hostName, title: stay.title }) : ended === "moderation" ? t("moderationText", { title: stay.title }) : t("lapsedText", { title: stay.title })}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href={`/explore?category=${stay.vibe}`}>{t("similar")}</Button>
             {refunded && refundReason && <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} />}

@@ -93,7 +93,13 @@ export type NotifyEventKey =
   | "deadlineYourPaymentLapsed"
   // "Remind" by hand (once each)
   | "guestRemindedHost"
-  | "hostRemindedGuest";
+  | "hostRemindedGuest"
+  // Moderation (Admin › Posteingang › Sicherheit): to the reporter, to the person reported
+  | "reportActioned"
+  | "reportUnfounded"
+  | "accountWarning"
+  | "removedModeration"
+  | "accountSuspended";
 
 export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   newRequest: "request_received",
@@ -143,6 +149,11 @@ export const KEY_TYPE: Record<NotifyEventKey, NotificationType> = {
   deadlineYourPaymentLapsed: "payment_due",
   guestRemindedHost: "request_received",
   hostRemindedGuest: "payment_due",
+  reportActioned: "system",
+  reportUnfounded: "system",
+  accountWarning: "system",
+  removedModeration: "system",
+  accountSuspended: "system",
 };
 
 /** One notification of one person. */

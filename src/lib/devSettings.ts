@@ -19,9 +19,11 @@ export interface DevSettings {
   arcDay: number | null;
   /** "Clock" (time travel for deadlines, lib/clock.ts): hours added to now – requests, payments, reminders, countdowns; 0 = real time */
   clockHours: number;
+  /** "Simulate offline": the app behaves as without a connection (lib/useOnline.ts – the banner, the error pages) */
+  simOffline: boolean;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0 };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0, simOffline: false };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 

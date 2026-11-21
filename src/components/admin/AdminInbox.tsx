@@ -8,7 +8,7 @@
 // Every action through lib/admin/actions.ts (and into the log).
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
@@ -22,6 +22,11 @@ import { useAdminTasks, useDoneAdminTasks } from "@/lib/admin/useAdminTasks";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { share } from "@/lib/i18n/adminFormat";
 import { findUser, useStore } from "@/lib/store";
+import { profileHref } from "@/lib/privacy";
+import type { Report, ReportOutcome } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Img } from "@/components/ui/Img";
+import { InfoTip } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
 import { AdminListDetail, AdminSearch, AdminTabs, BackToList } from "./AdminLayout";
 import { Ideas, TicketDetail } from "./AdminSupport";
@@ -32,6 +37,7 @@ const TABS: readonly InboxTab[] = ["all", "safety", "money", "houses", "hosts", 
 /** Which tab an element belongs to (besides "Alle"). */
 export function tabOf(task: AdminTask): Exclude<InboxTab, "all"> {
   switch (task.kind) {
+    case "report":
     case "safety":
       return "safety";
     case "money":
@@ -51,6 +57,7 @@ export function tabOf(task: AdminTask): Exclude<InboxTab, "all"> {
 /** One sentence per element (shortened to one line in the row by the layout). */
 function useSentence() {
   const t = useTranslations("admin.today");
+  const tReports = useTranslations("admin.reports");
   const tHouses = useTranslations("admin.houses");
   const tHosts = useTranslations("admin.hosts");
   const tTaxes = useTranslations("admin.money.taxes");
@@ -59,6 +66,11 @@ function useSentence() {
   const { today } = useAdminInputs();
   return (task: AdminTask): string => {
     switch (task.kind) {
+      case "report": {
+        const subject = task.report.subjectId ? findUser(store, task.report.subjectId)?.name : undefined;
+        const house = task.report.stayId ? store.stays.find((x) => x.id === task.report.stayId)?.title : undefined;
+        return t("sentence.report", { reason: tReports(`reason.${task.report.reason}`), subject: subject ?? tReports("someone"), house: house ? ` · ${house}` : "" });
+      }
       case "safety":
       case "support":
         return task.ticket.message.split("\n")[0];
@@ -140,6 +152,136 @@ export function AdminInbox() {
         />
       )}
     </AdminShell>
+  );
+}
+
+/**
+ * A report (Posteingang › Sicherheit): what was reported, why, by whom, about whom; only the reported excerpt (the message ± 3 – never
+ * the whole chat; opening it is logged); the person's earlier reports; Verwarnen · Aus dem House entfernen · Konto sperren · Unbegründet.
+ * Harassment in a House: the person leaves it (Regel) – "Verwarnen" is not offered there.
+ */
+function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
+  const t = useTranslations("admin.reports");
+  const f = useFormat();
+  const store = useStore();
+  const actions = useAdminActions();
+  const showToast = useToast();
+  const reporter = findUser(store, report.reporterId);
+  const subject = report.subjectId ? findUser(store, report.subjectId) : undefined;
+  const stay = report.stayId ? store.stays.find((x) => x.id === report.stayId) : undefined;
+  const detail = `${t(`reason.${report.reason}`)} · ${subject?.name ?? t("someone")}${stay ? ` · ${stay.title}` : ""}`;
+  // Every opening of a report is in the log (who looked at what).
+  useEffect(() => {
+    actions.viewReport(report, detail);
+    // Once per report.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.id]);
+  const earlier = store.reports.filter((r) => r.id !== report.id && r.subjectId && r.subjectId === report.subjectId).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const inHouse = Boolean(stay && subject && subject.id !== stay.hostId && store.joinRequests.some((r) => r.stayId === stay.id && r.userId === subject.id && r.status === "accepted"));
+  const harassment = report.reason === "harassment" && inHouse;
+  const decide = (outcome: ReportOutcome) => {
+    actions.moderate(report, outcome, detail);
+    showToast(t("toast", { outcome: t(`outcome.${outcome}`) }));
+  };
+  const field = (label: string, value: React.ReactNode) => (
+    <div>
+      <dt className="text-eyebrow uppercase text-(--adm-label)">{label}</dt>
+      <dd className="mt-1 text-body text-ink">{value}</dd>
+    </div>
+  );
+  return (
+    <div className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        {field(t("labelReason"), t(`reason.${report.reason}`))}
+        {field(t("labelWhat"), t(`target.${report.target.kind}`))}
+        {field(t("labelBy"), reporter?.name ?? report.reporterId)}
+        {field(
+          t("labelSubject"),
+          subject ? (
+            <Link href={profileHref(subject.id)} className="hover:underline">
+              {subject.name}
+            </Link>
+          ) : (
+            t("someone")
+          ),
+        )}
+        {stay && field(t("labelHouse"), <Link href={`/admin/houses?house=${stay.id}`} className="hover:underline">{stay.title}</Link>)}
+        {report.text && field(t("labelText"), `„${report.text}“`)}
+      </dl>
+      {report.blocked && <p className="text-small text-muted">{t("blocked")}</p>}
+      {report.excerpt && report.excerpt.length > 0 && (
+        <section>
+          <h3 className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
+            {t("context")}
+            <InfoTip text={t("contextInfo")} />
+          </h3>
+          <ol className="mt-2 flex flex-col gap-2">
+            {report.excerpt.map((m) => (
+              <li key={m.id} data-excerpt-reported={m.reported || undefined} className={cn("rounded-xl px-3 py-2 text-body", m.reported ? "bg-(--adm-block) ring-1 ring-adm-critical" : "text-muted")}>
+                <span className="text-small font-semibold text-ink">{findUser(store, m.senderId)?.name.split(" ")[0] ?? m.senderId}</span>
+                <span className="ml-2 text-small text-muted">{f.day(m.at)}</span>
+                {m.reported && <span className="ml-2 text-small text-adm-critical">{t("reported")}</span>}
+                <p className={cn("mt-0.5", m.reported ? "text-ink" : "text-muted")}>{m.text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {report.target.kind === "memory" && (
+        <section>
+          <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("photo")}</h3>
+          {report.memorySrc ? <Img src={report.memorySrc} alt="" width={240} height={240} className="mt-2 size-60 rounded-xl object-cover" /> : <p className="mt-2 text-small text-muted">{t("noFile")}</p>}
+        </section>
+      )}
+      <section>
+        <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("history")}</h3>
+        {subject?.suspendedAt && <p className="mt-2 text-small text-adm-critical">{t("suspended", { date: f.day(subject.suspendedAt) })}</p>}
+        {earlier.length === 0 ? (
+          <p className="mt-2 text-small text-muted">{t("historyNone")}</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-ink/8">
+            {earlier.map((r) => (
+              <li key={r.id} className="flex items-baseline justify-between gap-4 py-2 text-small">
+                <span className="text-ink">
+                  {t(`reason.${r.reason}`)} · {t(`target.${r.target.kind}`)}
+                </span>
+                <span className="text-muted">
+                  {r.decision ? `${t(`outcome.${r.decision.outcome}`)} · ` : ""}
+                  {f.day(r.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {report.decision ? (
+        <p className="text-body font-semibold text-ink">{t("decided", { outcome: t(`outcome.${report.decision.outcome}`), date: f.day(report.decision.at) })}</p>
+      ) : (
+        isOpen && (
+          <section className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {!harassment && (
+                <Button size="sm" variant="secondary" onClick={() => decide("warned")}>
+                  {t("actions.warned")}
+                </Button>
+              )}
+              <Button size="sm" variant={harassment ? "primary" : "secondary"} disabled={!inHouse} onClick={() => decide("removed")}>
+                {t("actions.removed")}
+              </Button>
+              <Button size="sm" variant="secondary" disabled={!subject} onClick={() => decide("suspended")}>
+                {t("actions.suspended")}
+              </Button>
+              <Button size="sm" variant="tertiary" onClick={() => decide("unfounded")}>
+                {t("actions.unfounded")}
+              </Button>
+            </div>
+            {harassment && <p className="text-small text-muted">{t("harassmentRule")}</p>}
+            {!inHouse && stay && <p className="text-small text-muted">{t("noRemove")}</p>}
+            <p className="text-small text-muted">{t("messagesHint")}</p>
+          </section>
+        )
+      )}
+    </div>
   );
 }
 
@@ -237,6 +379,19 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
           {t("action.remind")}
         </Button>
       </>
+    );
+  }
+
+  if (task.kind === "report") {
+    return (
+      <article data-inbox-detail>
+        <BackToList onBack={onBack} />
+        <p className="text-eyebrow uppercase text-(--adm-label)">
+          {t(`kind.${task.kind}`)} · {f.day(task.createdAt)}
+        </p>
+        <p className="mt-2 text-h3 text-ink">{sentence}</p>
+        <ReportDetail report={task.report} isOpen={isOpen} />
+      </article>
     );
   }
 

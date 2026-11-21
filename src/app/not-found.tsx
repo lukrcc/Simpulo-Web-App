@@ -1,28 +1,8 @@
 import { useTranslations } from "next-intl";
-import { Container } from "@/components/layout/Container";
-import { Wordmark } from "@/components/layout/Logo";
-import { Button } from "@/components/ui/ActionButton";
-import { ContextHelp } from "@/components/help/HelpFeedback";
+import { ErrorView } from "@/components/states/ErrorView";
 
+/** 404 – the one error look (components/states/ErrorView.tsx): wordmark, one sentence, Explore, Get help. */
 export default function NotFound() {
-  const t = useTranslations("states.notFound");
-  const tHelp = useTranslations("help");
-  return (
-    <Container page>
-      <div className="flex flex-col items-center py-16 text-center md:py-24">
-        <Wordmark size="lg" />
-        <h1 className="mt-8 text-h2">{t("title")}</h1>
-        <p className="mt-2 max-w-sm text-muted">{t("description")}</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button variant="primary" size="md" href="/">
-            {t("explore")}
-          </Button>
-          <Button variant="secondary" size="md" href="/faq">
-            {t("howItWorks")}
-          </Button>
-        </div>
-        <ContextHelp text={tHelp("somethingWrong")} action={tHelp("getHelpLink")} className="mt-6" />
-      </div>
-    </Container>
-  );
+  const t = useTranslations("states");
+  return <ErrorView texts={{ title: t("notFound.title"), description: t("notFound.description"), explore: t("notFound.explore"), getHelp: t("error.getHelp") }} />;
 }

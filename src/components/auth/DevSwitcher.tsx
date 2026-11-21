@@ -72,6 +72,7 @@ function DevSwitcherInner() {
   const depthChoice = useFeatureFlag("depthChoice");
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
+  const simOffline = useDevSetting("simOffline");
   const adminRole = useDevSetting("adminRole");
   const phase = usePlatformPhase();
 
@@ -181,6 +182,15 @@ function DevSwitcherInner() {
                 {/* Time travel for the arc (lib/arc.ts useArcNow): every House pretends it's this day of it (1 = its first day). */}
                 <DevRow label={t("houseDay")}>
                   <HouseDayControl />
+                </DevRow>
+                {/* The error pages: one deliberate error (/dev/crash) and the offline state (lib/useOnline.ts). */}
+                <DevRow label={t("errorPage")}>
+                  <a href="/dev/crash" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+                    {t("errorPageOpen")}
+                  </a>
+                </DevRow>
+                <DevRow label={t("simOffline")}>
+                  <DevSwitch label={t("simOffline")} on={simOffline} onChange={(on) => setDevSetting("simOffline", on)} />
                 </DevRow>
                 {/* Time travel for deadlines (lib/clock.ts): hours added to now – requests to 72 h, payments to 48 h. */}
                 <DevRow label={t("clock")}>

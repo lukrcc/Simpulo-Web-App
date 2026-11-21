@@ -62,7 +62,7 @@ export function SafetyMenu({ target, user, onBlocked, extraItems = [], className
   return (
     <>
       <MoreMenu items={items} label={t("moreOptions")} className={className} buttonClassName={buttonClassName} top={top} onOpen={onOpen} dark={dark} />
-      <ReportSheet open={sheet === "report"} onClose={() => setSheet(null)} target={target} name={name} />
+      <ReportSheet open={sheet === "report"} onClose={() => setSheet(null)} target={target} name={name} subjectId={user?.id} />
       {user && <BlockSheet open={sheet === "block"} onClose={() => setSheet(null)} user={user} onBlocked={onBlocked} />}
     </>
   );

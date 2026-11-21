@@ -96,6 +96,7 @@ export const TEST_ROUTES: readonly TestRoute[] = [
 
   // Dev only (never in demo or production)
   { route: "/dev/emails", key: "dev-emails", label: "Dev E-Mails", skip: "nur im Dev-Modus" },
+  { route: "/dev/crash", key: "dev-crash", label: "Dev Fehlerseite", skip: "nur im Dev-Modus – wirft absichtlich einen Fehler" },
   { route: "/dev/identity-check", key: "dev-identity", label: "Dev Identity-Check", skip: "nur im Dev-Modus" },
   { route: "/dev/stripe-onboarding", key: "dev-stripe", label: "Dev Stripe-Onboarding", skip: "nur im Dev-Modus" },
 ];

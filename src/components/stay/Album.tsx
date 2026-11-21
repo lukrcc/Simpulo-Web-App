@@ -18,6 +18,7 @@ import { lockScroll } from "@/components/ui/ModalOverlay";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { MEMORY_POLICY } from "@/config/memories";
+import { ReportSheet } from "@/components/safety/ReportSheet";
 import { track } from "@/lib/analytics";
 import { arcDateLabel, useArcNow } from "@/lib/arc";
 import { albumOf } from "@/lib/memories";
@@ -55,7 +56,7 @@ function Tile({ memory, onOpen, label }: { memory: HouseMemory; onOpen: () => vo
 }
 
 /** Full screen (the question deck's dark ground – its tokens, [data-question-deck]): the photo or clip, who added it and when; ‹ › and arrow keys; the uploader removes it, anyone else of the crew "Remove me". */
-function Viewer({ stay, list, index, onIndex, onClose }: { stay: Stay; list: HouseMemory[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+function Viewer({ stay, list, index, onIndex, onClose, onReport }: { stay: Stay; list: HouseMemory[]; index: number; onIndex: (i: number) => void; onClose: () => void; /** Someone else's photo: report it (the viewer closes first – the sheet sits below it) */ onReport: (memory: HouseMemory) => void }) {
   const t = useTranslations("house.album");
   const store = useStore();
   const showToast = useToast();
@@ -100,6 +101,11 @@ function Viewer({ stay, list, index, onIndex, onClose }: { stay: Stay; list: Hou
           >
             {mine ? t("remove") : t("removeMe")}
           </Button>
+          {!mine && (
+            <Button size="sm" variant="creamOutline" onClick={() => onReport(memory)}>
+              {t("report")}
+            </Button>
+          )}
           <button type="button" onClick={onClose} aria-label={t("close")} className="flex size-11 items-center justify-center rounded-full bg-stage-text/10 hover:bg-stage-text/16">
             <X aria-hidden className="size-5" />
           </button>
@@ -131,6 +137,7 @@ export function AlbumSection({ stay }: { stay: Stay }) {
   const list = useAlbum(stay);
   const [open, setOpen] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [reporting, setReporting] = useState<HouseMemory | null>(null);
   return (
     <section id="moments-album" aria-labelledby="album-title" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -167,7 +174,27 @@ export function AlbumSection({ stay }: { stay: Stay }) {
         </ul>
       )}
       <p className="text-small text-muted">{t("crewOnly")}</p>
-      {open !== null && <Viewer stay={stay} list={list} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+      {open !== null && (
+        <Viewer
+          stay={stay}
+          list={list}
+          index={open}
+          onIndex={setOpen}
+          onClose={() => setOpen(null)}
+          onReport={(memory) => {
+            setOpen(null);
+            setReporting(memory);
+          }}
+        />
+      )}
+      {/* Report a photo: the admin sees only this photo (its file), never the album. */}
+      <ReportSheet
+        open={reporting !== null}
+        onClose={() => setReporting(null)}
+        target={{ kind: "memory", id: reporting?.id ?? "" }}
+        name={reporting ? findUser(store, reporting.userId)?.name.split(" ")[0] : undefined}
+        extra={reporting ? { subjectId: reporting.userId, stayId: stay.id, ...(reporting.src && { memorySrc: reporting.src }) } : undefined}
+      />
       <UploadSheet stay={stay} open={adding} onClose={() => setAdding(false)} />
     </section>
   );

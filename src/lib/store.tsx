@@ -68,6 +68,7 @@ import type {
   PaymentStatus,
   Report,
   ReportReason,
+  ReportOutcome,
   Stay,
   SystemEventKey,
   Thread,
@@ -272,6 +273,7 @@ type StoreAction =
   | { type: "toggleSavedPerson"; userId: string }
   | { type: "stopInvitesFrom"; userId: string }
   | { type: "report"; report: Omit<Report, "reporterId"> }
+  | { type: "decideReport"; reportId: string; outcome: ReportOutcome; at: string }
   | { type: "deleteAccount"; at: string }
   | { type: "settlePayments"; at: string }
   | { type: "applyDeadlines"; events: DeadlineEvent[]; at: string }
@@ -501,7 +503,14 @@ interface StoreActions {
   /** "Don't invite me again": no more invites from this person (an open one from them is declined). */
   stopInvitesFrom: (userId: string) => void;
   /** Mock: queued in `reports` for review. */
-  report: (target: Report["target"], reason: ReportReason, text?: string) => void;
+  /**
+   * Report a person, a House, a message or an album photo (CLAUDE.md "Melden und Moderation"). The record keeps only what the admin may see:
+   * for a message the reported one ± 3 around it (never the whole chat). `extra` for a photo: its uploader, House and file. `block`: also
+   * block the person.
+   */
+  report: (target: Report["target"], reason: ReportReason, options?: { text?: string; block?: boolean; extra?: Pick<Report, "subjectId" | "stayId" | "memorySrc"> }) => void;
+  /** Admin › Posteingang › Sicherheit: Verwarnen · Aus dem House entfernen · Konto sperren · Unbegründet – both sides hear it (mock: in-app + email log) */
+  decideReport: (reportId: string, outcome: ReportOutcome) => void;
   /** Mock: marks the account deleted and logs out (nothing else is removed). */
   deleteAccount: () => void;
   /** Dev: fires a computed reminder now – notification (email/push mock), plus a crew chat line if crew-related. */
@@ -1052,12 +1061,12 @@ function updateThread(threads: Thread[], threadId: string, update: (t: Thread) =
  * `ended`: the host removed them or their time to pay ran out – then the request stays (status "declined" with the reason, Me shows its note)
  * and the guest gets one line in the direct chat with the host (Messages). Leaving on your own deletes the request as before.
  */
-function withoutMember(state: StoreState, stay: Stay, userId: string, systemMessage: Message, ended?: "removed" | "paymentLapsed"): StoreState {
+function withoutMember(state: StoreState, stay: Stay, userId: string, systemMessage: Message, ended?: "removed" | "paymentLapsed" | "moderation"): StoreState {
   const request = state.joinRequests.find((r) => r.stayId === stay.id && r.userId === userId && r.status === "accepted");
   if (!request) return state;
   const hostName = state.users.find((u) => u.id === stay.hostId)?.name.split(" ")[0] ?? "";
   const note: Message | null = ended
-    ? systemLine({ id: `${systemMessage.id}-you`, createdAt: systemMessage.createdAt }, "", ended === "removed" ? "youWereRemoved" : "yourPaymentLapsed", { host: hostName, title: stay.title })
+    ? systemLine({ id: `${systemMessage.id}-you`, createdAt: systemMessage.createdAt }, "", ended === "removed" ? "youWereRemoved" : ended === "moderation" ? "youWereRemovedModeration" : "yourPaymentLapsed", { host: hostName, title: stay.title })
     : null;
   const direct = state.threads.find((t) => t.type === "direct" && t.houseId === stay.id && t.participantIds.includes(userId) && t.participantIds.includes(stay.hostId));
   const directId = direct?.id ?? `direct-${stay.id}-${userId}`;
@@ -1093,6 +1102,8 @@ function withoutMember(state: StoreState, stay: Stay, userId: string, systemMess
  */
 const HOUR_MS = 3_600_000;
 const SETTLE_EVERY_MS = 60_000;
+/** A reported message keeps this many messages before and after it as context (CLAUDE.md "Melden und Moderation"). */
+const REPORT_CONTEXT = 3;
 
 function settlePayments(state: StoreState, at: string, announce: boolean): StoreState {
   let next = state;
@@ -2420,9 +2431,46 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       };
     }
 
-    case "report":
+    case "report": {
       if (!me) return state;
-      return { ...state, reports: [...state.reports, { ...action.report, reporterId: me }] };
+      const r = action.report;
+      let context: Partial<Report> = {};
+      if (r.target.kind === "user") context = { subjectId: r.target.id };
+      else if (r.target.kind === "stay") context = { subjectId: state.stays.find((x) => x.id === r.target.id)?.hostId, stayId: r.target.id };
+      else if (r.target.kind === "message") {
+        const thread = state.threads.find((t) => t.messages.some((m) => m.id === r.target.id));
+        const said = (thread?.messages ?? []).filter((m) => m.senderId !== "system" && !m.event);
+        const at = said.findIndex((m) => m.id === r.target.id);
+        // Only the reported message and up to 3 before and after it – copied now; the admin never sees the whole chat.
+        const excerpt = at < 0 ? [] : said.slice(Math.max(0, at - REPORT_CONTEXT), at + REPORT_CONTEXT + 1).map((m) => ({ id: m.id, senderId: m.senderId, text: m.text, at: m.createdAt, ...(m.id === r.target.id && { reported: true as const }) }));
+        context = { subjectId: said[at]?.senderId, stayId: thread?.houseId, excerpt };
+      }
+      const report: Report = { ...r, ...context, ...r.subjectId && { subjectId: r.subjectId }, ...r.stayId && { stayId: r.stayId }, reporterId: me };
+      const blocked = r.blocked && report.subjectId && report.subjectId !== me;
+      return {
+        ...state,
+        reports: [...state.reports, report],
+        ...(blocked && { users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), blockedUserIds: [...new Set([...settingsOf(u).blockedUserIds, report.subjectId!])] } } : u)) }),
+      };
+    }
+
+    case "decideReport": {
+      const report = state.reports.find((r) => r.id === action.reportId);
+      if (!report || report.decision) return state;
+      let next: StoreState = { ...state, reports: state.reports.map((r) => (r.id === report.id ? { ...r, decision: { outcome: action.outcome, at: action.at, by: me ?? "admin" } } : r)) };
+      const stay = report.stayId ? next.stays.find((x) => x.id === report.stayId) : undefined;
+      const subject = report.subjectId;
+      // Out of the House: only someone in it who isn't its host (a host's House is a case for "Konto sperren").
+      if (action.outcome === "removed" && stay && subject && subject !== stay.hostId) {
+        next = withoutMember(next, stay, subject, systemLine({ id: `${report.id}-removed`, createdAt: action.at }, crewThreadId(stay.id), "removed", { name: firstNameOf(next, subject) }), "moderation");
+      }
+      if (action.outcome === "suspended" && subject) next = { ...next, users: next.users.map((u) => (u.id === subject ? { ...u, suspendedAt: action.at } : u)) };
+      // The reporter hears that it was looked at – never what happened to the other person.
+      next = { ...next, notifications: notifyInApp(next, [report.reporterId], action.outcome === "unfounded" ? "reportUnfounded" : "reportActioned", {}, `${report.id}-reporter`) };
+      const subjectKey = action.outcome === "warned" ? "accountWarning" : action.outcome === "removed" && stay ? "removedModeration" : action.outcome === "suspended" ? "accountSuspended" : null;
+      if (subject && subjectKey) next = { ...next, notifications: notifyInApp(next, [subject], subjectKey, { title: stay?.title ?? "" }, `${report.id}-subject`, stay?.id) };
+      return next;
+    }
 
     case "deleteAccount":
       if (!me) return state;
@@ -3110,10 +3158,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toggleSavedPerson = useCallback((userId: string) => dispatch({ type: "toggleSavedPerson", userId }), []);
   const stopInvitesFrom = useCallback((userId: string) => dispatch({ type: "stopInvitesFrom", userId }), []);
   const report = useCallback(
-    (target: Report["target"], reason: ReportReason, text?: string) =>
-      dispatch({ type: "report", report: { id: makeId("rep"), target, reason, text: text?.trim() || undefined, createdAt: new Date().toISOString() } }),
+    (target: Report["target"], reason: ReportReason, options?: { text?: string; block?: boolean; extra?: Pick<Report, "subjectId" | "stayId" | "memorySrc"> }) =>
+      dispatch({ type: "report", report: { id: makeId("rep"), target, reason, text: options?.text?.trim() || undefined, createdAt: new Date().toISOString(), ...(options?.block && { blocked: true }), ...options?.extra } }),
     [],
   );
+  const decideReport = useCallback((reportId: string, outcome: ReportOutcome) => dispatch({ type: "decideReport", reportId, outcome, at: new Date().toISOString() }), []);
   const deleteAccount = useCallback(() => {
     dispatch({ type: "deleteAccount", at: new Date().toISOString() });
     try {
@@ -3266,8 +3315,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lapsePaymentWindow,
       remindHost,
       remindGuest,
+      decideReport,
     }),
-    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest],
+    [state, premiumView, login, logout, updateCurrentUser, createStay, updateStay, publishStay, createClaimableStay, claimStay, respondToInvite, completeStay, inviteToStay, createHouseInvite, resendHouseInvite, cancelHouseInvite, redeemHouseInvite, track, addAlert, saveSearch, markNotificationRead, markAllNotificationsRead, addNotifications, addApplication, leaveStay, withdrawRequest, deleteDraft, undoDecline, addSupportCase, requestWaitlist, removeFromWaitlist, takeWaitlistSpot, closeStay, removeMember, castVote, closeVote, decideVote, unlockAccommodation, requestToJoin, reserveSpot, acceptRequest, declineRequest, sendMessage, openDirectThread, markThreadRead, setChatTheme, markHintSeen, setArcStep, setArcMuted, setIntention, setArrival, setPractical, setArrived, startFirstNight, voteAgreement, confirmAgreement, voteMoment, votePeak, setHostPeak, setHalftime, setAfter, setClosingLed, setCrewWords, addMemories, removeMemory, setThirty, revealChosen, setAppearance, toggleReaction, lockAccommodation, payShare, markSharePaid, confirmBooking, resetPayments, reloadData, setAcceptingRequests, setFoundingHost, setHostTier, toggleSaved, confirmLivedWith, toggleHostAlert, setNotification, unblockUser, blockUser, removePerson, addInFor, removeInFor, addPlace, toggleSavedPerson, stopInvitesFrom, report, deleteAccount, fireReminder, lapsePaymentWindow, remindHost, remindGuest, decideReport],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -18,6 +18,7 @@ export type AnalyticsEvent =
   | "waitlist_unsubscribed"
   | "host_application_sent"
   | "deadline_remind"
+  | "report_sent"
   | "memory_removed"
   | "arc_step_skipped";
 

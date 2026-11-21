@@ -86,6 +86,7 @@ export interface User extends Attribution {
   /** `paused`: Settings › Privacy & safety › Your data › Pause account – profile and Houses invisible to others, nothing deleted (pausedAt: when) */
   privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string };
   deletedAt?: string;       // mock "Delete account"
+  suspendedAt?: string;     // Admin › Posteingang › Sicherheit "Konto sperren" (moderation)
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
    *  Security Rules and a check in every Function – this field only decides what the UI shows. */
   role?: 'user' | 'admin';
@@ -109,16 +110,32 @@ export interface HouseVibe {
   tidy?: 1 | 2 | 3;
 }
 
-export type ReportReason = 'spam' | 'harassment' | 'fake' | 'unsafe' | 'other';
+/** Why something is reported (the report sheet, Admin › Posteingang › Sicherheit). */
+export type ReportReason = 'harassment' | 'safety' | 'scam' | 'inappropriate' | 'other';
+export type ReportOutcome = 'warned' | 'removed' | 'suspended' | 'unfounded';
 
 /** Mock moderation queue entry (Report sheet). */
+/**
+ * A report (CLAUDE.md "Melden und Moderation"): a person, a House, a message or an album photo. `subjectId` – the person it is about (a
+ * message's sender, a photo's uploader, a House's host). `excerpt` – for a message only the reported one with up to 3 before and after,
+ * copied at the moment of the report: the admin never sees the whole chat. `decision` – what the admin did.
+ */
 export interface Report {
   id: string;
   reporterId: string;
-  target: { kind: 'user' | 'stay' | 'message'; id: string };
+  target: { kind: 'user' | 'stay' | 'message' | 'memory'; id: string };
   reason: ReportReason;
   text?: string;
   createdAt: string;
+  subjectId?: string;
+  /** The House it happened in, if any */
+  stayId?: string;
+  /** The reporter also blocked the person */
+  blocked?: boolean;
+  excerpt?: { id: string; senderId: string; text: string; at: string; reported?: true }[];
+  /** A photo's file (the demo's) – the admin sees the reported photo, not the album */
+  memorySrc?: string;
+  decision?: { outcome: ReportOutcome; at: string; by: string };
 }
 
 /** The switchable notification groups (config/notifications.ts); "bookings" is always on and has no entry here. */
@@ -529,7 +546,7 @@ export interface JoinRequest extends Attribution {
    * Out of the House after being in (status "declined"): the host removed them, or the 48 hours to pay ran out. Kept (not deleted), so the
    * guest still sees their House area with its own note in "Me" – and a line in Messages (the direct chat with the host).
    */
-  endedReason?: "removed" | "paymentLapsed";
+  endedReason?: "removed" | "paymentLapsed" | "moderation";
   endedAt?: string;
   /** The deadline steps already taken (lib/deadlines.ts, config/policies.ts DEADLINES): step id → when */
   deadlines?: Partial<Record<string, string>>;
@@ -588,7 +605,7 @@ export type SystemEventKey =
   | 'joined' | 'left' | 'removed' | 'closed' | 'crewComplete' | 'bookingConfirmed' | 'addressShared' | 'refund'
   | 'searchHouseOpened' | 'accommodationDecided' | 'datesDecided' | 'paymentLapsed'
   /** To the guest alone, in the direct chat with the host: they were removed / their 48 hours to pay ran out */
-  | 'youWereRemoved' | 'yourPaymentLapsed';
+  | 'youWereRemoved' | 'yourPaymentLapsed' | 'youWereRemovedModeration';
 export interface MessageEvent {
   key: SystemEventKey;
   values: Record<string, string | number>;

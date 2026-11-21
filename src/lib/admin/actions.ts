@@ -7,10 +7,13 @@ import { getCurrentUser, useStore } from "@/lib/store";
 import { NotifyEvent, notify } from "@/lib/notify";
 import * as email from "@/lib/notify/channels/email";
 import { tEn } from "@/lib/i18n/translate";
-import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, SupportTicket, TicketStatus } from "@/lib/types";
+import type { ApplicationStatus, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, SupportTicket, TicketStatus } from "@/lib/types";
 import { addContentHouse, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
+
+/** Reports opened in this visit (the log line once each). */
+const viewedReports = new Set<string>();
 
 export function useAdminActions() {
   const store = useStore();
@@ -36,6 +39,21 @@ export function useAdminActions() {
       if (status === "yes") email.send(to, { subject: tEn("platform.apply.acceptedSubject"), text: tEn("platform.apply.acceptedText"), url: "/create", template: "notification" });
       else if (status === "no") email.send(to, { subject: tEn("platform.apply.declinedSubject"), text: tEn("platform.apply.declinedText"), url: "/apply", template: "notification" });
       else if (status === "maybe" && question) email.send(to, { subject: tEn("platform.apply.questionSubject"), text: question, url: "/apply", template: "notification" });
+    },
+    /** A report was opened in the Posteingang – the access goes into the log (once per report and visit). */
+    viewReport(report: Report, detail: string) {
+      if (viewedReports.has(report.id)) return;
+      viewedReports.add(report.id);
+      appendAdminLog("report_viewed", detail, by, report.stayId);
+    },
+    /**
+     * Verwarnen · Aus dem House entfernen · Konto sperren · Unbegründet – the store applies it and tells both sides (lib/store.tsx
+     * decideReport); the log keeps what and about whom.
+     */
+    moderate(report: Report, outcome: ReportOutcome, detail: string) {
+      if (report.decision) return;
+      store.decideReport(report.id, outcome);
+      appendAdminLog("report_decided", `${detail} · ${outcome}`, by, report.stayId);
     },
     /**
      * An answer to a ticket: added to its replies, sent through lib/notify (in-app + email for an account, email only for a guest – in the

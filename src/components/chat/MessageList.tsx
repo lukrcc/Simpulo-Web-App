@@ -270,6 +270,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
         open={reporting !== null}
         onClose={() => setReporting(null)}
         target={{ kind: "message", id: reporting?.id ?? "" }}
+        subjectId={reporting?.senderId}
+        name={reporting ? findUser(store, reporting.senderId)?.name.split(" ")[0] : undefined}
       />
 
       <PhotoLightbox

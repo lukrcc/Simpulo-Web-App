@@ -478,8 +478,13 @@ const en = {
     },
     "error": {
       "title": "Something went wrong",
-      "description": "That didn't work. Please try again.",
-      "retry": "Try again"
+      "description": "This page didn't load. Try again – or go back to Explore.",
+      "retry": "Try again",
+      "explore": "Explore",
+      "getHelp": "Get help",
+      "offlineTitle": "You're offline",
+      "offlineDescription": "Check your connection – this page loads again once you're back online.",
+      "offlineBanner": "You're offline. Some things won't load until you're back."
     },
     "og": {
       "with": "with {name}",
@@ -570,6 +575,9 @@ const en = {
       "installedApp": "Simulate installed app",
       "houseDay": "House day",
       "clock": "Clock",
+      "errorPage": "Error page",
+      "errorPageOpen": "Trigger an error",
+      "simOffline": "Simulate offline",
       "clockNow": "Now",
       "clockValue": "+{hours} h",
       "clockEarlier": "12 hours earlier",
@@ -1149,6 +1157,7 @@ const en = {
       "crewOnly": "Only your crew sees the album.",
       "remove": "Remove",
       "removeMe": "Remove me",
+      "report": "Report",
       "removeHint": "In this photo? Remove it – no reason needed.",
       "removedOwn": "Removed from the album",
       "removedMe": "Removed – no one is told why",
@@ -1389,6 +1398,7 @@ const en = {
         "help": "Something went wrong?",
         "removedTitle": "You're no longer in this House",
         "removedText": "{host} removed you from {title}. Anything you paid is refunded.",
+        "moderationText": "Simpulo removed you from {title} after a report. Anything you paid is refunded. Write to us if you think this is a mistake.",
         "lapsedTitle": "Your spot was released",
         "lapsedText": "The 48 hours to pay for {title} ran out, so your spot is open again. If there's still room, you can ask again.",
         "similar": "Find a similar House",
@@ -3356,7 +3366,8 @@ const en = {
       "datesDecided": "The dates are set – starts {date}",
       "searchHouseOpened": "A House opened in {place}: {title}. You get {hours}h before everyone else.",
       "youWereRemoved": "{host} removed you from {title}. Anything you paid is refunded.",
-      "yourPaymentLapsed": "The 48 hours to pay for {title} ran out, so your spot is open again."
+      "yourPaymentLapsed": "The 48 hours to pay for {title} ran out, so your spot is open again.",
+      "youWereRemovedModeration": "Simpulo removed you from {title} after a report. Anything you paid is refunded."
     },
     "notify": {
       "newRequest": "New request from {name} for {title}",
@@ -3371,6 +3382,11 @@ const en = {
       "deadlineYourPaymentLapsed": "{count, plural, one {{title}: the time to pay ran out, so your spot is open again} other {The time to pay ran out for # Houses – your spots are open again}}",
       "guestRemindedHost": "{name} is waiting for your answer · {title}",
       "hostRemindedGuest": "{host} reminds you to pay your share · {title}",
+      "reportActioned": "We looked at your report and took action. Thank you for telling us.",
+      "reportUnfounded": "We looked at your report and didn't find a breach of the rules. Thank you for telling us.",
+      "accountWarning": "A note from Simpulo: we got a report about you. Please keep to the House rules – next time we'll take action.",
+      "removedModeration": "Simpulo removed you from {title} after a report. Anything you paid is refunded.",
+      "accountSuspended": "Your Simpulo account is suspended after a report. Write to us if you think this is a mistake.",
       "locked": "{title}: accommodation locked – {price} each, you pay once the crew is complete",
       "paymentDue": "{title}: the crew is complete. Your share is due within 48 hours",
       "paymentLapsed": "{title}: {name} didn't pay in time, so their spot is open again",
@@ -4420,18 +4436,25 @@ const en = {
       "titleProfile": "Report this profile",
       "titleStay": "Report this House",
       "titleMessage": "Report this message",
-      "intro": "What's wrong? Your report stays anonymous.",
+      "titlePhoto": "Report this photo",
+      "intro": "What's wrong? The person won't know who reported them.",
       "reasons": {
-        "spam": "Spam or scam",
-        "harassment": "Harassment or inappropriate messages",
-        "fake": "Fake profile",
-        "unsafe": "Unsafe or misleading House",
+        "harassment": "Harassment",
+        "safety": "Safety",
+        "scam": "Scam",
+        "inappropriate": "Inappropriate",
         "other": "Something else"
       },
+      "emergency": "In danger right now? Call the local emergency number first – Simpulo can't send help.",
       "detailsLabel": "Anything else we should know? (optional)",
       "detailsPlaceholder": "What happened?",
+      "alsoBlock": "Also block this person",
       "send": "Send report",
-      "sent": "Thanks – we'll review this within 24 hours."
+      "sentTitle": "Report sent",
+      "sent": "Thanks – we'll look at this within 24 hours.",
+      "blockedToo": "{name} is blocked too – they can't message you or request your Houses.",
+      "thisPerson": "This person",
+      "done": "Done"
     },
     "blockSheet": {
       "title": "Block {name}?",

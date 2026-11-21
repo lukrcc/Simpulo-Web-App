@@ -1,5 +1,6 @@
 import { HelpFeedbackSheet } from "@/components/help/HelpFeedback";
 import { WaitlistSheet } from "@/components/platform/WaitlistSheet";
+import { OfflineBanner } from "@/components/states/OfflineBanner";
 import { GetAppDialog } from "@/components/GetAppDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { Suspense, type ReactNode } from "react";
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* "Help & feedback": one sheet for the whole app, opened from the footer and Settings (lib/support/feedback.ts). */}
       <HelpFeedbackSheet />
       <WaitlistSheet />
+      <OfflineBanner />
       <GetAppDialog />
       <Suspense fallback={null}>
         <HouseTransitions />

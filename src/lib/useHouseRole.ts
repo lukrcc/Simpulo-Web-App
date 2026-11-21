@@ -9,7 +9,7 @@ import { useDevSetting } from "./devSettings";
 export type HouseRole = "visitor" | "member" | "host";
 
 /** `ended`: was in the House, then removed by the host or the 48 hours to pay ran out – still a member's area, Me says what happened. */
-export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" } {
+export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" | "moderation" } {
   const store = useStore();
   // Dev menu "House role" (dev only, always "auto" elsewhere): this view, whatever the real role is.
   const override = useDevSetting("houseRole");
@@ -19,7 +19,7 @@ export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage 
   return { role: override, stage: null };
 }
 
-function realRole(store: ReturnType<typeof useStore>, id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" } {
+function realRole(store: ReturnType<typeof useStore>, id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" | "moderation" } {
   const stay = store.stays.find((s) => s.id === id || s.slug === id);
   if (!stay || !store.currentUserId) return { role: "visitor", stage: null };
   if (stay.hostId === store.currentUserId) return { role: "host", stage: null };
