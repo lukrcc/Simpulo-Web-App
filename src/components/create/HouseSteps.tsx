@@ -226,7 +226,7 @@ function SavePlace({ form, patch, errorOf, touch, currency }: StepProps & { curr
               />
               <span>{t("allowed")}</span>
             </label>
-            <Link href="/faq#host-at-home" target="_blank" rel="noopener noreferrer" className="ml-8 mt-1 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+            <Link href="/help#host-at-home" target="_blank" rel="noopener noreferrer" className="ml-8 mt-1 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
               {t("whatThisMeans")} ↗
             </Link>
             {errorOf("allowedToHost") && <div className="ml-8 mt-2"><ErrorLine text={errorOf("allowedToHost")} /></div>}

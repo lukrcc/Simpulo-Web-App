@@ -6,10 +6,18 @@ import { ExploreFeed, type FeedScope } from "@/components/views/ExploreFeed";
 import { breadcrumbList } from "@/lib/seo";
 import type { Stay } from "@/lib/types";
 import { JsonLd } from "./JsonLd";
+import { SeoEmpty } from "./SeoActions";
+import { SeoFaq } from "./SeoFaq";
+import { SeoHouses } from "./SeoHouses";
+import { SEO_STARTING_SOON } from "@/config/seo";
 
 interface LandingPageProps {
   h1: string;
   intro: string;
+  /** Under the Houses: "Starting soon in {city}" (ids, soonest first) and the page's questions; without a House the empty block */
+  startingSoon?: { title: string; ids: readonly string[] };
+  faq?: { title: string; items: readonly { q: string; a: string }[] };
+  empty?: { title: string; text: string; where?: string };
   stays: Stay[];
   /** The feed's scope: the same Houses as `stays`, filterable like Explore (filters in the URL) */
   scope: FeedScope;
@@ -22,7 +30,7 @@ interface LandingPageProps {
  * /co-living/[city]: H1, a short intro, the city's open Houses as normal cards with Explore's filters, related links. Only Houses – no place
  * tiles (CLAUDE.md "Ein Objekt"). No House yet: "No House here yet – open the first one".
  */
-export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, related, createHref }: LandingPageProps & { /** "Open the first one" with the place filled in */ createHref: string }) {
+export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, related, createHref, startingSoon, faq, empty }: LandingPageProps & { /** "Open the first one" with the place filled in */ createHref: string }) {
   const t = await getTranslations("seo");
   return (
     <Container page>
@@ -52,17 +60,24 @@ export async function LandingPage({ h1, intro, stays, scope, breadcrumbs, relate
 
       {/* Explore's grid and filters, limited to this page's Houses (rendered on the server too). */}
       {stays.length === 0 ? (
-        <div className="mt-(--space-section) flex flex-col items-start gap-4">
-          <p className="text-h2 text-ink">{t("emptyTitle")}</p>
-          <Link href={createHref} className={buttonStyles("primary", "md")}>
-            {t("emptyAction")}
-          </Link>
-        </div>
+        empty ? (
+          <SeoEmpty title={empty.title} text={empty.text} createHref={createHref} where={empty.where} />
+        ) : (
+          <div className="mt-(--space-section) flex flex-col items-start gap-4">
+            <p className="text-h2 text-ink">{t("emptyTitle")}</p>
+            <Link href={createHref} className={buttonStyles("primary", "md")}>
+              {t("emptyAction")}
+            </Link>
+          </div>
+        )
       ) : (
         <section aria-label={t("housesLabel")} className="mt-6">
           <ExploreFeed scope={scope} headless />
         </section>
       )}
+      {/* Only when there are more Houses than that row would show (else it repeats the grid). */}
+      {startingSoon && startingSoon.ids.length > 0 && <SeoHouses id="seo-starting-soon" title={startingSoon.title} ids={startingSoon.ids} when="soon" max={SEO_STARTING_SOON} hideIfAll />}
+      {faq && <SeoFaq id="seo-faq" title={faq.title} items={faq.items} />}
 
       {related
         .filter((group) => group.links.length > 0)

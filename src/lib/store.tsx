@@ -664,7 +664,7 @@ function mockInbox(stays: Stay[], requests: JoinRequest[], users: User[], thread
     (i) => { const s = pick(locked, i + 1); return s ? { key: "locked", values: { title: s.title, price: s.pricePerPerson!, payBy: s.payByDate ?? s.startDate }, stayId: s.id } : null; },
     (i) => { const g = i < gone.length ? gone[i] : undefined; return g ? { key: g.key, values: { title: g.stay.title }, stayId: g.stay.id, href: "/your-houses?tab=past" } : null; },
     (i) => { const s = pick(hosted, i + 1); return s ? { key: "crewFull", values: { title: s.title }, stayId: s.id } : null; },
-    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/settings/profile", "/faq"] as const)[i % 3] }),
+    (i) => ({ key: (["systemVerify", "systemPhoto", "systemWelcome"] as const)[i % 3], values: {}, href: (["/settings", "/settings/profile", "/help"] as const)[i % 3] }),
   ];
 
   return MOCK_DAYS.flatMap((days, i) => {

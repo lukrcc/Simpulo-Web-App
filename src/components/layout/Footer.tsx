@@ -5,14 +5,14 @@ import { SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import type { IconType } from "react-icons";
 import { SupportLink } from "@/components/help/HelpFeedback";
 import { FooterInstallHint } from "@/components/InstallHint";
-import { FOOTER_PLACES, FOOTER_THEMES } from "@/config/footer";
+import { FOOTER_COLUMNS, FOOTER_PLACES, FOOTER_THEMES, type FooterLink } from "@/config/footer";
 import { SOCIAL_LINKS, type SocialNetwork } from "@/lib/social";
 import { Container } from "./Container";
 import { CurrencyPicker } from "./CurrencyPicker";
-import { FooterWaitlist, FoundingHostsLink, OpenHouseFooterLink } from "./FooterPhase";
+import { FooterColumn } from "./FooterColumn";
+import { FooterWaitlist } from "./FooterPhase";
 import { Logo } from "./Logo";
 import { TabBarSpacer, TabBarSpacerFallback } from "./TabBarSpacer";
-import { cn } from "@/lib/utils";
 
 /*
  * The footer system (config/footer.ts picks one per route): large · slim · none.
@@ -29,7 +29,6 @@ const SOCIAL_ICONS: Record<SocialNetwork, IconType> = { instagram: SiInstagram, 
 const COPYRIGHT_YEAR = 2026;
 
 const LINK = "inline-flex min-h-11 items-center text-muted transition-colors hover:text-ink md:min-h-8";
-const HEAD = "text-eyebrow uppercase text-muted";
 
 async function legalLinks() {
   const t = await getTranslations("footer");
@@ -64,117 +63,84 @@ export async function Footer() {
   const t = await getTranslations("footer");
   const tl = await getTranslations("footer.large");
   const legal = await legalLinks();
-  // "Open a House" is its own (client) link: before the launch it may say "Apply to host" (FooterPhase.tsx).
-  const host = [{ href: "/faq?role=host", label: tl("howHosting") }];
-  const simpulo = [
-    { href: "/about", label: t("links.about") },
-    { href: "/faq", label: t("links.howItWorks") },
-    { href: "/safety", label: t("links.safety") },
-  ];
+  const link = (l: FooterLink) =>
+    l.hidden ? null : (
+      <li key={l.key}>
+        {l.action ? (
+          <SupportLink kind={l.action} className={LINK} label={tl(`links.${l.key}` as "links.getHelp")} />
+        ) : (
+          <Link href={l.href!} className={LINK}>
+            {tl(`links.${l.key}` as "links.about")}
+          </Link>
+        )}
+      </li>
+    );
   return (
     // The room above it is --footer-gap (main's padding); after a dark last section it keeps 64px of light (globals.css).
     <footer className="footer-dark text-small">
       <Container className="pb-10 pt-16">
         <FooterWaitlist />
-        {/* Tablet (744–1099px): two columns (sm:grid-cols-2); the 12-column row from Desktop. */}
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 split:grid-cols-12 split:gap-6">
-          {/* Brand: logo, the line, socials, the QR to the app (desktop). */}
-          <div className="flex flex-col items-start gap-4 split:col-span-4">
-            {/* Phones: left like the column (the Logo centres itself – in bars that is vertical, here it pulled it to the middle). */}
-            <Logo size="sm" className="max-md:self-start" />
+        {/* Brand and four columns (config/footer.ts): phones one column, the four as groups that open (FooterColumn); tablets two columns;
+            the 12-column row from Desktop. */}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-0 sm:grid-cols-2 md:gap-y-10 split:grid-cols-12 split:gap-x-6">
+          <div className="flex flex-col items-start gap-4 pb-8 sm:col-span-2 md:pb-0 split:col-span-3">
+            <Logo size="sm" className="self-start" />
             <p className="text-body-lg text-ink">{tl("tagline")}</p>
             <nav aria-label={t("social.label")}>
               <Socials label={(n) => t(`social.${n}`)} size="md" />
             </nav>
             <FooterInstallHint id="get-the-app" size={72} className="mt-2 max-md:hidden" />
           </div>
-          {/* Discover: places and themes. */}
-          <nav aria-label={tl("discover")} className="split:col-span-4">
-            <h2 className={HEAD}>{tl("discover")}</h2>
-            <div className="mt-3 grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-small font-semibold text-ink">{tl("places")}</p>
-                <ul className="mt-1">
-                  {FOOTER_PLACES.map((place) => (
-                    <li key={place.slug}>
-                      <Link href={`/co-living/${place.slug}`} className={LINK}>
-                        {place.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-small font-semibold text-ink">{tl("themes")}</p>
-                <ul className="mt-1">
-                  {FOOTER_THEMES.map((theme) => (
-                    <li key={theme}>
-                      <Link href={`/explore?category=${theme}`} className={LINK}>
-                        {tl(`theme.${theme}`)}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </nav>
-          <nav aria-label={tl("host")} className="split:col-span-2">
-            <h2 className={HEAD}>{tl("host")}</h2>
-            <ul className="mt-3">
-              <OpenHouseFooterLink className={LINK} />
-              {host.map(({ href, label }) => (
-                <li key={href}>
-                  <Link href={href} className={LINK}>
-                    {label}
-                  </Link>
-                </li>
-              ))}
-              <FoundingHostsLink className={LINK} />
-              <li>
-                <Link href="/safety#safety-hosts" className={LINK}>
-                  {tl("hostSafety")}
-                </Link>
-              </li>
-            </ul>
-          </nav>
-          <nav aria-label={t("columns.simpulo")} className="split:col-span-2">
-            <h2 className={HEAD}>{t("columns.simpulo")}</h2>
-            <ul className="mt-3">
-              {simpulo.map(({ href, label }) => (
-                <li key={href}>
-                  <Link href={href} className={LINK}>
-                    {label}
-                  </Link>
-                </li>
-              ))}
-              {/* "Help" and "Share an idea" open their windows (no pages of their own). */}
-              <li>
-                <SupportLink kind="help" className={LINK} />
-              </li>
-              <li>
-                <SupportLink kind="idea" className={LINK} />
-              </li>
-            </ul>
-          </nav>
+          {FOOTER_COLUMNS.map((column) => (
+            <FooterColumn key={column.id} title={tl(`columns.${column.id}`)} className={column.groups ? "split:col-span-3" : "split:col-span-2"}>
+              {column.groups && (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-small font-semibold text-ink">{tl("places")}</p>
+                    <ul className="mt-1">
+                      {FOOTER_PLACES.map((place) => (
+                        <li key={place.slug}>
+                          <Link href={`/co-living/${place.slug}`} className={LINK}>
+                            {place.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-small font-semibold text-ink">{tl("themes")}</p>
+                    <ul className="mt-1">
+                      {FOOTER_THEMES.map((theme) => (
+                        <li key={theme}>
+                          <Link href={`/explore?category=${theme}`} className={LINK}>
+                            {tl(`theme.${theme}`)}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              <ul className={column.groups ? "mt-3" : undefined}>{column.links.map(link)}</ul>
+            </FooterColumn>
+          ))}
         </div>
 
-        {/* The last line, small, under a thin line: currency · © · Impressum · Privacy · Terms · Cookies. */}
-        <div className="mt-12 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line pt-6 text-small text-muted">
-          <span className="mr-3">
-            <CurrencyPicker />
-          </span>
-          <span>{t("copyright", { year: COPYRIGHT_YEAR })}</span>
-          {/* Phones: the legal links on a line of their own (no "·" at its start). */}
-          <nav aria-label={t("legalLabel")} className="contents max-md:flex max-md:w-full max-md:flex-wrap max-md:items-center max-md:gap-x-1.5">
+        {/* The last line, small, under a thin line: © Simpulo · Impressum · Privacy · Terms · Cookies – the currency on the right. */}
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line pt-6 text-small text-muted">
+          {/* Phones: © on a line of its own, the legal links after it without a "·" at the line's start. */}
+          <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
+            <span className="max-md:w-full">{t("copyright", { year: COPYRIGHT_YEAR })}</span>
             {legal.map(({ href, label }, i) => (
               <span key={href} className="flex items-center gap-1.5">
-                <span aria-hidden className={cn(i === 0 && "max-md:hidden")}>·</span>
+                <span aria-hidden className={i === 0 ? "max-md:hidden" : undefined}>·</span>
                 <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
                   {label}
                 </Link>
               </span>
             ))}
           </nav>
+          <CurrencyPicker />
         </div>
       </Container>
       <FooterSpacer />
@@ -182,33 +148,25 @@ export async function Footer() {
   );
 }
 
-/** The slim footer: one line on the light ground – logo small · Help · Share an idea · right Impressum · Privacy · Terms · Cookies · socials. */
+/** The slim footer: one line on the light ground – Get help · Impressum · Privacy · Terms · Cookies. */
 export async function SlimFooter() {
   const t = await getTranslations("footer");
+  const tl = await getTranslations("footer.large");
   const legal = await legalLinks();
   return (
     <footer className="bg-(--footer-surface)">
-      <Container className="flex min-h-(--footer-slim-h) flex-wrap items-center justify-between gap-x-6 gap-y-2 py-(--footer-slim-pad) text-small text-muted">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Logo size="sm" />
-          <SupportLink kind="help" className="min-h-11 md:min-h-0" />
-          <SupportLink kind="idea" className="min-h-11 md:min-h-0" />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
-            {legal.map(({ href, label }, i) => (
-              <span key={href} className="flex items-center gap-1.5">
-                {i > 0 && <span aria-hidden>·</span>}
-                <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
-                  {label}
-                </Link>
-              </span>
-            ))}
-          </nav>
-          <nav aria-label={t("social.label")}>
-            <Socials label={(n) => t(`social.${n}`)} size="sm" />
-          </nav>
-        </div>
+      <Container className="flex min-h-(--footer-slim-h) items-center py-(--footer-slim-pad) text-small text-muted">
+        <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
+          <SupportLink kind="help" className="min-h-11 md:min-h-0" label={tl("links.getHelp")} />
+          {legal.map(({ href, label }) => (
+            <span key={href} className="flex items-center gap-1.5">
+              <span aria-hidden>·</span>
+              <Link href={href} className="inline-flex min-h-11 items-center transition-colors hover:text-ink md:min-h-0">
+                {label}
+              </Link>
+            </span>
+          ))}
+        </nav>
       </Container>
       <FooterSpacer />
     </footer>

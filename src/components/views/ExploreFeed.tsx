@@ -88,6 +88,8 @@ interface ExploreFeedProps {
   scope?: FeedScope;
   /** The page brings its own heading and layout (city / vibe pages): no H1, no Container of its own */
   headless?: boolean;
+  /** A theme page's introduction (2–3 sentences) under its title (config/seo.ts) */
+  intro?: string;
 }
 
 /**
@@ -95,7 +97,7 @@ interface ExploreFeedProps {
  * are multi-select (OR within one, AND across them) and live in the URL. Spotlight and collection rows only on the
  * unscoped, unfiltered Explore.
  */
-export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) {
+export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps = {}) {
   const t = useTranslations("explore");
   const tf = useTranslations("explore.filtersUi");
   const tCollections = useTranslations("explore.collections");
@@ -453,13 +455,14 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     ) : (
                       // Logged out on phones: the way to the questions, right beside the title (never under the sticky row).
                       !store.currentUserId && (
-                        <Link href="/faq" className={buttonStyles("tertiary", "sm", "md:hidden")}>
+                        <Link href="/help" className={buttonStyles("tertiary", "sm", "md:hidden")}>
                           {t("howItWorksLink")}
                         </Link>
                       )
                     )
                   }
                 />
+                {intro && !searchView && <p className="mt-3 max-w-[640px] text-body-lg text-muted">{intro}</p>}
                 {searchView && (
                   <ul aria-label={tf("sectionActive")} className="mt-4 flex flex-wrap items-center gap-2">
                     {activeChips.map((chip) => (

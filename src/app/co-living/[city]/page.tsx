@@ -6,17 +6,26 @@ import { LandingPage } from "@/components/seo/LandingPage";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { getCities, getStaysByCity, MIN_INDEXABLE_HOUSES, PLACEHOLDER_PARAM } from "@/lib/data/stays";
 import { pageMetadata } from "@/lib/seo";
+import { FEE_MODEL } from "@/config/policies";
+import { CITY_FAQ, CITY_SEO } from "@/config/seo";
+import { CURATED_DESTINATIONS } from "@/lib/data/destinations";
 
 /** "Also popular": other cities shown at the end of the page – same country first, then by Houses. */
 const MAX_RELATED = 4;
 
+/** Every city with Houses, and every curated city (lib/data/destinations.ts) – a city without a House gets "Open the first one" + waitlist. */
 export async function generateStaticParams() {
-  const params: { city: string }[] = (await getCities()).map((city) => ({ city: city.slug }));
+  const slugs = new Set([...(await getCities()).map((city) => city.slug), ...CURATED_DESTINATIONS.map((d) => d.slug)]);
+  const params = [...slugs].map((city) => ({ city }));
   return params.length > 0 ? params : [{ city: PLACEHOLDER_PARAM }];
 }
 
+/** A city with Houses – else a curated city with none yet (count 0, thin: noindex). */
 async function cityOf(slug: string) {
-  return (await getCities()).find((c) => c.slug === slug);
+  const withHouses = (await getCities()).find((c) => c.slug === slug);
+  if (withHouses) return withHouses;
+  const curated = CURATED_DESTINATIONS.find((d) => d.slug === slug);
+  return curated ? { slug: curated.slug, name: curated.name, country: curated.country, count: 0 } : undefined;
 }
 
 export async function generateMetadata({ params }: PageProps<"/co-living/[city]">): Promise<Metadata> {
@@ -55,13 +64,23 @@ async function CityPageContent({ params }: { params: PageProps<"/co-living/[city
     .toSorted((a, b) => Number(b.country === city.country) - Number(a.country === city.country) || b.count - a.count)
     .slice(0, MAX_RELATED);
   const tVibe = await getTranslations("common.vibes");
+  // "Starting soon": the browser keeps the ones starting within STARTING_SOON_DAYS (components/seo/SeoHouses.tsx).
+  // The questions: the template, or the city's own (config/seo.ts CITY_SEO).
+  const own = CITY_SEO[city.slug];
+  const faqIds = own?.faq ?? CITY_FAQ;
+  const tFaq = await getTranslations(own?.faq ? `seo.cityOverrides.${city.slug}.faq` as "seo.cityFaq" : "seo.cityFaq");
+  const faqItems = faqIds.map((id) => ({ q: tFaq(`${id}.q` as "how.q", { name: city.name }), a: tFaq(`${id}.a` as "how.a", { name: city.name, percent: FEE_MODEL.serviceFeePercent }) }));
+  const intro = own?.intro ? t(`cityOverrides.${city.slug}.intro` as "city.intro", { city: city.name }) : t(stays.length === 0 ? "city.introEmpty" : "city.intro", { city: city.name });
   // The categories this city's Houses have, as Explore filters.
   const vibes = [...new Set(stays.map((s) => s.vibe))];
   return (
     <LandingPage
       h1={t("city.h1", { city: city.name })}
-      intro={t("city.intro", { city: city.name })}
+      intro={intro}
       stays={stays}
+      startingSoon={{ title: t("city.startingSoon", { city: city.name }), ids: stays.map((x) => x.id) }}
+      faq={{ title: t("city.faqTitle", { city: city.name }), items: faqItems }}
+      empty={{ title: t("city.emptyTitle", { city: city.name }), text: t("city.emptyText", { city: city.name }), where: city.name }}
       scope={{ citySlug: city.slug }}
       createHref={`/create?place=${encodeURIComponent(city.slug)}`}
       breadcrumbs={[

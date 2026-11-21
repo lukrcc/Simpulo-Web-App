@@ -341,7 +341,25 @@ const en = {
     "coLivingIn": "Co-living in {city}",
     "vibeHouses": "{vibe} houses",
     "large": {
-      "tagline": "Find your people.",
+      "tagline": "Share a place. Find your people.",
+      "columns": { "discover": "Discover", "host": "Host", "simpulo": "Simpulo", "help": "Help" },
+      "links": {
+        "shortTrips": "Short trips",
+        "startingSoon": "Starting soon",
+        "guides": "Guides",
+        "becomeHost": "Become a host",
+        "howHosting": "How hosting works",
+        "hostFromPlace": "Host from your place",
+        "hostFaq": "Host FAQ",
+        "about": "About",
+        "howItWorks": "How it works",
+        "safety": "Safety",
+        "contact": "Contact",
+        "helpCenter": "Help center",
+        "getHelp": "Get help",
+        "shareIdea": "Share an idea",
+        "cancellation": "Cancellation policy"
+      },
       "discover": "Discover",
       "places": "Places",
       "themes": "Themes",
@@ -4782,7 +4800,7 @@ const en = {
       },
       "host-fees": {
         "question": "What does hosting cost?",
-        "answer": "Nothing. You pay your share like everyone else."
+        "answer": "Nothing. You pay your share like everyone else. If you lead a programme, you can add a host fee per guest – Simpulo keeps {percent} % of it."
       },
       "host-money": {
         "question": "How does the money work?",
@@ -4794,7 +4812,7 @@ const en = {
       },
       "who-joins": {
         "question": "Who decides who joins?",
-        "answer": "You. Nobody is in without your yes."
+        "answer": "You. Nobody is in without your yes – answer each request within {hours} hours, or it runs out."
       },
       "place-host": {
         "question": "Do I need a place already?",
@@ -4806,7 +4824,75 @@ const en = {
       },
       "verify": {
         "question": "Do I need to verify?",
-        "answer": "Only when you receive money: setting up payouts includes an ID check by our payment partner. Hosts with payouts get the Verified badge automatically."
+        "answer": "No, it's voluntary. An ID check with Stripe Identity gives you the Verified badge – verified hosts get more requests, and you can choose to accept only verified guests."
+      },
+      "how-to-join": {
+        "question": "How do I join a House?",
+        "answer": "Find a House you like and tap “Request to join” – add a note for the host if you want. Asking is free; the host says yes or not within {hours} hours."
+      },
+      "request-runs-out": {
+        "question": "What if the host doesn't answer?",
+        "answer": "After {remind} hours you can remind the host once. If there's still no answer after {hours} hours, the request runs out – nothing is charged, and we show you similar Houses."
+      },
+      "with-friend": {
+        "question": "Can I join with a friend?",
+        "answer": "Yes – “Request with a friend” asks for two spots. You get a link for your friend; they confirm with it and send their own request."
+      },
+      "full-house": {
+        "question": "What if a House is full?",
+        "answer": "Join its waitlist. If someone drops out, the first person on it gets the spot offered for {hours} hours."
+      },
+      "currency": {
+        "question": "Which currency do I pay in?",
+        "answer": "Prices show in your currency, with “≈” when the House uses another one. You pay in the House's currency – your bank converts the amount."
+      },
+      "report": {
+        "question": "How do I report someone?",
+        "answer": "Tap “Report” on a profile, a message, a House or a photo. Pick a reason, add a few words if you like, and block the person too if you want. We look at every report within 24 hours."
+      },
+      "emergency": {
+        "question": "What if I'm in danger?",
+        "answer": "Call the local emergency number first – Simpulo can't send help. Then tell us with “Get help” and choose Safety."
+      },
+      "help-on-site": {
+        "question": "Something's wrong during my stay – what now?",
+        "answer": "From {before} days before your House until {after} days after it, “Something went wrong” on the House page opens a case with us – for the place, the host, safety or payment."
+      },
+      "block": {
+        "question": "What happens when I block someone?",
+        "answer": "Your direct chat with them ends. They can't message you or request your Houses, and they aren't told."
+      },
+      "harassment": {
+        "question": "What happens after a harassment report?",
+        "answer": "Harassment isn't tolerated. If a report of harassment in a House holds up, the person leaves the House – anything they paid is refunded."
+      },
+      "verified-people": {
+        "question": "What does the Verified badge mean?",
+        "answer": "The person checked their ID with Stripe Identity. It's voluntary – hosts can choose to accept only verified guests."
+      },
+      "who-sees-me": {
+        "question": "Who sees my profile?",
+        "answer": "The people in your House see your full profile. Other signed-in members see your first name, photo and interests – only while “Show me on House pages” is on. Logged-out visitors don't see guests at all."
+      },
+      "last-name": {
+        "question": "Is my last name shown?",
+        "answer": "Never. Other people only see your first name – your host too."
+      },
+      "emails": {
+        "question": "Which emails will I get?",
+        "answer": "Bookings, payments and deadlines always come by email too, so you never miss them. Everything else you choose in Settings › Notifications."
+      },
+      "your-data": {
+        "question": "Can I get a copy of my data?",
+        "answer": "Yes – Settings › Privacy & safety › Your data › Download your data gives you everything we keep about you as a file."
+      },
+      "pause": {
+        "question": "Can I take a break?",
+        "answer": "Pause your account: your profile turns private for everyone and your Houses leave Explore. Nothing is deleted – come back any time."
+      },
+      "delete": {
+        "question": "How do I delete my account?",
+        "answer": "Settings › Privacy & safety › Delete account. We tell you first what happens to your Houses and bookings; you confirm by typing DELETE."
       }
     }
   },
@@ -4825,14 +4911,38 @@ const en = {
     },
     "city": {
       "h1": "Co-living in {city}",
-      "description": "Find people to share a house with in {city}, {country}: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
-      "intro": "Share a house in {city} with people who want the same kind of trip – a few weeks, one crew, a host who knows the place. Ask to join an open House below, or open your own.",
+      "description": "Find people to share a house with in {city}, {country}: {count, plural, =0 {be the first to open a House} one {# open House} other {# open Houses}} with real hosts on Simpulo.",
+      "intro": "Share a house in {city} with people who want the same kind of trip – a few weeks, one crew, a host who knows the place. Ask to join an open House below, or open your own. Asking is free; you pay your share only once the host says yes and the crew is complete.",
+      "introEmpty": "Share a house in {city} with people who want the same kind of trip – a few weeks, one crew, a host who knows the place. There's no House here yet: open the first one, or hear first when one opens.",
+      "startingSoon": "Starting soon in {city}",
+      "faqTitle": "Co-living in {city}: questions",
+      "emptyTitle": "No House in {city} yet",
+      "emptyText": "Open the first one – or join the waitlist and hear first when a House opens in {city}.",
       "related": "Also popular",
       "link": "{city}",
       "vibes": "Vibes in {city}"
     },
     "emptyTitle": "No House here yet – open the first one.",
     "emptyAction": "Open a House",
+    "openFirst": "Open the first one",
+    "joinWaitlist": "Join the waitlist",
+    "cityFaq": {
+      "how": { "q": "How does co-living in {name} work?", "a": "A host opens a House in {name} – a place, a few weeks, a theme. You ask to join with a short note, the host says yes or not, and once the crew is complete everyone pays an equal share of the place." },
+      "length": { "q": "How long do Houses in {name} last?", "a": "Each House sets its own dates – from a long weekend to a few months. The dates and nights are on every House card." },
+      "cost": { "q": "What does it cost?", "a": "Every House shows its price per person: an equal share of the place, plus Simpulo's {percent} % service fee on your share. Asking is free; nothing is charged before the host says yes." },
+      "open": { "q": "Can I open my own House in {name}?", "a": "Yes. Open a House with a theme and dates, bring a place or find one with your crew, and choose who joins." }
+    },
+    "collectionFaq": {
+      "what": { "q": "What are {name}?", "a": "Houses on Simpulo that fit this theme – shared places for a few weeks, each opened by a host who says what it's about." },
+      "who": { "q": "Who joins these Houses?", "a": "People who want the same kind of trip. You see the host and the crew before you ask, and nobody is in without the host's yes." },
+      "cost": { "q": "What does it cost?", "a": "Every House shows its price per person: an equal share of the place, plus Simpulo's {percent} % service fee on your share. Asking is free." },
+      "open": { "q": "Can I host one myself?", "a": "Yes – open a House with this theme, set the dates and the crew size, and choose who joins." }
+    },
+    "collectionIntro": "Every House is a shared place for a few weeks, with a host who chooses the crew. Asking to join is free – you pay your share only once the host says yes and the crew is complete.",
+    "collectionStartingSoon": "Starting soon",
+    "collectionFaqTitle": "Questions",
+    "collectionEmptyTitle": "No House in this theme yet",
+    "collectionEmptyText": "Open the first one – or join the waitlist and hear first when one opens.",
     "vibe": {
       "h1": "{vibe} houses",
       "description": "Shared {vibe} houses for a few weeks: {count, plural, one {# open House} other {# open Houses}} with real hosts on Simpulo.",
@@ -4841,8 +4951,8 @@ const en = {
       "cities": "Top cities for {vibe} houses"
     },
     "faq": {
-      "title": "Questions",
-      "description": "How Simpulo works: where your money goes, when you pay, cancelling, fees – for joining and for hosting a House."
+      "title": "Help center",
+      "description": "Answers about joining, hosting, payments and refunds, safety and your account – and a way to get help."
     },
     "safety": {
       "title": "Safety",
@@ -4870,11 +4980,11 @@ const en = {
       },
       "host": {
         "title": "Host a House",
-        "description": "Anyone can host: open a House, share the link and pick who joins. Simpulo handles requests, chat and payment – no fees for hosting."
+        "description": "Open a House and bring your people: share a place for a few weeks, choose who joins, and add a host fee if you lead the programme."
       },
       "about": {
         "title": "About",
-        "description": "Why Simpulo exists: shared places for a few weeks, with people you choose."
+        "description": "No one should have to go through life alone – why Simpulo exists, who's behind it, and what we hold to."
       },
       "contact": {
         "title": "Contact",
@@ -5082,6 +5192,368 @@ const en = {
     "hint": "{count, plural, one {# person is} other {# people are}} in for {place} in {month}",
     "hintNoMonth": "{count, plural, one {# person is} other {# people are}} in for {place}",
     "invitePeopleIn": "Invite people who are in"
+  },
+  "guides": {
+    "title": "Guides",
+    "description": "Practical answers about sharing a place, finding roommates abroad and making friends in a new city.",
+    "intro": "Short, practical answers about living together for a few weeks.",
+    "read": "Read the guide",
+    "minutes": "{count} min read",
+    "housesTitle": "Houses that fit",
+    "housesNone": "No open Houses that fit right now.",
+    "waitlistTitle": "Hear when the next House opens",
+    "waitlistText": "Join the waitlist – one email when Houses open, nothing else.",
+    "exploreTitle": "Find your House",
+    "exploreText": "Open Houses around the world – ask to join one.",
+    "explore": "Explore Houses",
+    "joinWaitlist": "Join the waitlist",
+    "back": "All guides",
+    "articles": {
+      "villaSolo": {
+        "title": "How to share a villa as a solo traveler",
+        "description": "Why sharing a villa beats a single room, where to find people, how to split the cost fairly and what to agree on before you arrive.",
+        "intro": "A villa with a pool is out of reach for one person – and perfectly normal for five. Sharing one is the easiest way to travel solo without being alone. Here's how to do it well.",
+        "s1": {
+          "q": "Why share a villa instead of booking a room?",
+          "a": "A private room in a hotel costs a lot and gives you a door, not company. A villa split between four or five people often costs less per night than that room – and comes with a kitchen, a garden and people to have dinner with.\n\nThe real gain isn't the price. It's the evenings. When you travel alone, the hardest part is the time between activities: the dinners, the slow mornings, the rainy afternoon. A shared house fills exactly those gaps."
+        },
+        "s2": {
+          "q": "Where do you find people to share with?",
+          "a": "Friends of friends are the classic answer, but schedules rarely match. Travel forums and group chats work, yet you're usually agreeing to live with someone you've exchanged five messages with.\n\nA better way is a House that's built for it: a host opens it with a place, dates and a theme, and people who want the same kind of trip ask to join. You see who is already in before you ask – their profile, what they're coming for, who they've lived with before."
+        },
+        "s3": {
+          "q": "How do you split the cost fairly?",
+          "a": "Split the place equally, and decide it before anyone books. Arguments about who got the bigger room cost more goodwill than the room is worth – if rooms differ a lot, settle that once, openly, at the start.\n\nOn Simpulo the price per person is on the House before you ask: the place divided by the crew, plus a {fee} % service fee on your share. You pay only after the host has said yes and the crew is complete, so nobody pays for a house that never fills."
+        },
+        "s4": {
+          "q": "How do you know the others are a good fit?",
+          "a": "Look for a shared reason to be there. Five people who all came to surf get along more easily than five people who only wanted a cheap pool. A House with a clear theme – training, slow mornings, building something – does half the matching for you.\n\nThen look at the people: their short profile, the languages they speak, whether they've lived in a House before. And trust the host's judgement – they choose who joins, and they want the crew to work as much as you do."
+        },
+        "s5": {
+          "q": "What should you agree on before you arrive?",
+          "a": "Three things cause most trouble in shared houses: noise, cooking and guests. Agree on them in the first day or two – when quiet hours start, whether you cook together or on your own, and whether friends may come over.\n\nKeep it light. A short agreement everyone has voted on beats a long list of rules nobody remembers. And say early if something bothers you; small things are easy to fix on day two and hard on day ten."
+        },
+        "s6": {
+          "q": "What if someone drops out?",
+          "a": "Plan for it. Before the place is paid, anyone can step back without cost – that's why nobody should pay until the crew is complete. After payment, the fairest way out is handing the spot to someone else.\n\nOn Simpulo a full House can keep a short waitlist: if someone leaves, the next person gets the spot offered, and the one who left gets their share back except the service fee. Nobody is left paying for an empty room."
+        }
+      },
+      "roommatesMonth": {
+        "title": "Finding roommates for a month abroad",
+        "description": "A month is long enough to want a home and short enough that a lease makes no sense. How to find people to live with – and live with them well.",
+        "intro": "A month abroad sits in an awkward spot: too long for a hostel, too short for a lease. Sharing a place with a few people solves both – if you find the right ones.",
+        "s1": {
+          "q": "Why live with others for a month at all?",
+          "a": "Because a month alone in a new place is longer than it sounds. The first week is exciting; by the third, most people miss someone to cook with or tell about their day.\n\nRoommates also make the place better: a bigger flat in a better area, a shared kitchen instead of takeaway, and someone who already knows where the good bakery is."
+        },
+        "s2": {
+          "q": "Where do people look – and what goes wrong?",
+          "a": "Most people try listing sites and expat groups. The problem is that those are built for long rentals: landlords want six months, and the people you meet there are looking for a flatmate, not company for a month.\n\nWhat works better is joining people who planned the same month in the same place. A House on Simpulo is exactly that: a host, a place and fixed dates, with a few spots for people who want to come along."
+        },
+        "s3": {
+          "q": "How do you choose who to live with?",
+          "a": "Choose by rhythm, not by sympathy. Two lovely people can still be terrible roommates if one goes to bed at ten and the other comes home at three.\n\nLook at what the House is for – remote work, training, a slower month – and at the people already in. Ask the host a question if something matters to you. A short note with your request helps them see whether you fit, too."
+        },
+        "s4": {
+          "q": "How does paying work when you've never met?",
+          "a": "Trust is the hard part, so the money should be simple. Nobody should send money to a stranger's personal account, and nobody should pay before the group exists.\n\nOn Simpulo you ask to join for free. Once the host accepts you and the crew is complete, you have {hours} hours to pay your share through Simpulo. The host receives it after everyone has paid and books the place – if the booking isn't confirmed in time, everyone gets their money back."
+        },
+        "s5": {
+          "q": "What makes the first week go well?",
+          "a": "Arrive with a little plan and a lot of openness. A shared first dinner does more than any house rule: everyone learns names, habits and why the others came.\n\nAgree on the basics early – quiet hours, cooking, friends over – and then let the month find its own rhythm. One shared thing a week, like a hike or a long breakfast, is usually enough to make a group out of roommates."
+        },
+        "s6": {
+          "q": "What happens after the month?",
+          "a": "Often the best part. People you lived with for a month know you better than colleagues of years. Some you'll never see again, and that's fine; one or two may become the people you plan the next trip with.\n\nAfter a House on Simpulo you can say who you'd live with again. Only a choice that goes both ways is ever shown – and those people stay in your network for the next House."
+        },
+          "s7": {"q": "What should you bring for a month in a shared place?", "a": "Less than you think, plus three things people forget: earplugs, a small lock for valuables, and something to share – a game, a spice you love, a recipe from home.\n\nAlso bring a little patience for the first days. Everyone arrives tired and a bit shy. By the end of the first week the house will feel like yours."}
+      },
+      "splitNomads": {
+        "title": "Splitting accommodation with other digital nomads",
+        "description": "How remote workers share a house for a few weeks: finding the right people, splitting costs, and keeping work and life apart under one roof.",
+        "intro": "Remote work makes you free to go anywhere – and often alone wherever you go. Sharing a house with other people who work remotely fixes the loneliness and the budget at once.",
+        "s1": {
+          "q": "Why share a house with other remote workers?",
+          "a": "A coworking desk gives you colleagues for the day; a shared house gives you people for the evening. With other remote workers you also get the same rhythm: focus in the morning, a break at lunch, a sunset at the end of the day.\n\nAnd the numbers work. A house with a good desk for everyone, fast internet and a garden is usually cheaper per person than a small studio – and far better to work from."
+        },
+        "s2": {
+          "q": "What should the house have for working?",
+          "a": "Check three things before anything else: internet you can rely on, a proper place to work for every person, and a room for calls. A dining table for five laptops looks nice on a photo and fails on the first Monday.\n\nAsk the host directly if it isn't clear. A House that's meant for remote work usually says how people work there – and a typical day on its page tells you a lot about the rhythm."
+        },
+        "s3": {
+          "q": "How do you split rent, bills and extras?",
+          "a": "Keep the place simple: an equal share for everyone, decided before anyone pays. Extras like groceries or a cleaner are easier in a small shared pot that one person keeps track of.\n\nOn Simpulo the place is shared equally, and every House shows its price per person with Simpulo's {fee} % service fee on top. You pay once the crew is complete, so the per-person price can't change because someone didn't show up."
+        },
+        "s4": {
+          "q": "How do you keep work and home apart?",
+          "a": "Agree on working hours the way you'd agree on quiet hours: when the house is in focus mode, where calls happen, and when it's fine to be loud. It sounds formal and saves a lot of tension.\n\nThen do the opposite after work. A shared dinner or a walk at the end of the day is what makes a group of laptop people feel like a house – and it's the part you'll remember."
+        },
+        "s5": {
+          "q": "How long should you stay together?",
+          "a": "Two to six weeks is a sweet spot. Long enough to settle in and get real work done; short enough that small annoyances never get big.\n\nIf you're unsure, choose a House with clear dates over an open end. Everyone arrives with the same expectation – and if it works, you can always plan the next one together."
+        },
+        "s6": {
+          "q": "What if it doesn't work out?",
+          "a": "Talk early and kindly; most problems are about noise, mess or calls and are easy to fix on day three. If something feels unsafe, it's different – then get help right away.\n\nOn Simpulo you can report a person, a message or a photo in one tap and get help from the House page during your stay. Before you've paid, you can step back from a House without cost."
+        },
+          "s7": {"q": "How do time zones and calls fit into a shared house?", "a": "Ask everyone's working hours on the first day. If one person has calls late in the evening and another starts at six in the morning, plan rooms around that rather than hoping it works out.\n\nA simple sign on the call room door, or a message in the group chat before a long call, saves a lot of friction. And when calls clash with dinner, move dinner – food tastes better without a laptop on the table anyway."}
+      },
+      "worthIt": {
+        "title": "Is co-living worth it? Living with strangers for a few weeks",
+        "description": "An honest look at co-living for a few weeks: what you get, what it costs, who it suits – and how to make it work.",
+        "intro": "Living with people you haven't met sounds like a gamble. For a few weeks, with the right people and a clear frame, it's often the best part of a trip. Here's an honest look.",
+        "s1": {
+          "q": "What is co-living for a few weeks, exactly?",
+          "a": "Not a hostel and not a flatshare. A small group – usually three to eight people – shares one place for a fixed time, often around a theme: surfing, training, working remotely, slowing down.\n\nOn Simpulo that's called a House: a host opens it with a place and dates, people ask to join, and the crew lives there together for the stay."
+        },
+        "s2": {
+          "q": "What do you actually get out of it?",
+          "a": "Company without effort. In a shared house the conversations happen at breakfast, not because you went looking for them.\n\nYou also get a better place than you'd book alone and people who know things you don't. And sometimes you get more: a few weeks of shared days turn strangers into friends faster than months of occasional coffees."
+        },
+        "s3": {
+          "q": "What are the downsides?",
+          "a": "Less control. You share the kitchen, the bathroom and the noise, and not everyone will become your friend. Some evenings you'll want to be alone – plan for that, and say it.\n\nThe risk is lower than it sounds when the frame is clear: fixed dates, a shared reason to be there, and a few agreed basics like quiet hours and guests."
+        },
+        "s4": {
+          "q": "Is it cheaper than travelling alone?",
+          "a": "Usually, yes. A shared house costs less per person than a hotel room of the same standard, and cooking together saves more.\n\nOn Simpulo everyone pays an equal share of the place, plus a {fee} % service fee on their share. Nothing is charged before the host says yes and the crew is complete, so you never pay for a group that didn't happen."
+        },
+        "s5": {
+          "q": "Who is it for – and who not?",
+          "a": "It suits people who like people but don't need them all the time: solo travellers, remote workers, people between two chapters of life.\n\nIt suits you less if you need total quiet, or if you want to decide everything alone. Then choose a calmer House, a smaller crew – or a room of your own for this trip."
+        },
+        "s6": {
+          "q": "How do you make it work?",
+          "a": "Choose the House by its people and its purpose, not only by its photos. Ask the host a question if something matters to you.\n\nThen show up for the shared moments – the first dinner, a day out together, the last evening. Those few hours carry the whole stay. Afterwards you can say who you'd live with again; when it's mutual, you stay connected for the next House."
+        },
+          "s7": {"q": "How do you choose the right House?", "a": "Start with why you're going. A House for training, for working or for slowing down attracts different people, and that's the point – the theme does the first part of the matching.\n\nThen check the practical things: the dates, the size of the crew, the price per person and where the place is. Read the host's few lines about why they're hosting; they tell you more about the atmosphere than any photo. And look at who's already in. If you'd happily share a breakfast with them, you're probably in the right place."}
+      },
+      "friendsNewCity": {
+        "title": "How to make friends when you move to a new city",
+        "description": "Friendship needs time together. How to find it in a new city – from the first week to the people you'll still know in a year.",
+        "intro": "Moving to a new city is exciting for about three weeks. Then you notice that nobody calls. Making friends as an adult is hard – mostly because nobody has time. Here's what actually helps.",
+        "s1": {
+          "q": "Why is it so hard to make friends as an adult?",
+          "a": "Because friendship needs time together, and adults rarely get it. At school and university you saw the same people every day without planning it. In a new city every meeting has to be arranged – and most never go beyond the first coffee.\n\nThe fix isn't meeting more people. It's spending more time with a few."
+        },
+        "s2": {
+          "q": "Where do you meet people at all?",
+          "a": "Go where people come back: a club, a class, a regular run, a volunteer group. Seeing the same faces every week does more than any single event.\n\nPick something you'd do anyway. You'll stick with it – and the people you meet there already share one thing with you."
+        },
+        "s3": {
+          "q": "How do you turn acquaintances into friends?",
+          "a": "Ask twice. Most friendships die after one nice evening because nobody suggests the second. Make the next plan before you part, even a small one.\n\nAnd go a little deeper than small talk. Asking what someone is in the middle of in their life is a better question than what they do for work."
+        },
+        "s4": {
+          "q": "Can living with people speed it up?",
+          "a": "A lot. A few weeks under one roof give you more time together than months of meetups: breakfasts, plans for tomorrow, a last evening.\n\nThat's the idea behind a House on Simpulo – a place for a few weeks with people who share your thing. When you arrive in a new city, joining one for your first month is a way to land with people instead of alone."
+        },
+        "s5": {
+          "q": "How do you keep the people you meet?",
+          "a": "Make it easy to stay in touch: a group chat, a monthly dinner, the next trip planned together. Friendship fades without shared plans, not without feelings.\n\nAfter a House on Simpulo you can say who you'd live with again. Only a choice that goes both ways is shown, and those people stay in your network."
+        },
+        "s6": {
+          "q": "What if it takes longer than you hoped?",
+          "a": "It usually does – most people need months, not weeks. That's normal, not a sign that something is wrong with you.\n\nKeep showing up to the same places, say yes more than you feel like, and give it time. And be the person who invites: in every new city, someone is waiting for exactly that."
+        },
+          "s7": {"q": "What if you're shy or introverted?", "a": "Then choose settings that do the talking for you. A class, a team sport or a shared house gives you something to do together, so the conversation can come slowly.\n\nSmall groups are easier than big ones. Three people at a kitchen table beat thirty at a party. And it's fine to need time alone in between – friendships don't need constant contact, they need repeated contact."},
+          "s8": {"q": "What's one thing you can do this week?", "a": "Invite one person to one thing. Not a big plan – a coffee, a walk, a dinner where you cook too much on purpose.\n\nIf you have just arrived, look for something with a fixed start and end: a course, a weekly run, a House for a few weeks. A clear frame makes it easier to say yes, and the repetition does the rest."}
+      }
+    }
+  },
+  "helpCenter": {
+    "title": "Help center",
+    "intro": "Short answers about joining, hosting, money, safety and your account.",
+    "searchLabel": "Search the help center",
+    "searchPlaceholder": "Search, e.g. “cancel” or “refund”",
+    "categoriesLabel": "Topics",
+    "categories": { "joining": "Joining", "hosting": "Hosting", "payments": "Payments & refunds", "safety": "Safety", "account": "Your account" },
+    "results": "{count, plural, =0 {Nothing found for “{query}”} one {# answer for “{query}”} other {# answers for “{query}”}}",
+    "clear": "Clear",
+    "stuckTitle": "Still stuck?",
+    "stuckText": "Write to us – we read every message.",
+    "getHelp": "Get help",
+    "shareIdea": "Share an idea"
+  },
+  "hostPage": {
+    "eyebrow": { "prelaunch": "Founding Hosts wanted", "beta": "Founding Houses are open", "live": "For hosts" },
+    "title": "Open a House. Bring your people.",
+    "sentence": "Share a place for a few weeks with people who share your thing – everyone pays their share, and you choose who's in.",
+    "apply": "Apply to host",
+    "open": "Open a House",
+    "howLink": "How it works",
+    "how": {
+      "eyebrow": "How hosting works",
+      "title": "Four steps",
+      "steps": {
+        "open": { "title": "Open", "text": "Pick a theme and a place – one you have, or one you find with your crew." },
+        "crew": { "title": "Set your crew size and dates", "text": "How many people, which month or exact dates, what each pays." },
+        "accept": { "title": "Accept requests", "text": "People ask to join. Nobody is in without your yes." },
+        "live": { "title": "Live it", "text": "Everyone pays their share once the crew is complete – then you live it together." }
+      }
+    },
+    "types": {
+      "eyebrow": "Share or Pro",
+      "title": "Two ways to host",
+      "share": "Share host",
+      "pro": "Pro host",
+      "shareSub": "Share the rent, live it together.",
+      "proSub": "Lead the House with your own programme.",
+      "rows": {
+        "fee": { "label": "Host fee", "share": "None", "pro": "You set it, per guest" },
+        "tasks": { "label": "Your tasks", "share": "Three small ones: check-in info, a welcome, confirm the House agreement", "pro": "The same three" },
+        "programme": { "label": "Programme", "share": "None needed", "pro": "Your own – coaching, guiding, a daily plan" },
+        "simpulo": { "label": "Simpulo keeps", "share": "Nothing from you", "pro": "{percent} % of your host fee" },
+        "you": { "label": "You get", "share": "A House for your share", "pro": "Your host fee, minus {percent} %" }
+      }
+    },
+    "example": {
+      "eyebrow": "An example",
+      "title": "The numbers, honestly",
+      "place": "{place} for {nights} nights",
+      "people": "people, you included",
+      "share": "each – you too",
+      "fee": "service fee per guest, not you",
+      "pro": "Pro: {perGuest} host fee × {guests} guests",
+      "simpulo": "Simpulo keeps {percent} %",
+      "earn": "you earn as a Pro host"
+    },
+    "home": {
+      "eyebrow": "Host from your place",
+      "title": "Your home, a few weeks at a time",
+      "text": "Save the place you live in and open it for a few weeks – your free rooms are the spots, and you're part of the crew.",
+      "link": "Can I host where I live?"
+    },
+    "founding": {
+      "eyebrow": "Founding Hosts",
+      "title": "Be one of the first",
+      "text": "The first hosts shape what Simpulo becomes – and get a few things for it.",
+      "perks": {
+        "badge": { "title": "The Founding badge", "text": "On your profile and your Houses, for good." },
+        "stage": { "title": "On the stage", "text": "Your Houses are among the first people see when we open." },
+        "early": { "title": "Early access", "text": "Open your House before anyone else." }
+      }
+    },
+    "safety": {
+      "eyebrow": "Safety and support",
+      "title": "You're not on your own",
+      "items": {
+        "decide": { "title": "You decide who joins", "text": "Every request needs your yes – you can ask for verified guests only." },
+        "pay": { "title": "Paid through Simpulo", "text": "No cash, no chasing. The money comes once everyone has paid." },
+        "help": { "title": "Help during the stay", "text": "Something goes wrong? Get help right from your House." },
+        "report": { "title": "Report and block", "text": "One tap – we look at every report within 24 hours." }
+      },
+      "link": "Safety for hosts"
+    },
+    "faq": { "title": "Questions from hosts", "all": "All questions" },
+    "cta": {
+      "title": { "prelaunch": "Apply to host", "beta": "Open your Founding House", "live": "Open your House" },
+      "text": { "prelaunch": "We're picking the first hosts by hand – it takes two minutes.", "beta": "Founding Houses are open – nothing is paid until launch.", "live": "It's free to open a House. You pay your share like everyone else." }
+    }
+  },
+  "aboutPage": {
+    "eyebrow": "About Simpulo",
+    "mission": "No one should have to go through life alone.",
+    "whyTitle": "Why Simpulo",
+    "why": {
+      "time": "Friendship needs time together – not one dinner, but days that run into each other. Most adults barely get that anymore.",
+      "dense": "A few weeks in one House is time made dense: breakfasts, plans for tomorrow, a last evening. That's how strangers become your people.",
+      "houses": "So Simpulo is built around Houses: a place, a few weeks, a crew that shares your thing – and a way to keep the ones you'd live with again."
+    },
+    "founderTitle": "Who's behind it",
+    "founderWrite": "Write to {name}",
+    "founderPlaceholder": "Founder section – fill FOUNDER in config/pages.ts (photo, first name, two sentences, email). Hidden outside dev until then.",
+    "valuesTitle": "What we hold to",
+    "values": {
+      "private": { "title": "Private, not anonymous", "text": "Real first names and faces for the people you live with – nothing public you didn't choose." },
+      "real": { "title": "Real people, real time", "text": "No feeds, no likes. Time together in one place is the point." },
+      "network": { "title": "You own your network", "text": "The people you choose stay yours – no one else sees who they are." }
+    },
+    "explore": "Explore Houses",
+    "host": "Become a host"
+  },
+  "landing": {
+    "title": "Share a place. Find your people.",
+    "sentence": "Live together for a while with people who share your thing.",
+    "whereNext": "Where to next?",
+    "exploreAll": "See all Houses",
+    "emailLabel": "Your email",
+    "emailPlaceholder": "you@email.com",
+    "join": "Join the waitlist",
+    "how": {
+      "eyebrow": "How it works",
+      "title": "Three steps to your people",
+      "steps": {
+        "find": { "title": "Find a House", "text": "A place, a few weeks, a theme – and a host who opens it." },
+        "join": { "title": "Join the crew", "text": "Ask to join. You pay your share only once the host says yes and the crew is complete." },
+        "leave": { "title": "Leave with your people", "text": "Live together, then keep the ones you'd live with again." }
+      }
+    },
+    "arc": {
+      "eyebrow": "What makes a House",
+      "title": "A few weeks that feel like a year",
+      "text": "Every House has an arc – a few small moments that turn strangers into a crew.",
+      "phases": {
+        "before": "Before: say hi, share why you're coming.",
+        "arrival": "Arrival: a first night with a few good questions.",
+        "together": "Together: small plans for tomorrow, one big highlight.",
+        "goodbye": "Goodbye: a closing circle on the last evening.",
+        "after": "After: you choose who you'd live with again."
+      }
+    },
+    "houses": {
+      "examplesTitle": "Example Houses",
+      "examplesText": "Examples of what Houses will look like – not bookable yet.",
+      "openTitle": "Houses open now",
+      "openText": "Real Houses with real crews – pick one and ask to join.",
+      "seeAll": "See all"
+    },
+    "trust": {
+      "eyebrow": "Trust",
+      "title": "Living with new people, safely",
+      "items": {
+        "verified": { "title": "Verified hosts", "text": "Hosts can verify their ID with Stripe – you see the check on their profile." },
+        "payAfterYes": { "title": "Pay only after the host says yes", "text": "Asking is free. Nothing is charged until you're accepted and the crew is complete." },
+        "helpOnSite": { "title": "Help on site", "text": "Something wrong during your stay? Get help right from the House." },
+        "report": { "title": "Report in one tap", "text": "Report a person, a message or a photo – we look at it within 24 hours." }
+      },
+      "safety": "How we keep Houses safe"
+    },
+    "hosts": {
+      "eyebrow": "For hosts",
+      "title": "Open a House around your thing",
+      "text": "Share your place or find one with your crew. Everyone pays their share – you can add a fee if you lead the programme.",
+      "become": "Become a host",
+      "howHosting": "How hosting works"
+    },
+    "faq": {
+      "title": "Questions",
+      "all": "All questions"
+    },
+    "guides": {
+      "title": "Guides",
+      "all": "All guides"
+    },
+    "phase": {
+      "prelaunch": {
+        "eyebrow": "Opening {month}",
+        "stageNote": "Be the first to know when Houses open – one email, nothing else.",
+        "closingTitle": "Be there when the first Houses open",
+        "closingText": "Join the waitlist – we'll email you once, when Simpulo opens."
+      },
+      "beta": {
+        "eyebrow": "Founding Houses are open",
+        "stageNote": "Reserve a spot now – nothing is paid until launch.",
+        "closingTitle": "Find your first House",
+        "closingText": "Founding Houses are open – reserve your spot."
+      },
+      "live": {
+        "eyebrow": "Co-living for a few weeks",
+        "stageNote": "Free to ask. Pay only after the host says yes.",
+        "closingTitle": "Find your people",
+        "closingText": "Houses are open around the world – pick yours."
+      }
+    }
   },
   "deadlines": {
     "remindHost": "Remind {name}",

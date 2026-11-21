@@ -1719,6 +1719,23 @@ main:has([data-preview-gate]) {
 }
 
 /*
+ * The stage size as a heading outside the spotlight (the start page's title): text-stage would be the colour (--color-stage clashes with
+ * --text-stage), so the size comes from its tokens here; phones the stage-sm size (Landing, /host, /about).
+ */
+.stage-title {
+  font-family: var(--font-display), var(--font-sans);
+  font-size: var(--text-stage);
+  line-height: var(--text-stage--line-height);
+  letter-spacing: var(--text-stage--letter-spacing);
+  font-weight: var(--text-stage--font-weight);
+}
+@media (width < 46.5rem) {
+  .stage-title {
+    font-size: var(--text-stage-sm);
+  }
+}
+
+/*
  * The large headings in the display face; h3 and smaller stay in the text face. As rules, since a text-* utility can't set a
  * font family. Add the variant here if a new one is used.
  */

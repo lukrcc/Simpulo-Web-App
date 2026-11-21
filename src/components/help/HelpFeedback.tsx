@@ -255,11 +255,11 @@ function IdeaSheet({ onClose }: { onClose: () => void }) {
 }
 
 /** A link-styled button that opens "Get help" or "Share an idea" (footer). */
-export function SupportLink({ kind, className }: { kind: "help" | "idea"; className?: string }) {
+export function SupportLink({ kind, className, label }: { kind: "help" | "idea"; className?: string; /** Other words than "Get help" / "Share an idea" */ label?: string }) {
   const t = useTranslations("help");
   return (
     <button type="button" onClick={() => (kind === "help" ? openGetHelp() : openShareIdea())} className={cn("inline-flex items-center transition-colors hover:text-ink", className)}>
-      {kind === "help" ? t("getHelp") : t("shareIdea")}
+      {label ?? (kind === "help" ? t("getHelp") : t("shareIdea"))}
     </button>
   );
 }

@@ -5,6 +5,7 @@
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { TEST_ROUTES } from "../src/config/test-routes";
+import { footerHrefs, hiddenFooterLinks } from "../src/config/footer";
 
 const PAGE_FILES = new Set(["page.tsx", "page.ts", "page.jsx", "page.js", "page.mdx"]);
 
@@ -36,6 +37,12 @@ export function testRouteProblems(appDir: string): string[] {
   for (const r of TEST_ROUTES) {
     if (!r.skip && r.route.includes("[") && !r.example) problems.push(`Dynamische Seite ${r.route} braucht ein Demo-Beispiel (example) in src/config/test-routes.ts.`);
   }
+  // The footers link only to pages that exist (config/footer.ts): a dynamic segment ([city], [slug]) matches any value.
+  const patterns = [...existing].map((route) => new RegExp(`^${route.replace(/\[[^\]]+\]/g, "[^/]+")}$`));
+  for (const href of footerHrefs()) {
+    const pathOnly = href.split(/[?#]/)[0] || "/";
+    if (!patterns.some((re) => re.test(pathOnly))) problems.push(`Footer-Link ${href} führt auf keine Seite – in src/config/footer.ts mit hidden ausblenden oder die Seite bauen.`);
+  }
   const keys = TEST_ROUTES.map((r) => r.key);
   for (const key of new Set(keys.filter((k, i) => keys.indexOf(k) !== i))) problems.push(`Schlüssel „${key}“ steht doppelt in src/config/test-routes.ts.`);
   return problems;
@@ -55,4 +62,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     process.exit(1);
   }
   console.log(`Breiten-Test: alle ${appRoutes(path.join(process.cwd(), "src", "app")).length} Seiten eingetragen.`);
+  const hidden = hiddenFooterLinks();
+  console.log(hidden.length ? `Footer: ausgeblendet – ${hidden.map((l) => `${l.key} (${l.hidden})`).join(", ")}` : `Footer: alle ${footerHrefs().length} Links führen auf bestehende Seiten, keiner ausgeblendet.`);
 }

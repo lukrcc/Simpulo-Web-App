@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 /** Labels: keys under footer.links. */
 const MORE_LINKS: ReadonlyArray<{ href: string; labelKey: "howSimpuloWorks" | "hostWithCommunity" | "contact"; icon: LucideIcon }> = [
-  { href: "/faq", labelKey: "howSimpuloWorks", icon: Info },
-  { href: "/faq?role=host", labelKey: "hostWithCommunity", icon: Megaphone },
+  { href: "/help", labelKey: "howSimpuloWorks", icon: Info },
+  { href: "/help?cat=hosting", labelKey: "hostWithCommunity", icon: Megaphone },
   { href: "/contact", labelKey: "contact", icon: Mail },
 ];
 

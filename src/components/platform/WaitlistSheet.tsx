@@ -37,7 +37,7 @@ function WaitlistForm({ prefill }: { prefill: WaitlistPrefill }) {
   const format = useFormatter();
   const store = useStore();
   const me = getCurrentUser(store);
-  const [emailValue, setEmail] = useState(me?.email ?? "");
+  const [emailValue, setEmail] = useState(prefill.email ?? me?.email ?? "");
   const [where, setWhere] = useState(prefill.where ?? "");
   const [category, setCategory] = useState<Vibe | "">(prefill.category ?? "");
   const [month, setMonth] = useState(prefill.month ?? "");

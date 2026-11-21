@@ -217,7 +217,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
           </Button>
           <p className="text-center text-small text-muted">
             {t("freeCancel")} ·{" "}
-            <Link href="/faq#cancellation" target="_blank" className="font-semibold text-ink underline-offset-4 hover:underline">
+            <Link href="/help#cancellation" target="_blank" className="font-semibold text-ink underline-offset-4 hover:underline">
               {t("rules")}
             </Link>
           </p>

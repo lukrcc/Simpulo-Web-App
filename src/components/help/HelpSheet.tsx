@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ImagePlus, LifeBuoy } from "lucide-react";
+import { HELP_WINDOW } from "@/config/policies";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formTextarea } from "@/components/form/FormLayout";
@@ -20,7 +21,7 @@ const DAY_MS = 86_400_000;
 
 /** "Something went wrong" is offered from 3 days before arrival until the day after the House ends. */
 export function helpAvailable(stay: Pick<Stay, "startDate" | "endDate">, now: number): boolean {
-  return Boolean(stay.startDate && stay.endDate) && now >= Date.parse(stay.startDate) - 3 * DAY_MS && now <= Date.parse(stay.endDate) + 2 * DAY_MS;
+  return Boolean(stay.startDate && stay.endDate) && now >= Date.parse(stay.startDate) - HELP_WINDOW.daysBefore * DAY_MS && now <= Date.parse(stay.endDate) + HELP_WINDOW.daysAfter * DAY_MS;
 }
 
 /** The way in: a quiet tertiary button with a lifebuoy. */

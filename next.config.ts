@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       // Getting the app: /get.
       { source: "/install", destination: "/get", permanent: false },
       // How it works is gone: the FAQ explains Simpulo (the query, e.g. ?role=host, goes along).
-      { source: "/how-it-works", destination: "/faq", permanent: true },
+      { source: "/how-it-works", destination: "/help", permanent: true },
       // SEO URLs: House pages moved from /stays/… to /house/…, the imprint to /impressum – old links keep working.
       { source: "/stays/:slug", destination: "/house/:slug", permanent: true },
       { source: "/imprint", destination: "/impressum", permanent: true },
@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
       { source: "/admin/heute", destination: "/admin/posteingang", permanent: true },
       { source: "/admin/support", destination: "/admin/posteingang", permanent: true },
       // The sections are tabs now (one grid).
+      // The FAQ became the help center (/help): the old role picks its topic, anchors keep working (the browser keeps the #).
+      { source: "/faq", has: [{ type: "query", key: "role", value: "host" }], destination: "/help?cat=hosting", permanent: true },
+      { source: "/faq", destination: "/help", permanent: true },
       { source: "/your-houses/hosting", destination: "/your-houses/all/hosting", permanent: true },
       { source: "/your-houses/joined", destination: "/your-houses/all/going", permanent: true },
       // Short links (lib/links.ts): /h/[id] is a page of its own (the House by role); invites and creators are placeholders for now.
@@ -46,7 +49,6 @@ const nextConfig: NextConfig = {
       // TODO: creator pages.
       { source: "/c/:handle", destination: "/", permanent: false },
       // Hosting is explained in the FAQ (Hosting) – no page of its own.
-      { source: "/host", destination: "/faq?role=host", permanent: true },
       // Notifications live in Messages › Updates.
       { source: "/notifications", destination: "/your-houses", permanent: true },
       // The own profile, short: /me.

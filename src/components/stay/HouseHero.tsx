@@ -311,7 +311,7 @@ function WayIn() {
   return (
     <p className="text-small text-muted">
       {tHero("wayIn")} ·{" "}
-      <Link href="/faq#cancellation" className={STRIP_LINK}>
+      <Link href="/help#cancellation" className={STRIP_LINK}>
         {tPolicy("link")}
       </Link>
     </p>

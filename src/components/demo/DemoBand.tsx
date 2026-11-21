@@ -8,7 +8,7 @@ export async function DemoBand() {
   return (
     <div data-demo-band className="stage sticky top-0 z-50 flex h-(--demo-band-h) md:top-(--safe-top) items-center justify-between gap-4 px-4 text-small text-ink md:px-8">
       <p className="truncate">{t("text")}</p>
-      <a href={`${production}/faq?role=host`} className="inline-flex shrink-0 items-center gap-1 underline-offset-4 hover:underline">
+      <a href={`${production}/help?cat=hosting`} className="inline-flex shrink-0 items-center gap-1 underline-offset-4 hover:underline">
         {t("link")}
         <ArrowRight className="size-3.5" aria-hidden />
       </a>

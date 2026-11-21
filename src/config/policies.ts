@@ -57,6 +57,20 @@ export const HOST_POLICY = {
 /** How it works' one worked example: a villa, 7 nights, 4 people. */
 export const STAY_EXAMPLE = { place: "Villa", total: 1260, nights: 7, people: 4 } as const;
 
+/**
+ * A Pro host's example (/host's numbers strip): a host fee per guest for leading the programme. An example value for the page – the
+ * founders set the one they want to show; the rest is computed from STAY_EXAMPLE and FEE_MODEL.
+ */
+export const HOST_FEE_EXAMPLE = { perGuest: 100 } as const;
+
+/** /host: the Pro example – the guests (the crew without the host), the host fee in all, what Simpulo keeps of it, what the host earns. */
+export function hostFeeExample() {
+  const guests = STAY_EXAMPLE.people - 1;
+  const total = HOST_FEE_EXAMPLE.perGuest * guests;
+  const kept = Math.round((total * FEE_MODEL.hostFeeCommissionPercent) / 100);
+  return { perGuest: HOST_FEE_EXAMPLE.perGuest, guests, total, kept, earned: total - kept, percent: FEE_MODEL.hostFeeCommissionPercent };
+}
+
 /** The example's numbers: everyone's equal share, and the service fee a guest adds to it. */
 export function stayExample() {
   const share = STAY_EXAMPLE.total / STAY_EXAMPLE.people;
@@ -99,6 +113,12 @@ export type DeadlineFlow = keyof typeof DEADLINES;
 export type DeadlineStepId = (typeof DEADLINES)[DeadlineFlow][number]["id"];
 
 /** "Remind" by hand: the guest the host once per request (from 24 hours on), the host a guest once per payment. Then the button rests. */
+/** A full House's waitlist: a free spot goes to the first waiting person as an offer for this many hours (lib/waitlist.ts). */
+export const WAITLIST_POLICY = { offerHours: 24 } as const;
+
+/** "Something went wrong" (the House's help): from this many days before the first day until this many after the last (components/help/HelpSheet.tsx). */
+export const HELP_WINDOW = { daysBefore: 3, daysAfter: 2 } as const;
+
 export const MANUAL_REMINDERS = {
   guestToHost: { afterHours: 24, perRequest: 1, notice: "guestRemindedHost" },
   hostToGuest: { perPayment: 1, notice: "hostRemindedGuest" },

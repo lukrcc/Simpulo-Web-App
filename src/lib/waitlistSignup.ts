@@ -11,6 +11,8 @@ import * as email from "@/lib/notify/channels/email";
 import type { Vibe, WaitlistEntry } from "@/lib/types";
 
 export interface WaitlistPrefill {
+  /** From an email field on the page (the landing) */
+  email?: string;
   where?: string | null;
   category?: Vibe | null;
   /** "YYYY-MM" */

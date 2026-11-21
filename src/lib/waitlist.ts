@@ -9,12 +9,13 @@
 // due) – the host is told and doesn't decide again. Not taken in time: they leave the list and the next one gets the offer.
 // An offer holds the spot (`Stay.spotsOffered`). Someone who already paid leaves while people wait: their spot goes to the
 // waitlist, they get their payment back minus Simpulo's fee. The clock: syncWaitlist in lib/store.tsx.
+import { WAITLIST_POLICY } from "@/config/policies";
 import type { JoinRequest, Payment, Stay } from "./types";
 import { openSpots } from "./utils";
 
 export const WAITLIST_MAX_DEFAULT = 3;
 export const WAITLIST_MAX_LIMIT = 5;
-export const WAITLIST_OFFER_HOURS = 24;
+export const WAITLIST_OFFER_HOURS = WAITLIST_POLICY.offerHours;
 
 export function waitlistMaxOf(stay: Pick<Stay, "waitlistMax">): number {
   return Math.min(Math.max(stay.waitlistMax ?? WAITLIST_MAX_DEFAULT, 0), WAITLIST_MAX_LIMIT);

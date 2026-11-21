@@ -78,7 +78,9 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
     const group = TODO_GROUP[task.kind as TodoKind];
     return group === "pay" || group === "reply";
   }).length;
-  const explorePage = pathname === "/" || pathname === "/explore";
+  // Explore's header (its quick search in the bar's slot): /explore, and / once signed in – visitors get the start page there (Landing), with
+  // the "Where to next?" search of every other page.
+  const explorePage = pathname === "/explore" || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
   // the colour changes (200ms), never the height or the place.
   useEffect(() => {
