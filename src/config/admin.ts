@@ -166,6 +166,10 @@ export const CHANGE_RULES = {
   mktDemoRate: { better: "higher", unit: "percent" },
   mktHouseRate: { better: "higher", unit: "percent" },
   mktFilledHouses: { better: "higher", unit: "count" },
+  /** Launch › Marketing › Countdown: the rings, against a week ago */
+  mktHousesOpened: { better: "higher", unit: "count" },
+  mktHubs: { better: "higher", unit: "count" },
+  mktWaitlist: { better: "higher", unit: "count" },
   /** Launch › Marketing › Partner › Wirkung */
   partnerVisits: { better: "higher", unit: "count" },
   partnerRequests: { better: "higher", unit: "count" },

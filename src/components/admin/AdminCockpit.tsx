@@ -22,6 +22,7 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getBankBalance, getPlatformPayouts } from "@/lib/data";
 import { ColumnChart, DrillChart, ProgressBar, StatusDot, type DrillBar } from "./AdminCharts";
 import { ChangeLine, KeyNumbers } from "./AdminNumbers";
+import { RoadmapHeadline } from "./AdminRoadmap";
 import { AdminSubTabs, AdminTabs, PeriodTabs } from "./AdminLayout";
 import { AdminTaxes } from "./AdminTaxes";
 import { AdminTaxJournal } from "./AdminTaxJournal";
@@ -107,7 +108,8 @@ export function AdminCockpit() {
   const crumbs = [{ label: t(`chart.root.${period}`), steps: [] as ZoomStep[] }, ...zoom.map((z, i) => ({ label: chartTick(z.start, periodEnd(z.start, z.level), z.level).main, steps: zoom.slice(0, i + 1) }))];
 
   return (
-    <AdminShell title={t("title")} aside={<PeriodTabs />}>
+    // Left in the click row, above the numbers: the next milestone and the departure (System › Zeitplan & Vorbereitung) as one link.
+    <AdminShell title={t("title")} tabs={<RoadmapHeadline href="/admin/platform?view=roadmap" />} aside={<PeriodTabs />}>
       {/* ONE row of four numbers for the period (or the opened bar), each with its change (the same span of the period before), target
           (monthly, scaled) and ⓘ: Gewinn (under it "Monate in Folge 0/6" – always monthly) · Volle Houses · Gemeinsame Nächte · Wiederkehrer. */}
       <KeyNumbers

@@ -6,7 +6,7 @@ import type { Stay } from "../types";
 import { PLATFORM_PHASES, type DataAdapter } from "./adapter";
 import type { PlatformPhase } from "../types";
 
-export { PLATFORM_PHASES, type AdminData, type AppData, type HouseOutcome, type PaymentIssue, type HypothesisResult, type MetricsHistory, type OverviewSnapshot, type LedgerEntry, type LedgerKind, type BankBalance, type HostTaxData, type TaxQuestion, type MarketingContact, type MarketingContactStatus, type MarketingContactWay, type MarketingPartner, type PartnerKind, type PartnerLadder, type PartnerAgreementStatus, type PhotoMeta, type PlatformPayouts, type TrafficReport } from "./adapter";
+export { PLATFORM_PHASES, type AdminData, type AppData, type HouseOutcome, type PaymentIssue, type HypothesisResult, type MetricsHistory, type OverviewSnapshot, type LedgerEntry, type LedgerKind, type BankBalance, type HostTaxData, type TaxQuestion, type MarketingContact, type MarketingContactStatus, type MarketingContactWay, type MarketingPartner, type LaunchCustomTask, type ContentPost, type ContentSprint, type PartnerKind, type MarketingMotivation, type PartnerLadder, type PartnerAgreementStatus, type PhotoMeta, type PlatformPayouts, type TrafficReport } from "./adapter";
 import type { PhotoMeta } from "./adapter";
 
 // Written out, so a production build drops the mock from its bundle: these two are decided while bundling.

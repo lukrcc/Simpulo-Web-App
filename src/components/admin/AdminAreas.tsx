@@ -6,6 +6,8 @@ import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from 
 import { BACKLOG, BACKLOG_PHASES, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogPhase, type BacklogStatus } from "@/config/backlog";
 import type { LaunchFacts } from "@/lib/launchChecks";
 import { AdminLaunch } from "./AdminLaunch";
+import { RoadmapTimeline, RoadmapTodos } from "./AdminRoadmap";
+import { TODO_DUES, type TodoDue } from "@/config/roadmap";
 import { DUTIES, dutyStatus } from "@/config/obligations";
 import { ADDRESS_FIELDS, hasBusinessAddress } from "@/config/company";
 import { FOUNDING_HOST } from "@/config/policies";
@@ -457,7 +459,7 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
         {contact &&
           row(
             t("contact"),
-            <Link href={`/admin/marketing?tab=contacts&contact=${contact.id}`} className="text-ink hover:underline">
+            <Link href={`/admin/marketing?tab=pipeline&contact=${contact.id}`} className="text-ink hover:underline">
               {t("contactOpen", { name: contact.name })}
             </Link>,
           )}
@@ -515,21 +517,50 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   const blockedLive = pending === "live" && addressMissing;
   // Einstellungen (phase, tools, values) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
   // config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
-  const [view, setView] = useState<"settings" | "prepare">("settings");
+  const [view, setView] = useState<"settings" | "prepare" | "roadmap">("settings");
   const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
+  // Zeitplan & Vorbereitung: Zeitleiste · To-dos; a diamond on the timeline opens the to-dos filtered by its due milestone.
+  const [roadmapView, setRoadmapView] = useState<"timeline" | "todos">("timeline");
+  const [todoDue, setTodoDue] = useState<TodoDue | "all">("all");
+  // Links from the Übersicht and the Marketing countdown: ?view=roadmap[&sub=todos][&due=…] – read once on arrival.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("view") !== "roadmap") return;
+    requestAnimationFrame(() => {
+      setView("roadmap");
+      if (params.get("sub") === "todos") setRoadmapView("todos");
+      const due = params.get("due");
+      if (due && TODO_DUES.some((d) => d.id === due)) setTodoDue(due as TodoDue);
+    });
+  }, []);
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
-      subTabs={view === "prepare" ? <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} /> : undefined}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "prepare", "roadmap"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      subTabs={
+        view === "prepare" ? (
+          <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} />
+        ) : view === "roadmap" ? (
+          <AdminSubTabs label={t("roadmapViews.label")} value={roadmapView} onChange={setRoadmapView} tabs={(["timeline", "todos"] as const).map((value) => ({ value, label: t(`roadmapViews.${value}`) }))} />
+        ) : undefined
+      }
       aside={
         <Link href="/admin/log" className="text-body font-semibold text-ink hover:underline">
           {t("logLink")}
         </Link>
       }
     >
-      {view === "prepare" && prep === "duties" ? (
+      {view === "roadmap" && roadmapView === "todos" ? (
+        <RoadmapTodos due={todoDue} onDue={setTodoDue} />
+      ) : view === "roadmap" ? (
+        <RoadmapTimeline
+          onPickDue={(due) => {
+            setTodoDue(due);
+            setRoadmapView("todos");
+          }}
+        />
+      ) : view === "prepare" && prep === "duties" ? (
         <Duties />
       ) : view === "prepare" && prep === "launch" ? (
         <AdminLaunch facts={facts} />

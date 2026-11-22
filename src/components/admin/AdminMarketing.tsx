@@ -1,91 +1,109 @@
 "use client";
 
-// Admin › Launch › Marketing: Plan · Kontakte · Trichter · Content · Schleifen. The plan's content from config/marketing.ts, the contacts
-// from the admin data (lib/admin/store.ts; Firestore marketingContacts later – admins only, firestore.rules), every number from
-// lib/admin/metrics.ts (marketing*), every change through useAdminActions (logged). German, dark, the admin's tokens.
-import { Check, Copy, Minus, Plus, Trash2 } from "lucide-react";
+// Admin › Launch › Marketing: the launch strategy as a cockpit – Countdown · Pipeline · Partner · Content. The strategy (phases, targets,
+// tasks) from config/marketing.ts, contacts, partners, posts and tasks from the admin data (lib/admin/store.ts; Firestore later – admins
+// only, firestore.rules), every number from lib/admin/metrics.ts (launchCountdown, marketingFunnel, marketingLoops …), every change through
+// useAdminActions (logged). German, dark, the admin's tokens.
+import { ChevronLeft, ChevronRight, Check, Copy, Minus, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminSection, AdminShell } from "@/components/admin/AdminShell";
-import { AdminListDetail, AdminSort, AdminTabs, BackToList, type AdminTab } from "@/components/admin/AdminLayout";
+import { AdminSort, AdminTabs, BackToList, type AdminTab } from "@/components/admin/AdminLayout";
 import { ProgressBar, StatusDot } from "@/components/admin/AdminCharts";
-import { InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
+import { ChangeLine, InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
+import { KindPicker, MatchingOffer, MotivationPicker, PartnerControls, PartnerDetail, type PartnerFilters } from "@/components/admin/AdminPartners";
 import { Button } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
+import { Sheet } from "@/components/ui/Sheet";
 import { Switch } from "@/components/ui/Switch";
 import {
   CONTACT_CHANNELS,
+  CONTENT_WEEKLY_TARGET,
+  FALLBACK_RULES,
   FUNNEL_ASSUMPTIONS,
-  MARKETING_CHANNELS,
-  MARKETING_CORE,
+  MARKETING_KINDS,
   MARKETING_LOOPS,
+  MOTIVATIONS,
   MARKETING_NEXT_STEPS,
-  MARKETING_STAGES,
-  MARKETING_TIMELINE,
   MAX_FOLLOW_UPS,
-  NEXT_CONTACTS_FOR_BEST_NICHE,
   PROJECTION_HOUSES,
   SERIES_CAST,
   SERIES_CAST_SIZE,
   SERIES_CLIP_TARGET,
   SERIES_STRUCTURE,
+  SHORT_CHANNELS,
   SHOT_LIST,
+  STRATEGY_WEEK_TASKS,
 } from "@/config/marketing";
 import { useAdminActions } from "@/lib/admin/actions";
-import { againstAssumption, compareDate, getChange, marketingFilledHouses, marketingFunnel, marketingLoops, type FunnelRow, type Status } from "@/lib/admin/metrics";
+import { againstAssumption, compareDate, getChange, launchCountdown, marketingFunnel, marketingFunnelBy, marketingLoops, mondayOf, partnerHouses, partnerStepDue, shortsInWeek, strategyDates, weekTarget, type Status } from "@/lib/admin/metrics";
 import { download } from "@/lib/admin/exporters";
 import { tableCsv } from "@/lib/admin/exporters/csv";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import type { MarketingContact, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "@/lib/data";
-import { PartnerControls, Partners, type PartnerFilters } from "@/components/admin/AdminPartners";
-import { compact, day, num, share } from "@/lib/i18n/adminFormat";
+import type { MarketingContact, MarketingMotivation, PartnerKind, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "@/lib/data";
+import { compact, day, monthYear, num, share } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
 import { cn, housePhotos } from "@/lib/utils";
+import { isOpenTodo, roadmapTodos } from "@/lib/roadmap";
 import { findUser, useStore } from "@/lib/store";
 import { memoriesStats } from "@/lib/memories";
 import { useMemorySrc } from "@/lib/memoryMedia";
 import type { HouseMemory } from "@/lib/types";
 
-type Tab = "plan" | "contacts" | "partners" | "funnel" | "content" | "loops";
-const TABS: readonly Tab[] = ["plan", "contacts", "partners", "funnel", "content", "loops"];
+type Tab = "countdown" | "pipeline" | "partners" | "content";
+const TABS: readonly Tab[] = ["countdown", "pipeline", "partners", "content"];
 const STATUSES: readonly MarketingContactStatus[] = ["open", "replied", "demo", "house", "later"];
 const WAYS: readonly MarketingContactWay[] = ["email", "dm", "form"];
+const DAY_MS = 86_400_000;
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 
 /** A contact's own demo link – opening it moves the contact to "Demo gesehen" (lib/admin/store.ts markContactDemoSeen). */
 const demoLinkOf = (id: string) => `${linkBase()}/?ref=${encodeURIComponent(id)}`;
 
 export function AdminMarketing() {
   const t = useTranslations("admin.marketing");
-  const [tab, setTab] = useState<Tab>("plan");
+  const tc = useTranslations("admin.marketing.contacts");
+  const [tab, setTab] = useState<Tab>("countdown");
   const data = useAdminData();
   const contacts = data.marketingContacts;
-  // Kontakte: the filters and the open one live here, so the click row can hold them.
-  const [niche, setNiche] = useState<string>("all");
-  const [status, setStatus] = useState<MarketingContactStatus | "all">("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const partners = data.marketingPartners;
   const actions = useAdminActions();
+  // Pipeline: the niche filter and the open contact (in a panel).
+  const [niche, setNiche] = useState<string>("all");
+  const [motivation, setMotivation] = useState<MarketingMotivation | "all">("all");
+  const [kind, setKind] = useState<PartnerKind | "all">("all");
+  const [contactId, setContactId] = useState<string | null>(null);
   // Partner: filters and the open one.
-  const [partnerFilters, setPartnerFilters] = useState<PartnerFilters>({ kind: "all", ladder: "all", due: "all" });
+  const [partnerFilters, setPartnerFilters] = useState<PartnerFilters>({
+    kind: "all",
+    ladder: "all",
+    due: "all",
+  });
   const [partnerId, setPartnerId] = useState<string | null>(null);
-  // Links from the Posteingang and between the tabs: ?tab=partners&partner=… · ?tab=contacts&contact=… – read once on arrival.
+  // Links from the Posteingang, Bewerbungen and between the tabs: ?tab=partners&partner=… · ?tab=contacts&contact=… (now the Pipeline) – read once.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wanted = params.get("tab");
-    if (wanted !== "partners" && wanted !== "contacts") return;
+    if (wanted !== "partners" && wanted !== "contacts" && wanted !== "pipeline" && wanted !== "content") return;
     requestAnimationFrame(() => {
-      setTab(wanted);
-      if (wanted === "partners") setPartnerId(params.get("partner"));
-      else setSelectedId(params.get("contact"));
+      if (wanted === "partners") {
+        setTab("partners");
+        setPartnerId(params.get("partner"));
+      } else if (wanted === "content") setTab("content");
+      else {
+        setTab("pipeline");
+        setContactId(params.get("contact"));
+      }
     });
   }, []);
-  const partners = data.marketingPartners;
   const toPartner = (contact: MarketingContact) => {
     const existing = partners.find((p) => p.contactId === contact.id);
     const partner = existing ?? actions.partnerFromContact(contact);
+    setContactId(null);
     setTab("partners");
     setPartnerFilters({ kind: "all", ladder: "all", due: "all" });
     setPartnerId(partner.id);
@@ -100,7 +118,16 @@ export function AdminMarketing() {
       ladder: 1,
       foundingHost: false,
       hostUserId: null,
-      agreement: { sharePercent: 0, from: null, to: null, payoutAfterPaidStay: true, contentRights: "", collabPosts: false, contractUrl: "", status: "draft" },
+      agreement: {
+        sharePercent: 0,
+        from: null,
+        to: null,
+        payoutAfterPaidStay: true,
+        contentRights: "",
+        collabPosts: false,
+        contractUrl: "",
+        status: "draft",
+      },
       houseIds: [],
       content: { planned: 0, delivered: 0, approved: 0 },
       notes: [],
@@ -110,9 +137,6 @@ export function AdminMarketing() {
     setPartnerId(added.id);
   };
   const niches = useMemo(() => [...new Set(contacts.map((c) => c.niche))].toSorted(), [contacts]);
-
-  const tabs: AdminTab<Tab>[] = TABS.map((value) => ({ value, label: t(`tabs.${value}`), count: value === "contacts" ? contacts.length : value === "partners" ? partners.length : undefined }));
-  const tc = useTranslations("admin.marketing.contacts");
   const addContact = () => {
     const added = actions.addMarketingContact({
       name: tc("newName"),
@@ -128,8 +152,7 @@ export function AdminMarketing() {
       launchMail: false,
       note: "",
     });
-    setStatus("all");
-    setSelectedId(added.id);
+    setContactId(added.id);
   };
   const exportCsv = () => {
     const head = tc.raw("csvHead") as string[];
@@ -138,11 +161,49 @@ export function AdminMarketing() {
     actions.logMarketingExport(contacts.length);
   };
 
+  const tabs: AdminTab<Tab>[] = TABS.map((value) => ({
+    value,
+    label: t(`tabs.${value}`),
+    tooltip: t(`tabInfo.${value}`),
+    count: value === "pipeline" ? contacts.length : value === "partners" ? partners.length : undefined,
+  }));
+  const { start: marketingStart, launch: launchDate } = strategyDates();
   const controls =
-    tab === "contacts" ? (
+    tab === "countdown" ? (
+      <Link href="/admin/platform?view=roadmap" data-strategy-dates className="text-small text-muted underline-offset-4 hover:text-ink hover:underline">
+        {t("countdown.dates", {
+          start: day(marketingStart),
+          launch: day(launchDate),
+        })}{" "}
+        · {t("countdown.datesLink")}
+      </Link>
+    ) : tab === "pipeline" ? (
       <div className="flex flex-wrap items-center gap-2">
         <AdminSort label={tc("niche")} options={[{ value: "all", label: tc("all") }, ...niches.map((n) => ({ value: n, label: n }))]} value={niche} onChange={setNiche} />
-        <AdminSort label={tc("status")} options={[{ value: "all" as const, label: tc("all") }, ...STATUSES.map((s) => ({ value: s, label: tc(`statuses.${s}`) }))]} value={status} onChange={setStatus} />
+        <AdminSort
+          label={t("motivation.label")}
+          options={[
+            { value: "all" as const, label: tc("all") },
+            ...MOTIVATIONS.map((m) => ({
+              value: m,
+              label: t(`motivation.${m}`),
+            })),
+          ]}
+          value={motivation}
+          onChange={setMotivation}
+        />
+        <AdminSort
+          label={t("pipeline.kind")}
+          options={[
+            { value: "all" as const, label: tc("all") },
+            ...MARKETING_KINDS.map((k) => ({
+              value: k,
+              label: t(`partners.kinds.${k}`),
+            })),
+          ]}
+          value={kind}
+          onChange={setKind}
+        />
         <Button size="sm" variant="secondary" onClick={exportCsv}>
           {tc("export")}
         </Button>
@@ -151,145 +212,625 @@ export function AdminMarketing() {
           {tc("add")}
         </Button>
       </div>
-    ) : tab === "partners" ? (
+    ) : tab === "partners" && !partnerId ? (
       <PartnerControls filters={partnerFilters} onFilters={setPartnerFilters} partners={partners} onAdd={addPartner} />
     ) : undefined;
 
+  const openContact = contacts.find((c) => c.id === contactId) ?? null;
+  const openPartner = partners.find((p) => p.id === partnerId) ?? null;
   return (
-    <AdminShell title={t("title")} tabs={<AdminTabs label={t("title")} tabs={tabs} value={tab} onChange={setTab} />} aside={controls}>
-      {tab === "plan" && <Plan />}
-      {tab === "contacts" && <Contacts contacts={contacts} niche={niche} status={status} selectedId={selectedId} onSelect={setSelectedId} partnerOf={(id) => partners.find((p) => p.contactId === id) ?? null} onToPartner={toPartner} />}
-      {tab === "partners" && <Partners partners={partners} filters={partnerFilters} selectedId={partnerId} onSelect={setPartnerId} />}
-      {tab === "funnel" && <Funnel contacts={contacts} />}
+    <AdminShell
+      title={t("title")}
+      tabs={
+        <AdminTabs
+          label={t("title")}
+          tabs={tabs}
+          value={tab}
+          onChange={(v) => {
+            setTab(v);
+            setPartnerId(null);
+          }}
+        />
+      }
+      aside={controls}
+    >
+      {tab === "countdown" && <Countdown />}
+      {tab === "pipeline" && <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />}
+      {tab === "partners" && (openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={partnerFilters} onOpen={setPartnerId} />)}
       {tab === "content" && <Content clips={data.marketingClips} />}
-      {tab === "loops" && <Loops />}
+      <Sheet variant="panel" open={tab === "pipeline" && openContact !== null} onClose={() => setContactId(null)} title={openContact?.name ?? tc("list")}>
+        {openContact && (
+          <div className="px-6 pb-6">
+            <ContactDetail key={openContact.id} contact={openContact} inPanel onBack={() => setContactId(null)} onDeleted={() => setContactId(null)} isPartner={partners.some((p) => p.contactId === openContact.id)} onToPartner={() => toPartner(openContact)} />
+          </div>
+        )}
+      </Sheet>
     </AdminShell>
   );
 }
 
-// ─── Plan ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ─── Countdown ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-function Plan() {
-  const t = useTranslations("admin.marketing.plan");
-  const inputs = useAdminInputs();
-  const data = useAdminData();
-  const actions = useAdminActions();
-  const filled = marketingFilledHouses(inputs);
-  const month = inputs.today.slice(0, 7);
-  // The phase today falls in: the last one that has begun.
-  const current = MARKETING_TIMELINE.findLast((p) => p.from <= month)?.key ?? MARKETING_TIMELINE[0].key;
-  const done = MARKETING_NEXT_STEPS.filter((s) => data.marketingSteps[s.id]).length;
+/** A progress ring: the arc to the goal (ink), a tick where the number should stand today. */
+function Ring({ ratio, due }: { ratio: number; due: number }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const angle = Math.min(1, Math.max(0, due)) * 2 * Math.PI - Math.PI / 2;
   return (
-    <>
-      <p className="text-eyebrow uppercase text-(--adm-label)">{t("core")}</p>
-      <p className="mt-2 max-w-[760px] text-adm-motto text-ink">{MARKETING_CORE}</p>
+    <svg viewBox="0 0 80 80" aria-hidden className="size-20 shrink-0">
+      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-ink/10" />
+      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" strokeLinecap="round" className="stroke-ink/85" strokeDasharray={`${Math.min(1, ratio) * c} ${c}`} transform="rotate(-90 40 40)" />
+      {due > 0 && <line x1={40 + Math.cos(angle) * 26} y1={40 + Math.sin(angle) * 26} x2={40 + Math.cos(angle) * 42} y2={40 + Math.sin(angle) * 42} strokeWidth="2" className="stroke-adm-chart-1" />}
+    </svg>
+  );
+}
 
-      <AdminSection title={t("ladder")} className="mt-(--adm-section)">
-        <KeyNumbers items={[{ key: "filled", label: t("filled"), info: t("ladderInfo"), value: num(filled), change: getChange("mktFilledHouses", filled, null) }]} />
-        <ol className="mt-(--adm-inner) grid gap-4 md:grid-cols-3">
-          {MARKETING_STAGES.map((stage, i) => {
-            const prev = i === 0 ? 0 : MARKETING_STAGES[i - 1].target;
-            const ratio = Math.max(0, Math.min(1, (filled - prev) / (stage.target - prev)));
-            const reached = filled >= stage.target;
-            return (
-              <li key={stage.key} data-marketing-stage={stage.key} className="min-w-0">
+function Countdown() {
+  const t = useTranslations("admin.marketing.countdown");
+  const inputs = useAdminInputs();
+  const { houseInvites } = useStore();
+  const c = launchCountdown(inputs);
+  const phase = c.phases.find((p) => p.key === c.phase) ?? c.phases[0];
+  const loops = marketingLoops({ ...inputs, houseInvites });
+  const tl = useTranslations("admin.marketing.loops");
+  const statusWord = (s: Status | null) => (s ? t(`status.${s}`) : null);
+  // Before the marketing start: only the countdown to it and the preparation points.
+  if (c.state === "before") return <BeforeStart daysToStart={c.daysToStart} daysLeft={c.daysLeft} start={c.start} />;
+  return (
+    <div data-countdown className="flex flex-col gap-[calc(var(--adm-inner)*1.25)]">
+      <p data-countdown-head className="text-adm-motto text-ink">
+        {c.state === "launched" ? t("launched") : t("launchIn", { days: c.daysLeft })}
+        <span className="text-muted">
+          {" · "}
+          {t("phase", { no: phase.no, label: phase.label })}
+          {c.state === "running" && ` · ${t("week", { n: c.weekNo, of: c.weeks })}`}
+        </span>
+      </p>
+
+      <dl className="grid grid-cols-2 gap-(--adm-inner) lg:grid-cols-4">
+        {c.rings.map((r) => (
+          <div key={r.metric} data-ring={r.metric} className="flex min-w-0 items-center gap-4">
+            <Ring ratio={r.goal ? r.value / r.goal : 0} due={r.goal ? r.due / r.goal : 0} />
+            <div className="min-w-0">
+              <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+                {t(`rings.${r.metric}`)}
+                <InfoTip text={t(`ringInfo.${r.metric}`)} />
+              </dt>
+              <dd className="mt-0.5 text-h1 tabular-nums text-ink">
+                {num(r.value)}
+                <span className="text-body text-muted"> / {num(r.goal)}</span>
+              </dd>
+              <dd className="mt-0.5 flex items-center gap-1.5 text-small text-muted">
+                {r.status ? (
+                  <>
+                    <StatusDot status={r.status} />
+                    {statusWord(r.status)} · {t("due", { value: num(r.due) })}
+                  </>
+                ) : (
+                  t("next", {
+                    phase: c.phases.find((p) => p.key === r.next.key)?.label ?? "",
+                    value: num(r.next.target),
+                  })
+                )}
+              </dd>
+              <dd className="mt-0.5">
+                <ChangeLine change={r.change} className="block" />
+              </dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+
+      <PhaseTimeline today={inputs.today} launchDate={c.launchDate} current={c.phase} phases={c.phases} />
+      <p data-fallback className="-mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-small text-muted">
+        <span className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+          {t("fallback")}
+          <InfoTip text={t("fallbackInfo")} />
+        </span>
+        {FALLBACK_RULES.map((r) => (
+          <span key={r.id} data-fallback-rule={r.id} data-applies={c.fallback === r.id || undefined} className={cn("flex items-center gap-1.5", c.fallback === r.id && "font-semibold text-ink")}>
+            {c.fallback === r.id && <StatusDot status="warning" />}
+            {r.text}
+            {c.fallback === r.id && <span className="sr-only">{t("fallbackApplies")}</span>}
+          </span>
+        ))}
+      </p>
+
+      <div className="grid gap-x-(--adm-section) gap-y-[calc(var(--adm-inner)*1.5)] lg:grid-cols-2">
+        <ThisWeek begins={c.begins} ends={c.ends} start={c.start} phaseKey={c.phase} />
+        <section aria-labelledby="week-numbers">
+          <h2 id="week-numbers" className="mb-(--adm-inner) flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+            {t("weekNumbers")}
+            <InfoTip text={t("weekInfo")} />
+          </h2>
+          <ul className="flex flex-col gap-3">
+            {c.bars.map((b) => (
+              <li key={b.metric} data-week-bar={b.metric}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className={cn("text-body font-semibold", reached ? "text-ink" : "text-ink/80")}>
-                    {i + 1}. {stage.label}
-                  </p>
-                  <p className="flex items-center gap-1.5 text-small tabular-nums text-muted">
-                    {reached && <StatusDot status="good" />}
-                    {reached ? t("reached") : t("ofTarget", { value: num(Math.min(filled, stage.target)), target: num(stage.target) })}
-                  </p>
+                  <span className="text-body text-ink">{t(`bars.${b.metric}`)}</span>
+                  <span className="flex items-center gap-1.5 text-small tabular-nums text-muted">
+                    {b.status && (
+                      <>
+                        <StatusDot status={b.status} />
+                        <span>{statusWord(b.status)} ·</span>
+                      </>
+                    )}
+                    {b.target > 0
+                      ? t("ofTarget", {
+                          actual: num(b.actual),
+                          target: num(b.target),
+                        })
+                      : `${num(b.actual)} · ${t("noTarget")}`}
+                  </span>
                 </div>
-                <ProgressBar ratio={ratio} label={t("ofTarget", { value: num(filled), target: num(stage.target) })} className="mt-2" />
-              </li>
-            );
-          })}
-        </ol>
-      </AdminSection>
-
-      <AdminSection title={t("channels")}>
-        {MARKETING_CHANNELS.length > 0 && (
-          <ol className="divide-y divide-ink/8 border-y border-ink/8">
-            {MARKETING_CHANNELS.toSorted((a, b) => a.rank - b.rank).map((c) => (
-              <li key={c.rank} className="flex min-h-(--adm-row-h) items-center gap-4 py-2">
-                <span className="w-6 shrink-0 tabular-nums text-muted">{c.rank}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body font-semibold text-ink">{c.name}</span>
-                  {(c.tools.length > 0 || c.note) && <span className="block truncate text-small text-muted">{[c.tools.join(", "), c.note].filter(Boolean).join(" · ")}</span>}
-                </span>
-                <span className={cn("shrink-0 text-small", c.status === "now" ? "font-semibold text-ink" : "text-muted")}>{t(`channelStatus.${c.status}`)}</span>
+                <div className="relative mt-1.5 h-2 rounded-full bg-ink/8">
+                  <div
+                    className="h-2 rounded-full bg-ink/70"
+                    style={{
+                      width: `${b.target > 0 ? Math.min(100, (b.actual / b.target) * 100) : b.actual > 0 ? 100 : 0}%`,
+                    }}
+                  />
+                </div>
               </li>
             ))}
-          </ol>
-        )}
-      </AdminSection>
+          </ul>
+        </section>
+      </div>
 
-      <AdminSection title={t("timeline")}>
-        <ol className="grid gap-2 md:grid-cols-4">
-          {MARKETING_TIMELINE.map((phase) => {
-            const here = phase.key === current;
+      <section aria-labelledby="loops" className="border-t border-ink/8 pt-3">
+        <h2 id="loops" className="sr-only">
+          {t("loops")}
+        </h2>
+        <ul className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+          <li className="text-eyebrow uppercase text-(--adm-label)" aria-hidden>
+            {t("loops")}
+          </li>
+          {MARKETING_LOOPS.map((loop) => {
+            const m = loops[loop.key];
             return (
-              <li key={phase.key} data-marketing-phase={phase.key} className={cn("rounded-xl px-4 py-3", here ? "bg-(--adm-here)" : "bg-(--adm-block)")}>
-                <p className="text-small text-muted">{phase.when}</p>
-                <p className="mt-0.5 text-body font-semibold text-ink">{phase.label}</p>
-                {here && <p className="mt-1 text-small font-semibold text-adm-chart-1">{t("here")}</p>}
+              <li key={loop.key} data-marketing-loop={loop.key} data-loop-status={m.status} className="flex items-baseline gap-2">
+                <span className="text-body font-semibold tabular-nums text-ink">{m.main ? share(m.main.value) : "–"}</span>
+                <span className="text-small text-muted">{loop.label}</span>
+                <InfoTip text={`${tl(`info.${loop.key}`)} ${m.main ? tl(`metric.${loop.key}`, { value: share(m.main.value), of: num(m.main.of) }) : m.status === "prepared" ? tl("off") : tl("notYet")}`} />
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Before the marketing start: "Start in X Tagen" and the to-dos still open that are due "vor öffentlicher Landingpage" (config/roadmap.ts,
+ * the same list as System › Zeitplan & Vorbereitung) – ticking one off sets it done there (logged).
+ */
+function BeforeStart({ daysToStart, daysLeft, start }: { daysToStart: number; daysLeft: number; start: string }) {
+  const t = useTranslations("admin.marketing.countdown");
+  const tr = useTranslations("admin.platform.roadmap");
+  const data = useAdminData();
+  const actions = useAdminActions();
+  const due = roadmapTodos(data).filter((x) => x.due === "beforeLanding");
+  const open = due.filter(isOpenTodo);
+  return (
+    <div data-countdown data-before-start className="flex flex-col gap-(--adm-section)">
+      <p data-countdown-head className="text-adm-motto text-ink">
+        {t("startIn", { days: daysToStart })}
+        <span className="text-muted">
+          {" · "}
+          {t("launchIn", { days: daysLeft })} · {t("startOn", { date: day(start) })}
+        </span>
+      </p>
+      <section aria-labelledby="prep" className="max-w-[720px]">
+        <h2 id="prep" className="mb-(--adm-inner) flex items-baseline justify-between gap-3 text-eyebrow uppercase text-(--adm-label)">
+          {t("prep")}
+          <span className="normal-case tracking-normal text-muted">
+            {t("tasksDone", {
+              done: due.length - open.length,
+              total: due.length,
+            })}
+          </span>
+        </h2>
+        {open.length === 0 ? (
+          <p className="text-body text-muted">{t("prepNone")}</p>
+        ) : (
+          <ul className="divide-y divide-ink/8 border-y border-ink/8">
+            {open.map((x) => (
+              <li key={x.id} data-prep={x.id} className="flex min-h-(--adm-row-h) items-center gap-3">
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-2">
+                  <input type="checkbox" checked={false} onChange={() => actions.setRoadmapTodoStatus(x.id, x.title, "done", tr("status.done"))} className="size-4 shrink-0 accent-(--text)" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body text-ink">{x.title}</span>
+                    <span className="block text-small text-muted">{x.text}</span>
+                  </span>
+                  {x.status === "inProgress" && <span className="shrink-0 text-small text-muted">{tr("status.inProgress")}</span>}
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link href="/admin/platform?view=roadmap&sub=todos&due=beforeLanding" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+          {t("prepAll")}
+        </Link>
+      </section>
+    </div>
+  );
+}
+
+/** The phases as one bar from the first phase to the launch, each as wide as its days; today as a line. */
+function PhaseTimeline({ today, launchDate, current, phases }: { today: string; launchDate: string; current: string; phases: ReturnType<typeof launchCountdown>["phases"] }) {
+  const t = useTranslations("admin.marketing.countdown");
+  const start = Date.parse(`${phases[0].from}T00:00:00Z`);
+  const end = Date.parse(`${launchDate}T00:00:00Z`);
+  const span = Math.max(1, end - start);
+  const at = (d: string) => Math.min(100, Math.max(0, ((Date.parse(`${d}T00:00:00Z`) - start) / span) * 100));
+  const now = at(today);
+  return (
+    <section aria-label={t("timeline")} data-phase-timeline className="flex gap-1 pb-5">
+      <div className="relative min-w-0 flex-1">
+        <ol className="flex h-14 gap-1">
+          {phases.map((p) => {
+            const width = at(addDays(p.to, 1)) - at(p.from);
+            const here = p.key === current;
+            return (
+              <li key={p.key} data-phase={p.key} style={{ width: `${width}%` }} className={cn("flex min-w-0 flex-col justify-center rounded-lg px-3", here ? "bg-(--adm-here)" : "bg-(--adm-block)")}>
+                <span className={cn("truncate text-small font-semibold", here ? "text-ink" : "text-ink/75")}>
+                  {p.no} · {p.label}
+                </span>
+                <span className="truncate text-small text-muted">
+                  {t("weeksRange", { from: p.weeks.from, to: p.weeks.to })} · {day(p.from)} – {day(p.to)}
+                </span>
               </li>
             );
           })}
         </ol>
-      </AdminSection>
-
-      <AdminSection title={t("steps")} aside={MARKETING_NEXT_STEPS.length > 0 ? <span className="text-small text-muted">{t("stepsDone", { done, total: MARKETING_NEXT_STEPS.length })}</span> : undefined}>
-        {MARKETING_NEXT_STEPS.length > 0 && (
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {MARKETING_NEXT_STEPS.map((step) => {
-              const on = Boolean(data.marketingSteps[step.id]);
-              return (
-                <li key={step.id}>
-                  <label className="flex min-h-(--adm-row-h) cursor-pointer items-center gap-3 py-2">
-                    <input type="checkbox" checked={on} onChange={(e) => actions.setMarketingStep(step.id, step.text, e.target.checked)} className="size-4 accent-(--text)" />
-                    <span className={cn("min-w-0 flex-1 text-body", on ? "text-muted line-through" : "text-ink")}>{step.text}</span>
-                    <span className="shrink-0 text-small text-muted">{step.due}</span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
+        {today >= phases[0].from && today <= launchDate && (
+          <div data-today style={{ left: `${now}%` }} className="pointer-events-none absolute top-[calc(100%-4px)] flex w-0 flex-col items-center">
+            <span className="h-2.5 w-0.5 shrink-0 rounded-full bg-adm-chart-1" />
+            <span className="mt-0.5 whitespace-nowrap text-small font-semibold text-adm-chart-1">{t("today")}</span>
+          </div>
         )}
-      </AdminSection>
-    </>
+      </div>
+      <div className="flex h-14 shrink-0 flex-col justify-center rounded-lg bg-(--adm-block) px-3">
+        <span className="text-small font-semibold text-ink">{t("launch")}</span>
+        <span className="text-small text-muted">{day(launchDate)}</span>
+      </div>
+    </section>
   );
 }
 
-// ─── Kontakte ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/** The status as a dot: House opened good, demo seen and replied neutral steps, later grey, open none. */
-const statusDot = (s: MarketingContactStatus): Status | null => (s === "house" ? "good" : s === "demo" ? "warning" : null);
-
-function Contacts({ contacts, niche, status, selectedId, onSelect, partnerOf, onToPartner }: { contacts: readonly MarketingContact[]; niche: string; status: MarketingContactStatus | "all"; selectedId: string | null; onSelect: (id: string | null) => void; partnerOf: (contactId: string) => MarketingPartner | null; onToPartner: (contact: MarketingContact) => void }) {
-  const t = useTranslations("admin.marketing.contacts");
-  const shown = contacts.filter((c) => (niche === "all" || c.niche === niche) && (status === "all" || c.status === status));
-  const selected = contacts.find((c) => c.id === selectedId) ?? null;
-  const rows = shown.map((c) => ({
-    id: c.id,
-    status: statusDot(c.status),
-    title: c.name,
-    meta: [c.niche, c.channel, t("followers", { count: compact(c.followers) }), t(`statuses.${c.status}`)].join(" · "),
-    aside: <span className="text-small tabular-nums text-muted">{c.firstMessageAt ? day(c.firstMessageAt) : t("notWritten")}</span>,
-  }));
+/** "Diese Woche": the week's numbers as tasks, the phase's tasks (weekly ones per week), and tasks added by hand – ticked off, stored, logged. */
+function ThisWeek({ begins, ends, start, phaseKey }: { begins: string; ends: string; start: string; phaseKey: string }) {
+  const monday = begins;
+  const t = useTranslations("admin.marketing.countdown");
+  const data = useAdminData();
+  const actions = useAdminActions();
+  const [draft, setDraft] = useState("");
+  const weekly = data.launchTasks ?? {};
+  type Row = {
+    key: string;
+    text: string;
+    note?: string;
+    done: boolean;
+    toggle: (on: boolean) => void;
+    remove?: () => void;
+  };
+  const rows: Row[] = [
+    ...STRATEGY_WEEK_TASKS.flatMap((metric) => {
+      const count = weekTarget(metric, begins, start);
+      if (count <= 0) return [];
+      const key = `${monday}:${metric}`;
+      const text = t(`tasks.${metric}`, { count });
+      return [
+        {
+          key,
+          text,
+          done: Boolean(weekly[key]),
+          toggle: (on: boolean) => actions.setLaunchTask(key, text, on),
+        },
+      ];
+    }),
+    ...MARKETING_NEXT_STEPS.filter((s) => s.phase === phaseKey).map((s) =>
+      s.weekly
+        ? {
+            key: `${monday}:${s.id}`,
+            text: s.text,
+            note: t("weekly"),
+            done: Boolean(weekly[`${monday}:${s.id}`]),
+            toggle: (on: boolean) => actions.setLaunchTask(`${monday}:${s.id}`, s.text, on),
+          }
+        : {
+            key: s.id,
+            text: s.text,
+            note: t("phaseTask", { due: s.due }),
+            done: Boolean(data.marketingSteps[s.id]),
+            toggle: (on: boolean) => actions.setMarketingStep(s.id, s.text, on),
+          },
+    ),
+    ...(data.launchCustomTasks ?? [])
+      .filter((c) => c.week === monday)
+      .map((c) => {
+        const key = `${monday}:${c.id}`;
+        return {
+          key,
+          text: c.text,
+          done: Boolean(weekly[key]),
+          toggle: (on: boolean) => actions.setLaunchTask(key, c.text, on),
+          remove: () => actions.deleteLaunchTask(c.id, c.text),
+        };
+      }),
+  ];
+  const done = rows.filter((r) => r.done).length;
+  const add = () => {
+    const text = draft.trim();
+    if (!text) return;
+    actions.addLaunchTask(monday, text);
+    setDraft("");
+  };
   return (
-    <AdminListDetail
-      label={t("list")}
-      rows={rows}
-      selectedId={selected?.id ?? null}
-      onSelect={onSelect}
-      empty={<p className="text-body text-muted">{t("empty")}</p>}
-      detail={selected ? <ContactDetail key={selected.id} contact={selected} onBack={() => onSelect(null)} onDeleted={() => onSelect(null)} isPartner={partnerOf(selected.id) !== null} onToPartner={() => onToPartner(selected)} /> : <p className="text-body text-muted">{t("pick")}</p>}
-    />
+    <section aria-labelledby="this-week" data-this-week>
+      <div className="mb-(--adm-inner) flex items-baseline justify-between gap-3">
+        <h2 id="this-week" className="text-eyebrow uppercase text-(--adm-label)">
+          {t("thisWeek")} <span className="normal-case tracking-normal text-muted">· {t("weekRange", { from: day(begins), to: day(ends) })}</span>
+        </h2>
+        {rows.length > 0 && <span className="text-small tabular-nums text-muted">{t("tasksDone", { done, total: rows.length })}</span>}
+      </div>
+      {rows.length === 0 && <p className="text-body text-muted">{t("noTasks")}</p>}
+      <ul className="divide-y divide-ink/8">
+        {rows.map((r) => (
+          <li key={r.key} data-week-task={r.key} className="flex min-h-9 items-center gap-3">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-1">
+              <input type="checkbox" checked={r.done} onChange={(e) => r.toggle(e.target.checked)} className="size-4 shrink-0 accent-(--text)" />
+              <span className={cn("min-w-0 flex-1 truncate text-body", r.done ? "text-muted line-through" : "text-ink")}>{r.text}</span>
+              {r.note && <span className="shrink-0 text-small text-muted">{r.note}</span>}
+            </label>
+            {r.remove && (
+              <button type="button" aria-label={t("removeTask")} onClick={r.remove} className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:text-ink">
+                <X aria-hidden className="size-4" />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="mt-1.5 flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("addPlaceholder")} aria-label={t("addTask")} className="h-9 min-w-0 flex-1 rounded-full bg-(--adm-cap-bg) px-4 text-body text-ink placeholder:text-muted" />
+        <Button size="sm" variant="secondary" type="submit" disabled={!draft.trim()}>
+          <Plus aria-hidden className="size-4" />
+          {t("addTask")}
+        </Button>
+      </form>
+    </section>
   );
 }
+
+// ─── Pipeline ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pipeline: the contacts as columns (Angeschrieben · Geantwortet · Demo gesehen · House eröffnet · Später); a card dragged to another column
+ * changes its status (logged). On top the rates against the assumptions and the contacts 50 Houses need. A click opens the contact.
+ */
+function Pipeline({
+  contacts,
+  filter,
+  onOpen,
+}: {
+  contacts: readonly MarketingContact[];
+  filter: {
+    niche: string;
+    motivation: MarketingMotivation | "all";
+    kind: PartnerKind | "all";
+  };
+  onOpen: (id: string) => void;
+}) {
+  const t = useTranslations("admin.marketing.pipeline");
+  const tc = useTranslations("admin.marketing.contacts");
+  const inputs = useAdminInputs();
+  const actions = useAdminActions();
+  const [over, setOver] = useState<MarketingContactStatus | null>(null);
+  const tm = useTranslations("admin.marketing");
+  const shown = contacts.filter((c) => (filter.niche === "all" || c.niche === filter.niche) && (filter.motivation === "all" || c.motivation === filter.motivation) && (filter.kind === "all" || c.kind === filter.kind));
+  // Per motivation (on the niche and kind filter, not the motivation filter): which group opens Houses most often.
+  const byMotivation = marketingFunnelBy(
+    contacts.filter((c) => (filter.niche === "all" || c.niche === filter.niche) && (filter.kind === "all" || c.kind === filter.kind)),
+    (c) => c.motivation,
+    MOTIVATIONS,
+  );
+  const f = marketingFunnel(shown, compareDate(inputs.today, "month"));
+  const range = (r: { from: number; to: number }) => t("assumption", { from: share(r.from), to: share(r.to) });
+  const rate = (key: "replied" | "demo" | "house") => {
+    const value = key === "replied" ? f.all.replyRate : key === "demo" ? f.all.demoRate : f.all.houseRate;
+    const r = FUNNEL_ASSUMPTIONS[key];
+    const metric = key === "replied" ? "mktReplyRate" : key === "demo" ? "mktDemoRate" : "mktHouseRate";
+    return {
+      key,
+      label: t(`rates.${key}`),
+      info: t(`rateInfo.${key}`),
+      value: share(value),
+      change: getChange(metric, value === null ? null : value * 100, null),
+      target: { text: range(r), status: againstAssumption(value, r) },
+    };
+  };
+  const needed = f.projection.current;
+  const move = (id: string, to: MarketingContactStatus) => {
+    const contact = contacts.find((c) => c.id === id);
+    if (!contact || contact.status === to) return;
+    actions.updateMarketingContact(contact, { status: to }, tc("what.status"));
+  };
+  return (
+    <div className="flex flex-col gap-(--adm-section)">
+      <KeyNumbers
+        className="lg:grid-cols-5"
+        items={[
+          {
+            key: "contacted",
+            label: t("contacted"),
+            info: t("contactedInfo"),
+            value: num(f.all.contacted),
+            change: getChange("mktContacted", f.all.contacted, f.contactedBefore),
+            against: t("against"),
+          },
+          rate("replied"),
+          rate("demo"),
+          rate("house"),
+          {
+            key: "needed",
+            label: t("needed", { houses: PROJECTION_HOUSES }),
+            info: t("neededInfo"),
+            value: needed ? num(needed) : "–",
+            change: null,
+            sub: t("neededAssumed", {
+              low: num(f.projection.assumed.from ?? 0),
+              high: num(f.projection.assumed.to ?? 0),
+            }),
+          },
+        ]}
+      />
+      <section aria-labelledby="by-motivation" data-by-motivation className="-mt-2">
+        <h2 id="by-motivation" className="mb-2 flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+          {t("byMotivation")}
+          <InfoTip text={t("byMotivationInfo")} />
+        </h2>
+        <ul className="flex flex-wrap gap-x-8 gap-y-2">
+          {byMotivation.rows.map((r) => (
+            <li key={r.key} data-motivation-row={r.key} className="flex items-baseline gap-2 text-small">
+              <span className="font-semibold text-ink">{tm(`motivation.${r.key as MarketingMotivation}`)}</span>
+              <span className="text-muted">
+                {t("motivationRow", {
+                  contacted: num(r.contacted),
+                  reply: share(r.replyRate),
+                  demo: share(r.demoRate),
+                  house: share(r.houseRate),
+                })}
+              </span>
+              {r.key === byMotivation.best && (
+                <span className="flex items-center gap-1 font-semibold text-ink">
+                  <StatusDot status="good" />
+                  {t("bestMotivation")}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <p className="text-small text-muted">{t("dragHint")}</p>
+      <div className="-mx-1 overflow-x-auto px-1">
+        <ol className="grid min-w-[960px] grid-cols-5 gap-3">
+          {STATUSES.map((status) => {
+            const cards = shown.filter((c) => c.status === status).toSorted((a, b) => (b.firstMessageAt ?? "").localeCompare(a.firstMessageAt ?? ""));
+            return (
+              <li
+                key={status}
+                data-column={status}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setOver(status);
+                }}
+                onDragLeave={() => setOver((o) => (o === status ? null : o))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setOver(null);
+                  move(e.dataTransfer.getData("text/plain"), status);
+                }}
+                className={cn("flex min-w-0 flex-col rounded-xl bg-(--adm-block) p-2 transition-colors", over === status && "bg-(--adm-here)")}
+              >
+                <p className="flex items-baseline justify-between px-1.5 pb-2 pt-1">
+                  <span className="text-small font-semibold text-ink">{t(`columns.${status}`)}</span>
+                  <span className="text-small tabular-nums text-muted">{num(cards.length)}</span>
+                </p>
+                <ul className="flex max-h-[calc(100svh-380px)] min-h-24 flex-col gap-2 overflow-y-auto overscroll-contain">
+                  {cards.length === 0 && <li className="rounded-lg border border-dashed border-ink/12 px-3 py-4 text-center text-small text-muted">{t("drop")}</li>}
+                  {cards.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        draggable
+                        data-pipeline-card={c.id}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", c.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onClick={() => onOpen(c.id)}
+                        className="block w-full cursor-grab rounded-lg bg-(--adm-pill) px-3 py-2 text-left hover:bg-ink/10 active:cursor-grabbing"
+                      >
+                        <span className="block truncate text-body font-semibold text-ink">{c.name}</span>
+                        <span className="block truncate text-small text-muted">{[c.niche, c.channel, tc("followers", { count: compact(c.followers) })].join(" · ")}</span>
+                        <span className="block truncate text-small text-muted">
+                          {c.firstMessageAt ? day(c.firstMessageAt) : tc("notWritten")}
+                          {c.followUps > 0 && ` · ${t("followUps", { count: c.followUps })}`}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ─── Partner ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Partner as cards: photo (the host account's face, else the initial), kind and step, the linked Houses, the next step (Ember when due). */
+function PartnerCards({ partners, filters, onOpen }: { partners: readonly MarketingPartner[]; filters: PartnerFilters; onOpen: (id: string) => void }) {
+  const t = useTranslations("admin.marketing.partners");
+  const inputs = useAdminInputs();
+  const store = useStore();
+  const shown = partners.filter((p) => (filters.kind === "all" || p.kind === filters.kind) && (filters.ladder === "all" || String(p.ladder) === filters.ladder) && (filters.due === "all" || partnerStepDue(p, inputs.today)));
+  if (shown.length === 0) return <p className="text-body text-muted">{t("empty")}</p>;
+  return (
+    <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))]">
+      {shown.map((p) => {
+        const host = p.hostUserId ? findUser(store, p.hostUserId) : undefined;
+        const houses = partnerHouses(inputs.stays, p);
+        const due = partnerStepDue(p, inputs.today);
+        return (
+          <li key={p.id}>
+            <button type="button" data-partner-card={p.id} onClick={() => onOpen(p.id)} className="flex h-full w-full flex-col gap-3 rounded-xl bg-(--adm-block) p-4 text-left ring-1 ring-ink/8 hover:bg-ink/7">
+              <span className="flex items-center gap-3">
+                {host?.photos[0] ? <Img src={host.photos[0]} alt="" width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" /> : <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-(--adm-pill) text-h3 text-ink">{p.name.slice(0, 1)}</span>}
+                <span className="min-w-0">
+                  <span className="block truncate text-body font-semibold text-ink">{p.name}</span>
+                  <span className="block truncate text-small text-muted">
+                    {t(`kinds.${p.kind}`)} · {t(`ladderShort.${p.ladder}`)}
+                    {p.reach > 0 && ` · ${compact(p.reach)}`}
+                  </span>
+                </span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="flex -space-x-2">
+                  {houses.slice(0, 3).map((s) => (
+                    <Img key={s.id} src={housePhotos(s, findUser(store, s.hostId))[0]} alt="" width={32} height={32} className="size-8 rounded-md object-cover ring-2 ring-(--adm-block)" />
+                  ))}
+                </span>
+                <span className="text-small text-muted">
+                  {t("openHouses", {
+                    count: houses.filter((s) => s.status === "published" && s.spotsFilled < s.spotsTotal).length,
+                  })}
+                </span>
+              </span>
+              <span className={cn("mt-auto flex items-center gap-2 text-small", due ? "text-ink" : "text-muted")}>
+                {due && <StatusDot status="critical" />}
+                <span className="truncate">{p.nextStep ? `${p.nextStep.text}${p.nextStep.due ? ` · ${due ? t("stepDue", { date: day(p.nextStep.due) }) : day(p.nextStep.due)}` : ""}` : t("noStep")}</span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ─── Kontakt (im Panel der Pipeline) ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 function Field({ label, info, children }: { label: string; info?: string; children: ReactNode }) {
   return (
@@ -303,12 +844,18 @@ function Field({ label, info, children }: { label: string; info?: string; childr
   );
 }
 
-function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: { contact: MarketingContact; onBack: () => void; onDeleted: () => void; isPartner: boolean; onToPartner: () => void }) {
+function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inPanel }: { contact: MarketingContact; onBack: () => void; onDeleted: () => void; isPartner: boolean; onToPartner: () => void; inPanel?: boolean }) {
   const tPartners = useTranslations("admin.marketing.partners");
   const t = useTranslations("admin.marketing.contacts");
   const actions = useAdminActions();
   // Text fields keep their own draft and save when left (one log line per change, not per key).
-  const [draft, setDraft] = useState({ name: contact.name, email: contact.email ?? "", niche: contact.niche, followers: String(contact.followers), note: contact.note });
+  const [draft, setDraft] = useState({
+    name: contact.name,
+    email: contact.email ?? "",
+    niche: contact.niche,
+    followers: String(contact.followers),
+    note: contact.note,
+  });
   // A host application with the same email (Launch › Bewerbungen) – linked both ways.
   const application = useAdminData().applications.find((a) => a.contactId === contact.id || (contact.email && a.email?.toLowerCase() === contact.email.toLowerCase()));
   const [confirming, setConfirming] = useState(false);
@@ -326,10 +873,13 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
   const locked = !contact.launchConsent;
   return (
     <div data-marketing-contact={contact.id} className="flex flex-col gap-5">
-      <BackToList onBack={onBack} />
+      {!inPanel && <BackToList onBack={onBack} />}
       {application && (
         <Link href={`/admin/applications?app=${application.id}`} className="self-start text-body font-semibold text-ink underline-offset-4 hover:underline">
-          {t("application", { status: t(`applicationStatus.${application.status}`) })} →
+          {t("application", {
+            status: t(`applicationStatus.${application.status}`),
+          })}{" "}
+          →
         </Link>
       )}
       {/* A contact that turns into a collaboration: its data over to Partner, the contact linked back. */}
@@ -365,6 +915,13 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
           <CapsuleGroup size="sm" label={t("fields.contactWay")} value={contact.contactWay} onChange={(contactWay) => save({ contactWay }, "contactWay")} options={WAYS.map((w) => ({ value: w, content: t(`ways.${w}`) }))} />
         </Field>
       </div>
+      <Field label={t("fields.kind")}>
+        <KindPicker value={contact.kind} onChange={(kind) => save({ kind }, "kind")} />
+      </Field>
+      <Field label={t("fields.motivation")}>
+        <MotivationPicker value={contact.motivation} onChange={(motivation) => save({ motivation }, "motivation")} />
+      </Field>
+      {contact.motivation && <MatchingOffer motivation={contact.motivation} name={contact.name} />}
       <Field label={t("fields.followUps")}>
         <div className="flex flex-wrap items-center gap-3">
           <CapsuleGroup
@@ -372,13 +929,25 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
             label={t("fields.followUps")}
             value={String(contact.followUps) as "0" | "1" | "2"}
             onChange={(v) => save({ followUps: Number(v) as 0 | 1 | 2 }, "followUps")}
-            options={(["0", "1", "2"] as const).map((v) => ({ value: v, content: v }))}
+            options={(["0", "1", "2"] as const).map((v) => ({
+              value: v,
+              content: v,
+            }))}
           />
           {contact.followUps >= MAX_FOLLOW_UPS && <span className="text-small font-semibold text-ink">{t("quiet")}</span>}
         </div>
       </Field>
       <Field label={t("fields.status")}>
-        <CapsuleGroup size="sm" label={t("fields.status")} value={contact.status} onChange={(s) => save({ status: s }, "status")} options={STATUSES.map((s) => ({ value: s, content: t(`statuses.${s}`) }))} />
+        <CapsuleGroup
+          size="sm"
+          label={t("fields.status")}
+          value={contact.status}
+          onChange={(s) => save({ status: s }, "status")}
+          options={STATUSES.map((s) => ({
+            value: s,
+            content: t(`statuses.${s}`),
+          }))}
+        />
       </Field>
       <div className="flex flex-col divide-y divide-ink/8 border-y border-ink/8">
         <div className="flex min-h-(--adm-row-h) items-center justify-between gap-4 py-1">
@@ -389,7 +958,21 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
           <Switch
             on={contact.launchConsent}
             label={t("fields.consent")}
-            onChange={(on) => save(on ? { launchConsent: true, launchConsentAt: new Date().toISOString().slice(0, 10) } : { launchConsent: false, launchConsentAt: null, launchMail: false }, "consent")}
+            onChange={(on) =>
+              save(
+                on
+                  ? {
+                      launchConsent: true,
+                      launchConsentAt: new Date().toISOString().slice(0, 10),
+                    }
+                  : {
+                      launchConsent: false,
+                      launchConsentAt: null,
+                      launchMail: false,
+                    },
+                "consent",
+              )
+            }
           />
         </div>
         <div className={cn("flex min-h-(--adm-row-h) items-center justify-between gap-4 py-1", locked && "opacity-60")}>
@@ -403,7 +986,9 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
       </div>
       <Field label={t("fields.demoLink")} info={t("demoInfo")}>
         <div className="flex items-center gap-2">
-          <code data-demo-link className="min-w-0 flex-1 truncate rounded-xl bg-(--adm-block) px-3 py-2.5 text-small text-ink">{link}</code>
+          <code data-demo-link className="min-w-0 flex-1 truncate rounded-xl bg-(--adm-block) px-3 py-2.5 text-small text-ink">
+            {link}
+          </code>
           <Button
             size="sm"
             variant="secondary"
@@ -447,82 +1032,208 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner }: {
   );
 }
 /** The field names the log may say (no personal values). */
-type WhatKey = "name" | "email" | "channel" | "niche" | "followers" | "contactWay" | "firstMessage" | "followUps" | "status" | "consent" | "launchMail" | "note";
+type WhatKey = "kind" | "motivation" | "name" | "email" | "channel" | "niche" | "followers" | "contactWay" | "firstMessage" | "followUps" | "status" | "consent" | "launchMail" | "note";
 
-// ─── Trichter ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ─── Content › Kalender ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-function Funnel({ contacts }: { contacts: readonly MarketingContact[] }) {
-  const t = useTranslations("admin.marketing.funnel");
+/** A week's published shorts against the weekly target: reached good, one short warning, more critical; weeks still to come or before the marketing start: none. */
+const weekStatus = (published: number, monday: string, today: string, start: string): Status | null => (monday > today || monday < mondayOf(start) ? null : published >= CONTENT_WEEKLY_TARGET ? "good" : published >= CONTENT_WEEKLY_TARGET - 1 ? "warning" : "critical");
+
+/**
+ * The content calendar (month view, weeks Monday–Sunday): planned and published shorts per day, each week's count against the weekly target,
+ * content sprints as bands over their days. A day opens below: its shorts (publish, back to planned, remove) and "Short planen".
+ */
+function ContentCalendar() {
+  const t = useTranslations("admin.marketing.content");
   const inputs = useAdminInputs();
-  const compareDay = compareDate(inputs.today, "month");
-  const f = marketingFunnel(contacts, compareDay);
-  const range = (r: { from: number; to: number }) => t("assumption", { from: share(r.from), to: share(r.to) });
-  const rate = (key: "reply" | "demo" | "house") => {
-    const value = key === "reply" ? f.all.replyRate : key === "demo" ? f.all.demoRate : f.all.houseRate;
-    const r = key === "reply" ? FUNNEL_ASSUMPTIONS.replied : key === "demo" ? FUNNEL_ASSUMPTIONS.demo : FUNNEL_ASSUMPTIONS.house;
-    const metric = key === "reply" ? "mktReplyRate" : key === "demo" ? "mktDemoRate" : "mktHouseRate";
-    return { key, label: t(`${key}Rate`), info: t(`info.${key}Rate`), value: share(value), change: getChange(metric, value === null ? null : value * 100, null), target: { text: range(r), status: againstAssumption(value, r) } };
+  const data = useAdminData();
+  const actions = useAdminActions();
+  const posts = data.contentPosts ?? [];
+  const sprints = data.contentSprints ?? [];
+  const [month, setMonth] = useState(inputs.today.slice(0, 7));
+  const [picked, setPicked] = useState<string>(inputs.today);
+  const [title, setTitle] = useState("");
+  const [channel, setChannel] = useState<string>(SHORT_CHANNELS[0]);
+  const first = `${month}-01`;
+  const [y, m] = month.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const weeks: string[] = [];
+  for (let w = mondayOf(first); w <= lastDay; w = addDays(w, 7)) weeks.push(w);
+  const shift = (n: number) => setMonth(new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7));
+  const weekdays = t.raw("weekdays") as string[];
+  const dayPosts = posts.filter((p) => p.date === picked).toSorted((a, b) => a.title.localeCompare(b.title));
+  const plan = () => {
+    const text = title.trim();
+    if (!text) return;
+    actions.addContentPost({
+      date: picked,
+      title: text,
+      channel,
+      status: "planned",
+    });
+    setTitle("");
   };
-  const pct = (n: number, rate: number | null) => (
-    <span className="tabular-nums">
-      {num(n)} <span className="text-muted">· {share(rate)}</span>
-    </span>
-  );
-  const row = (r: FunnelRow) => (
-    <tr key={r.key} data-funnel-row={r.key} className={cn("border-b border-ink/8", r.key === "all" && "font-semibold")}>
-      <td className="py-2.5 pr-4 text-ink">
-        <span className="inline-flex items-center gap-2">
-          {r.key === "all" ? t("all") : r.key}
-          {r.key === f.best && <span className="rounded-full bg-(--adm-here) px-2 py-0.5 text-small font-semibold text-adm-chart-1">{t("best")}</span>}
-        </span>
-      </td>
-      <td className="py-2.5 pr-4 text-right tabular-nums text-ink">{num(r.contacted)}</td>
-      <td className="py-2.5 pr-4 text-right text-ink">{pct(r.replied, r.replyRate)}</td>
-      <td className="py-2.5 pr-4 text-right text-ink">{pct(r.demo, r.demoRate)}</td>
-      <td className="py-2.5 text-right text-ink">{pct(r.house, r.houseRate)}</td>
-    </tr>
-  );
   return (
-    <>
-      <p className="max-w-[760px] text-adm-motto text-ink">{t("lead", { count: num(NEXT_CONTACTS_FOR_BEST_NICHE) })}</p>
-      <p className="mt-1 text-body text-muted">
-        {t("best")}: <span className="font-semibold text-ink">{f.best ?? t("bestNone")}</span>
-      </p>
-      <KeyNumbers
-        className="mt-(--adm-section)"
-        items={[
-          { key: "contacted", label: t("contacted"), info: t("info.contacted"), value: num(f.all.contacted), change: getChange("mktContacted", f.all.contacted, f.contactedBefore), against: t("against") },
-          rate("reply"),
-          rate("demo"),
-          rate("house"),
-        ]}
-      />
-      <AdminSection title={t("niche")}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-body">
-            <thead>
-              <tr className="border-b border-ink/8 text-left text-eyebrow uppercase text-(--adm-label)">
-                <th className="py-2 pr-4 font-semibold">{t("niche")}</th>
-                <th className="py-2 pr-4 text-right font-semibold">{t("contacted")}</th>
-                <th className="py-2 pr-4 text-right font-semibold">{t("replied")}</th>
-                <th className="py-2 pr-4 text-right font-semibold">{t("demo")}</th>
-                <th className="py-2 text-right font-semibold">{t("house")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {f.perNiche.map(row)}
-              {row(f.all)}
-            </tbody>
-          </table>
+    <AdminSection
+      title={t("calendar")}
+      aside={
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-small text-muted">
+            {t("weekTarget", { target: CONTENT_WEEKLY_TARGET })}
+            {sprints.length > 0 && <InfoTip text={t("sprintsInfo")} />}
+          </span>
+          <button type="button" aria-label={t("prevMonth")} onClick={() => shift(-1)} className="flex size-8 items-center justify-center rounded-full bg-(--adm-cap-bg) text-ink hover:bg-ink/12">
+            <ChevronLeft aria-hidden className="size-4" />
+          </button>
+          <span data-calendar-month className="w-32 text-center text-body font-semibold text-ink">
+            {monthYear(month)}
+          </span>
+          <button type="button" aria-label={t("nextMonth")} onClick={() => shift(1)} className="flex size-8 items-center justify-center rounded-full bg-(--adm-cap-bg) text-ink hover:bg-ink/12">
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
         </div>
-      </AdminSection>
-      <AdminSection title={t("projection")}>
-        <p className="text-body text-ink">{f.projection.current ? t("projectionLine", { houses: PROJECTION_HOUSES, count: num(f.projection.current) }) : t("projectionNone", { houses: PROJECTION_HOUSES })}</p>
-        <p className="mt-1 text-small text-muted">
-          {t("projectionAssumed", { from: num(FUNNEL_ASSUMPTIONS.house.from * 100), to: num(FUNNEL_ASSUMPTIONS.house.to * 100), low: num(f.projection.assumed.from ?? 0), high: num(f.projection.assumed.to ?? 0) })}
-        </p>
-      </AdminSection>
-    </>
+      }
+    >
+      <div className="overflow-x-auto">
+        <div data-content-calendar className="min-w-[760px]">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_72px] gap-1 pb-1">
+            {weekdays.map((w) => (
+              <span key={w} className="px-2 text-eyebrow uppercase text-(--adm-label)">
+                {w}
+              </span>
+            ))}
+            <span />
+          </div>
+          {weeks.map((monday) => {
+            const published = shortsInWeek(posts, monday);
+            const planned = posts.filter((p) => p.status === "planned" && p.date >= monday && p.date <= addDays(monday, 6)).length;
+            const status = weekStatus(published, monday, inputs.today, strategyDates().start);
+            const inWeek = sprints.filter((s) => s.to >= monday && s.from <= addDays(monday, 6));
+            return (
+              <div key={monday} data-calendar-week={monday} className="mb-1">
+                {inWeek.length > 0 && (
+                  <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_72px] gap-1 pb-1">
+                    {inWeek.map((s) => {
+                      const from = Math.max(0, Math.round((Date.parse(`${s.from}T00:00:00Z`) - Date.parse(`${monday}T00:00:00Z`)) / DAY_MS));
+                      const to = Math.min(6, Math.round((Date.parse(`${s.to}T00:00:00Z`) - Date.parse(`${monday}T00:00:00Z`)) / DAY_MS));
+                      return (
+                        <span key={s.id} data-sprint={s.id} style={{ gridColumn: `${from + 1} / ${to + 2}` }} className="truncate rounded-full bg-(--adm-sprint-bg) px-3 py-0.5 text-small font-semibold text-(--adm-sprint)">
+                          {t("sprint")} · {s.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_72px] gap-1">
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const d = addDays(monday, i);
+                    const inMonth = d.slice(0, 7) === month;
+                    const list = posts.filter((p) => p.date === d);
+                    const isToday = d === inputs.today;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        data-calendar-day={d}
+                        aria-pressed={picked === d}
+                        onClick={() => setPicked(d)}
+                        className={cn("flex min-h-20 min-w-0 flex-col gap-1 rounded-lg p-1.5 text-left ring-inset transition-colors", inMonth ? "bg-(--adm-block)" : "bg-transparent", picked === d ? "ring-2 ring-ink/60" : "ring-1 ring-ink/6 hover:bg-ink/7")}
+                      >
+                        <span className={cn("text-small tabular-nums", isToday ? "font-semibold text-adm-chart-1" : inMonth ? "text-ink/80" : "text-muted")}>{Number(d.slice(8))}</span>
+                        {list.slice(0, 3).map((p) => (
+                          <span key={p.id} data-post={p.id} data-post-status={p.status} className={cn("flex min-w-0 items-center gap-1 rounded px-1 text-small", p.status === "published" ? "bg-ink/12 text-ink" : "text-muted ring-1 ring-inset ring-ink/15")}>
+                            <span className={cn("size-1.5 shrink-0 rounded-full", p.status === "published" ? "bg-ink" : "border border-ink/50")} aria-hidden />
+                            <span className="truncate">{p.title}</span>
+                          </span>
+                        ))}
+                        {list.length > 3 && <span className="px-1 text-small text-muted">+{list.length - 3}</span>}
+                      </button>
+                    );
+                  })}
+                  <span className="flex flex-col items-end justify-center gap-0.5 pr-1 text-small tabular-nums text-muted" data-week-count={published}>
+                    <span className="flex items-center gap-1.5">
+                      {status && <StatusDot status={status} />}
+                      <span className="text-ink">
+                        {t("weekCount", {
+                          count: published,
+                          target: CONTENT_WEEKLY_TARGET,
+                        })}
+                      </span>
+                    </span>
+                    {status && <span className="sr-only">{t(`weekStatus.${status}`)}</span>}
+                    {planned > 0 && (
+                      <span>
+                        +{planned} {t("planned")}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          <p className="mt-2 flex items-center gap-4 text-small text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-ink" aria-hidden />
+              {t("legendPublished")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full border border-ink/50" aria-hidden />
+              {t("legendPlanned")}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div data-calendar-picked={picked} className="mt-(--adm-inner) border-t border-ink/8 pt-(--adm-inner)">
+        <p className="text-body font-semibold text-ink">{day(picked)}</p>
+        {dayPosts.length === 0 ? (
+          <p className="mt-1 text-small text-muted">{t("dayEmpty")}</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-ink/8">
+            {dayPosts.map((p) => (
+              <li key={p.id} className="flex min-h-(--adm-row-h) flex-wrap items-center gap-3 py-1">
+                <span className="min-w-0 flex-1 truncate text-body text-ink">{p.title}</span>
+                <span className="text-small text-muted">
+                  {p.channel} · {t(p.status)}
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    actions.updateContentPost(
+                      p,
+                      {
+                        status: p.status === "published" ? "planned" : "published",
+                      },
+                      p.status === "published" ? t("planned") : t("published"),
+                    )
+                  }
+                >
+                  {p.status === "published" ? t("unpublish") : t("publish")}
+                </Button>
+                <button type="button" aria-label={t("remove")} onClick={() => actions.deleteContentPost(p)} className="flex size-9 items-center justify-center rounded-full text-muted hover:text-ink">
+                  <Trash2 aria-hidden className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+          className="mt-2 flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            plan();
+          }}
+        >
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePlaceholder")} aria-label={t("titlePlaceholder")} className="h-9 min-w-48 flex-1 rounded-full bg-(--adm-cap-bg) px-4 text-body text-ink placeholder:text-muted" />
+          <AdminSort label={t("channel")} options={SHORT_CHANNELS.map((c) => ({ value: c, label: c }))} value={channel} onChange={setChannel} />
+          <Button size="sm" type="submit" disabled={!title.trim()}>
+            <Plus aria-hidden className="size-4" />
+            {t("add")}
+          </Button>
+        </form>
+      </div>
+    </AdminSection>
   );
 }
 
@@ -582,11 +1293,15 @@ function HouseMemories() {
       <dl className="grid max-w-[480px] grid-cols-2 gap-4">
         <div>
           <dt className="text-eyebrow uppercase text-(--adm-label)">{t("uploaded")}</dt>
-          <dd data-memories-uploaded className="mt-1 text-h1 tabular-nums text-ink">{num(stats.uploaded)}</dd>
+          <dd data-memories-uploaded className="mt-1 text-h1 tabular-nums text-ink">
+            {num(stats.uploaded)}
+          </dd>
         </div>
         <div>
           <dt className="text-eyebrow uppercase text-(--adm-label)">{t("approved")}</dt>
-          <dd data-memories-approved className="mt-1 text-h1 tabular-nums text-ink">{num(stats.approved)}</dd>
+          <dd data-memories-approved className="mt-1 text-h1 tabular-nums text-ink">
+            {num(stats.approved)}
+          </dd>
         </div>
       </dl>
       {stats.approved === 0 ? (
@@ -624,6 +1339,7 @@ function Content({ clips }: { clips: number }) {
   const actions = useAdminActions();
   return (
     <>
+      <ContentCalendar />
       <AdminSection title={t("shots")}>
         <ol className="flex flex-wrap gap-2">
           {SHOT_LIST.map((shot, i) => (
@@ -638,7 +1354,20 @@ function Content({ clips }: { clips: number }) {
         <div className="grid gap-(--adm-section) md:grid-cols-3">
           <div>
             <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("cast")}</p>
-            {SERIES_CAST.length === 0 ? <p className="text-body text-muted">{t("castPending", { from: SERIES_CAST_SIZE.from, to: SERIES_CAST_SIZE.to })}</p> : <ul className="space-y-1 text-body text-ink">{SERIES_CAST.map((c) => <li key={c}>{c}</li>)}</ul>}
+            {SERIES_CAST.length === 0 ? (
+              <p className="text-body text-muted">
+                {t("castPending", {
+                  from: SERIES_CAST_SIZE.from,
+                  to: SERIES_CAST_SIZE.to,
+                })}
+              </p>
+            ) : (
+              <ul className="space-y-1 text-body text-ink">
+                {SERIES_CAST.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            )}
           </div>
           <div>
             <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("structure")}</p>
@@ -656,56 +1385,32 @@ function Content({ clips }: { clips: number }) {
               <button type="button" aria-label={t("less")} onClick={() => actions.setMarketingClips(clips - 1)} disabled={clips === 0} className="flex size-11 items-center justify-center rounded-full ring-1 ring-ink/12 text-ink disabled:opacity-40">
                 <Minus aria-hidden className="size-4" />
               </button>
-              <span data-clip-count className="w-10 text-center text-h1 tabular-nums text-ink">{num(clips)}</span>
+              <span data-clip-count className="w-10 text-center text-h1 tabular-nums text-ink">
+                {num(clips)}
+              </span>
               <button type="button" aria-label={t("more")} onClick={() => actions.setMarketingClips(clips + 1)} className="flex size-11 items-center justify-center rounded-full ring-1 ring-ink/12 text-ink">
                 <Plus aria-hidden className="size-4" />
               </button>
               {clips >= SERIES_CLIP_TARGET.from && <StatusDot status="good" />}
             </div>
-            <p className="mt-2 text-small text-muted">{t("clipsTarget", { from: SERIES_CLIP_TARGET.from, to: SERIES_CLIP_TARGET.to })}</p>
-            <ProgressBar ratio={Math.min(1, clips / SERIES_CLIP_TARGET.from)} label={t("clipsTarget", { from: SERIES_CLIP_TARGET.from, to: SERIES_CLIP_TARGET.to })} className="mt-2" />
+            <p className="mt-2 text-small text-muted">
+              {t("clipsTarget", {
+                from: SERIES_CLIP_TARGET.from,
+                to: SERIES_CLIP_TARGET.to,
+              })}
+            </p>
+            <ProgressBar
+              ratio={Math.min(1, clips / SERIES_CLIP_TARGET.from)}
+              label={t("clipsTarget", {
+                from: SERIES_CLIP_TARGET.from,
+                to: SERIES_CLIP_TARGET.to,
+              })}
+              className="mt-2"
+            />
           </div>
         </div>
       </AdminSection>
       <HouseMemories />
     </>
-  );
-}
-
-// ─── Schleifen ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Schleifen: the three loops – their status (im Produkt · vorbereitet, Host wirbt Host follows its switch), the main share and the numbers
- * behind it (lib/admin/metrics.ts marketingLoops).
- */
-function Loops() {
-  const t = useTranslations("admin.marketing.loops");
-  const { houseInvites } = useStore();
-  const loops = marketingLoops({ ...useAdminInputs(), houseInvites });
-  return (
-    <ul className="divide-y divide-ink/8 border-y border-ink/8">
-      {MARKETING_LOOPS.map((loop) => {
-        const m = loops[loop.key];
-        return (
-          <li key={loop.key} data-marketing-loop={loop.key} data-loop-status={m.status} className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-2 py-3">
-            <span className="flex w-56 shrink-0 items-center gap-1 text-body font-semibold text-ink">
-              {loop.label}
-              <InfoTip text={t(`info.${loop.key}`)} />
-            </span>
-            <span className={cn("shrink-0 rounded-full bg-(--adm-pill) px-3 py-1 text-small", m.status === "product" ? "text-ink" : "text-muted")}>{t(`status.${m.status}`)}</span>
-            <span className="min-w-0 flex-1 basis-[280px] text-body text-muted">{m.main ? t(`metric.${loop.key}`, { value: share(m.main.value), of: num(m.main.of) }) : m.status === "prepared" ? t("off") : t("notYet")}</span>
-            {m.extra.length > 0 && (
-              <span className="flex shrink-0 flex-wrap gap-x-5 gap-y-1 text-small text-muted">
-                {m.extra.map((x) => (
-                  <span key={x.key}>
-                    <span className="font-semibold tabular-nums text-ink">{num(x.value)}</span> {t(`extra.${x.key}` as "extra.viaLink")}
-                  </span>
-                ))}
-              </span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
   );
 }

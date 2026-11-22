@@ -1,52 +1,78 @@
-// Admin › Launch › Marketing – the plan as data (Marketing-Plan, Stand 19.11.2026). German like every admin text; numbers and goals here,
+// Admin › Launch › Marketing – the launch strategy as data (Countdown · Pipeline · Partner · Content). German like every admin text; numbers and goals here,
 // computed values in lib/admin/metrics.ts (marketing*). Only what the plan says – what isn't filled in yet stays empty and the page says so.
 
-/** The one sentence on top of the plan. */
-export const MARKETING_CORE = "Ein gefülltes, bezahltes House mit einem Host, der ein eigenes Publikum hat.";
+import { LAUNCH, MARKETING_START } from "./roadmap";
 
-/** The ladder: filled Houses (full real Houses, lib/admin/metrics.ts marketingFilledHouses) – 1 → 5 → 50+. */
-export const MARKETING_STAGES = [
-  { key: "one", target: 1, label: "Erstes House" },
-  { key: "five", target: 5, label: "5 gefüllte" },
-  { key: "fifty", target: 50, label: "50+ und Launch" },
-] as const;
+/** Marketing start and launch – from config/roadmap.ts (the one source for the schedule). */
+export const MARKETING_START_DATE = MARKETING_START.date;
+export const LAUNCH_DATE = LAUNCH.date;
 
-/** A channel's place right now. */
-export type ChannelStatus = "now" | "later" | "no";
-export const CHANNEL_STATUSES: readonly ChannelStatus[] = ["now", "later", "no"];
+/** What the strategy counts – each phase's target is where the number should stand at the phase's end (cumulative). */
+export const STRATEGY_METRICS = ["contacts", "housesOpened", "filled", "hubs", "waitlist", "shorts", "partners"] as const;
+export type StrategyMetric = (typeof STRATEGY_METRICS)[number];
+
+export type LaunchPhaseKey = "foundation" | "founding" | "proof" | "countdown";
 
 /**
- * The channels by leverage, 1–8 (Marketing-Plan): name, its tools and status – jetzt · später · nein. Tools only where the plan names them;
- * `note` (the classification) only where the plan gives one – nothing is made up, an empty field simply isn't shown.
+ * The phases in weeks from the marketing start (week 1 begins on the start day; weeks of 7 days): 1–2 Fundament · 3–4 Founding Hosts ·
+ * 5–6 Beweis · 7–8 Countdown, each with the targets at its end. Weekly targets are the phase's increase spread evenly over its days
+ * (lib/admin/metrics.ts strategyPhases, strategyTarget, weekTarget).
  */
-export const MARKETING_CHANNELS: readonly { rank: number; name: string; tools: readonly string[]; note: string; status: ChannelStatus }[] = [
-  { rank: 1, name: "Hosts direkt gewinnen", tools: ["Demo-Zugang", "Kontaktliste", "E-Mail von simpulo.app"], note: "Wichtigster Hebel.", status: "now" },
-  { rank: 2, name: "House-Link als Werbemittel", tools: ["Share-Bilder", "Link-Vorschau"], note: "Im Produkt eingebaut.", status: "now" },
-  { rank: 3, name: "Echte Houses filmen", tools: ["Smartphone", "Shotliste", "Schnitt"], note: "Beweis statt Behauptung.", status: "now" },
-  { rank: 4, name: "Reels, TikTok, Shorts", tools: ["Instagram Reels", "TikTok", "YouTube Shorts", "Schnittprogramm", "2D-Serie"], note: "Mit Material aus Kanal 3.", status: "now" },
-  { rank: 5, name: "Kleine Creator pro gefülltem House bezahlen", tools: ["Tracking-Link"], note: "Erst mit Stripe.", status: "later" },
-  { rank: 6, name: "SEO und KI-Suche", tools: ["Zielseiten", "Ratgeber"], note: "Wirkt nach 6–12 Monaten.", status: "later" },
-  { rank: 7, name: "Communities", tools: ["Skool", "Discord", "Reddit", "eigener Account", "mitlesen"], note: "Nicht am ersten Tag werben.", status: "now" },
-  { rank: 8, name: "Bezahlte Anzeigen", tools: ["Meta", "TikTok"], note: "Vorerst nein (10 % Take Rate).", status: "no" },
+export const LAUNCH_PHASES: readonly { key: LaunchPhaseKey; no: number; label: string; weeks: { from: number; to: number }; targets: Record<StrategyMetric, number> }[] = [
+  { key: "foundation", no: 0, label: "Fundament", weeks: { from: 1, to: 2 }, targets: { contacts: 300, housesOpened: 0, filled: 0, hubs: 0, waitlist: 100, shorts: 9, partners: 0 } },
+  { key: "founding", no: 1, label: "Founding Hosts", weeks: { from: 3, to: 4 }, targets: { contacts: 900, housesOpened: 15, filled: 0, hubs: 1, waitlist: 250, shorts: 15, partners: 3 } },
+  { key: "proof", no: 2, label: "Beweis", weeks: { from: 5, to: 6 }, targets: { contacts: 1400, housesOpened: 30, filled: 1, hubs: 2, waitlist: 500, shorts: 21, partners: 4 } },
+  { key: "countdown", no: 3, label: "Countdown", weeks: { from: 7, to: 8 }, targets: { contacts: 1800, housesOpened: 50, filled: 5, hubs: 3, waitlist: 1000, shorts: 27, partners: 5 } },
+];
+/** All weeks of the strategy. */
+export const STRATEGY_WEEKS = LAUNCH_PHASES[LAUNCH_PHASES.length - 1].weeks.to;
+
+/**
+ * Fallback rules, shown as a hint in the Countdown (nothing moves by itself): 35–49 Houses → launch two weeks later; 30 Houses in 2 hubs
+ * with good quality → launch possible (quality is judged by hand).
+ */
+export const FALLBACK_RULES: readonly { id: string; text: string; houses: { from: number; to: number }; hubs?: number }[] = [
+  { id: "later", text: "35–49 Houses → Launch +2 Wochen", houses: { from: 35, to: 49 } },
+  { id: "possible", text: "30 Houses in 2 Hubs mit guter Qualität → Launch möglich", houses: { from: 30, to: 49 }, hubs: 2 },
 ];
 
-/** The timeline; `from` (YYYY-MM) is when a phase begins – the page marks the one today falls in. */
-export const MARKETING_TIMELINE = [
-  { key: "prepare", label: "Vorbereiten", when: "Nov–Jan", from: "2026-11" },
-  { key: "first", label: "Erstes House", when: "Feb", from: "2027-02" },
-  { key: "five", label: "5 gefüllte", when: "März–April", from: "2027-03" },
-  { key: "launch", label: "50+ und Launch", when: "danach", from: "2027-05" },
-] as const;
+/** Countdown › the four rings (their goal: the last phase's target; the tick: where the number should stand today). */
+export const STRATEGY_RINGS = ["housesOpened", "hubs", "waitlist", "filled"] as const satisfies readonly StrategyMetric[];
+/** Countdown › "Wochenzahlen": actual against the week's share. */
+export const STRATEGY_WEEK_BARS = ["contacts", "shorts", "housesOpened", "waitlist"] as const satisfies readonly StrategyMetric[];
+/** Countdown › "Diese Woche": the week's numbers as tasks (only when the week's share is above 0). */
+export const STRATEGY_WEEK_TASKS = ["contacts", "shorts", "housesOpened", "partners"] as const satisfies readonly StrategyMetric[];
 
-/** The next steps (Marketing-Plan), ticked off on the page (AdminData.marketingSteps, logged); `due` as the plan says it. Ids stay stable. */
-export const MARKETING_NEXT_STEPS: readonly { id: string; text: string; due: string }[] = [
-  { id: "landing", text: "Landingpage öffentlich, Gründer-Abschnitt, Benachrichtigungsfeld", due: "bis Januar" },
-  { id: "series", text: "Cast, 10 Skripte, 2D-Testfolge", due: "bis Januar" },
-  { id: "communities", text: "In 2–3 Communities mitlesen, 15 Min. täglich", due: "ab jetzt" },
-  { id: "contacts", text: "Kontaktliste und Erstnachricht pro Nische", due: "bis Januar" },
-  { id: "loops", text: "House Memories und Gratis-Schleifen ins Produkt", due: "mit Firebase" },
-  { id: "partner", text: "Einen Partner für das erste House gewinnen", due: "Februar" },
+/**
+ * The plan's steps as tasks of a phase (shown in the weeks of that phase) (ticked off: AdminData.marketingSteps, logged; ids stay stable). `weekly`: comes back every week
+ * (ticked per week, AdminData.launchTasks). `due` as the plan says it.
+ */
+export const MARKETING_NEXT_STEPS: readonly { id: string; text: string; due: string; phase: LaunchPhaseKey; weekly?: true }[] = [
+  { id: "landing", text: "Landingpage öffentlich, Gründer-Abschnitt, Benachrichtigungsfeld", due: "bis Januar", phase: "foundation" },
+  { id: "series", text: "Cast, 10 Skripte, 2D-Testfolge", due: "bis Januar", phase: "foundation" },
+  { id: "communities", text: "In 2–3 Communities mitlesen, 15 Min. täglich", due: "ab jetzt", phase: "foundation", weekly: true },
+  { id: "contacts", text: "Kontaktliste und Erstnachricht pro Nische", due: "bis Januar", phase: "foundation" },
+  { id: "loops", text: "House Memories und Gratis-Schleifen ins Produkt", due: "mit Firebase", phase: "foundation" },
+  { id: "partner", text: "Einen Partner für das erste House gewinnen", due: "Februar", phase: "founding" },
 ];
+
+/** Content › the weekly target for shorts (the calendar marks each week against it). */
+export const CONTENT_WEEKLY_TARGET = 3;
+/** Content › where a short goes out (the plan's channel 4). */
+export const SHORT_CHANNELS = ["Instagram Reels", "TikTok", "YouTube Shorts"] as const;
+
+/** Contacts and partners: what they are (the same kinds as Partner, with Streamer). */
+export const MARKETING_KINDS = ["creator", "streamer", "community", "connector", "brand"] as const;
+
+/** What moves them most. */
+export const MOTIVATIONS = ["money", "peers", "status"] as const;
+
+/** "Passendes Angebot" per motivation (contact and partner detail); `{name}` = their name. */
+export const MOTIVATION_OFFERS: Record<(typeof MOTIVATIONS)[number], readonly string[]> = {
+  money: ["Host-Fee als Pro Host", "Bezahlung pro gefülltem House", "Partner-Anteil"],
+  peers: ["„{name}'s people“", "Wiederkehrende Houses", "Früher Zugang für die Community"],
+  status: ["Founding Host", "Bühne", "„Curated by“"],
+};
 
 /** The funnel's assumptions, each as a share of the contacts written to (from – to). */
 export const FUNNEL_ASSUMPTIONS = {
@@ -54,8 +80,6 @@ export const FUNNEL_ASSUMPTIONS = {
   demo: { from: 0.05, to: 0.08 },
   house: { from: 0.02, to: 0.04 },
 } as const;
-/** "Die beste Nische bekommt die nächsten 500 Kontakte." */
-export const NEXT_CONTACTS_FOR_BEST_NICHE = 500;
 /** The projection: contacts needed for this many Houses at the current rate. */
 export const PROJECTION_HOUSES = 50;
 /** After the second follow-up: quiet. */
@@ -72,7 +96,7 @@ export const SERIES_STRUCTURE = ["Hook", "Situation", "Twist", "Schlussbild"] as
 export const SERIES_CLIP_TARGET = { from: 6, to: 9 } as const;
 
 /**
- * The loops (Admin › Marketing › Schleifen): what drives each, its status, and its numbers (lib/admin/metrics.ts marketingLoops). The status
+ * The loops (Admin › Marketing › Countdown, unten): what drives each, its status, and its numbers (lib/admin/metrics.ts marketingLoops). The status
  * of "Host wirbt Host" follows its switch (config/policies.ts HOST_REFERRAL): built but off = "vorbereitet".
  */
 export const MARKETING_LOOPS = [

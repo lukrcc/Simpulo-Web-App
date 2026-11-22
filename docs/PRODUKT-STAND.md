@@ -143,7 +143,7 @@ Stand 21. Nov. 2026, abends (nach der Nacharbeit: Fristen, Benachrichtigungen, M
 | Geld › Steuern › Überblick | fertig im Mock | `mock-ledger.ts` | Beleg-Upload Mock; Xero Platzhalter | ja |
 | System (Einstellungen, Backlog, Launch-Checkliste, Plattform-Pflichten) | fertig im Mock | Configs + Server-Fakten (`lib/launchChecks.ts`) | Phasenwechsel wirkt nur im eigenen Browser | – |
 | Log | teilweise | localStorage | Nicht auf einem Server gespeichert | ja |
-| Marketing (Plan, Kontakte, Partner, Trichter, Content, Schleifen) | fertig im Mock | `config/marketing.ts`, Mock-Kontakte und -Partner | – | Demo-Daten |
+| Marketing (Countdown, Pipeline, Partner, Content) | fertig im Mock | `config/marketing.ts` (Launch-Strategie), Mock-Kontakte, -Partner, -Shorts | – | Demo-Daten |
 
 ---
 
@@ -225,7 +225,7 @@ Der Block-Plan selbst liegt nicht im Repo. Die Teile sind nach Thema zugeordnet,
 | Spotlight mit Host-Aussparung auf Tablet | ja | `SpotlightCoverflow` ab 744 px |
 | Breiten-Test-Skript | ja | `scripts/breiten-test.mjs`, `npm run test:breiten` (hier noch nicht gelaufen) |
 | Tablet ab 744 px | ja | `--breakpoint-md 46.5rem`, `config/breakpoints.ts` |
-| Marketing mit Kontakten, Partnern, `config/marketing.ts` gefüllt | ja | Kontakte, Partner, alle 8 Kanäle mit Werkzeugen und Notiz |
+| Marketing mit Kontakten, Partnern, `config/marketing.ts` gefüllt | ja | Kontakte, Partner, Launch-Phasen mit Zielen, Content-Kalender |
 
 ## Platzhalter, die Lukas selbst füllen muss
 
@@ -250,7 +250,7 @@ Der Block-Plan selbst liegt nicht im Repo. Die Teile sind nach Thema zugeordnet,
 | Statistik (PostHog EU) einschalten, Key setzen | `config/analytics.ts`, `NEXT_PUBLIC_POSTHOG_KEY` | aus |
 | Finanzierung: Begründungen der Verteilung, Rundenbeträge | `config/funding.ts` (`ALLOCATION.reason` u. a.) | `null` |
 | Vision: Vergleich Börse · Privat · Verkauf | `config/vision.ts` | `null`-Zellen |
-| Marketing-Kanäle: Werkzeuge und Einordnung | `config/marketing.ts` `MARKETING_CHANNELS` | gefüllt (prüfen) |
+| Launch-Datum und Phasen-Ziele | `config/marketing.ts` `LAUNCH_DATE_DEFAULT`, `LAUNCH_PHASES` | gefüllt (3. Mai 2027, einstellbar) |
 | Launch-Zeitpunkt prüfen („Opening March 2027“) | `config/platform.ts` `launch` | gesetzt |
 | Eigene Social-Profile prüfen (instagram/tiktok/youtube „@simpulo“) | `lib/social.ts` `SOCIAL_LINKS` | ungeprüft |
 
@@ -272,4 +272,4 @@ Nach Gewicht. Die Oberfläche ist für Desktop, Tablet und Telefon im Mock weitg
    - Der Chat-Kopf hat noch keine Reiter.
    - Sammlungen haben kein OG-Bild.
    - Passkey und Anmelde-Methode zeigen „comes soon“.
-10. **Offene Entscheidungen und Werte:** Steuersätze und Konten, Host wirbt Host, Album-Anreiz, Host-Fee-Beispiel, Tiefe ein/aus, Founding Hosts sehen andere, Finanzierungs-Begründungen, Marketing-Kanäle.
+10. **Offene Entscheidungen und Werte:** Steuersätze und Konten, Host wirbt Host, Album-Anreiz, Host-Fee-Beispiel, Tiefe ein/aus, Founding Hosts sehen andere, Finanzierungs-Begründungen, Launch-Monat (App sagt „Opening March 2027“, Strategie Mai 2027).

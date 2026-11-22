@@ -71,6 +71,9 @@ body:has(.admin-scope) {
   --adm-area-operate-chip: rgb(95 195 192 / 0.16);
   --adm-area-launch-chip: rgb(232 154 180 / 0.16);
 
+  /* Marketing › Content: a content sprint's band over the calendar days (the launch area's rosé – a drawing colour, not status). */
+  --adm-sprint: var(--adm-area-launch);
+  --adm-sprint-bg: var(--adm-area-launch-chip);
   /* Vision › Zeitleiste: the current phase, ocean 10 %. */
   --adm-here: rgb(114 170 223 / 0.1);
   /* Vision › Der Hof, the pattern plans: shared (an amber tone), private (a turquoise tone), entrance/guests (a violet tone) – muted, a

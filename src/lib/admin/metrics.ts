@@ -16,8 +16,8 @@ import type { HypothesisStatus } from "@/config/hypotheses";
 import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
-import type { AdminData, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
-import { FUNNEL_ASSUMPTIONS, PROJECTION_HOUSES } from "@/config/marketing";
+import type { AdminData, ContentPost, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
+import { FALLBACK_RULES, FUNNEL_ASSUMPTIONS, LAUNCH_DATE, LAUNCH_PHASES, MARKETING_START_DATE, PROJECTION_HOUSES, STRATEGY_RINGS, STRATEGY_WEEK_BARS, STRATEGY_WEEKS, type LaunchPhaseKey, type StrategyMetric } from "@/config/marketing";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
@@ -1782,6 +1782,137 @@ export function marketingFunnel(contacts: readonly MarketingContact[], compareDa
     projection: { current: contactsFor(all.houseRate), assumed: { from: contactsFor(FUNNEL_ASSUMPTIONS.house.to), to: contactsFor(FUNNEL_ASSUMPTIONS.house.from) } },
     contactedBefore: contacts.filter((c) => c.firstMessageAt !== null && c.firstMessageAt <= compareDay).length,
   };
+}
+
+// ── Launch › Marketing › Countdown ──────────────────────────────────────────────────────────────────────────────────────────────
+
+const addDays = (d: string, n: number) => isoDay(dayMs(d) + n * DAY_MS);
+/** The Monday of the week a day falls in (calendar weeks Monday to Sunday – the content calendar). */
+export const mondayOf = (d: string) => addDays(d, -((new Date(dayMs(d)).getUTCDay() + 6) % 7));
+
+/** The marketing start and the launch date – config/roadmap.ts (through config/marketing.ts), the one source. */
+export const strategyDates = () => ({ start: MARKETING_START_DATE, launch: LAUNCH_DATE });
+
+/** The phases with their days (YYYY-MM-DD, both included): week 1 begins on the start day, weeks of 7 days. */
+export function strategyPhases(start: string) {
+  return LAUNCH_PHASES.map((p) => ({ ...p, from: addDays(start, (p.weeks.from - 1) * 7), to: addDays(start, p.weeks.to * 7 - 1) }));
+}
+
+/** The strategy week a day falls in (1 = the first seven days from the start; 0 before it) and the day that week begins. */
+export function strategyWeek(start: string, d: string) {
+  const n = Math.floor((dayMs(d) - dayMs(start)) / (7 * DAY_MS)) + 1;
+  return { n: Math.max(0, n), begins: addDays(start, (n - 1) * 7) };
+}
+
+/**
+ * Where a strategy number should stand on a day: before the start zero, inside a phase the previous phase's target plus the phase's increase
+ * spread evenly over its days (the day itself counted), after the last phase its target. Fractional – rounded where shown.
+ */
+export function strategyTarget(metric: StrategyMetric, d: string, start: string): number {
+  let prev = 0;
+  for (const p of strategyPhases(start)) {
+    const target = p.targets[metric];
+    if (d < p.from) return prev;
+    if (d <= p.to) return prev + ((target - prev) * ((dayMs(d) - dayMs(p.from)) / DAY_MS + 1)) / ((dayMs(p.to) - dayMs(p.from)) / DAY_MS + 1);
+    prev = target;
+  }
+  return prev;
+}
+
+/** A week's share of a strategy number (the week beginning `begins`): the rounded target at its last day minus at the day before – the weeks add up to the phase. */
+export const weekTarget = (metric: StrategyMetric, begins: string, start: string) => Math.round(strategyTarget(metric, addDays(begins, 6), start)) - Math.round(strategyTarget(metric, addDays(begins, -1), start));
+
+export type StrategyStatus = Status | null;
+/** Against where it should stand: reached good, at least 60 % warning, below critical; nothing expected yet → no status. */
+const againstDue = (value: number, due: number): StrategyStatus => (due <= 0 ? null : value >= due ? "good" : value >= due * 0.6 ? "warning" : "critical");
+
+/**
+ * Each strategy number as of a day (end of that day) – from the records: contacts written to (first message), shorts published (content
+ * calendar), real Houses open (created by then), hubs with enough of them, confirmed waitlist sign-ups, partners with an active agreement
+ * (from its start). Full Houses have no history: only today's value (null for an earlier day).
+ */
+function strategyValue(metric: StrategyMetric, d: string, today: string, { stays, admin }: Pick<AdminInputs, "stays" | "admin">): number | null {
+  const by = (at: string | null | undefined) => Boolean(at) && at!.slice(0, 10) <= d;
+  const houses = () => stays.filter((s) => isLiveReal(s) && by(s.createdAt));
+  switch (metric) {
+    case "contacts":
+      return admin.marketingContacts.filter((c) => by(c.firstMessageAt)).length;
+    case "shorts":
+      return (admin.contentPosts ?? []).filter((p) => p.status === "published" && by(p.date)).length;
+    case "housesOpened":
+      return houses().length;
+    case "hubs":
+      return hubsOf(houses());
+    case "waitlist":
+      return confirmedWaitlist(admin.waitlist).filter((e) => by(e.createdAt)).length;
+    case "partners":
+      return admin.marketingPartners.filter((p) => p.agreement.status === "active" && by(p.agreement.from ?? p.createdAt)).length;
+    case "filled":
+      return d >= today ? marketingFilledHouses({ stays }) : null;
+  }
+}
+
+/** Hubs: cities with at least LAUNCH_CRITERIA.hubMinHouses of these Houses. */
+function hubsOf(houses: readonly Stay[]): number {
+  const perHub = new Map<string, number>();
+  for (const s of houses) perHub.set(hubOf(s), (perHub.get(hubOf(s)) ?? 0) + 1);
+  return [...perHub.values()].filter((n) => n >= LAUNCH_CRITERIA.hubMinHouses).length;
+}
+
+const RING_CHANGE: Partial<Record<StrategyMetric, ChangeMetric>> = { housesOpened: "mktHousesOpened", hubs: "mktHubs", waitlist: "mktWaitlist", filled: "mktFilledHouses" };
+
+/**
+ * The countdown (Admin › Launch › Marketing › Countdown): days to the start and to the launch, the phase and the strategy week (n of 8),
+ * the four rings (value, goal = the last phase's target, where it should stand today, status, change against a week ago), this week's numbers
+ * against the week's share, and which fallback rule applies (a hint only).
+ */
+export function launchCountdown(inputs: Pick<AdminInputs, "stays" | "admin" | "today">) {
+  const { today } = inputs;
+  const { start, launch } = strategyDates();
+  const phases = strategyPhases(start);
+  const daysToStart = Math.round((dayMs(start) - dayMs(today)) / DAY_MS);
+  const daysLeft = Math.round((dayMs(launch) - dayMs(today)) / DAY_MS);
+  const state: "before" | "running" | "launched" = today < start ? "before" : today >= launch ? "launched" : "running";
+  // The phase today falls in – after the last one's end (and before the launch) still the last one.
+  const phase = phases.findLast((p) => p.from <= today) ?? phases[0];
+  const week = strategyWeek(start, today);
+  const weekNo = Math.min(STRATEGY_WEEKS, week.n);
+  const begins = state === "before" ? start : week.n > STRATEGY_WEEKS ? addDays(start, (STRATEGY_WEEKS - 1) * 7) : week.begins;
+  const weekAgo = addDays(today, -7);
+  const value = (m: StrategyMetric, d: string) => strategyValue(m, d, today, inputs);
+  const last = phases[phases.length - 1];
+  const rings = STRATEGY_RINGS.map((metric) => {
+    const now = value(metric, today) ?? 0;
+    const due = Math.round(strategyTarget(metric, today, start));
+    // The next phase target above zero – "Ziel {Phase}" next to the ring.
+    const next = phases.find((p) => p.to >= today && p.targets[metric] > 0) ?? last;
+    const changeMetric = RING_CHANGE[metric];
+    return { metric, value: now, goal: last.targets[metric], due, next: { key: next.key, target: next.targets[metric] }, status: againstDue(now, due), change: changeMetric ? getChange(changeMetric, now, value(metric, weekAgo)) : null };
+  });
+  // Days of this week passed (its first day = 1 of 7) – a week in progress is measured against its share so far.
+  const passed = Math.min(7, Math.max(1, (dayMs(today) - dayMs(begins)) / DAY_MS + 1));
+  const bars = STRATEGY_WEEK_BARS.map((metric) => {
+    const actual = (value(metric, today) ?? 0) - (value(metric, addDays(begins, -1)) ?? 0);
+    const target = weekTarget(metric, begins, start);
+    return { metric, actual, target, status: againstDue(actual, Math.round((target * passed) / 7)) };
+  });
+  const houses = value("housesOpened", today) ?? 0;
+  const hubs = value("hubs", today) ?? 0;
+  const fallback = FALLBACK_RULES.find((r) => houses >= r.houses.from && houses <= r.houses.to && (r.hubs === undefined || hubs >= r.hubs))?.id ?? null;
+  return { start, launchDate: launch, daysToStart, daysLeft, state, phase: phase.key as LaunchPhaseKey, phaseNo: phase.no, phases, weekNo, weeks: STRATEGY_WEEKS, begins, ends: addDays(begins, 6), rings, bars, fallback };
+}
+
+/** Content › shorts published in a week (Monday–Sunday). */
+export const shortsInWeek = (posts: readonly ContentPost[], monday: string) => posts.filter((p) => p.status === "published" && p.date >= monday && p.date <= addDays(monday, 6)).length;
+
+/**
+ * The funnel per group of contacts (Pipeline: per motivation) – the same rates as marketingFunnel; `best` = the group that opens Houses most
+ * often (House rate, then demo rate, at least 5 written to). Contacts without a value are left out.
+ */
+export function marketingFunnelBy(contacts: readonly MarketingContact[], key: (c: MarketingContact) => string | undefined, groups: readonly string[]) {
+  const rows = groups.map((g) => funnelOf(g, contacts.filter((c) => key(c) === g)));
+  const best = rows.filter((r) => r.contacted >= 5).toSorted((a, b) => (b.houseRate ?? 0) - (a.houseRate ?? 0) || (b.demoRate ?? 0) - (a.demoRate ?? 0) || (b.replyRate ?? 0) - (a.replyRate ?? 0))[0]?.key ?? null;
+  return { rows, best };
 }
 
 /** Where a rate stands against its assumption: under, inside, above. */

@@ -22,6 +22,7 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { day, num } from "@/lib/i18n/adminFormat";
 import type { LaunchFacts } from "@/lib/launchChecks";
 import { StatusDot } from "./AdminCharts";
+import { roadmapTodos } from "@/lib/roadmap";
 import { AdminSection } from "./AdminShell";
 
 interface Check {
@@ -65,12 +66,15 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
 
   const confirmed = data.launchChecks ?? {};
   const stateOf = (p: LaunchPoint): "ok" | "manual" | "open" => (checks[p.id]?.ok ? "ok" : p.manual && confirmed[p.id] ? "manual" : "open");
-  const done = LAUNCH_POINTS.filter((p) => stateOf(p) !== "open").length;
+  // The to-dos due "vor Launch" (System › Zeitplan & Vorbereitung) belong to the checklist too – their status comes from there.
+  const prepTodos = roadmapTodos(data).filter((x) => x.due === "beforeLaunch");
+  const done = LAUNCH_POINTS.filter((p) => stateOf(p) !== "open").length + prepTodos.filter((x) => x.status === "done").length;
+  const total = LAUNCH_POINTS.length + prepTodos.length;
 
   return (
     <>
       <p data-launch-count className="text-h3 tabular-nums text-ink">
-        {t("count", { done, total: LAUNCH_POINTS.length })}
+        {t("count", { done, total })}
       </p>
       <p className="mt-2 max-w-3xl text-small text-muted">{t("note")}</p>
       {LAUNCH_GROUPS.map((group) => (
@@ -111,6 +115,29 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
           </ul>
         </AdminSection>
       ))}
+      {prepTodos.length > 0 && (
+        <AdminSection title={t("groups.prep")}>
+          <ul className="divide-y divide-ink/8 border-y border-ink/8">
+            {prepTodos.map((x) => (
+              <li key={x.id} data-launch-point={`todo-${x.id}`} data-launch-state={x.status === "done" ? "ok" : "open"} className="flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5">
+                <div className="min-w-0 flex-1 basis-[300px]">
+                  <p className="text-body font-semibold text-ink">{x.title}</p>
+                  <p className="text-small text-muted">{x.text}</p>
+                </div>
+                <span className="flex w-40 shrink-0 items-center gap-2 text-small text-ink">
+                  <StatusDot status={x.status === "done" ? "good" : "warning"} />
+                  {t(`todoStatus.${x.status}`)}
+                </span>
+                <span className="flex min-w-[min(15rem,100%)] shrink-0 items-center justify-end gap-3 max-md:justify-start">
+                  <Link href="/admin/platform?view=roadmap&sub=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">
+                    {t("open")} →
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </AdminSection>
+      )}
     </>
   );
 }

@@ -65,7 +65,7 @@ export interface AdminData {
   location: { country: string | null; reason: string };
   /** Launch › Marketing › Kontakte – creators written to (Firestore marketingContacts, admins only: firestore.rules) */
   marketingContacts: MarketingContact[];
-  /** Launch › Marketing › Plan: the next steps ticked off, by step id (config/marketing.ts NEXT_STEPS) */
+  /** Launch › Marketing › Countdown: the phase tasks ticked off, by step id (config/marketing.ts MARKETING_NEXT_STEPS) */
   marketingSteps: Record<string, boolean>;
   /** Launch › Marketing › Content: 2D series clips made so far */
   marketingClips: number;
@@ -87,10 +87,51 @@ export interface AdminData {
   hostTax?: Record<string, HostTaxData & { at: string }>;
   /** Launch › Marketing › Partner – one record per collaboration (Firestore marketingPartners, admins only: firestore.rules) */
   marketingPartners: MarketingPartner[];
+  /** Admin › System › Zeitplan & Vorbereitung: each to-do's status, note and cost over the start values (config/roadmap.ts ROADMAP_TODOS) */
+  roadmapTodos?: Record<string, { status?: "open" | "inProgress" | "done" | "later"; note?: string; cost?: string }>;
+  /** Code milestones marked as reached (config/roadmap.ts CODE_MILESTONES ids) → when */
+  roadmapReached?: Record<string, string>;
+  /** Countdown: tasks ticked off – "<the week's first day>:<task id>" → when */
+  launchTasks?: Record<string, string>;
+  /** Countdown › "Diese Woche": tasks added by hand to a week (its Monday) */
+  launchCustomTasks?: LaunchCustomTask[];
+  /** Content › the calendar's shorts */
+  contentPosts?: ContentPost[];
+  /** Content › sprints: a few days of shooting and cutting, drawn as bands over the calendar */
+  contentSprints?: ContentSprint[];
+}
+
+/** A task added by hand to one week of the launch strategy. */
+export interface LaunchCustomTask {
+  id: string;
+  /** The first day of its strategy week (YYYY-MM-DD) */
+  week: string;
+  text: string;
+}
+
+/** One short in the content calendar: planned or published. */
+export interface ContentPost {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  title: string;
+  /** config/marketing.ts SHORT_CHANNELS */
+  channel: string;
+  status: "planned" | "published";
+}
+
+/** A content sprint: from–to (YYYY-MM-DD, both included). */
+export interface ContentSprint {
+  id: string;
+  from: string;
+  to: string;
+  label: string;
 }
 
 /** Creator · community operator · connector · place/brand. */
-export type PartnerKind = "creator" | "community" | "connector" | "brand";
+export type PartnerKind = "creator" | "streamer" | "community" | "connector" | "brand";
+/** What moves a contact or partner most: money · like-minded people · status (config/marketing.ts MOTIVATION_OFFERS). */
+export type MarketingMotivation = "money" | "peers" | "status";
 /** The creator ladder: 1 hosts themselves · 2 "{Name}'s people" · 3 "Curated by". */
 export type PartnerLadder = 1 | 2 | 3;
 export type PartnerAgreementStatus = "draft" | "active" | "ended";
@@ -103,6 +144,8 @@ export interface MarketingPartner {
   contactId: string | null;
   name: string;
   kind: PartnerKind;
+  /** Geld · Gleichgesinnte · Status – unset = not judged yet */
+  motivation?: MarketingMotivation;
   /** Followers / members across their channels */
   reach: number;
   channels: string[];
@@ -161,6 +204,10 @@ export interface MarketingContact {
   /** Marked for the launch mail – only possible with consent */
   launchMail?: boolean;
   note: string;
+  /** Creator · Streamer · Community-Betreiber · Connector · Ort/Marke – unset = not judged yet */
+  kind?: PartnerKind;
+  /** Geld · Gleichgesinnte · Status – unset = not judged yet; picks the "Passendes Angebot" */
+  motivation?: MarketingMotivation;
   /** When the demo link was opened (set by the visit) */
   demoSeenAt?: string;
   createdAt: string;

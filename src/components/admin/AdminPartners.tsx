@@ -20,18 +20,19 @@ import { tableCsv } from "@/lib/admin/exporters/csv";
 import { partnerEffect, partnerHouses, partnerOpenHouses, partnerStepDue } from "@/lib/admin/metrics";
 import { useAdminPeriod } from "@/lib/admin/period";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import type { MarketingPartner, PartnerAgreementStatus, PartnerKind, PartnerLadder } from "@/lib/data";
+import type { MarketingMotivation, MarketingPartner, PartnerAgreementStatus, PartnerKind, PartnerLadder } from "@/lib/data";
+import { MARKETING_KINDS, MOTIVATIONS, MOTIVATION_OFFERS } from "@/config/marketing";
 import { day, eur, num } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
 import { findUser, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-export const PARTNER_KINDS: readonly PartnerKind[] = ["creator", "community", "connector", "brand"];
+export const PARTNER_KINDS: readonly PartnerKind[] = MARKETING_KINDS;
 const LADDERS: readonly PartnerLadder[] = [1, 2, 3];
 const STATUSES: readonly PartnerAgreementStatus[] = ["draft", "active", "ended"];
 type DetailTab = "overview" | "agreement" | "houses" | "effect" | "content" | "history";
 const DETAIL_TABS: readonly DetailTab[] = ["overview", "agreement", "houses", "effect", "content", "history"];
-type What = "name" | "kind" | "reach" | "channels" | "ladder" | "foundingHost" | "share" | "from" | "to" | "payoutAfterPaid" | "contentRights" | "collabPosts" | "contract" | "status" | "houses" | "content" | "nextStep";
+type What = "name" | "kind" | "motivation" | "reach" | "channels" | "ladder" | "foundingHost" | "share" | "from" | "to" | "payoutAfterPaid" | "contentRights" | "collabPosts" | "contract" | "status" | "houses" | "content" | "nextStep";
 
 /** A partner's own link – /?ref=<code> (lib/growth.ts counts it as the source "partner", the code as the campaign). */
 export const partnerLinkOf = (p: Pick<MarketingPartner, "refCode">) => `${linkBase()}/?ref=${encodeURIComponent(p.refCode)}`;
@@ -117,7 +118,7 @@ function SwitchRow({ label, on, onChange }: { label: string; on: boolean; onChan
   );
 }
 
-function PartnerDetail({ partner, onBack, onDeleted }: { partner: MarketingPartner; onBack: () => void; onDeleted: () => void }) {
+export function PartnerDetail({ partner, onBack, onDeleted }: { partner: MarketingPartner; onBack: () => void; onDeleted: () => void }) {
   const t = useTranslations("admin.marketing.partners");
   const actions = useAdminActions();
   const [tab, setTab] = useState<DetailTab>("overview");
@@ -186,6 +187,16 @@ function Overview({ partner, save }: { partner: MarketingPartner; save: Save }) 
         </Field>
       </div>
       <div className="sm:col-span-2">
+        <Field label={t("fields.motivation")}>
+          <MotivationPicker value={partner.motivation} onChange={(motivation) => save({ motivation }, "motivation")} />
+        </Field>
+      </div>
+      {partner.motivation && (
+        <div className="sm:col-span-2">
+          <MatchingOffer motivation={partner.motivation} name={partner.name} />
+        </div>
+      )}
+      <div className="sm:col-span-2">
         <Field label={`${t("fields.channels")} (${t("fields.channelsHint")})`}>
           <Input value={draft.channels} onChange={(e) => setDraft({ ...draft, channels: e.target.value })} onBlur={() => { const next = draft.channels.split(",").map((c) => c.trim()).filter(Boolean); if (next.join(",") !== partner.channels.join(",")) save({ channels: next }, "channels"); }} />
         </Field>
@@ -209,7 +220,7 @@ function Overview({ partner, save }: { partner: MarketingPartner; save: Save }) 
       </Field>
       {partner.contactId && (
         <Field label={t("fields.contact")}>
-          <Link href={`/admin/marketing?tab=contacts&contact=${partner.contactId}`} className="text-body font-semibold text-ink hover:underline">
+          <Link href={`/admin/marketing?tab=pipeline&contact=${partner.contactId}`} className="text-body font-semibold text-ink hover:underline">
             {partner.contactId} →
           </Link>
         </Field>
@@ -422,3 +433,49 @@ function History({ partner, save }: { partner: MarketingPartner; save: Save }) {
   );
 }
 
+/** Motivation as capsules (Geld · Gleichgesinnte · Status), "offen" = not judged yet. CapsuleGroup – styled the same in a panel's portal. */
+export function MotivationPicker({ value, onChange }: { value: MarketingMotivation | undefined; onChange: (next: MarketingMotivation | undefined) => void }) {
+  const t = useTranslations("admin.marketing");
+  return (
+    <CapsuleGroup
+      size="sm"
+      label={t("motivation.label")}
+      value={value ?? "none"}
+      onChange={(v) => onChange(v === "none" ? undefined : v)}
+      options={[...MOTIVATIONS.map((m) => ({ value: m, content: t(`motivation.${m}`) })), { value: "none" as const, content: t("motivation.none") }]}
+    />
+  );
+}
+
+/** Kind (Creator · Streamer · Community-Betreiber · Connector · Ort/Marke) for a contact, "offen" = not judged yet. */
+export function KindPicker({ value, onChange }: { value: PartnerKind | undefined; onChange: (next: PartnerKind | undefined) => void }) {
+  const t = useTranslations("admin.marketing");
+  return (
+    <CapsuleGroup
+      size="sm"
+      label={t("pipeline.kind")}
+      value={value ?? "none"}
+      onChange={(v) => onChange(v === "none" ? undefined : v)}
+      options={[...MARKETING_KINDS.map((k) => ({ value: k, content: t(`partners.kinds.${k}`) })), { value: "none" as const, content: t("motivation.none") }]}
+    />
+  );
+}
+
+/** "Passendes Angebot": what fits this motivation (config/marketing.ts MOTIVATION_OFFERS). */
+export function MatchingOffer({ motivation, name }: { motivation: MarketingMotivation; name: string }) {
+  const t = useTranslations("admin.marketing");
+  return (
+    <section data-matching-offer={motivation} className="rounded-xl bg-(--adm-block) p-4 ring-1 ring-ink/8">
+      <p className="text-eyebrow uppercase text-(--adm-label)">
+        {t("offer.title")} · {t(`motivation.${motivation}`)}
+      </p>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {MOTIVATION_OFFERS[motivation].map((o) => (
+          <li key={o} className="rounded-full bg-(--adm-pill) px-3 py-1 text-body text-ink">
+            {o.replace("{name}", name)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

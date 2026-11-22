@@ -11,10 +11,10 @@ import { notify, notifyByEmail } from "@/lib/notify";
 import { tEn } from "@/lib/i18n/translate";
 import { waitlistStatus } from "@/lib/types";
 import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, Stay, SupportTicket, TicketStatus } from "@/lib/types";
-import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep } from "./store";
+import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addContentPost, patchContentPost, deleteContentPost } from "./store";
 import { useAdminData } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
-import type { MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
+import type { ContentPost, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 /** Reports opened in this visit (the log line once each). */
 const viewedReports = new Set<string>();
@@ -241,7 +241,53 @@ export function useAdminActions() {
       setLaunchCheck(id, confirmed ? new Date().toISOString() : null);
       appendAdminLog("launch_check", `${label} · ${confirmed ? "bestätigt" : "zurückgenommen"}`, by);
     },
-    /** Marketing › Plan: a next step ticked off (or back). */
+    /** System › Zeitplan & Vorbereitung: a to-do's status (logged with the new status). */
+    setRoadmapTodoStatus(id: string, title: string, status: "open" | "inProgress" | "done" | "later", label: string) {
+      patchRoadmapTodo(id, { status });
+      appendAdminLog("roadmap_todo", `${title} · ${label}`, by);
+    },
+    /** System › Zeitplan & Vorbereitung: a to-do's note or cost (logged without the value). */
+    setRoadmapTodoField(id: string, title: string, field: "note" | "cost", value: string, label: string) {
+      patchRoadmapTodo(id, { [field]: value });
+      appendAdminLog("roadmap_todo", `${title} · ${label}`, by);
+    },
+    /** System › Zeitplan & Vorbereitung: a code milestone reached (or back). */
+    setRoadmapReached(id: string, label: string, reached: boolean) {
+      setRoadmapReached(id, reached);
+      appendAdminLog("roadmap_milestone", `${label} · ${reached ? "erreicht" : "zurückgenommen"}`, by);
+    },
+    /** A due milestone whose to-dos are all done (logged once, when the last one is ticked). */
+    logRoadmapMilestone(label: string) {
+      appendAdminLog("roadmap_milestone", `${label} · erreicht`, by);
+    },
+    /** Marketing › Countdown: a task ticked off or back ("<week's first day>:<id>"). */
+    setLaunchTask(key: string, text: string, done: boolean) {
+      setLaunchTask(key, done);
+      appendAdminLog("launch_task", `${text} · ${done ? "erledigt" : "offen"}`, by);
+    },
+    addLaunchTask(week: string, text: string) {
+      addLaunchCustomTask(week, text);
+      appendAdminLog("launch_task", `${text} · neu`, by);
+    },
+    deleteLaunchTask(id: string, text: string) {
+      deleteLaunchCustomTask(id);
+      appendAdminLog("launch_task", `${text} · entfernt`, by);
+    },
+    /** Marketing › Content: a short planned, published, moved or removed. */
+    addContentPost(post: Omit<ContentPost, "id">) {
+      const added = addContentPost(post);
+      appendAdminLog("content_post", `${post.date} · ${post.title} · geplant`, by);
+      return added;
+    },
+    updateContentPost(post: ContentPost, patch: Partial<Omit<ContentPost, "id">>, what: string) {
+      patchContentPost(post.id, patch);
+      appendAdminLog("content_post", `${patch.date ?? post.date} · ${post.title} · ${what}`, by);
+    },
+    deleteContentPost(post: ContentPost) {
+      deleteContentPost(post.id);
+      appendAdminLog("content_post", `${post.date} · ${post.title} · entfernt`, by);
+    },
+    /** Marketing › Countdown: a phase task ticked off (or back). */
     setMarketingStep(id: string, text: string, done: boolean) {
       setMarketingStep(id, done);
       appendAdminLog("marketing_step", `${text} · ${done ? "erledigt" : "offen"}`, by);
@@ -276,7 +322,8 @@ export function useAdminActions() {
       const added = addMarketingPartner({
         contactId: contact.id,
         name: contact.name,
-        kind: "creator",
+        kind: contact.kind ?? "creator",
+        ...(contact.motivation ? { motivation: contact.motivation } : {}),
         reach: contact.followers,
         channels: [contact.channel],
         ladder: 1,

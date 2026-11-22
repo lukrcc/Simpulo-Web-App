@@ -61,4 +61,5 @@ export const BACKLOG: readonly BacklogItem[] = [
   { id: "backend", title: "Backend-Phase", description: "Firebase, Stripe, Resend, Push – die Mocks ablösen", phase: "backend", status: "open" },
   { id: "day-house", title: "Nearby / Day House", description: "Houses ohne Übernachtung, Treffen in der Nähe", phase: "afterLaunch", status: "open" },
   { id: "simpulo-base", title: "Simpulo Base", description: "Nach dem Umzug", phase: "afterLaunch", status: "open" },
+  { id: "liveHouseStreamers", title: "Live House für Streamer", description: "Kennzeichnung, Zustimmung je Gast, kamerafreie Zonen und Zeiten", phase: "afterLaunch", status: "open" },
 ];
