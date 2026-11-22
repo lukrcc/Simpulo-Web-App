@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton, AdminDialogFooter, adminButtonStyles } from "./AdminButton";
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
@@ -17,13 +18,12 @@ import { ArrowUpRight, ChartColumn, Code, CreditCard, Database, ExternalLink, Ey
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { InfoTip } from "./AdminNumbers";
 import { profileHref } from "@/lib/privacy";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
-import { ModalFooter, Sheet } from "@/components/ui/Sheet";
+import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { TOOLS, TOOL_GROUPS, errorLogUrl, firebaseDocUrl, stripeUrl, type ToolIcon } from "@/config/tools";
 import { VIBE_ICONS } from "@/config/explore";
@@ -31,7 +31,7 @@ import { examples, launch, phaseRules, PLATFORM_PHASES, usePlatformPhase, type P
 import { useFormat } from "@/i18n/format";
 import { APP_MODE } from "@/lib/appMode";
 import { useAdminActions } from "@/lib/admin/actions";
-import { applicationTier, hostOverview, type HostOverview } from "@/lib/admin/metrics";
+import { applicationTier, hostMix, hostOverview, type HostOverview } from "@/lib/admin/metrics";
 import { HOST_TIERS } from "@/config/admin";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
@@ -40,10 +40,12 @@ import { socialHandle, socialUrl } from "@/lib/socialLinks";
 import { findUser, useStore } from "@/lib/store";
 import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { compact, eur as formatEur, monthYear, share } from "@/lib/i18n/adminFormat";
+import { compact, eur as formatEur, monthYear, num, share } from "@/lib/i18n/adminFormat";
 import { Textarea } from "@/components/ui/Input";
 import { PrepareButton, PreparedList } from "./AdminHouses";
-import { AdminSection, AdminShell } from "./AdminShell";
+import { AdminNested, AdminSection, AdminShell } from "./AdminShell";
+import { OpenTasksHint } from "./OpenTasksHint";
+import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 
 // ── Houses: early warning – components/admin/AdminHouseWatch.tsx (AdminHouseList) ──────────────────────────────────────────
 
@@ -87,7 +89,8 @@ function Followers({ count }: { count: number }) {
  * profile, the tier (confirm or change – logged; "vorgeschlagen" only here), the numbers, the warnings, the actions. Vorbereitet: the
  * prepared Houses.
  */
-type HostTab = "all" | HostTier | "founding" | "review" | "prepared";
+/** "Überblick" first and by default (CLAUDE.md "Überblick zuerst"), then the lists. */
+type HostTab = "overview" | "all" | HostTier | "founding" | "review" | "applications" | "prepared";
 type HostSort = "value" | "houses" | "newest";
 const NEW_HOST_DAYS = 30;
 
@@ -99,7 +102,12 @@ export function AdminHosts() {
   const inputs = useAdminInputs();
   const rows = hostOverview(inputs);
   const store = useStore();
-  const [tab, setTab] = useState<HostTab>("all");
+  // Opens on the overview; ?tab=applications (from the overview, old /admin/applications links) opens Bewerbungen, ?host= a host in "Alle".
+  const [tab, setTab] = useState<HostTab>(() => {
+    if (typeof window === "undefined") return "overview";
+    const q = new URLSearchParams(window.location.search);
+    return q.get("tab") === "applications" ? "applications" : q.get("host") ? "all" : "overview";
+  });
   const [sort, setSort] = useState<HostSort>("value");
   // A link from the Posteingang opens one host (?host=…).
   const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("host")));
@@ -107,29 +115,48 @@ export function AdminHosts() {
   const isNew = (r: HostOverview) => r.houses.length <= 1 && r.newest !== "" && Date.parse(inputs.today) - Date.parse(r.newest) <= NEW_HOST_DAYS * 86_400_000;
   const review = rows.filter((r) => r.warnings.length > 0 || isNew(r));
   const prepared = store.stays.filter((s) => s.claim).length;
+  const applicationsOpen = useAdminData().applications.filter((a) => a.status === "new" || a.status === "maybe").length;
   const inTab = (r: HostOverview) => (tab === "all" ? true : tab === "review" ? review.includes(r) : tab === "founding" ? isFoundingHost(r.user) : r.tier === tab);
   const shown = rows.filter(inTab).toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
   const selected = shown.find((r) => r.user.id === selectedId) ?? null;
 
+  const tabs = (
+    <AdminTabs
+      label={t("tabs.label")}
+      value={tab}
+      onChange={(next) => (setTab(next), setSelectedId(null))}
+      tabs={[
+        { value: "overview", label: tAdmin("overviewBlock.tab") },
+        { value: "all", label: t("tabs.all"), count: rows.length },
+        ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, tooltip: t(`tabInfo.${tier}`) })),
+        { value: "founding", label: t("tabs.founding"), count: rows.filter((r) => isFoundingHost(r.user)).length, tooltip: t("tabInfo.founding", { limit: FOUNDING_HOST.limit }) },
+        { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
+        { value: "applications", label: t("tabs.applications"), count: applicationsOpen, tooltip: t("tabInfo.applications") },
+        { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
+      ]}
+    />
+  );
+  if (tab === "overview")
+    return (
+      <AdminShell title={t("title")} tabs={tabs}>
+        <HostsOverview rows={rows} review={review} onOpen={(next, nextSort) => (setTab(next), setSelectedId(null), nextSort && setSort(nextSort))} />
+      </AdminShell>
+    );
+  // Bewerbungen: the whole applications page as a tab (its status tabs and tier filter in the second row).
+  if (tab === "applications")
+    return (
+      <AdminNested tabs={tabs}>
+        <AdminApplications />
+      </AdminNested>
+    );
+
   return (
     <AdminShell
       title={t("title")}
-      tabs={
-        <AdminTabs
-          label={t("tabs.label")}
-          value={tab}
-          onChange={(next) => (setTab(next), setSelectedId(null))}
-          tabs={[
-            { value: "all", label: t("tabs.all"), count: rows.length },
-            ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, tooltip: t(`tabInfo.${tier}`) })),
-            { value: "founding", label: t("tabs.founding"), count: rows.filter((r) => isFoundingHost(r.user)).length, tooltip: t("tabInfo.founding", { limit: FOUNDING_HOST.limit }) },
-            { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
-            { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
-          ]}
-        />
-      }
+      tabs={tabs}
       aside={tab === "prepared" ? <PrepareButton label={tGrowth("newHouse")} /> : <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "houses", "newest"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />}
     >
+      <OpenTasksHint area="hosts" />
       {tab === "prepared" ? (
         <PreparedList />
       ) : (
@@ -171,6 +198,65 @@ export function AdminHosts() {
   );
 }
 
+/**
+ * Hosts › Überblick (CLAUDE.md "Überblick zuerst"): only tiles, tinted in Plattform's lilac – one per list (Alle · Share · Pro · Anchor ·
+ * Founding · Prüfen · Bewerbungen · Vorbereitet) and the numbers behind them: average value per year and fill rate, hosts with a warning,
+ * anchors against their target. Each tile opens its list (sorted where that helps).
+ */
+function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]; review: readonly HostOverview[]; onOpen: (tab: HostTab, sort?: HostSort) => void }) {
+  const t = useTranslations("admin.pageTiles.hosts");
+  const tHosts = useTranslations("admin.hosts");
+  const inputs = useAdminInputs();
+  const store = useStore();
+  const { applications } = useAdminData();
+  const mix = hostMix(inputs);
+  const avg = (values: readonly number[]) => (values.length ? values.reduce((n, v) => n + v, 0) / values.length : null);
+  const eurOr = (v: number | null) => (v === null ? "–" : formatEur(Math.round(v)));
+  const shareOr = (v: number | null) => (v === null ? "–" : share(v));
+  const value = avg(rows.map((r) => r.valuePerYear));
+  const fill = avg(rows.map((r) => r.fillRate));
+  const of = (tier: HostTier) => rows.filter((r) => r.tier === tier);
+  const month = inputs.today.slice(0, 7);
+  // New this month: hosts whose first real House was created this month.
+  const newThisMonth = rows.filter((r) => r.houses.map((h) => h.createdAt).toSorted()[0]?.startsWith(month)).length;
+  const tierLine = (list: readonly HostOverview[]) => t("d.valueFill", { value: eurOr(avg(list.map((r) => r.valuePerYear))), fill: shareOr(avg(list.map((r) => r.fillRate))) });
+  const housesLine = (list: readonly HostOverview[]) => t("d.houses", { houses: num(list.reduce((n, r) => n + r.houses.length, 0)), hubs: num(new Set(list.flatMap((r) => r.hubs)).size) });
+  const founding = rows.filter((r) => isFoundingHost(r.user));
+  const open = applications.filter((a) => a.status === "new" || a.status === "maybe");
+  const oldest = open.map((a) => a.createdAt).toSorted()[0];
+  const daysSince = (iso: string | undefined) => (iso ? Math.max(0, Math.round((Date.parse(`${inputs.today}T12:00:00Z`) - Date.parse(iso)) / 86_400_000)) : null);
+  const preparedStays = store.stays.filter((s) => s.claim);
+  const claimed = preparedStays.filter((s) => s.claim?.claimedBy || s.status !== "draft_unclaimed").length;
+  const byValue = rows.toSorted((a, b) => b.valuePerYear - a.valuePerYear);
+  const median = byValue.length ? byValue[Math.floor(byValue.length / 2)].valuePerYear : null;
+  const warn = (w: HostOverview["warnings"][number]) => rows.filter((r) => r.warnings.includes(w)).length;
+  const isNewHost = (r: HostOverview) => r.warnings.length === 0;
+  const anchorPending = rows.filter((r) => r.suggested === "anchor" && r.user.hostTier !== "anchor").length;
+  const tile = (key: "all" | "share" | "pro" | "anchor" | "founding" | "review" | "applications" | "prepared" | "value" | "fill" | "warnings" | "anchorTarget", shown: string, details: string[], tab: HostTab, sort?: HostSort): TileSpec => ({
+    key,
+    label: t(`${key}.label`),
+    info: key === "founding" ? t("founding.info", { limit: String(FOUNDING_HOST.limit) }) : t(`${key}.info`),
+    value: shown,
+    details,
+    onOpen: () => onOpen(tab, sort),
+  });
+  const tiles: TileSpec[] = [
+    tile("all", num(rows.length), [t("d.mix", { share: num(of("share").length), pro: num(of("pro").length), anchor: num(of("anchor").length) }), t("d.newMonth", { count: num(newThisMonth) })], "all"),
+    tile("share", num(of("share").length), [tierLine(of("share")), housesLine(of("share"))], "share"),
+    tile("pro", num(of("pro").length), [tierLine(of("pro")), housesLine(of("pro"))], "pro"),
+    tile("anchor", num(of("anchor").length), [t("d.followers", { count: compact(avg(of("anchor").map((r) => r.followers)) ?? 0) }), t("d.anchorPending", { count: num(anchorPending) })], "anchor"),
+    tile("founding", num(founding.length), [t("d.foundingFree", { free: num(Math.max(0, FOUNDING_HOST.limit - founding.length)), limit: num(FOUNDING_HOST.limit) }), tierLine(founding)], "founding"),
+    tile("review", num(review.length), [t("d.review", { fresh: num(review.filter(isNewHost).length), warned: num(review.length - review.filter(isNewHost).length) }), review[0] ? t("d.first", { name: review[0].user.name }) : t("d.none")], "review"),
+    tile("applications", num(open.length), [t("d.applications", { fresh: num(open.filter((a) => a.status === "new").length), question: num(open.filter((a) => a.status === "maybe").length) }), oldest ? t("d.oldest", { days: num(daysSince(oldest) ?? 0) }) : t("d.none")], "applications"),
+    tile("prepared", num(preparedStays.length), [t("d.prepared", { claimed: num(claimed), open: num(preparedStays.length - claimed) }), preparedStays[0] ? t("d.latest", { title: preparedStays.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))[0].title }) : t("d.none")], "prepared"),
+    tile("value", eurOr(value), [byValue[0] ? t("d.top", { name: byValue[0].user.name, value: formatEur(byValue[0].valuePerYear) }) : t("d.none"), t("d.median", { value: eurOr(median) })], "all", "value"),
+    tile("fill", shareOr(fill), [t("d.fillHigh", { count: num(rows.filter((r) => r.fillRate >= 0.7).length) }), t("d.fillLow", { count: num(rows.filter((r) => r.fillRate < 0.5).length) })], "all"),
+    tile("warnings", num(rows.filter((r) => r.warnings.length > 0).length), [t("d.warnA", { slow: num(warn("slowAnswers")), low: num(warn("lowFill")) }), t("d.warnB", { reported: num(warn("reported")), safety: num(warn("safety")) })], "review"),
+    tile("anchorTarget", t("anchorTargetValue", { anchors: String(mix.anchors), min: String(mix.target.min), max: String(mix.target.max) }), [t("d.anchorRule"), t("d.anchorPending", { count: num(anchorPending) })], "anchor"),
+  ];
+  return <TileBoard label={tHosts("title")} columns={4} rows={chunkRows(tiles, "platform", 4)} />;
+}
+
 /** The columns right in a host's row: tier · Houses · fill rate · value per year · the signal dot (a warning). */
 const HOST_COLS = "grid grid-cols-[52px_52px_52px_76px_8px] items-center gap-x-3.5 text-right";
 function HostColumns({ row }: { row: HostOverview }) {
@@ -181,8 +267,8 @@ function HostColumns({ row }: { row: HostOverview }) {
       <span className="truncate text-left text-small text-muted">{tTier(row.tier)}</span>
       <span className="text-small tabular-nums text-ink">{row.houses.length}</span>
       <span className="flex items-center gap-2 text-small tabular-nums text-ink">
-        <ProgressBar ratio={row.fillRate ?? 0} label={share(row.fillRate)} className="w-10 shrink-0" />
-        {share(row.fillRate)}
+        <ProgressBar ratio={row.fillRate ?? 0} label={share(row.fillRate)} className="w-8 shrink-0" />
+        <span className="whitespace-nowrap">{share(row.fillRate)}</span>
       </span>
       <span className="text-small tabular-nums text-ink">{formatEur(row.valuePerYear)}</span>
       <span className="flex justify-end">
@@ -226,6 +312,13 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
   const actions = useAdminActions();
   const showToast = useToast();
   const { user } = row;
+  const first = user.name.split(" ")[0];
+  const [writing, setWriting] = useState(false);
+  const [message, setMessage] = useState("");
+  // The tier as one line: the confirmed one (or "noch nicht bestätigt"), and – when the rules suggest another – the suggestion with why.
+  const current = user.hostTier ?? null;
+  const differs = current !== row.suggested;
+  const reason = row.suggestedBy === "followers" ? tTier("reason.followers", { count: num(row.followers) }) : tTier(`reason.${row.suggestedBy}`);
   return (
     <article data-host-detail>
       <BackToList onBack={onBack} />
@@ -253,15 +346,21 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
         <Followers count={row.followers} />
       </div>
 
-      <section className="mt-(--adm-inner)">
-        <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("tier")}</p>
-        <span className="flex flex-wrap items-center gap-2">
-          <TierPicker tier={row.tier} manual={row.manual} name={user.name} onChange={(next) => actions.setHostTier(user, next)} />
-          {!row.manual && (
-            <Button size="sm" variant="tertiary" onClick={() => actions.setHostTier(user, row.tier)}>
-              {tTier("confirm")}
-            </Button>
+      <section data-host-tier className="mt-(--adm-inner) flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-body text-ink">
+          <span className="inline-flex items-center gap-1 font-semibold">
+            {current ? tTier("current", { tier: tTier(current) }) : tTier("unconfirmed")}
+            <InfoTip text={tTier("explain")} />
+          </span>
+          {differs && <span className="text-small text-muted">{tTier("proposal", { tier: tTier(row.suggested), reason })}</span>}
+        </p>
+        <span className="flex shrink-0 items-center gap-2">
+          {differs && (
+            <AdminButton variant="primary" onClick={() => actions.setHostTier(user, row.suggested)}>
+              {tTier("confirmAs", { tier: tTier(row.suggested) })}
+            </AdminButton>
           )}
+          <AdminSort label={tTier("of", { name: user.name })} trigger={tTier("change")} value={row.tier} onChange={(next: HostTier) => next !== current && actions.setHostTier(user, next)} options={HOST_TIERS.map((value) => ({ value, label: tTier(value) }))} />
         </span>
       </section>
 
@@ -290,15 +389,41 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
       )}
 
       <div className="mt-(--adm-inner) flex flex-wrap gap-2">
-        <Link href={profileHref(user.id)} className={buttonStyles("secondary", "sm")}>
+        <AdminButton onClick={() => (setMessage(`Hi ${first}, `), setWriting(true))}>{t("message")}</AdminButton>
+        <a href={profileHref(user.id)} target="_blank" rel="noreferrer noopener" className={adminButtonStyles("secondary")}>
           {t("openProfile")}
-        </Link>
+        </a>
         {row.warnings.length > 0 && (
-          <Button size="sm" variant="secondary" onClick={() => (actions.remindHost({ title: row.houses[0]?.title ?? "" }, user.name), showToast(tToday("toast.remindHost", { name: user.name })))}>
+          <AdminButton variant="secondary" onClick={() => (actions.remindHost({ title: row.houses[0]?.title ?? "" }, user.name), showToast(tToday("toast.remindHost", { name: user.name })))}>
             {tToday("action.remind")}
-          </Button>
+          </AdminButton>
         )}
       </div>
+
+      <Sheet open={writing} onClose={() => setWriting(false)} title={t("messageTitle", { name: first })}>
+        <div className="flex flex-col gap-(--adm-inner)" data-host-message>
+          <p className="text-small text-muted">
+            <span className="text-eyebrow uppercase text-(--adm-label)">{t("messageTo")}</span> <span className="text-ink">{t("messageFrom", { name: user.name })}</span>
+          </p>
+          <label className="flex flex-col gap-1">
+            <span className="text-eyebrow uppercase text-(--adm-label)">{t("messageText")}</span>
+            <Textarea rows={6} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </label>
+          <AdminDialogFooter onCancel={() => setWriting(false)}>
+            <AdminButton
+              variant="primary"
+              disabled={message.trim().length < 8}
+              onClick={() => {
+                actions.messageHost(user, message.trim());
+                showToast(t("messageSent", { name: first }));
+                setWriting(false);
+              }}
+            >
+              {t("send")}
+            </AdminButton>
+          </AdminDialogFooter>
+        </div>
+      </Sheet>
 
       <section className="mt-(--adm-section)">
         <p className="mb-2 text-eyebrow uppercase text-(--adm-label)">{t("housesList")}</p>
@@ -322,7 +447,7 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
 const STATUSES: readonly ApplicationStatus[] = ["new", "maybe", "yes", "no"];
 
 /**
- * /admin/applications (Launch › Bewerbungen): list left, detail right (AdminListDetail). Tabs Neu · Rückfrage · Angenommen · Abgelehnt, the
+ * Hosts › Bewerbungen (/admin/hosts?tab=applications, AdminNested; /admin/applications leitet dorthin): list left, detail right (AdminListDetail). Tabs Neu · Rückfrage · Angenommen · Abgelehnt, the
  * tier filter under them. The detail: everything the applicant sent, the tier, the linked Marketing contact and account, and the actions
  * Annehmen · Ablehnen · Rückfrage (with a template) – each logged and mailed (lib/admin/actions.ts decide). ?app= opens one.
  */
@@ -477,15 +602,15 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
       {application.pitch && row(t("pitch"), `„${application.pitch}“`)}
       {application.question && <p className="text-small text-muted">{t("questionSent", { date: f.day(application.question.at) })}: „{application.question.text}“</p>}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={application.status === "yes" ? "primary" : "secondary"} aria-pressed={application.status === "yes"} onClick={() => decide(application, "yes")}>
+        <AdminButton variant={application.status === "yes" ? "primary" : "secondary"} aria-pressed={application.status === "yes"} onClick={() => decide(application, "yes")}>
           {t("yes")}
-        </Button>
-        <Button size="sm" variant="secondary" aria-pressed={asking} onClick={() => setAsking((x) => !x)}>
+        </AdminButton>
+        <AdminButton variant="secondary" aria-pressed={asking} onClick={() => setAsking((x) => !x)}>
           {t("maybe")}
-        </Button>
-        <Button size="sm" variant="tertiary" aria-pressed={application.status === "no"} onClick={() => decide(application, "no")} className={cn(application.status === "no" && "underline")}>
+        </AdminButton>
+        <AdminButton variant="secondary" aria-pressed={application.status === "no"} onClick={() => decide(application, "no")} className={cn(application.status === "no" && "bg-ink/10")}>
           {t("no")}
-        </Button>
+        </AdminButton>
       </div>
       {asking && (
         <div className="flex flex-col gap-2">
@@ -493,8 +618,7 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
             {t("questionLabel")}
           </label>
           <Textarea id={`q-${application.id}`} value={question} onChange={(e) => setQuestion(e.target.value)} rows={4} maxLength={600} />
-          <Button
-            size="sm"
+          <AdminButton
             className="self-start"
             disabled={!question.trim()}
             onClick={() => {
@@ -503,7 +627,7 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
             }}
           >
             {t("questionSend")}
-          </Button>
+          </AdminButton>
         </div>
       )}
       <p className="text-small text-muted">{t("mailHint")}</p>
@@ -639,11 +763,11 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
                 {t("liveBlocked")}
               </p>
             )}
-            <ModalFooter onCancel={() => setPending(null)} className="mt-(--adm-inner)">
-              <Button variant="primary" disabled={blockedLive} onClick={() => changePhase(pending)}>
+            <AdminDialogFooter onCancel={() => setPending(null)}>
+              <AdminButton variant="primary" disabled={blockedLive} onClick={() => changePhase(pending)}>
                 {t("confirm", { phase: t(`phases.${pending}`) })}
-              </Button>
-            </ModalFooter>
+              </AdminButton>
+            </AdminDialogFooter>
           </>
         )}
       </Sheet>

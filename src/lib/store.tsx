@@ -129,7 +129,7 @@ interface StoreState {
   livedWith: LivedWith[];
   /** Hosts' invite links (/invite/[token]) – kept in this browser across reloads, so a copied link still opens */
   houseInvites: HouseInvite[];
-  /** "Something went wrong" during a stay – /admin/posteingang (mock) */
+  /** "Something went wrong" during a stay – /admin/aufgaben (mock) */
   supportCases: SupportCase[];
   /** "I'm in for …" signals (lib/inFor.ts) – running and run out */
   inFor: InFor[];
@@ -397,7 +397,7 @@ interface StoreActions {
   deleteDraft: (stayId: string) => void;
   /** Takes back the current user's open request (to join or for the waitlist); the host is told. */
   withdrawRequest: (stayId: string) => void;
-  /** "Something went wrong": a case for support (mock: /admin/posteingang). Returns its number. */
+  /** "Something went wrong": a case for support (mock: /admin/aufgaben). Returns its number. */
   addSupportCase: (input: Pick<SupportCase, "stayId" | "category" | "text" | "photo">) => string;
   /** A full House: asks the host for a place on its waitlist (optional message). Accept/decline as with requests. */
   requestWaitlist: (stayId: string, message: string) => void;

@@ -11,10 +11,11 @@ import { dec, eur, num, signed, signedPct } from "@/lib/i18n/adminFormat";
 import type { Status } from "@/lib/admin/metrics";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { AdminTooltipBox } from "./AdminTooltip";
+import { StatusDot } from "./AdminCharts";
 
 /** The ⓘ's sentence on touch: this wide at most. */
-const TIP_WIDTH = 320;
-import { StatusDot } from "./AdminCharts";
+const TIP_WIDTH = 440;
 import { cn } from "@/lib/utils";
 
 const TREND_TEXT = { better: "text-adm-good", worse: "text-adm-critical", same: "text-muted", neutral: "text-ink" } as const;
@@ -23,7 +24,7 @@ const TREND_TEXT = { better: "text-adm-good", worse: "text-adm-critical", same: 
  * "▲ +3 (+8,6 %)" · "▼ −300 € (−6,4 %)" · "▲ +3 Pkt." · "±0" – coloured by better/worse; `against` follows ("ggü. Oktober"). With `target`
  * change and target share one line: "▲ +3 · Ziel 44" (the target with its status dot).
  */
-export function ChangeLine({ change, against, target, className }: { change: Change | null; against?: string; target?: { text: string; status: Status | null }; className?: string }) {
+export function ChangeLine({ change, against, target, className, short = false }: { change: Change | null; against?: string; target?: { text: string; status: Status | null }; className?: string; /** Tight places (the overview's tiles): only the relative change ("▲ +3,4 %"), points stay points, without a relative value the amount */ short?: boolean }) {
   const t = useTranslations("admin.cockpit.change");
   const goal = target && (
     <span className="text-muted">
@@ -45,7 +46,9 @@ export function ChangeLine({ change, against, target, className }: { change: Cha
       ? t("same")
       : change.unit === "percent"
         ? t("points", { value: signed(change.delta) })
-        : `${signed(change.delta, change.unit === "eur" ? eur : change.unit === "ratio" ? dec : num)}${change.relative !== null ? ` (${signedPct(change.relative)})` : ""}`;
+        : short && change.relative !== null
+          ? signedPct(change.relative)
+          : `${signed(change.delta, change.unit === "eur" ? eur : change.unit === "ratio" ? dec : num)}${change.relative !== null ? ` (${signedPct(change.relative)})` : ""}`;
   return (
     <span className={cn("text-small", className)}>
       <span className={cn("font-semibold tabular-nums", TREND_TEXT[change.trend])}>
@@ -63,7 +66,7 @@ export function ChangeLine({ change, against, target, className }: { change: Cha
 export function InfoTip({ text }: { text: string }) {
   // Hover (mouse): the one Tooltip shows the aria-label. Touch has no hover: a tap opens the sentence in the tooltip's glass under the ⓘ
   // (kept inside the window), a tap anywhere or 6s later closes it.
-  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
+  const [at, setAt] = useState<{ top: number; left: number; arrow: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!at) return;
@@ -90,7 +93,8 @@ export function InfoTip({ text }: { text: string }) {
           if (!window.matchMedia("(pointer: coarse)").matches) return;
           const r = e.currentTarget.getBoundingClientRect();
           const width = Math.min(TIP_WIDTH, window.innerWidth - 32);
-          setAt((open) => (open ? null : { top: r.bottom + 8, left: Math.max(16, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - 16 - width)) }));
+          const left = Math.max(16, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - 16 - width));
+          setAt((open) => (open ? null : { top: r.bottom + 10, left, arrow: Math.min(Math.max(16, r.left + r.width / 2 - left), width - 16) }));
         }}
         className="relative z-10 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-ink/5 hover:text-ink"
       >
@@ -98,9 +102,9 @@ export function InfoTip({ text }: { text: string }) {
       </button>
       {at &&
         createPortal(
-          <span role="tooltip" data-info-tip style={{ top: at.top, left: at.left, width: `min(${TIP_WIDTH}px, calc(100vw - 32px))` }} className="tooltip-box animate-fade-in fixed z-80 normal-case">
-            {text}
-          </span>,
+          <AdminTooltipBox interactive arrow={{ x: at.arrow, below: true }} className="animate-fade-in fixed z-80" style={{ top: at.top, left: at.left, width: `min(${TIP_WIDTH}px, calc(100vw - 32px))` }}>
+            <span data-info-tip>{text}</span>
+          </AdminTooltipBox>,
           document.body,
         )}
     </>
@@ -160,31 +164,37 @@ export function MetricCard({
   href,
   openLabel,
   footer,
+  compact = false,
 }: {
   label: string;
   info: string;
   value: ReactNode;
-  change: Change | null;
+  /** Leave out for a number without a comparison (no "kein Vergleichswert" line) */
+  change?: Change | null;
   target?: { text: string; status: Status | null };
-  accent: "primary" | "chart-2";
+  accent: "primary" | "chart-2" | "chart-3";
   href?: string;
   openLabel?: string;
   footer?: ReactNode;
+  /** The overview's three rows: less padding and space, so the chart below keeps its height */
+  compact?: boolean;
 }) {
   return (
-    <div data-metric-card className="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink/8 bg-(--adm-block) px-4 pt-3.5 pb-3 transition-colors duration-150 has-[[data-card-link]:hover]:bg-(--adm-block-hover)">
-      <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5", accent === "primary" ? "bg-adm-chart-primary" : "bg-adm-chart-2")} />
+    <div data-metric-card className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink/8 bg-(--adm-block) px-4", compact ? "pt-2.5 pb-2" : "pt-3.5 pb-3", " transition-colors duration-150 has-[[data-card-link]:hover]:bg-(--adm-block-hover)")}>
+      <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5", accent === "primary" ? "bg-adm-chart-primary" : accent === "chart-2" ? "bg-adm-chart-2" : "bg-adm-chart-3")} />
       {href && <Link href={href} data-card-link aria-label={openLabel ?? label} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />}
       <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
         {label}
         {href && <span aria-hidden> →</span>}
         <InfoTip text={info} />
       </dt>
-      <dd className="mt-1 text-h1 tabular-nums text-ink">{value}</dd>
-      <dd className="mt-1">
-        <ChangeLine change={change} target={target} className="block" />
-      </dd>
-      {footer && <dd className="mt-auto pt-3 text-small text-muted">{footer}</dd>}
+      <dd className={cn(compact ? "mt-0.5" : "mt-1", "text-h1 tabular-nums text-ink")}>{value}</dd>
+      {(change !== undefined || target) && (
+        <dd className={compact ? "mt-0.5" : "mt-1"}>
+          <ChangeLine change={change ?? null} target={target} className="block" />
+        </dd>
+      )}
+      {footer && <dd className={cn("text-small text-muted", compact ? "mt-0.5" : "mt-auto pt-3")}>{footer}</dd>}
     </div>
   );
 }

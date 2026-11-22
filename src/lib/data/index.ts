@@ -51,6 +51,7 @@ export const getHouseOutcomes = adapter.getHouseOutcomes;
 export const getPaymentIssues = adapter.getPaymentIssues;
 export const getLedger = adapter.getLedger;
 export const getBankBalance = adapter.getBankBalance;
+export const getLiveVisitors = adapter.getLiveVisitors;
 export const getHostTaxData = adapter.getHostTaxData;
 /** A photo's { tint, lum } for the card's darkening; without a measure: tint #1A1614, lum .5. */
 export const photoMetaOf = (src: string): PhotoMeta => adapter.getPhotoMeta(src) ?? { tint: "#1a1614", lum: 0.5 };

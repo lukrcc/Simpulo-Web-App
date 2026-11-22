@@ -1,11 +1,11 @@
 "use client";
+import { adminButtonStyles } from "./AdminButton";
 
 import { Copy, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { buttonStyles } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { cardClass } from "@/components/ui/Card";
 import { Img } from "@/components/ui/Img";
@@ -50,7 +50,7 @@ export function AdminHouses() {
 /** "House vorbereiten" – the one action of the prepared Houses. */
 export function PrepareButton({ label }: { label: string }) {
   return (
-    <Link href="/admin/houses/new" className={buttonStyles("primary", "md")}>
+    <Link href="/admin/houses/new" className={adminButtonStyles("primary")}>
       <Plus className="size-4" aria-hidden />
       {label}
     </Link>
@@ -107,12 +107,12 @@ function PreparedRow({ stay }: { stay: Stay }) {
       </div>
       <div className="flex gap-2">
         {!claim.claimedAt && (
-          <button type="button" onClick={() => void copy(claim.token)} className={buttonStyles("secondary", "md")}>
+          <button type="button" onClick={() => void copy(claim.token)} className={adminButtonStyles("secondary")}>
             <Copy className="size-3.5" aria-hidden />
             {t("copyLink")}
           </button>
         )}
-        <Link href={`/claim/${claim.token}`} className={buttonStyles("tertiary", "md")}>
+        <Link href={`/claim/${claim.token}`} className={adminButtonStyles("secondary")}>
           {t("open")}
         </Link>
       </div>
@@ -188,11 +188,11 @@ export function AdminNewHouse() {
         <section className={cn("max-w-2xl", cardClass)}>
           <p className="break-all rounded-xl bg-bg px-4 py-3 font-mono text-body">{link}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => void copy(created.token)} className={buttonStyles("secondary", "md")}>
+            <button type="button" onClick={() => void copy(created.token)} className={adminButtonStyles("secondary")}>
               <Copy className="size-3.5" aria-hidden />
               {t("copyLink")}
             </button>
-            <Link href={`/claim/${created.token}`} className={buttonStyles("secondary", "md")}>
+            <Link href={`/claim/${created.token}`} className={adminButtonStyles("secondary")}>
               {t("open")}
             </Link>
             <button
@@ -202,11 +202,11 @@ export function AdminNewHouse() {
                 setTried(false);
                 setCreated(null);
               }}
-              className={buttonStyles("tertiary", "md")}
+              className={adminButtonStyles("secondary")}
             >
               {t("another")}
             </button>
-            <Link href="/admin/houses/prepared" className={buttonStyles("tertiary", "md")}>
+            <Link href="/admin/houses/prepared" className={adminButtonStyles("secondary")}>
               {t("viewAll")}
             </Link>
           </div>
@@ -270,7 +270,7 @@ export function AdminNewHouse() {
           />
         </FormField>
         {text("sourceLink", { type: "url", placeholder: t("fields.sourceLinkPlaceholder") })}
-        <button type="submit" className={buttonStyles("primary", "md", "w-full sm:w-auto")}>
+        <button type="submit" className={adminButtonStyles("primary", "w-full sm:w-auto")}>
           {t("create")}
         </button>
       </form>

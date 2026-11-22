@@ -1,10 +1,10 @@
 "use client";
 
-import { Compass, FileUser, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
+import { Compass, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
@@ -14,79 +14,88 @@ import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
 import type { Status } from "@/lib/admin/metrics";
 import { StatusDot } from "./AdminCharts";
-import { AdminPageHeader } from "./AdminLayout";
+import { AdminPageHeader, PeriodTabs, TabLevelContext } from "./AdminLayout";
+import { AdminTooltip } from "./AdminTooltip";
+import { AdminThemeSwitch, useAdminThemeLabels } from "./AdminThemeSwitch";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "zeitplan" | "money" | "platform" | "waitlist" | "applications" | "marketing";
+type AreaKey = "cockpit" | "inbox" | "zeitplan" | "money" | "growth" | "topics" | "houses" | "hosts" | "marketing" | "data" | "labs" | "vision" | "funding" | "platform";
 interface Area {
   key: AreaKey;
   href: string;
   icon: LucideIcon;
-  /** Pages without their own entry that belong here (they mark this entry): Money under the overview, Traffic under growth, Log under System */
+  /** Pages without their own entry that belong here (they mark this entry): Traffic under Wachstum, Log under System */
   also?: readonly string[];
 }
 
 /**
- * The side list in four groups, in this order (BETRIEB: Posteingang · Zeitplan · Geld · System): MARKT Übersicht · Houses · Hosts · WACHSTUM Wachstum · Analyse · Algorithmus · Labore · Vision ·
- * Finanzierung · BETRIEB Posteingang (count) · Geld · System · LAUNCH Warteliste · Bewerbungen.
+ * The side list by question (CLAUDE.md "Admin-Gliederung"): HEUTE – what to do now (Übersicht · Aufgaben with its count · Zeitplan) ·
+ * ZAHLEN – how it's going (Geld · Wachstum · Analyse) · PLATTFORM – what's on Simpulo (Houses · Hosts) · PLANEN – where it's going
+ * (Marketing · Algorithmus · Labore · Vision · Finanzierung); System small under it, without a group. Warteliste is a tab of Wachstum,
+ * Bewerbungen a tab of Hosts.
  */
-const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas: readonly Area[] }[] = [
+const GROUPS: readonly { key: "today" | "numbers" | "platform" | "plan"; areas: readonly Area[] }[] = [
   {
-    key: "market",
+    key: "today",
     areas: [
       { key: "cockpit", href: "/admin", icon: Gauge },
+      { key: "inbox", href: "/admin/aufgaben", icon: Inbox },
+      { key: "zeitplan", href: "/admin/zeitplan", icon: CalendarRange },
+    ],
+  },
+  {
+    key: "numbers",
+    areas: [
+      { key: "money", href: "/admin/money", icon: Wallet },
+      { key: "growth", href: "/admin/growth", icon: TrendingUp, also: ["/admin/traffic"] },
+      { key: "topics", href: "/admin/topics", icon: Tags },
+    ],
+  },
+  {
+    key: "platform",
+    areas: [
       { key: "houses", href: "/admin/houses", icon: Home },
       { key: "hosts", href: "/admin/hosts", icon: Users },
     ],
   },
   {
-    key: "growth",
+    key: "plan",
     areas: [
-      { key: "growth", href: "/admin/growth", icon: TrendingUp, also: ["/admin/traffic"] },
-      { key: "topics", href: "/admin/topics", icon: Tags },
+      { key: "marketing", href: "/admin/marketing", icon: Megaphone },
       { key: "data", href: "/admin/data", icon: Network },
       { key: "labs", href: "/admin/labore", icon: FlaskConical },
       { key: "vision", href: "/admin/vision", icon: Compass },
-      { key: "funding", href: "/admin/funding", icon: Landmark },
-    ],
-  },
-  {
-    key: "operate",
-    areas: [
-      { key: "inbox", href: "/admin/posteingang", icon: Inbox },
-      { key: "zeitplan", href: "/admin/zeitplan", icon: CalendarRange },
-      { key: "money", href: "/admin/money", icon: Wallet },
-      { key: "platform", href: "/admin/platform", icon: SlidersHorizontal, also: ["/admin/log"] },
-    ],
-  },
-  {
-    key: "launch",
-    areas: [
-      { key: "waitlist", href: "/admin/waitlist", icon: ListOrdered },
-      { key: "applications", href: "/admin/applications", icon: FileUser },
-      { key: "marketing", href: "/admin/marketing", icon: Megaphone },
+      { key: "funding", href: "/admin/funding", icon: Landmark, also: ["/admin/market-cap"] },
     ],
   },
 ];
-const AREAS: readonly Area[] = GROUPS.flatMap((g) => g.areas);
+/** System: under the groups, small, without a heading (Log belongs to it). */
+const SYSTEM: Area = { key: "platform", href: "/admin/platform", icon: SlidersHorizontal, also: ["/admin/log"] };
+const AREAS: readonly Area[] = [...GROUPS.flatMap((g) => g.areas), SYSTEM];
 
 /**
- * Area colours (styles/admin-tokens.css, never status, never dots): Markt → clay, Wachstum → plum, Betrieb → slate, Launch → neutral grey.
- * Whole class names, so Tailwind finds them.
+ * Group colours (styles/admin-tokens.css --adm-group-*, never status, never dots): Heute blue, Zahlen green, Plattform lilac, Planen orange;
+ * System neutral. Whole class names, so Tailwind finds them. The overview's tiles are tinted in their row's group (AREA_TILE).
  */
-export type AreaColor = "launch" | "market" | "growth" | "operate";
-const GROUP_COLOR: Record<(typeof GROUPS)[number]["key"], AreaColor> = { market: "market", growth: "growth", operate: "operate", launch: "launch" };
-export const AREA_TEXT: Record<AreaColor, string> = { launch: "text-adm-area-launch", market: "text-adm-area-market", growth: "text-adm-area-growth", operate: "text-adm-area-operate" };
-/** The area headings in the side list: a block over the list's full width, the area colour 16 % behind, the words in the area colour. */
+export type AreaColor = (typeof GROUPS)[number]["key"];
+export const AREA_TEXT: Record<AreaColor, string> = { today: "text-adm-group-today", numbers: "text-adm-group-numbers", platform: "text-adm-group-platform", plan: "text-adm-group-plan" };
+/** The group headings in the side list: a block over the list's full width, the colour 16 % behind, the words in the colour. */
 const AREA_CHIP: Record<AreaColor, string> = {
-  market: "bg-adm-area-market-chip text-adm-area-market",
-  growth: "bg-adm-area-growth-chip text-adm-area-growth",
-  operate: "bg-adm-area-operate-chip text-adm-area-operate",
-  launch: "bg-adm-area-launch-chip text-adm-area-launch",
+  today: "bg-adm-group-today-chip text-adm-group-today",
+  numbers: "bg-adm-group-numbers-chip text-adm-group-numbers",
+  platform: "bg-adm-group-platform-chip text-adm-group-platform",
+  plan: "bg-adm-group-plan-chip text-adm-group-plan",
 };
-export const AREA_BG: Record<AreaColor, string> = { launch: "bg-adm-area-launch", market: "bg-adm-area-market", growth: "bg-adm-area-growth", operate: "bg-adm-area-operate" };
+export const AREA_BG: Record<AreaColor, string> = { today: "bg-adm-group-today", numbers: "bg-adm-group-numbers", platform: "bg-adm-group-platform", plan: "bg-adm-group-plan" };
+/** Tiles: the card surface (--card) tinted in its group (≈ 7–9 %) with an edge (≈ 28–32 %); hover a little stronger. */
+export const AREA_TILE: Record<AreaColor, string> = {
+  today: "[background:linear-gradient(var(--adm-group-today-tint),var(--adm-group-today-tint)),var(--card)] border-(--adm-group-today-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-today-chip),var(--adm-group-today-chip)),var(--card)]",
+  numbers: "[background:linear-gradient(var(--adm-group-numbers-tint),var(--adm-group-numbers-tint)),var(--card)] border-(--adm-group-numbers-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-numbers-chip),var(--adm-group-numbers-chip)),var(--card)]",
+  platform: "[background:linear-gradient(var(--adm-group-platform-tint),var(--adm-group-platform-tint)),var(--card)] border-(--adm-group-platform-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-platform-chip),var(--adm-group-platform-chip)),var(--card)]",
+  plan: "[background:linear-gradient(var(--adm-group-plan-tint),var(--adm-group-plan-tint)),var(--card)] border-(--adm-group-plan-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-plan-chip),var(--adm-group-plan-chip)),var(--card)]",
+};
 
 /**
  * The entry a path belongs to: the longest href (or `also` path) it is or starts with – "/admin", the overview, only for itself; prepared
@@ -121,6 +130,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale={"de" as Locale} messages={adminMessages} timeZone="UTC">
       <AdminFrameInner>{children}</AdminFrameInner>
+      {/* The admin's one tooltip – large, cream (the app's Tooltip stays out on admin pages). */}
+      <AdminTooltip />
     </NextIntlClientProvider>
   );
 }
@@ -155,7 +166,7 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
 
   const active = activeHref(pathname);
   // What needs you, as an ember count at the entry's right – all from the one task list (taskCounts), so they agree with "Braucht dich".
-  const needs: Partial<Record<AreaKey, number>> = { inbox: inboxOpen, applications: counts.applications };
+  const needs: Partial<Record<AreaKey, number>> = { inbox: inboxOpen };
   const item = (a: Area) => ({
     key: a.key,
     href: a.href,
@@ -171,7 +182,9 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   return (
     // .admin-scope: the admin colours (styles/admin-tokens.css) exist only in here.
     // From 1024px at least the window's height under the header, and over the main area's bottom padding: the side list is never pushed up.
-    <div className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)] lg:pl-4">
+    // Light/dark: the product's own setting (html[data-theme], lib/theme.ts) – the admin has no look of its own. data-admin-group: the active
+    // page's group – its colour drives the capsules' active state, focus rings and the tiles (admin-tokens.css).
+    <div data-admin-group={GROUPS.find((g) => g.areas.some((a) => a.href === active))?.key ?? "system"} className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)] lg:pl-4">
       {/* The side list fills the height: entries --sidebar-item-h (from the window's height), the active one white 8 %; before each area
           capsule 0.8 × an entry. */}
       {/* Never scrolls (overflow hidden): the rows follow the window's height; a very flat window folds the other areas (AdminSideList fit). */}
@@ -249,7 +262,7 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
   const list = (fold: boolean) =>
     GROUPS.map((group, i) => {
       const shown = !fold || group.key === open;
-      const heading = cn("mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[GROUP_COLOR[group.key]]);
+      const heading = cn("mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[group.key]);
       const waiting = group.areas.reduce((sum, a) => sum + (needs[a.key] ?? 0), 0);
       return (
         <div key={group.key} className={cn(i > 0 && "mt-(--sidebar-gap)")}>
@@ -261,17 +274,36 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
           ) : (
             <p className={heading}>{t(`navGroup.${group.key}`)}</p>
           )}
-          {shown && <SideNav compact iconClass={AREA_TEXT[GROUP_COLOR[group.key]]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
+          {shown && <SideNav compact iconClass={AREA_TEXT[group.key]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
         </div>
       );
     });
-  if (!fit) return <>{list(false)}</>;
+  // System: small, under the groups, without a heading.
+  const themeLabels = useAdminThemeLabels();
+  // System: small, without a heading – and in the same row, right, the appearance (System · Hell · Dunkel – the product's one setting).
+  const system = (
+    <div className="mt-(--sidebar-gap) flex items-center gap-2" data-admin-system>
+      <div className="min-w-0 flex-1 [&_a]:text-small [&_a]:text-ink/60">
+        <SideNav compact iconClass="text-ink/45" label={t("nav.platform")} items={[item(SYSTEM)]} />
+      </div>
+      <AdminThemeSwitch labels={themeLabels} />
+    </div>
+  );
+  if (!fit)
+    return (
+      <>
+        {list(false)}
+        {system}
+      </>
+    );
   return (
     <div ref={box} className="relative h-full overflow-hidden">
       <div aria-hidden inert ref={probe} className="pointer-events-none invisible absolute inset-x-0 top-0">
         {list(false)}
+        {system}
       </div>
       {list(folded)}
+      {system}
     </div>
   );
 }
@@ -289,13 +321,81 @@ function NavBadge({ count, label, urgent = false }: { count: number; label: stri
  * An area's head (AdminPageHeader): no visible title (an sr-only <h1>; the side list shows where you are), the first row the click row –
  * tabs left, settings right (all AdminTabs capsules), the second level (AdminSubTabs) right under it. No further capsule rows on the page.
  */
-export function AdminShell({ title, badge, aside, tabs, subTabs, children }: { title: string; badge?: string; /** The controls, right in the head's one row */ aside?: ReactNode; /** The tabs, left in that row */ tabs?: ReactNode; /** The second level (AdminSubTabs), right under the row */ subTabs?: ReactNode; children: ReactNode }) {
+export function AdminShell({
+  title,
+  badge,
+  aside,
+  tabs,
+  subTabs,
+  period = false,
+  children,
+}: {
+  title: string;
+  badge?: string;
+  /** The controls, right in the head's one row */
+  aside?: ReactNode;
+  /** The tabs, left in that row */
+  tabs?: ReactNode;
+  /** The second level (AdminSubTabs), right under the row */
+  subTabs?: ReactNode;
+  /**
+   * The admin's one period (Woche · Monat · Quartal · Jahr, lib/admin/period.ts) – the last control, top right; "center" centres it in the
+   * click row (Übersicht, over its tiles). Pages (or tabs) without a time reference leave it out.
+   */
+  period?: boolean | "center";
+  children: ReactNode;
+}) {
+  const nest = useContext(NestContext);
+  const controls = period === true ? (
+    <>
+      {aside}
+      <PeriodTabs />
+    </>
+  ) : (
+    aside
+  );
+  // Shown as a tab of another page: the host page's tabs on top; this page's own tabs, sub-tabs and controls in the second row.
+  if (nest)
+    return (
+      <>
+        <AdminPageHeader
+          title={title}
+          badge={badge}
+          tabs={nest.tabs}
+          controls={nest.controls}
+          subTabs={
+            tabs || subTabs || controls ? (
+              <TabLevelContext.Provider value="sub">
+                <div data-nested-row className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-3">
+                    {tabs}
+                    {subTabs}
+                  </div>
+                  {controls && <div className="flex shrink-0 flex-wrap items-center gap-(--adm-cap-gap)">{controls}</div>}
+                </div>
+              </TabLevelContext.Provider>
+            ) : undefined
+          }
+        />
+        {children}
+      </>
+    );
   return (
     <>
-      <AdminPageHeader title={title} badge={badge} tabs={tabs} controls={aside} subTabs={subTabs} />
+      <AdminPageHeader title={title} badge={badge} tabs={tabs} controls={controls} center={period === "center" ? <PeriodTabs /> : undefined} subTabs={subTabs} />
       {children}
     </>
   );
+}
+
+const NestContext = createContext<{ tabs: ReactNode; controls?: ReactNode } | null>(null);
+
+/**
+ * A whole admin page shown as one tab of another (Hosts › Bewerbungen, Wachstum › Warteliste): the outer page passes its tabs (and its
+ * controls); the inner page's AdminShell puts them on top and moves its own tabs and controls into the second row.
+ */
+export function AdminNested({ tabs, controls, children }: { tabs: ReactNode; controls?: ReactNode; children: ReactNode }) {
+  return <NestContext.Provider value={{ tabs, controls }}>{children}</NestContext.Provider>;
 }
 
 /** A section inside an area: a short noun as its heading (12px caps, labels 45 %) over its content, 40px between sections (--adm-section). */
@@ -361,7 +461,7 @@ function PhoneNav({ active, item }: { active: string | undefined; item: (a: Area
             aria-current={g.key === group.key ? "true" : undefined}
             className={cn(
               "flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-nav-group uppercase",
-              g.key === group.key ? AREA_CHIP[GROUP_COLOR[g.key]] : "text-ink/60",
+              g.key === group.key ? AREA_CHIP[g.key] : "text-ink/60",
             )}
           >
             {t(`navGroup.${g.key}`)}

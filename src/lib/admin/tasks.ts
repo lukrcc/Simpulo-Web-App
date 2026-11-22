@@ -1,15 +1,16 @@
-// Admin › Heute ("Was ist heute zu tun?"): ONE list of what needs doing, from every source – open safety tickets · failed payments · tax
-// deadlines in the next 7 days ·
-// Houses at risk · new host applications (pre-launch and beta only) · host warnings · the other support tickets. In that order (safety,
-// money, Houses, applications, hosts, support), within a kind the oldest first. A task marked done is gone; one put off ("Später") comes
-// back tomorrow (AdminData.taskStates). Pure: the components render it, lib/admin/actions.ts changes it (and logs).
+// Admin › Aufgaben – the ONE place where something needs doing (CLAUDE.md "Handeln nur über Aufgaben"): reports and appeals · safety
+// tickets · failed payments · tax deadlines in the next 7 days · Houses that need help (with their recommended lever) · new host
+// applications · anchor suggestions for hosts · host warnings · partner steps · the other support tickets. In that order, within a kind the
+// oldest first. A task marked done is gone; one put off ("Später") comes back tomorrow (AdminData.taskStates). Pure: the components render
+// it, lib/admin/actions.ts changes it (and logs).
 import type { MarketingPartner, PaymentIssue } from "@/lib/data";
 import type { HostApplication, ModerationNotice, Report, Stay, SupportTicket } from "@/lib/types";
 import { TAX_DEADLINES } from "@/config/admin";
 import { taxDeadlines, type TaxDeadline } from "./ledger";
-import { atRiskHouses, hostOverview, isOpenTicket, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
+import { hostOverview, hostRows, isOpenTicket, needsHelp, type HostRow, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
+import type { HouseLever } from "@/config/admin";
 
-export const TASK_KINDS = ["report", "appeal", "safety", "money", "deadline", "atRisk", "application", "hostWarning", "partnerStep", "support"] as const;
+export const TASK_KINDS = ["report", "appeal", "safety", "money", "deadline", "atRisk", "application", "anchor", "hostWarning", "partnerStep", "support"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 export type AdminTask =
@@ -19,7 +20,10 @@ export type AdminTask =
   | { id: string; kind: "safety" | "support"; createdAt: string; ticket: SupportTicket }
   | { id: string; kind: "money"; createdAt: string; issue: PaymentIssue; stay: Stay | undefined }
   | { id: string; kind: "deadline"; createdAt: string; deadline: TaxDeadline }
-  | { id: string; kind: "atRisk"; createdAt: string; stay: Stay; reasons: readonly RiskReason[] }
+  /** A House that needs help (Houses › Braucht Hilfe): its reasons and the recommended lever (one click in Aufgaben) */
+  | { id: string; kind: "atRisk"; createdAt: string; stay: Stay; reasons: readonly RiskReason[]; lever: HouseLever; daysToStart: number; missing: number }
+  /** The rules suggest Anchor for a host whose tier isn't Anchor yet (followers) – confirm or decline */
+  | { id: string; kind: "anchor"; createdAt: string; host: HostRow }
   | { id: string; kind: "application"; createdAt: string; application: HostApplication }
   | { id: string; kind: "hostWarning"; createdAt: string; host: HostOverview }
   | { id: string; kind: "partnerStep"; createdAt: string; partner: MarketingPartner };
@@ -37,12 +41,17 @@ function buildTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[],
     ...paymentIssues.map((issue): AdminTask => ({ id: `payment:${issue.id}`, kind: "money", createdAt: issue.at, issue, stay: inputs.stays.find((s) => s.id === issue.stayId) })),
     // A tax deadline shows up `showInTodayDays` (7) days before it (Geld › Steuern › Fristen).
     ...taxDeadlines(inputs.today, TAX_DEADLINES.showInTodayDays).map((deadline): AdminTask => ({ id: `deadline:${deadline.id}`, kind: "deadline", createdAt: deadline.date, deadline })),
-    // A House at risk is as old as it has been quiet (or today).
-    ...atRiskHouses(inputs).map(({ stay, reasons }): AdminTask => {
+    // A House that needs help (needsHelp: "✓ Erledigt" keeps it away for a few days) is as old as it has been quiet (or today).
+    ...needsHelp(inputs).map(({ stay, reasons, lever, daysToStart, missing }): AdminTask => {
       const quiet = reasons.find((r) => r.key === "quiet");
-      return { id: `house:${stay.id}`, kind: "atRisk", createdAt: daysBefore(inputs.today, quiet?.key === "quiet" ? quiet.days : 0), stay, reasons };
+      return { id: `house:${stay.id}`, kind: "atRisk", createdAt: daysBefore(inputs.today, quiet?.key === "quiet" ? quiet.days : 0), stay, reasons, lever, daysToStart, missing };
     }),
-    ...(inputs.phase === "live" ? [] : inputs.admin.applications.filter((a) => a.status === "new")).map((application): AdminTask => ({ id: `application:${application.id}`, kind: "application", createdAt: application.createdAt, application })),
+    // New applications – in every phase (Hosts › Bewerbungen).
+    ...inputs.admin.applications.filter((a) => a.status === "new").map((application): AdminTask => ({ id: `application:${application.id}`, kind: "application", createdAt: application.createdAt, application })),
+    // Anchor suggested by the rules (followers), not confirmed yet: confirm (tier Anchor) or decline (done – it stays as it is).
+    ...hostRows(inputs)
+      .filter((h) => h.suggested === "anchor" && h.user.hostTier !== "anchor")
+      .map((host): AdminTask => ({ id: `anchor:${host.user.id}`, kind: "anchor", createdAt: host.houses.map((x) => x.createdAt).toSorted()[0] ?? daysBefore(inputs.today, 0), host })),
     ...hostOverview(inputs)
       // A safety report on their House is already its own task.
       .filter((h) => h.warnings.some((w) => w !== "safety"))
@@ -62,6 +71,12 @@ const byKindThenAge = (a: AdminTask, b: AdminTask) => TASK_KINDS.indexOf(a.kind)
 export function adminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[]): AdminTask[] {
   const state = inputs.admin.taskStates;
   return buildTasks(inputs, paymentIssues, inputs.admin.tickets.filter(isOpenTicket)).filter((task) => !state[task.id]?.done && !(state[task.id]?.snoozedUntil && state[task.id]!.snoozedUntil! > inputs.today));
+}
+
+/** Aufgaben › "Später": the open tasks put off until after today (not done) – their own collapsible section under the list. */
+export function snoozedAdminTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[]): AdminTask[] {
+  const state = inputs.admin.taskStates;
+  return buildTasks(inputs, paymentIssues, inputs.admin.tickets.filter(isOpenTicket)).filter((task) => !state[task.id]?.done && Boolean(state[task.id]?.snoozedUntil && state[task.id]!.snoozedUntil! > inputs.today));
 }
 
 /** Posteingang › Erledigt: tasks marked done and the finished tickets (answered, closed, done – not merged duplicates), in the same order. */
@@ -91,11 +106,37 @@ export function taskCounts(tasks: readonly AdminTask[]) {
 /** "Braucht dich": one capsule per kind with open tasks, in the list's order (0 left out); in pre-launch and beta then the launch criteria. */
 export function needsYou(tasks: readonly AdminTask[], inputs: Pick<AdminInputs, "stays" | "admin" | "phase">): NeedsYou[] {
   const { byKind } = taskCounts(tasks);
-  const keyOf = { report: "safety", appeal: "safety", safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
+  const keyOf = { report: "safety", appeal: "safety", safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", anchor: "hostWarning", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
   const needs: NeedsYou[] = TASK_KINDS.filter((k) => byKind[k] > 0).map((k) => ({ key: keyOf[k], count: byKind[k] }));
   if (inputs.phase !== "live") {
     const { met, total } = launchCriteriaMet(inputs);
     if (met < total) needs.push({ key: "launch", count: total - met, met, total });
   }
   return needs;
+}
+
+/** Aufgaben's tabs (besides "Alle"): Houses · Hosts · Sicherheit · Geld · Fragen. */
+export type TaskArea = "houses" | "hosts" | "safety" | "money" | "questions";
+export const TASK_AREAS: readonly TaskArea[] = ["houses", "hosts", "safety", "money", "questions"];
+
+/** Which tab a task belongs to – also the hint "x offene Aufgaben → Aufgaben" on Houses and Hosts. */
+export function taskArea(task: AdminTask): TaskArea {
+  switch (task.kind) {
+    case "report":
+    case "appeal":
+    case "safety":
+      return "safety";
+    case "money":
+    case "deadline":
+      return "money";
+    case "atRisk":
+      return "houses";
+    case "application":
+    case "anchor":
+    case "hostWarning":
+    case "partnerStep":
+      return "hosts";
+    case "support":
+      return "questions";
+  }
 }

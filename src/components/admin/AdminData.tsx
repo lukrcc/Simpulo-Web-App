@@ -25,10 +25,11 @@ import { StatusDot } from "./AdminCharts";
 import { AdminShell } from "./AdminShell";
 import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
+import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 
 const STAGES: readonly ModelStage[] = ["idea", "rules", "trained"];
 const MODEL_NAME = Object.fromEntries(MODELS.map((m) => [m.id, m.name])) as Record<ModelId, string>;
-type Tab = "flow" | "theses" | "points";
+type Tab = "overview" | "flow" | "theses" | "points";
 
 const MOMENT_ICONS: Record<Moment, LucideIcon> = { onboarding: UserPlus, search: Search, create: Home, request: MessageSquare, inTheHouse: Users, afterTheStay: Star, afterwards: Repeat, marketing: Megaphone, support: Inbox };
 const DECISION_ICONS: Record<string, LucideIcon> = { "Explore-Reihen": LayoutGrid, "Vorschläge an Hosts": Lightbulb, "Do it again": RotateCcw, "Wo Houses eröffnen": MapPin, "Welche Videos": Clapperboard, "Einrichtungs-Hinweise für Hosts": Sofa, "Hof-Stellschrauben": SlidersHorizontal, "Pacht-Test-Orte": Flag };
@@ -39,7 +40,9 @@ const DP_DOT: Record<DataPointStatus, Status | null> = { planned: null, collecti
 
 export function AdminData() {
   const t = useTranslations("admin.data");
-  const [tab, setTab] = useState<Tab>("flow");
+  const tOverview = useTranslations("admin.overviewBlock");
+  // Überblick first and by default (CLAUDE.md "Überblick zuerst").
+  const [tab, setTab] = useState<Tab>("overview");
   const [moment, setMoment] = useState<"all" | Moment>("all");
   const [model, setModel] = useState<"all" | ModelId | "none">("all");
   const [status, setStatus] = useState<"all" | DataPointStatus>("all");
@@ -52,6 +55,7 @@ export function AdminData() {
           value={tab}
           onChange={setTab}
           tabs={[
+            { value: "overview", label: tOverview("tab") },
             { value: "flow", label: t("tab.flow") },
             { value: "theses", label: t("tab.theses") },
             { value: "points", label: t("tab.points"), tooltip: t("never") },
@@ -71,12 +75,62 @@ export function AdminData() {
         </>
       }
     >
+      {tab === "overview" && (
+        <DataOverview
+          onOpen={(next, filter) => {
+            setTab(next);
+            if (next === "points") {
+              setMoment("all");
+              setModel("all");
+              setStatus(filter ?? "all");
+            }
+          }}
+        />
+      )}
       {tab === "flow" && <Flow />}
       {tab === "theses" && <Theses />}
       {tab === "points" && <DataPoints moment={moment} model={model} status={status} />}
     </AdminShell>
   );
 }
+
+// ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Algorithmus › Überblick (CLAUDE.md "Überblick zuerst"): only tiles in the Planen colour, three rows of five – the data points (all, by
+ * status – each opens Datenpunkte filtered –, moments), the models (all, by maturity, decisions → Fluss), the theses (all, by verdict →
+ * Thesen) and what is never collected.
+ */
+function DataOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, filter?: DataPointStatus) => void }) {
+  const t = useTranslations("admin.pageTiles.data");
+  const tData = useTranslations("admin.data");
+  const results = getHypothesisResults();
+  const verdict = (v: "supported" | "open" | "rejected") => HYPOTHESES.filter((h) => (results[h.id]?.status ?? "open") === v).length;
+  const stage = (v: ModelStage) => MODELS.filter((m) => m.stage === v).length;
+  const dp = (v: DataPointStatus) => DATA_POINTS.filter((d) => d.status === v).length;
+  const of = (total: number) => t("ofAll", { total: String(total) });
+  const tile = (key: TileKey, value: number, open: () => void, extra?: string): TileSpec => ({ key, label: t(`${key}.label`), info: t(`${key}.info`), value: String(value), extra, onOpen: open });
+  const tiles: TileSpec[] = [
+    tile("points", DATA_POINTS.length, () => onOpen("points")),
+    tile("used", dp("used"), () => onOpen("points", "used"), of(DATA_POINTS.length)),
+    tile("collecting", dp("collecting"), () => onOpen("points", "collecting"), of(DATA_POINTS.length)),
+    tile("planned", dp("planned"), () => onOpen("points", "planned"), of(DATA_POINTS.length)),
+    tile("moments", MOMENTS.length, () => onOpen("flow")),
+    tile("models", MODELS.length, () => onOpen("flow")),
+    tile("idea", stage("idea"), () => onOpen("flow"), of(MODELS.length)),
+    tile("rules", stage("rules"), () => onOpen("flow"), of(MODELS.length)),
+    tile("trained", stage("trained"), () => onOpen("flow"), of(MODELS.length)),
+    tile("decisions", DECISIONS.length, () => onOpen("flow")),
+    tile("theses", HYPOTHESES.length, () => onOpen("theses")),
+    tile("supported", verdict("supported"), () => onOpen("theses"), of(HYPOTHESES.length)),
+    tile("open", verdict("open"), () => onOpen("theses"), of(HYPOTHESES.length)),
+    tile("rejected", verdict("rejected"), () => onOpen("theses"), of(HYPOTHESES.length)),
+    tile("never", NEVER_COLLECTED.length, () => onOpen("points")),
+  ];
+  return <TileBoard label={tData("title")} rows={chunkRows(tiles, "plan", 5)} />;
+}
+/** The overview's tiles (their words in admin.pageTiles.data). */
+type TileKey = "points" | "used" | "collecting" | "planned" | "moments" | "models" | "idea" | "rules" | "trained" | "decisions" | "theses" | "supported" | "open" | "rejected" | "never";
 
 // ── Fluss ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -273,10 +327,10 @@ function Theses() {
           return (
             <li key={h.id}>
               {/* The null hypothesis is set apart: a stronger edge. */}
-              <button type="button" onClick={() => setOpen(h.id)} aria-pressed={open === h.id} className={cn("flex h-full w-full flex-col gap-3 rounded-xl border bg-(--adm-block) p-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", h.highlight ? "border-ink/40" : "border-ink/8")}>
+              <button type="button" onClick={() => setOpen(h.id)} aria-pressed={open === h.id} className={cn("flex h-full w-full flex-col gap-3 rounded-xl border p-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", open === h.id ? "bg-(--adm-block-hover)" : "bg-(--adm-block)", h.highlight ? "border-ink/40" : "border-ink/8")}>
                 <span className="flex items-start gap-2">
                   <StatusDot status={bar ? hypothesisStatus(verdict) : null} className="mt-2" />
-                  <span className={cn("text-adm-block text-ink", open === h.id && "underline decoration-2 underline-offset-4")}>{h.short}</span>
+                  <span className={cn("text-adm-block", open === h.id ? "font-semibold text-(--adm-active)" : "text-ink")}>{h.short}</span>
                 </span>
                 <ThesisBar bar={bar} />
                 <span className="flex items-center justify-between gap-2 text-small">
@@ -362,9 +416,9 @@ function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: 
               {isOpen && (
                 <ul className="divide-y divide-ink/8 border-y border-ink/8">
                   {rows.map((d) => (
-                    <li key={d.id} className="relative flex h-(--adm-row-h) items-center gap-3 px-1">
+                    <li key={d.id} className={cn("relative flex h-(--adm-row-h) items-center gap-3 px-1 transition-colors duration-150", selected === d.id ? "bg-(--adm-row-on)" : "hover:bg-ink/3")}>
                       <button type="button" onClick={() => setSelected(d.id)} aria-label={shortName(d)} className="absolute inset-0" />
-                      <span className={cn("pointer-events-none min-w-0 flex-1 truncate text-body", selected === d.id ? "font-semibold text-(--adm-active) underline decoration-2 underline-offset-4" : "text-ink")}>{shortName(d)}</span>
+                      <span className={cn("pointer-events-none min-w-0 flex-1 truncate text-body", selected === d.id ? "font-semibold text-(--adm-active)" : "text-ink")}>{shortName(d)}</span>
                       {/* The model capsules from 640px; on phones they are in the detail (a row never runs out of the screen). */}
                       <span className="pointer-events-none flex shrink-0 gap-1 max-sm:hidden">
                         {d.models.map((id) => (

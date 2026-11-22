@@ -1,0 +1,31 @@
+// Admin › Labore › Überblick: label and ⓘ (one sentence: meaning + a good value) per tile. German.
+export const TILES_LABS = {
+  labs: { label: "Labore", info: "Simpulos Wachstumsfelder vom Marktplatz bis zur Wirkung (lib/admin/labs.ts) – Schätzungen, keine Messungen." },
+  foundation: { label: "Fundament", info: "Labore der untersten Ebene: der Marktplatz, der Houses füllt und Geld und Daten bringt." },
+  core: { label: "Kern", info: "Labore, die jedes House besonders machen (Crew, Bogen, Raum)." },
+  extended: { label: "Erweitert", info: "Labore, die das Wachstum sichern und öffnen (Orte, Vertrauen, Lebensphasen)." },
+  top: { label: "Spitze", info: "Das Ziel ganz oben: Gemeinschaft – Zusammenleben nach Wahl." },
+  band: { label: "Wirkung", info: "Das Band über alle Ebenen: der Beweis, dass Simpulo Menschen verbindet." },
+  labsOf: "{count, plural, one {# Labor} other {# Labore}}",
+  biggest: { label: "Größtes Potenzial", info: "Das Labor mit der höchsten geschätzten Obergrenze pro Jahr (Rang 1 der Potenzial-Liste)." },
+  marketplace: { label: "Marktplatz", info: "Die geschätzte Obergrenze des Fundaments pro Jahr – der Markt, auf dem alles andere steht." },
+  total: { label: "Potenzial gesamt", info: "Summe der geschätzten Obergrenzen aller Labore pro Jahr – theoretisch, keine Marktstudie." },
+  totalValue: "{from}–{to}",
+  perYear: "pro Jahr, geschätzt",
+  billions: "Mrd. € pro Jahr, geschätzt",
+  nearest: { label: "Am nächsten", info: "Das Labor (außer dem Marktplatz), das auf der Karte am nächsten und sichersten liegt (ohne Marktplatz und Wirkung) – der nächste sinnvolle Schritt." },
+  testYes: { label: "Labor-Test · ja", info: "Beantwortete Fragen des Labor-Tests mit „ja“ (einzigartige Daten, stärkt den Kern …) – je mehr, desto klarer der Weg." },
+  testOpen: { label: "Labor-Test · offen", info: "Fragen des Labor-Tests, die noch niemand beantwortet hat – gut ist, sie nach und nach zu klären." },
+  ofTests: "von {total} Fragen",
+  external: { label: "Produkte extern", info: "Labore mit einem Produkt für andere (Matching als Dienst, Protokoll für Verbindung …)." },
+  physical: { label: "Produkte physisch", info: "Labore mit einem physischen Produkt (Fragenkarten, Möbel, Höfe …)." },
+  /** The 3 × 3 board: one card per lab */
+  card: {
+    title: "{no} · {name}",
+    ceiling: "Obergrenze/Jahr",
+    ceilingInfo: "Theoretische Obergrenze pro Jahr – Schätzung, keine Marktstudie (Tab Potenzial).",
+    next: "Nächster Schritt: {step}",
+    open: "{name} öffnen",
+  },
+  moments: { label: "Datenquellen", info: "Momente aus dem Algorithmus, die die Labore speisen – eine Annahme aus dem Feld „Daten“ je Labor." },
+} as const;

@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // Admin › System › Launch-Vorbereitung › Launch: the checklist before the launch (config/launch.ts) in four groups – Kriterien, Technik,
 // Recht, Inhalte. Each point checked automatically where the code or the data can tell: the criteria from lib/admin/metrics.ts
@@ -7,7 +8,6 @@
 // hand (AdminData.launchChecks, logged).
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/ActionButton";
 import { ADDRESS_FIELDS } from "@/config/company";
 import { HELP } from "@/config/help";
 import { LAUNCH_GROUPS, LAUNCH_POINTS, type LaunchPoint } from "@/config/launch";
@@ -99,9 +99,9 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
                   {/* Same width with or without a button or a link – the status column stays in line. */}
                   <span className="flex min-w-[min(15rem,100%)] shrink-0 items-center justify-end gap-3 max-md:justify-start">
                     {p.manual && state !== "ok" && (
-                      <Button size="sm" variant={state === "manual" ? "tertiary" : "secondary"} onClick={() => confirmLaunchCheck(p.id, title, state !== "manual")}>
+                      <AdminButton variant="secondary" onClick={() => confirmLaunchCheck(p.id, title, state !== "manual")}>
                         {state === "manual" ? t("undo") : t("confirm")}
-                      </Button>
+                      </AdminButton>
                     )}
                     {p.href && (
                       <Link href={p.href} className="text-small font-semibold text-ink hover:underline">

@@ -45,5 +45,6 @@ export const emptyAdapter: DataAdapter = {
   getPaymentIssues: () => null,
   getLedger: () => null,
   getBankBalance: () => null,
+  getLiveVisitors: () => null,
   getHostTaxData: () => ({}),
 };

@@ -105,3 +105,31 @@ export const MARKETING_LOOPS = [
   { key: "hostRecruitsHost", label: "Host wirbt Host" },
 ] as const;
 export type MarketingLoopKey = (typeof MARKETING_LOOPS)[number]["key"];
+
+/**
+ * Channels a marketing cost can be paid for (Geld › Kosten, category „Marketing“) – the utm_source keys of Wachstum › Kanäle, so a channel's
+ * costs sit next to its revenue there (Wert ÷ Kosten).
+ */
+export const COST_CHANNELS = ["instagram", "tiktok", "youtube", "twitch", "google"] as const;
+
+/**
+ * Admin › Wachstum › Herkunft: the three ways visitors arrive, by the link's source (?src=…; "" = no source, Direkt). Your posts – links in
+ * Simpulo's and the hosts' own posts and bios; passed on – the share button and copied links (they carry ?ref= of the person sharing);
+ * found – no source at all or a search engine. A source not listed counts as a post (a campaign link someone made with "Link erstellen").
+ */
+export const ORIGIN_GROUPS = {
+  posts: ["instagram", "tiktok", "twitch", "youtube", "hostkit"],
+  shared: ["whatsapp", "copy", "messages", "story", "native", "invite", "qr", "hostref"],
+  found: ["", "google"],
+} as const;
+export type OriginGroup = keyof typeof ORIGIN_GROUPS;
+
+/** The channels "Link erstellen" offers (Wachstum › Herkunft): the posts' channels and the ones made by hand. */
+export const LINK_CHANNELS = ["instagram", "tiktok", "twitch", "youtube", "whatsapp", "qr", "newsletter"] as const;
+
+/**
+ * "Oft angesehen, kaum angefragt" (Wachstum › Houses): a House viewed at least `minViews` times and `viewsOverMedian` × the median House in
+ * the period, whose request rate is at most `rateShare` × the rate of all Houses. Sorted by the requests it misses: views × the overall rate
+ * − its requests.
+ */
+export const LOOKED_NOT_ASKED = { minViews: 12, viewsOverMedian: 2, rateShare: 0.4 } as const;

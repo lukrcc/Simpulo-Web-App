@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // Admin › Launch › Marketing: the launch strategy as a cockpit – Countdown · Pipeline · Partner · Content. The strategy (phases, targets,
 // tasks) from config/marketing.ts, contacts, partners, posts and tasks from the admin data (lib/admin/store.ts; Firestore later – admins
@@ -13,7 +14,6 @@ import { AdminSort, AdminTabs, BackToList, type AdminTab } from "@/components/ad
 import { ProgressBar, StatusDot, ProgressRing } from "@/components/admin/AdminCharts";
 import { ChangeLine, InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
 import { KindPicker, MatchingOffer, MotivationPicker, PartnerControls, PartnerDetail, type PartnerFilters } from "@/components/admin/AdminPartners";
-import { Button } from "@/components/ui/ActionButton";
 import { Img } from "@/components/ui/Img";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -49,13 +49,15 @@ import { linkBase } from "@/lib/links";
 import { cn, housePhotos } from "@/lib/utils";
 import { isOpenTodo, roadmapTodos } from "@/lib/roadmap";
 import { usePlanTodos } from "./AdminZeitplan";
+import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { findUser, useStore } from "@/lib/store";
 import { memoriesStats } from "@/lib/memories";
 import { useMemorySrc } from "@/lib/memoryMedia";
 import type { HouseMemory } from "@/lib/types";
 
-type Tab = "countdown" | "pipeline" | "partners" | "content";
-const TABS: readonly Tab[] = ["countdown", "pipeline", "partners", "content"];
+type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content";
+/** Überblick first and by default (CLAUDE.md "Überblick zuerst"); deep links (?tab=pipeline|partners|content) open their tab. */
+const TABS: readonly Tab[] = ["overview", "countdown", "pipeline", "partners", "content"];
 const STATUSES: readonly MarketingContactStatus[] = ["open", "replied", "demo", "house", "later"];
 const WAYS: readonly MarketingContactWay[] = ["email", "dm", "form"];
 const DAY_MS = 86_400_000;
@@ -67,7 +69,7 @@ const demoLinkOf = (id: string) => `${linkBase()}/?ref=${encodeURIComponent(id)}
 export function AdminMarketing() {
   const t = useTranslations("admin.marketing");
   const tc = useTranslations("admin.marketing.contacts");
-  const [tab, setTab] = useState<Tab>("countdown");
+  const [tab, setTab] = useState<Tab>("overview");
   const data = useAdminData();
   const contacts = data.marketingContacts;
   const partners = data.marketingPartners;
@@ -88,9 +90,10 @@ export function AdminMarketing() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wanted = params.get("tab");
-    if (wanted !== "partners" && wanted !== "contacts" && wanted !== "pipeline" && wanted !== "content") return;
+    if (wanted !== "partners" && wanted !== "contacts" && wanted !== "pipeline" && wanted !== "content" && wanted !== "countdown") return;
     requestAnimationFrame(() => {
-      if (wanted === "partners") {
+      if (wanted === "countdown") setTab("countdown");
+      else if (wanted === "partners") {
         setTab("partners");
         setPartnerId(params.get("partner"));
       } else if (wanted === "content") setTab("content");
@@ -161,10 +164,11 @@ export function AdminMarketing() {
     actions.logMarketingExport(contacts.length);
   };
 
+  const tOverview = useTranslations("admin.overviewBlock");
   const tabs: AdminTab<Tab>[] = TABS.map((value) => ({
     value,
-    label: t(`tabs.${value}`),
-    tooltip: t(`tabInfo.${value}`),
+    label: value === "overview" ? tOverview("tab") : t(`tabs.${value}`),
+    tooltip: value === "overview" ? undefined : t(`tabInfo.${value}`),
     count: value === "pipeline" ? contacts.length : value === "partners" ? partners.length : undefined,
   }));
   const { start: marketingStart, launch: launchDate } = strategyDates();
@@ -204,13 +208,13 @@ export function AdminMarketing() {
           value={kind}
           onChange={setKind}
         />
-        <Button size="sm" variant="secondary" onClick={exportCsv}>
+        <AdminButton variant="secondary" onClick={exportCsv}>
           {tc("export")}
-        </Button>
-        <Button size="sm" onClick={addContact}>
+        </AdminButton>
+        <AdminButton onClick={addContact}>
           <Plus aria-hidden className="size-4" />
           {tc("add")}
-        </Button>
+        </AdminButton>
       </div>
     ) : tab === "partners" && !partnerId ? (
       <PartnerControls filters={partnerFilters} onFilters={setPartnerFilters} partners={partners} onAdd={addPartner} />
@@ -234,6 +238,15 @@ export function AdminMarketing() {
       }
       aside={controls}
     >
+      {tab === "overview" && (
+        <MarketingOverview
+          onOpen={(next, opts) => {
+            setTab(next);
+            setPartnerId(null);
+            if (opts?.dueOnly) setPartnerFilters({ kind: "all", ladder: "all", due: "due" });
+          }}
+        />
+      )}
       {tab === "countdown" && <Countdown />}
       {tab === "pipeline" && <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />}
       {tab === "partners" && (openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={partnerFilters} onOpen={setPartnerId} />)}
@@ -247,6 +260,155 @@ export function AdminMarketing() {
       </Sheet>
     </AdminShell>
   );
+}
+
+// ─── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Marketing › Überblick (CLAUDE.md "Überblick zuerst"): only tiles in the Planen colour, three rows of five – the countdown (launch, phase,
+ * the four rings as numbers against their goals with today's due), the pipeline (contacts, rates, Houses, contacts for 50 Houses), the
+ * partners (all, active, steps due) and the content (shorts this week, the next planned one). Every tile opens its tab.
+ */
+/** A day `n` days after `d` (YYYY-MM-DD). */
+const addDaysIso = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, opts?: { dueOnly?: boolean }) => void }) {
+  const t = useTranslations("admin.pageTiles.marketing");
+  const tm = useTranslations("admin.marketing");
+  const inputs = useAdminInputs();
+  const data = useAdminData();
+  const c = launchCountdown(inputs);
+  const phase = c.phases.find((p) => p.key === c.phase) ?? c.phases[0];
+  const funnel = marketingFunnel(data.marketingContacts, compareDate(inputs.today, "month"));
+  const partners = data.marketingPartners;
+  const posts = data.contentPosts ?? [];
+  const shorts = shortsInWeek(posts, mondayOf(inputs.today));
+  const nextShort = posts.filter((p) => p.status === "planned" && p.date >= inputs.today).toSorted((a, b) => a.date.localeCompare(b.date))[0];
+  const of = (value: number, total: number) => (
+    <>
+      {num(value)} <span className="text-body text-muted">/ {num(total)}</span>
+    </>
+  );
+  const tk = useTranslations("admin.marketing.partners");
+  const phaseLabel = (key: string) => c.phases.find((p) => p.key === key)?.label ?? key;
+  const nextPhase = c.phases.find((p) => p.no === phase.no + 1);
+  const all = funnel.all;
+  // The best niche by a rate (at least 5 written to) – a hint line.
+  const bestBy = (rate: "replyRate" | "demoRate" | "houseRate") => funnel.perNiche.filter((r) => r.contacted >= 5 && r[rate] !== null).toSorted((a, b) => (b[rate] ?? 0) - (a[rate] ?? 0))[0];
+  const bestLine = (rate: "replyRate" | "demoRate" | "houseRate") => {
+    const b = bestBy(rate);
+    return b ? t("d.bestNiche", { niche: b.key, rate: share(b[rate]) }) : t("d.bestNicheNone");
+  };
+  const kinds = (["creator", "streamer", "community", "connector", "brand"] as const)
+    .map((k) => ({ k, n: partners.filter((p) => p.kind === k).length }))
+    .filter((x) => x.n > 0)
+    .map((x) => `${tk(`kinds.${x.k}`)} ${num(x.n)}`)
+    .join(" · ");
+  const active = partners.filter((p) => p.agreement.status === "active");
+  const avgShare = active.length ? Math.round(active.reduce((n, p) => n + p.agreement.sharePercent, 0) / active.length) : null;
+  const nextStep = partners
+    .filter((p) => p.nextStep)
+    .toSorted((a, b) => (a.nextStep!.due ?? "9999").localeCompare(b.nextStep!.due ?? "9999"))[0];
+  const weekFrom = mondayOf(inputs.today);
+  const plannedWeek = posts.filter((p) => p.status === "planned" && p.date >= weekFrom && p.date <= addDaysIso(weekFrom, 6)).length;
+  const ring = (metric: (typeof c.rings)[number]["metric"]): TileSpec => {
+    const r = c.rings.find((x) => x.metric === metric)!;
+    return {
+      key: metric,
+      label: t(`${metric}.label`),
+      info: t(`${metric}.info`),
+      value: num(r.value),
+      change: r.change ?? undefined,
+      target: r.status ? { text: t("due", { value: num(r.due) }), status: r.status } : undefined,
+      details: [t("d.ringGoal", { value: num(r.goal) }), t("d.ringNext", { label: phaseLabel(r.next.key), value: num(r.next.target) })],
+      onOpen: () => onOpen("countdown"),
+    };
+  };
+  const tiles: TileSpec[] = [
+    {
+      key: "launch",
+      label: t("launch.label"),
+      info: t("launch.info"),
+      value: c.state === "launched" ? t("launched") : t("d.days", { days: c.daysLeft }),
+      small: true,
+      details: [c.state === "launched" ? t("d.launchDate", { date: day(c.launchDate) }) : t("d.untilLaunch", { date: day(c.launchDate) }), t("d.marketingStart", { date: day(c.start) }), t("d.weeks", { phases: num(c.phases.length), weeks: num(c.weeks) })],
+      onOpen: () => onOpen("countdown"),
+    },
+    {
+      key: "phase",
+      label: t("phase.label"),
+      info: t("phase.info"),
+      value: c.state === "before" ? t("d.days", { days: c.daysToStart }) : t("phaseValue", { no: String(phase.no) }),
+      small: true,
+      details:
+        c.state === "before"
+          ? [t("d.untilStart", { date: day(c.start) }), t("d.firstPhase", { label: c.phases[0].label })]
+          : [t("phaseWeek", { week: String(c.weekNo), label: phase.label }), t("d.phaseEnds", { date: day(phase.to) }), nextPhase ? t("d.nextPhase", { label: nextPhase.label }) : t("d.lastPhase")],
+      onOpen: () => onOpen("countdown"),
+    },
+    ring("housesOpened"),
+    ring("hubs"),
+    ring("waitlist"),
+    ring("filled"),
+    {
+      key: "contacted",
+      label: t("contacted.label"),
+      info: t("contacted.info"),
+      value: num(all.contacted),
+      change: getChange("mktContacted", all.contacted, funnel.contactedBefore),
+      details: [t("d.contactedBefore", { value: num(funnel.contactedBefore) }), funnel.best ? t("d.niches", { count: funnel.perNiche.length, best: funnel.best }) : t("d.nichesNone", { count: funnel.perNiche.length })],
+      onOpen: () => onOpen("pipeline"),
+    },
+    { key: "replyRate", label: t("replyRate.label"), info: t("replyRate.info"), value: share(all.replyRate), target: { text: "10–15 %", status: againstAssumption(all.replyRate, FUNNEL_ASSUMPTIONS.replied) }, details: [t("d.replied", { part: num(all.replied), all: num(all.contacted) }), bestLine("replyRate")], onOpen: () => onOpen("pipeline") },
+    { key: "demoRate", label: t("demoRate.label"), info: t("demoRate.info"), value: share(all.demoRate), target: { text: "5–8 %", status: againstAssumption(all.demoRate, FUNNEL_ASSUMPTIONS.demo) }, details: [t("d.demo", { part: num(all.demo), all: num(all.contacted) }), bestLine("demoRate")], onOpen: () => onOpen("pipeline") },
+    {
+      key: "houses",
+      label: t("houses.label"),
+      info: t("houses.info"),
+      value: num(all.house),
+      target: { text: "2–4 %", status: againstAssumption(all.houseRate, FUNNEL_ASSUMPTIONS.house) },
+      details: [t("houseRate", { rate: share(all.houseRate) }), t("d.house", { part: num(all.house), all: num(all.contacted) }), bestLine("houseRate")],
+      onOpen: () => onOpen("pipeline"),
+    },
+    {
+      key: "forFifty",
+      label: t("forFifty.label"),
+      info: t("forFifty.info"),
+      value: funnel.projection.current === null ? t("forFiftyNone") : num(funnel.projection.current),
+      small: funnel.projection.current === null,
+      details: [
+        ...(funnel.projection.current === null ? [] : [t("d.atRate", { rate: share(all.houseRate) })]),
+        funnel.projection.assumed.from !== null && funnel.projection.assumed.to !== null ? t("d.assumed", { from: num(funnel.projection.assumed.from), to: num(funnel.projection.assumed.to) }) : t("d.assumption", { range: "2–4 %" }),
+      ],
+      onOpen: () => onOpen("pipeline"),
+    },
+    { key: "partners", label: t("partners.label"), info: t("partners.info"), value: num(partners.length), details: [kinds || t("d.noPartners"), t("d.reach", { value: num(partners.reduce((n, p) => n + p.reach, 0)) })], onOpen: () => onOpen("partners") },
+    {
+      key: "partnersActive",
+      label: t("partnersActive.label"),
+      info: t("partnersActive.info"),
+      value: num(active.length),
+      details: [t("d.agreements", { draft: num(partners.filter((p) => p.agreement.status === "draft").length), ended: num(partners.filter((p) => p.agreement.status === "ended").length) }), avgShare === null ? t("d.avgShareNone") : t("d.avgShare", { value: num(avgShare) })],
+      onOpen: () => onOpen("partners"),
+    },
+    {
+      key: "partnerSteps",
+      label: t("partnerSteps.label"),
+      info: t("partnerSteps.info"),
+      value: num(partners.filter((p) => partnerStepDue(p, inputs.today)).length),
+      details: nextStep ? [t("d.nextStep", { name: nextStep.name }), t("d.nextStepText", { text: nextStep.nextStep!.text, date: nextStep.nextStep!.due ? day(nextStep.nextStep!.due) : "–" })] : [t("d.noStep")],
+      onOpen: () => onOpen("partners", { dueOnly: true }),
+    },
+    {
+      key: "shorts",
+      label: t("shorts.label"),
+      info: t("shorts.info"),
+      value: of(shorts, CONTENT_WEEKLY_TARGET),
+      details: [nextShort ? `${t("nextShort.label")}: ${day(nextShort.date)}` : `${t("nextShort.label")}: ${t("nextShortNone")}`, t("d.plannedWeek", { value: num(plannedWeek) }), t("d.publishedAll", { value: num(posts.filter((p) => p.status === "published").length) })],
+      onOpen: () => onOpen("content"),
+    },
+  ];
+  return <TileBoard label={tm("title")} rows={chunkRows(tiles, "plan", 5)} />;
 }
 
 // ─── Countdown ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -558,10 +720,10 @@ function ThisWeek({ begins, ends, phaseKey }: { begins: string; ends: string; ph
         }}
       >
         <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("addPlaceholder")} aria-label={t("addTask")} className="h-9 min-w-0 flex-1 rounded-full bg-(--adm-cap-bg) px-4 text-body text-ink placeholder:text-muted" />
-        <Button size="sm" variant="secondary" type="submit" disabled={!draft.trim()}>
+        <AdminButton variant="secondary" type="submit" disabled={!draft.trim()}>
           <Plus aria-hidden className="size-4" />
           {t("addTask")}
-        </Button>
+        </AdminButton>
       </form>
     </section>
   );
@@ -833,7 +995,7 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
     <div data-marketing-contact={contact.id} className="flex flex-col gap-5">
       {!inPanel && <BackToList onBack={onBack} />}
       {application && (
-        <Link href={`/admin/applications?app=${application.id}`} className="self-start text-body font-semibold text-ink underline-offset-4 hover:underline">
+        <Link href={`/admin/hosts?tab=applications&app=${application.id}`} className="self-start text-body font-semibold text-ink underline-offset-4 hover:underline">
           {t("application", {
             status: t(`applicationStatus.${application.status}`),
           })}{" "}
@@ -841,9 +1003,9 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
         </Link>
       )}
       {/* A contact that turns into a collaboration: its data over to Partner, the contact linked back. */}
-      <Button size="sm" variant="secondary" className="self-start" onClick={onToPartner}>
+      <AdminButton variant="secondary" className="self-start" onClick={onToPartner}>
         {isPartner ? tPartners("isPartner") : tPartners("fromContact")}
-      </Button>
+      </AdminButton>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("fields.name")}>
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onBlur={() => commit("name")} />
@@ -947,8 +1109,7 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
           <code data-demo-link className="min-w-0 flex-1 truncate rounded-xl bg-(--adm-block) px-3 py-2.5 text-small text-ink">
             {link}
           </code>
-          <Button
-            size="sm"
+          <AdminButton
             variant="secondary"
             onClick={() => {
               void navigator.clipboard?.writeText(link).catch(() => {});
@@ -958,7 +1119,7 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
           >
             {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
             {copied ? t("copied") : t("copy")}
-          </Button>
+          </AdminButton>
         </div>
       </Field>
       <Field label={t("fields.note")}>
@@ -967,18 +1128,17 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
       {confirming ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-body text-ink">{t("deleteConfirm")}</span>
-          <Button size="sm" variant="secondary" onClick={() => setConfirming(false)}>
+          <AdminButton variant="secondary" onClick={() => setConfirming(false)}>
             {t("cancel")}
-          </Button>
-          <Button
-            size="sm"
+          </AdminButton>
+          <AdminButton
             onClick={() => {
               actions.deleteMarketingContact(contact);
               onDeleted();
             }}
           >
             {t("deleteYes")}
-          </Button>
+          </AdminButton>
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} className="inline-flex min-h-11 items-center gap-2 self-start text-body text-danger hover:underline">
@@ -1154,8 +1314,7 @@ function ContentCalendar() {
                 <span className="text-small text-muted">
                   {p.channel} · {t(p.status)}
                 </span>
-                <Button
-                  size="sm"
+                <AdminButton
                   variant="secondary"
                   onClick={() =>
                     actions.updateContentPost(
@@ -1168,7 +1327,7 @@ function ContentCalendar() {
                   }
                 >
                   {p.status === "published" ? t("unpublish") : t("publish")}
-                </Button>
+                </AdminButton>
                 <button type="button" aria-label={t("remove")} onClick={() => actions.deleteContentPost(p)} className="flex size-9 items-center justify-center rounded-full text-muted hover:text-ink">
                   <Trash2 aria-hidden className="size-4" />
                 </button>
@@ -1185,10 +1344,10 @@ function ContentCalendar() {
         >
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePlaceholder")} aria-label={t("titlePlaceholder")} className="h-9 min-w-48 flex-1 rounded-full bg-(--adm-cap-bg) px-4 text-body text-ink placeholder:text-muted" />
           <AdminSort label={t("channel")} options={SHORT_CHANNELS.map((c) => ({ value: c, label: c }))} value={channel} onChange={setChannel} />
-          <Button size="sm" type="submit" disabled={!title.trim()}>
+          <AdminButton type="submit" disabled={!title.trim()}>
             <Plus aria-hidden className="size-4" />
             {t("add")}
-          </Button>
+          </AdminButton>
         </form>
       </div>
     </AdminSection>
@@ -1281,9 +1440,9 @@ function HouseMemories() {
             })}
           </ul>
           {stats.approvedList.length > shown.length && (
-            <Button size="sm" variant="tertiary" className="mt-2" onClick={() => setAll(true)}>
+            <AdminButton variant="secondary" className="mt-2" onClick={() => setAll(true)}>
               {t("memoriesAll", { count: stats.approvedList.length })}
-            </Button>
+            </AdminButton>
           )}
         </>
       )}

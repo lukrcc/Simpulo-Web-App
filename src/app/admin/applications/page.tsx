@@ -1,12 +1,10 @@
-import type { Metadata } from "next";
-import { AdminApplications } from "@/components/admin/AdminAreas";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Bewerbungen · Admin" };
-
-/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
+/** Only a redirect – nothing to prerender for instant navigation. */
 export const instant = false;
 
-/** Admins only (app/admin/layout.tsx). */
-export default function Page() {
-  return <AdminApplications />;
+/** Die Bewerbungen sind ein Tab von Hosts; ?app= (eine Bewerbung) geht mit. */
+export default async function Page({ searchParams }: { searchParams: Promise<{ app?: string }> }) {
+  const { app } = await searchParams;
+  redirect(`/admin/hosts?tab=applications${app ? `&app=${encodeURIComponent(app)}` : ""}`);
 }

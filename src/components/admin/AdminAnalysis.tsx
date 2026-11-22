@@ -1,88 +1,63 @@
 "use client";
 
-// /admin/topics – Analyse (no visible title): where Simpulo earns the most. The click row: tabs Thema · Länge · Crew · Ort-Typ · Hub · Host-Stufe
-// (Tiefe only with the depth choice), right Zeitraum ▾ and Sortieren ▾ (Wert pro Person/Jahr · Wachstum · Themen-Score). Under it the sweet
-// spot as one line (the combination large, beside it value per person/year and repeat; "So messen wir das" in its ⓘ). Then a slim table –
-// Gruppe · Wert pro Person/Jahr (with a bar) · Wiederkehrer · Tage bis voll · Houses –, groups under 10 Houses grey with "zu wenig Daten"; a
-// click on a row opens its detail right with every other value. At 1470 × 814 the page fits; only the table scrolls. Every number from
-// lib/admin/metrics.ts (analysisRows, analysisGrowth, sweetSpot, topicScores); the cohorts stay there (cohortReturns), not on this page.
+// /admin/topics – Analyse (no visible title, CLAUDE.md "Admin-Pyramide"): where Simpulo works best. The click row: tabs Überblick · Thema ·
+// Länge · Crew · Ort-Typ · Hub · Host-Stufe (Tiefe only with the depth choice); right a small "Letzte 12 Monate" (no period switch – Analyse
+// always counts the Houses that began in the last 12 months) and „Bewerten nach“: Wert · Verbindung · Wiederkehr · Tempo – for the overview
+// and every detail tab.
+//   Überblick – only tiles (CLAUDE.md "Überblick zuerst", TileBoard, group Zahlen): the sweet spot, per angle the best group (and the
+//               weakest), the best topic by each measure, Pro vollem House, Houses in 12 months, groups with too few data.
+//   Detail    – horizontal bars per group by the chosen measure, a slim table (Gruppe · Hauptzahl · Houses; Länge, Crew and Host-Stufe with
+//               „Wen es anspricht“ from config/spectrum.ts), the detail right with every other value; the first group opens selected.
+// Groups under 10 Houses grey at the end ("zu wenig Daten"). Every number from lib/admin/metrics.ts (analysisRows, rankByMeasure, sweetSpot).
 import { useDepthChoice } from "@/config/platform";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat } from "@/i18n/format";
-import { analysisDimensions, analysisGrowth, analysisRows, spectrum, sweetSpot, topicScores, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow, type SpectrumCell } from "@/lib/admin/metrics";
+import { ANALYSIS_MEASURES, analysisDimensions, analysisRows, cockpit, measureOf, rankByMeasure, sweetSpot, type AnalysisDimension, type AnalysisMeasure, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { day, days, eur, num, share } from "@/lib/i18n/adminFormat";
+import { days, eur, monthLong, num, share } from "@/lib/i18n/adminFormat";
 import type { ADMIN_DE } from "@/lib/i18n/admin.de";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SPECTRUM_ROWS } from "@/config/spectrum";
 import { AdminShell } from "./AdminShell";
-import { CockpitKeyNumber } from "./AdminCockpit";
-import { AdminSort, AdminTabs, BackToList, PeriodTabs } from "./AdminLayout";
-import { SPECTRUM_ROWS, type SpectrumDetail } from "@/config/spectrum";
-import { useAdminPeriod } from "@/lib/admin/period";
+import { AdminTabs, BackToList } from "./AdminLayout";
+import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { InfoTip } from "./AdminNumbers";
 
-const PERIODS: readonly AnalysisPeriod[] = ["30d", "year", "all"];
-type SortKey = "value" | "growth" | "score";
+/** Analyse's one window: the Houses that began in the last 12 months. */
+const WINDOW: AnalysisPeriod = "12m";
+
+type Tab = "overview" | AnalysisDimension;
+
+/** „Wen es anspricht“ per group, for the angles the spectrum describes (Länge · Crew · Host-Stufe). */
+const AUDIENCE: Partial<Record<AnalysisDimension, Record<string, string>>> = Object.fromEntries(
+  SPECTRUM_ROWS.map((row) => [row.detail, Object.fromEntries(row.columns.map((c) => [c.key, c.audience]))]),
+);
 
 export function AdminAnalysis() {
   const t = useTranslations("admin.analysis");
   const tTopics = useTranslations("admin.topics");
-  const inputs = useAdminInputs();
   const depthOn = useDepthChoice();
-  // The tabs: the angles the prompt names (Tiefe only with the depth choice).
   const dims = analysisDimensions(depthOn).filter((d) => d !== "origin");
-  // Spektrum is the first tab and opens by default; the others are the angles (a Spektrum column opens its tab with its group).
-  const [dimension, setDimension] = useState<AnalysisDimension | "spectrum">("spectrum");
-  const [period, setPeriod] = useState<AnalysisPeriod>("year");
-  const [sort, setSort] = useState<SortKey>("value");
-  const [selected, setSelected] = useState<string | null>(null);
-  const isSpectrum = dimension === "spectrum";
-  const shown: AnalysisDimension = (dims as readonly string[]).includes(dimension) ? (dimension as AnalysisDimension) : "topic";
-  const rows = analysisRows(inputs, shown, period);
-  const growth = analysisGrowth(inputs, shown, period);
-  const scores = new Map(topicScores(inputs).map((s) => [s.vibe as string, s.score]));
-  // Themen-Score exists per topic only; elsewhere the sort falls back to the value.
-  const sortKey: SortKey = sort === "score" && shown !== "topic" ? "value" : sort;
-  const valueOf = (r: AnalysisRow) => (sortKey === "growth" ? (growth.get(r.key) ?? -Infinity) : sortKey === "score" ? (scores.get(r.key) ?? -Infinity) : (r.valuePerPersonYear ?? -Infinity));
-  const sorted = rows.toSorted((a, b) => Number(a.tooFew) - Number(b.tooFew) || valueOf(b) - valueOf(a));
-  const row = sorted.find((r) => r.key === selected) ?? null;
+  const [tab, setTab] = useState<Tab>("overview");
+  const [measure, setMeasure] = useState<AnalysisMeasure>("value");
+  const shown: Tab = tab === "overview" || (dims as readonly string[]).includes(tab) ? tab : "overview";
   return (
     <AdminShell
       title={tTopics("title")}
-      tabs={<AdminTabs<AnalysisDimension | "spectrum"> label={t("dimension.label")} value={isSpectrum ? "spectrum" : shown} onChange={(next) => (setDimension(next), setSelected(null))} tabs={[{ value: "spectrum" as const, label: t("dimension.spectrum"), tooltip: t("spectrum.tooltip") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))]} />}
+      tabs={<AdminTabs<Tab> label={t("dimension.label")} value={shown} onChange={setTab} tabs={[{ value: "overview" as const, label: t("dimension.overview") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))]} />}
       aside={
-        isSpectrum ? (
-          <PeriodTabs />
-        ) : (
         <>
-          <AdminSort label={t("period.label")} value={period} onChange={setPeriod} options={PERIODS.map((value) => ({ value, label: t(`period.${value}`) }))} />
-          <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "growth", "score"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />
+          <span data-tooltip-info={t("windowInfo")} className="mr-2 text-small text-muted">
+            {t("window")}
+            <span className="sr-only">. {t("windowInfo")}</span>
+          </span>
+          <AdminTabs<AnalysisMeasure> label={t("measure.label")} value={measure} onChange={setMeasure} tabs={ANALYSIS_MEASURES.map((value) => ({ value, label: t(`measure.${value}`), tooltip: t(`measure.info.${value}`) }))} />
         </>
-        )
       }
     >
-      {isSpectrum ? (
-        <Spectrum
-          onOpen={(detail, key) => {
-            setDimension(detail);
-            setSelected(key);
-          }}
-        />
-      ) : (
-      <>
-      {/* "Pro vollem House" (moved here from the overview) as the number on top. */}
-      <CockpitKeyNumber metric="perHouse" className="mb-(--adm-inner)" />
-      <SweetSpot spot={sweetSpot(inputs, period)} />
-      <div className="mt-(--adm-section) grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <AnalysisTable dimension={shown} rows={sorted} growth={growth} selected={row?.key ?? null} onSelect={setSelected} />
-        <div className={cn("min-w-0", !row && "max-lg:hidden")}>
-          {row ? <GroupDetail dimension={shown} row={row} growth={growth.get(row.key) ?? null} score={shown === "topic" ? (scores.get(row.key) ?? null) : null} onBack={() => setSelected(null)} /> : <p className="py-2 text-body text-muted">{t("pick")}</p>}
-        </div>
-      </div>
-      </>
-      )}
+      {shown === "overview" ? <Overview dims={dims} measure={measure} onOpen={setTab} /> : <Detail key={shown} dimension={shown} measure={measure} />}
     </AdminShell>
   );
 }
@@ -104,58 +79,183 @@ function useGroupLabel() {
   };
 }
 
-/** The sweet spot as one line: the combination large, beside it value per person/year (ocean) and repeat; "So messen wir das" in the ⓘ. */
-function SweetSpot({ spot }: { spot: ReturnType<typeof sweetSpot> }) {
+/** A measure's number in words: € · % · days ("–" when unknown). */
+function measureText(measure: AnalysisMeasure, value: number | null): string {
+  if (value === null) return "–";
+  if (measure === "value") return eur(value);
+  if (measure === "speed") return days(value);
+  return share(value);
+}
+
+// ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Analyse › Überblick: only tiles (group Zahlen), following „Bewerten nach“ – the sweet spot · per angle the best group (its number and the
+ * weakest) · the best topic by each of the four measures · Pro vollem House (monthly, like the overview) · Houses in 12 months · groups with
+ * too few data. Every tile opens its tab.
+ */
+function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[]; measure: AnalysisMeasure; onOpen: (tab: AnalysisDimension) => void }) {
+  const t = useTranslations("admin.analysis");
+  const tt = useTranslations("admin.pageTiles.analysis");
+  const tc = useTranslations("admin.cockpit");
+  const inputs = useAdminInputs();
+  const label = useGroupLabel();
+  const spot = sweetSpot(inputs, WINDOW, measure);
+  const rowsOf = (dim: AnalysisDimension) => analysisRows(inputs, dim, WINDOW);
+  const enough = (dim: AnalysisDimension, m: AnalysisMeasure) => rankByMeasure(rowsOf(dim), m).filter((r) => !r.tooFew && measureOf(r, m) !== null);
+  const topics = rowsOf("topic");
+  const month = cockpit(inputs, "month");
+  const perHouse = month.areas.find((a) => a.number.key === "perHouse")!.number;
+  const fullMonth = month.areas.find((a) => a.key === "supply")!.number;
+  const allGroups = dims.flatMap((d) => rowsOf(d));
+  const lengths = rowsOf("length");
+  const lengthOf = (key: string) => num(lengths.find((r) => r.key === key)?.houses ?? 0);
+  const biggestTopic = topics.toSorted((a, b) => b.houses - a.houses)[0];
+  const tiles: TileSpec[] = [
+    {
+      key: "sweetSpot",
+      label: tt("sweetSpot.label"),
+      info: tt("sweetSpot.info"),
+      value: spot ? [label("topic", spot.topic), t(`lengthShort.${spot.length}`), label("crew", spot.crew), label("tier", spot.tier)].join(" · ") : tt("none"),
+      small: true,
+      details: spot
+        ? [tt("sweetLine", { main: measureText(measure, measureOf(spot.row, measure)), repeat: share(spot.row.repeat12) }), tt("d.housesBooking", { houses: num(spot.row.houses), perBooking: spot.row.perBooking === null ? "–" : eur(spot.row.perBooking) })]
+        : [tt("none")],
+      onOpen: () => onOpen("topic"),
+    },
+    ...dims.map((dim): TileSpec => {
+      const ranked = enough(dim, measure);
+      const best = ranked[0];
+      const worst = ranked.length >= 2 ? ranked.at(-1)! : null;
+      return {
+        key: `dim-${dim}`,
+        label: t(`dimension.${dim}`),
+        info: tt("best.info"),
+        value: best ? label(dim, best.key) : t("tooFew"),
+        small: true,
+        details: best
+          ? [
+              tt("d.bestValue", { value: measureText(measure, measureOf(best, measure)), houses: num(best.houses) }),
+              worst ? tt("d.worst", { name: label(dim, worst.key), value: measureText(measure, measureOf(worst, measure)) }) : tt("d.onlyOne"),
+              tt("d.groups", { count: num(rowsOf(dim).length), few: num(rowsOf(dim).filter((r) => r.tooFew).length) }),
+            ]
+          : [tt("d.groups", { count: num(rowsOf(dim).length), few: num(rowsOf(dim).filter((r) => r.tooFew).length) })],
+        onOpen: () => onOpen(dim),
+      };
+    }),
+    // The other three measures (the chosen one is already the Thema tile).
+    ...ANALYSIS_MEASURES.filter((m) => m !== measure).map((m): TileSpec => {
+      const [best, second] = enough("topic", m);
+      return {
+        key: `leader-${m}`,
+        label: tt(`leader.${m}.label`),
+        info: tt(`leader.${m}.info`),
+        value: best ? label("topic", best.key) : tt("none"),
+        small: true,
+        details: best ? [tt("d.leaderValue", { value: measureText(m, measureOf(best, m)), houses: num(best.houses) }), second ? tt("d.second", { name: label("topic", second.key), value: measureText(m, measureOf(second, m)) }) : tt("d.onlyOne")] : [tt("none")],
+        onOpen: () => onOpen("topic"),
+      };
+    }),
+    {
+      key: "perHouse",
+      label: tt("perHouse.label"),
+      info: `${tt("perHouse.info")} (${tc("against.month", { month: monthLong(cockpit(inputs, "month").compareDate) })})`,
+      value: perHouse.value === null ? tt("none") : eur(perHouse.value),
+      change: perHouse.change,
+      details: [tt("d.fullMonth", { count: fullMonth.value === null ? "–" : num(fullMonth.value) }), tt("d.profitMonth", { profit: eur(month.profit.current) })],
+      onOpen: () => onOpen("topic"),
+    },
+    {
+      key: "houses",
+      label: tt("houses.label"),
+      info: tt("houses.info"),
+      value: num(topics.reduce((n, r) => n + r.houses, 0)),
+      details: [tt("d.lengths", { short: lengthOf("short"), mid: lengthOf("mid"), long: lengthOf("long") }), biggestTopic ? tt("d.biggest", { name: label("topic", biggestTopic.key), count: num(biggestTopic.houses) }) : tt("none"), tt("d.sparse", { few: num(allGroups.filter((r) => r.tooFew).length), count: num(allGroups.length) })],
+      onOpen: () => onOpen("length"),
+    },
+  ];
+  return <TileBoard label={t("dimension.overview")} columns={4} rows={chunkRows(tiles, "numbers", 4)} />;
+}
+
+// ── Detail tabs ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+function Detail({ dimension, measure }: { dimension: AnalysisDimension; measure: AnalysisMeasure }) {
+  const t = useTranslations("admin.analysis");
+  const inputs = useAdminInputs();
+  const rows = rankByMeasure(analysisRows(inputs, dimension, WINDOW), measure);
+  // The first group opens selected; a click picks another.
+  const [picked, setPicked] = useState<string | null>(null);
+  const row = rows.find((r) => r.key === picked) ?? rows[0] ?? null;
+  const [listOpen, setListOpen] = useState(true);
+  if (rows.length === 0) return <p className="text-body text-muted">{t("noData")}</p>;
+  const select = (key: string) => {
+    setPicked(key);
+    setListOpen(false);
+  };
+  return (
+    <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className={cn("flex min-w-0 flex-col gap-(--adm-inner)", !listOpen && "max-lg:hidden")}>
+        <MeasureBars dimension={dimension} measure={measure} rows={rows} selected={row?.key ?? null} onSelect={select} />
+        <AnalysisTable dimension={dimension} measure={measure} rows={rows} selected={row?.key ?? null} onSelect={select} />
+      </div>
+      <div className={cn("min-w-0", listOpen && "max-lg:hidden")}>{row && <GroupDetail dimension={dimension} measure={measure} row={row} onBack={() => setListOpen(true)} />}</div>
+    </div>
+  );
+}
+
+/**
+ * One horizontal bar per group by the chosen measure (Regel „Admin-Diagramme“: violet outline over the light fill on the grey track; groups
+ * with too few Houses in the comparison grey). Tempo: fewer days is better, so the bar is the fastest group's days ÷ this group's – the best
+ * bar is the longest everywhere.
+ */
+function MeasureBars({ dimension, measure, rows, selected, onSelect }: { dimension: AnalysisDimension; measure: AnalysisMeasure; rows: readonly AnalysisRow[]; selected: string | null; onSelect: (key: string) => void }) {
   const t = useTranslations("admin.analysis");
   const label = useGroupLabel();
-  const how = (["p1", "p2", "p3", "p4", "p5", "p6", "p7"] as const).map((key) => t(`how.${key}`)).join(" ");
+  const values = rows.map((r) => measureOf(r, measure)).filter((v): v is number => v !== null && v > 0);
+  const top = measure === "speed" ? Math.min(...values) : Math.max(...values);
+  const width = (v: number | null) => (v === null || v <= 0 || !Number.isFinite(top) ? 0 : measure === "speed" ? (top / v) * 100 : (v / top) * 100);
   return (
-    <section className="flex flex-wrap items-end gap-x-10 gap-y-3">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
-          {t("sweetSpot")}
-          <InfoTip text={`${t("howTitle")}: ${how}`} />
-        </p>
-        <p className="mt-1 text-adm-figure text-ink">{spot ? [label("topic", spot.topic), t(`lengthShort.${spot.length}`), label("crew", spot.crew), label("tier", spot.tier)].join(" · ") : t("sweetNone")}</p>
-      </div>
-      {spot && (
-        <dl className="flex gap-x-8">
-          {[
-            { label: t("sweetValue"), value: spot.row.valuePerPersonYear === null ? "–" : eur(spot.row.valuePerPersonYear), focus: true },
-            { label: t("sweetRepeat"), value: share(spot.row.repeat12) },
-          ].map((s, i) => (
-            <div key={s.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-8")}>
-              <dt className="text-eyebrow uppercase text-(--adm-label)">{s.label}</dt>
-              <dd className={cn("mt-1 text-adm-figure tabular-nums", s.focus ? "text-adm-chart-1" : "text-ink")}>{s.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+    <section aria-label={t("bars", { measure: t(`measure.${measure}`) })} data-analysis-bars>
+      <ul className="flex flex-col gap-1">
+        {rows.map((r) => {
+          const v = measureOf(r, measure);
+          return (
+            <li key={r.key}>
+              <button type="button" onClick={() => onSelect(r.key)} aria-pressed={r.key === selected} className={cn("grid w-full grid-cols-[minmax(0,11rem)_minmax(0,1fr)_5.5rem] items-center gap-3 rounded-md px-1 py-0.5 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", r.key === selected && "bg-(--adm-row-on)")}>
+                <span className={cn("truncate text-small", r.tooFew ? "text-ink/40" : "text-ink")}>{label(dimension, r.key)}</span>
+                <span aria-hidden className="relative block h-4 rounded-[5px] bg-adm-chart-track">
+                  <span className={cn("absolute inset-y-0 left-0 rounded-[5px] border-[1.5px]", r.tooFew ? "border-adm-chart-compare bg-adm-chart-compare/20" : "border-adm-chart-primary bg-(--adm-chart-fill)")} style={{ width: `${width(v)}%` }} />
+                </span>
+                <span className={cn("text-right text-small tabular-nums", r.tooFew ? "text-ink/40" : "text-ink")}>{measureText(measure, v)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
 
 /**
- * The slim table: Gruppe · Wert pro Person/Jahr (with a bar against the highest) · Wiederkehrer · Tage bis voll · Houses. Groups under 10
- * Houses grey with "zu wenig Daten". A click on a row opens its detail. Its height fills the rest of the window – only the table scrolls.
+ * The slim table: Gruppe (with „Wen es anspricht“ for Länge, Crew and Host-Stufe) · the chosen measure · Houses. Groups under 10 Houses grey
+ * with "zu wenig Daten", at the end. Its height fills the rest of the window – only the table scrolls.
  */
-function AnalysisTable({ dimension, rows, selected, onSelect }: { dimension: AnalysisDimension; rows: readonly AnalysisRow[]; growth: Map<string, number | null>; selected: string | null; onSelect: (key: string) => void }) {
+function AnalysisTable({ dimension, measure, rows, selected, onSelect }: { dimension: AnalysisDimension; measure: AnalysisMeasure; rows: readonly AnalysisRow[]; selected: string | null; onSelect: (key: string) => void }) {
   const t = useTranslations("admin.analysis");
   const label = useGroupLabel();
   const box = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number | null>(null);
   useLayoutEffect(() => {
-    const measure = () => {
+    const measureBox = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined || window.innerWidth < 1024) return setHeight(null);
-      setHeight(Math.max(240, Math.floor(window.innerHeight - (top + window.scrollY) - 48)));
+      setHeight(Math.max(160, Math.floor(window.innerHeight - (top + window.scrollY) - 48)));
     };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-  if (rows.length === 0) return <p className="text-body text-muted">{t("noData")}</p>;
-  const most = Math.max(1, ...rows.map((r) => r.valuePerPersonYear ?? 0));
+    measureBox();
+    window.addEventListener("resize", measureBox);
+    return () => window.removeEventListener("resize", measureBox);
+  }, [rows.length]);
+  const audience = AUDIENCE[dimension];
   const cell = "h-(--adm-row-h) px-3 text-right tabular-nums";
   return (
     <div ref={box} data-analysis-table className="min-w-0 overflow-auto overscroll-contain" style={height ? { maxHeight: height } : undefined}>
@@ -163,31 +263,26 @@ function AnalysisTable({ dimension, rows, selected, onSelect }: { dimension: Ana
         <thead className="sticky top-0 z-1 bg-(--bg) text-small text-(--adm-label)">
           <tr className="border-b border-ink/8">
             <th className="px-3 pl-0 font-medium">{t("col.group")}</th>
-            <th className="w-[34%] px-3 font-medium">{t("col.value")}</th>
-            <th className="px-3 text-right font-medium">{t("col.repeatShort")}</th>
-            <th className="px-3 text-right font-medium">{t("col.daysToFull")}</th>
+            <th className="px-3 text-right font-medium">
+              <span className="inline-flex items-center justify-end gap-1">
+                {t(`measure.${measure}`)}
+                <InfoTip text={t(`measure.info.${measure}`)} />
+              </span>
+            </th>
             <th className="px-3 pr-0 text-right font-medium">{t("col.houses")}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.key} onClick={() => onSelect(row.key)} aria-selected={row.key === selected} className={cn("cursor-pointer border-b border-ink/8", row.tooFew && "text-ink/40")}>
-              <td className="h-(--adm-row-h) px-3 pl-0">
-                <button type="button" onClick={() => onSelect(row.key)} className="text-left">
-                  <span className={cn(row.tooFew ? undefined : "font-semibold text-ink", row.key === selected && "text-(--adm-active) underline decoration-2 underline-offset-4")}>{label(dimension, row.key)}</span>
+            <tr key={row.key} onClick={() => onSelect(row.key)} aria-selected={row.key === selected} className={cn("cursor-pointer border-b border-ink/8 transition-colors duration-150", row.key === selected ? "bg-(--adm-row-on)" : "hover:bg-ink/3", row.tooFew && "text-ink/40")}>
+              <td className="h-(--adm-row-h) min-w-0 px-3 pl-0">
+                <button type="button" onClick={() => onSelect(row.key)} className="block max-w-full text-left">
+                  <span className={cn(row.tooFew ? undefined : "font-semibold text-ink", row.key === selected && "font-semibold text-(--adm-active)")}>{label(dimension, row.key)}</span>
                   {row.tooFew && <span className="ml-2 text-small">· {t("tooFew")}</span>}
+                  {audience?.[row.key] && <span className="block truncate text-small text-muted">{audience[row.key]}</span>}
                 </button>
               </td>
-              <td className="h-(--adm-row-h) px-3">
-                <span className="flex items-center gap-3">
-                  <span aria-hidden className="h-1.5 flex-1 rounded-full bg-adm-chart-track">
-                    <span className={cn("block h-full rounded-full", row.tooFew ? "bg-adm-chart-compare" : "bg-adm-chart-primary")} style={{ width: `${((row.valuePerPersonYear ?? 0) / most) * 100}%` }} />
-                  </span>
-                  <span className="w-20 shrink-0 text-right tabular-nums">{row.valuePerPersonYear === null ? "–" : eur(row.valuePerPersonYear)}</span>
-                </span>
-              </td>
-              <td className={cell}>{share(row.repeat12)}</td>
-              <td className={cell}>{row.daysToFull === null ? "–" : days(row.daysToFull)}</td>
+              <td className={cn(cell, !row.tooFew && "text-ink")}>{measureText(measure, measureOf(row, measure))}</td>
               <td className={cn(cell, "pr-0")}>{num(row.houses)}</td>
             </tr>
           ))}
@@ -197,118 +292,48 @@ function AnalysisTable({ dimension, rows, selected, onSelect }: { dimension: Ana
   );
 }
 
-/** A group's detail: every other value – revenue per person, per House, fill rate (and growth, the topic score, "Mit dir wieder" for depth). */
-function GroupDetail({ dimension, row, growth, score, onBack }: { dimension: AnalysisDimension; row: AnalysisRow; growth: number | null; score: number | null; onBack: () => void }) {
+/** A group's detail: every value – the four measures, € per booking, fill rate, Houses, its top topics and the guests' top countries. */
+function GroupDetail({ dimension, measure, row, onBack }: { dimension: AnalysisDimension; measure: AnalysisMeasure; row: AnalysisRow; onBack: () => void }) {
   const t = useTranslations("admin.analysis");
   const label = useGroupLabel();
+  const f = useFormat();
+  const audience = AUDIENCE[dimension]?.[row.key];
   const facts = [
-    { label: t("col.value"), value: row.valuePerPersonYear === null ? "–" : eur(row.valuePerPersonYear) },
-    { label: t("col.perPerson"), value: row.revenuePerPerson === null ? "–" : eur(row.revenuePerPerson) },
-    { label: t("col.perHouse"), value: row.revenuePerHouse === null ? "–" : eur(row.revenuePerHouse) },
-    { label: t("col.fill"), value: share(row.fillRate) },
-    { label: t("col.repeat"), value: share(row.repeat12) },
-    { label: t("col.daysToFull"), value: row.daysToFull === null ? "–" : days(row.daysToFull) },
-    { label: t("col.houses"), value: num(row.houses) },
-    { label: t("sort.growth"), value: growth === null ? "–" : `${growth >= 0 ? "+" : "−"}${Math.round(Math.abs(growth) * 100)} %` },
-    ...(score !== null ? [{ label: t("sort.score"), value: num(score) }] : []),
-    ...(dimension === "depth" ? [{ label: t("col.again"), value: share(row.againMutual) }] : []),
+    ...ANALYSIS_MEASURES.map((m) => ({ key: m, label: t(`measure.${m}`), value: measureText(m, measureOf(row, m)), info: t(`measure.info.${m}`), on: m === measure })),
+    { key: "perBooking", label: t("perBooking"), value: row.perBooking === null ? "–" : eur(row.perBooking), info: t("spectrum.info.perBooking"), on: false },
+    { key: "fill", label: t("col.fill"), value: share(row.fillRate), info: null, on: false },
+    { key: "houses", label: t("col.houses"), value: num(row.houses), info: null, on: false },
   ];
+  const list = (items: readonly { key: string; count: number }[], name: (key: string) => string) => (items.length ? items.map((x) => name(x.key)).join(", ") : "–");
   return (
     <article data-analysis-detail>
       <BackToList onBack={onBack} />
       <p className="text-h3 text-ink">{label(dimension, row.key)}</p>
+      {audience && <p className="mt-0.5 text-small text-muted">{audience}</p>}
       {row.tooFew && <p className="mt-1 text-small text-muted">{t("tooFew")}</p>}
       <dl className="mt-(--adm-inner) grid grid-cols-2 gap-x-6 gap-y-(--adm-inner)">
-        {facts.map((f) => (
-          <div key={f.label} className="min-w-0">
-            <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
-            <dd className="mt-1 text-h3 tabular-nums text-ink">{f.value}</dd>
-          </div>
-        ))}
-      </dl>
-      {dimension === "depth" && <p className="mt-3 text-small text-muted">{t("againExample")}</p>}
-    </article>
-  );
-}
-
-// ── Spektrum ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Analyse › Spektrum: three rows (Länge · Größe · Host, config/spectrum.ts) of three equal columns – side by side, no ranking, no good/bad
- * colours, one neutral accent. Each column: title and range, „Wen es anspricht“, the numbers (share, € per booking, connection, repeat
- * guests, days to full), who books (top topics and countries); a click opens its detail tab with its group. The one hint only when a column
- * holds under 10 % of the Houses. Under it „Ø über alle“. Numbers from metrics.ts spectrum(), the period the admin's (Woche default).
- */
-function Spectrum({ onOpen }: { onOpen: (detail: SpectrumDetail, key: string) => void }) {
-  const t = useTranslations("admin.analysis");
-  const inputs = useAdminInputs();
-  const [period] = useAdminPeriod();
-  const sp = spectrum(inputs, period);
-  return (
-    <div data-spectrum className="flex flex-col gap-2">
-      <p className="text-small text-muted">
-        {t(sp.fallback ? "spectrum.rangeFallback" : "spectrum.range", { from: day(sp.range.from), to: day(sp.range.to) })} · {t("spectrum.houses", { count: sp.houses })}
-      </p>
-      {SPECTRUM_ROWS.map((row, r) => (
-        <section key={row.key} aria-label={row.label} data-spectrum-row={row.key} className="grid gap-2 lg:grid-cols-[72px_repeat(3,minmax(0,1fr))]">
-          <h2 className="text-eyebrow uppercase text-(--adm-label) lg:pt-3">{row.label}</h2>
-          {row.columns.map((col, c) => (
-            <SpectrumCard key={col.key} title={col.title} range={col.range} audience={col.audience} cell={sp.rows[r].columns[c]} tab={t(`dimension.${row.detail}`)} onOpen={() => onOpen(row.detail, col.key)} />
-          ))}
-        </section>
-      ))}
-      <p data-spectrum-average className="text-small text-ink">
-        {t("spectrum.average", { guests: sp.averages.guestsPerHouse === null ? "–" : num(sp.averages.guestsPerHouse), perBooking: sp.averages.perBooking === null ? "–" : eur(sp.averages.perBooking) })}
-      </p>
-    </div>
-  );
-}
-
-function SpectrumCard({ title, range, audience, cell, tab, onOpen }: { title: string; range: string; audience: string; cell: SpectrumCell; tab: string; onOpen: () => void }) {
-  const t = useTranslations("admin.analysis");
-  const f = useFormat();
-  const dash = t("spectrum.none");
-  const figures = [
-    { key: "share", value: share(cell.share), info: null },
-    { key: "perBooking", value: cell.perBooking === null ? dash : eur(cell.perBooking), info: t("spectrum.info.perBooking") },
-    { key: "connection", value: share(cell.connection), info: t("spectrum.info.connection") },
-    { key: "repeat", value: share(cell.repeat), info: t("spectrum.info.repeat") },
-    { key: "daysToFull", value: cell.daysToFull === null ? dash : num(cell.daysToFull), info: t("spectrum.info.daysToFull") },
-  ] as const;
-  return (
-    <div data-spectrum-cell={cell.key} className="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink/8 bg-(--adm-block) px-4 pt-2.5 pb-2.5 transition-colors duration-150 has-[[data-card-link]:hover]:bg-(--adm-block-hover)">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-ink/25" />
-      <button type="button" data-card-link aria-label={t("spectrum.open", { title, tab })} onClick={onOpen} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
-      <p className="flex items-baseline gap-2">
-        <span className="text-body font-semibold text-ink">{title}</span>
-        <span className="truncate text-small text-muted">{range}</span>
-        <span className="ml-auto text-small text-muted" aria-hidden>
-          →
-        </span>
-      </p>
-      <p data-tooltip-info={audience} className="pointer-events-auto relative z-10 mt-0.5 self-start truncate text-small text-muted max-w-full">
-        <span className="sr-only">{t("spectrum.audience")}: </span>
-        {audience}
-      </p>
-      <dl className="pointer-events-none relative z-10 mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
-        {figures.map((fig) => (
-          <div key={fig.key} className="min-w-0">
-            <dt {...(fig.info ? { "data-tooltip-info": fig.info } : {})} className="pointer-events-auto whitespace-nowrap text-eyebrow uppercase text-(--adm-label)">
-              {t(`spectrum.${fig.key}`)}
-              {fig.info && <span className="sr-only"> – {fig.info}</span>}
+        {facts.map((fact) => (
+          <div key={fact.key} className="min-w-0">
+            <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+              {fact.label}
+              {fact.info && <InfoTip text={fact.info} />}
             </dt>
-            <dd className="text-body font-semibold tabular-nums text-ink">{fig.value}</dd>
+            <dd className={cn("mt-1 text-h3 tabular-nums", fact.on ? "text-adm-chart-1" : "text-ink")}>{fact.value}</dd>
           </div>
         ))}
       </dl>
-      <h3 className="sr-only">{t("spectrum.who")}</h3>
-      <p className="mt-1.5 truncate text-small text-muted">
-        {t("spectrum.topics")}: <span className="text-ink">{cell.topTopics.length ? cell.topTopics.map((x) => f.vibe(x.key as Vibe)).join(", ") : dash}</span>
-      </p>
-      <p className="truncate text-small text-muted">
-        {t("spectrum.countries")}: <span className="text-ink">{cell.topCountries.length ? cell.topCountries.map((x) => x.key).join(", ") : dash}</span>
-      </p>
-      {cell.sparse && <p className="mt-1 text-small font-semibold text-ink">{t("spectrum.sparse")}</p>}
-    </div>
+      <dl className="mt-(--adm-inner) flex flex-col gap-1 text-small">
+        {dimension !== "topic" && (
+          <div className="flex gap-2">
+            <dt className="text-muted">{t("topTopics")}:</dt>
+            <dd className="text-ink">{list(row.topTopics, (k) => f.vibe(k as Vibe))}</dd>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <dt className="text-muted">{t("topCountries")}:</dt>
+          <dd className="text-ink">{list(row.topCountries, (k) => k)}</dd>
+        </div>
+      </dl>
+    </article>
   );
 }

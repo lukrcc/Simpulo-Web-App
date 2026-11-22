@@ -19,7 +19,8 @@ import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
 import type { AdminData, ContentPost, CostCategory, CostEntry, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
-import { FALLBACK_RULES, FUNNEL_ASSUMPTIONS, LAUNCH_DATE, LAUNCH_PHASES, MARKETING_START_DATE, PROJECTION_HOUSES, STRATEGY_RINGS, STRATEGY_WEEK_BARS, STRATEGY_WEEKS, type LaunchPhaseKey, type StrategyMetric } from "@/config/marketing";
+import { FULL_YEAR_MONTHS, GROWTH_STEPS, REPEAT_SHIFT, VALUATION_METHODS, VALUATION_MULTIPLES, type ValuationMethod } from "@/config/valuation";
+import { LOOKED_NOT_ASKED, ORIGIN_GROUPS, type OriginGroup, FALLBACK_RULES, FUNNEL_ASSUMPTIONS, LAUNCH_DATE, LAUNCH_PHASES, MARKETING_START_DATE, PROJECTION_HOUSES, STRATEGY_RINGS, STRATEGY_WEEK_BARS, STRATEGY_WEEKS, type LaunchPhaseKey, type StrategyMetric } from "@/config/marketing";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
 import type { GrowthEvent } from "@/lib/growth";
@@ -203,14 +204,14 @@ function dayWeight(date: string): number {
  * from its date (its amount ÷ 30 a day); a recurring one accrued over the days of every month from its first day (its monthly amount ÷ the
  * month's days).
  */
-export function costEntryDays(entries: readonly CostEntry[], today: string): { date: string; amount: number; category: CostCategory; id: string }[] {
-  const out: { date: string; amount: number; category: CostCategory; id: string }[] = [];
+export function costEntryDays(entries: readonly CostEntry[], today: string): { date: string; amount: number; category: CostCategory; id: string; channel?: string }[] {
+  const out: { date: string; amount: number; category: CostCategory; id: string; channel?: string }[] = [];
   for (const e of entries) {
     if (!e.recurring) {
       for (let d = 0; d < ONE_OFF_DAYS; d++) {
         const date = isoDay(dayMs(e.date) + d * DAY_MS);
         if (date > today) break;
-        out.push({ date, amount: e.amount / ONE_OFF_DAYS, category: e.category, id: e.id });
+        out.push({ date, amount: e.amount / ONE_OFF_DAYS, category: e.category, id: e.id, channel: e.channel });
       }
       continue;
     }
@@ -220,7 +221,7 @@ export function costEntryDays(entries: readonly CostEntry[], today: string): { d
       for (let d = 0; d < days; d++) {
         const date = isoDay(dayMs(first) + d * DAY_MS);
         if (date > today) break;
-        if (date >= e.date) out.push({ date, amount: e.amount / days, category: e.category, id: e.id });
+        if (date >= e.date) out.push({ date, amount: e.amount / days, category: e.category, id: e.id, channel: e.channel });
       }
     }
   }
@@ -243,7 +244,18 @@ type DayInputs = Pick<AdminInputs, "stays" | "payments" | "history" | "today"> &
  * records: payments by the day they were paid, full Houses by their start day. Costs: Stripe automatically from the bookings, the rest the
  * entries in Geld › Kosten (AdminData.costEntries).
  */
+/** dailyRows per inputs object: the same inputs (one render) give the same rows – computed once (Market Cap asks for 14 days of it). */
+const DAILY_CACHE = new WeakMap<object, DayRow[]>();
+
 function dailyRows(inputs: DayInputs): DayRow[] {
+  const cached = DAILY_CACHE.get(inputs);
+  if (cached) return cached;
+  const rows = computeDailyRows(inputs);
+  DAILY_CACHE.set(inputs, rows);
+  return rows;
+}
+
+function computeDailyRows(inputs: DayInputs): DayRow[] {
   const { history, today } = inputs;
   const empty = (date: string): DayRow => ({ date, profit: 0, full: 0, nights: 0, bookingVolume: 0, revenue: 0, serviceFees: 0, hostFeeShare: 0, refunds: 0, stripeFees: 0, otherCosts: 0, guests: 0, proHosts: 0 });
   const byDay = new Map<string, DayRow>();
@@ -1221,6 +1233,9 @@ export interface HostRow {
   followers: number;
   tier: HostTier;
   manual: boolean;
+  /** The tier the rules suggest (HOST_TIER_RULES) and why: followers (anchor), a host fee (pro), none (share) */
+  suggested: HostTier;
+  suggestedBy: "followers" | "hostFee" | "noHostFee";
 }
 
 /** Everyone hosting at least one real House, most Houses first – with their tier (by hand, else suggested from their Houses' host fees). */
@@ -1232,8 +1247,10 @@ export function hostRows({ stays, users }: Pick<AdminInputs, "stays" | "users">)
       const user = users.find((u) => u.id === id);
       if (!user) return [];
       const followers = user.audienceSize ?? 0;
-      const suggested = suggestTier(houses.some((h) => (h.hostFeePerPerson ?? 0) > 0), followers);
-      return [{ user, houses, hubs: [...new Set(houses.map(hubOf))], followers, tier: user.hostTier ?? suggested, manual: Boolean(user.hostTier) }];
+      const hostFee = houses.some((h) => (h.hostFeePerPerson ?? 0) > 0);
+      const suggested = suggestTier(hostFee, followers);
+      const suggestedBy = suggested === "anchor" ? ("followers" as const) : hostFee ? ("hostFee" as const) : ("noHostFee" as const);
+      return [{ user, houses, hubs: [...new Set(houses.map(hubOf))], followers, tier: user.hostTier ?? suggested, manual: Boolean(user.hostTier), suggested, suggestedBy }];
     })
     .toSorted((a, b) => b.houses.length - a.houses.length || a.user.name.localeCompare(b.user.name));
 }
@@ -1290,7 +1307,8 @@ export function byAccommodation({ stays, joinRequests, payments }: Pick<AdminInp
 
 // ── Analyse: money and retention by angle ───────────────────────────────────────────────────────────────────────────────────────
 
-export type AnalysisPeriod = "30d" | "year" | "all";
+/** Analyse: "12m" = the last 12 months (the page's one window); the others stay for Geld and the money helpers. */
+export type AnalysisPeriod = "30d" | "year" | "all" | "12m";
 export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "origin" | "hub" | "tier" | "depth";
 /** "depth" (Tiefe) only while the depth choice is on (config/platform.ts) – analysisDimensions(depthOn). "origin" (Ort-Herkunft): the host's own
  *  saved place (a window, HouseOutcome.placeId) or a place found for the House. */
@@ -1337,7 +1355,7 @@ const outcomesOf = (inputs: AdminInputs) => inputs.outcomes ?? outcomesFromRecor
 /** The period's first day (inclusive) and its length in days – for "per year" figures. */
 function periodRange(period: AnalysisPeriod, today: string, outcomes: readonly HouseOutcome[]): { from: string; days: number } {
   const end = Date.parse(`${today}T00:00:00Z`);
-  const fromMs = period === "30d" ? end - 30 * DAY_MS : period === "year" ? Date.parse(`${today.slice(0, 4)}-01-01T00:00:00Z`) : Date.parse(`${outcomes[0]?.startDate ?? today}T00:00:00Z`);
+  const fromMs = period === "30d" ? end - 30 * DAY_MS : period === "12m" ? end - 365 * DAY_MS : period === "year" ? Date.parse(`${today.slice(0, 4)}-01-01T00:00:00Z`) : Date.parse(`${outcomes[0]?.startDate ?? today}T00:00:00Z`);
   return { from: new Date(fromMs).toISOString().slice(0, 10), days: Math.max(1, Math.round((end - fromMs) / DAY_MS)) };
 }
 
@@ -1358,8 +1376,34 @@ export interface AnalysisRow {
   valuePerPersonYear: number | null;
   /** 0–1: mutual "Mit dir wieder" among the answered pairs; null without answers (the rating isn't built – mock example values only) */
   againMutual: number | null;
+  /** Simpulo's service fee per paid booking (EUR) */
+  perBooking: number | null;
+  /** Who books: the top topics (by Houses) and the guests' top countries */
+  topTopics: { key: string; count: number }[];
+  topCountries: { key: string; count: number }[];
   /** fewer than ANALYSIS_MIN_HOUSES */
   tooFew: boolean;
+}
+
+/** Analyse › „Bewerten nach“: what ranks the groups. Tempo = days until full, fewer is better. */
+export type AnalysisMeasure = "value" | "connection" | "repeat" | "speed";
+export const ANALYSIS_MEASURES: readonly AnalysisMeasure[] = ["value", "connection", "repeat", "speed"];
+
+/** A row's number for a measure (null = not known). */
+export function measureOf(row: AnalysisRow, measure: AnalysisMeasure): number | null {
+  if (measure === "value") return row.valuePerPersonYear;
+  if (measure === "connection") return row.againMutual;
+  if (measure === "repeat") return row.repeat12;
+  return row.daysToFull;
+}
+
+/** Best first by the measure (Tempo: fewest days first); groups with too few Houses and unknown values at the end. */
+export function rankByMeasure(rows: readonly AnalysisRow[], measure: AnalysisMeasure): AnalysisRow[] {
+  const score = (r: AnalysisRow) => {
+    const v = measureOf(r, measure);
+    return v === null ? -Infinity : measure === "speed" ? -v : v;
+  };
+  return rows.toSorted((a, b) => Number(a.tooFew) - Number(b.tooFew) || score(b) - score(a) || b.houses - a.houses);
 }
 
 /** Stays per guest over the last 12 months (all Houses) – for repeat and "per year". */
@@ -1387,6 +1431,9 @@ function analysisRow(key: string, group: readonly HouseOutcome[], stays: Map<str
     repeat12: guests.length ? guests.filter((g) => (stays.get(g) ?? 0) >= 2).length / guests.length : null,
     valuePerPersonYear: perPerson === null || perYear === null ? null : Math.round(perPerson * perYear),
     againMutual: againShare(group),
+    perBooking: people ? Math.round(group.reduce((n, o) => n + o.serviceFee, 0) / people) : null,
+    topTopics: topOf(group.map((o) => o.topic)),
+    topCountries: topOf(group.flatMap((o) => o.guestCountries ?? [])),
     tooFew: group.length < ANALYSIS_MIN_HOUSES,
   };
 }
@@ -1463,11 +1510,11 @@ export interface SpectrumCell {
   sparse: boolean;
 }
 
-const topOf = (values: readonly (string | null | undefined)[]) => {
+function topOf(values: readonly (string | null | undefined)[]) {
   const counts = new Map<string, number>();
   for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
   return [...counts.entries()].map(([key, count]) => ({ key, count })).toSorted((a, b) => b.count - a.count || a.key.localeCompare(b.key)).slice(0, SPECTRUM_TOP);
-};
+}
 
 /**
  * Analyse › Spektrum: the Houses that started in the period (Woche · Monat · Quartal · Jahr, the running one up to today) – when the
@@ -1546,7 +1593,7 @@ export function windowsPerPlace(inputs: AdminInputs, period: AnalysisPeriod): { 
 }
 
 /** The sweet spot: the topic × length × crew size × host tier with the highest value per person per year – only from combinations with enough Houses. */
-export function sweetSpot(inputs: AdminInputs, period: AnalysisPeriod) {
+export function sweetSpot(inputs: AdminInputs, period: AnalysisPeriod, measure: AnalysisMeasure = "value") {
   const outcomes = outcomesOf(inputs);
   const { from } = periodRange(period, inputs.today, outcomes);
   const stays = staysLastYear(outcomes, inputs.today);
@@ -1555,12 +1602,12 @@ export function sweetSpot(inputs: AdminInputs, period: AnalysisPeriod) {
     const key = [o.topic, lengthBand(o.nights), crewBand(o.crewSize), o.tier].join("|");
     groups.set(key, [...(groups.get(key) ?? []), o]);
   }
-  const best = [...groups.entries()]
-    .map(([key, group]) => analysisRow(key, group, stays))
-    .filter((r) => !r.tooFew && r.valuePerPersonYear !== null)
-    .toSorted((a, b) => b.valuePerPersonYear! - a.valuePerPersonYear!)[0];
+  const best = rankByMeasure(
+    [...groups.entries()].map(([key, group]) => analysisRow(key, group, stays)).filter((r) => !r.tooFew && measureOf(r, measure) !== null),
+    measure,
+  )[0];
   if (!best) return null;
-  const [topic, length, crew, tier] = best.key.split("|") as [Vibe, "short" | "mid" | "long", "2-4" | "5-8" | "9+", HostTier];
+  const [topic, length, crew, tier] = best.key.split("|") as [Vibe, "short" | "mid" | "long", string, HostTier];
   return { topic, length, crew, tier, row: best };
 }
 
@@ -1715,6 +1762,19 @@ export function needsHelp(inputs: AdminInputs): NeedsHelpRow[] {
       return { stay, reasons, daysToStart, missing, urgency: missing / Math.max(1, daysToStart), lever: recommendedLever(reasons, daysToStart, fillRateOf(stay)) };
     })
     .toSorted((a, b) => b.urgency - a.urgency || a.daysToStart - b.daysToStart);
+}
+
+/**
+ * Offene Houses (Übersicht › Wachstum & Angebot): real Houses open for requests on a day – published (or since booked or done), created by
+ * then and not started yet. On the last day of the stretch against the last day of the one compared with.
+ */
+export function openHouses(inputs: Pick<AdminInputs, "stays" | "history">, ranges: GrowthRanges, period: ComparePeriod | null) {
+  const at = (day: string) => inputs.stays.filter((s) => isReal(s) && ["published", "booked", "completed"].includes(s.status) && s.createdAt.slice(0, 10) <= day && s.startDate > day).length;
+  const value = at(ranges.current.to);
+  // The mock's history knows the running periods' comparison (period); an opened bar (null) has none there.
+  const history = inputs.history?.openHousesBefore;
+  const before = history ? (period ? history[period] : null) : at(ranges.previous.to);
+  return { value, change: getChange("openHouses", value, before) };
 }
 
 /** "Braucht Hilfe" now against the month before (the history's snapshot; the real source needs a daily count). */
@@ -1948,7 +2008,13 @@ export function installRates(inputs: AdminInputs) {
     const value = rate(last);
     return { value, booked: last?.booked ?? null, change: getChange(metric, value, rate(rows?.at(-3))) };
   };
-  return { month: months.at(-2)!, monthBefore: months.at(-3)!, ios: of("ios", "installRateIos"), android: of("android", "installRateAndroid") };
+  // Both devices together (Übersicht › Web-App installiert): all installs ÷ all guests with a booking.
+  const both = (back: number) => {
+    const rows = [installs?.ios.at(back), installs?.android.at(back)].filter((r) => r !== undefined);
+    return rows.length ? rate({ booked: rows.reduce((n, r) => n + r.booked, 0), installed: rows.reduce((n, r) => n + r.installed, 0) }) : null;
+  };
+  const all = { value: both(-2), change: getChange("installRateAll", both(-2), both(-3)) };
+  return { month: months.at(-2)!, monthBefore: months.at(-3)!, ios: of("ios", "installRateIos"), android: of("android", "installRateAndroid"), all };
 }
 
 /**
@@ -2037,6 +2103,28 @@ export function valuationRange(inputs: AdminInputs) {
  *   requestsWithNote      – the share of requests (not the host's own invites) that carry a note for the host (percent)
  */
 export function askingHostMetrics(inputs: AdminInputs) {
+  const share = (part: number, all: number) => (all > 0 ? Math.round((part / all) * 1000) / 10 : null);
+  const months = inputs.history?.asking;
+  if (months && months.length > 0) {
+    // Mock history: the last full month against the one before.
+    const of = (m?: (typeof months)[number]) => ({
+      messagesBeforeRequest: m && m.requested > 0 ? Math.round((m.guestMessages / m.requested) * 10) / 10 : null,
+      askedToRequest: m ? share(m.requested, m.chats) : null,
+      requestsWithNote: m ? share(m.withNote, m.requests) : null,
+    });
+    const now = of(months.at(-1));
+    const before = of(months.at(-2));
+    return {
+      chats: months.at(-1)!.chats,
+      requests: months.at(-1)!.requests,
+      ...now,
+      change: {
+        askBefore: getChange("askBefore", now.messagesBeforeRequest, before.messagesBeforeRequest),
+        askToRequest: getChange("askToRequest", now.askedToRequest, before.askedToRequest),
+        askNote: getChange("askNote", now.requestsWithNote, before.requestsWithNote),
+      },
+    };
+  }
   const direct = (inputs.threads ?? []).filter((t) => t.type === "direct" && t.houseId);
   const pairs = direct.flatMap((t) => {
     const stay = inputs.stays.find((s) => s.id === t.houseId);
@@ -2048,8 +2136,8 @@ export function askingHostMetrics(inputs: AdminInputs) {
   });
   const led = pairs.filter((p) => p.requested);
   const requests = inputs.joinRequests.filter((r) => r.status !== "invited");
-  const share = (part: number, all: number) => (all > 0 ? Math.round((part / all) * 1000) / 10 : null);
   return {
+    change: { askBefore: null, askToRequest: null, askNote: null },
     chats: pairs.length,
     messagesBeforeRequest: led.length > 0 ? Math.round((led.reduce((sum, p) => sum + p.before, 0) / led.length) * 10) / 10 : null,
     askedToRequest: share(led.length, pairs.length),
@@ -2080,8 +2168,11 @@ export interface GrowthRow {
  * The events of the running period up to today (back 0) or of the same span of the period before (back 1) – periodRanges, the same as the
  * overview. TODO(firestore): stats/daily instead of the raw events.
  */
-function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, back: 0 | 1 = 0): GrowthEvent[] {
-  const ranges = periodRanges(today, period);
+/** A stretch and the one it is compared with (rangesFor / periodRanges). */
+export type GrowthRanges = ReturnType<typeof periodRanges>;
+
+function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, back: 0 | 1 = 0, within?: GrowthRanges): GrowthEvent[] {
+  const ranges = within ?? periodRanges(today, period);
   const { from, to } = back === 0 ? ranges.current : ranges.previous;
   return events.filter((e) => {
     const day = e.at.slice(0, 10);
@@ -2089,10 +2180,33 @@ function inWindow(events: readonly GrowthEvent[], period: GrowthPeriod, today: s
   });
 }
 
+/** The origin group of a channel key ("" = Direkt) – config/marketing.ts ORIGIN_GROUPS; an unknown source counts as a post. */
+export function originGroupOf(key: string): OriginGroup {
+  for (const group of ["shared", "found"] as const) if ((ORIGIN_GROUPS[group] as readonly string[]).includes(key)) return group;
+  return "posts";
+}
+
+/** A House's requests it misses against the overall rate: views × rate − requests (≥ 0). */
+export const missedRequests = (row: GrowthRow, rate: number) => Math.max(0, row.visits * rate - row.requests);
+
+/**
+ * "Oft angesehen, kaum angefragt" (config/marketing.ts LOOKED_NOT_ASKED): of the Houses' rows in a period, those viewed far above the median
+ * with a request rate far below all Houses' – the most missed requests first. Also the overall rate (requests ÷ views).
+ */
+export function lookedNotAsked(rows: readonly GrowthRow[]): { rate: number; houses: GrowthRow[] } {
+  const views = rows.reduce((n, r) => n + r.visits, 0);
+  const rate = views > 0 ? rows.reduce((n, r) => n + r.requests, 0) / views : 0;
+  const sorted = rows.map((r) => r.visits).toSorted((a, b) => a - b);
+  const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  const min = Math.max(LOOKED_NOT_ASKED.minViews, median * LOOKED_NOT_ASKED.viewsOverMedian);
+  const houses = rows.filter((r) => r.visits >= min && r.requests / r.visits <= rate * LOOKED_NOT_ASKED.rateShare).toSorted((a, b) => missedRequests(b, rate) - missedRequests(a, rate));
+  return { rate, houses };
+}
+
 /** Visits = house_viewed, requests = request_sent, accepted = request_accepted, paid = payment_completed – grouped by `keyOf`, by revenue. */
-export function growthRows(events: readonly GrowthEvent[], keyOf: (e: GrowthEvent) => string | undefined, period: GrowthPeriod, today: string): GrowthRow[] {
+export function growthRows(events: readonly GrowthEvent[], keyOf: (e: GrowthEvent) => string | undefined, period: GrowthPeriod, today: string, within?: GrowthRanges): GrowthRow[] {
   const rows = new Map<string, GrowthRow>();
-  for (const e of inWindow(events, period, today)) {
+  for (const e of inWindow(events, period, today, 0, within)) {
     const key = keyOf(e);
     if (key === undefined) continue;
     const row = rows.get(key) ?? { key, visits: 0, requests: 0, accepted: 0, paid: 0, revenue: 0 };
@@ -2107,19 +2221,43 @@ export function growthRows(events: readonly GrowthEvent[], keyOf: (e: GrowthEven
   }
   return [...rows.values()]
     .filter((r) => r.visits + r.requests + r.accepted + r.paid > 0)
-    .toSorted((a, b) => b.revenue - a.revenue || b.visits - a.visits || a.key.localeCompare(b.key));
+    .toSorted((a, b) => b.paid - a.paid || b.revenue - a.revenue || b.visits - a.visits || a.key.localeCompare(b.key));
 }
 
+/**
+ * Marketing costs in the period (Geld › Kosten, category „marketing“, spread over days like everywhere – costEntryDays): the total and per
+ * channel (CostEntry.channel; unassigned ones only count in the total), now and in the same span of the period before.
+ */
+export function growthCosts(entries: readonly CostEntry[], period: GrowthPeriod, today: string) {
+  const ranges = periodRanges(today, period);
+  const days = costEntryDays(entries, today).filter((d) => d.category === "marketing");
+  const sum = ({ from, to }: { from: string; to: string }) => {
+    const byChannel = new Map<string, number>();
+    let total = 0;
+    for (const d of days) {
+      if (d.date < from || d.date > to) continue;
+      total += d.amount;
+      if (d.channel !== undefined) byChannel.set(d.channel, (byChannel.get(d.channel) ?? 0) + d.amount);
+    }
+    return { total, byChannel };
+  };
+  return { now: sum(ranges.current), before: sum(ranges.previous) };
+}
+
+/** Wert ÷ Kosten: revenue per 1 € of marketing cost – only with costs above 0 and some revenue, else null. */
+export const valueToCost = (revenue: number, cost: number): number | null => (cost > 0 && revenue > 0 ? Math.round((revenue / cost) * 100) / 100 : null);
+
 /** The funnel on top of Wachstum: visitors · requests · paid in the period, each with its change against the same span of the period before. */
-export function growthFunnel(events: readonly GrowthEvent[], period: GrowthPeriod, today: string) {
+export function growthFunnel(events: readonly GrowthEvent[], period: GrowthPeriod, today: string, within?: GrowthRanges) {
   const count = (list: readonly GrowthEvent[], name: GrowthEvent["name"]) => list.filter((e) => e.name === name).length;
-  const now = inWindow(events, period, today);
-  const before = inWindow(events, period, today, 1);
+  const now = inWindow(events, period, today, 0, within);
+  const before = inWindow(events, period, today, 1, within);
   const pair = (metric: "visitors" | "requests" | "paid", name: GrowthEvent["name"]) => {
     const value = count(now, name);
     return { value, change: getChange(metric, value, count(before, name)) };
   };
-  return { visitors: pair("visitors", "house_viewed"), requests: pair("requests", "request_sent"), paid: pair("paid", "payment_completed") };
+  const revenue = (list: readonly GrowthEvent[]) => list.filter((e) => e.name === "payment_completed").reduce((total, e) => total + convertApprox(e.revenue ?? 0, (e.currency ?? "EUR") as Currency, "EUR"), 0);
+  return { visitors: pair("visitors", "house_viewed"), requests: pair("requests", "request_sent"), paid: pair("paid", "payment_completed"), revenue: { now: revenue(now), before: revenue(before) } };
 }
 
 // ─── Launch › Marketing ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2456,5 +2594,100 @@ export function afterMetrics(inputs: Pick<AdminInputs, "stays" | "users" | "join
     connectionRate: { value: pct(connected, chose), answered: chose },
     intentionReached: { value: pct(intentionScore, intentions), answered: intentions },
     stillInTouch: { value: pct(inTouch, touchAnswers), answered: touchAnswers },
+  };
+}
+
+
+// ─── Market Cap (Admin › Übersicht › Market Cap) ───────────────────────────────────────────────────────────────────────────────────────
+
+export interface MarketCapMethod {
+  method: ValuationMethod;
+  /** The base: the last 12 months (or the last 3 × 4, `extrapolated`), EUR */
+  base: number;
+  /** The multiple's band for this growth and repeat (a third of the method's range) */
+  multiple: { low: number; high: number };
+  result: { low: number; high: number };
+}
+
+const isoDayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * A rough value of Simpulo on a day (config/valuation.ts): three methods – profit, revenue, booking volume of the last 12 months, each × a
+ * multiple band (its range in thirds; the third from monthly revenue growth, shifted by repeat guests). The estimate is the middle of the
+ * revenue method; the span min–max over all methods. With fewer than 12 months of data the base is the last 3 months × 4 (`extrapolated`).
+ * Independent of the admin's period. The drivers: monthly revenue growth (last 6 full months), repeat guests, take rate, open Houses.
+ */
+export function marketCapAt(inputs: AdminInputs, day: string) {
+  const end = Date.parse(`${day}T00:00:00Z`);
+  const yearFrom = isoDayOf(end - 364 * DAY_MS);
+  const rows = dailyRows(inputs);
+  const firstData = rows.find((r) => r.revenue > 0 || r.bookingVolume > 0)?.date ?? day;
+  const monthsOfData = Math.floor((end - Date.parse(`${firstData}T00:00:00Z`)) / (30.44 * DAY_MS));
+  const extrapolated = monthsOfData < FULL_YEAR_MONTHS;
+  const totals = extrapolated ? moneyTotals(inputs, isoDayOf(end - 90 * DAY_MS), day) : moneyTotals(inputs, yearFrom, day);
+  const k = extrapolated ? 4 : 1;
+  const base: Record<ValuationMethod, number> = { profit: totals.profit * k, revenue: totals.revenue * k, bookingVolume: totals.bookingVolume * k };
+  // Monthly revenue growth: the average month-on-month change over the last 6 full months before `day`.
+  const monthStart = (back: number) => {
+    const d = new Date(end);
+    return isoDayOf(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back, 1));
+  };
+  const monthRevenue = (back: number) => moneyTotals(inputs, monthStart(back), isoDayOf(Date.parse(`${monthStart(back - 1)}T00:00:00Z`) - DAY_MS)).revenue;
+  const months = [6, 5, 4, 3, 2, 1].map(monthRevenue);
+  const first = months.find((v) => v > 0) ?? 0;
+  const growth = first > 0 && months.at(-1)! > 0 ? Math.round((Math.pow(months.at(-1)! / first, 1 / (months.length - 1 - months.indexOf(first))) - 1) * 1000) / 10 : null;
+  // Repeat guests: the history's monthly series in the mock (this month = last), else the network's share.
+  const series = inputs.history?.series?.repeatRate;
+  const monthsBack = Math.max(0, Math.round((Date.parse(`${inputs.today}T00:00:00Z`) - end) / (30.44 * DAY_MS)));
+  const repeat = series?.length ? (series.at(-1 - monthsBack) ?? null) : (() => { const r = algorithmMetrics(inputs).repeatRate; return r === null ? null : Math.round(r * 100); })();
+  let step = growth === null ? 0 : growth >= GROWTH_STEPS.upperFrom ? 2 : growth >= GROWTH_STEPS.middleFrom ? 1 : 0;
+  if (repeat !== null && repeat < REPEAT_SHIFT.downBelow) step = Math.max(0, step - 1);
+  if (repeat !== null && repeat >= REPEAT_SHIFT.upFrom) step = Math.min(2, step + 1);
+  const methods: MarketCapMethod[] = VALUATION_METHODS.map((method) => {
+    const { min, max } = VALUATION_MULTIPLES[method];
+    const third = (max - min) / 3;
+    const multiple = { low: Math.round((min + third * step) * 10) / 10, high: Math.round((min + third * (step + 1)) * 10) / 10 };
+    const b = Math.max(0, Math.round(base[method]));
+    return { method, base: b, multiple, result: { low: Math.round(b * multiple.low), high: Math.round(b * multiple.high) } };
+  });
+  const revenue = methods.find((m) => m.method === "revenue")!;
+  const estimate = Math.round((revenue.result.low + revenue.result.high) / 2);
+  const all = methods.flatMap((m) => [m.result.low, m.result.high]).filter((v) => v > 0);
+  return {
+    day,
+    estimate,
+    span: { low: all.length ? Math.min(...all) : 0, high: all.length ? Math.max(...all) : 0 },
+    methods,
+    extrapolated,
+    step,
+    drivers: { growth, repeat, takeRate: totals.bookingVolume > 0 ? Math.round((totals.revenue / totals.bookingVolume) * 1000) / 10 : null },
+  };
+}
+
+/** Market Cap now, the month before (for the change), its drivers' changes and the estimate per month over the last 12 (this month running). */
+export function marketCap(inputs: AdminInputs) {
+  const now = marketCapAt(inputs, inputs.today);
+  const monthAgo = isoDayOf(Date.parse(`${inputs.today}T00:00:00Z`) - 30 * DAY_MS);
+  const before = marketCapAt(inputs, monthAgo);
+  const ranges = periodRanges(inputs.today, "month");
+  const open = openHouses(inputs, ranges, "month");
+  const d = new Date(Date.parse(`${inputs.today}T00:00:00Z`));
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const back = 11 - i;
+    const startMs = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back, 1);
+    const endMs = back === 0 ? Date.parse(`${inputs.today}T00:00:00Z`) : Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back + 1, 0);
+    return { month: isoDayOf(startMs).slice(0, 7), value: marketCapAt(inputs, isoDayOf(endMs)).estimate, current: back === 0 };
+  });
+  return {
+    ...now,
+    change: getChange("revenue", now.estimate, before.estimate),
+    driverChanges: {
+      growth: getChange("growthPct", now.drivers.growth, before.drivers.growth),
+      repeat: getChange("repeatRate", now.drivers.repeat, before.drivers.repeat),
+      takeRate: getChange("takeRate", now.drivers.takeRate, before.drivers.takeRate),
+      openHouses: open.change,
+    },
+    openHouses: open.value,
+    months,
   };
 }

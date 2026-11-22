@@ -362,6 +362,15 @@
   --color-adm-warning-soft: var(--adm-warning-soft);
   --color-adm-critical-soft: var(--adm-critical-soft);
   --color-adm-chart-1-soft: var(--adm-chart-1-soft);
+  /* Admin side-list groups (Heute · Zahlen · Plattform · Planen) – values in styles/admin-tokens.css */
+  --color-adm-group-today: var(--adm-group-today);
+  --color-adm-group-numbers: var(--adm-group-numbers);
+  --color-adm-group-platform: var(--adm-group-platform);
+  --color-adm-group-plan: var(--adm-group-plan);
+  --color-adm-group-today-chip: var(--adm-group-today-chip);
+  --color-adm-group-numbers-chip: var(--adm-group-numbers-chip);
+  --color-adm-group-platform-chip: var(--adm-group-platform-chip);
+  --color-adm-group-plan-chip: var(--adm-group-plan-chip);
   --color-adm-area-market: var(--adm-area-market);
   --color-adm-area-growth: var(--adm-area-growth);
   --color-adm-area-operate: var(--adm-area-operate);

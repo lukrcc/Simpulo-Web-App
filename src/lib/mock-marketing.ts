@@ -154,12 +154,15 @@ export function mockContentSprints(): ContentSprint[] {
 // ⚠ DEMO DATA: costs entered by hand for Geld › Kosten – running ones every month from their first day (the history begins in January 2024),
 // creator clips as one-offs. Fixed amounts (no randomness); Stripe's fees come from the bookings, not from here.
 export function mockCostEntries(): CostEntry[] {
-  const c = (id: number, date: string, amount: number, category: CostEntry["category"], recurring: boolean, note: string): CostEntry => ({ id: `ce-demo${id}`, date, amount, category, recurring, note });
+  const c = (id: number, date: string, amount: number, category: CostEntry["category"], recurring: boolean, note: string, channel?: string): CostEntry => ({ id: `ce-demo${id}`, date, amount, category, recurring, note, ...(channel !== undefined && { channel }) });
   return [
     c(1, "2025-03-03", 180, "tools", true, "Google Cloud (Firebase)"),
     c(2, "2024-01-03", 55, "tools", true, "Workspace, Figma, Resend"),
     c(3, "2026-03-02", 60, "tools", true, "Mapbox"),
-    c(4, "2026-06-01", 1100, "marketing", true, "Meta Ads"),
+    c(4, "2025-01-06", 320, "marketing", true, "Meta Ads", "instagram"),
+    c(10, "2025-02-03", 160, "marketing", true, "TikTok Ads", "tiktok"),
+    c(11, "2026-01-05", 90, "marketing", true, "Google Ads", "google"),
+    c(12, "2026-04-01", 80, "marketing", true, "Twitch-Kooperation", "twitch"),
     c(5, "2026-01-15", 150, "other", true, "Steuerberatung"),
     c(6, "2024-01-05", 11, "other", true, "Qonto"),
     c(7, "2026-09-14", 600, "creator", false, "Creator-Clip Ericeira"),

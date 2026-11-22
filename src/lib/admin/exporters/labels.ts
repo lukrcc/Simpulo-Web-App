@@ -7,9 +7,10 @@ export const PLAIN = ADMIN_DE.money.taxes.plain;
 
 const fill = (template: string, values: Record<string, string | number>) => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
 
-/** "Oktober 2026" · "Q4 2026" · "2026" */
+/** "KW 47 2026" · "Oktober 2026" · "Q4 2026" · "2026" */
 export function periodLabel(p: Pick<Period, "kind" | "year" | "index" | "from">): string {
   if (p.kind === "year") return String(p.year);
+  if (p.kind === "week") return fill(PLAIN.week, { index: p.index, year: p.year });
   if (p.kind === "quarter") return fill(PLAIN.quarter, { index: p.index, year: p.year });
   return `${monthLong(p.from)} ${p.year}`;
 }

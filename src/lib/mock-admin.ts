@@ -212,9 +212,15 @@ export const MOCK_METRICS_HISTORY = {
   },
   /** Guests with a booking who have Simpulo installed: iPhone lower than Android (three taps in Safari against one button), both rising. */
   installs: {
-    ios: [{ booked: 34, installed: 5 }, { booked: 40, installed: 7 }, { booked: 44, installed: 8 }, { booked: 50, installed: 10 }, { booked: 58, installed: 13 }, { booked: 68, installed: 16 }, { booked: 77, installed: 19 }, { booked: 52, installed: 12 }, { booked: 80, installed: 22 }, { booked: 83, installed: 24 }, { booked: 87, installed: 27 }, { booked: 76, installed: 25 }],
-    android: [{ booked: 24, installed: 7 }, { booked: 29, installed: 8 }, { booked: 32, installed: 10 }, { booked: 36, installed: 12 }, { booked: 41, installed: 14 }, { booked: 49, installed: 18 }, { booked: 56, installed: 21 }, { booked: 36, installed: 13 }, { booked: 56, installed: 22 }, { booked: 58, installed: 24 }, { booked: 60, installed: 26 }, { booked: 52, installed: 24 }],
+    ios: [{ booked: 34, installed: 3 }, { booked: 40, installed: 4 }, { booked: 44, installed: 5 }, { booked: 50, installed: 6 }, { booked: 58, installed: 8 }, { booked: 68, installed: 10 }, { booked: 77, installed: 11 }, { booked: 52, installed: 8 }, { booked: 80, installed: 13 }, { booked: 83, installed: 14 }, { booked: 87, installed: 16 }, { booked: 76, installed: 14 }],
+    android: [{ booked: 24, installed: 4 }, { booked: 29, installed: 5 }, { booked: 32, installed: 6 }, { booked: 36, installed: 7 }, { booked: 41, installed: 8 }, { booked: 49, installed: 10 }, { booked: 56, installed: 12 }, { booked: 36, installed: 8 }, { booked: 56, installed: 13 }, { booked: 58, installed: 15 }, { booked: 60, installed: 16 }, { booked: 52, installed: 14 }],
   },
+  /** Asking the host before a request (Wachstum › Verhalten), the last two full months, oldest first: direct chats, how many led to a
+   *  request (≈ 40 %), the guest's messages before it (≈ 2.7 each), requests and how many carry a note (≈ 57 %). */
+  asking: [
+    { chats: 41, requested: 17, guestMessages: 44, requests: 118, withNote: 69 },
+    { chats: 58, requested: 23, guestMessages: 64, requests: 164, withNote: 92 },
+  ],
   /**
    * Admin › Houses: three upcoming Houses at risk (two quiet for over a week, one with a request unanswered for 61 h); the full Houses took
    * 6–21 days to fill. Houses not listed count as active.
@@ -246,6 +252,8 @@ export const MOCK_METRICS_HISTORY = {
     [60, 1], [90, 1], [120, 1], [150, 2], [210, 2], [260, 3], [300, 3], [240, 2], [330, 3], [380, 4], [420, 4], [400, 4],
     [450, 5], [520, 5], [580, 6], [640, 6], [710, 7], [790, 8], [860, 9], [700, 7], [930, 10], [1010, 11], [1080, 12],
   ].map(([profit, full], i, all) => ({ monthsAgo: 12 + all.length - 1 - i, profit, full, sharedNights: full * 56 })),
+  /** Open Houses at the end of the period compared with – a steady rise toward today's ~93. */
+  openHousesBefore: { week: 90, month: 86, quarter: 74, year: 52 },
   snapshots: {
     week: { profit: 3900, fullHouses: 33, reservedShare: 49, repeatRate: 22, sharedNights: 1960 },
     month: { profit: 4700, fullHouses: 35, reservedShare: 46, repeatRate: 20, sharedNights: 2050, needsHelp: 5 },

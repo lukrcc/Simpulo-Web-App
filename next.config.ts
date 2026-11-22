@@ -35,9 +35,9 @@ const nextConfig: NextConfig = {
       { source: "/your-houses", has: [{ type: "query", key: "tab", value: "earnings" }], destination: "/your-houses/payouts", permanent: true },
       { source: "/your-houses/earnings", destination: "/your-houses/payouts", permanent: true },
       // Admin: "Heute" and "Support" became the Posteingang.
-      { source: "/admin/today", destination: "/admin/posteingang", permanent: true },
-      { source: "/admin/heute", destination: "/admin/posteingang", permanent: true },
-      { source: "/admin/support", destination: "/admin/posteingang", permanent: true },
+      { source: "/admin/today", destination: "/admin/aufgaben", permanent: true },
+      { source: "/admin/heute", destination: "/admin/aufgaben", permanent: true },
+      { source: "/admin/support", destination: "/admin/aufgaben", permanent: true },
       // The sections are tabs now (one grid).
       // The FAQ became the help center (/help): the old role picks its topic, anchors keep working (the browser keeps the #).
       { source: "/faq", has: [{ type: "query", key: "role", value: "host" }], destination: "/help?cat=hosting", permanent: true },

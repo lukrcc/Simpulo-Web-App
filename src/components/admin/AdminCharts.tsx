@@ -7,6 +7,7 @@
 // runs: metrics.ts runningState);
 // goals as a dashed amber line (--adm-chart-goal); bars with 5px round tops; bars, rings and progress lines in primary on a grey track. Status
 // colours never fill a chart – only the small dot beside a number (StatusDot) and the change arrows. Recessive grid, a tooltip on hover.
+import { AdminTooltipBox } from "./AdminTooltip";
 import { memo, useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 // Month labels: every one while they fit, on a phone only as many as do (preserveStartEnd + minTickGap) – never on top of each other.
@@ -54,10 +55,10 @@ const axisWidth = (max: number) => 24 + Math.max(1, num(Math.round(max)).length)
 function ChartTooltip({ active, payload, label, unit }: { active?: boolean; payload?: { value?: number }[]; label?: string; unit?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="tooltip-box">
-      <span className="text-inverse/70">{label}</span> · <span className="font-semibold">{typeof payload[0].value === "number" ? num(payload[0].value) : payload[0].value}</span>
+    <AdminTooltipBox title={label}>
+      <span className="admin-tooltip-value">{typeof payload[0].value === "number" ? num(payload[0].value) : payload[0].value}</span>
       {unit && ` ${unit}`}
-    </div>
+    </AdminTooltipBox>
   );
 }
 
@@ -191,18 +192,19 @@ const toneFill = (tone: ChartTone, percent: 22 | 45 | 8) => (tone === "primary" 
 function ComboTooltip({ active, payload, label, series, format }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string; series: readonly ComboSeries[]; format: (v: number) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="tooltip-box flex flex-col gap-0.5">
-      <span className="text-muted">{label}</span>
-      {series.map((s) => {
-        const v = payload.find((p) => p.dataKey === s.key)?.value;
-        return typeof v === "number" ? (
-          <span key={s.key} className="flex items-center gap-2">
-            <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: TONE_VAR[s.tone] }} />
-            {s.label} · <span className="font-semibold tabular-nums">{format(v)}</span>
-          </span>
-        ) : null;
-      })}
-    </div>
+    <AdminTooltipBox title={label}>
+      <span className="flex flex-col gap-1">
+        {series.map((s) => {
+          const v = payload.find((p) => p.dataKey === s.key)?.value;
+          return typeof v === "number" ? (
+            <span key={s.key} className="flex items-center gap-2">
+              <span aria-hidden className="inline-block size-2.5 rounded-full" style={{ background: TONE_VAR[s.tone] }} />
+              {s.label} · <span className="admin-tooltip-value">{format(v)}</span>
+            </span>
+          ) : null;
+        })}
+      </span>
+    </AdminTooltipBox>
   );
 }
 
@@ -296,11 +298,12 @@ function DrillTooltip({ active, payload, bars }: { active?: boolean; payload?: {
   const bar = active && payload?.[0]?.payload ? bars[payload[0].payload.index] : undefined;
   if (!bar || bar.value === null) return null;
   return (
-    <div className="tooltip-box flex flex-col gap-0.5">
-      <span className="text-muted">{bar.title}</span>
-      <span className="font-semibold tabular-nums">{eur(bar.value)}</span>
-      <span>{bar.change}</span>
-    </div>
+    <AdminTooltipBox title={bar.title}>
+      <span className="flex flex-col gap-1">
+        <span className="admin-tooltip-value">{eur(bar.value)}</span>
+        <span>{bar.change}</span>
+      </span>
+    </AdminTooltipBox>
   );
 }
 

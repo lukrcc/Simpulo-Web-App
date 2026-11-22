@@ -1,28 +1,43 @@
 "use client";
 
-// Admin › Zeitplan › Zeitleiste: the schedule as a Gantt-like timeline (Code · Marketing · Reise · Vorbereitung · Launch,
-// Nov 2026 – Jun 2027, "heute" as a line); the rest of the page is AdminZeitplan.tsx. All dates and to-dos from config/roadmap.ts (the one source; the
-// marketing phases from config/marketing.ts), the to-dos' status, note and cost through the adapter (AdminData.roadmapTodos), every change
-// and every milestone reached logged (useAdminActions). German, dark, the admin's tokens.
-import Link from "next/link";
+// Admin › Zeitplan › Zeitleiste (the page's first tab): a clean Gantt over the whole screen – from this month to December of the next year
+// (timelineRange; every month shown, the year at the start and at the turn), a fixed name column left (220px), the time axis right, five
+// rows that share the window's remaining height evenly (bars, diamonds, the star and their words grow with them), one band each:
+// Code (M1–M6 one after another) · Marketing (phases 1–4) · Reise (Deutschland · Bangkok · Bali) · Vorbereitung (diamonds at the due dates
+// with the number of open to-dos) · Launch (star with its date). No other text in the drawing – names, dates and lists in the tooltips.
+// Nothing overlaps: diamonds closer than a few days merge into one, and a label never crosses the "heute" line (it moves to the side of
+// the band that has room). Colours by tokens: Code primary, Marketing chart-2, Reise neutral grey, Vorbereitung and Launch the goal amber;
+// bars as everywhere (edge, light fill), reached filled, running dashed. All dates from config/roadmap.ts (the marketing phases from
+// config/marketing.ts), the to-dos' state through the adapter. German, dark, the admin's tokens.
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
-import { CODE_MILESTONES, DEPARTURE, LAUNCH, ROADMAP_IDEAS, ROADMAP_RANGE, TRAVEL, type TodoDue } from "@/config/roadmap";
-import { useAdminActions } from "@/lib/admin/actions";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { CODE_MILESTONES, LAUNCH, ROADMAP_RANGE, TRAVEL, type TodoDue } from "@/config/roadmap";
+import { FALLBACK_RULES } from "@/config/marketing";
 import { isRunningSpan, strategyDates, strategyPhases } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { day, month } from "@/lib/i18n/adminFormat";
-import { daysToDeparture, dueProgress, nextMilestone, roadmapTodos, type PlanMilestone } from "@/lib/roadmap";
+import { dueProgress, isOpenTodo, roadmapTodos, timelineRange, type PlanMilestone } from "@/lib/roadmap";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/ActionButton";
-import { STATUS_BG, StatusDot } from "./AdminCharts";
 
 const ms = (d: string) => Date.parse(`${d}T00:00:00Z`);
-const SPAN = ms(ROADMAP_RANGE.to) + 86_400_000 - ms(ROADMAP_RANGE.from);
-/** A day's place on the timeline, 0–100 %. */
-const at = (d: string) => Math.min(100, Math.max(0, ((ms(d) - ms(ROADMAP_RANGE.from)) / SPAN) * 100));
-const endOf = (d: string) => at(new Date(ms(d) + 86_400_000).toISOString().slice(0, 10));
+/** A day's place on a range, 0–100 %, and the end of a day (its band runs through it). */
+function scaleOf(range: { from: string; to: string }) {
+  const span = ms(range.to) + 86_400_000 - ms(range.from);
+  const at = (d: string) => Math.min(100, Math.max(0, ((ms(d) - ms(range.from)) / span) * 100));
+  const endOf = (d: string) => at(new Date(ms(d) + 86_400_000).toISOString().slice(0, 10));
+  return { at, endOf };
+}
+/** The axis' height (today's label over the months). */
+const AXIS_H = 60;
+/** What stays under the legend: the page's bottom padding. */
+const BOTTOM_GAP = 44;
+/** Each row at least this high – below it the page may scroll rather than squeeze. */
+const MIN_ROW = 64;
+/** Diamonds closer than this (px on the track) become one – nothing on top of each other. */
+const MERGE_PX = 44;
+/** A band shows its label only when it fits (≈ 10px per character + 12px room); otherwise the name stays in the tooltip. */
+const labelFits = (label: string, px: number) => px >= label.length * 10 + 12;
 
 /** A milestone's name: "M1 Footer + Dashboard", "Woche 1–2 · Fundament", "Launch · Simpulo öffnet" (words in admin.zeitplan). */
 export function useMilestoneName() {
@@ -31,293 +46,223 @@ export function useMilestoneName() {
     m.kind === "code" ? `${m.label} ${m.title}` : m.kind === "marketing" ? `${t("weeks", { from: m.weeks!.from, to: m.weeks!.to })} · ${m.title}` : `${t("launchLabel")} · ${t("launchTitle")}`;
 }
 
-/** "Nächster Meilenstein: … in X Tagen · Abreise in X Tagen" – the timeline's top line and the Übersicht's (a link to /admin/zeitplan). */
-export function RoadmapHeadline({ href, className }: { href?: string; className?: string }) {
-  const t = useTranslations("admin.platform.roadmap");
-  const { today } = useAdminInputs();
-  const data = useAdminData();
-  const name = useMilestoneName();
-  const next = nextMilestone(today, data);
-  const dep = daysToDeparture(today);
-  const text = `${next ? t("next", { label: name(next), days: next.days }) : t("nextNone")} · ${dep >= 0 ? t("departure", { days: dep }) : t("departed")}`;
-  return href ? (
-    <Link data-roadmap-headline href={href} className={cn("text-small text-muted underline-offset-4 hover:text-ink hover:underline", className)}>
-      {text} →
-    </Link>
-  ) : (
-    <p data-roadmap-headline className={cn("text-body text-ink", className)}>
-      {text}
-    </p>
-  );
-}
-
-const LABEL_TOP = 26;
-const ROW_H = 18;
-/** A lane's height: the mark row plus its label rows. */
-const laneHeight = (rows: number) => LABEL_TOP + rows * ROW_H + 10;
-/** About how wide a character of text-small is, in % of the track (the track is ~1000px at 1440). */
-const CHAR_PCT = 0.66;
+type Tone = "code" | "marketing" | "travel";
+type State = "open" | "running" | "reached" | "uncertain";
+/** A band's look by its tone and state: edge + light fill; reached filled; running dashed over the faint fill; uncertain dashed, no fill. */
+const BAND: Record<Tone, Record<State, string>> = {
+  code: {
+    open: "border-adm-chart-primary bg-(--adm-chart-fill) text-ink",
+    running: "border-dashed border-adm-chart-hover bg-(--adm-chart-fill-current) text-ink",
+    reached: "border-adm-chart-primary bg-adm-chart-primary text-(--adm-cap-on-text)",
+    uncertain: "border-dashed border-adm-chart-primary text-ink",
+  },
+  marketing: {
+    open: "border-adm-chart-2 bg-(--adm-chart-2-fill) text-ink",
+    running: "border-dashed border-adm-chart-2 bg-(--adm-chart-2-fill-current) text-ink",
+    reached: "border-adm-chart-2 bg-adm-chart-2 text-(--adm-cap-on-text)",
+    uncertain: "border-dashed border-adm-chart-2 text-ink",
+  },
+  travel: {
+    open: "border-ink/25 bg-ink/6 text-ink",
+    running: "border-ink/40 bg-ink/10 text-ink",
+    reached: "border-ink/25 bg-ink/6 text-ink",
+    uncertain: "border-dashed border-ink/40 text-ink",
+  },
+};
 
 /**
- * Labels centred under their mark, each in the first row where it doesn't overlap the ones already there (left to right); kept inside the
- * track. Returns each label's left edge (%) and row.
+ * Where a band's label goes so it never crosses "heute": centred in the band, or – when today lies in it – centred in the larger part beside
+ * the line. Returns the label's centre in % of the band.
  */
-function stackLabels(items: readonly { id: string; pos: number; chars: number }[]): Record<string, { left: number; row: number }> {
-  const rowsEnd: number[] = [];
-  const out: Record<string, { left: number; row: number }> = {};
-  for (const item of items.toSorted((a, b) => a.pos - b.pos)) {
-    const width = item.chars * CHAR_PCT;
-    const left = Math.min(100 - width, Math.max(0, item.pos - width / 2));
-    let row = rowsEnd.findIndex((end) => end + 1 <= left);
-    if (row === -1) row = rowsEnd.length;
-    rowsEnd[row] = left + width;
-    out[item.id] = { left, row };
-  }
-  return out;
+function labelCentre(from: number, to: number, now: number | null): number {
+  if (now === null || now <= from || now >= to) return 50;
+  const left = now - from;
+  const right = to - now;
+  const width = to - from;
+  return left >= right ? (left / 2 / width) * 100 : ((left + right / 2) / width) * 100;
 }
 
-/** One lane: its label left, the track right (positions in % of the track). */
-function Lane({ label, height, children }: { label: string; height: number; children: ReactNode }) {
+/** One row: its name in the fixed column, the track right; the height the rows share (--row-h). */
+function Row({ name, children }: { name: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[112px_minmax(0,1fr)] border-t border-ink/8">
-      <span className="flex items-center text-eyebrow uppercase text-(--adm-label)">{label}</span>
-      <div className="relative" style={{ height }}>
+    <div className="grid grid-cols-[220px_minmax(0,1fr)] items-center border-t border-ink/8">
+      <span className="truncate pr-4 text-body font-semibold uppercase tracking-wide text-(--adm-label)">{name}</span>
+      <div className="relative h-(--row-h)">
         {children}
       </div>
     </div>
   );
 }
 
-export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => void }) {
-  const t = useTranslations("admin.platform.roadmap");
+/** A band on the track: one section, its short label inside (kept off the today line), the full text in the tooltip; a button when it opens something. */
+function Band({ id, from, to, tone, state, label, tip, now, track, onClick }: { id: string; from: number; to: number; tone: Tone; state: State; label: string; tip: string; now: number | null; track: number; onClick?: () => void }) {
+  const centre = labelCentre(from, to, now);
+  const roomy = labelFits(label, ((to - from) / 100) * track);
+  const className = cn("absolute top-1/2 h-(--band-h) -translate-y-1/2 overflow-hidden rounded-lg border-[1.5px] text-body font-semibold", BAND[tone][state], onClick && "cursor-pointer transition-[filter] duration-150 hover:brightness-125");
+  const style = { left: `${from}%`, width: `calc(${to - from}% - 2px)` };
+  const inner = roomy ? (
+    <span aria-hidden className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap leading-none" style={{ left: `${centre}%` }}>
+      {label}
+    </span>
+  ) : null;
+  return onClick ? (
+    <button type="button" data-band={id} data-band-state={state} data-tooltip-info={tip} aria-label={tip} onClick={onClick} className={className} style={style}>
+      {inner}
+    </button>
+  ) : (
+    <span data-band={id} data-band-state={state} data-tooltip-info={tip} aria-label={tip} role="img" className={className} style={style}>
+      {inner}
+    </span>
+  );
+}
+
+export function RoadmapTimeline({ onPickDue, onMilestone, onMilestones }: { onPickDue: (due: TodoDue) => void; onMilestone: (id: string) => void; onMilestones: () => void }) {
+  const t = useTranslations("admin.zeitplan.timeline");
+  const tz = useTranslations("admin.zeitplan");
   const { today } = useAdminInputs();
   const data = useAdminData();
-  const actions = useAdminActions();
   const reached = data.roadmapReached ?? {};
-  const [picked, setPicked] = useState<string | null>(null);
   const phases = strategyPhases(strategyDates().start);
-  const dues = dueProgress(roadmapTodos(data));
-  const months: string[] = [];
-  for (let m: string = ROADMAP_RANGE.from; m <= ROADMAP_RANGE.to;) {
-    months.push(m);
+  const todos = roadmapTodos(data);
+  const range = timelineRange(today);
+  const { at, endOf } = scaleOf(range);
+  const now = today >= range.from && today <= range.to ? at(today) : null;
+  // The rows share the window's height under the bar: measured from the drawing's top, less the axis, the legend and the page's padding.
+  const box = useRef<HTMLDivElement>(null);
+  const legend = useRef<HTMLParagraphElement>(null);
+  const [rowH, setRowH] = useState(MIN_ROW);
+  // The track's width in px: narrow bands drop their label, close diamonds merge.
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [track, setTrack] = useState(900);
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (trackRef.current) setTrack(trackRef.current.clientWidth);
+      const top = box.current?.getBoundingClientRect().top;
+      if (top === undefined) return;
+      const rest = window.innerHeight - (top + window.scrollY) - AXIS_H - (legend.current?.offsetHeight ?? 0) - BOTTOM_GAP;
+      setRowH(Math.max(MIN_ROW, Math.floor(rest / 5)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  // Bars, diamonds and the star grow with the rows (readable, never tiny).
+  const sizes = { "--row-h": `${rowH}px`, "--band-h": `${Math.round(Math.min(72, Math.max(28, rowH * 0.42)))}px`, "--mark": `${Math.round(Math.min(28, Math.max(14, rowH * 0.16)))}px` } as CSSProperties;
+
+  // Months on the axis, the year at the start and at the turn of the year ("Dez 2026", "Jan 2027").
+  const months: { start: string; label: string; year: string | null }[] = [];
+  for (let m: string = range.from; m <= range.to; ) {
     const d = new Date(ms(m));
-    m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+    const mm = d.getUTCMonth();
+    const withYear = m === range.from || mm === 0 || mm === 11;
+    months.push({ start: m, label: month(m.slice(0, 7)).replace(".", ""), year: withYear ? String(d.getUTCFullYear()) : null });
+    m = new Date(Date.UTC(d.getUTCFullYear(), mm + 1, 1)).toISOString().slice(0, 10);
   }
-  const now = today >= ROADMAP_RANGE.from && today <= ROADMAP_RANGE.to ? at(today) : null;
-  const milestone = CODE_MILESTONES.find((m) => m.id === picked) ?? null;
-  const datedDues = dues.filter((d) => d.date && d.total > 0);
-  // Labels stacked in rows so none overlaps its neighbour (widths estimated from their characters).
-  const codeLabels = stackLabels(
-    CODE_MILESTONES.map((m) => ({
-      id: m.id,
-      pos: at(m.date),
-      chars: `${m.label} ${m.title}`.length,
-    })),
-  );
-  const phaseLabels = stackLabels(
-    phases.map((p) => ({
-      id: p.key,
-      pos: (at(p.from) + endOf(p.to)) / 2,
-      chars: p.label.length,
-    })),
-  );
-  const dueLabels = stackLabels(
-    datedDues.map((d) => ({
-      id: d.id,
-      pos: at(d.date!.date),
-      chars: `${d.label} · ${t("dueOpen", { count: d.open })}`.length,
-    })),
-  );
-  const rowsOf = (placed: Record<string, { row: number }>) => Math.max(0, ...Object.values(placed).map((p) => p.row)) + 1;
-  const codeRows = rowsOf(codeLabels);
-  const phaseRows = rowsOf(phaseLabels);
-  const dueRows = rowsOf(dueLabels);
-  const fallbackEnd = new Date(ms(LAUNCH.date) + 14 * 86_400_000).toISOString().slice(0, 10);
+
+  // The preparation's due dates with to-dos; dates closer than MERGE_PCT become one diamond (its count the sum, its tooltip both).
+  const dues = dueProgress(todos).filter((d) => d.date && d.total > 0);
+  const clusters: { pos: number; ids: TodoDue[]; open: number; uncertain: boolean; tip: string[] }[] = [];
+  for (const d of dues.toSorted((a, b) => a.date!.date.localeCompare(b.date!.date))) {
+    const pos = at(d.date!.date);
+    const openTitles = todos.filter((x) => x.due === d.id && isOpenTodo(x)).map((x) => x.title);
+    const list = openTitles.length ? `: ${openTitles.slice(0, 4).join(", ")}${openTitles.length > 4 ? " …" : ""}` : "";
+    const line = `${d.label} · ${day(d.date!.date)}${d.date!.uncertain ? ` (${tz("todos.approx")})` : ""} · ${t("open", { count: d.open })}${list}`;
+    const last = clusters.at(-1);
+    if (last && ((pos - last.pos) / 100) * track < MERGE_PX) {
+      last.ids.push(d.id);
+      last.open += d.open;
+      last.uncertain ||= Boolean(d.date!.uncertain);
+      last.tip.push(line);
+    } else clusters.push({ pos, ids: [d.id], open: d.open, uncertain: Boolean(d.date!.uncertain), tip: [line] });
+  }
+
+  const stateOf = (id: string, from: string, to: string): State => (reached[id] ? "reached" : isRunningSpan(from, to, today) ? "running" : "open");
+  const launch = at(LAUNCH.date);
+  const launchTip = `${t("launch", { date: day(LAUNCH.date) })} · ${t("fallback")}: ${FALLBACK_RULES.map((r) => r.text).join(" · ")}`;
+
   return (
-    <div data-roadmap-timeline className="flex flex-col gap-(--adm-inner)">
-      <RoadmapHeadline />
-      <div className="relative">
-        {/* Month axis */}
-        <div className="grid grid-cols-[112px_minmax(0,1fr)]">
+    <div data-roadmap-timeline className="flex flex-col" style={sizes}>
+      <div ref={box} className="relative">
+        {/* Axis: "heute" in its own line above the months, so it never meets a month's name. */}
+        <div className="grid grid-cols-[220px_minmax(0,1fr)]">
           <span />
-          <div className="relative h-6">
+          <div ref={trackRef} className="relative" style={{ height: AXIS_H }}>
+            {now !== null && (
+              <span data-today-label style={{ left: `${now}%` }} className="absolute top-0 -translate-x-1/2 text-small font-semibold text-adm-chart-1">
+                {t("today")}
+              </span>
+            )}
             {months.map((m) => (
-              <span key={m} style={{ left: `${at(m)}%` }} className="absolute top-0 border-l border-ink/12 pl-1.5 text-small text-muted">
-                {month(m.slice(0, 7))}
-                {(m.endsWith("01-01") || m === ROADMAP_RANGE.from) && ` ${m.slice(2, 4)}`}
+              // The month, and under it – at the start and at the turn of the year – the year, small ("Dez / 2026", "Jan / 2027").
+              <span key={m.start} data-month style={{ left: `${at(m.start)}%` }} className="absolute bottom-1 flex flex-col pl-1.5 leading-tight whitespace-nowrap">
+                <span className="text-body text-muted">{m.label}</span>
+                <span className="text-small text-(--adm-label)">{m.year ?? "\u00a0"}</span>
               </span>
             ))}
           </div>
         </div>
 
-        <Lane label={t("lanes.code")} height={laneHeight(codeRows)}>
-          {/* The sections between the milestones as one track, each milestone a point at its end. */}
+        <Row name={t("rows.code")}>
           {CODE_MILESTONES.map((m, i) => {
-            const done = Boolean(reached[m.id]);
-            const left = i === 0 ? 0 : at(CODE_MILESTONES[i - 1].date);
-            // Reached: primary; the section today lies in: the "current" style (metrics.ts isRunningSpan); still ahead: the grey track.
-            const running = !done && isRunningSpan(i === 0 ? ROADMAP_RANGE.from : CODE_MILESTONES[i - 1].date, m.date, today);
-            return <span key={`${m.id}-bar`} aria-hidden style={{ left: `${left}%`, width: `${at(m.date) - left}%` }} className={cn("absolute top-3 h-2 rounded-full", done ? "bg-adm-chart-primary" : running ? "border border-dashed border-adm-chart-hover bg-adm-chart-current" : "bg-adm-chart-track")} />;
+            const from = i === 0 ? ROADMAP_RANGE.from : CODE_MILESTONES[i - 1].date;
+            return <Band key={m.id} id={m.id} from={at(from)} to={endOf(m.date)} tone="code" state={m.uncertain ? "uncertain" : stateOf(m.id, from, m.date)} label={m.label} tip={`${m.label} ${m.title} · ${t("due", { date: day(m.date) })}`} now={now} track={track} onClick={() => onMilestone(m.id)} />;
           })}
-          {CODE_MILESTONES.map((m) => {
-            const done = Boolean(reached[m.id]);
-            const place = codeLabels[m.id];
-            return (
-              <button key={m.id} type="button" data-code-milestone={m.id} data-reached={done || undefined} aria-pressed={picked === m.id} aria-label={`${m.label} ${m.title} · ${day(m.date)}`} onClick={() => setPicked(picked === m.id ? null : m.id)} className="group contents">
-                <span aria-hidden style={{ left: `${at(m.date)}%` }} className={cn("absolute top-[7px] size-3.5 -translate-x-1/2 rounded-full ring-2 ring-(--bg)", done ? STATUS_BG.good : "bg-ink", picked === m.id && "outline-2 outline-offset-2 outline-ink/60")} />
-                <span
-                  aria-hidden
-                  style={{
-                    left: `${place.left}%`,
-                    top: `${LABEL_TOP + place.row * ROW_H}px`,
-                  }}
-                  className={cn("absolute whitespace-nowrap text-small leading-4", picked === m.id ? "font-semibold text-ink" : "text-ink/75 group-hover:text-ink")}
-                >
-                  <span className="font-semibold">{m.label}</span> {m.title}
-                </span>
-              </button>
-            );
-          })}
-        </Lane>
+        </Row>
 
-        <Lane label={t("lanes.marketing")} height={laneHeight(phaseRows)}>
-          {phases.map((p) => {
-            const here = isRunningSpan(p.from, p.to, today);
-            const place = phaseLabels[p.key];
-            return (
-              <span key={p.key} data-roadmap-phase={p.key}>
-                <span
-                  aria-hidden
-                  style={{
-                    left: `${at(p.from)}%`,
-                    width: `${endOf(p.to) - at(p.from)}%`,
-                  }}
-                  className={cn("absolute top-2.5 h-3 rounded-sm", here ? "border border-dashed border-adm-chart-hover bg-adm-chart-current" : "bg-adm-chart-primary")}
-                />
-                <span
-                  style={{
-                    left: `${place.left}%`,
-                    top: `${LABEL_TOP + place.row * ROW_H}px`,
-                  }}
-                  className={cn("absolute whitespace-nowrap text-small leading-4", here ? "font-semibold text-ink" : "text-ink/75")}
-                >
-                  {p.label}
-                </span>
-              </span>
-            );
-          })}
-        </Lane>
+        <Row name={t("rows.marketing")}>
+          {phases.map((p, i) => (
+            <Band key={p.key} id={p.key} from={at(p.from)} to={endOf(p.to)} tone="marketing" state={stateOf(p.key, p.from, p.to)} label={String(i + 1)} tip={`${tz("weeks", { from: p.weeks.from, to: p.weeks.to })} · ${p.label} · ${day(p.from)} – ${day(p.to)}`} now={now} track={track} onClick={() => onMilestone(p.key)} />
+          ))}
+        </Row>
 
-        <Lane label={t("lanes.travel")} height={76}>
+        <Row name={t("rows.travel")}>
           {TRAVEL.map((s) => (
-            <span
-              key={s.id}
-              data-travel={s.id}
-              data-uncertain={s.uncertain || undefined}
-              style={{
-                left: `${at(s.from)}%`,
-                width: `${endOf(s.to) - at(s.from)}%`,
-              }}
-              className={cn("absolute top-2 flex h-8 items-center overflow-hidden rounded-md px-2 text-small text-ink", s.uncertain ? "border border-dashed border-ink/40" : "bg-(--adm-block) ring-1 ring-inset ring-ink/10")}
+            <Band key={s.id} id={s.id} from={at(s.from)} to={endOf(s.to)} tone="travel" state={s.uncertain ? "uncertain" : isRunningSpan(s.from, s.to, today) ? "running" : "open"} label={s.label} tip={`${s.label} · ${day(s.from)} – ${day(s.to)}${s.uncertain ? ` · ${t("uncertain")}` : ""}`} now={now} track={track} />
+          ))}
+        </Row>
+
+        <Row name={t("rows.prep")}>
+          {clusters.map((c) => (
+            <button
+              key={c.ids.join("+")}
+              type="button"
+              data-due={c.ids.join("+")}
+              data-tooltip-info={c.tip.join(" · ")}
+              aria-label={c.tip.join(" · ")}
+              onClick={() => onPickDue(c.ids[0])}
+              style={{ left: `${c.pos}%` }}
+              className="group absolute top-1/2 flex -translate-y-1/2 items-center gap-1.5"
             >
-              <span className="truncate">
-                {s.label}
-                {s.uncertain && <span className="text-muted"> · {t("uncertain")}</span>}
+              <span aria-hidden className={cn("-ml-[calc(var(--mark)/2)] size-(--mark) rotate-45 rounded-[3px] border-[1.5px] border-adm-chart-goal", c.open === 0 ? "bg-adm-chart-goal" : "bg-(--adm-chart-goal-fill)", c.uncertain && "border-dashed")} />
+              <span aria-hidden className="text-body font-semibold tabular-nums text-ink group-hover:underline">
+                {c.open}
               </span>
-            </span>
+            </button>
           ))}
-          {ROADMAP_IDEAS.map((idea) => (
-            <span
-              key={idea.id}
-              data-roadmap-idea={idea.id}
-              style={{ left: `${at(idea.date)}%` }}
-              className={cn("absolute top-11 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-small whitespace-nowrap text-ink", idea.uncertain ? "border border-dashed border-ink/40" : "bg-(--adm-block)")}
-            >
-              <span className="text-muted">{t("idea")}:</span> {idea.title}
-            </span>
-          ))}
-        </Lane>
+        </Row>
 
-        <Lane label={t("lanes.prep")} height={laneHeight(dueRows)}>
-          {datedDues.map((d) => {
-            const place = dueLabels[d.id];
-            return (
-              <button key={d.id} type="button" data-due={d.id} data-complete={d.complete || undefined} aria-label={t("dueAll", { label: d.label })} onClick={() => onPickDue(d.id)} className="group contents">
-                <span aria-hidden style={{ left: `${at(d.date!.date)}%` }} className={cn("absolute top-2 size-3.5 -translate-x-1/2 rotate-45 rounded-[3px]", d.complete ? STATUS_BG.good : STATUS_BG.warning, d.date!.uncertain && "outline-1 outline-offset-2 outline-dashed outline-ink/40")} />
-                <span
-                  aria-hidden
-                  style={{
-                    left: `${place.left}%`,
-                    top: `${LABEL_TOP + place.row * ROW_H}px`,
-                  }}
-                  className="absolute whitespace-nowrap text-small leading-4 text-muted group-hover:text-ink"
-                >
-                  {d.label} · <span className={d.complete ? "text-muted" : "text-ink"}>{t("dueOpen", { count: d.open })}</span>
-                </span>
-              </button>
-            );
-          })}
-        </Lane>
-
-        <Lane label={t("lanes.launch")} height={56}>
-          {/* The fallback's two weeks after the launch, dashed – a hint, nothing moves by itself. */}
-          <span
-            aria-hidden
-            style={{
-              left: `${at(LAUNCH.date)}%`,
-              width: `${at(fallbackEnd) - at(LAUNCH.date)}%`,
-            }}
-            className="absolute top-4 h-3 rounded-full border border-dashed border-adm-chart-goal"
-          />
-          <span data-launch-star style={{ left: `${at(LAUNCH.date)}%` }} className="absolute top-1 flex -translate-x-1/2 flex-col items-center">
-            <svg viewBox="0 0 24 24" aria-hidden className="size-6 fill-adm-chart-goal">
+        <Row name={t("rows.launch")}>
+          <button type="button" data-launch-star data-tooltip-info={launchTip} aria-label={launchTip} onClick={onMilestones} style={{ left: `${launch}%` }} className="group absolute top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+            <svg viewBox="0 0 24 24" aria-hidden className="-ml-[calc(var(--mark)*0.7)] size-[calc(var(--mark)*1.4)] fill-(--adm-chart-goal-fill) stroke-adm-chart-goal" strokeWidth={1.5}>
               <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 17.2l-5.9 3.3 1.3-6.6-4.9-4.5 6.6-.8z" />
             </svg>
-            <span className="text-small font-semibold whitespace-nowrap text-ink">{t("launch", { date: day(LAUNCH.date) })}</span>
-          </span>
-          <span data-fallback-hint style={{ left: `calc(${at(fallbackEnd)}% + 16px)` }} className="absolute top-2 right-0 text-small leading-snug text-muted">
-            {t("fallback")}
-          </span>
-        </Lane>
+            <span className="text-body font-semibold whitespace-nowrap text-ink group-hover:underline">{day(LAUNCH.date)}</span>
+          </button>
+        </Row>
 
-        {/* Today across all lanes */}
-        {now !== null && (
-          <div aria-hidden className="pointer-events-none absolute top-0 bottom-0 grid w-full grid-cols-[112px_minmax(0,1fr)]">
-            <span />
-            <div className="relative">
-              <span data-today-line style={{ left: `${now}%` }} className="absolute top-5 bottom-0 w-0.5 -translate-x-1/2 rounded-full bg-adm-chart-1" />
-              <span style={{ left: `${now}%` }} className="absolute -top-0.5 -translate-x-1/2 rounded-full bg-(--bg) px-1 text-small font-semibold text-adm-chart-1">
-                {t("today")}
-              </span>
-            </div>
+        {/* Fine month lines and the thin today line across the rows. */}
+        <div aria-hidden className="pointer-events-none absolute bottom-0 grid w-full grid-cols-[220px_minmax(0,1fr)]" style={{ top: AXIS_H }}>
+          <span />
+          <div className="relative">
+            {months.map((m) => (
+              <span key={m.start} style={{ left: `${at(m.start)}%` }} className="absolute top-0 bottom-0 border-l border-ink/6" />
+            ))}
+            {now !== null && <span data-today-line style={{ left: `${now}%` }} className="absolute -top-5 bottom-0 w-px bg-adm-chart-1" />}
           </div>
-        )}
+        </div>
       </div>
 
-      <div data-milestone-detail className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink/8 pt-(--adm-inner)">
-        {milestone ? (
-          <>
-            <span className="text-body font-semibold text-ink">
-              {milestone.label} · {milestone.title}
-            </span>
-            <span className="text-small text-muted">{t("milestoneDate", { date: day(milestone.date) })}</span>
-            {reached[milestone.id] && (
-              <span className="flex items-center gap-1.5 text-small text-ink">
-                <StatusDot status="good" />
-                {t("reached")} · {day(reached[milestone.id].slice(0, 10))}
-              </span>
-            )}
-            <Button size="sm" variant={reached[milestone.id] ? "tertiary" : "secondary"} onClick={() => actions.setRoadmapReached(milestone.id, `${milestone.label} ${milestone.title}`, !reached[milestone.id])}>
-              {reached[milestone.id] ? t("undoReached") : t("markReached")}
-            </Button>
-          </>
-        ) : (
-          <span className="text-small text-muted">{t("pickHint")}</span>
-        )}
-        <span className="ml-auto text-small text-muted">
-          {t("legendUncertain")} · {t("departure", { days: Math.max(0, daysToDeparture(today)) })} ({day(DEPARTURE.date)})
-        </span>
-      </div>
+      <p ref={legend} className="border-t border-ink/8 pt-2 text-small text-muted">{t("legend")}</p>
     </div>
   );
 }

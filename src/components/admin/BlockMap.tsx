@@ -4,7 +4,7 @@
 // and its blocks in a fixed order (never re-sorted). A block: surface white 4 %, line white 8 %, radius 12; icon 20px, title 16px, subtitle
 // 13px white 60 % (at most five words), the metric 15px with its status dot, an optional line under it (`extra`: a small bar, three dots);
 // hover white 7 %; the whole block is the link. A click zooms in (?block=<id> – a deep link, the browser's back works), jumps to another admin
-// tab (`externalTab`) or selects it (`onOpen` + `selectedId`: bold, white, underlined – no surface).
+// tab (`externalTab`) or selects it (`onOpen` + `selectedId`: a lighter surface, the title white – never underlined).
 // Connections (`links`): curved SVG lines between the columns, white 15 %, their width the link's weight (1–6px). Hovering a block lights
 // its lines and the blocks it connects to (white 80 %); everything else fades to 25 %.
 // Readability (CLAUDE.md "Admin"): blocks instead of paragraphs, left-aligned, line height 1.5, caps only for short labels.
@@ -134,7 +134,7 @@ function Block({ block, selected, compact }: { block: MapBlock; selected: boolea
       <Icon aria-hidden className="size-5 shrink-0 text-ink/80" strokeWidth={1.75} />
       <span className="min-w-0 flex-1 leading-normal">
         <span className="flex items-center gap-1 text-adm-block text-ink">
-          <span className={cn("truncate font-semibold", selected && "text-(--adm-active) underline decoration-2 underline-offset-4")}>{block.title}</span>
+          <span className={cn("truncate font-semibold", selected && "text-(--adm-active)")}>{block.title}</span>
           {block.externalTab && <ArrowUpRight aria-hidden className="size-3.5 shrink-0 text-ink/50" />}
         </span>
         {block.subtitle && <span className="block truncate text-small text-ink/60">{block.subtitle}</span>}
@@ -158,7 +158,8 @@ function Block({ block, selected, compact }: { block: MapBlock; selected: boolea
     head
   );
   const className = cn(
-    "relative flex items-center gap-3 rounded-xl border bg-(--adm-block) px-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)",
+    "relative flex items-center gap-3 rounded-xl border px-4 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)",
+    selected ? "bg-(--adm-block-hover)" : "bg-(--adm-block)",
     block.preview ? cn("border-ink/20", compact ? "py-2" : "py-3") : "border-ink/8",
     !block.preview && (compact ? "min-h-13 py-1.5" : "min-h-16 py-3"),
   );

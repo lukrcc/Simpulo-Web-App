@@ -267,7 +267,8 @@ const en = {
       "admin": "Admin",
       "loggedOut": "Logged out",
       "earnings": "Earnings",
-      "darkMode": "Dark mode"
+      "darkMode": "Dark mode",
+      "adminTheme": { "label": "Appearance", "system": "System", "light": "Light", "dark": "Dark" }
     },
     "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}",
     "compactLabel": "Main",

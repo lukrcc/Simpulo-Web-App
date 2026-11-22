@@ -4,37 +4,113 @@
 // Labore · Fluss · Potenzial. Drawn like Algorithmus: SVG for the pyramid and the map, AdminListDetail for the labs, the BlockMap with lines
 // for the flow, a table with log bars for the potential. Every text and value from lib/admin/labs.ts (estimates, not measurements).
 import { ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { MOMENTS } from "@/config/data-points";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
-import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type TestValue } from "@/lib/admin/labs";
+import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type LabStatus, type TestValue } from "@/lib/admin/labs";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./AdminCharts";
-import { AdminShell } from "./AdminShell";
+import { AdminShell, AREA_TEXT, AREA_TILE } from "./AdminShell";
+import { InfoTip } from "./AdminNumbers";
 import { AdminListDetail, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
 import { Box, Database, FlaskConical, Globe2, Hammer } from "lucide-react";
 
-type Tab = keyof typeof LABS_TEXT.tabs;
-const TABS: readonly Tab[] = ["pyramid", "map", "labs", "flow", "potential"];
+type Tab = "overview" | keyof typeof LABS_TEXT.tabs;
+/** Überblick first and by default (CLAUDE.md "Überblick zuerst"). */
+const TABS: readonly Tab[] = ["overview", "pyramid", "map", "labs", "flow", "potential"];
 const T = LABS_TEXT;
 
 export function AdminLabs() {
-  const [tab, setTab] = useState<Tab>("pyramid");
+  const [tab, setTab] = useState<Tab>("overview");
+  const tOverview = useTranslations("admin.overviewBlock");
   const [lab, setLab] = useState<LabId | null>(null);
   const open = (id: LabId) => {
     setLab(id);
     setTab("labs");
   };
   return (
-    <AdminShell title={ADMIN_DE.nav.labs} tabs={<AdminTabs label={ADMIN_DE.nav.labs} value={tab} onChange={setTab} tabs={TABS.map((key) => ({ value: key, label: T.tabs[key] }))} />}>
+    <AdminShell title={ADMIN_DE.nav.labs} tabs={<AdminTabs label={ADMIN_DE.nav.labs} value={tab} onChange={setTab} tabs={TABS.map((key) => ({ value: key, label: key === "overview" ? tOverview("tab") : T.tabs[key] }))} />}>
+      {tab === "overview" && <LabsOverview onLab={open} />}
       {tab === "pyramid" && <Pyramid onOpen={open} />}
       {tab === "map" && <LabMap onOpen={open} />}
       {tab === "labs" && <LabList selected={lab} onSelect={setLab} />}
       {tab === "flow" && <LabFlow onOpen={open} />}
       {tab === "potential" && <Potential />}
     </AdminShell>
+  );
+}
+
+// ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Labore › Überblick (CLAUDE.md "Überblick je Seitentyp", SAMMLUNG): one card per lab in a 3 × 3 grid in the Planen colour – number and
+ * name, the guiding question, the status as a coloured label (Idee · läuft · bestätigt · verworfen), the most important number (the upper
+ * bound per year, an estimate) and the next step. The grid fills the height left under the bar (no scrolling at ≥ 1280 × 720); a click
+ * opens the lab in the tab Labore. Every value from lib/admin/labs.ts.
+ */
+const LAB_STATUS_TONE: Record<LabStatus, string> = {
+  idea: "border-ink/20 text-muted",
+  running: "border-adm-warning/60 text-adm-warning",
+  confirmed: "border-adm-good/60 text-adm-good",
+  dropped: "border-adm-critical/60 text-adm-critical",
+};
+/** Room under the grid (the page's bottom padding) and the card height's bounds. */
+const LAB_BOTTOM = 40;
+const LAB_CARD_MIN = 132;
+const LAB_CARD_MAX = 260;
+
+function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
+  const t = useTranslations("admin.pageTiles.labs");
+  const box = useRef<HTMLDivElement>(null);
+  const [cardH, setCardH] = useState<number | null>(null);
+  const rows = Math.ceil(LABS.length / 3);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const top = box.current?.getBoundingClientRect().top;
+      if (top === undefined || window.innerWidth < 1024) return setCardH(null);
+      const gap = Math.min(20, Math.max(10, Math.round(window.innerHeight * 0.015)));
+      const room = window.innerHeight - (top + window.scrollY) - LAB_BOTTOM;
+      setCardH(Math.round(Math.min(LAB_CARD_MAX, Math.max(LAB_CARD_MIN, (room - gap * (rows - 1)) / rows))));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [rows]);
+  // Compact cards (short windows): a smaller number and tighter gaps, so a two-line question never pushes it out.
+  const compact = cardH !== null && cardH < 200;
+  return (
+    <div
+      ref={box}
+      data-tile-board
+      aria-label={ADMIN_DE.nav.labs}
+      role="list"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      style={{ gap: "clamp(10px, 1.5dvh, 20px)", ...(cardH ? { gridAutoRows: `${cardH}px` } : {}) } as CSSProperties}
+    >
+      {LABS.map((lab) => (
+        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} className={cn("relative grid min-h-0 min-w-0 grid-rows-[auto_auto_1fr_auto] overflow-hidden rounded-xl border px-4 pt-3 pb-3", compact ? "gap-0.5" : "gap-1", "transition-colors duration-150", AREA_TILE.plan)}>
+          <button type="button" data-card-link aria-label={t("card.open", { name: lab.name })} onClick={() => onLab(lab.id)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <span className={cn("truncate text-eyebrow uppercase", AREA_TEXT.plan)}>{t("card.title", { no: String(lab.number), name: lab.name })}</span>
+            <span data-lab-status={lab.status} className={cn("shrink-0 rounded-full border px-2 py-0.5 text-small font-semibold leading-none", LAB_STATUS_TONE[lab.status])}>
+              {T.status[lab.status]}
+            </span>
+          </div>
+          <p className="line-clamp-2 text-body font-semibold text-ink">{lab.question}</p>
+          <div className="flex min-h-0 min-w-0 flex-col justify-end">
+            <span className="flex items-center gap-1 text-small text-muted">
+              {t("card.ceiling")}
+              <InfoTip text={t("card.ceilingInfo")} />
+            </span>
+            <span className={cn("truncate tabular-nums text-ink", compact ? "text-h3" : "text-h2")}>{lab.ceiling}</span>
+          </div>
+          <p className="truncate text-small text-muted">{t("card.next", { step: lab.next ?? T.nextOpen })}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 

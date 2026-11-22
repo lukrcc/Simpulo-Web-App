@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton, adminButtonStyles } from "./AdminButton";
 
 // Geld › Steuern – the overview for working with the tax advisor: orientation, no tax advice (the line on top). Everything from the
 // bookkeeping journal (lib/admin/ledger.ts) for one period (month · quarter · year): the main numbers with their change against the period
@@ -7,7 +8,6 @@
 import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
-import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { IconButton } from "@/components/ui/IconButton";
 import { Textarea } from "@/components/ui/Input";
@@ -23,17 +23,16 @@ import {
   inPeriod,
   investments,
   ledgerSummary,
-  PERIOD_KINDS,
   periodAt,
   previousPeriod,
   revenueByCountry,
   taxDeadlines,
   taxReserve,
   withReceipts,
-  type PeriodKind,
 } from "@/lib/admin/ledger";
 import { getChange } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { getBankBalance, getHostTaxData, getLedger, type TaxQuestion } from "@/lib/data";
 import { day, eur, num, pct } from "@/lib/i18n/adminFormat";
 import { cn } from "@/lib/utils";
@@ -49,8 +48,11 @@ const DEADLINE_DAYS = 120;
 export function AdminTaxes() {
   const t = useTranslations("admin.money.taxes");
   const inputs = useAdminInputs();
-  const [kind, setKind] = useState<PeriodKind>("month");
-  const [offset, setOffset] = useState(0);
+  // The kind follows the admin's one period (top right); ‹ › moves within it and starts again at the current one when the period changes.
+  const [kind] = useAdminPeriod();
+  const [nav, setNav] = useState({ kind, offset: 0 });
+  const offset = nav.kind === kind ? nav.offset : 0;
+  const setOffset = (move: (o: number) => number) => setNav({ kind, offset: move(offset) });
   const journal = useMemo(() => getLedger() ?? [], []);
   const all = useMemo(() => withReceipts(journal, inputs.admin.receipts), [journal, inputs.admin.receipts]);
   const bank = useMemo(() => getBankBalance(), []);
@@ -84,16 +86,6 @@ export function AdminTaxes() {
       <p className="text-body text-muted">{t("disclaimer")}</p>
       {/* The period: its kind and which one (‹ ›), never past today's. */}
       <div className="mt-(--adm-inner) flex flex-wrap items-center gap-x-4 gap-y-3">
-        <CapsuleGroup
-          size="sm"
-          label={t("periodKind.label")}
-          value={kind}
-          onChange={(next) => {
-            setKind(next);
-            setOffset(0);
-          }}
-          options={PERIOD_KINDS.map((value) => ({ value, content: t(`periodKind.${value}`) }))}
-        />
         <span className="flex items-center gap-1">
           <IconButton aria-label={t("prev")} onClick={() => setOffset((o) => o - 1)} disabled={period.from <= first}>
             <ChevronLeft aria-hidden />
@@ -164,13 +156,13 @@ function ExportSection({ ctx }: { ctx: ExportContext }) {
       <div className="flex flex-wrap gap-2">
         {EXPORTERS.map((exporter) =>
           exporter.ready ? (
-            <Button key={exporter.id} size="sm" variant="secondary" onClick={() => run(exporter)}>
+            <AdminButton key={exporter.id} variant="secondary" onClick={() => run(exporter)}>
               {t(exporter.id)}
-            </Button>
+            </AdminButton>
           ) : (
-            <Button key={exporter.id} size="sm" variant="tertiary" disabled>
+            <AdminButton key={exporter.id} variant="secondary" disabled>
               {t(exporter.id)} · {t("later")}
-            </Button>
+            </AdminButton>
           ),
         )}
       </div>
@@ -282,7 +274,7 @@ function CostsSection({ entries, missing }: { entries: ReturnType<typeof inPerio
                           <StatusDot status="warning" />
                           {t("missingReceipt")}
                         </span>
-                        <label className={cn(buttonStyles("secondary", "sm"), "relative cursor-pointer")}>
+                        <label className={cn(adminButtonStyles("secondary"), "relative cursor-pointer")}>
                           <Upload aria-hidden />
                           {t("upload")}
                           <input
@@ -383,9 +375,9 @@ function Dac7Section({ entries, year, taxData }: { entries: ReturnType<typeof in
       title={`${t("title")} · ${t("year", { year })}`}
       aside={
         d.rows.length > 0 && (
-          <Button size="sm" variant="secondary" onClick={exportCsv}>
+          <AdminButton variant="secondary" onClick={exportCsv}>
             {t("export")}
-          </Button>
+          </AdminButton>
         )
       }
     >
@@ -439,9 +431,9 @@ function Dac7Section({ entries, year, taxData }: { entries: ReturnType<typeof in
             </table>
           </div>
           {d.rows.length > DAC7_SHOWN && (
-            <Button size="sm" variant="tertiary" className="mt-3" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+            <AdminButton variant="secondary" className="mt-3" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
               {showAll ? t("showLess") : t("showAll", { count: d.rows.length })}
-            </Button>
+            </AdminButton>
           )}
         </>
       )}
@@ -464,9 +456,9 @@ function InvestmentsSection({ entries }: { entries: ReturnType<typeof inPeriod> 
     <AdminSection
       title={t("title")}
       aside={
-        <Button size="sm" variant="secondary" onClick={exportCsv} disabled={inv.rows.length === 0}>
+        <AdminButton variant="secondary" onClick={exportCsv} disabled={inv.rows.length === 0}>
           {t("export")}
-        </Button>
+        </AdminButton>
       }
     >
       <div className="grid gap-x-12 gap-y-6 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">

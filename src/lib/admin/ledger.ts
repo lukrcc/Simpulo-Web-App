@@ -13,18 +13,19 @@ const DAY_MS = 86_400_000;
 
 // ── Periods ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type PeriodKind = "month" | "quarter" | "year";
-export const PERIOD_KINDS: readonly PeriodKind[] = ["month", "quarter", "year"];
+/** The same kinds as the admin's one period (config/admin.ts COMPARE_PERIODS) – Geld › Steuern follows it. */
+export type PeriodKind = "week" | "month" | "quarter" | "year";
+export const PERIOD_KINDS: readonly PeriodKind[] = ["week", "month", "quarter", "year"];
 
 export interface Period {
   kind: PeriodKind;
-  /** "2026-10" · "2026-Q4" · "2026" */
+  /** "2026-W47" · "2026-10" · "2026-Q4" · "2026" */
   key: string;
   /** YYYY-MM-DD, both included */
   from: string;
   to: string;
   year: number;
-  /** month 1–12, quarter 1–4 (year: 0) */
+  /** ISO week 1–53, month 1–12, quarter 1–4 (year: 0) */
   index: number;
 }
 
@@ -32,6 +33,17 @@ const iso = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d))
 
 /** The period of `kind` holding `today`, moved by `offset` (−1 = the one before). */
 export function periodAt(kind: PeriodKind, today: string, offset = 0): Period {
+  if (kind === "week") {
+    // The ISO week (Monday–Sunday) holding `today`, moved by `offset` weeks; its year is the year of its Thursday.
+    const ms = Date.parse(`${today}T00:00:00Z`) + offset * 7 * DAY_MS;
+    const monday = ms - ((new Date(ms).getUTCDay() + 6) % 7) * DAY_MS;
+    const year = new Date(monday + 3 * DAY_MS).getUTCFullYear();
+    const jan4 = Date.UTC(year, 0, 4);
+    const firstMonday = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY_MS;
+    const index = Math.round((monday - firstMonday) / (7 * DAY_MS)) + 1;
+    const day = (n: number) => new Date(n).toISOString().slice(0, 10);
+    return { kind, key: `${year}-W${String(index).padStart(2, "0")}`, from: day(monday), to: day(monday + 6 * DAY_MS), year, index };
+  }
   const [y, m] = today.split("-").map(Number);
   if (kind === "year") {
     const year = y + offset;

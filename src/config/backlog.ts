@@ -60,6 +60,7 @@ export const BACKLOG: readonly BacklogItem[] = [
   { id: "width-test", title: "Breiten-Test", description: "npm run test:breiten grün über alle Seiten und Breiten", phase: "beforeLaunch", status: "open" },
   { id: "performance", title: "Performance", description: "Ladezeiten, Bildgrößen, Bundle – messen und senken", phase: "beforeLaunch", status: "open" },
   { id: "backend", title: "Backend-Phase", description: "Firebase, Stripe, Resend, Push – die Mocks ablösen", phase: "backend", status: "open" },
+  { id: "live-visitors", title: "Live-Besucher zählen", description: "Eigene Besucherzählung (Präsenz je Minute) für „● live“ in der Admin-Übersicht – getLiveVisitors im echten Adapter", phase: "backend", status: "open" },
   // Parked: a House is at least one night (config/policies.ts STAY_POLICY) – no Houses without a night for now.
   { id: "day-house", title: "Day House / Nearby / City Circle", description: "Houses ohne Übernachtung, Treffen in der Nähe – geparkt: ein House hat mindestens eine Nacht", phase: "afterLaunch", status: "parked" },
   { id: "crew-reunion", title: "Wiedersehen bestehender Crews als Netzwerk-Funktion", description: "Frühere Crews sehen sich wieder – als Funktion im Netzwerk", phase: "afterLaunch", status: "open" },

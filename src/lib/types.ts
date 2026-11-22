@@ -263,7 +263,9 @@ export type AdminAction =
   | "partner_export"
   | "house_done"
   | "host_quote_asked"
-  | "content_marked";
+  | "host_message"
+  | "content_marked"
+  | "contact_restricted";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
 

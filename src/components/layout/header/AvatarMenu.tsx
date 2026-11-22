@@ -5,12 +5,14 @@
 // choice (phones: the same list in a sheet from the bottom, MobileAccountSheet). Log out ends the session on this device only (Settings › Account has "Log out of all devices").
 import { Bookmark, LayoutDashboard, LifeBuoy, Lightbulb, Moon, Settings, Smartphone, Users, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { openGetApp } from "@/components/GetAppDialog";
 import { Anchored } from "@/components/ui/Anchored";
 import { Avatar } from "@/components/ui/Avatar";
 import { darkMenuClass } from "@/components/ui/DarkMenu";
+import { AdminThemeSwitch } from "@/components/admin/AdminThemeSwitch";
 import { useIsAdmin } from "@/lib/admin/access";
 import { useIsStandalone } from "@/lib/install";
 import { getCurrentUser, useStore } from "@/lib/store";
@@ -40,6 +42,7 @@ export function AccountMenuList({ onDone, rowClassName }: { onDone: () => void; 
   const store = useStore();
   const me = getCurrentUser(store);
   const isAdmin = useIsAdmin() === true;
+  const inAdmin = usePathname().startsWith("/admin");
   const standalone = useIsStandalone();
   const pref = useThemePref();
   const dark = useResolvedTheme() === "dark";
@@ -121,6 +124,17 @@ export function AccountMenuList({ onDone, rowClassName }: { onDone: () => void; 
           )}
         </div>
       ))}
+      {/* While in the admin: the appearance (System · Light · Dark) – the product's one setting, the same as next to "System" in its side list. */}
+      {isAdmin && inAdmin && (
+        <>
+          {line}
+          <div role="none" data-account-admin-theme className={cn("flex min-h-11 items-center gap-3 px-3", rowClassName)}>
+            <LayoutDashboard aria-hidden className={ICON} strokeWidth={STROKE} />
+            <span className="min-w-0 flex-1 truncate text-body text-ink/85">{t("adminTheme.label")}</span>
+            <AdminThemeSwitch labels={{ label: t("adminTheme.label"), system: t("adminTheme.system"), light: t("adminTheme.light"), dark: t("adminTheme.dark") }} />
+          </div>
+        </>
+      )}
       {line}
       <Link role="menuitem" href="/settings" onClick={onDone} className={row}>
         <Settings aria-hidden className={ICON} strokeWidth={STROKE} />

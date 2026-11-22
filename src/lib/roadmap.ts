@@ -59,6 +59,12 @@ export function nextMilestone(today: string, admin: Pick<AdminData, "roadmapReac
   return next ? { ...next, days: daysBetween(today, next.date) } : null;
 }
 
+/** Admin › Zeitplan › Zeitleiste: from the first day of today's month to the last day of December of the following year (Nov 2026 – Dez 2027). */
+export function timelineRange(today: string): { from: string; to: string } {
+  const year = Number(today.slice(0, 4));
+  return { from: `${today.slice(0, 7)}-01`, to: `${year + 1}-12-31` };
+}
+
 /** Days to the departure (negative once gone). */
 export const daysToDeparture = (today: string) => daysBetween(today, DEPARTURE.date);
 export const daysToLaunch = (today: string) => daysBetween(today, LAUNCH.date);

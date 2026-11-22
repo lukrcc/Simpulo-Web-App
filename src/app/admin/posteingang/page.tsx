@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { AdminInbox } from "@/components/admin/AdminInbox";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Posteingang · Admin", robots: { index: false, follow: false } };
-
-/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
+/** Only a redirect – nothing to prerender for instant navigation. */
 export const instant = false;
 
-/** Admins only (app/admin/layout.tsx): Heute and Support in one (components/admin/AdminInbox). */
+/** Der Posteingang heißt jetzt Aufgaben. */
 export default function Page() {
-  return <AdminInbox />;
+  redirect("/admin/aufgaben");
 }

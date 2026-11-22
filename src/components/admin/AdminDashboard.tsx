@@ -71,7 +71,7 @@ function LegalLaunchCheck({ legal }: { legal: LegalChecklist }) {
 // ── Waitlist ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * /admin/waitlist (Launch › Warteliste): the real sign-ups (double opt-in). Tabs Alle · Bestätigt · Offen · Abgemeldet, filters Ort and Thema
+ * Wachstum › Warteliste (/admin/growth?tab=waitlist, AdminNested; /admin/waitlist leitet dorthin): the real sign-ups (double opt-in). Tabs Alle · Bestätigt · Offen · Abgemeldet, filters Ort and Thema
  * on the right; on top the confirmed count against the launch criterion (≥ 1.000 – only confirmed count), the launch criteria, the trend,
  * sources and interests, and the list.
  */

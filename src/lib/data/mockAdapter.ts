@@ -45,5 +45,11 @@ export const mockAdapter: DataAdapter = {
   getPaymentIssues: () => MOCK_PAYMENT_ISSUES.map((issue) => ({ ...issue })),
   getLedger: mockLedger,
   getBankBalance: () => MOCK_BANK_BALANCE,
+  // ⚠ Simulated: around 6 people in the evening, 2 at night, a little noise – the overview reads it again every few seconds.
+  getLiveVisitors: () => {
+    const hour = new Date().getHours() + new Date().getMinutes() / 60;
+    const base = 4 + 3 * Math.sin(((hour - 13) / 24) * 2 * Math.PI);
+    return Math.max(0, Math.round(base + (Math.random() - 0.5) * 3));
+  },
   getHostTaxData: mockHostTaxData,
 };

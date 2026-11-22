@@ -1,14 +1,15 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // /admin/vision – Vision as a map of building blocks (Warum · Wie · Wohin) with zoom and a timeline. The click row: Karte · Zeitleiste,
 // right the phase ("Phase 1"); under it the motto (20px) and three numbers. Karte: BlockMap; a block zooms in
 // (?block=<id>, breadcrumb "Vision › <Name>", "← Karte") to its content – the former tabs – under a one-line summary. Zeitleiste: the four
 // phases as columns, the lanes as rows of capsules (folded "+N"); a phase's head zooms into the phase. Every text from config/vision.ts,
-// every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier").
+// every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier"). First tab and the default: Überblick –
+// only tiles (TileBoard, group Planen), the numbers of the blocks, each opening its block zoom, the map or the timeline.
 import { ArrowRight, Building2, Castle, HeartPulse, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { Button } from "@/components/ui/ActionButton";
 import { Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
@@ -78,16 +79,24 @@ import { HOF } from "@/config/vision-hof";
 import { PatternScales } from "./vision/PatternScales";
 import { HofPartView, HofParts } from "./vision/HofParts";
 import { ContinuumForms, LongevityView } from "./vision/VisionDiagrams";
+import { chunkRows, TileBoard, type TileSpec } from "./AdminTiles";
 
 export function AdminVision() {
   const inputs = useAdminInputs();
   const { view, block, go, back } = useVisionUrl();
   const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
   const zoomed = block ? zoomOf(block, (next) => go({ view, block: next })) : null;
+  const tOverview = useTranslations("admin.overviewBlock");
   return (
     <AdminShell
       title={VISION_TITLE}
-      tabs={!zoomed ? <AdminTabs label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))} /> : <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />}
+      tabs={
+        !zoomed ? (
+          <AdminTabs<VisionTab> label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={[{ value: "overview" as const, label: tOverview("tab") }, ...VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))]} />
+        ) : (
+          <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (view === "overview" ? `← ${tOverview("tab")}` : zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />
+        )
+      }
       aside={
         <span className="inline-flex items-center gap-2 text-body text-ink">{BLOCK_MAP_TEXT.status(phase.number)}</span>
       }
@@ -98,6 +107,8 @@ export function AdminVision() {
           <p className="mb-(--adm-section) text-body-lg text-ink/80">{zoomed.summary}</p>
           {zoomed.content(inputs)}
         </section>
+      ) : view === "overview" ? (
+        <VisionOverview inputs={inputs} go={go} />
       ) : (
         <>
           {/* The motto (20px) and the three numbers, compact. */}
@@ -125,11 +136,13 @@ function useVisionUrl() {
   const search = useSyncExternalStore(subscribeUrl, () => window.location.search, () => "");
   void noop;
   const params = new URLSearchParams(search);
-  const view: VisionView = params.get("view") === "timeline" ? "timeline" : "map";
+  // No ?view= is the Überblick (the default); ?view=map and ?view=timeline the other two.
+  const raw = params.get("view");
+  const view: VisionTab = raw === "timeline" || raw === "map" ? raw : "overview";
   const block = params.get("block");
-  const go = (next: { view: VisionView; block: string | null }) => {
+  const go = (next: { view: VisionTab; block: string | null }) => {
     const p = new URLSearchParams();
-    if (next.view === "timeline") p.set("view", "timeline");
+    if (next.view !== "overview") p.set("view", next.view);
     if (next.block) p.set("block", next.block);
     const q = p.toString();
     goVision(q ? `?${q}` : "");
@@ -140,6 +153,57 @@ function useVisionUrl() {
     else go({ view, block: null });
   };
   return { view, block, go, back };
+}
+
+type VisionTab = "overview" | VisionView;
+
+/**
+ * Überblick (CLAUDE.md "Überblick zuerst"): only tiles, group Planen – the numbers the block map shows, each opening its block zoom
+ * (?block=…), the map or the timeline; Algorithmus and Finanzierung open their own pages.
+ */
+function VisionOverview({ inputs, go }: { inputs: AdminInputs; go: (next: { view: VisionTab; block: string | null }) => void }) {
+  const t = useTranslations("admin.pageTiles.vision");
+  const N = PHASE_TEXT.overviewNumbers;
+  const mix = hostMix(inputs);
+  const providers = providerCosts(inputs);
+  const shares = Object.values(providers.shares).map((p) => p.share);
+  const costShare = shares.every((x) => x === null) ? null : Math.round(shares.reduce<number>((n, x) => n + (x ?? 0), 0) * 10) / 10;
+  const ready = fundingReadiness(inputs);
+  const again = coreMetrics(inputs).again;
+  const country = inputs.admin.location?.country ?? null;
+  const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
+  const blocks = BLOCK_MAP.flatMap((c) => c.blocks);
+  const external = (id: BlockId) => blocks.find((b) => b.id === id)?.external;
+  const zoom = (id: BlockId) => {
+    const href = external(id);
+    return href ? { href } : { onOpen: () => go({ view: "overview", block: id }) };
+  };
+  const hostsAll = mix.counts.share + mix.counts.pro + mix.counts.anchor;
+  // "10–25 Mrd. € pro Jahr" → the range as the number, the unit under it (the config's own words, never cut).
+  const split = (text: string) => {
+    const at = text.indexOf(" ");
+    return at < 0 ? { value: text, unit: undefined } : { value: text.slice(0, at), unit: text.slice(at + 1) };
+  };
+  const market = split(N.market.value);
+  const leader = split(N.leader.value);
+  const tiles: TileSpec[] = [
+    { key: "phase", label: t("phase.label"), info: t("phase.info"), value: t("phase.value", { n: String(phase.number), total: String(PHASES.length) }), extra: phase.title, onOpen: () => go({ view: "timeline", block: null }) },
+    { key: "map", label: t("map.label"), info: t("map.info"), value: t("map.value", { n: String(blocks.length) }), extra: BLOCK_MAP.map((c) => c.label).join(" · "), onOpen: () => go({ view: "map", block: null }) },
+    { key: "market", label: t("market.label"), info: t("market.info"), value: market.value, extra: market.unit, ...zoom("segments") },
+    { key: "leader", label: t("leader.label"), info: t("leader.info"), value: leader.value, extra: leader.unit, ...zoom("continuum") },
+    { key: "today", label: t("today.label"), info: t("today.info"), value: eur(revenueLast12(inputs)), ...zoom("tModel") },
+    { key: "core", label: t("core.label"), info: t("core.info"), value: again === null ? NOT_MEASURABLE : share(again), small: again === null, ...zoom("core") },
+    { key: "segments", label: t("segments.label"), info: t("segments.info"), value: t("segments.value", { n: String(SEGMENTS.length) }), ...zoom("segments") },
+    { key: "hosts", label: t("hosts.label"), info: t("hosts.info"), value: num(hostsAll), extra: t("hosts.extra", { pro: String(mix.counts.pro) }), ...zoom("hosts") },
+    { key: "places", label: t("places.label"), info: t("places.info"), value: num(ACCOMMODATION_CATEGORIES.length), extra: t("places.extra"), ...zoom("places") },
+    { key: "tech", label: t("tech.label"), info: t("tech.info"), value: num(Object.keys(providers.shares).length), extra: costShare === null ? t("tech.extraNone") : t("tech.extra", { share: `${dec(costShare)} %` }), ...zoom("tech") },
+    { key: "algorithm", label: t("algorithm.label"), info: t("algorithm.info"), value: num(MODELS.length), extra: t("algorithm.extra"), ...zoom("algorithm") },
+    { key: "continuum", label: t("continuum.label"), info: t("continuum.info"), value: num(CONTINUUM.groups.reduce((n, g) => n + g.sources.length, 0)), extra: t("continuum.extra"), ...zoom("continuum") },
+    { key: "roadmap", label: t("roadmap.label"), info: t("roadmap.info"), value: num(ROADMAP.stages.length), extra: t("roadmap.extra"), ...zoom("roadmap") },
+    { key: "location", label: t("location.label"), info: t("location.info"), value: country ?? t("location.open"), small: true, ...zoom("location") },
+    { key: "funding", label: t("funding.label"), info: t("funding.info"), value: t("funding.value", { met: String(ready.met), total: String(ready.total) }), extra: t("funding.extra"), ...zoom("funding") },
+  ];
+  return <TileBoard label={VISION_TITLE} rows={chunkRows(tiles, "plan", 5)} />;
 }
 
 /** "Vision › <Name>" and "← Karte" in the click row while zoomed. */
@@ -1626,9 +1690,9 @@ function LocationDecision({ inputs }: { inputs: AdminInputs }) {
           <Textarea value={reason} placeholder={d.reasonPlaceholder} onChange={(e) => setReason(e.target.value)} className="min-h-12" />
         </label>
         <span className="sm:col-span-2">
-          <Button type="submit" variant="secondary" size="sm">
+          <AdminButton type="submit" variant="secondary">
             {d.save}
-          </Button>
+          </AdminButton>
         </span>
       </form>
     </AdminSection>

@@ -115,6 +115,8 @@ export interface CostEntry {
   category: CostCategory;
   recurring: boolean;
   note: string;
+  /** Marketing only: the channel it paid for (the utm_source key of Wachstum › Kanäle, "" = direct); unset = not assigned */
+  channel?: string;
 }
 
 /** A task added by hand to one week of the launch strategy. */
@@ -338,6 +340,12 @@ export interface MetricsHistory {
    */
   installs?: Readonly<Record<"ios" | "android", readonly { booked: number; installed: number }[]>>;
   /**
+   * Admin › Wachstum › Verhalten: asking the host, per full month (oldest first, the last = last full month) – direct chats, those that led to
+   * a request, the guest's messages before it, requests and those with a note. The mock gives realistic values; the real source counts its
+   * chats and requests (lib/admin/metrics.ts askingHostMetrics).
+   */
+  asking?: readonly { chats: number; requested: number; guestMessages: number; requests: number; withNote: number }[];
+  /**
    * The network as it stands (Übersicht › Qualität, Algorithmus › Netzwerk heute): pairs who lived together, repeat guests, days until
    * full. The mock gives realistic values; the real source computes them from its records (lib/admin/metrics.ts algorithmMetrics).
    */
@@ -358,6 +366,12 @@ export interface MetricsHistory {
    * records up to that day (lib/admin/metrics.ts getChange); the shares need stored daily snapshots (TODO(backend): a nightly aggregate).
    */
   snapshots?: Readonly<Record<"week" | "month" | "year", OverviewSnapshot>>;
+  /**
+   * Übersicht › Offene Houses: how many real Houses were open for requests at the end of the period compared with (Woche · Monat · Quartal ·
+   * Jahr). The mock's Houses were nearly all created in October 2026, so counting them back would jump; the real source counts from the
+   * Houses' creation and start dates (lib/admin/metrics.ts openHouses).
+   */
+  openHousesBefore?: Readonly<Record<"week" | "month" | "quarter" | "year", number>>;
   /**
    * Vision › Technik: what each provider cost over the last 12 months, EUR. ⚠ The mock gives example values; the real source reads the
    * invoices (TODO(backend): from billing exports – Google Cloud, Stripe fees, …).
@@ -511,6 +525,11 @@ export interface DataAdapter {
   getLedger(): LedgerEntry[] | null;
   /** Geld › Steuern: the business account's balance (Qonto) – mock; null until the bank is connected */
   getBankBalance(): BankBalance | null;
+  /**
+   * Admin › Übersicht „● live“: how many people are on Simpulo right now (a visit in the last 5 minutes). The mock simulates it; the real
+   * source needs Simpulo's own visitor count (Firebase phase, TODO(firestore): a presence count per minute) – until then null.
+   */
+  getLiveVisitors(): number | null;
   /** Geld › Steuern › DAC7: hosts' tax data by user id – mock; the real source from the payout onboarding */
   getHostTaxData(): Readonly<Record<string, HostTaxData>>;
 }

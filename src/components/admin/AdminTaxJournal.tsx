@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // Geld › Steuern › Buchungsjournal: every booking on Simpulo's side for a period (Woche · Monat · Quartal · Jahr) – the service fee of a
 // guest, Simpulo's share of a host fee, a refund, Stripe's fee – with House, gross, rate, tax, net, status and its receipt; the period's
@@ -7,16 +8,15 @@
 import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/ActionButton";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { IconButton } from "@/components/ui/IconButton";
 import { useToast } from "@/components/ui/Toast";
 import { RESERVE_ACCOUNT } from "@/config/tax";
 import { useAdminActions } from "@/lib/admin/actions";
-import { datevCsv, JOURNAL_PERIODS, journalLines, journalPeriod, journalReserve, journalSummary, linesIn, yearBreakdown, type JournalLine, type JournalPeriod, type JournalPeriodKind } from "@/lib/admin/bookingJournal";
+import { datevCsv, journalLines, journalPeriod, journalReserve, journalSummary, linesIn, yearBreakdown, type JournalLine, type JournalPeriod } from "@/lib/admin/bookingJournal";
 import { download, periodLabel as ledgerPeriodLabel, PLAIN } from "@/lib/admin/exporters";
 import { journalPdf, journalReceiptPdf } from "@/lib/admin/exporters/journalPdf";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { day, eurCents } from "@/lib/i18n/adminFormat";
 import { cn } from "@/lib/utils";
 import { InfoTip } from "./AdminNumbers";
@@ -34,9 +34,11 @@ export function AdminTaxJournal() {
   const inputs = useAdminInputs();
   const actions = useAdminActions();
   const showToast = useToast();
-  // Starts with the year: the mock bookings lie in the months before, a current week or month is often still empty.
-  const [kind, setKind] = useState<JournalPeriodKind>("year");
-  const [offset, setOffset] = useState(0);
+  // The kind follows the admin's one period (top right); ‹ › moves within it and starts again at the current one when the period changes.
+  const [kind] = useAdminPeriod();
+  const [nav, setNav] = useState({ kind, offset: 0 });
+  const offset = nav.kind === kind ? nav.offset : 0;
+  const setOffset = (move: (o: number) => number) => setNav({ kind, offset: move(offset) });
   const [all, setAll] = useState(false);
   // The journal from the payments in the data (mock: the store's seeded payments).
   const lines = useMemo(() => journalLines(inputs.payments, inputs.stays), [inputs.payments, inputs.stays]);
@@ -79,16 +81,6 @@ export function AdminTaxJournal() {
       <p className="text-body text-muted">{t("disclaimer")}</p>
       {/* The period: its kind and which one (‹ ›), never past today's. */}
       <div className="mt-(--adm-inner) flex flex-wrap items-center gap-x-4 gap-y-3">
-        <CapsuleGroup
-          size="sm"
-          label={t("periodLabel")}
-          value={kind}
-          onChange={(next) => {
-            setKind(next);
-            setOffset(0);
-          }}
-          options={JOURNAL_PERIODS.map((value) => ({ value, content: t(`periods.${value}`) }))}
-        />
         <span className="flex items-center gap-1">
           <IconButton aria-label={t("prev")} onClick={() => setOffset((o) => o - 1)} disabled={period.from <= first}>
             <ChevronLeft aria-hidden />
@@ -128,12 +120,12 @@ export function AdminTaxJournal() {
 
       <AdminSection title={t("exportTitle")} aside={<span className="text-small text-muted">{t("exportNote")}</span>}>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={exportDatev} data-export="datev">
+          <AdminButton variant="secondary" onClick={exportDatev} data-export="datev">
             {t("datev")}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={exportPdf} data-export="pdf">
+          </AdminButton>
+          <AdminButton variant="secondary" onClick={exportPdf} data-export="pdf">
             {t("pdf")}
-          </Button>
+          </AdminButton>
         </div>
         <p className="mt-3 max-w-2xl text-small text-muted">{t("datevNote")}</p>
       </AdminSection>
@@ -177,9 +169,9 @@ export function AdminTaxJournal() {
               </tbody>
             </table>
             {!all && inside.length > SHOWN && (
-              <Button size="sm" variant="tertiary" className="mt-3" onClick={() => setAll(true)}>
+              <AdminButton variant="secondary" className="mt-3" onClick={() => setAll(true)}>
                 {t("showAll", { count: inside.length })}
-              </Button>
+              </AdminButton>
             )}
           </div>
         )}

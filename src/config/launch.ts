@@ -19,7 +19,7 @@ export const LAUNCH_POINTS: readonly LaunchPoint[] = [
   { id: "houses", group: "criteria", manual: false, href: "/admin/houses" },
   { id: "hubs", group: "criteria", manual: false, href: "/admin/topics" },
   { id: "reserved", group: "criteria", manual: false, href: "/admin/houses" },
-  { id: "waitlist", group: "criteria", manual: false, href: "/admin/waitlist" },
+  { id: "waitlist", group: "criteria", manual: false, href: "/admin/growth?tab=waitlist" },
   // Technik
   { id: "demoOff", group: "tech", manual: false },
   { id: "previewOff", group: "tech", manual: false },
@@ -28,7 +28,7 @@ export const LAUNCH_POINTS: readonly LaunchPoint[] = [
   { id: "pushActive", group: "tech", manual: false },
   { id: "widthTest", group: "tech", manual: true },
   // Recht
-  { id: "noDrafts", group: "legal", manual: false, href: "/admin/waitlist" },
+  { id: "noDrafts", group: "legal", manual: false, href: "/admin/growth?tab=waitlist" },
   // The real business address – until it's there, no public launch (the phase switch to Live is blocked, a live build stops).
   { id: "impressumAddress", group: "legal", manual: false, href: "/impressum" },
   { id: "impressum", group: "legal", manual: false, href: "/impressum" },

@@ -71,6 +71,13 @@ export function useAdminActions() {
         notifyByEmail(report.reporterEmail, "reportDecided", { text: tEn(`messages.notify.${key}`) });
       }
     },
+    /**
+     * Aufgaben › Sicherheit: "Kontakt einschränken" – the reported person's messages to the reporter are limited while it is looked into.
+     * Mock: only logged. TODO(backend): a contact restriction on the thread (no new direct messages, no invites) until the report is decided.
+     */
+    restrictContact(subjectName: string, otherName: string, ref?: string) {
+      appendAdminLog("contact_restricted", `${subjectName} → ${otherName}`, by, ref);
+    },
     /** A widerspruch: it stands or it's granted (the store undoes what it can and tells the person) – into the log. */
     decideAppeal(noticeId: string, outcome: "upheld" | "reversed", detail: string) {
       store.decideAppeal(noticeId, outcome);
@@ -199,6 +206,11 @@ export function useAdminActions() {
       appendAdminLog("house_done", stay.title, by, stay.id);
     },
     /** Houses › Läuft gut: ask the host for a quote (for Marketing). Mock: only logged. */
+    /** Hosts › Detail: a message to the host as Simpulo Support (Messages › Simpulo Support; logged without its text). */
+    messageHost(host: { id: string; email?: string; name: string }, text: string) {
+      addTeamMessage({ userId: host.id, email: host.email ?? "", text, by, phase: currentPhase() });
+      appendAdminLog("host_message", host.name, by);
+    },
     askHostQuote(stay: Stay, hostName: string) {
       addHouseAction({ stayId: stay.id, lever: "quote", at: new Date().toISOString(), filledAt: stay.spotsFilled, total: stay.spotsTotal });
       appendAdminLog("host_quote_asked", `${hostName} · ${stay.title}`, by, stay.id);

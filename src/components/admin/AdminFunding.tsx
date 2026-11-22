@@ -1,13 +1,16 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // Admin › Finanzierung ("Wann und wofür holen wir Geld?") – Wachstum, after Vision. Four parts as capsules: Bereitschaft (the checklist with
 // live values, lib/admin/metrics.ts fundingReadiness) · These (where the first money goes) · Runden (the ladder, the share calculator, the
 // investor list as a greyed placeholder) · Unterlagen (the data room checklist, "Kennzahlen als PDF"). Every text in config/funding.ts. The
-// note on top on every part. Deliberately no field for a company valuation. Graphics before text, no cards.
+// note on top on every part. Deliberately no field for a company valuation. Graphics before text, no cards. First tab and the default:
+// Überblick – only tiles (TileBoard, group Planen): readiness and its four criteria, the thesis, the rounds, the documents, valuation (no
+// number – it lives only in its tab) and the company structure; each tile opens its tab.
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -21,6 +24,7 @@ import {
   FUNDING_TABS,
   FUNDING_TITLE,
   OPEN,
+  READINESS,
   READINESS_TEXT,
   ROUND_NOW,
   ROUNDS,
@@ -41,6 +45,8 @@ import { cn } from "@/lib/utils";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminTabs } from "./AdminLayout";
 import { CompanyStructure, CompanyStructureTabs } from "./finance/CompanyStructure";
+import { chunkRows, TileBoard, type TileSpec } from "./AdminTiles";
+import { STRUCTURE } from "@/lib/admin/finance/structure";
 import type { StructureView } from "@/lib/admin/finance/structure";
 
 const fill = (template: string, values: Record<string, string | number>) => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
@@ -49,17 +55,19 @@ export function AdminFunding() {
   const inputs = useAdminInputs();
   // ?tab=structure opens Firmenstruktur (a link from Vision › Der Hof › Eigentum) – Next's search params are current on a client navigation too.
   const opened = useSearchParams().get("tab") === "structure";
-  const [tab, setTab] = useState<FundingTab>(opened ? "structure" : "readiness");
+  const [tab, setTab] = useState<FundingTab | "overview">(opened ? "structure" : "overview");
+  const tOverview = useTranslations("admin.overviewBlock");
   // Firmenstruktur's second level: AdminSubTabs right under the head's row.
   const [structure, setStructure] = useState<StructureView>("group");
   return (
     // The tabs in the head's one click row (Grundordnung); the note under it ("Bewertung & Anteile" its own, Firmenstruktur its own at the end).
     <AdminShell
       title={FUNDING_TITLE}
-      tabs={<AdminTabs label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))} />}
+      tabs={<AdminTabs<FundingTab | "overview"> label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={[{ value: "overview" as const, label: tOverview("tab") }, ...FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))]} />}
       subTabs={tab === "structure" ? <CompanyStructureTabs view={structure} onChange={setStructure} /> : undefined}
     >
-      {tab !== "structure" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
+      {tab === "overview" && <FundingOverview inputs={inputs} onOpen={setTab} />}
+      {tab !== "structure" && tab !== "overview" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
       {tab === "readiness" && <Readiness inputs={inputs} />}
       {tab === "thesis" && <Thesis />}
       {tab === "rounds" && <Rounds />}
@@ -68,6 +76,153 @@ export function AdminFunding() {
       {tab === "structure" && <CompanyStructure view={structure} />}
     </AdminShell>
   );
+}
+
+// ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Only tiles (CLAUDE.md "Überblick zuerst"), group Planen: each opens its tab. No valuation number outside its own tab. */
+function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: FundingTab) => void }) {
+  const t = useTranslations("admin.pageTiles.funding");
+  const r = fundingReadiness(inputs);
+  const v = r.values;
+  const status = (met: boolean) => (met ? ("good" as const) : ("warning" as const));
+  const biggest = ALLOCATION.toSorted((a, b) => b.percent - a.percent)[0];
+  const allocated = ALLOCATION.reduce((n, a) => n + a.percent, 0);
+  const nowIndex = ROUNDS.findIndex((x) => x.key === ROUND_NOW);
+  const round = ROUNDS[nowIndex];
+  const next = ROUNDS[nowIndex + 1];
+  const docsDone = DOCUMENTS.filter((d) => (inputs.admin.fundingDocs[d.key] ?? "missing") === "done").length;
+  const growth = v.fullHousesGrowth.value;
+  // Rich tiles: 2–3 detail lines each, only from the data above (never an invented number, no valuation number).
+  const nameOf = { repeatRate: t("repeat.label"), fullHousesGrowth: t("growth.label"), hubsFill: t("hubs.label"), contribution: t("contribution.label") } as const;
+  const metNames = r.items.filter((i) => i.met).map((i) => nameOf[i.key]);
+  const openNames = r.items.filter((i) => !i.met).map((i) => nameOf[i.key]);
+  const ranked = ALLOCATION.toSorted((x, y) => y.percent - x.percent);
+  const second = ranked[1];
+  const zeroPosts = ALLOCATION.filter((x) => x.percent === 0).length;
+  const after = ROUNDS[nowIndex + 2];
+  const docStatus = (key: string) => inputs.admin.fundingDocs[key] ?? "missing";
+  const docsInProgress = DOCUMENTS.filter((d) => docStatus(d.key) === "inProgress").length;
+  const docsMissing = DOCUMENTS.filter((d) => docStatus(d.key) === "missing").length;
+  const nextDoc = DOCUMENTS.find((d) => docStatus(d.key) === "inProgress") ?? DOCUMENTS.find((d) => docStatus(d.key) === "missing");
+  const proofLine = (x: (typeof ROUNDS)[number]) => (x.proof ? t("d.proof", { text: x.proof }) : t("d.proofOpen"));
+  const structureNext = STRUCTURE.phases.steps[1];
+  const tiles: TileSpec[] = [
+    {
+      key: "ready",
+      label: t("ready.label"),
+      info: t("ready.info"),
+      value: t("ready.value", { met: String(r.met), total: String(r.total) }),
+      details: [metNames.length ? t("d.metNames", { names: metNames.join(" · ") }) : t("d.metNone"), openNames.length ? t("d.openNames", { names: openNames.join(" · ") }) : t("d.openNone")],
+      onOpen: () => onOpen("readiness"),
+    },
+    {
+      key: "repeat",
+      label: t("repeat.label"),
+      info: t("repeat.info"),
+      value: v.repeatRate.value === null ? "–" : pct(v.repeatRate.value),
+      details: [t("d.source"), v.repeatRate.value === null ? t("d.noData") : t("d.criterion", { value: pct(READINESS.repeatRatePercent) })],
+      target: { text: t("repeat.target"), status: status(v.repeatRate.met) },
+      onOpen: () => onOpen("readiness"),
+    },
+    {
+      key: "growth",
+      label: t("growth.label"),
+      info: t("growth.info"),
+      value: growth === null ? "–" : `${(growth * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`,
+      extra: t("growth.extra", { from: String(v.fullHousesGrowth.from), to: String(v.fullHousesGrowth.to) }),
+      details: [t("d.window", { months: String(READINESS.fullHousesGrowth.months) })],
+      target: { text: t("growth.target"), status: status(v.fullHousesGrowth.met) },
+      onOpen: () => onOpen("readiness"),
+    },
+    {
+      key: "hubs",
+      label: t("hubs.label"),
+      info: t("hubs.info"),
+      value: String(v.hubsFill.hubs.length),
+      extra: v.hubsFill.hubs.length ? v.hubsFill.hubs.map((h) => `${h.hub} ${pct(Math.round(h.fill * 100))}`).join(" · ") : t("d.hubsNone"),
+      details: [t("d.hubRule", { houses: String(READINESS.hubs.minHouses), fill: String(READINESS.hubs.fillPercent) })],
+      target: { text: t("hubs.target"), status: status(v.hubsFill.met) },
+      onOpen: () => onOpen("readiness"),
+    },
+    {
+      key: "contribution",
+      label: t("contribution.label"),
+      info: t("contribution.info"),
+      value: v.contribution.value === null ? "–" : eur(v.contribution.value),
+      extra: t("contribution.extra"),
+      details: inputs.ledger ? [t("d.window12"), t("d.afterCosts")] : [t("d.noLedger")],
+      target: { text: t("contribution.target"), status: status(v.contribution.met) },
+      onOpen: () => onOpen("readiness"),
+    },
+    {
+      key: "allocation",
+      label: t("allocation.label"),
+      info: t("allocation.info"),
+      value: biggest.label,
+      small: true,
+      extra: t("allocation.extra", { percent: String(biggest.percent) }),
+      details: [second ? t("d.second", { label: second.label, percent: String(second.percent) }) : null, biggest.reason ? t("d.reason", { reason: biggest.reason }) : t("d.reasonOpen")],
+      onOpen: () => onOpen("thesis"),
+    },
+    {
+      key: "allocated",
+      label: t("allocated.label"),
+      info: t("allocated.info"),
+      value: `${allocated} %`,
+      details: [t("d.posts", { count: ALLOCATION.length, zero: String(zeroPosts) }), allocated === 100 ? t("d.sumOk") : t("d.sumOff", { diff: String(Math.abs(allocated - 100)) })],
+      target: { text: t("allocated.target"), status: status(allocated === 100) },
+      onOpen: () => onOpen("thesis"),
+    },
+    {
+      key: "round",
+      label: t("round.label"),
+      info: t("round.info"),
+      value: round.label,
+      small: true,
+      details: [t("d.roundStep", { no: String(nowIndex + 1), total: String(ROUNDS.length) }), round.dilutes ? (round.amount ?? t("next.amountOpen")) : t("d.dilutes")],
+      onOpen: () => onOpen("rounds"),
+    },
+    {
+      key: "next",
+      label: t("next.label"),
+      info: t("next.info"),
+      value: next ? next.label : "–",
+      small: true,
+      extra: next ? (next.amount ?? t("next.amountOpen")) : undefined,
+      details: next ? [next.optional ? `${proofLine(next)} · ${t("d.optional")}` : proofLine(next), after ? t("d.after", { label: after.label }) : null] : [],
+      onOpen: () => onOpen("rounds"),
+    },
+    {
+      key: "documents",
+      label: t("documents.label"),
+      info: t("documents.info"),
+      value: t("documents.value", { done: String(docsDone), total: String(DOCUMENTS.length) }),
+      details: [`${t("d.inProgress", { value: String(docsInProgress) })} · ${t("d.missing", { value: String(docsMissing) })}`, nextDoc ? t("d.nextDoc", { label: nextDoc.label }) : t("d.allDone")],
+      onOpen: () => onOpen("documents"),
+    },
+    {
+      key: "valuation",
+      label: t("valuation.label"),
+      info: t("valuation.info"),
+      value: t("valuation.value"),
+      small: true,
+      extra: t("valuation.extra"),
+      details: [t("d.calculator"), t("d.notShared")],
+      onOpen: () => onOpen("valuation"),
+    },
+    {
+      key: "structure",
+      label: t("structure.label"),
+      info: t("structure.info"),
+      value: STRUCTURE.phases.steps[0].when,
+      small: true,
+      extra: STRUCTURE.phases.steps[0].what.join(" · "),
+      details: [structureNext ? t("d.nextStructure", { when: structureNext.what.join(", ") }) : null, t("d.gate", { gate: STRUCTURE.phases.gate })],
+      onOpen: () => onOpen("structure"),
+    },
+  ];
+  return <TileBoard label={FUNDING_TITLE} rows={chunkRows(tiles, "plan", 4)} columns={4} />;
 }
 
 // ── Bereitschaft ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -323,9 +478,9 @@ function Documents({ inputs }: { inputs: AdminInputs }) {
         </ul>
       </AdminSection>
       <div className="mt-(--adm-section) flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Button variant="secondary" onClick={kpis}>
+        <AdminButton variant="secondary" onClick={kpis}>
           {DOCUMENTS_TEXT.kpiPdf}
-        </Button>
+        </AdminButton>
         <p className="max-w-xl text-small text-muted">{DOCUMENTS_TEXT.kpiPdfNote}</p>
       </div>
     </>

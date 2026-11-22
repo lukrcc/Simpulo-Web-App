@@ -1,7 +1,6 @@
 // Mock growth data: where the seeded requests came from, a plausible analytics history for /admin/growth, and two
 // Houses prepared for creators who haven't claimed them yet (/claim/demo-run-club, /claim/demo-sound-bath).
 // Deterministic – the same ids always get the same channel – so server and client agree and reloads look the same.
-import { paymentSplit } from "./fees";
 import type { GrowthEvent, ShareChannel } from "./growth";
 import type { Attribution, JoinRequest, Payment, Stay } from "./mock";
 
@@ -32,53 +31,106 @@ export function withMockAttribution(requests: JoinRequest[], stays: Stay[]): Joi
   return requests.map((r) => ({ ...r, ...seedAttribution(r.id, stays.find((s) => s.id === r.stayId)) }));
 }
 
-const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const LISTED = new Set<Stay["status"]>(["published", "booked", "completed"]);
 
-/** Views, requests, acceptances and payments as they would have been tracked – marked `seed`, never persisted. */
-export function mockGrowthEvents({ stays, joinRequests, payments }: { stays: Stay[]; joinRequests: JoinRequest[]; payments: Payment[] }): GrowthEvent[] {
+/**
+ * The demo's channel mix (utm_source; undefined = direct): share of the visits, visit → request and request → paid. The funnel stays
+ * plausible: 8–12 % of visitors ask, 30–50 % of those pay.
+ */
+const DEMO_CHANNELS: ReadonlyArray<{ source: ShareChannel | "google" | "youtube" | "twitch" | undefined; share: number; ask: number; pay: number }> = [
+  { source: "instagram", share: 0.26, ask: 0.09, pay: 0.36 },
+  { source: undefined, share: 0.16, ask: 0.11, pay: 0.45 },
+  { source: "whatsapp", share: 0.12, ask: 0.12, pay: 0.5 },
+  { source: "tiktok", share: 0.12, ask: 0.08, pay: 0.3 },
+  { source: "google", share: 0.09, ask: 0.1, pay: 0.4 },
+  { source: "copy", share: 0.08, ask: 0.11, pay: 0.46 },
+  { source: "story", share: 0.05, ask: 0.09, pay: 0.38 },
+  { source: "youtube", share: 0.04, ask: 0.08, pay: 0.33 },
+  { source: "invite", share: 0.04, ask: 0.12, pay: 0.5 },
+  { source: "twitch", share: 0.04, ask: 0.09, pay: 0.4 },
+];
+
+/** The demo's traffic runs from here and grows ~3.5 % a month (visits a day at the start); the end leaves room for the dev clock. */
+const DEMO_FROM = "2025-01-01";
+const DEMO_TO = "2027-06-30";
+const DEMO_VISITS_START = 40;
+const DEMO_GROWTH = 1.035;
+
+/**
+ * Views, requests and payments as they would have been tracked – marked `seed`, never persisted. A steady daily rhythm per channel (no
+ * single mock payment makes a week jump): each day's expected numbers accumulate and an event is emitted per whole one, so a week holds
+ * its share. Each event belongs to a listed House, mostly with the host's ref (hosts share their own House the most).
+ */
+export function mockGrowthEvents({ stays }: { stays: Stay[]; joinRequests: JoinRequest[]; payments: Payment[] }): GrowthEvent[] {
+  const listed = stays.filter((s) => LISTED.has(s.status) && !s.isExample).toSorted((a, b) => a.id.localeCompare(b.id));
+  if (listed.length === 0) return [];
+  // About one House in eight is "viewed a lot, asked little" (Wachstum › Houses): three times the visits, and its visitors rarely ask.
+  const cold = (id: string) => hash(`cold-${id}`) % 8 === 0;
+  const weighted = listed.flatMap((s) => (cold(s.id) ? [s, s, s] : [s]));
   const events: GrowthEvent[] = [];
-  for (const stay of stays) {
-    if (!LISTED.has(stay.status)) continue;
-    const opened = new Date(stay.createdAt).getTime();
-    const requests = joinRequests.filter((r) => r.stayId === stay.id).length;
-    // Roughly 6–12 views per request, at least a handful for quiet Houses.
-    const views = 5 + requests * (6 + (hash(stay.id) % 7)) + (hash(`${stay.id}-v`) % 9);
-    for (let i = 0; i < views; i++) {
-      const key = `${stay.id}-view-${i}`;
-      events.push({
-        id: `seed-${key}`,
-        name: "house_viewed",
-        at: new Date(opened + (hash(key) % (240 * 2)) * HOUR_MS).toISOString(),
-        houseId: stay.id,
-        ...seedAttribution(key, stay),
-        seed: true,
-      });
-    }
-  }
-  for (const r of joinRequests) {
-    const base = { houseId: r.stayId, userId: r.userId, refUserId: r.refUserId, utmSource: r.utmSource, seed: true };
-    events.push({ id: `seed-${r.id}-sent`, name: "request_sent", at: r.createdAt, ...base });
-    if (r.status === "accepted") {
-      events.push({ id: `seed-${r.id}-accepted`, name: "request_accepted", at: new Date(new Date(r.createdAt).getTime() + 20 * HOUR_MS).toISOString(), ...base });
-    }
-  }
-  for (const p of payments) {
-    if (p.status !== "paid") continue;
-    const stay = stays.find((s) => s.id === p.stayId);
-    events.push({
-      id: `seed-${p.id}-paid`,
-      name: "payment_completed",
-      at: p.paidAt ?? stay?.createdAt ?? new Date(0).toISOString(),
-      houseId: p.stayId,
-      userId: p.userId,
-      refUserId: p.refUserId,
-      utmSource: p.utmSource,
-      amount: p.total,
-      revenue: paymentSplit(p.share, p.hostFee, stay?.currency).revenue,
-      currency: stay?.currency,
-      seed: true,
+  type Stage = "visits" | "requests" | "paid";
+  const NAMES: Record<Stage, GrowthEvent["name"]> = { visits: "house_viewed", requests: "request_sent", paid: "payment_completed" };
+  // One running total per step (so a week's sum stays smooth) and each channel's credit (which channel the next whole event goes to).
+  const total: Record<Stage, number> = { visits: 0, requests: 0, paid: 0 };
+  const credit: Record<Stage, number[]> = { visits: DEMO_CHANNELS.map(() => 0), requests: DEMO_CHANNELS.map(() => 0), paid: DEMO_CHANNELS.map(() => 0) };
+  // Each request comes from an earlier visit of its channel, each payment from an earlier request (same House and ref) – so per House and per
+  // referrer, too, paid ≤ requests ≤ visits.
+  const pool: Record<"visits" | "requests", Array<Array<{ houseId: string; refUserId?: string; at: number }>>> = { visits: DEMO_CHANNELS.map(() => []), requests: DEMO_CHANNELS.map(() => []) };
+  let n = 0;
+  const from = Date.parse(`${DEMO_FROM}T00:00:00Z`);
+  const to = Date.parse(`${DEMO_TO}T00:00:00Z`);
+  for (let t = from, day = 0; t <= to; t += DAY_MS, day++) {
+    const all = DEMO_VISITS_START * DEMO_GROWTH ** (day / 30.4);
+    DEMO_CHANNELS.forEach((c, ci) => {
+      // A small weekly wave per channel (weekends differ a little), never a jump.
+      const visits = all * c.share * (1 + 0.08 * Math.sin((day * 2 * Math.PI) / 7 + ci));
+      const add = { visits, requests: visits * c.ask, paid: visits * c.ask * c.pay };
+      for (const stage of ["visits", "requests", "paid"] as const) {
+        total[stage] += add[stage];
+        credit[stage][ci] += add[stage];
+      }
     });
+    for (const stage of ["visits", "requests", "paid"] as const) {
+      for (; total[stage] >= 1; total[stage] -= 1) {
+        // The channel with the most credit – for a request or payment among those with a fresh earlier step (the last 24 h), so nothing is
+        // dated back into another period.
+        const fresh = (i: number) => stage === "visits" || pool[stage === "requests" ? "visits" : "requests"][i].some((e) => e.at >= t - DAY_MS);
+        const order = credit[stage].map((v, i) => i).toSorted((a, b) => credit[stage][b] - credit[stage][a]);
+        const ci = order.find(fresh) ?? order[0];
+        credit[stage][ci] -= 1;
+        const c = DEMO_CHANNELS[ci];
+        const id = `seed-${stage}-${n++}`;
+        const h = hash(id);
+        const before = stage === "visits" ? undefined : pool[stage === "requests" ? "visits" : "requests"][ci];
+        // The earlier step: one of the latest few (so not every visitor of a House asks); the step follows it within hours – both land in the
+        // same period.
+        const fresh24 = before ? before.map((e, i) => i).filter((i) => before[i].at >= t - DAY_MS) : [];
+        // A request skips the visits of a cold House (3 times in 4); a payment follows its request as it is.
+        const warm = stage === "requests" ? fresh24.filter((i) => !cold(before![i].houseId) || h % 4 === 0) : fresh24;
+        const recent = warm.length > 0 ? warm : fresh24;
+        const prior = before && recent.length > 0 ? before.splice(recent[Math.max(0, recent.length - 1 - (h % Math.min(recent.length, 3)))], 1)[0] : undefined;
+        const stay = weighted[h % weighted.length];
+        const at = prior ? prior.at + (1 + (h % 4)) * 30 * 60 * 1000 : t + (1 + ((h >>> 4) % 22)) * 60 * 60 * 1000;
+        const origin = prior ? { ...prior, at } : { houseId: stay.id, at, ...(c.source !== undefined && h % 3 !== 0 && { refUserId: stay.hostId }) };
+        if (stage !== "paid") {
+          const mine = pool[stage][ci];
+          mine.push(origin);
+          if (mine.length > 60) mine.shift();
+        }
+        events.push({
+          id,
+          name: NAMES[stage],
+          at: new Date(at).toISOString(),
+          houseId: origin.houseId,
+          ...(c.source && { utmSource: c.source }),
+          ...(origin.refUserId && { refUserId: origin.refUserId }),
+          // Simpulo's part of a paid share: the guest fee, here 26–47 €.
+          ...(stage === "paid" && { revenue: 26 + (h % 22), currency: "EUR" }),
+          seed: true,
+        });
+      }
+    }
   }
   return events.toSorted((a, b) => a.at.localeCompare(b.at));
 }

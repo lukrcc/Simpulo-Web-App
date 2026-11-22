@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // The support tickets' pieces for the Posteingang (components/admin/AdminInbox): a ticket's detail – message, context, links, the
 // conversation and the answer (sent through lib/notify), status, tags, an internal note, Merge for duplicate wishes – and the ideas by votes,
@@ -10,7 +11,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { FormField } from "@/components/form/FormLayout";
-import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
 import { ScrollRow } from "@/components/ui/ScrollRow";
@@ -28,7 +28,7 @@ const BASE_STATUSES: readonly TicketStatus[] = ["new", "open", "answered", "clos
 const IDEA_STATUSES: readonly TicketStatus[] = ["new", "open", "planned", "done", "closed"];
 const statusesOf = (t: SupportTicket) => (t.category === "idea" ? IDEA_STATUSES : BASE_STATUSES);
 
-export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicket; tickets: readonly SupportTicket[]; onBack: () => void }) {
+export function TicketDetail({ ticket, tickets, onBack, extrasOnly = false }: { ticket: SupportTicket; tickets: readonly SupportTicket[]; onBack: () => void; /** Aufgaben: only the conversation and the extras (status, tags, note, merge) – head, message, context and reply are its own */ extrasOnly?: boolean }) {
   const t = useTranslations("admin.support");
   const f = useFormat();
   const store = useStore();
@@ -50,6 +50,8 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
 
   return (
     <article>
+      {!extrasOnly && (
+      <>
       <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-body text-ink lg:hidden">
         <ArrowLeft aria-hidden className="size-4" />
         {t("back")}
@@ -106,6 +108,8 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
         <Fact label={t("screen")} value={`${ticket.context.screenWidth}px`} />
         <Fact label={t("phase")} value={ticket.context.phase} />
       </dl>
+      </>
+      )}
 
       {ticket.replies.length > 0 && (
         <section className="mt-(--adm-inner)">
@@ -123,13 +127,13 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
         </section>
       )}
 
-      {!ticket.mergedInto && (
+      {!ticket.mergedInto && !extrasOnly && (
         <section className="mt-(--adm-inner)">
           <FormField label={t("reply")}>
             <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={t("replyPlaceholder")} className="min-h-28" />
           </FormField>
           <div className="mt-3 flex justify-end">
-            <Button
+            <AdminButton
               disabled={!reply.trim()}
               onClick={() => {
                 actions.reply(ticket, reply.trim());
@@ -138,7 +142,7 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
               }}
             >
               {t("send")}
-            </Button>
+            </AdminButton>
           </div>
         </section>
       )}
@@ -194,7 +198,7 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
                   </option>
                 ))}
               </Select>
-              <Button
+              <AdminButton
                 variant="secondary"
                 disabled={!mergeTarget}
                 onClick={() => {
@@ -203,7 +207,7 @@ export function TicketDetail({ ticket, tickets, onBack }: { ticket: SupportTicke
                 }}
               >
                 {t("mergeButton")}
-              </Button>
+              </AdminButton>
             </div>
           </div>
         )}

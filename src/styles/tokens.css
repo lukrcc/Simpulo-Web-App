@@ -186,9 +186,7 @@
 .footer-dark,
 .chip-bar,
 [data-chat-theme="night"],
-[data-question-deck],
-.admin-scope,
-body:has(.admin-scope) {
+[data-question-deck] {
   color-scheme: dark;
   --bg: var(--stage-bg);
   --surface: rgba(244, 238, 231, 0.06);
@@ -251,8 +249,8 @@ body:has(.admin-scope) {
 }
 
 /* ── Dark mode (CLAUDE.md "Dark Mode"): data-theme="dark" on <html> (lib/themeScript.ts – from the cookie or the system, before the first
-   paint). Only the floor's tokens change; the dark grounds above (Ember, the bands, the header, its menus, the night chat) and the admin keep
-   theirs. The floor is a warm near-black a step lighter than the black strip (#141110), so the strip still reads as black, set off by a fine
+   paint). Only the floor's tokens change; the dark grounds above (Ember, the bands, the header, its menus, the night chat) keep
+   theirs; the admin follows the floor (CLAUDE.md "Admin nutzt die Produkt-Farben"). The floor is a warm near-black a step lighter than the black strip (#141110), so the strip still reads as black, set off by a fine
    line (--strip-edge). On dark the rules of the dark grounds hold: selection a filled cream 12 % capsule, primary cream with ink words,
    secondary an outline. Shadows can't be seen on dark: they become fine light lines or none. Photos never change.
    Contrast (WCAG, computed): text 15.5 : 1 on --bg, 14.1 on --surface, 12.9 on --surface-2; muted (cream 66 %) ≥ 6.4 : 1 on all three;
@@ -366,9 +364,7 @@ body:has(.admin-scope) {
 .bar-menu,
 .footer-dark,
 .chip-bar,
-[data-chat-theme="night"],
-.admin-scope,
-body:has(.admin-scope) {
+[data-chat-theme="night"] {
   --focus-ring: color-mix(in srgb, var(--text) 25%, transparent);
   --action-bg: var(--text);
   --action-text: var(--text-inverse);
@@ -996,3 +992,4 @@ body:has(.admin-scope) {
   --switch-off: rgba(255, 255, 255, 0.18);
 }
 
+/* . */

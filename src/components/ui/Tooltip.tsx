@@ -20,6 +20,9 @@ const TOUCH_SHOW_MS = 4000;
 /** `data-tooltip-info`: an explanation on a badge that shows text ("Pro host" → "Earns a host fee …") – the one case with visible text. */
 const CANDIDATE = "[data-tooltip-info], [data-tooltip], button[aria-label], a[aria-label], [role=button][aria-label]";
 
+/** On admin pages the admin's own tooltip takes over (components/admin/AdminTooltip.tsx – large, cream); this one stays out. */
+const onAdminPage = () => Boolean(document.querySelector(".admin-scope"));
+
 function hasVisibleText(el: Element): boolean {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -75,7 +78,7 @@ export function Tooltip() {
       setTip((t) => (t ? null : t));
     };
     const onDown = (e: PointerEvent) => {
-      if (e.pointerType !== "touch") return;
+      if (e.pointerType !== "touch" || onAdminPage()) return;
       close();
       const el = (e.target as Element | null)?.closest<HTMLElement>("[data-tooltip-info]");
       const text = el?.getAttribute("data-tooltip-info");
@@ -139,7 +142,7 @@ export function Tooltip() {
       else timer = setTimeout(open, wait);
     };
     const onOver = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse") return;
+      if (e.pointerType !== "mouse" || onAdminPage()) return;
       const el = (e.target as Element | null)?.closest<HTMLElement>(CANDIDATE);
       if (!el || el === current || el === suppressed) return;
       const text = textFor(el);
@@ -155,7 +158,7 @@ export function Tooltip() {
     };
     const onFocus = (e: FocusEvent) => {
       const el = e.target as HTMLElement;
-      if (!el.matches?.(":focus-visible")) return;
+      if (!el.matches?.(":focus-visible") || onAdminPage()) return;
       const anchor = el.closest<HTMLElement>(CANDIDATE);
       const text = anchor && textFor(anchor);
       if (anchor && text) show(anchor, text, 0);

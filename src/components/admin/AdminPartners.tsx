@@ -1,4 +1,5 @@
 "use client";
+import { AdminButton } from "./AdminButton";
 
 // Admin › Launch › Marketing › Partner: one record per collaboration – list left (name, kind, ladder step, open Houses, next step; filters
 // kind · step · due), the detail right with its own tabs (Übersicht · Vereinbarung · Houses · Wirkung · Content · Verlauf). Data: the admin
@@ -10,7 +11,6 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, type ReactNode } from "react";
 import { AdminListDetail, AdminSort, AdminSubTabs, BackToList, PeriodTabs } from "@/components/admin/AdminLayout";
 import { InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
-import { Button } from "@/components/ui/ActionButton";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -58,13 +58,13 @@ export function PartnerControls({ filters, onFilters, partners, onAdd }: { filte
       <AdminSort label={t("kind")} options={[{ value: "all" as const, label: t("all") }, ...PARTNER_KINDS.map((k) => ({ value: k, label: t(`kinds.${k}`) }))]} value={filters.kind} onChange={(kind) => onFilters({ ...filters, kind })} />
       <AdminSort label={t("ladder")} options={[{ value: "all" as const, label: t("all") }, ...LADDERS.map((l) => ({ value: String(l) as "1" | "2" | "3", label: t(`ladderShort.${l}`) }))]} value={filters.ladder} onChange={(ladder) => onFilters({ ...filters, ladder })} />
       <AdminSort label={t("due")} options={[{ value: "all" as const, label: t("all") }, { value: "due" as const, label: t("dueOnly") }]} value={filters.due} onChange={(due) => onFilters({ ...filters, due })} />
-      <Button size="sm" variant="secondary" onClick={exportCsv}>
+      <AdminButton variant="secondary" onClick={exportCsv}>
         {t("export")}
-      </Button>
-      <Button size="sm" onClick={onAdd}>
+      </AdminButton>
+      <AdminButton onClick={onAdd}>
         <Plus aria-hidden className="size-4" />
         {t("add")}
-      </Button>
+      </AdminButton>
     </div>
   );
 }
@@ -143,18 +143,17 @@ export function PartnerDetail({ partner, onBack, onDeleted }: { partner: Marketi
       {confirming ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-body text-ink">{t("deleteConfirm")}</span>
-          <Button size="sm" variant="secondary" onClick={() => setConfirming(false)}>
+          <AdminButton variant="secondary" onClick={() => setConfirming(false)}>
             {t("cancel")}
-          </Button>
-          <Button
-            size="sm"
+          </AdminButton>
+          <AdminButton
             onClick={() => {
               actions.deletePartner(partner);
               onDeleted();
             }}
           >
             {t("deleteYes")}
-          </Button>
+          </AdminButton>
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} className="inline-flex min-h-11 items-center gap-2 self-start text-body text-danger hover:underline">
@@ -350,8 +349,7 @@ function Effect({ partner }: { partner: MarketingPartner }) {
       </p>
       <div className="flex items-center gap-2">
         <code data-partner-link className="min-w-0 flex-1 truncate rounded-xl bg-(--adm-block) px-3 py-2.5 text-small text-ink">{link}</code>
-        <Button
-          size="sm"
+        <AdminButton
           variant="secondary"
           onClick={() => {
             void navigator.clipboard?.writeText(link).catch(() => {});
@@ -360,7 +358,7 @@ function Effect({ partner }: { partner: MarketingPartner }) {
           }}
         >
           {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
-        </Button>
+        </AdminButton>
       </div>
     </div>
   );
@@ -405,8 +403,7 @@ function History({ partner, save }: { partner: MarketingPartner; save: Save }) {
       <Field label={t("fields.note")}>
         <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Button
-        size="sm"
+      <AdminButton
         variant="secondary"
         className="self-start"
         disabled={!note.trim()}
@@ -416,7 +413,7 @@ function History({ partner, save }: { partner: MarketingPartner; save: Save }) {
         }}
       >
         {t("fields.addNote")}
-      </Button>
+      </AdminButton>
       {partner.notes.length === 0 ? (
         <p className="text-body text-muted">{t("notesEmpty")}</p>
       ) : (
