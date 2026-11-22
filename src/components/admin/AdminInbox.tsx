@@ -14,7 +14,7 @@ import { AdminButton, adminButtonStyles } from "./AdminButton";
 // Every action through lib/admin/actions.ts (and into the log). Colours only from the tokens --adm-kind-*.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
@@ -32,7 +32,9 @@ import { cn } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { InfoTip } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
-import { AdminListDetail, AdminSearch, AdminTabs, BackToList, DirectLink, type ListDetailRow } from "./AdminLayout";
+import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList, DirectLink, type ListDetailRow } from "./AdminLayout";
+import { detectSafetySubtype, SAFETY_ACTIONS, SAFETY_SUBTYPES, type SafetySubtype } from "@/config/support-templates";
+import { tEn } from "@/lib/i18n/translate";
 import { stripeUrl } from "@/config/tools";
 import { TicketDetail } from "./AdminSupport";
 import { nudgeAudience } from "@/lib/houseHelp";
@@ -336,8 +338,24 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
   const area = taskArea(task);
   const isTicket = task.kind === "safety" || task.kind === "support";
   const label = `${t(`kind.${task.kind}`)} · ${task.id}`;
-  // Sicherheit: a reply that helps right away; every other ticket: the usual suggestion (⚠ MOCK one fixed text; TODO an AI draft).
-  const [reply, setReply] = useState(() => (task.kind === "safety" ? tNew("safetySuggestion") : t("suggestion")));
+  // Sicherheit has kinds (config/support-templates.ts): recognised from the report's reason or the ticket's words, changeable by hand.
+  const isSafety = task.kind === "safety" || task.kind === "report";
+  const subtype: SafetySubtype | null = !isSafety
+    ? null
+    : (adminData.safetySubtypes?.[task.id] ?? detectSafetySubtype(task.kind === "report" ? { reason: task.report.reason, text: task.report.text } : { text: task.ticket.message }));
+  const template = (kind: SafetySubtype | null) => (kind ? tEn(`supportTemplates.safety.${kind}`) : t("suggestion"));
+  // Sicherheit: the kind's template, which helps right away; every other ticket: the usual suggestion (⚠ MOCK one fixed text; TODO an AI draft).
+  const [reply, setReply] = useState(() => template(subtype));
+  // A changed kind brings its own template (the field was the old template – nothing typed is lost unless it was the template).
+  const lastKind = useRef(subtype);
+  useEffect(() => {
+    if (lastKind.current === subtype) return;
+    const before = template(lastKind.current);
+    lastKind.current = subtype;
+    setReply((current) => (current === before ? template(subtype) : current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtype]);
+  const [showMore, setShowMore] = useState(false);
   const settle = () => onSettled();
 
   // The history: the log lines about this element (its House, its person, its ticket).
@@ -378,7 +396,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
             showToast(tNew("sent"));
           }}
         >
-          <label className="text-eyebrow uppercase text-(--adm-label)" htmlFor={`reply-${task.id}`}>
+          <label className="sr-only" htmlFor={`reply-${task.id}`}>
             {tNew("answer")}
           </label>
           <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} className="min-h-28" />
@@ -508,12 +526,97 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
       { key: "partner", label: tNew("field.partner"), value: task.partner.name },
       { key: "due", label: tNew("field.due"), value: task.partner.nextStep?.due ? f.day(task.partner.nextStep.due) : null },
     ];
+    action = (
+      <span className="flex flex-wrap items-center gap-2">
+        <AdminButton variant="primary" onClick={() => (settle(), actions.completeTask(task.id, label), showToast(tNew("partnerStepDone")))}>
+          {tNew("partnerStepDone")}
+        </AdminButton>
+        <Link href={`/admin/marketing?tab=partners&partner=${task.partner.id}`} className={adminButtonStyles("secondary")}>
+          {tNew("partnerOpen")}
+        </Link>
+      </span>
+    );
     details = `/admin/marketing?tab=partners&partner=${task.partner.id}`;
+  } else if (task.kind === "report") {
+    const report = task.report;
+    const reporter = report.reporterId ? findUser(store, report.reporterId) : undefined;
+    const subjectUser = report.subjectId ? findUser(store, report.subjectId) : undefined;
+    const house = report.stayId ? store.stays.find((x) => x.id === report.stayId) : undefined;
+    what = report.text ? `„${report.text}“` : sentence;
+    facts = [
+      { key: "reporter", label: tNew("field.reporter"), value: reporter ? profileLink(reporter.id, reporter.name) : (report.reporterEmail ?? null) },
+      { key: "subject", label: tNew("field.subject"), value: subjectUser ? profileLink(subjectUser.id, subjectUser.name) : null },
+      { key: "email", label: tNew("field.email"), value: reporter?.email ?? report.reporterEmail ?? null },
+      { key: "house", label: tNew("field.house"), value: house ? houseLink(house.id, house.title) : null },
+    ];
+    action =
+      isOpen && (reporter || report.reporterEmail) ? (
+        <form
+          data-reply
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!reply.trim()) return;
+            actions.replyToReporter(report, reply.trim(), label);
+            showToast(tNew("sent"));
+          }}
+        >
+          <label className="sr-only" htmlFor={`reply-${task.id}`}>
+            {tNew("answer")}
+          </label>
+          <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} className="min-h-24" />
+          <span>
+            <AdminButton type="submit" variant="primary" disabled={!reply.trim()}>
+              {tNew("send")}
+            </AdminButton>
+          </span>
+        </form>
+      ) : null;
   } else if (task.kind === "appeal") {
     const person = findUser(store, task.notice.userId);
     facts = [{ key: "person", label: tNew("field.person"), value: person ? profileLink(person.id, person.name) : null }];
   }
 
+  // Sicherheit's extra actions for its kind (config/support-templates.ts SAFETY_ACTIONS) – each asks once, each into the log.
+  const safetyPeople = (() => {
+    if (task.kind === "report") {
+      const r = task.report;
+      return { subject: r.subjectId ? findUser(store, r.subjectId) : undefined, other: r.reporterId ? findUser(store, r.reporterId)?.name : r.reporterEmail, stay: r.stayId ? store.stays.find((x) => x.id === r.stayId) : undefined };
+    }
+    if (task.kind === "safety") {
+      const c = task.ticket.context;
+      return { subject: undefined, other: task.ticket.userId ? findUser(store, task.ticket.userId)?.name : task.ticket.email, stay: c.houseId ? store.stays.find((x) => x.id === c.houseId) : undefined };
+    }
+    return null;
+  })();
+  const hostOfStay = safetyPeople?.stay ? findUser(store, safetyPeople.stay.hostId) : undefined;
+  const extras =
+    subtype && safetyPeople && isOpen ? (
+      <div data-safety-actions className="flex flex-wrap items-center gap-2">
+        {SAFETY_ACTIONS[subtype].map((kind) => {
+          const { subject, other, stay } = safetyPeople;
+          if (kind === "restrict")
+            return subject ? (
+              <ConfirmAction key={kind} label={tNew("restrict")} question={tNew("restrictConfirm", { name: subject.name, other: other ?? tNew("someone") })} onConfirm={() => (actions.restrictContact(subject.name, other ?? "–", stay?.id), showToast(tNew("restricted", { name: subject.name })))} />
+            ) : null;
+          if (kind === "suspend")
+            return subject && task.kind === "report" ? (
+              <ConfirmAction key={kind} label={tNew("suspend")} question={tNew("suspendConfirm", { name: subject.name })} onConfirm={() => (actions.moderate(task.report, "suspended", label), showToast(tNew("suspended", { name: subject.name })))} />
+            ) : null;
+          if (kind === "warnHost")
+            return stay && hostOfStay ? (
+              <ConfirmAction key={kind} label={tNew("warnHost")} question={tNew("warnHostConfirm", { name: hostOfStay.name })} onConfirm={() => (actions.warnHost(hostOfStay, tNew("warnHostText", { name: hostOfStay.name.split(" ")[0], house: stay.title }), stay.id), showToast(tNew("hostWarned", { name: hostOfStay.name })))} />
+            ) : null;
+          return stay ? (
+            <ConfirmAction key={kind} label={tNew("pauseHouse")} question={tNew("pauseHouseConfirm", { house: stay.title })} onConfirm={() => (actions.pauseHouse(stay), showToast(tNew("housePaused", { house: stay.title })))} />
+          ) : null;
+        })}
+        {subtype === "harassment" && !safetyPeople.subject && <p className="w-full text-small text-muted">{tNew("noPerson")}</p>}
+        {subtype === "payment" && !safetyPeople.stay && <p className="w-full text-small text-muted">{tNew("noHouse")}</p>}
+      </div>
+    ) : null;
+
+  // The "Anfrage" card's head: kind (its colour) · priority · date – and for Sicherheit its kind, changeable here.
   const head = (
     <div data-inbox-head className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
       <KindLabel area={area}>{tNew(`area.${area}`)}</KindLabel>
@@ -522,82 +625,84 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
         {t(`kind.${task.kind}`) !== tNew(`area.${area}`) && `${t(`kind.${task.kind}`)} · `}
         {f.day(task.createdAt)}
       </span>
-    </div>
-  );
-  const bottom = isOpen && (
-    <div data-inbox-bottom className="mt-(--adm-section) flex flex-wrap items-center gap-2 border-t border-ink/8 pt-(--adm-inner)">
-      {!isLater && (
-        <AdminButton variant="secondary" onClick={onLater}>
-          {t("action.later")}
-        </AdminButton>
-      )}
-      <AdminButton variant="primary" onClick={onDone}>
-        ✓ {t("action.done")}
-      </AdminButton>
-      {details && (
-        <Link href={details} className="ml-auto text-small font-semibold text-ink hover:underline">
-          {tNew("details")} →
-        </Link>
+      {subtype && (
+        <span data-safety-subtype={subtype} className="ml-auto">
+          <AdminSort
+            label={tNew("subtype.label")}
+            value={subtype}
+            onChange={(next) => next !== subtype && actions.setSafetySubtype(task.id, next, `${label} · ${tNew(`subtype.${next}`)}`)}
+            options={SAFETY_SUBTYPES.map((value) => ({ value, label: tNew(`subtype.${value}`) }))}
+          />
+        </span>
       )}
     </div>
   );
-  const folded = (
-    <>
-      {isTicket && (
-        <details className="mt-(--adm-inner) text-small" data-ticket-extras>
-          <summary className="cursor-pointer font-semibold text-muted hover:text-ink">{tNew("extras")}</summary>
-          <div className="mt-2">
-            <TicketDetail ticket={task.ticket} tickets={tickets} onBack={onBack} extrasOnly />
-          </div>
-        </details>
-      )}
-      {!isTicket && (
-        <details className="mt-(--adm-inner) text-small" data-history>
-          <summary className="cursor-pointer font-semibold text-muted hover:text-ink">
-            {tNew("history")} · {history.length}
-          </summary>
-          {history.length === 0 ? (
-            <p className="mt-2 text-small text-muted">{tNew("noHistory")}</p>
-          ) : (
-            <ul className="mt-2 divide-y divide-ink/8">
-              {history.map((entry) => (
-                <li key={entry.id} className="flex items-baseline justify-between gap-4 py-2 text-small">
-                  <span className="min-w-0 truncate text-ink">{tLog.has(`action.${entry.action}` as Parameters<typeof tLog>[0]) ? tLog(`action.${entry.action}` as Parameters<typeof tLog>[0]) : entry.action}</span>
-                  <span className="shrink-0 text-muted">{f.day(entry.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </details>
-      )}
-    </>
+  // Folded at the bottom right: a ticket's extras (status, tags, note, merge), else the history.
+  const more = isTicket ? (
+    <div data-ticket-extras className="text-small">
+      <TicketDetail ticket={task.ticket} tickets={tickets} onBack={onBack} extrasOnly />
+    </div>
+  ) : history.length === 0 ? (
+    <p data-history className="text-small text-muted">{tNew("noHistory")}</p>
+  ) : (
+    <ul data-history className="divide-y divide-ink/8">
+      {history.map((entry) => (
+        <li key={entry.id} className="flex items-baseline justify-between gap-4 py-1.5 text-small">
+          <span className="min-w-0 truncate text-ink">{tLog.has(`action.${entry.action}` as Parameters<typeof tLog>[0]) ? tLog(`action.${entry.action}` as Parameters<typeof tLog>[0]) : entry.action}</span>
+          <span className="shrink-0 text-muted">{f.day(entry.createdAt)}</span>
+        </li>
+      ))}
+    </ul>
   );
+  const card = "rounded-xl border p-4";
+  const tone = KIND_TONE[area];
 
   return (
-    <article data-inbox-detail data-kind={task.kind}>
+    <article data-inbox-detail data-kind={task.kind} className="flex flex-col gap-(--adm-inner)">
       <BackToList onBack={onBack} />
-      {head}
-      <section aria-label={tNew("what")} className="mt-(--adm-inner)">
-        <h3 className="text-eyebrow uppercase text-(--adm-label)">{tNew("what")}</h3>
-        <p data-what className="mt-1.5 text-h3 text-ink">
+      {/* 1 · Anfrage – lightly tinted in the kind's colour: head, what happened (large), "Wer und wo". */}
+      <section aria-label={tNew("request")} data-card="request" className={card} style={{ backgroundColor: `color-mix(in srgb, ${tone} 7%, var(--card))`, borderColor: `color-mix(in srgb, ${tone} 28%, transparent)` } as CSSProperties}>
+        {head}
+        <p data-what className="mt-3 line-clamp-4 text-h3 text-ink">
           {what}
         </p>
+        {task.kind === "report" ? <ReportDetail report={task.report} isOpen={isOpen} part="facts" /> : task.kind === "appeal" ? <AppealDetail notice={task.notice} sentence={sentence} part="facts" /> : null}
+        <WhoWhere facts={facts} />
       </section>
-      {task.kind === "report" ? (
-        <ReportDetail report={task.report} isOpen={isOpen} />
-      ) : task.kind === "appeal" ? (
-        <>
-          <WhoWhere facts={facts} />
-          <AppealDetail notice={task.notice} sentence={sentence} />
-        </>
-      ) : (
-        <>
-          <WhoWhere facts={facts} />
-          {action && isOpen && <div className="mt-(--adm-section)">{action}</div>}
-        </>
-      )}
-      {bottom}
-      {folded}
+      {/* 2 · Deine Reaktion – neutral: the answer (or the lever, the decision buttons), the kind's extra actions; then Später · ✓ Erledigt and the
+          folded extras on the right. */}
+      <section aria-label={tNew("reaction")} data-card="reaction" className={cn(card, "border-(--line) bg-(--card)")}>
+        <h3 className="mb-2 text-eyebrow uppercase text-(--adm-label)">{tNew("reaction")}</h3>
+        <div className="flex flex-col gap-3">
+          {isOpen && action}
+          {extras}
+          {task.kind === "report" && <ReportDetail report={task.report} isOpen={isOpen} part="decision" suspendHere={subtype !== "harassment"} />}
+          {task.kind === "appeal" && <AppealDetail notice={task.notice} sentence={sentence} part="decision" />}
+        </div>
+        <div data-inbox-bottom className="mt-4 flex flex-wrap items-center gap-2 border-t border-ink/8 pt-3">
+          {isOpen && !isLater && (
+            <AdminButton variant="secondary" onClick={onLater}>
+              {t("action.later")}
+            </AdminButton>
+          )}
+          {isOpen && (
+            <AdminButton variant="primary" onClick={onDone}>
+              ✓ {t("action.done")}
+            </AdminButton>
+          )}
+          <span className="ml-auto flex items-center gap-4">
+            {details && (
+              <Link href={details} className="text-small font-semibold text-ink hover:underline">
+                {tNew("details")} →
+              </Link>
+            )}
+            <button type="button" aria-expanded={showMore} onClick={() => setShowMore((v) => !v)} className="adm-press rounded-full px-2 py-1 text-small font-semibold text-muted hover:text-ink">
+              {showMore ? "▾" : "▸"} {isTicket ? tNew("extras") : `${tNew("history")} · ${history.length}`}
+            </button>
+          </span>
+        </div>
+        {showMore && <div className="mt-3">{more}</div>}
+      </section>
     </article>
   );
 }
@@ -607,20 +712,19 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
  * the whole chat; opening it is logged); the person's earlier reports; Verwarnen · Aus dem House entfernen · Konto sperren · Unbegründet.
  * Harassment in a House: the person leaves it (Regel) – "Verwarnen" is not offered there.
  */
-function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
+function ReportDetail({ report, isOpen, part, suspendHere = false }: { report: Report; isOpen: boolean; /** "facts" in the Anfrage card, "decision" in Deine Reaktion */ part: "facts" | "decision"; /** Konto sperren among the decisions (harassment has it as an extra action) */ suspendHere?: boolean }) {
   const t = useTranslations("admin.reports");
   const tNew = useTranslations("admin.inboxNew");
   const f = useFormat();
   const store = useStore();
   const actions = useAdminActions();
   const showToast = useToast();
-  const reporter = report.reporterId ? findUser(store, report.reporterId) : undefined;
   const subject = report.subjectId ? findUser(store, report.subjectId) : undefined;
   const stay = report.stayId ? store.stays.find((x) => x.id === report.stayId) : undefined;
   const detail = `${t(`reason.${report.reason}`)} · ${subject?.name ?? t("someone")}${stay ? ` · ${stay.title}` : ""}`;
-  // Every opening of a report is in the log (who looked at what).
+  // Every opening of a report is in the log (who looked at what) – once, from the facts.
   useEffect(() => {
-    actions.viewReport(report, detail);
+    if (part === "facts") actions.viewReport(report, detail);
     // Once per report.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report.id]);
@@ -631,192 +735,118 @@ function ReportDetail({ report, isOpen }: { report: Report; isOpen: boolean }) {
     actions.moderate(report, outcome, detail);
     showToast(t("toast", { outcome: t(`outcome.${outcome}`) }));
   };
-  const field = (label: string, value: React.ReactNode) => (
-    <div>
-      <dt className="text-eyebrow uppercase text-(--adm-label)">{label}</dt>
-      <dd className="mt-1 text-body text-ink">{value}</dd>
-    </div>
-  );
-  return (
-    <div className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
-      <dl className="grid gap-4 sm:grid-cols-2">
-        {field(t("labelReason"), t(`reason.${report.reason}`))}
-        {field(t("labelWhat"), t(`target.${report.target.kind}`))}
-        {field(t("labelBy"), reporter?.name ?? report.reporterId ?? t("noAccount"))}
-        {field(t("labelSource"), t(`source.${report.source ?? "app"}`))}
-        {report.reporterEmail && field(t("labelEmail"), report.reporterEmail)}
-        {report.link && field(t("labelLink"), <span className="break-all">{report.link}</span>)}
-        {field(
-          t("labelSubject"),
-          subject ? (
-            <Link href={profileHref(subject.id)} className="hover:underline">
-              {subject.name}
-            </Link>
-          ) : (
-            t("someone")
-          ),
-        )}
-        {stay && field(t("labelHouse"), <Link href={`/admin/houses?house=${stay.id}`} className="hover:underline">{stay.title}</Link>)}
-        {report.text && field(t("labelText"), `„${report.text}“`)}
-      </dl>
-      {report.blocked && <p className="text-small text-muted">{t("blocked")}</p>}
-      {report.excerpt && report.excerpt.length > 0 && (
-        <section>
-          <h3 className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
-            {t("context")}
-            <InfoTip text={t("contextInfo")} />
-          </h3>
-          <ol className="mt-2 flex flex-col gap-2">
-            {report.excerpt.map((m) => (
-              <li key={m.id} data-excerpt-reported={m.reported || undefined} className={cn("rounded-xl px-3 py-2 text-body", m.reported ? "bg-(--adm-block) ring-1 ring-adm-critical" : "text-muted")}>
-                <span className="text-small font-semibold text-ink">{findUser(store, m.senderId)?.name.split(" ")[0] ?? m.senderId}</span>
-                <span className="ml-2 text-small text-muted">{f.day(m.at)}</span>
-                {m.reported && <span className="ml-2 text-small text-adm-critical">{t("reported")}</span>}
-                <p className={cn("mt-0.5", m.reported ? "text-ink" : "text-muted")}>{m.text}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-      {report.target.kind === "memory" && (
-        <section>
-          <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("photo")}</h3>
-          {report.memorySrc ? <Img src={report.memorySrc} alt="" width={240} height={240} className="mt-2 size-60 rounded-xl object-cover" /> : <p className="mt-2 text-small text-muted">{t("noFile")}</p>}
-        </section>
-      )}
-      <section>
-        <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("history")}</h3>
-        {subject?.suspendedAt && <p className="mt-2 text-small text-adm-critical">{t("suspended", { date: f.day(subject.suspendedAt) })}</p>}
-        {earlier.length === 0 ? (
-          <p className="mt-2 text-small text-muted">{t("historyNone")}</p>
-        ) : (
-          <ul className="mt-2 divide-y divide-ink/8">
-            {earlier.map((r) => (
-              <li key={r.id} className="flex items-baseline justify-between gap-4 py-2 text-small">
-                <span className="text-ink">
-                  {t(`reason.${r.reason}`)} · {t(`target.${r.target.kind}`)}
-                </span>
-                <span className="text-muted">
-                  {r.decision ? `${t(`outcome.${r.decision.outcome}`)} · ` : ""}
-                  {f.day(r.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {report.decision ? (
-        <p className="text-body font-semibold text-ink">{t("decided", { outcome: t(`outcome.${report.decision.outcome}`), date: f.day(report.decision.at) })}</p>
-      ) : (
-        isOpen && (
-          <section className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              {!harassment && (
-                <AdminButton variant="secondary" onClick={() => decide("warned")}>
-                  {t("actions.warned")}
-                </AdminButton>
-              )}
-              <AdminButton variant={harassment ? "primary" : "secondary"} disabled={!inHouse} onClick={() => decide("removed")}>
-                {t("actions.removed")}
-              </AdminButton>
-              {/* Sicherheit (CLAUDE.md "Aufgaben"): limit the person's contact right away; block them – both with a confirmation, both logged. */}
-              {subject && (
-                <ConfirmAction
-                  label={tNew("restrict")}
-                  question={tNew("restrictConfirm", { name: subject.name, other: reporter?.name ?? tNew("someone") })}
-                  onConfirm={() => {
-                    actions.restrictContact(subject.name, reporter?.name ?? report.reporterEmail ?? "–", report.stayId);
-                    showToast(tNew("restricted", { name: subject.name }));
-                  }}
-                />
-              )}
-              {subject && (
-                <ConfirmAction
-                  label={tNew("suspend")}
-                  question={tNew("suspendConfirm", { name: subject.name })}
-                  onConfirm={() => {
-                    decide("suspended");
-                    showToast(tNew("suspended", { name: subject.name }));
-                  }}
-                />
-              )}
-              {report.target.kind === "stay" && stay && (
-                <AdminButton variant="secondary" onClick={() => decide("houseRemoved")}>
-                  {t("actions.houseRemoved")}
-                </AdminButton>
-              )}
-              {report.target.kind === "memory" && (
-                <AdminButton variant="secondary" onClick={() => decide("photoRemoved")}>
-                  {t("actions.photoRemoved")}
-                </AdminButton>
-              )}
-              <AdminButton variant="secondary" onClick={() => decide("unfounded")}>
-                {t("actions.unfounded")}
-              </AdminButton>
-            </div>
-            {harassment && <p className="text-small text-muted">{t("harassmentRule")}</p>}
-            {!inHouse && stay && <p className="text-small text-muted">{t("noRemove")}</p>}
-            <p className="text-small text-muted">{t("messagesHint")}</p>
-            <p className="text-small text-muted">{t("noticeHint")}</p>
+
+  if (part === "facts")
+    return (
+      <div className="mt-3 flex flex-col gap-2 text-small">
+        <p className="text-muted">
+          {t(`reason.${report.reason}`)} · {t(`target.${report.target.kind}`)} · {t(`source.${report.source ?? "app"}`)}
+          {report.blocked && ` · ${t("blocked")}`}
+        </p>
+        {report.link && <p className="truncate text-muted">{report.link}</p>}
+        {/* Only the reported excerpt, one line per message (never the whole chat). */}
+        {report.excerpt && report.excerpt.length > 0 && (
+          <section aria-label={t("context")}>
+            <h4 className="flex items-center gap-2 text-eyebrow uppercase text-(--adm-label)">
+              {t("context")}
+              <InfoTip text={t("contextInfo")} />
+            </h4>
+            <ol className="mt-1 flex flex-col gap-0.5">
+              {report.excerpt.map((m) => (
+                <li key={m.id} data-excerpt-reported={m.reported || undefined} className={cn("truncate rounded-md px-2 py-0.5", m.reported ? "bg-(--adm-block) font-semibold text-ink ring-1 ring-adm-critical" : "text-muted")}>
+                  <span className="text-ink">{findUser(store, m.senderId)?.name.split(" ")[0] ?? m.senderId}:</span> {m.text}
+                </li>
+              ))}
+            </ol>
           </section>
-        )
-      )}
-    </div>
+        )}
+        {report.target.kind === "memory" && (report.memorySrc ? <Img src={report.memorySrc} alt="" width={120} height={120} className="size-28 rounded-xl object-cover" /> : <p className="text-muted">{t("noFile")}</p>)}
+        {/* The person's earlier reports, in one line. */}
+        <p className="text-muted">
+          <span className="font-semibold text-ink">{t("history")}:</span>{" "}
+          {subject?.suspendedAt && <span className="text-adm-critical">{t("suspended", { date: f.day(subject.suspendedAt) })} · </span>}
+          {earlier.length === 0 ? t("historyNone") : earlier.slice(0, 3).map((r) => `${t(`reason.${r.reason}`)}${r.decision ? ` (${t(`outcome.${r.decision.outcome}`)})` : ""} · ${f.day(r.createdAt)}`).join(" – ")}
+        </p>
+      </div>
+    );
+
+  if (report.decision) return <p className="text-body font-semibold text-ink">{t("decided", { outcome: t(`outcome.${report.decision.outcome}`), date: f.day(report.decision.at) })}</p>;
+  if (!isOpen) return null;
+  return (
+    <section data-report-decision className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-2">
+        {!harassment && (
+          <AdminButton variant="secondary" onClick={() => decide("warned")}>
+            {t("actions.warned")}
+          </AdminButton>
+        )}
+        <AdminButton variant={harassment ? "primary" : "secondary"} disabled={!inHouse} onClick={() => decide("removed")}>
+          {t("actions.removed")}
+        </AdminButton>
+        {suspendHere && subject && <ConfirmAction label={tNew("suspend")} question={tNew("suspendConfirm", { name: subject.name })} onConfirm={() => (decide("suspended"), showToast(tNew("suspended", { name: subject.name })))} />}
+        {report.target.kind === "stay" && stay && (
+          <AdminButton variant="secondary" onClick={() => decide("houseRemoved")}>
+            {t("actions.houseRemoved")}
+          </AdminButton>
+        )}
+        {report.target.kind === "memory" && (
+          <AdminButton variant="secondary" onClick={() => decide("photoRemoved")}>
+            {t("actions.photoRemoved")}
+          </AdminButton>
+        )}
+        <AdminButton variant="secondary" onClick={() => decide("unfounded")}>
+          {t("actions.unfounded")}
+        </AdminButton>
+      </div>
+      <p className="text-small text-muted">
+        {harassment ? `${t("harassmentRule")} ` : ""}
+        {!inHouse && stay ? `${t("noRemove")} ` : ""}
+        {t("noticeHint")}
+      </p>
+    </section>
   );
 }
 
 /** A widerspruch: what was done and why, the original report, the person's words – it stands or it's granted. */
-function AppealDetail({ notice, sentence }: { notice: ModerationNotice; sentence: string }) {
+function AppealDetail({ notice, sentence, part }: { notice: ModerationNotice; sentence: string; part: "facts" | "decision" }) {
   const t = useTranslations("admin.reports");
   const f = useFormat();
   const store = useStore();
   const actions = useAdminActions();
   const showToast = useToast();
   const report = store.reports.find((r) => r.id === notice.reportId);
-  const person = findUser(store, notice.userId);
-  const stay = notice.stayId ? store.stays.find((x) => x.id === notice.stayId) : undefined;
   const decide = (outcome: "upheld" | "reversed") => {
     actions.decideAppeal(notice.id, outcome, sentence);
     showToast(t("appeal.toast", { outcome: t(`appeal.outcome.${outcome}`) }));
   };
-  const field = (label: string, value: React.ReactNode) => (
-    <div>
-      <dt className="text-eyebrow uppercase text-(--adm-label)">{label}</dt>
-      <dd className="mt-1 text-body text-ink">{value}</dd>
-    </div>
-  );
+  if (part === "facts")
+    return (
+      <div className="mt-3 flex flex-col gap-2 text-small">
+        <p className="text-muted">
+          {t("appeal.labelAction")}: <span className="text-ink">{t(`outcome.${notice.action}`)}</span> · {t("labelReason")}: <span className="text-ink">{t(`reason.${notice.reason}`)}</span> · {f.day(notice.at)}
+        </p>
+        {report?.text && <p className="text-muted">{t("appeal.labelOriginal")}: „{report.text}“</p>}
+        {notice.appeal && (
+          <p className="line-clamp-3 whitespace-pre-line text-body text-ink">
+            <span className="text-small font-semibold text-muted">{t("appeal.labelAppeal")}: </span>
+            {notice.appeal.text}
+          </p>
+        )}
+      </div>
+    );
+  if (notice.appeal?.decision) return <p className="text-body font-semibold text-ink">{t("appeal.decided", { outcome: t(`appeal.outcome.${notice.appeal.decision.outcome}`), date: f.day(notice.appeal.decision.at) })}</p>;
   return (
-    <div className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
-      <dl className="grid gap-4 sm:grid-cols-2">
-        {field(t("appeal.labelAction"), t(`outcome.${notice.action}`))}
-        {field(t("labelReason"), t(`reason.${notice.reason}`))}
-        {field(t("labelSubject"), person ? <Link href={profileHref(person.id)} className="hover:underline">{person.name}</Link> : t("someone"))}
-        {stay && field(t("labelHouse"), <Link href={`/admin/houses?house=${stay.id}`} className="hover:underline">{stay.title}</Link>)}
-        {field(t("appeal.labelWhen"), f.day(notice.at))}
-        {report?.text && field(t("appeal.labelOriginal"), `„${report.text}“`)}
-      </dl>
-      {notice.appeal && (
-        <section>
-          <h3 className="text-eyebrow uppercase text-(--adm-label)">{t("appeal.labelAppeal")}</h3>
-          <p className="mt-2 whitespace-pre-line text-body text-ink">{notice.appeal.text}</p>
-        </section>
-      )}
-      {notice.appeal?.decision ? (
-        <p className="text-body font-semibold text-ink">{t("appeal.decided", { outcome: t(`appeal.outcome.${notice.appeal.decision.outcome}`), date: f.day(notice.appeal.decision.at) })}</p>
-      ) : (
-        <section className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
-            <AdminButton variant="secondary" onClick={() => decide("upheld")}>
-              {t("appeal.upheld")}
-            </AdminButton>
-            <AdminButton variant="secondary" onClick={() => decide("reversed")}>
-              {t("appeal.reversed")}
-            </AdminButton>
-          </div>
-          <p className="text-small text-muted">{t("appeal.reversedNoUndo")}</p>
-        </section>
-      )}
-    </div>
+    <section className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-2">
+        <AdminButton variant="secondary" onClick={() => decide("upheld")}>
+          {t("appeal.upheld")}
+        </AdminButton>
+        <AdminButton variant="secondary" onClick={() => decide("reversed")}>
+          {t("appeal.reversed")}
+        </AdminButton>
+      </div>
+      <p className="text-small text-muted">{t("appeal.reversedNoUndo")}</p>
+    </section>
   );
 }
 

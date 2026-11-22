@@ -13,6 +13,7 @@ import { waitlistStatus } from "@/lib/types";
 import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, Stay, SupportTicket, TicketStatus } from "@/lib/types";
 import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, addCostEntry, deleteCostEntry, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addOwnTodo, patchRoadmapMilestone, addContentPost, patchContentPost, deleteContentPost } from "./store";
 import { useAdminData } from "./store";
+import { setSafetySubtype } from "./store";
 import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { ContentPost, CostEntry, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
@@ -77,6 +78,31 @@ export function useAdminActions() {
      */
     restrictContact(subjectName: string, otherName: string, ref?: string) {
       appendAdminLog("contact_restricted", `${subjectName} → ${otherName}`, by, ref);
+    },
+    /** Aufgaben › Sicherheit: the kind of a case changed by hand (Belästigung · Zahlung außerhalb · Sicherheit vor Ort) – logged. */
+    setSafetySubtype(taskId: string, kind: "harassment" | "payment" | "onsite", label: string) {
+      setSafetySubtype(taskId, kind);
+      appendAdminLog("safety_subtype", label, by, taskId);
+    },
+    /**
+     * Aufgaben › Sicherheit (payment outside the app, suspected fraud): a warning to the host as Simpulo Support (Messages) – logged without
+     * its text. TODO(backend): a formal warning on the host's record.
+     */
+    warnHost(host: { id: string; email?: string; name: string }, text: string, stayId?: string) {
+      addTeamMessage({ userId: host.id, email: host.email ?? "", text, by, stayId, phase: currentPhase() });
+      appendAdminLog("host_warned", host.name, by, stayId);
+    },
+    /** Aufgaben › Sicherheit: an answer to whoever reported (an account: Simpulo Support in Messages; the form: an email) – logged without its text. */
+    replyToReporter(report: Report, text: string, label: string) {
+      const reporter = report.reporterId ? store.users.find((u) => u.id === report.reporterId) : undefined;
+      if (reporter) addTeamMessage({ userId: reporter.id, email: reporter.email ?? "", text, by, stayId: report.stayId, phase: currentPhase() });
+      else if (report.reporterEmail) notifyByEmail(report.reporterEmail, "supportReply", { body: text });
+      appendAdminLog("report_replied", label, by, report.stayId);
+    },
+    /** Aufgaben › Sicherheit: the House takes no requests for now (the host's own switch, set by the admin) – logged. */
+    pauseHouse(stay: { id: string; title: string }) {
+      store.setAcceptingRequests(stay.id, false);
+      appendAdminLog("house_paused", stay.title, by, stay.id);
     },
     /** A widerspruch: it stands or it's granted (the store undoes what it can and tells the person) – into the log. */
     decideAppeal(noticeId: string, outcome: "upheld" | "reversed", detail: string) {

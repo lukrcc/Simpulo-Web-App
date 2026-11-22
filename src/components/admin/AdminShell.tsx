@@ -280,13 +280,16 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
     });
   // System: small, under the groups, without a heading.
   const themeLabels = useAdminThemeLabels();
-  // System: small, without a heading – and in the same row, right, the appearance (System · Hell · Dunkel – the product's one setting).
+  // At the bottom: the appearance (System · Hell · Dunkel – the product's one setting) as its own small row, centred; under it "System" over
+  // the full width, never cut.
   const system = (
-    <div className="mt-(--sidebar-gap) flex items-center gap-2" data-admin-system>
-      <div className="min-w-0 flex-1 [&_a]:text-small [&_a]:text-ink/60">
+    <div className="mt-(--sidebar-gap) flex flex-col gap-1" data-admin-system>
+      <div className="flex justify-center">
+        <AdminThemeSwitch labels={themeLabels} />
+      </div>
+      <div className="min-w-0 [&_a]:text-small [&_a]:text-ink/60">
         <SideNav compact iconClass="text-ink/45" label={t("nav.platform")} items={[item(SYSTEM)]} />
       </div>
-      <AdminThemeSwitch labels={themeLabels} />
     </div>
   );
   if (!fit)

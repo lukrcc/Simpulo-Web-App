@@ -74,9 +74,9 @@ export const examples = {
 
 /** The launch, as the pages say it. */
 export const launch = {
-  targetLabel: "Opening March 2027",
-  /** "Real Houses open in March." */
-  targetMonth: "March",
+  targetLabel: "Opening May 2027",
+  /** "Real Houses open in May." – the launch at the start of May 2027 (config/roadmap.ts LAUNCH). */
+  targetMonth: "May",
 } as const;
 
 /** Whether example Houses are shown at all in this phase. */

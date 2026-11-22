@@ -25,7 +25,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, costEntries: saved.costEntries ?? seed.costEntries, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, safetySubtypes: saved.safetySubtypes ?? seed.safetySubtypes, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, costEntries: saved.costEntries ?? seed.costEntries, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
       : seed;
   } catch {
     current = seed;
@@ -210,6 +210,11 @@ export function setFundingDoc(key: string, status: AdminData["fundingDocs"][stri
 }
 
 /** Internal – lib/admin/actions.ts confirms a launch point by hand (System › Launch) or takes it back; logged there. */
+/** Internal – lib/admin/actions.ts sets a safety case's kind by hand (Aufgaben › Sicherheit) and logs it. */
+export function setSafetySubtype(taskId: string, kind: "harassment" | "payment" | "onsite") {
+  write({ ...read(), safetySubtypes: { ...read().safetySubtypes, [taskId]: kind } });
+}
+
 export function setLaunchCheck(id: string, at: string | null) {
   const rest = Object.fromEntries(Object.entries(read().launchChecks ?? {}).filter(([key]) => key !== id));
   write({ ...read(), launchChecks: at ? { ...rest, [id]: at } : rest });

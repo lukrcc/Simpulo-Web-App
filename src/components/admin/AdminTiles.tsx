@@ -1,6 +1,6 @@
 "use client";
 
-// The admin's tiles (CLAUDE.md "Überblick zuerst"): the overview (/admin) and every page's "Überblick" tab show only these – equal tiles,
+// The admin's tiles (CLAUDE.md "Überblick je Seitentyp", "Admin: Kacheln einheitlich"): the overview (/admin) and every page's "Überblick" tab show only these – equal tiles,
 // lightly tinted in the group of the page (Heute blue, Zahlen green, Plattform lilac, Planen orange). TileBoard fills the height left under
 // the sticky bar: rows share it evenly, the tiles grow on large screens and get compact on small ones (never a scroll at ≥ 1280 × 720).
 // Each tile: the title small (with ⓘ), the number left, the change right beside it; under them an extra line left and the target right.
@@ -29,7 +29,7 @@ export interface TileSpec {
    * comparison or a hint. `extra` (if given) is the first of them. No charts.
    */
   details?: readonly ReactNode[];
-  /** A word rather than a number (a name, "in 8 Tagen") – a smaller size */
+  /** A word rather than a number (a name, "in 8 Tagen") – kept for callers; the size is the same for every value */
   small?: boolean;
   /** Where the tile leads: a page (href) or a tab of this page (onOpen) */
   href?: string;
@@ -44,8 +44,6 @@ export interface TileRow {
   tiles: readonly TileSpec[];
 }
 
-/** From this many characters a number takes the smaller size, so it never needs "…". */
-const LONG_NUMBER = 7;
 /** The tiles' height: never below (≥ 1280 × 720 without scrolling), never above (large screens). */
 const TILE_MIN = 72;
 const TILE_MAX = 240;
@@ -100,58 +98,69 @@ export function TileBoard({ rows, columns = 5, label }: { rows: readonly TileRow
   );
 }
 
+/** "982 €" → ["982", "€"], "10–25 Mrd. €" → ["10–25", "Mrd. €"]: a number (or span) and a unit without digits after it. Else null. */
+export function splitUnit(value: string): [string, string] | null {
+  const m = value.match(/^([−+-]?[\d.,]+(?:\s?[–-]\s?[\d.,]+)?)\s+([^\d]+)$/);
+  return m ? [m[1], m[2]] : null;
+}
+
 /**
- * One tile – exactly --adm-tile-h high: the title small on top (ⓘ, one line with "…"), the number left, the change right beside it; under them
- * the extra line left and the target right. A number is never cut (a long one takes the next size down); words may end in "…". The whole
- * tile tinted in its group (AREA_TILE) and a link (href) or a button (onOpen). `big` (tall tiles): more padding, a larger number.
+ * The value line's main value (CLAUDE.md "Admin: Kacheln einheitlich"): ONE fixed size in every tile (.adm-tile-value, 30px), whatever it
+ * is – a number, a span, "1 von 4", a word. A unit after a number small in the same line. Too long: cut with "…" and the full value in the
+ * tooltip – never scaled.
  */
-export function Tile({ group, label, info, value, change, target, extra, details, small, href, onOpen, openLabel, big = false, huge = false }: Omit<TileSpec, "key"> & { group: AreaColor; openLabel: string; big?: boolean; huge?: boolean }) {
+export function TileValue({ value, className }: { value: ReactNode; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [cut, setCut] = useState(false);
+  const text = typeof value === "string" ? value : null;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value]);
+  const parts = text ? splitUnit(text) : null;
+  return (
+    <span ref={ref} data-tile-value data-tooltip-info={cut && text ? text : undefined} className={cn("adm-tile-value min-w-0 truncate tabular-nums text-ink", className)}>
+      {parts ? (
+        <>
+          {parts[0]}
+          <span className="adm-tile-unit">{parts[1]}</span>
+        </>
+      ) : (
+        value
+      )}
+    </span>
+  );
+}
+
+/**
+ * One tile – exactly --adm-tile-h high, everything aligned to the top (CLAUDE.md "Admin: Kacheln einheitlich"): the title small (caps, ⓘ,
+ * one line with "…") on top; right under it the value in one fixed size (TileValue) with the change and the target right in the same line;
+ * the detail lines (13px) right under the value; the free room stays at the bottom. The whole tile tinted in its group (AREA_TILE), the
+ * title in the group's colour, a link (href) or a button (onOpen). `big`/`huge` (tall tiles) only add padding – never another size.
+ */
+export function Tile({ group, label, info, value, change, target, extra, details, href, onOpen, openLabel, big = false, huge = false }: Omit<TileSpec, "key"> & { group: AreaColor; openLabel: string; big?: boolean; huge?: boolean }) {
   const lines = [extra, ...(details ?? [])].filter((line) => line !== undefined && line !== null && line !== "");
-  const rich = (details?.length ?? 0) > 0;
-  const tight = !big;
-  // Compact tiles (small screens) are narrower: there a number of 7 characters already takes the smaller size.
-  const long = typeof value === "string" && value.length > (big ? LONG_NUMBER : LONG_NUMBER - 1);
-  // Tall tiles (few rows on a page's Überblick) carry a larger number.
-  // The display size only where it can't be cut: a short number (≤ 5 characters) without a change beside it.
-  const short = typeof value === "string" ? value.length <= 5 : true;
-  // A number with a change (or target) beside it shares the row: from 6 characters it takes the smaller size too, so it is never cut.
-  const crowded = typeof value === "string" && value.length >= 6 && (change !== undefined || (rich && target !== undefined));
-  // Very low tiles (≈ 1280 × 720 with five rows) keep the number one size down, so title, number and a line fit.
-  const low = !big && !huge && tight;
-  // Very long next to a change ("338.325 €"): body size, semibold – still the tile's largest text after the title row.
-  const veryCrowded = crowded && typeof value === "string" && (value.length >= 9 || !big);
-  const size = veryCrowded
-    ? "text-body font-semibold"
-    : crowded
-      ? "text-h3"
-      : small || long
-        ? big
-          ? "text-h2"
-          : "text-h3"
-        : huge && change === undefined && short
-          ? "text-display"
-          : big
-            ? "text-h1"
-            : low
-              ? "text-h3"
-              : "text-h2";
-  const changeBelow = veryCrowded && change !== undefined ? <span className="shrink-0 whitespace-nowrap"><ChangeLine change={change} short /></span> : null;
   const link = "absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
   return (
-    <div data-cockpit-tile className={cn("relative grid h-(--adm-tile-h) min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden rounded-xl border transition-colors duration-150", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-2.5" : "px-3 pt-1.5 pb-1", AREA_TILE[group])}>
+    <div data-cockpit-tile className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col justify-start overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3" : big ? "px-4 pt-3 pb-2.5" : "px-3 pt-2 pb-1.5", AREA_TILE[group])}>
       {href ? <Link href={href} data-card-link aria-label={openLabel} className={link} /> : onOpen ? <button type="button" data-card-link aria-label={openLabel} onClick={onOpen} className={link} /> : null}
       {/* The title in the group's colour, muted. */}
-      <dt className="flex min-w-0 items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+      <dt className="flex min-w-0 shrink-0 items-center gap-1 text-eyebrow uppercase">
         <span className={cn("truncate", AREA_TEXT[group])}>{label}</span>
         <InfoTip text={info} />
       </dt>
-      {/* Very crowded ("338.325 €" in a narrow tile): the number keeps its size – the change moves to the bottom line, right. */}
-      <dd className="flex min-w-0 items-center justify-between gap-2">
-        <span className={cn("min-w-0 tabular-nums text-ink", veryCrowded ? "shrink-0 whitespace-nowrap" : "truncate", size)}>{value}</span>
-        {((change !== undefined && !veryCrowded) || (rich && target)) && (
+      {/* The value line: the value left, the change and the target right. */}
+      <dd className="mt-0.5 flex min-w-0 shrink-0 items-center justify-between gap-2">
+        <TileValue value={value} />
+        {(change !== undefined || target) && (
           <span className="flex shrink-0 flex-col items-end gap-0.5 whitespace-nowrap text-small leading-tight">
-            {change !== undefined && !veryCrowded && <ChangeLine change={change} short />}
-            {rich && target && (
+            {change !== undefined && <ChangeLine change={change} short />}
+            {target && (
               <span className="inline-flex items-center gap-1 text-muted">
                 <StatusDot status={target.status} />
                 {target.text}
@@ -160,26 +169,14 @@ export function Tile({ group, label, info, value, change, target, extra, details
           </span>
         )}
       </dd>
-      {rich ? (
-        // Rich tile: the detail lines, 13px, each one line with "…".
-        <dd className="flex min-w-0 flex-col gap-0.5 text-small leading-snug text-muted">
+      {/* The detail lines right under the value, 13px, each one line with "…"; whatever room is left stays at the bottom. */}
+      {lines.length > 0 && (
+        <dd className="mt-0.5 flex min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden text-small leading-snug text-muted">
           {lines.map((line, i) => (
-            <span key={i} className="flex min-w-0 items-center justify-between gap-2">
-              <span className="min-w-0 truncate">{line}</span>
-              {i === 0 && changeBelow}
+            <span key={i} className="min-w-0 truncate">
+              {line}
             </span>
           ))}
-        </dd>
-      ) : (
-        <dd className="flex min-h-4 min-w-0 items-center justify-between gap-2 text-small leading-tight text-muted">
-          <span className="min-w-0 truncate">{extra}</span>
-          {changeBelow}
-          {target && (
-            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
-              <StatusDot status={target.status} />
-              {target.text}
-            </span>
-          )}
         </dd>
       )}
     </div>

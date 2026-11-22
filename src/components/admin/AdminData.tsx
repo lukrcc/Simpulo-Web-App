@@ -11,9 +11,9 @@
 //          the long text, the key and the purpose only in the detail. "Nie erfasst: …" as an ⓘ at the tab.
 // Every text from config/data-points.ts, config/models.ts, config/hypotheses.ts; numbers from lib/admin/metrics.ts. The network numbers and
 // "Tage bis voll" are no longer here (they stay in lib/admin/metrics.ts; Vision › Kern and Analyse show them).
-import { ChevronDown, Database, EyeOff, Flag, Repeat, Scale, SlidersHorizontal, Sofa, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
+import { X, Database, EyeOff, Flag, Repeat, Scale, SlidersHorizontal, Sofa, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, NEVER_COLLECTED, type DataPoint, type DataPointStatus, type Moment } from "@/config/data-points";
 import { HYPOTHESES, type Hypothesis } from "@/config/hypotheses";
 import { MODEL_IDS, MODELS, type Model, type ModelId, type ModelStage } from "@/config/models";
@@ -43,8 +43,7 @@ export function AdminData() {
   const tOverview = useTranslations("admin.overviewBlock");
   // Überblick first and by default (CLAUDE.md "Überblick zuerst").
   const [tab, setTab] = useState<Tab>("overview");
-  const [moment, setMoment] = useState<"all" | Moment>("all");
-  const [model, setModel] = useState<"all" | ModelId | "none">("all");
+  const [highlight, setHighlight] = useState<"all" | ModelId>("all");
   const [status, setStatus] = useState<"all" | DataPointStatus>("all");
   return (
     <AdminShell
@@ -66,8 +65,7 @@ export function AdminData() {
         <>
           {tab === "points" && (
             <>
-              <AdminSort label={t("filter.moment")} value={moment} onChange={setMoment} options={(["all", ...MOMENTS] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : t(`moment.${value}`) }))} />
-              <AdminSort label={t("filter.model")} value={model} onChange={setModel} options={(["all", ...MODEL_IDS, "none"] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : value === "none" ? t("filter.none") : MODEL_NAME[value] }))} />
+              <AdminSort label={t("filter.highlight")} value={highlight} onChange={setHighlight} options={(["all", ...MODEL_IDS] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : MODEL_NAME[value] }))} />
               <AdminSort label={t("filter.status")} value={status} onChange={setStatus} options={(["all", ...DATA_POINT_STATUSES] as const).map((value) => ({ value, label: value === "all" ? t("filter.all") : t(`dpStatus.${value}`) }))} />
             </>
           )}
@@ -80,8 +78,7 @@ export function AdminData() {
           onOpen={(next, filter) => {
             setTab(next);
             if (next === "points") {
-              setMoment("all");
-              setModel("all");
+              setHighlight("all");
               setStatus(filter ?? "all");
             }
           }}
@@ -89,7 +86,7 @@ export function AdminData() {
       )}
       {tab === "flow" && <Flow />}
       {tab === "theses" && <Theses />}
-      {tab === "points" && <DataPoints moment={moment} model={model} status={status} />}
+      {tab === "points" && <DataPoints highlight={highlight} status={status} />}
     </AdminShell>
   );
 }
@@ -253,7 +250,7 @@ function FlowDetail({ selection, onBack }: { selection: NonNullable<FlowSelectio
             {DATA_POINTS.filter((d) => d.moment === selection.id).map((d) => (
               <li key={d.id} className="flex min-h-10 items-center gap-2 py-1.5 text-small">
                 <StatusDot status={DP_DOT[d.status]} />
-                <span className="min-w-0 flex-1 truncate text-ink">{shortName(d)}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{d.short}</span>
                 <span className="shrink-0 text-ink/50">{d.models.length > 0 ? d.models.length : "–"}</span>
               </li>
             ))}
@@ -383,111 +380,155 @@ function ThesisDetail({ h, current, onBack }: { h: Hypothesis; current: string |
 
 // ── Datenpunkte ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** A data point's short name: what it captures, up to the first bracket, colon or comma. */
-const shortName = (d: DataPoint) => d.captures.split(/[(:,–]/)[0].trim();
+/** The map's tiles: never lower than this, never higher; a sub-column never narrower than this (CLAUDE.md "Algorithmus › Datenpunkte"). */
+const TILE_H: { min: number; max: number } = { min: 18, max: 30 };
+const SUB_MIN_W = 112;
+const TILE_GAP = 3;
+const COL_GAP = 6;
 
-function DataPoints({ moment, model, status }: { moment: "all" | Moment; model: "all" | ModelId | "none"; status: "all" | DataPointStatus }) {
+/**
+ * Algorithmus › Datenpunkte as a map: a column per moment in the order of the journey (config/data-points.ts MOMENTS – new moments and
+ * points appear on their own), the head its name and count; each data point a small tile with its short name (`short`, one line with "…"),
+ * coloured by status (used: sage tint · collecting: amber tint · planned: dashed, no surface) and its legal basis as a small icon in the
+ * corner. "Hervorheben: Modell" leaves the model's tiles as they are and fades the rest; the status filter keeps only that status. The
+ * tooltip: the full name, moment, models, status, legal basis; a click opens the details as a panel on the right over the map. Everything on
+ * one screen: the tile height and the sub-columns of a long moment are computed from the room left (more points → more compact tiles).
+ */
+function DataPoints({ highlight, status }: { highlight: "all" | ModelId; status: "all" | DataPointStatus }) {
   const t = useTranslations("admin.data");
-  const [closed, setClosed] = useState<ReadonlySet<Moment>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
-  const shown = DATA_POINTS.filter((d) => (moment === "all" || d.moment === moment) && (model === "all" || (model === "none" ? d.models.length === 0 : d.models.includes(model))) && (status === "all" || d.status === status));
+  const shown = DATA_POINTS.filter((d) => status === "all" || d.status === status);
+  const columns = MOMENTS.map((m) => ({ moment: m, points: shown.filter((d) => d.moment === m) })).filter((c) => c.points.length > 0);
   const point = DATA_POINTS.find((d) => d.id === selected);
-  const toggle = (m: Moment) =>
-    setClosed((now) => {
-      const next = new Set(now);
-      if (next.has(m)) next.delete(m);
-      else next.add(m);
-      return next;
-    });
+  const box = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLParagraphElement>(null);
+  const [fit, setFit] = useState<{ h: number; rows: number } | null>(null);
+  // The room: from the map's top to the window's bottom minus the legend; the largest tile height whose sub-columns still fit the width.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = box.current;
+      if (!el) return;
+      // Measured, not guessed: the first column's list top (under its head) and the legend's height under the map.
+      const list = el.querySelector("ul");
+      const top = (list ?? el).getBoundingClientRect().top + window.scrollY;
+      const legend = legendRef.current ? legendRef.current.getBoundingClientRect().height + 12 : 32;
+      const room = window.innerHeight - top - 40 - legend;
+      const width = el.clientWidth;
+      // Fewest sub-columns first (each column as narrow as can be, so its names have room), then the tallest tile that still fits.
+      let best: { h: number; rows: number; subs: number } | null = null;
+      for (let h = TILE_H.max; h >= TILE_H.min; h--) {
+        const rows = Math.max(1, Math.floor((room + TILE_GAP) / (h + TILE_GAP)));
+        const subs = columns.reduce((n, c) => n + Math.ceil(c.points.length / rows), 0);
+        const fits = (width - (columns.length - 1) * COL_GAP) / subs >= SUB_MIN_W;
+        if (!best || subs < best.subs || (subs === best.subs && h > best.h && fits)) best = { h, rows, subs };
+      }
+      if (best) setFit({ h: best.h, rows: best.rows });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+    // The columns follow the status filter (the only input that changes them).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+  useEffect(() => {
+    if (!point) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSelected(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [point]);
+  const rows = fit?.rows ?? 24;
+  const tip = (d: DataPoint) => t("map.tip", { moment: t(`moment.${d.moment}`), models: d.models.length ? d.models.map((m) => MODEL_NAME[m]).join(", ") : t("map.noModels"), status: t(`dpStatus.${d.status}`), basis: t(`basis.${d.legalBasis}`) });
   return (
-    <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.15fr)]">
-      <div className={cn("min-w-0", point && "max-lg:hidden")}>
-        {MOMENTS.map((m) => {
-          const rows = shown.filter((d) => d.moment === m);
-          if (rows.length === 0) return null;
-          const isOpen = !closed.has(m);
+    <>
+      <div ref={box} data-point-map className="flex min-w-0 gap-1.5 max-lg:overflow-x-auto" style={{ "--dp-h": `${fit?.h ?? 26}px` } as CSSProperties}>
+        {columns.map(({ moment, points }) => {
+          const subs = Math.ceil(points.length / rows);
           return (
-            <section key={m} className="mb-3">
-              <button type="button" onClick={() => toggle(m)} aria-expanded={isOpen} className="flex h-9 w-full items-center gap-2 text-left text-small font-semibold text-(--adm-label)">
-                <ChevronDown aria-hidden className={cn("size-4 transition-transform", !isOpen && "-rotate-90")} />
-                {t(`moment.${m}`)}
-                <span className="font-normal tabular-nums">{rows.length}</span>
-              </button>
-              {isOpen && (
-                <ul className="divide-y divide-ink/8 border-y border-ink/8">
-                  {rows.map((d) => (
-                    <li key={d.id} className={cn("relative flex h-(--adm-row-h) items-center gap-3 px-1 transition-colors duration-150", selected === d.id ? "bg-(--adm-row-on)" : "hover:bg-ink/3")}>
-                      <button type="button" onClick={() => setSelected(d.id)} aria-label={shortName(d)} className="absolute inset-0" />
-                      <span className={cn("pointer-events-none min-w-0 flex-1 truncate text-body", selected === d.id ? "font-semibold text-(--adm-active)" : "text-ink")}>{shortName(d)}</span>
-                      {/* The model capsules from 640px; on phones they are in the detail (a row never runs out of the screen). */}
-                      <span className="pointer-events-none flex shrink-0 gap-1 max-sm:hidden">
-                        {d.models.map((id) => (
-                          <span key={id} className="inline-flex h-6 items-center rounded-full bg-ink/6 px-2 text-small text-ink/80">
-                            {MODEL_NAME[id]}
-                          </span>
-                        ))}
-                      </span>
-                      <LegalIcon basis={d.legalBasis} label={t(`basis.${d.legalBasis}`)} />
-                      <span className="pointer-events-none flex w-3 shrink-0 justify-end">
-                        <StatusDot status={DP_DOT[d.status]} />
-                        <span className="sr-only">{t(`dpStatus.${d.status}`)}</span>
-                      </span>
+            <section key={moment} data-point-column={moment} aria-label={t(`moment.${moment}`)} className="min-w-0" style={{ flex: `${subs} 1 0` }}>
+              <h3 data-tooltip-info={`${t(`moment.${moment}`)} · ${points.length}`} className="mb-1.5 flex h-6 min-w-0 items-baseline gap-1.5 text-small font-semibold text-(--adm-label)">
+                <span className="truncate">{t(`moment.${moment}`)}</span>
+                <span className="font-normal tabular-nums">{points.length}</span>
+              </h3>
+              <ul className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${subs}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.min(rows, points.length)}, var(--dp-h))`, gridAutoFlow: "column" }}>
+                {points.map((d) => {
+                  const dim = highlight !== "all" && !d.models.includes(highlight);
+                  const Icon = LEGAL_ICONS[d.legalBasis];
+                  return (
+                    <li key={d.id} className="min-w-0">
+                      <button
+                        type="button"
+                        data-point={d.id}
+                        data-point-status={d.status}
+                        data-dim={dim || undefined}
+                        data-tooltip-title={d.captures}
+                        data-tooltip-info={tip(d)}
+                        aria-label={t("map.open", { name: d.short })}
+                        aria-pressed={selected === d.id}
+                        onClick={() => setSelected(d.id)}
+                        className={cn("adm-press adm-dp-tile relative flex h-full w-full min-w-0 items-center rounded-md border pr-3 pl-1.5 text-left", selected === d.id && "ring-2 ring-(--adm-chart-1)")}
+                      >
+                        <span className="min-w-0 truncate text-ink">{d.short}</span>
+                        <Icon aria-hidden className="absolute top-1/2 right-0.5 size-2.5 -translate-y-1/2 text-ink/55" />
+                      </button>
                     </li>
-                  ))}
-                </ul>
-              )}
+                  );
+                })}
+              </ul>
             </section>
           );
         })}
-        <p className="mt-2 text-small text-(--adm-label)">{t("count", { shown: shown.length, all: DATA_POINTS.length })}</p>
-        {/* Never collected – visible under the list (config/data-points.ts NEVER_COLLECTED). */}
-        <section className="mt-(--adm-section)" aria-label={t("neverTitle")}>
-          <h3 className="mb-2 text-small font-semibold text-(--adm-label)">{t("neverTitle")}</h3>
-          <ul className="flex flex-wrap gap-1.5">
-            {NEVER_COLLECTED.map((item) => (
-              <li key={item} className="inline-flex h-7 items-center rounded-full border border-dashed border-ink/25 px-2.5 text-small text-ink/80">
-                {item}
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
-      <aside className={cn("min-w-0 lg:sticky lg:top-[calc(var(--header-h)+var(--adm-page))] lg:self-start", !point && "max-lg:hidden")}>
-        {point ? (
-          <article data-point-detail>
-            <BackToList onBack={() => setSelected(null)} />
-            <p className="text-h3 leading-normal text-ink">{shortName(point)}</p>
-            <p className="mt-1 text-small text-ink/60">{point.id}</p>
-            <dl className="mt-(--adm-inner) flex flex-col gap-(--adm-inner)">
-              {[
-                { label: t("col.captures"), value: point.captures },
-                { label: t("col.purpose"), value: point.purpose },
-                { label: t("col.models"), value: point.models.length ? point.models.map((m) => MODEL_NAME[m]).join(", ") : "–" },
-                { label: t("col.basis"), value: t(`basis.${point.legalBasis}`) },
-                { label: t("col.status"), value: t(`dpStatus.${point.status}`) },
-              ].map((f) => (
-                <div key={f.label}>
-                  <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
-                  <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </article>
-        ) : (
-          <p className="text-body text-muted">{t("flow.pickPoint")}</p>
-        )}
-      </aside>
-    </div>
+      {/* The legend, small. */}
+      <p ref={legendRef} data-point-legend className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-small text-muted">
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="adm-dp-tile size-3.5 rounded-sm border" data-point-status="used" />{t("map.legendUsed")}</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="adm-dp-tile size-3.5 rounded-sm border" data-point-status="collecting" />{t("map.legendCollecting")}</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="adm-dp-tile size-3.5 rounded-sm border" data-point-status="planned" />{t("map.legendPlanned")}</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="adm-dp-tile size-3.5 rounded-sm border" data-point-status="used" data-dim />{t("map.legendDim")}</span>
+        {(["contract", "consent", "none", "review"] as const).map((basis) => {
+          const Icon = LEGAL_ICONS[basis];
+          return (
+            <span key={basis} className="inline-flex items-center gap-1">
+              <Icon aria-hidden className="size-3.5" />
+              {t(`basis.${basis}`)}
+            </span>
+          );
+        })}
+        <span className="ml-auto inline-flex items-center gap-1" data-tooltip-info={NEVER_COLLECTED.join(" · ")}>
+          {t("map.never")} · {NEVER_COLLECTED.length}
+        </span>
+      </p>
+      {/* The details: a panel on the right over the map (the map stays in sight); ✕, Escape or another tile. */}
+      {point && (
+        <aside data-point-detail aria-label={point.short} className="fixed top-[calc(var(--header-total)+var(--adm-bar-h,56px)+8px)] right-4 bottom-4 z-30 flex w-[min(400px,calc(100vw-32px))] flex-col overflow-y-auto rounded-xl border border-(--line) bg-(--surface) p-5 shadow-(--shadow-float)">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-h3 leading-normal text-ink">{point.short}</p>
+              <p className="mt-0.5 text-small text-muted">{point.id}</p>
+            </div>
+            <button type="button" aria-label={t("map.close")} onClick={() => setSelected(null)} className="adm-press flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/6 hover:text-ink">
+              <X aria-hidden className="size-4" />
+            </button>
+          </div>
+          <dl className="mt-(--adm-inner) flex flex-col gap-(--adm-inner)">
+            {[
+              { label: t("col.captures"), value: point.captures },
+              { label: t("col.moment"), value: t(`moment.${point.moment}`) },
+              { label: t("col.purpose"), value: point.purpose },
+              { label: t("col.models"), value: point.models.length ? point.models.map((m) => MODEL_NAME[m]).join(", ") : "–" },
+              { label: t("col.basis"), value: t(`basis.${point.legalBasis}`) },
+              { label: t("col.status"), value: t(`dpStatus.${point.status}`) },
+            ].map((f) => (
+              <div key={f.label}>
+                <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
+                <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </aside>
+      )}
+    </>
   );
 }
 
 /** Vertrag · Einwilligung · keine Personendaten · prüfen as a small icon with its word as the tooltip. */
 const LEGAL_ICONS = { contract: FileSignature, consent: Hand, none: EyeOff, review: Scale } as const;
-function LegalIcon({ basis, label }: { basis: DataPoint["legalBasis"]; label: string }) {
-  const Icon = LEGAL_ICONS[basis];
-  return (
-    <button type="button" aria-label={label} className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-ink/60 hover:text-ink">
-      <Icon aria-hidden className="size-4" />
-    </button>
-  );
-}

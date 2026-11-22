@@ -55,10 +55,10 @@ body:has(.admin-scope) {
   --adm-cap-on-bg: var(--text);
   --adm-cap-on-text: var(--text-inverse);
   /* The side list never scrolls: its rows follow the window's height. 15 entries and 3 gaps between the 4 areas share what's left under the
-     header after the top padding, the 4 area headings (28px each, + 4px) and 16px of air: 28–40px a row; a gap half a row. Room for more
+     header after the top padding, the 4 area headings (28px each, + 4px), the appearance row (36px) and 16px of air: 28–40px a row; a gap half a row. Room for more
      entries: the rows shrink first; below 28px the list folds (AdminSideList: only the current area's entries, the others by their heading). */
   --sidebar-heading-h: 28px;
-  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px) / 16), 40px);
+  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px - 36px) / 16), 40px);
   --sidebar-gap: calc(var(--sidebar-item-h) * 0.5);
   --sidebar-item-font: 15px;
   --sidebar-icon: 18px;
@@ -84,6 +84,10 @@ body:has(.admin-scope) {
 .admin-scope :is(td, th) {
   height: var(--adm-row-h);
   padding-block: 0;
+}
+/* A compact table (System › Einstellungen, the rules per phase): rows 32px. */
+.admin-scope [data-compact-table] :is(td, th) {
+  height: 32px;
 }
 
 
@@ -652,6 +656,131 @@ body:has(.admin-scope[data-admin-group="system"]) {
   }
 }
 
-/* end of admin tokens */
-/* .. */
-/* ... */
+
+/* ── System › Überblick: the tools as link tiles in their brand colour – a light tint, the symbol in the colour (a drawing colour, not
+   status). Light and dark each tuned so the symbol keeps ≥ 3 : 1. ── */
+.admin-scope {
+  --adm-brand-firebase: #b4580a;
+  --adm-brand-stripe: #5248d9;
+  --adm-brand-qonto: #1d5c4a;
+  --adm-brand-github: #57606a;
+  --adm-brand-preview: #2f5fb3;
+  --adm-brand-mail: #11787a;
+}
+:root[data-theme="dark"] .admin-scope {
+  --adm-brand-firebase: #f5a04a;
+  --adm-brand-stripe: #9a94ff;
+  --adm-brand-qonto: #6cc4a4;
+  --adm-brand-github: #a7b0ba;
+  --adm-brand-preview: #7fa6e8;
+  --adm-brand-mail: #5fc3c0;
+}
+.admin-scope .adm-brand-tile {
+  --b: var(--adm-brand-github);
+  background-color: color-mix(in srgb, var(--b) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--b) 32%, transparent);
+}
+.admin-scope .adm-brand-tile:hover {
+  background-color: color-mix(in srgb, var(--b) 20%, var(--card));
+}
+.admin-scope .adm-brand-tile .adm-brand-icon {
+  color: var(--b);
+}
+.admin-scope [data-brand="firebase"] { --b: var(--adm-brand-firebase); }
+.admin-scope [data-brand="stripe"] { --b: var(--adm-brand-stripe); }
+.admin-scope [data-brand="qonto"] { --b: var(--adm-brand-qonto); }
+.admin-scope [data-brand="github"] { --b: var(--adm-brand-github); }
+.admin-scope [data-brand="preview"] { --b: var(--adm-brand-preview); }
+.admin-scope [data-brand="mail"] { --b: var(--adm-brand-mail); }
+
+/* ── Press (CLAUDE.md "Admin: Hover-Effekt für alles Klickbare"): ONE effect for everything clickable in the admin – tiles, capsules,
+   buttons, list rows, side-list entries, link tiles, blocks. Hover: a light tint (tiles a stronger group colour, AREA_TILE) and pressed in
+   to 0.98; click (active) 0.96, back at once; 120ms. Reduced motion: colour only. New clickable parts take the class .adm-press. ── */
+.admin-scope {
+  --adm-press-ms: 120ms;
+  --adm-press-hover: 0.98;
+  --adm-press-active: 0.96;
+}
+.admin-scope :is(.adm-press, .adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-button], [data-block], [data-admin-nav] nav a, [data-cockpit-tile]:has([data-card-link]), li:has(> button.absolute)) {
+  transition:
+    transform var(--adm-press-ms) ease-out,
+    background-color var(--adm-press-ms) ease-out,
+    border-color var(--adm-press-ms) ease-out,
+    color var(--adm-press-ms) ease-out;
+}
+.admin-scope :is(.adm-press, .adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-button], [data-block], [data-admin-nav] nav a, [data-cockpit-tile]:has([data-card-link]), li:has(> button.absolute)):is(:hover, :focus-visible):not(:disabled, [aria-disabled="true"]) {
+  transform: scale(var(--adm-press-hover));
+}
+.admin-scope :is(.adm-press, .adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-button], [data-block], [data-admin-nav] nav a, [data-cockpit-tile]:has([data-card-link]), li:has(> button.absolute)):active:not(:disabled, [aria-disabled="true"]) {
+  transform: scale(var(--adm-press-active));
+  transition-duration: 0ms;
+  filter: none;
+}
+/* The side list's entries get the light tint too (no surface otherwise). */
+.admin-scope [data-admin-nav] nav a:hover {
+  background-color: var(--adm-cap-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-scope :is(.adm-press, .adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-button], [data-block], [data-admin-nav] nav a, [data-cockpit-tile]:has([data-card-link]), li:has(> button.absolute)):is(:hover, :focus-visible, :active) {
+    transform: none;
+  }
+}
+
+/* ── Tiles (CLAUDE.md "Admin: Kacheln einheitlich"): the main value in ONE size everywhere (30px, the display face), a unit after a number
+   small in the same line. Never scaled by its content – too long, it is cut ("…") and shown in full in the tooltip. ── */
+.admin-scope .adm-tile-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.admin-scope .adm-tile-unit {
+  margin-left: 0.3em;
+  font-family: var(--font-sans, inherit);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: normal;
+  color: var(--text-muted);
+}
+
+/* ── Algorithmus › Datenpunkte as a map (CLAUDE.md): a tile per data point, coloured by status – used a sage tint, collecting an amber tint,
+   planned dashed without a surface; faded (not part of the highlighted model) 25 %. ── */
+.admin-scope .adm-dp-tile {
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.admin-scope .adm-dp-tile[data-point-status="used"] {
+  background-color: color-mix(in srgb, var(--adm-good) 20%, var(--surface));
+  border-color: color-mix(in srgb, var(--adm-good) 55%, transparent);
+}
+.admin-scope .adm-dp-tile[data-point-status="collecting"] {
+  background-color: color-mix(in srgb, var(--adm-warning) 20%, var(--surface));
+  border-color: color-mix(in srgb, var(--adm-warning) 55%, transparent);
+}
+.admin-scope .adm-dp-tile[data-point-status="planned"] {
+  background-color: transparent;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+}
+.admin-scope .adm-dp-tile[data-dim] {
+  opacity: 0.3;
+}
+.admin-scope .adm-dp-tile[data-point-status="used"]:hover {
+  background-color: color-mix(in srgb, var(--adm-good) 30%, var(--surface));
+}
+.admin-scope .adm-dp-tile[data-point-status="collecting"]:hover {
+  background-color: color-mix(in srgb, var(--adm-warning) 30%, var(--surface));
+}
+.admin-scope .adm-dp-tile[data-point-status="planned"]:hover {
+  background-color: var(--adm-cap-hover);
+}
+/* Tooltips with lines (the data point's moment, models, status, basis). */
+.admin-tooltip {
+  white-space: pre-line;
+}
+
+
+
+

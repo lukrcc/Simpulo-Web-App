@@ -1,5 +1,4 @@
 "use client";
-import { AdminButton } from "./AdminButton";
 
 // Admin › System › Launch-Vorbereitung › Launch: the checklist before the launch (config/launch.ts) in four groups – Kriterien, Technik,
 // Recht, Inhalte. Each point checked automatically where the code or the data can tell: the criteria from lib/admin/metrics.ts
@@ -23,7 +22,6 @@ import { day, num } from "@/lib/i18n/adminFormat";
 import type { LaunchFacts } from "@/lib/launchChecks";
 import { StatusDot } from "./AdminCharts";
 import { roadmapTodos } from "@/lib/roadmap";
-import { AdminSection } from "./AdminShell";
 
 interface Check {
   ok: boolean;
@@ -77,67 +75,69 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
         {t("count", { done, total })}
       </p>
       <p className="mt-2 max-w-3xl text-small text-muted">{t("note")}</p>
-      {LAUNCH_GROUPS.map((group) => (
-        <AdminSection key={group} title={t(`groups.${group}`)}>
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {LAUNCH_POINTS.filter((p) => p.group === group).map((p) => {
-              const state = stateOf(p);
-              const title = t(`items.${p.id}.title` as "items.houses.title");
-              return (
-                <li key={p.id} data-launch-point={p.id} data-launch-state={state} className="flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5">
-                  <div className="min-w-0 flex-1 basis-[300px]">
-                    <p className="text-body font-semibold text-ink">{title}</p>
-                    <p className="text-small text-muted">
-                      {t(`items.${p.id}.text` as "items.houses.text", checks[p.id]?.values ?? {})}
-                      {state === "manual" && ` · ${t("confirmedAt", { date: day(confirmed[p.id]) })}`}
-                    </p>
-                  </div>
-                  <span className="flex w-40 shrink-0 items-center gap-2 text-small text-ink">
-                    <StatusDot status={state === "open" ? "warning" : "good"} />
-                    {t(`status.${state}`)}
-                  </span>
-                  {/* Same width with or without a button or a link – the status column stays in line. */}
-                  <span className="flex min-w-[min(15rem,100%)] shrink-0 items-center justify-end gap-3 max-md:justify-start">
-                    {p.manual && state !== "ok" && (
-                      <AdminButton variant="secondary" onClick={() => confirmLaunchCheck(p.id, title, state !== "manual")}>
-                        {state === "manual" ? t("undo") : t("confirm")}
-                      </AdminButton>
-                    )}
-                    {p.href && (
-                      <Link href={p.href} className="text-small font-semibold text-ink hover:underline">
-                        {t("open")} →
-                      </Link>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </AdminSection>
-      ))}
-      {prepTodos.length > 0 && (
-        <AdminSection title={t("groups.prep")}>
-          <ul className="divide-y divide-ink/8 border-y border-ink/8">
-            {prepTodos.map((x) => (
-              <li key={x.id} data-launch-point={`todo-${x.id}`} data-launch-state={x.status === "done" ? "ok" : "open"} className="flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5">
-                <div className="min-w-0 flex-1 basis-[300px]">
-                  <p className="text-body font-semibold text-ink">{x.title}</p>
-                  <p className="text-small text-muted">{x.text}</p>
-                </div>
-                <span className="flex w-40 shrink-0 items-center gap-2 text-small text-ink">
-                  <StatusDot status={x.status === "done" ? "good" : "warning"} />
-                  {t(`todoStatus.${x.status}`)}
-                </span>
-                <span className="flex min-w-[min(15rem,100%)] shrink-0 items-center justify-end gap-3 max-md:justify-start">
-                  <Link href="/admin/zeitplan?tab=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">
-                    {t("open")} →
-                  </Link>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </AdminSection>
-      )}
+      {/* Compact (CLAUDE.md "Admin › System": detail tabs without scrolling at 1440 × 900): the groups in two columns, one line per point –
+          the status as a dot (its word in the tooltip and for screen readers), the explanation muted after the title. */}
+      <div className="mt-(--adm-inner) grid gap-x-10 gap-y-5 xl:grid-cols-2">
+        {[...LAUNCH_GROUPS, ...(prepTodos.length > 0 ? (["prep"] as const) : [])].map((group) => (
+          <section key={group} aria-labelledby={`launch-${group}`} className="min-w-0">
+            <h2 id={`launch-${group}`} className="mb-1 text-eyebrow uppercase text-(--adm-label)">
+              {t(`groups.${group}`)}
+            </h2>
+            <ul className="divide-y divide-ink/8 border-y border-ink/8">
+              {group === "prep"
+                ? prepTodos.map((x) => (
+                    <Row key={x.id} id={`todo-${x.id}`} ok={x.status === "done"} statusLabel={t(`todoStatus.${x.status}`)} title={x.title} text={x.text} action={<Link href="/admin/zeitplan?tab=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">{t("open")} →</Link>} />
+                  ))
+                : LAUNCH_POINTS.filter((p) => p.group === group).map((p) => {
+                    const state = stateOf(p);
+                    const title = t(`items.${p.id}.title` as "items.houses.title");
+                    const text = t(`items.${p.id}.text` as "items.houses.text", checks[p.id]?.values ?? {}) + (state === "manual" ? ` · ${t("confirmedAt", { date: day(confirmed[p.id]) })}` : "");
+                    return (
+                      <Row
+                        key={p.id}
+                        id={p.id}
+                        ok={state !== "open"}
+                        statusLabel={t(`status.${state}`)}
+                        title={title}
+                        text={text}
+                        action={
+                          <>
+                            {p.manual && state !== "ok" && (
+                              <button type="button" onClick={() => confirmLaunchCheck(p.id, title, state !== "manual")} className="adm-press rounded-full px-2 text-small font-semibold text-ink hover:bg-ink/6">
+                                {state === "manual" ? t("undo") : t("confirm")}
+                              </button>
+                            )}
+                            {p.href && (
+                              <Link href={p.href} className="text-small font-semibold text-ink hover:underline">
+                                {t("open")} →
+                              </Link>
+                            )}
+                          </>
+                        }
+                      />
+                    );
+                  })}
+            </ul>
+          </section>
+        ))}
+      </div>
     </>
+  );
+}
+
+/** One point of the checklist on one line: the status dot (its word as tooltip), title, the explanation muted, the action right. */
+function Row({ id, ok, statusLabel, title, text, action }: { id: string; ok: boolean; statusLabel: string; title: string; text: string; action: React.ReactNode }) {
+  return (
+    <li data-launch-point={id} data-launch-state={ok ? "ok" : "open"} className="flex min-h-9 items-center gap-3 py-1">
+      <span data-tooltip-info={statusLabel} className="flex shrink-0 items-center">
+        <StatusDot status={ok ? "good" : "warning"} />
+        <span className="sr-only">{statusLabel}</span>
+      </span>
+      <p className="min-w-0 flex-1 truncate text-body">
+        <span className="font-semibold text-ink">{title}</span>
+        <span className="text-small text-muted"> · {text}</span>
+      </p>
+      <span className="flex shrink-0 items-center gap-3">{action}</span>
+    </li>
   );
 }

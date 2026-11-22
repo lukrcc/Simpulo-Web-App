@@ -425,7 +425,7 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
       {showSpotlight && (
         <>
           {/* Below lg the carousel is another component; the title for visitors goes above it here. */}
-          {/* Before the launch and in the beta: the launch hero ("Opening March 2027", "Find your people.", the waitlist and the founding host). */}
+          {/* Before the launch and in the beta: the launch hero ("Opening May 2027", "Find your people.", the waitlist and the founding host). */}
           {launchHero && <LaunchIntro launch={launchHero} className="md:hidden" />}
           <SpotlightHero stays={spotlightStays} />
           <SpotlightCoverflow stays={spotlightStays} countOf={openOfVibe} onPickVibe={vibeRow.onSelect} launchHero={launchHero} />

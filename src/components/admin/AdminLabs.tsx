@@ -11,6 +11,7 @@ import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, t
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./AdminCharts";
 import { AdminShell, AREA_TEXT, AREA_TILE } from "./AdminShell";
+import { TileValue } from "./AdminTiles";
 import { InfoTip } from "./AdminNumbers";
 import { AdminListDetail, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
@@ -91,23 +92,27 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
       style={{ gap: "clamp(10px, 1.5dvh, 20px)", ...(cardH ? { gridAutoRows: `${cardH}px` } : {}) } as CSSProperties}
     >
       {LABS.map((lab) => (
-        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} className={cn("relative grid min-h-0 min-w-0 grid-rows-[auto_auto_1fr_auto] overflow-hidden rounded-xl border px-4 pt-3 pb-3", compact ? "gap-0.5" : "gap-1", "transition-colors duration-150", AREA_TILE.plan)}>
+        // The same build as every admin tile (CLAUDE.md "Admin: Kacheln einheitlich"): title (number · name, the status right) on top, the
+        // ceiling in the one value size right under it, then the detail lines – free room stays at the bottom.
+        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} className={cn("relative flex min-h-0 min-w-0 flex-col justify-start overflow-hidden rounded-xl border px-4 pt-3 pb-3", AREA_TILE.plan)}>
           <button type="button" data-card-link aria-label={t("card.open", { name: lab.name })} onClick={() => onLab(lab.id)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
-          <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 shrink-0 items-center justify-between gap-2">
             <span className={cn("truncate text-eyebrow uppercase", AREA_TEXT.plan)}>{t("card.title", { no: String(lab.number), name: lab.name })}</span>
             <span data-lab-status={lab.status} className={cn("shrink-0 rounded-full border px-2 py-0.5 text-small font-semibold leading-none", LAB_STATUS_TONE[lab.status])}>
               {T.status[lab.status]}
             </span>
           </div>
-          <p className="line-clamp-2 text-body font-semibold text-ink">{lab.question}</p>
-          <div className="flex min-h-0 min-w-0 flex-col justify-end">
-            <span className="flex items-center gap-1 text-small text-muted">
+          <div className="mt-0.5 flex min-w-0 shrink-0 items-center">
+            <TileValue value={lab.ceiling} />
+          </div>
+          <div className="mt-0.5 flex min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden text-small leading-snug text-muted">
+            <span className="flex shrink-0 items-center gap-1">
               {t("card.ceiling")}
               <InfoTip text={t("card.ceilingInfo")} />
             </span>
-            <span className={cn("truncate tabular-nums text-ink", compact ? "text-h3" : "text-h2")}>{lab.ceiling}</span>
+            <p className={cn("text-ink", compact ? "truncate" : "line-clamp-2")}>{lab.question}</p>
+            <p className="truncate">{t("card.next", { step: lab.next ?? T.nextOpen })}</p>
           </div>
-          <p className="truncate text-small text-muted">{t("card.next", { step: lab.next ?? T.nextOpen })}</p>
         </div>
       ))}
     </div>

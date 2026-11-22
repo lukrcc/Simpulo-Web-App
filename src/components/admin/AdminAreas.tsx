@@ -17,8 +17,9 @@ import { ProgressBar, StatusDot } from "./AdminCharts";
 import { ArrowUpRight, ChartColumn, Code, CreditCard, Database, ExternalLink, Eye, Flame, Globe, HardDrive, Landmark, Mail, ScrollText, Server, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { InfoTip } from "./AdminNumbers";
+import { TileValue } from "./AdminTiles";
 import { profileHref } from "@/lib/privacy";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -31,7 +32,7 @@ import { examples, launch, phaseRules, PLATFORM_PHASES, usePlatformPhase, type P
 import { useFormat } from "@/i18n/format";
 import { APP_MODE } from "@/lib/appMode";
 import { useAdminActions } from "@/lib/admin/actions";
-import { applicationTier, hostMix, hostOverview, type HostOverview } from "@/lib/admin/metrics";
+import { applicationTier, hostMix, hostOverview, launchProgress, type HostOverview } from "@/lib/admin/metrics";
 import { HOST_TIERS } from "@/config/admin";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
@@ -637,7 +638,9 @@ function ApplicationDetail({ application, onBack }: { application: HostApplicati
 
 // ── Platform ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-const RULE_KEYS: readonly (keyof PhaseRules)[] = ["request", "reserve", "pay", "openHouse", "applyAsHost"];
+/** Every rule of the table – "Jetzt erlaubt" lists the ones the phase has on. */
+const ALL_RULES: readonly (keyof PhaseRules)[] = ["request", "reserve", "pay", "openHouse", "applyAsHost", "waitlist", "foundingHosts"];
+type SystemView = "overview" | "settings" | "tools" | "prepare";
 
 export function AdminPlatform({ facts = null }: { /** What only the server sees (lib/launchChecks.ts) – for the launch checklist */ facts?: LaunchFacts | null }) {
   const t = useTranslations("admin.platform");
@@ -647,9 +650,9 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   // Going public without a business address in the imprint: blocked (config/company.ts; the server's facts know it).
   const addressMissing = facts ? facts.legal.companyGaps.some((g) => (ADDRESS_FIELDS as readonly string[]).includes(g)) : !hasBusinessAddress();
   const blockedLive = pending === "live" && addressMissing;
-  // Einstellungen (phase, values) · Tools (?view=tools) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
-  // config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
-  const [view, setView] = useState<"settings" | "tools" | "prepare">("settings");
+  // Überblick (four tiles, no scrolling) · Einstellungen (phase, values, rules) · Tools (?view=tools) · Launch-Vorbereitung with its Unterreiter:
+  // Backlog (config/backlog.ts) · Launch (the checklist, config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
+  const [view, setView] = useState<SystemView>("overview");
   const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
   const router = useRouter();
   // ?view=tools opens Tools; the old „Zeitplan & Vorbereitung“ links (?view=roadmap[&sub=todos][&due=…]) go to Admin › Zeitplan.
@@ -665,7 +668,7 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
       subTabs={
         view === "prepare" ? (
           <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} />
@@ -677,7 +680,9 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         </Link>
       }
     >
-      {view === "tools" ? (
+      {view === "overview" ? (
+        <SystemOverview phase={phase} onPhase={(next) => next !== phase && setPending(next)} onLaunch={() => (setView("prepare"), setPrep("launch"))} />
+      ) : view === "tools" ? (
         <Tools />
       ) : view === "prepare" && prep === "duties" ? (
         <Duties />
@@ -700,7 +705,7 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         <p className="mt-3 text-small text-muted">{t("current", { phase: t(`phases.${phase}`) })}</p>
       </AdminSection>
       <AdminSection title={t("values")}>
-        <dl className="grid gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
               label: t("hideCategory"),
@@ -724,23 +729,23 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
       </AdminSection>
       <AdminSection title={t("rules")}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-body">
+          <table data-compact-table className="w-full max-w-3xl min-w-[520px] text-left text-body">
             <thead className="text-small text-muted">
               <tr className="border-b border-ink/8">
-                <th className="py-3 pr-4 font-medium" />
+                <th className="py-1.5 pr-4 font-medium" />
                 {PLATFORM_PHASES.map((p) => (
-                  <th key={p} className={cn("py-3 pr-4 font-medium", p === phase && "font-semibold text-ink")}>
+                  <th key={p} className={cn("py-1.5 pr-4 font-medium", p === phase && "font-semibold text-ink")}>
                     {t(`phases.${p}`)}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {RULE_KEYS.map((rule) => (
+              {ALL_RULES.map((rule) => (
                 <tr key={rule} className="border-b border-ink/8">
-                  <td className="py-3 pr-4 text-ink">{t(`rule.${rule}`)}</td>
+                  <td className="py-1.5 pr-4 text-ink">{t(`rule.${rule}`)}</td>
                   {PLATFORM_PHASES.map((p) => (
-                    <td key={p} className={cn("py-3 pr-4", phaseRules[p][rule] ? "text-ink" : "text-muted")}>
+                    <td key={p} className={cn("py-1.5 pr-4", phaseRules[p][rule] ? "text-ink" : "text-muted")}>
                       {phaseRules[p][rule] ? t("on") : t("off")}
                     </td>
                   ))}
@@ -755,7 +760,7 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
       <Sheet open={pending !== null} onClose={() => setPending(null)} title={pending ? t("confirmTitle", { phase: t(`phases.${pending}`) }) : ""}>
         {pending && (
           <>
-            <p className="text-body text-muted">{t("confirmText", { phase: t(`phases.${pending}`) })}</p>
+            <p className="text-body text-muted">{t(`confirmText.${pending}`)}</p>
             {/* Public (Live) needs the imprint's real business address – until then the switch is blocked (Launch checklist). */}
             {blockedLive && (
               <p role="alert" data-live-blocked className="mt-3 flex items-start gap-2 text-body text-ink">
@@ -772,6 +777,131 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         )}
       </Sheet>
     </AdminShell>
+  );
+}
+
+/** The height from an element's top to the window's bottom (minus the page's bottom padding) – from 1024px; null below. */
+function useFillHeight<T extends HTMLElement>(min = 240) {
+  const ref = useRef<T>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const top = ref.current?.getBoundingClientRect().top;
+      setHeight(top === undefined || window.innerWidth < 1024 ? null : Math.max(min, Math.floor(window.innerHeight - (top + window.scrollY) - 40)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [min]);
+  return [ref, height] as const;
+}
+
+/** The six services on the overview, each with its brand colour as a light tint (admin-tokens.css --adm-brand-*). */
+const OVERVIEW_TOOLS = [
+  { id: "console", brand: "firebase" },
+  { id: "stripeLive", brand: "stripe" },
+  { id: "qonto", brand: "qonto" },
+  { id: "github", brand: "github" },
+  { id: "preview", brand: "preview" },
+  { id: "mail", brand: "mail" },
+] as const;
+
+/**
+ * System › Überblick (CLAUDE.md "Admin › System"): four neutral tiles on one screen (1440 × 900 without scrolling) – the phase (capsules,
+ * switching only with a confirmation, logged; under it what the phase allows), the tools as link tiles in their brand colour (new tab),
+ * the launch criteria (x of 4, a click opens the checklist) and the values of config/platform.ts.
+ */
+function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; onPhase: (next: PlatformPhase) => void; onLaunch: () => void }) {
+  const t = useTranslations("admin.platform");
+  const inputs = useAdminInputs();
+  const progress = launchProgress(inputs);
+  // The board fills what's left of the window (the page's bottom padding, 40px, stays free); from 1024px.
+  const [box, height] = useFillHeight<HTMLDivElement>(420);
+  const allowed = ALL_RULES.filter((rule) => phaseRules[phase][rule]);
+  const criteria = [
+    { id: "houses", p: progress.houses, text: `${num(progress.houses.value)} / ${num(progress.houses.target)}` },
+    { id: "hubs", p: progress.hubs, text: `${num(progress.hubs.value)} / ${num(progress.hubs.target)}` },
+    { id: "reserved", p: progress.reservedShare, text: `${num(progress.reservedShare.value)} % / ${num(progress.reservedShare.target)} %` },
+    { id: "waitlist", p: progress.waitlist, text: `${num(progress.waitlist.value)} / ${num(progress.waitlist.target)}` },
+  ] as const;
+  const met = criteria.filter((c) => c.p.value >= c.p.target).length;
+  const tools = OVERVIEW_TOOLS.map((o) => ({ ...o, tool: TOOLS.find((x) => x.id === o.id) })).filter((o) => o.tool?.url);
+  const tile = "flex min-h-0 min-w-0 flex-col rounded-xl border border-(--line) bg-(--card) p-5";
+  const head = "mb-3 text-eyebrow uppercase text-(--adm-label)";
+  const values = [
+    { label: t("hideCategory"), value: t("realHouses", { count: examples.hideCategoryAtRealCount }) },
+    { label: t("removeAll"), value: t("realHouses", { count: examples.removeAllAtRealCount }) },
+    { label: t("launchLabel"), value: launch.targetLabel },
+    { label: t("launchMonth"), value: launch.targetMonth },
+  ];
+  return (
+    <div ref={box} data-system-overview className="grid gap-(--adm-inner) lg:grid-cols-2 lg:grid-rows-2" style={height ? ({ height } as CSSProperties) : undefined}>
+      {/* Phase: the capsules (a change asks first, then the log), what this phase allows now. */}
+      <section aria-labelledby="sys-phase" className={tile}>
+        <h2 id="sys-phase" className={head}>{t("phase")}</h2>
+        <CapsuleGroup label={t("phase")} value={phase} onChange={onPhase} options={PLATFORM_PHASES.map((value) => ({ value, content: t(`phases.${value}`) }))} />
+        <p className="mt-4 text-small font-semibold text-ink">{t("overview.allowed")}</p>
+        <ul className="mt-1 grid min-h-0 grid-cols-2 gap-x-4 gap-y-1 overflow-hidden text-body text-ink">
+          {allowed.map((rule) => (
+            <li key={rule} className="flex min-w-0 items-center gap-2">
+              <StatusDot status="good" />
+              <span className="truncate">{t(`rule.${rule}`)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {/* Tools: link tiles in their brand colour, a new tab each. */}
+      <section aria-labelledby="sys-tools" className={tile}>
+        <h2 id="sys-tools" className={head}>{t("views.tools")}</h2>
+        <ul className="grid min-h-0 flex-1 grid-cols-2 gap-2">
+          {tools.map(({ id, brand, tool }) => {
+            const Icon = TOOL_ICON[tool!.icon];
+            return (
+              <li key={id} className="min-h-0">
+                <a href={tool!.url!} target="_blank" rel="noreferrer noopener" data-tool={id} data-brand={brand} className="adm-press adm-brand-tile flex h-full min-h-14 flex-col justify-center gap-1 rounded-lg border px-3 py-2">
+                  <span className="flex items-center gap-2">
+                    <Icon aria-hidden className="adm-brand-icon size-5 shrink-0" strokeWidth={1.75} />
+                    <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{t(`tools.items.${id}.name`)}</span>
+                    <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted" />
+                  </span>
+                  <span className="truncate text-small text-muted">{t(`tools.items.${id}.purpose`)}</span>
+                  <span className="sr-only">{t("tools.newTab")}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+      {/* Launch: x of 4 criteria with their values – a click opens the checklist. */}
+      <section aria-labelledby="sys-launch" className={cn(tile, "adm-press relative")}>
+        <button type="button" onClick={onLaunch} data-card-link aria-label={t("overview.openLaunch")} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
+        <h2 id="sys-launch" className={head}>{t("overview.launch")}</h2>
+        <TileValue value={t("overview.criteria", { met, total: criteria.length })} className="block" />
+        <dl className="mt-3 grid min-h-0 grid-cols-2 gap-x-6 gap-y-2">
+          {criteria.map((c) => (
+            <div key={c.id} className="min-w-0">
+              <dt className="truncate text-small text-muted">{t(`launch.items.${c.id}.title`)}</dt>
+              <dd className="flex items-center gap-2 text-body tabular-nums text-ink">
+                <StatusDot status={c.p.value >= c.p.target ? "good" : "warning"} />
+                {c.text}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      {/* The values of config/platform.ts, compact. */}
+      <section aria-labelledby="sys-values" className={tile}>
+        <h2 id="sys-values" className={head}>{t("values")}</h2>
+        <dl className="grid min-h-0 grid-cols-2 gap-x-6 gap-y-3">
+          {values.map((v) => (
+            <div key={v.label} className="min-w-0">
+              <dt className="truncate text-small text-muted">{v.label}</dt>
+              <dd className="truncate text-body font-semibold text-ink">{v.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </div>
   );
 }
 
@@ -821,6 +951,7 @@ function Backlog() {
   const items = BACKLOG.map((item) => ({ ...item, status: data.backlog?.[item.id] ?? item.status }));
   const open = items.filter((i) => i.status === "open" || i.status === "inProgress").length;
   // Done and parked at the end, otherwise the config's order.
+  const [listBox, listH] = useFillHeight<HTMLUListElement>(240);
   const shown = items.filter((i) => (filter === "all" || i.status === filter) && (phase === "all" || i.phase === phase)).toSorted((a, b) => Number(a.status === "done" || a.status === "parked") - Number(b.status === "done" || b.status === "parked"));
   return (
     <>
@@ -845,7 +976,8 @@ function Backlog() {
       {shown.length === 0 ? (
         <p className="mt-(--adm-section) text-body text-muted">{t("empty")}</p>
       ) : (
-        <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
+        // The list scrolls in its own box – the page stays put (CLAUDE.md "Admin › System").
+        <ul ref={listBox} data-backlog-list style={listH ? { maxHeight: listH } : undefined} className="mt-(--adm-inner) divide-y divide-ink/8 overflow-y-auto overscroll-contain border-y border-ink/8">
           {shown.map((item) => (
             <li key={item.id} data-backlog-item={item.id} className={cn("flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5", (item.status === "done" || item.status === "parked") && "opacity-45")}>
               <div className="min-w-0 flex-1 basis-[320px]">

@@ -49,4 +49,21 @@ export const INBOX_DE = {
   confirmYes: "Ja",
   confirmNo: "Abbrechen",
   someone: "die meldende Person",
+  /** The two cards of the detail. */
+  request: "Anfrage",
+  reaction: "Deine Reaktion",
+  /** Sicherheit: the kind of a case (config/support-templates.ts), recognised and changeable in the head of "Anfrage". */
+  subtype: { label: "Art", harassment: "Belästigung", payment: "Zahlung außerhalb / Betrug", onsite: "Sicherheit vor Ort" },
+  subtypeChanged: "Art: {kind}",
+  warnHost: "Host verwarnen",
+  warnHostConfirm: "{name} verwarnen? Die Nachricht geht als Simpulo Support an den Host.",
+  warnHostText: "Hi {name}, a guest told us they were asked to pay outside Simpulo for {house}. All payments have to go through the app – that's how both of you are protected. Please don't ask for cash or transfers. If this happens again, we'll have to pause your House. – The Simpulo team",
+  hostWarned: "{name} ist verwarnt.",
+  pauseHouse: "House pausieren",
+  pauseHouseConfirm: "{house} pausieren? Es nimmt dann keine Anfragen mehr an.",
+  housePaused: "{house} ist pausiert.",
+  noPerson: "Die gemeldete Person ist nicht bekannt – Kontakt einschränken und Sperren gehen nur bei Meldungen aus der App.",
+  noHouse: "Kein House bekannt – Verwarnen und Pausieren gehen nur mit House.",
+  partnerOpen: "Partner öffnen",
+  partnerStepDone: "Schritt erledigt",
 } as const;

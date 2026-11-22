@@ -1098,9 +1098,9 @@ const en = {
     "all": "All",
     "spotlightShow": "Show {title}",
     "prelaunch": {
-      "eyebrow": "Opening March 2027",
+      "eyebrow": "Opening May 2027",
       "title": "Share a place. Find your people.",
-      "text": "The first Houses open in March. Where do you want to go?"
+      "text": "The first Houses open in May. Where do you want to go?"
     },
     "spotlightIntro": {
       "first": "Share a place.",
@@ -5108,6 +5108,13 @@ const en = {
       "title": "Simpulo on your phone",
       "text": "Your crew chat, payments and arrival details in one place.",
       "scan": "Scan with your camera"
+    }
+  },
+  "supportTemplates": {
+    "safety": {
+      "harassment": "Thanks for telling us. You can block this person right now from their profile – we've also limited their messages to you while we look into it. If you're in danger, call your local emergency number first. – The Simpulo team",
+      "payment": "Thanks for checking with us – please don't pay anything outside Simpulo. All payments go through the app so you're protected. We're contacting the host now. – The Simpulo team",
+      "onsite": "Thanks for telling us – your safety comes first. If anyone is hurt or in danger, call your local emergency number now. If the place isn't safe to stay in tonight, tell us right here and we'll help you find somewhere else to stay while we sort this out with the host. – The Simpulo team"
     }
   },
   "faq": {

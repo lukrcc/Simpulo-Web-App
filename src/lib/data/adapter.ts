@@ -59,6 +59,8 @@ export interface AdminData {
   backlog: Record<string, "open" | "inProgress" | "done" | "parked">;
   /** Admin › System › Launch: points confirmed by hand (config/launch.ts ids) → when */
   launchChecks?: Record<string, string>;
+  /** Aufgaben › Sicherheit: the kind of a safety case set by hand (task id → config/support-templates.ts SafetySubtype); else recognised */
+  safetySubtypes?: Record<string, "harassment" | "payment" | "onsite">;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
   location: { country: string | null; reason: string };
   /** Launch › Marketing › Kontakte – creators written to (Firestore marketingContacts, admins only: firestore.rules) */

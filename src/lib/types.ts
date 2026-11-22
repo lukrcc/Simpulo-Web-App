@@ -265,7 +265,11 @@ export type AdminAction =
   | "host_quote_asked"
   | "host_message"
   | "content_marked"
-  | "contact_restricted";
+  | "contact_restricted"
+  | "safety_subtype"
+  | "host_warned"
+  | "house_paused"
+  | "report_replied";
 
 // Support ("Help & feedback" → Admin › Support). Free text from support is never read by a model or for matching (config/data-points.ts).
 

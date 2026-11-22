@@ -49,7 +49,7 @@ interface GreetingProps {
 }
 
 export interface LaunchHero {
-  /** "Opening March 2027" */
+  /** "Opening May 2027" */
   label: string;
   onJoin: () => void;
   hostHref: string;
