@@ -1,9 +1,9 @@
 "use client";
 
-// /admin – the overview ("Wie läuft Simpulo?"), simple: the click row (period Woche · Monat · Jahr) · ONE row of four numbers (Gewinn with
-// "Monate in Folge", Volle Houses, Gemeinsame Nächte, Wiederkehrer) · the profit chart (12 months, line "Umzug 5.000 €") · the milestone bar. Every main number carries its change "like a stock" (getChange, against
-// the same day of the week / month / year before – the switch top right), its target and an ⓘ. The change's colour follows better/worse
-// (config/admin.ts CHANGE_RULES): sage better, ember worse, grey ±0. Every number from lib/admin/metrics.ts.
+// /admin – the overview ("Wie läuft Simpulo?"): the click row (period Woche · Monat · Quartal · Jahr) · two rows of four cards (Geld violet:
+// Umsatz, Gewinn with the months in a row, Buchungsvolumen, Ø pro Buchung · Kern turquoise: Volle Houses, Gemeinsame Nächte,
+// Verbindungsrate, Wiederkehrer), each with its change (getChange, better/worse colours), target and ⓘ – no small charts in cards ·
+// the profit chart with drill-down. Every number from lib/admin/metrics.ts.
 import { useTranslations } from "next-intl";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -14,21 +14,20 @@ import { Input } from "@/components/ui/Input";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
-import { CHILD_LEVEL, MOVE_TARGET, profitMilestones, type ChartLevel, type ComparePeriod } from "@/config/admin";
+import { OVERVIEW_GOALS } from "@/config/policies";
+import { CHILD_LEVEL, OVERVIEW_TARGETS, type ChartLevel, type ComparePeriod } from "@/config/admin";
 import { useAdminPeriod } from "@/lib/admin/period";
-import { chartBuckets, getChange, monthKpis, periodEnd, periodStart, runway, cockpit, type ChartView, companyBalance, getStatus, launchProgress, money, profitPerMonth, type CockpitNumber } from "@/lib/admin/metrics";
+import { connectionOverview, statusAgainst, chartBuckets, getChange, moneyPeriod, periodEnd, periodStart, cockpit, type ChartView, companyBalance, getStatus, launchProgress, type CockpitNumber } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { getBankBalance, getPlatformPayouts } from "@/lib/data";
-import { ColumnChart, DrillChart, ProgressBar, StatusDot, type DrillBar } from "./AdminCharts";
-import { ChangeLine, KeyNumbers } from "./AdminNumbers";
+import { getPlatformPayouts } from "@/lib/data";
+import { DrillChart, ProgressBar, StatusDot, type DrillBar } from "./AdminCharts";
+import { ChangeLine, KeyNumbers, MetricCard } from "./AdminNumbers";
 import { RoadmapHeadline } from "./AdminRoadmap";
-import { AdminSubTabs, AdminTabs, PeriodTabs } from "./AdminLayout";
-import { AdminTaxes } from "./AdminTaxes";
-import { AdminTaxJournal } from "./AdminTaxJournal";
+import { PeriodTabs } from "./AdminLayout";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 
-import { chartTick, chartTitle, day as dayLabel, dec, eur, month as monthLabel, monthLong, num, pct } from "@/lib/i18n/adminFormat";
+import { chartTick, chartTitle, day as dayLabel, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
 function valueText(value: number | null, format: CockpitNumber["format"]): string {
   if (value === null) return "–";
@@ -77,16 +76,20 @@ export function AdminCockpit() {
   const last = zoom.at(-1) ?? null;
   // The numbers follow the opened bar (its stretch against the one before), else the running period.
   const c = cockpit(inputs, period, last ? { level: last.level, from: last.start } : null);
-  const { move, profit, nights } = c;
+  const { profit, nights } = c;
+  const tm = useTranslations("admin.money");
+  // Geld: the money numbers of the same stretch (lib/admin/metrics.ts moneyPeriod); Kern: the connection rate (afterMetrics, all answers so far).
+  const m = moneyPeriod(inputs, period, last ? { level: last.level, from: last.start } : null);
   const against = c.level === "month" ? t("against.month", { month: monthLong(c.compareDate) }) : c.level === "year" ? t("against.year", { year: c.compareDate.slice(0, 4) }) : t(`against.${c.level}`);
   const full = c.areas.find((a) => a.key === "supply")!.number;
   const repeat = c.areas.find((a) => a.key === "quality")!.number;
+  // Kern: the connection rate for the same stretch (the history's series in the mock, else all answers so far).
+  const connection = connectionOverview(inputs, c.ranges, c.level);
 
   // The chart: the root's periods, or one level deeper inside the opened bar.
   const view: ChartView = last ? { level: CHILD_LEVEL[last.level], within: { from: last.start, to: periodEnd(last.start, last.level) } } : { level: period, within: null };
   const viewKey = `${view.level}:${view.within?.from ?? "root"}`;
   const bars = useMemo<DrillBar[]>(() => {
-    const months = view.level === "month";
     return chartBuckets(inputs, view).map((b) => {
       const tick = chartTick(b.from, b.to, b.level);
       return {
@@ -97,7 +100,6 @@ export function AdminCockpit() {
         value: b.profit,
         change: <ChangeLine change={b.profit === null ? null : getChange("profit", b.profit, b.previous)} against={t("chart.againstPrev")} />,
         current: b.current,
-        tone: months && b.profit !== null ? (b.profit >= MOVE_TARGET.profitPerMonth ? "good" : "warning") : "neutral",
         events: b.events,
       };
     });
@@ -109,35 +111,76 @@ export function AdminCockpit() {
 
   return (
     // Left in the click row, above the numbers: the next milestone and the departure (System › Zeitplan & Vorbereitung) as one link.
-    <AdminShell title={t("title")} tabs={<RoadmapHeadline href="/admin/platform?view=roadmap" />} aside={<PeriodTabs />}>
-      {/* ONE row of four numbers for the period (or the opened bar), each with its change (the same span of the period before), target
-          (monthly, scaled) and ⓘ: Gewinn (under it "Monate in Folge 0/6" – always monthly) · Volle Houses · Gemeinsame Nächte · Wiederkehrer. */}
-      <KeyNumbers
-        className="lg:grid-cols-4"
-        items={[
-          {
-            key: "profit",
-            label: t("move"),
-            info: `${t("info.profit")} (${against})`,
-            value: eur(profit.current),
-            change: profit.change,
-            target: { text: t("target", { target: eur(profit.target) }), status: profit.status },
-            sub: <span className="tabular-nums">{t("streakShort", { streak: move.streak, of: move.streakOf })}</span>,
-          },
-          { key: "fullHouses", label: t("metric.fullHouses"), info: `${t("info.fullHouses")} (${against})`, value: valueText(full.value, full.format), change: full.change, target: { text: t("target", { target: valueText(full.target, full.format) }), status: full.status } },
-          // No target for the shared nights (CLAUDE.md: "kein Ziel").
-          { key: "northStar", label: t("northStar"), info: `${t("info.northStar")} (${against})`, value: num(nights.current), change: nights.change },
-          { key: "repeatRate", label: t("metric.repeatRate"), info: `${t("info.repeatRate")} (${against})`, value: valueText(repeat.value, repeat.format), change: repeat.change, target: { text: t("target", { target: valueText(repeat.target, repeat.format) }), status: repeat.status } },
-        ]}
-      />
+    <AdminShell title={t("title")} tabs={<RoadmapHeadline href="/admin/zeitplan" />} aside={<PeriodTabs />}>
+      {/* Two rows of four numbers for the period (or the opened bar), each with its change (the same span of the period before), target
+          where it has one and ⓘ (the money terms' definitions from admin.money.terms – the same as on Geld):
+          Geld – Umsatz · Gewinn · Buchungsvolumen (no money targets) · Ø pro Buchung (Gast · Host, target 30 €), each a link to its tab in Geld;
+          Kern – Volle Houses · Gemeinsame Nächte · Verbindungsrate · Wiederkehrer. */}
+      <div className="flex flex-col gap-(--adm-inner)">
+        <section aria-label={t("rows.money")}>
+          <h2 className="mb-1.5 text-eyebrow uppercase text-(--adm-label)/70">{t("rows.money")}</h2>
+          <dl data-key-numbers className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <MetricCard accent="primary" label={tm("terms.revenue.label")} info={`${tm("terms.revenue.info")} (${against})`} value={eur(m.now.revenue)} change={m.changes.revenue} href="/admin/money?tab=overview" openLabel={t("openCard", { label: tm("terms.revenue.label") })} />
+            <MetricCard
+              accent="primary"
+              label={tm("terms.profit.label")}
+              info={`${tm("terms.profit.info")} (${against})`}
+              value={eur(profit.current)}
+              change={profit.change}
+              href="/admin/money?tab=costs"
+              openLabel={t("openCard", { label: tm("terms.profit.label") })}
+            />
+            <MetricCard accent="primary" label={tm("terms.bookingVolume.label")} info={`${tm("terms.bookingVolume.info")} (${against})`} value={eur(m.now.bookingVolume)} change={m.changes.bookingVolume} href="/admin/money?tab=guests" openLabel={t("openCard", { label: tm("terms.bookingVolume.label") })} />
+            <MetricCard
+              accent="primary"
+              label={tm("terms.perBooking.label")}
+              info={`${tm("terms.perBooking.info")} (${against})`}
+              value={
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span>
+                    <span className="text-small text-muted">{tm("guest.label")} </span>
+                    {m.now.perGuest === null ? "–" : eur(m.now.perGuest)}
+                  </span>
+                  <span aria-hidden className="text-muted">·</span>
+                  <span>
+                    <span className="text-small text-muted">{tm("guest.host")} </span>
+                    {m.now.perHost === null ? "–" : eur(m.now.perHost)}
+                  </span>
+                </span>
+              }
+              change={m.changes.perGuest}
+              target={{ text: t("target", { target: eur(OVERVIEW_GOALS.perBookingGuest) }), status: statusAgainst(m.now.perGuest, OVERVIEW_GOALS.perBookingGuest) }}
+              href="/admin/money?tab=guests"
+              openLabel={t("openCard", { label: tm("terms.perBooking.label") })}
+            />
+          </dl>
+        </section>
+        <section aria-label={t("rows.core")}>
+          <h2 className="mb-1.5 text-eyebrow uppercase text-(--adm-label)/70">{t("rows.core")}</h2>
+          <dl data-key-numbers className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <MetricCard accent="chart-2" label={t("metric.fullHouses")} info={`${t("info.fullHouses")} (${against})`} value={valueText(full.value, full.format)} change={full.change} target={{ text: t("target", { target: valueText(full.target, full.format) }), status: full.status }} href="/admin/houses" openLabel={t("openCard", { label: t("metric.fullHouses") })} />
+            {/* No target for the shared nights (CLAUDE.md: "kein Ziel"). */}
+            <MetricCard accent="chart-2" label={t("northStar")} info={`${t("info.northStar")} (${against})`} value={num(nights.current)} change={nights.change} href="/admin/topics" openLabel={t("openCard", { label: t("northStar") })} />
+            <MetricCard
+              accent="chart-2"
+              label={t("metric.connectionRate")}
+              info={`${t("info.connectionRate")} (${against})`}
+              value={connection.value === null ? "–" : pct(connection.value)}
+              change={connection.change}
+              target={{ text: t("target", { target: pct(OVERVIEW_TARGETS.connectionRate) }), status: getStatus("connectionRate", connection.value) }}
+              href="/admin/data"
+              openLabel={t("openCard", { label: t("metric.connectionRate") })}
+            />
+            <MetricCard accent="chart-2" label={t("metric.repeatRate")} info={`${t("info.repeatRate")} (${against})`} value={valueText(repeat.value, repeat.format)} change={repeat.change} target={{ text: t("target", { target: valueText(repeat.target, repeat.format) }), status: repeat.status }} href="/admin/topics" openLabel={t("openCard", { label: t("metric.repeatRate") })} />
+          </dl>
+        </section>
+      </div>
 
       <ProfitPanel
         title={title}
         bars={bars}
         viewKey={viewKey}
-        months={view.level === "month"}
         days={view.level === "day"}
-        current={move.current}
         onOpen={view.level === "day" ? undefined : (key) => go([...zoom, { level: view.level as ComparePeriod, start: periodStart(key, view.level) }])}
         crumbs={zoom.length ? crumbs : null}
         onCrumb={(steps) => go(steps)}
@@ -145,6 +188,7 @@ export function AdminCockpit() {
     </AdminShell>
   );
 }
+
 
 /**
  * One of the cockpit's numbers on another page ("2+ Vormerkungen" in Houses, "Pro vollem House" in Analyse): its label, value, change against
@@ -158,24 +202,25 @@ export function CockpitKeyNumber({ metric, className }: { metric: "reservedShare
   return (
     <KeyNumbers
       className={className}
-      items={[{ key: metric, label: t(`metric.${metric}`), info: `${t(`info.${metric}`)} (${against})`, value: valueText(n.value, n.format), change: n.change, target: { text: t("target", { target: valueText(n.target, n.format) }), status: n.status } }]}
+      items={[{ key: metric, label: t(`metric.${metric}`), info: `${t(`info.${metric}`)} (${against})`, value: valueText(n.value, n.format), change: n.change, ...(n.format === "eur" ? {} : { target: { text: t("target", { target: valueText(n.target, n.format) }), status: n.status } }) }]}
     />
   );
 }
 
 /**
  * The profit chart (DrillChart) with its own state – hovering never re-renders the page: the root's periods or one opened bar a level deeper;
- * a click on a bar opens it (not on days). Above it, once opened, "‹ {parent}" and the crumbs; the line "Umzug 5.000 €" only where the bars
- * are months; under a week's days what happened. Under it the milestone bar (always the running month). The chart's height fills the rest of
- * the window (at least 200px), so the overview fits without scrolling (1440 × 900).
+ * a click on a bar opens it (not on days). Above it, once opened, "‹ {parent}" and the crumbs; under a week's days what happened. No goal
+ * line (no money targets). The chart's height fills the rest of the window (at least 200px), so the overview fits without scrolling
+ * (1440 × 900).
  */
+/** What stays free under the chart: the page's bottom padding (admin main, --adm-page-top below) – measured so nothing scrolls. */
+const BOTTOM_GAP = 40;
+
 const ProfitPanel = memo(function ProfitPanel({
   title,
   bars,
   viewKey,
-  months,
   days,
-  current,
   onOpen,
   crumbs,
   onCrumb,
@@ -183,9 +228,7 @@ const ProfitPanel = memo(function ProfitPanel({
   title: string;
   bars: readonly (DrillBar & { events?: { requests: number; paid: number; houses: number } })[];
   viewKey: string;
-  months: boolean;
   days: boolean;
-  current: number;
   onOpen?: (key: string) => void;
   crumbs: readonly { label: string; steps: ZoomStep[] }[] | null;
   onCrumb: (steps: ZoomStep[]) => void;
@@ -197,9 +240,9 @@ const ProfitPanel = memo(function ProfitPanel({
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined) return;
-      // The rest of the window under the chart's top, less the axis' second line, the days' events, the milestone bar (≈ 72px) and the
-      // page's bottom padding; at least 200px.
-      setHeight(Math.max(200, Math.floor(window.innerHeight - (top + window.scrollY) - 72 - 40 - (days ? 56 : 0))));
+      // The rest of the window under the chart's top, less the days' events and the page's bottom padding (the axis' second line is inside
+      // the chart); at least 200px.
+      setHeight(Math.max(200, Math.floor(window.innerHeight - (top + window.scrollY) - BOTTOM_GAP - (days ? 56 : 0))));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -241,13 +284,10 @@ const ProfitPanel = memo(function ProfitPanel({
           bars={bars}
           label={title}
           height={height}
-          running={t("chart.running")}
-          line={months ? { value: MOVE_TARGET.profitPerMonth, label: `${t("milestones.move")} ${eur(MOVE_TARGET.profitPerMonth)}` } : null}
           onOpen={onOpen}
           below={days ? (bar) => <DayEvents events={(bar as { events?: { requests: number; paid: number; houses: number } }).events} /> : undefined}
         />
       </div>
-      <MilestoneBar current={current} />
     </section>
   );
 });
@@ -258,31 +298,6 @@ function DayEvents({ events }: { events?: { requests: number; paid: number; hous
   if (!events) return null;
   const lines = [events.requests > 0 && t("requests", { count: events.requests }), events.paid > 0 && t("paid", { count: events.paid }), events.houses > 0 && t("houses", { count: events.houses })].filter(Boolean);
   return <p className="mt-1 text-small text-muted">{lines.length ? lines.map((l) => <span key={String(l)} className="block truncate">{l}</span>) : "–"}</p>;
-}
-
-/**
- * The milestones as one slim bar under the chart (config/admin.ts profitMilestones.ladder): the next step "Umzug 5.000 € · 88 %" with its
- * progress bar, beside it the step after that, muted ("10.000 €").
- */
-function MilestoneBar({ current }: { current: number }) {
-  const t = useTranslations("admin.cockpit");
-  const steps = profitMilestones.ladder;
-  const i = steps.findIndex((s) => current < s.value);
-  const next = i >= 0 ? steps[i] : null;
-  const after = i >= 0 ? steps[i + 1] : null;
-  if (!next) return <p className="mt-(--adm-inner) text-small font-semibold text-ink">{t("ladder.allReached", { value: eur(steps.at(-1)!.value) })}</p>;
-  const ratio = Math.min(1, current / next.value);
-  const name = next.key ? `${t(`milestones.${next.key}`)} ` : "";
-  return (
-    <div className="mt-(--adm-inner) flex items-center gap-x-6 gap-y-2 max-md:flex-wrap">
-      <span className="shrink-0 text-small font-semibold tabular-nums text-ink">
-        {name}
-        {eur(next.value)} · {pct(Math.floor(ratio * 100))}
-      </span>
-      <ProgressBar ratio={ratio} label={`${name}${eur(next.value)}`} className="min-w-40 flex-1" />
-      {after && <span className="shrink-0 text-small tabular-nums text-muted">{t("ladder.after", { value: `${after.key ? `${t(`milestones.${after.key}`)} ` : ""}${eur(after.value)}` })}</span>}
-    </div>
-  );
 }
 
 /** The launch criteria as bars (Warteliste): each against its target, status dot and "X von Y". */
@@ -317,97 +332,11 @@ export function LaunchCriteria() {
 
 // ── Money ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** /admin/money – what Simpulo keeps: this month against the target, per full House, in all; the last 12 months in their status colours. */
-export function AdminMoney({ initialView = "overview" }: { initialView?: "overview" | "taxes" }) {
-  const t = useTranslations("admin.money");
-  // Two views in one tab: Übersicht · Steuern. /admin/money/taxes opens Steuern (the links from "Heute" and Vision › Standort).
-  const [view, setView] = useState<"overview" | "taxes">(initialView);
-  // Steuern has a second level: Buchungsjournal (the bookings, sums, reserve, DATEV and PDF) · Überblick (the ledger: countries, receipts, DAC7 …).
-  const [taxView, setTaxView] = useState<"journal" | "overview">("journal");
-  return (
-    <AdminShell
-      title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "taxes"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
-      subTabs={view === "taxes" ? <AdminSubTabs label={t("taxViews.label")} value={taxView} onChange={setTaxView} tabs={(["journal", "overview"] as const).map((value) => ({ value, label: t(`taxViews.${value}`) }))} /> : undefined}
-    >
-      {view === "taxes" ? taxView === "journal" ? <AdminTaxJournal /> : <AdminTaxes /> : <MoneyOverview />}
-    </AdminShell>
-  );
-}
-
-/** Geld › Übersicht: what Simpulo keeps – this month against the target, per full House, in all; the last 12 months; payouts and withdrawals. */
-function MoneyOverview() {
-  const t = useTranslations("admin.money");
-  const tc = useTranslations("admin.cockpit");
-  const inputs = useAdminInputs();
-  const m = money(inputs);
-  const months = profitPerMonth(inputs);
-  return (
-    <>
-      <MoneyKpis />
-      <StatRow
-        stats={[
-          { label: t("profitMonth"), value: eur(m.profitThisMonth), status: m.status, sub: tc("profitTarget", { target: eur(m.target) }), focus: true },
-          { label: t("perHouse"), value: m.perHouse === null ? "–" : eur(m.perHouse) },
-          { label: t("revenueTotal"), value: eur(m.total) },
-        ]}
-      />
-      <AdminSection title={t("perMonth")} aside={<span className="text-small text-muted">{t("target", { target: eur(m.target) })}</span>}>
-        <ColumnChart
-          label={t("perMonth")}
-          data={months.map((r) => ({ label: monthLabel(r.month), value: r.profit }))}
-          target={m.target}
-          unit="€"
-          height={260}
-        />
-      </AdminSection>
-      <p className="mt-(--adm-inner) max-w-2xl text-small text-muted">{t("note")}</p>
-      <PayoutSection />
-      <Withdrawals />
-    </>
-  );
-}
-
-/**
- * Geld › Übersicht, on top: booking volume and the revenue run rate of the last full month, and how long the money lasts (runway) – each
- * with its change, target where it has one, and ⓘ.
- */
-function MoneyKpis() {
-  const t = useTranslations("admin.money.kpis");
-  const inputs = useAdminInputs();
-  const k = monthKpis(inputs);
-  const bank = useMemo(() => getBankBalance(), []);
-  const r = runway(inputs, bank?.balance ?? null);
-  const month = monthLong(`${k.month}-01`);
-  const against = t("against", { month: monthLong(`${k.monthBefore}-01`) });
-  return (
-    <KeyNumbers
-      className="mb-12"
-      items={[
-        { key: "bookingVolume", label: t("inMonth", { label: t("bookingVolume"), month }), info: t("info.bookingVolume"), value: eur(k.bookingVolume.value), change: k.bookingVolume.change, against },
-        { key: "annualRevenue", label: t("annualRevenue"), info: t("info.annualRevenue"), value: eur(k.annualRevenue.value), change: k.annualRevenue.change, against },
-        r
-          ? {
-              key: "runway",
-              label: t("runway"),
-              info: t("info.runway"),
-              value: t("months", { value: dec(r.value ?? 0) }),
-              change: r.change,
-              against,
-              target: { text: t("runwayTarget", { target: r.target }), status: r.status },
-              sub: bank ? t("runwaySub", { balance: eur(bank.balance), costs: eur(r.avgCosts) }) : undefined,
-            }
-          : { key: "runway", label: t("runway"), info: t("info.runway"), value: "–", change: null, sub: t("noBank") },
-      ]}
-    />
-  );
-}
-
 /**
  * Simpulo's own payouts at Stripe: schedule, the account on file, the next payout – read only; changed in Stripe ("Manage in Stripe").
  * "Pay out now" only ever to that account (confirmed in a dialog, logged; the real call from phase 5).
  */
-function PayoutSection() {
+export function PayoutSection() {
   const t = useTranslations("admin.money");
   const showToast = useToast();
   const { payOutNow } = useAdminActions();
@@ -465,7 +394,7 @@ function PayoutSection() {
 }
 
 /** "My withdrawals": private withdrawals from Qonto entered by hand, and this year's profit − tax reserve − withdrawals = left in the company. */
-function Withdrawals() {
+export function Withdrawals() {
   const t = useTranslations("admin.money");
   const f = useFormat();
   const showToast = useToast();

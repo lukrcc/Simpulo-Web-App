@@ -236,6 +236,4 @@ export const MOCK_TAX_QUESTIONS: TaxQuestion[] = [
   { id: "tq-1", text: "Stripe-Connect-Art und Geldfluss", status: "open", note: "" },
   { id: "tq-2", text: "Umsatzsteuer auf Gebühren von Gästen aus verschiedenen Ländern", status: "open", note: "" },
   { id: "tq-3", text: "DAC7 selbst oder über Stripe", status: "open", note: "" },
-  { id: "tq-4", text: "Weg A (Umzug bei 5.000 € im Monat) gegen Weg B (Holding in Deutschland)", status: "open", note: "" },
-  { id: "tq-5", text: "Übertragung von Marke, Domain und Software beim Umzug", status: "open", note: "" },
 ];

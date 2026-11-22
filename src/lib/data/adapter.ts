@@ -53,12 +53,10 @@ export interface AdminData {
   receipts: Record<string, string>;
   /** Geld › Steuern: questions for the tax advisor */
   taxQuestions: TaxQuestion[];
-  /** Finanzierung › Bereitschaft: "Umzug erledigt, Firma im Ausland" – set by hand */
-  fundingMoved: boolean;
   /** Finanzierung › Unterlagen: each document's status by key (config/funding.ts DOCUMENTS); missing = "missing" */
   fundingDocs: Record<string, "missing" | "inProgress" | "done">;
   /** Admin › System › Backlog: each item's status (config/backlog.ts ids), over the start value there */
-  backlog: Record<string, "open" | "inProgress" | "done">;
+  backlog: Record<string, "open" | "inProgress" | "done" | "parked">;
   /** Admin › System › Launch: points confirmed by hand (config/launch.ts ids) → when */
   launchChecks?: Record<string, string>;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
@@ -87,10 +85,14 @@ export interface AdminData {
   hostTax?: Record<string, HostTaxData & { at: string }>;
   /** Launch › Marketing › Partner – one record per collaboration (Firestore marketingPartners, admins only: firestore.rules) */
   marketingPartners: MarketingPartner[];
-  /** Admin › System › Zeitplan & Vorbereitung: each to-do's status, note and cost over the start values (config/roadmap.ts ROADMAP_TODOS) */
+  /** Admin › Zeitplan: every to-do's status, note and cost (lib/roadmap.ts planTodos – preparation, code, marketing, own) */
   roadmapTodos?: Record<string, { status?: "open" | "inProgress" | "done" | "later"; note?: string; cost?: string }>;
-  /** Code milestones marked as reached (config/roadmap.ts CODE_MILESTONES ids) → when */
+  /** Milestones marked as reached (Zeitplan: M1–M6, the marketing phases, the launch) → when */
   roadmapReached?: Record<string, string>;
+  /** Zeitplan › Meilensteine: marked as postponed, and a note */
+  roadmapMilestones?: Record<string, { postponed?: boolean; note?: string }>;
+  /** Geld › Kosten: costs entered by hand (Stripe's fees come from the bookings) – profit = revenue − costs */
+  costEntries?: CostEntry[];
   /** Countdown: tasks ticked off – "<the week's first day>:<task id>" → when */
   launchTasks?: Record<string, string>;
   /** Countdown › "Diese Woche": tasks added by hand to a week (its Monday) */
@@ -101,12 +103,29 @@ export interface AdminData {
   contentSprints?: ContentSprint[];
 }
 
+/** Geld › Kosten: what a cost is for. */
+export type CostCategory = "tools" | "creator" | "marketing" | "other";
+
+/** A cost entered by hand (Geld › Kosten): amount in EUR, its day, category; `recurring` = every month on that day from then on. */
+export interface CostEntry {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  amount: number;
+  category: CostCategory;
+  recurring: boolean;
+  note: string;
+}
+
 /** A task added by hand to one week of the launch strategy. */
 export interface LaunchCustomTask {
   id: string;
-  /** The first day of its strategy week (YYYY-MM-DD) */
+  /** The first day of its strategy week (YYYY-MM-DD) – for one added in Zeitplan the Monday of its due day */
   week: string;
   text: string;
+  /** Added in Zeitplan › To-dos: its due day (else the week's Sunday) and group (else Marketing) */
+  due?: string;
+  group?: string;
 }
 
 /** One short in the content calendar: planned or published. */
@@ -309,6 +328,8 @@ export interface MetricsHistory {
     activeUsers: readonly number[];
     newGuests: readonly number[];
     repeatRate: readonly number[];
+    /** Guests with at least one mutual choice after their House (percent; lib/admin/metrics.ts afterMetrics computes it from the records) */
+    connectionRate?: readonly number[];
   };
   /**
    * Admin › Wachstum: per month (0 = this month so far) the guests with a booking (paid their share) and how many of them have Simpulo
@@ -377,6 +398,8 @@ export interface HouseOutcome {
   startDate: string;
   /** The guests who came (host not included) */
   guestIds: readonly string[];
+  /** Their countries, in the same order (Admin › Analyse › Spektrum „Wer bucht“) – from their profiles; unset = unknown */
+  guestCountries?: readonly (string | null)[];
   /** EUR: the guests' service fees */
   serviceFee: number;
   /** EUR: Simpulo's share of the host fees */
@@ -397,6 +420,8 @@ export interface HouseOutcome {
 /** A guest's payment that didn't go through (Admin › Heute, "Geld"). */
 export interface PaymentIssue {
   id: string;
+  /** Stripe's PaymentIntent (pi_…) – „In Stripe öffnen“ in the inbox; mock issues have none */
+  stripePaymentIntentId?: string;
   stayId: string;
   userId: string;
   /** In the House's currency */

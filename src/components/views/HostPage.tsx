@@ -143,6 +143,7 @@ export function HostPage() {
             <StripFig value={`−${eur(pro.kept)}`} label={t("example.simpulo", { percent: pro.percent })} />
             <StripFig value={eur(pro.earned)} label={t("example.earn")} />
           </StripRow>
+          <p className="mt-6 text-small text-ink/60">{t("example.minFee", { percent: FEE_MODEL.serviceFeePercent, min: FEE_MODEL.minServiceFeeEur })}</p>
         </FullBleedSection>
       </section>
 

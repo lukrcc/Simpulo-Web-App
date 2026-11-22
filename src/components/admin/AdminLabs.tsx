@@ -156,7 +156,7 @@ function LabMap({ onOpen }: { onOpen: (id: LabId) => void }) {
             const right = p.x < 0.7;
             return (
               <g key={lab.id} role="button" tabIndex={0} aria-label={T.pyramid.open(lab.name)} onClick={() => onOpen(lab.id)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(lab.id)} className="group cursor-pointer outline-none">
-                <circle cx={x} cy={y} r={r} className="fill-(--adm-chart-1-soft) stroke-(--adm-chart-1) transition-colors duration-150 group-hover:fill-(--adm-chart-1)" strokeWidth={1.5} />
+                <circle cx={x} cy={y} r={r} className="fill-(--adm-chart-primary-soft) stroke-(--adm-chart-primary) transition-colors duration-150 group-hover:fill-(--adm-chart-hover)" strokeWidth={1.5} />
                 <text x={right ? x + r + 6 : x - r - 6} y={y + 5} textAnchor={right ? "start" : "end"} className="fill-(--text) text-small">
                   {lab.name}
                 </text>
@@ -329,8 +329,8 @@ function Potential() {
                 <td className="px-3 py-2.5 leading-normal text-ink/80">{row.market}</td>
                 <td className="px-3 py-2.5 leading-normal text-ink/80">{row.earn}</td>
                 <td className="px-3 py-2.5 pr-0">
-                  <span className="relative block h-2 rounded-full bg-ink/6" role="img" aria-label={row.ceiling}>
-                    <span className={cn("absolute inset-y-0 rounded-full", row.rank === null ? "bg-ink/50" : "bg-adm-chart-1")} style={{ left: `${logX(row.from)}%`, width: `${Math.max(1.5, logX(row.to) - logX(row.from))}%` }} />
+                  <span className="relative block h-2 rounded-full bg-adm-chart-track" role="img" aria-label={row.ceiling}>
+                    <span className={cn("absolute inset-y-0 rounded-full", row.rank === null ? "bg-adm-chart-compare" : "bg-adm-chart-primary")} style={{ left: `${logX(row.from)}%`, width: `${Math.max(1.5, logX(row.to) - logX(row.from))}%` }} />
                   </span>
                   <span className="mt-1 block leading-normal text-ink">{row.ceiling}</span>
                 </td>

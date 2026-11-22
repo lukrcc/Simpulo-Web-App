@@ -1,14 +1,13 @@
 "use client";
 
 // /admin/vision – Vision as a map of building blocks (Warum · Wie · Wohin) with zoom and a timeline. The click row: Karte · Zeitleiste,
-// right the status "● Phase 1 · 0/6 Monate bei 5.000 €"; under it the motto (20px) and three numbers. Karte: BlockMap; a block zooms in
+// right the phase ("Phase 1"); under it the motto (20px) and three numbers. Karte: BlockMap; a block zooms in
 // (?block=<id>, breadcrumb "Vision › <Name>", "← Karte") to its content – the former tabs – under a one-line summary. Zeitleiste: the four
 // phases as columns, the lanes as rows of capsules (folded "+N"); a phase's head zooms into the phase. Every text from config/vision.ts,
 // every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier").
 import { ArrowRight, Building2, Castle, HeartPulse, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/ActionButton";
 import { Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -63,13 +62,13 @@ import {
   type Source,
   type SourceStatus,
 } from "@/config/vision";
-import { fundingReadiness, coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, moveProgress, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
+import { money, fundingReadiness, coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { dec, eur, num, pct, share } from "@/lib/i18n/adminFormat";
 import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
-import { ProgressBar, StatusDot, StepMeter } from "./AdminCharts";
+import { ProgressBar, StatusDot } from "./AdminCharts";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminSubTabs, AdminTabs } from "./AdminLayout";
 import { BlockMap, type BlockStatus } from "./BlockMap";
@@ -83,7 +82,6 @@ import { ContinuumForms, LongevityView } from "./vision/VisionDiagrams";
 export function AdminVision() {
   const inputs = useAdminInputs();
   const { view, block, go, back } = useVisionUrl();
-  const move = moveProgress(inputs);
   const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
   const zoomed = block ? zoomOf(block, (next) => go({ view, block: next })) : null;
   return (
@@ -91,10 +89,7 @@ export function AdminVision() {
       title={VISION_TITLE}
       tabs={!zoomed ? <AdminTabs label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))} /> : <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />}
       aside={
-        <span className="inline-flex items-center gap-2 text-body text-ink">
-          <StatusDot status={getStatus("profitPerMonth", move.current)} />
-          {BLOCK_MAP_TEXT.status(phase.number, move.streak, move.streakOf, eur(move.target))}
-        </span>
+        <span className="inline-flex items-center gap-2 text-body text-ink">{BLOCK_MAP_TEXT.status(phase.number)}</span>
       }
     >
       {zoomed ? (
@@ -522,8 +517,8 @@ function SourceRow({ source, number, revenue }: { source: Source; number?: numbe
       <span className={cn("min-w-0 text-body", source.status === "idea" ? "text-ink/70" : "font-semibold text-ink")}>{source.name}</span>
       {value !== null ? <span className="text-body tabular-nums text-ink">{eur(value)}</span> : <span />}
       {value !== null && total > 0 && (
-        <span aria-hidden className={cn("col-end-[-1] mt-2 h-1 overflow-hidden rounded-full bg-ink/8", number ? "col-start-3" : "col-start-2")}>
-          <span className="block h-full rounded-full bg-ink/70" style={{ width: `${(value / total) * 100}%` }} />
+        <span aria-hidden className={cn("col-end-[-1] mt-2 h-1 overflow-hidden rounded-full bg-adm-chart-track", number ? "col-start-3" : "col-start-2")}>
+          <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${(value / total) * 100}%` }} />
         </span>
       )}
     </li>
@@ -532,26 +527,15 @@ function SourceRow({ source, number, revenue }: { source: Source; number?: numbe
 
 // ── Gesamtbild ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The diamond with what opens the next phase, and how far it is: the move as six segments, the others "noch nicht messbar". */
-function UnlockMark({ phase, inputs, wide = false }: { phase: Phase; inputs: AdminInputs; wide?: boolean }) {
+/** The diamond with what opens the next phase ("noch nicht messbar" – no money target opens a phase). */
+function UnlockMark({ phase, wide = false }: { phase: Phase; inputs?: AdminInputs; wide?: boolean }) {
   if (!phase.unlock) return <p className="text-small text-muted">{PHASE_TEXT.none}</p>;
-  const move = phase.unlock.measure === "move" ? moveProgress(inputs) : null;
   return (
     <div className="flex gap-2.5">
-      <span aria-hidden className={cn("mt-1 size-3 shrink-0 rotate-45 border-[1.5px] border-ink", move?.reached && "bg-ink")} />
+      <span aria-hidden className="mt-1 size-3 shrink-0 rotate-45 border-[1.5px] border-ink" />
       <div className="min-w-0 flex-1">
         <p className={cn("text-ink", wide ? "text-body font-semibold" : "text-small")}>{phase.unlock.label}</p>
-        {move ? (
-          <>
-            <StepMeter reached={move.streak} of={move.streakOf} label={PHASE_TEXT.monthsInRow(move.streak, move.streakOf)} className={cn("mt-2", wide ? "max-w-80" : "max-w-40")} />
-            <p className="mt-1 text-small tabular-nums text-muted">
-              {PHASE_TEXT.monthsInRow(move.streak, move.streakOf)}
-              {wide && ` · ${PHASE_TEXT.thisMonth(eur(move.current), eur(move.target))}`}
-            </p>
-          </>
-        ) : (
-          <p className="mt-1 text-small text-muted">{NOT_MEASURABLE}</p>
-        )}
+        <p className="mt-1 text-small text-muted">{NOT_MEASURABLE}</p>
       </div>
     </div>
   );
@@ -671,15 +655,15 @@ function PhaseView({ phase, inputs }: { phase: Phase; inputs: AdminInputs }) {
   );
 }
 
-/** The numbers that count in a phase (Phase 1: full Houses per month, profit against 5.000 €, repeat guests), with their status dots. */
+/** The numbers that count in a phase (Phase 1: full Houses per month, profit this month – no money target –, repeat guests), with their status dots. */
 function PhaseMetrics({ metrics, inputs }: { metrics: Phase["metrics"]; inputs: AdminInputs }) {
   const full = fullHousesPerMonth(inputs);
-  const move = moveProgress(inputs);
+  const profit = money(inputs).profitThisMonth;
   const repeat = algorithmMetrics(inputs).repeatRate;
   const repeatPct = repeat === null ? null : Math.round(repeat * 100);
   const all = {
     fullHouses: { value: String(full.current), sub: PHASE_TEXT.ofTarget(String(full.target)), status: full.status },
-    profit: { value: eur(move.current), sub: PHASE_TEXT.ofTarget(eur(move.target)), status: move.status },
+    profit: { value: eur(profit), sub: undefined, status: null },
     repeat: { value: repeatPct === null ? "–" : pct(repeatPct), sub: undefined, status: getStatus("repeatRate", repeatPct) },
   };
   return (
@@ -1092,7 +1076,6 @@ function PlacesView({ inputs }: { inputs: AdminInputs }) {
                     {PLACES.crew(c.crew.min, c.crew.max)} · {PLACES.price(t(`price.${c.price}`))}
                   </p>
                   <p className="mt-1 text-small text-ink/70">{c.types.map((type) => t(`type.${type.id as keyof typeof ADMIN_DE.accommodation.type}`)).join(", ")}</p>
-                  {!c.overnight && <p className="mt-1 text-small font-semibold text-ink">{PLACES.dayOnly}</p>}
                 </li>
               ))}
             </ul>
@@ -1125,14 +1108,14 @@ function PlacesView({ inputs }: { inputs: AdminInputs }) {
 
 // ── Zielgruppen ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Colour by phase: the current one (launch) is the view's ocean focus; the others in the admin's chart and area colours. */
+/** Colour by phase (Regel „Admin-Diagramme“: at most three colours): launch primary, early chart-2, growth chart-3, the later ones in greys. */
 const PHASE_BG: Record<SegmentPhase, string> = {
-  launch: "bg-adm-chart-1",
-  early: "bg-adm-chart-3",
-  afterLaunch: "bg-adm-chart-3",
-  growth: "bg-adm-chart-2",
-  scale: "bg-adm-chart-4",
-  abroad: "bg-adm-chart-5",
+  launch: "bg-adm-chart-primary",
+  early: "bg-adm-chart-2",
+  afterLaunch: "bg-adm-chart-2",
+  growth: "bg-adm-chart-3",
+  scale: "bg-adm-chart-compare",
+  abroad: "bg-adm-chart-4",
 };
 /** The legend: one entry per colour (early and "kurz nach Launch" share one). */
 const PHASE_LEGEND: readonly SegmentPhase[] = ["launch", "early", "growth", "scale", "abroad"];
@@ -1143,7 +1126,7 @@ const perStayOf = (s: Segment) => `${eur(s.simpuloPerStay.amount)}${s.simpuloPer
 
 /**
  * Who Simpulo could be for (config/vision.ts SEGMENTS – rough assumptions to change there): horizontal bars of the theoretical revenue per
- * group (the range lighter, colour by phase, the current phase in ocean), the season strip (which groups fill which months), the table and
+ * group (the range lighter, colour by phase, the current phase in primary), the season strip (which groups fill which months), the table and
  * the note. No cards.
  */
 function SegmentsView() {
@@ -1269,7 +1252,7 @@ function SeasonRow({ segment }: { segment: Segment }) {
         const month = i + 1;
         const on = segment.months.includes(month);
         const strong = segment.strong?.includes(month);
-        return <span key={month} aria-hidden className={cn("h-4 rounded-[4px]", on ? PHASE_BG[segment.phase] : "bg-ink/6", on && !strong && "opacity-45")} />;
+        return <span key={month} aria-hidden className={cn("h-4 rounded-[4px]", on ? PHASE_BG[segment.phase] : "bg-adm-chart-track", on && !strong && "opacity-45")} />;
       })}
     </>
   );
@@ -1451,8 +1434,8 @@ function TechProviders({ inputs }: { inputs: AdminInputs }) {
                       <span className="text-muted">{NOT_MEASURABLE}</span>
                     ) : (
                       <span className="flex items-center gap-3">
-                        <span aria-hidden className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-ink/8">
-                          <span className="block h-full rounded-full bg-ink/70" style={{ width: `${Math.min(100, (share / COST_SCALE) * 100)}%` }} />
+                        <span aria-hidden className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-adm-chart-track">
+                          <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${Math.min(100, (share / COST_SCALE) * 100)}%` }} />
                         </span>
                         {level && <StatusDot status={level} />}
                         <span className={cn("tabular-nums", level ? `font-semibold ${COST_TEXT[level]}` : "text-ink")}>{`${dec(share)} %`}</span>
@@ -1481,7 +1464,6 @@ function LocationView({ inputs }: { inputs: AdminInputs }) {
       <AdminSubTabs label="Standort" className="mb-10" value={section} onChange={setSection} tabs={LOCATION.sections.map((s) => ({ value: s.key, label: s.label }))} />
       {section === "why" && <LocationWhy />}
       {section === "candidates" && <LocationCandidates />}
-      {section === "window" && <LocationWindow inputs={inputs} />}
       <LocationDecision inputs={inputs} />
     </>
   );
@@ -1562,7 +1544,7 @@ function LocationCandidates() {
                         <td key={k.key} className="py-3 pr-6">
                           <span role="img" aria-label={`${v} von 5`} className="flex gap-1">
                             {[1, 2, 3, 4, 5].map((n) => (
-                              <span key={n} aria-hidden className={cn("size-2 rounded-full", n <= v ? "bg-ink/70" : "bg-ink/10")} />
+                              <span key={n} aria-hidden className={cn("size-2 rounded-full", n <= v ? "bg-adm-chart-primary" : "bg-adm-chart-track")} />
                             ))}
                           </span>
                         </td>
@@ -1570,8 +1552,8 @@ function LocationCandidates() {
                     })}
                     <td className="py-3">
                       <span className="flex items-center gap-3">
-                        <span aria-hidden className="h-2 w-36 overflow-hidden rounded-full bg-ink/8">
-                          <span className="block h-full rounded-full bg-ink/70" style={{ width: `${(total / 5) * 100}%` }} />
+                        <span aria-hidden className="h-2 w-36 overflow-hidden rounded-full bg-adm-chart-track">
+                          <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${(total / 5) * 100}%` }} />
                         </span>
                         <span className="text-small tabular-nums text-ink">{dec(Math.round(total * 10) / 10)}</span>
                       </span>
@@ -1606,73 +1588,6 @@ function LocationCandidates() {
         </table>
       </div>
     </>
-  );
-}
-
-/**
- * The time window: income climbs steadily, the value (and with it the tax when moving) stays low, then climbs steeply – between them the window.
- * Beside it live: profit this month, months in a row at 5.000 € and the status (open · soon · not yet), and the link to the tax advisor's questions.
- */
-function LocationWindow({ inputs }: { inputs: AdminInputs }) {
-  const w = LOCATION.window;
-  const move = moveProgress(inputs);
-  const status = move.reached ? "open" : move.streak > 0 || move.current >= move.target ? "soon" : "notYet";
-  // The two curves on a 0–100 grid (x: time, y: up); the window between x 34 and 62.
-  const income = Array.from({ length: 21 }, (_, i) => [i * 5, 12 + i * 3.4] as const);
-  const value = Array.from({ length: 21 }, (_, i) => [i * 5, 6 + 70 * Math.pow(i / 20, 3.2)] as const);
-  const path = (pts: readonly (readonly [number, number])[]) => pts.map(([x, y], i) => `${i ? "L" : "M"}${(x * 4.4 + 20).toFixed(1)} ${(200 - y * 1.8).toFixed(1)}`).join(" ");
-  return (
-    <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <figure className="min-w-0">
-        <figcaption className="mb-3 text-eyebrow uppercase text-(--adm-label)">{w.chartTitle}</figcaption>
-        <svg viewBox="0 0 480 220" role="img" aria-label={w.chartTitle} className="h-auto w-full max-w-[560px]">
-          <rect x={20 + 34 * 4.4} y={20} width={(62 - 34) * 4.4} height={180} rx={8} className="fill-adm-chart-1-soft" />
-          <text x={20 + 48 * 4.4} y={38} textAnchor="middle" className="fill-adm-chart-1 text-small font-semibold">
-            {w.window}
-          </text>
-          <line x1={20} y1={200} x2={460} y2={200} className="stroke-ink/20" />
-          <path d={path(income)} fill="none" strokeWidth={2} className="stroke-ink/70" />
-          <path d={path(value)} fill="none" strokeWidth={2} className="stroke-adm-chart-3" />
-          <text x={460} y={216} textAnchor="end" className="fill-muted text-small">
-            {w.time} →
-          </text>
-        </svg>
-        <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-small text-ink">
-          <li className="flex items-center gap-2">
-            <span aria-hidden className="h-0.5 w-4 rounded-full bg-ink/70" />
-            {w.income}
-          </li>
-          <li className="flex items-center gap-2">
-            <span aria-hidden className="h-0.5 w-4 rounded-full bg-adm-chart-3" />
-            {w.value}
-          </li>
-        </ul>
-      </figure>
-      <div className="flex flex-col gap-6">
-        <div>
-          <p className="text-small text-muted">{w.profit}</p>
-          <p className="mt-1 text-h1 tabular-nums text-ink">{eur(move.current)}</p>
-        </div>
-        <div>
-          <p className="text-small text-muted">{w.streak}</p>
-          <p className="mt-1 text-h1 tabular-nums text-ink">
-            {move.streak} / {move.streakOf}
-          </p>
-          <StepMeter reached={move.streak} of={move.streakOf} label={w.streak} className="mt-2 w-48" />
-        </div>
-        <div>
-          <p className="text-small text-muted">{w.status}</p>
-          <p className="mt-1 flex items-center gap-2 text-h3 text-ink">
-            <StatusDot status={status === "open" ? "good" : status === "soon" ? "warning" : null} />
-            {w.statusLabel[status]}
-          </p>
-          <p className="mt-1 text-small text-muted">{w.rule}</p>
-        </div>
-        <Link href="/admin/money/taxes#fragen" className="text-body font-semibold text-ink hover:underline">
-          {w.questionsLink}
-        </Link>
-      </div>
-    </div>
   );
 }
 
@@ -1798,16 +1713,16 @@ function CoreHours() {
       <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-4 gap-y-5">
         <span className="text-body font-semibold text-ink">{H.everyday.label}</span>
         <div>
-          <div className="relative h-3 rounded-full bg-ink/5" role="img" aria-label={H.everyday.text}>
-            <span className="absolute inset-y-0 left-0 rounded-full bg-ink/15" style={{ width: at(H.everyday.toMonths) }} />
-            <span className="absolute inset-y-0 left-0 rounded-full bg-ink/70" style={{ width: at(H.everyday.fromMonths) }} />
+          <div className="relative h-3 rounded-full bg-adm-chart-track" role="img" aria-label={H.everyday.text}>
+            <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-primary-soft" style={{ width: at(H.everyday.toMonths) }} />
+            <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-primary" style={{ width: at(H.everyday.fromMonths) }} />
           </div>
           <p className="mt-1.5 text-small text-muted">{H.everyday.text}</p>
         </div>
         <span className="text-body font-semibold text-ink">{H.house.label}</span>
         <div>
-          <div className="relative h-3 rounded-full bg-ink/5" role="img" aria-label={H.house.text}>
-            <span className="absolute inset-y-0 left-0 min-w-3 rounded-full bg-adm-chart-1" style={{ width: at(H.house.months) }} />
+          <div className="relative h-3 rounded-full bg-adm-chart-track" role="img" aria-label={H.house.text}>
+            <span className="absolute inset-y-0 left-0 min-w-3 rounded-full bg-adm-chart-2" style={{ width: at(H.house.months) }} />
           </div>
           <p className="mt-1.5 text-small font-semibold text-ink">{H.house.text}</p>
         </div>

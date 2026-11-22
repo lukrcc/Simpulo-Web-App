@@ -10,15 +10,17 @@ import { useDepthChoice } from "@/config/platform";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat } from "@/i18n/format";
-import { analysisDimensions, analysisGrowth, analysisRows, sweetSpot, topicScores, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
+import { analysisDimensions, analysisGrowth, analysisRows, spectrum, sweetSpot, topicScores, type AnalysisDimension, type AnalysisPeriod, type AnalysisRow, type SpectrumCell } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { days, eur, num, share } from "@/lib/i18n/adminFormat";
+import { day, days, eur, num, share } from "@/lib/i18n/adminFormat";
 import type { ADMIN_DE } from "@/lib/i18n/admin.de";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AdminShell } from "./AdminShell";
 import { CockpitKeyNumber } from "./AdminCockpit";
-import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminSort, AdminTabs, BackToList, PeriodTabs } from "./AdminLayout";
+import { SPECTRUM_ROWS, type SpectrumDetail } from "@/config/spectrum";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { InfoTip } from "./AdminNumbers";
 
 const PERIODS: readonly AnalysisPeriod[] = ["30d", "year", "all"];
@@ -31,11 +33,13 @@ export function AdminAnalysis() {
   const depthOn = useDepthChoice();
   // The tabs: the angles the prompt names (Tiefe only with the depth choice).
   const dims = analysisDimensions(depthOn).filter((d) => d !== "origin");
-  const [dimension, setDimension] = useState<AnalysisDimension>("topic");
+  // Spektrum is the first tab and opens by default; the others are the angles (a Spektrum column opens its tab with its group).
+  const [dimension, setDimension] = useState<AnalysisDimension | "spectrum">("spectrum");
   const [period, setPeriod] = useState<AnalysisPeriod>("year");
   const [sort, setSort] = useState<SortKey>("value");
   const [selected, setSelected] = useState<string | null>(null);
-  const shown: AnalysisDimension = (dims as readonly AnalysisDimension[]).includes(dimension) ? dimension : "topic";
+  const isSpectrum = dimension === "spectrum";
+  const shown: AnalysisDimension = (dims as readonly string[]).includes(dimension) ? (dimension as AnalysisDimension) : "topic";
   const rows = analysisRows(inputs, shown, period);
   const growth = analysisGrowth(inputs, shown, period);
   const scores = new Map(topicScores(inputs).map((s) => [s.vibe as string, s.score]));
@@ -47,14 +51,27 @@ export function AdminAnalysis() {
   return (
     <AdminShell
       title={tTopics("title")}
-      tabs={<AdminTabs label={t("dimension.label")} value={shown} onChange={(next) => (setDimension(next), setSelected(null))} tabs={dims.map((value) => ({ value, label: t(`dimension.${value}`) }))} />}
+      tabs={<AdminTabs<AnalysisDimension | "spectrum"> label={t("dimension.label")} value={isSpectrum ? "spectrum" : shown} onChange={(next) => (setDimension(next), setSelected(null))} tabs={[{ value: "spectrum" as const, label: t("dimension.spectrum"), tooltip: t("spectrum.tooltip") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))]} />}
       aside={
+        isSpectrum ? (
+          <PeriodTabs />
+        ) : (
         <>
           <AdminSort label={t("period.label")} value={period} onChange={setPeriod} options={PERIODS.map((value) => ({ value, label: t(`period.${value}`) }))} />
           <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "growth", "score"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />
         </>
+        )
       }
     >
+      {isSpectrum ? (
+        <Spectrum
+          onOpen={(detail, key) => {
+            setDimension(detail);
+            setSelected(key);
+          }}
+        />
+      ) : (
+      <>
       {/* "Pro vollem House" (moved here from the overview) as the number on top. */}
       <CockpitKeyNumber metric="perHouse" className="mb-(--adm-inner)" />
       <SweetSpot spot={sweetSpot(inputs, period)} />
@@ -64,6 +81,8 @@ export function AdminAnalysis() {
           {row ? <GroupDetail dimension={shown} row={row} growth={growth.get(row.key) ?? null} score={shown === "topic" ? (scores.get(row.key) ?? null) : null} onBack={() => setSelected(null)} /> : <p className="py-2 text-body text-muted">{t("pick")}</p>}
         </div>
       </div>
+      </>
+      )}
     </AdminShell>
   );
 }
@@ -161,8 +180,8 @@ function AnalysisTable({ dimension, rows, selected, onSelect }: { dimension: Ana
               </td>
               <td className="h-(--adm-row-h) px-3">
                 <span className="flex items-center gap-3">
-                  <span aria-hidden className="h-1.5 flex-1 rounded-full bg-ink/6">
-                    <span className={cn("block h-full rounded-full", row.tooFew ? "bg-ink/20" : "bg-adm-chart-1")} style={{ width: `${((row.valuePerPersonYear ?? 0) / most) * 100}%` }} />
+                  <span aria-hidden className="h-1.5 flex-1 rounded-full bg-adm-chart-track">
+                    <span className={cn("block h-full rounded-full", row.tooFew ? "bg-adm-chart-compare" : "bg-adm-chart-primary")} style={{ width: `${((row.valuePerPersonYear ?? 0) / most) * 100}%` }} />
                   </span>
                   <span className="w-20 shrink-0 text-right tabular-nums">{row.valuePerPersonYear === null ? "–" : eur(row.valuePerPersonYear)}</span>
                 </span>
@@ -209,5 +228,87 @@ function GroupDetail({ dimension, row, growth, score, onBack }: { dimension: Ana
       </dl>
       {dimension === "depth" && <p className="mt-3 text-small text-muted">{t("againExample")}</p>}
     </article>
+  );
+}
+
+// ── Spektrum ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Analyse › Spektrum: three rows (Länge · Größe · Host, config/spectrum.ts) of three equal columns – side by side, no ranking, no good/bad
+ * colours, one neutral accent. Each column: title and range, „Wen es anspricht“, the numbers (share, € per booking, connection, repeat
+ * guests, days to full), who books (top topics and countries); a click opens its detail tab with its group. The one hint only when a column
+ * holds under 10 % of the Houses. Under it „Ø über alle“. Numbers from metrics.ts spectrum(), the period the admin's (Woche default).
+ */
+function Spectrum({ onOpen }: { onOpen: (detail: SpectrumDetail, key: string) => void }) {
+  const t = useTranslations("admin.analysis");
+  const inputs = useAdminInputs();
+  const [period] = useAdminPeriod();
+  const sp = spectrum(inputs, period);
+  return (
+    <div data-spectrum className="flex flex-col gap-2">
+      <p className="text-small text-muted">
+        {t(sp.fallback ? "spectrum.rangeFallback" : "spectrum.range", { from: day(sp.range.from), to: day(sp.range.to) })} · {t("spectrum.houses", { count: sp.houses })}
+      </p>
+      {SPECTRUM_ROWS.map((row, r) => (
+        <section key={row.key} aria-label={row.label} data-spectrum-row={row.key} className="grid gap-2 lg:grid-cols-[72px_repeat(3,minmax(0,1fr))]">
+          <h2 className="text-eyebrow uppercase text-(--adm-label) lg:pt-3">{row.label}</h2>
+          {row.columns.map((col, c) => (
+            <SpectrumCard key={col.key} title={col.title} range={col.range} audience={col.audience} cell={sp.rows[r].columns[c]} tab={t(`dimension.${row.detail}`)} onOpen={() => onOpen(row.detail, col.key)} />
+          ))}
+        </section>
+      ))}
+      <p data-spectrum-average className="text-small text-ink">
+        {t("spectrum.average", { guests: sp.averages.guestsPerHouse === null ? "–" : num(sp.averages.guestsPerHouse), perBooking: sp.averages.perBooking === null ? "–" : eur(sp.averages.perBooking) })}
+      </p>
+    </div>
+  );
+}
+
+function SpectrumCard({ title, range, audience, cell, tab, onOpen }: { title: string; range: string; audience: string; cell: SpectrumCell; tab: string; onOpen: () => void }) {
+  const t = useTranslations("admin.analysis");
+  const f = useFormat();
+  const dash = t("spectrum.none");
+  const figures = [
+    { key: "share", value: share(cell.share), info: null },
+    { key: "perBooking", value: cell.perBooking === null ? dash : eur(cell.perBooking), info: t("spectrum.info.perBooking") },
+    { key: "connection", value: share(cell.connection), info: t("spectrum.info.connection") },
+    { key: "repeat", value: share(cell.repeat), info: t("spectrum.info.repeat") },
+    { key: "daysToFull", value: cell.daysToFull === null ? dash : num(cell.daysToFull), info: t("spectrum.info.daysToFull") },
+  ] as const;
+  return (
+    <div data-spectrum-cell={cell.key} className="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink/8 bg-(--adm-block) px-4 pt-2.5 pb-2.5 transition-colors duration-150 has-[[data-card-link]:hover]:bg-(--adm-block-hover)">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-ink/25" />
+      <button type="button" data-card-link aria-label={t("spectrum.open", { title, tab })} onClick={onOpen} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
+      <p className="flex items-baseline gap-2">
+        <span className="text-body font-semibold text-ink">{title}</span>
+        <span className="truncate text-small text-muted">{range}</span>
+        <span className="ml-auto text-small text-muted" aria-hidden>
+          →
+        </span>
+      </p>
+      <p data-tooltip-info={audience} className="pointer-events-auto relative z-10 mt-0.5 self-start truncate text-small text-muted max-w-full">
+        <span className="sr-only">{t("spectrum.audience")}: </span>
+        {audience}
+      </p>
+      <dl className="pointer-events-none relative z-10 mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+        {figures.map((fig) => (
+          <div key={fig.key} className="min-w-0">
+            <dt {...(fig.info ? { "data-tooltip-info": fig.info } : {})} className="pointer-events-auto whitespace-nowrap text-eyebrow uppercase text-(--adm-label)">
+              {t(`spectrum.${fig.key}`)}
+              {fig.info && <span className="sr-only"> – {fig.info}</span>}
+            </dt>
+            <dd className="text-body font-semibold tabular-nums text-ink">{fig.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <h3 className="sr-only">{t("spectrum.who")}</h3>
+      <p className="mt-1.5 truncate text-small text-muted">
+        {t("spectrum.topics")}: <span className="text-ink">{cell.topTopics.length ? cell.topTopics.map((x) => f.vibe(x.key as Vibe)).join(", ") : dash}</span>
+      </p>
+      <p className="truncate text-small text-muted">
+        {t("spectrum.countries")}: <span className="text-ink">{cell.topCountries.length ? cell.topCountries.map((x) => x.key).join(", ") : dash}</span>
+      </p>
+      {cell.sparse && <p className="mt-1 text-small font-semibold text-ink">{t("spectrum.sparse")}</p>}
+    </div>
   );
 }

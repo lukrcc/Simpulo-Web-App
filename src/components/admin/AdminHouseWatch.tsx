@@ -3,6 +3,7 @@
 // /admin/houses – the early warning as a to-do list (CLAUDE.md "Admin › Houses"): tabs Braucht Hilfe · Läuft gut · Alle; the most urgent House
 // opens on its own; each House's reason in one sentence, the lever to pull first, the others, what was done (the log), "✓ Erledigt". Every
 // action through lib/admin/actions.ts (logged); in the mock nothing is sent.
+import { ProgressBar } from "./AdminCharts";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -26,7 +27,8 @@ import { convertApprox } from "@/lib/rates";
 import { findUser, useStore } from "@/lib/store";
 import type { AdminLogEntry, Currency, Stay } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
-import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList, DirectLink } from "./AdminLayout";
+import { firebaseDocUrl } from "@/config/tools";
 import { KeyNumbers } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
 
@@ -127,7 +129,12 @@ export function AdminHouseList() {
             media: <Img src={housePhotos(stay, host)[0]} alt="" width={36} height={36} className="size-9 rounded-lg object-cover" />,
             title: stay.title,
             meta: h ? reasonText(h.reasons[0], stay) : fullIn !== null ? t("fullIn", { days: fullIn }) : [host?.name, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · "),
-            aside: h ? `${t("left", { days: h.daysToStart })} · ${t("filled", { in: stay.spotsFilled, total: stay.spotsTotal })}` : f.stayDates(stay),
+            aside: (
+              <span className="flex flex-col items-end gap-1">
+                <span>{h ? `${t("left", { days: h.daysToStart })} · ${t("filled", { in: stay.spotsFilled, total: stay.spotsTotal })}` : f.stayDates(stay)}</span>
+                <ProgressBar ratio={fillOf(stay)} label={t("filled", { in: stay.spotsFilled, total: stay.spotsTotal })} className="w-16" />
+              </span>
+            ),
           };
         })}
         selectedId={selected?.stay.id ?? null}
@@ -189,6 +196,10 @@ function HouseDetail({
             {stay.title}
           </Link>
           <p className="mt-0.5 text-small text-muted">{[hostName, f.placeName(stay), f.stayDates(stay)].filter(Boolean).join(" · ")}</p>
+          {/* Only a real Firestore id in production (config/tools.ts) – in the mock nothing. */}
+          <DirectLink href={firebaseDocUrl("houses", stay.id)} className="mt-1">
+            {t("openFirebase")}
+          </DirectLink>
         </div>
       </div>
 
@@ -415,6 +426,7 @@ function NeedsHelpDetail({ stay, help, reasonText, hostName }: { stay: Stay; hel
         ))}
         <li className="text-small text-muted">
           {t("left", { days: help.daysToStart })} · {t("filled", { in: stay.spotsFilled, total: stay.spotsTotal })}
+          <ProgressBar ratio={fillOf(stay)} label={t("filled", { in: stay.spotsFilled, total: stay.spotsTotal })} className="mt-1.5 w-40" />
         </li>
       </ul>
       {lever(order[0], true)}

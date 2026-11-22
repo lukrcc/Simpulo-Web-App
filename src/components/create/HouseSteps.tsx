@@ -26,7 +26,7 @@ import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
-import { hostProgrammeEarning } from "@/lib/fees";
+import { guestFee, hostProgrammeEarning, isMinimumFee } from "@/lib/fees";
 import { linkDomain } from "@/lib/links";
 import type { Currency, Place, User, Vibe } from "@/lib/types";
 import Link from "next/link";
@@ -710,7 +710,7 @@ function SetPrice({ form, patch, errorOf, touch, currency, rentNote }: StepProps
   const t = useTranslations("create.flow");
   const format = useFormat();
   const share = placeShare(form);
-  const fee = share ? Math.round((share.share * FEE_MODEL.serviceFeePercent) / 100) : 0;
+  const fee = share ? guestFee(share.share, currency) : 0;
   return (
     <div className="space-y-5">
       <div id={fieldId("totalPrice")} className="grid grid-cols-[minmax(0,1fr)_128px] gap-3">
@@ -725,7 +725,7 @@ function SetPrice({ form, patch, errorOf, touch, currency, rentNote }: StepProps
       {share && (
         <div aria-live="polite">
           <p className="text-h3 tabular-nums text-ink">{t("perPerson", { share: format.price(share.share, currency) })}</p>
-          <p className="mt-1 text-small text-muted">{t("guestFee", { percent: FEE_MODEL.serviceFeePercent, fee: format.price(fee, currency) })}</p>
+          <p className="mt-1 text-small text-muted">{t(share && isMinimumFee(share.share, currency) ? "guestFeeMin" : "guestFee", { percent: FEE_MODEL.serviceFeePercent, fee: format.price(fee, currency) })}</p>
         </div>
       )}
       <FormField label={t("placeLink")}>

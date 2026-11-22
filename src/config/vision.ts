@@ -216,7 +216,7 @@ export interface Phase {
   /** Items in lanes after the first phase are additions ("+") – except where marked `plus: false` */
   lanes: Record<LaneKey, { plus: boolean; items: readonly LaneItem[] }>;
   /** What opens the next phase (the diamond after this one); null = the last */
-  unlock: { label: string; measure: "move" | null } | null;
+  unlock: { label: string; measure: null } | null;
   /** Numbers that count in this phase (Phase 1 only so far) */
   metrics: readonly ("fullHouses" | "profit" | "repeat")[];
   /** The steps of breadth (H) and depth (V) that fall into this phase (BREADTH_DEPTH) */
@@ -238,7 +238,7 @@ export const PHASES: readonly Phase[] = [
       hosts: { plus: false, items: [{ label: "Share" }, { label: "Pro" }, { label: "1–2 Anchor (Creator-Collab-House)" }] },
       structure: { plus: false, items: [{ label: "Einzelunternehmen" }] },
     },
-    unlock: { label: "5.000 € × 6 Monate", measure: "move" },
+    unlock: null,
     metrics: ["fullHouses", "profit", "repeat"],
     takt: ["H1", "H2", "V1"],
   },
@@ -306,8 +306,6 @@ export const PHASE_TEXT = {
   none: "–",
   open: (title: string) => `${title} öffnen`,
   segmentDetail: (users: string, revenue: string) => `${users} · ${revenue}`,
-  monthsInRow: (streak: number, of: number) => `${streak} von ${of} Monaten`,
-  thisMonth: (value: string, target: string) => `${value} diesen Monat von ${target}`,
   overviewNumbers: {
     market: { label: "Gesamtmarkt", value: "10–25 Mrd. € pro Jahr" },
     leader: { label: "Kategorie-Führer (5–10 %)", value: "0,5–2,5 Mrd. €" },
@@ -474,7 +472,6 @@ export const PLACES = {
   now: "launch",
   crew: (min: number, max: number) => `Crew ${min}–${max}`,
   price: (level: string) => `Preis ${level}`,
-  dayOnly: "nur tagsüber – keine Übernachtung",
   houses: (count: number) => `${count} ${count === 1 ? "House" : "Houses"}`,
   /** "Getting there" (config/travel.ts): how the crew travels – not a place to live */
   travelTitle: "Anreise",
@@ -527,7 +524,7 @@ export const SEGMENTS: readonly Segment[] = [
   { key: "transitions", name: "Lebensumbrüche", examples: "neu in der Stadt, Sabbatical, Neustart", age: "alle", motive: "Zugehörigkeit", frequency: "selten", valuePerStay: "hoch", phase: "growth", phaseLabel: "Wachstum", users: { min: 5, max: 10, unit: "" }, staysPerMonth: "0,4–0,8 Mio.", season: "ganzjährig", months: ALL_YEAR, simpuloPerStay: { amount: 100, unit: "" }, revenue: { min: 0.5, max: 1 } },
   { key: "families", name: "Familien", examples: "Familien-Houses, Alleinerziehende", age: "30–50 mit Kindern", motive: "Gemeinschaft, Entlastung", frequency: "selten", valuePerStay: "hoch", phase: "scale", phaseLabel: "Skalierung", users: { min: 15, max: 40, unit: "Personen" }, staysPerMonth: "1,3–3,3 Mio.", season: "Schulferien", months: [4, 7, 8, 10, 12], strong: [7, 8], simpuloPerStay: { amount: 50, unit: "pro Person" }, revenue: { min: 0.75, max: 2 } },
   { key: "older", name: "50+ und Ältere", examples: "Überwintern, Hobbys, Gesellschaft", age: "50–80", motive: "Zugehörigkeit, gegen Einsamkeit", frequency: "mittel, lang", valuePerStay: "hoch", phase: "growth", phaseLabel: "Wachstum", users: { min: 10, max: 20, unit: "" }, staysPerMonth: "0,8–1,7 Mio.", season: "Herbst bis Frühling", months: [10, 11, 12, 1, 2, 3, 4], simpuloPerStay: { amount: 250, unit: "" }, revenue: { min: 2.5, max: 5 } },
-  { key: "local", name: "Lokal ohne Reise", examples: "Day Houses", age: "alle", motive: "Leute treffen", frequency: "sehr hoch", valuePerStay: "niedrig", phase: "afterLaunch", phaseLabel: "kurz nach Launch", users: { min: 50, max: 100, unit: "" }, staysPerMonth: "25–50 Mio.", season: "ganzjährig, Wochenenden", months: ALL_YEAR, simpuloPerStay: { amount: 5, unit: "" }, revenue: { min: 1.5, max: 3 } },
+  { key: "local", name: "Lokal ohne Reise", examples: "geparkt – Houses brauchen eine Nacht", age: "alle", motive: "Leute treffen", frequency: "sehr hoch", valuePerStay: "niedrig", phase: "afterLaunch", phaseLabel: "geparkt", users: { min: 50, max: 100, unit: "" }, staysPerMonth: "25–50 Mio.", season: "ganzjährig, Wochenenden", months: ALL_YEAR, simpuloPerStay: { amount: 5, unit: "" }, revenue: { min: 1.5, max: 3 } },
   { key: "b2b", name: "B2B", examples: "Firmen, Unis, Austausch", age: "–", motive: "Teams, Programme", frequency: "regelmäßig", valuePerStay: "sehr hoch", phase: "abroad", phaseLabel: "Ausland", users: { min: 1, max: 2, unit: "Offsites" }, staysPerMonth: "80.000–170.000 Offsites", season: "Frühjahr und Herbst", months: [3, 4, 5, 9, 10, 11], simpuloPerStay: { amount: 1000, unit: "pro Offsite" }, revenue: { min: 1, max: 2 } },
 ];
 
@@ -652,7 +649,7 @@ export const TECH = {
 
 // ── Standort ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type LocationSection = "why" | "candidates" | "window";
+export type LocationSection = "why" | "candidates";
 export type LocationCriterion = "tax" | "living" | "hubs" | "investors" | "eu";
 
 /**
@@ -666,7 +663,6 @@ export const LOCATION = {
   sections: [
     { key: "why", label: "Warum nicht dauerhaft Deutschland" },
     { key: "candidates", label: "Kandidaten" },
-    { key: "window", label: "Zeitfenster" },
   ] as const satisfies readonly { key: LocationSection; label: string }[],
   why: {
     againstTitle: "Auf Dauer passt es nicht",
@@ -679,7 +675,7 @@ export const LOCATION = {
     ],
     forTitle: "Für den Start richtig",
     for: ["Einzelunternehmen schnell und günstig", "Rechtssicherheit beim Testen", "Job trägt bis Simpulo trägt"],
-    path: ["Deutschland starten", "Umzug bei 5.000 €/Monat", "Ausland wachsen"],
+    path: ["Deutschland starten", "Ausland wachsen"],
   },
   candidates: {
     columns: { country: "Land", tax: "Steuern (grob)", strengths: "Stärken", weaknesses: "Schwächen" },
@@ -713,20 +709,6 @@ export const LOCATION = {
     es: { tax: 3, living: 4, hubs: 3, investors: 3, eu: 5 },
     ge: { tax: 5, living: 5, hubs: 2, investors: 1, eu: 1 },
   } as Record<string, Record<LocationCriterion, number>>,
-  window: {
-    chartTitle: "Einkommen vs. Wert beim Umzug",
-    income: "Einkommen",
-    value: "Wert – und damit Steuer beim Umzug",
-    window: "Fenster",
-    time: "Zeit",
-    profit: "Gewinn diesen Monat",
-    streak: "Monate in Folge bei 5.000 €",
-    status: "Status",
-    statusLabel: { open: "Fenster offen", soon: "bald", notYet: "noch nicht" },
-    /** open: the move target reached (6 months in a row); soon: at least one month or this month at 5.000 €; else not yet */
-    rule: "Offen ab 6 Monaten in Folge bei 5.000 €, bald ab dem ersten Monat dort.",
-    questionsLink: "Fragen an den Steuerberater →",
-  },
   decision: {
     title: "Entscheidung",
     country: "Gewähltes Land",
@@ -755,7 +737,7 @@ export const BLOCK_MAP_TEXT = {
   crumb: "Vision",
   back: "← Karte",
   backTimeline: "← Zeitleiste",
-  status: (phase: number, streak: number, of: number, target: string) => `Phase ${phase} · ${streak}/${of} Monate bei ${target}`,
+  status: (phase: number) => `Phase ${phase}`,
   phaseOf: (n: number, total: number) => `${n} von ${total}`,
   groups: (n: number) => `${n} Gruppen`,
   hosts: (all: number, pro: number) => `${all} · davon ${pro} Pro`,

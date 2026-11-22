@@ -15,7 +15,7 @@ import type { ThemePref } from "./themeScript";
 import { yourPeople } from "./yourPeople";
 import { canAddInFor, type InFor, type InForDraft } from "./inFor";
 import { mockInFor } from "./mock-inFor";
-import { DEADLINES, INVITE_POLICY, MANUAL_REMINDERS, type DeadlineFlow } from "@/config/policies";
+import { DEADLINES, INVITE_POLICY, MANUAL_REMINDERS, STAY_POLICY, type DeadlineFlow } from "@/config/policies";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { MOCK_USER_KEY, OPEN_AS_PARAM, TAB_USER_KEY } from "./authHint";
 import { USES_MOCK_DATA } from "./appMode";
@@ -607,7 +607,7 @@ export const feeFor = guestFee;
 /** One crew member's payment: everyone pays the same share; guests add the service fee (and a host fee, if set) – the host doesn't. */
 function paymentFor(stay: Stay, userId: string, share: number, attribution: Attribution): Omit<Payment, "id" | "status"> {
   const host = userId === stay.hostId;
-  const split = paymentSplit(share, host ? 0 : (stay.hostFeePerPerson ?? 0));
+  const split = paymentSplit(share, host ? 0 : (stay.hostFeePerPerson ?? 0), stay.currency);
   return {
     stayId: stay.id,
     userId,
@@ -1328,6 +1328,12 @@ function syncWaitlist(state: StoreState, at: string): StoreState {
 
 /** Whatever changed the Houses: their visibility follows how many are published (src/lib/launch.ts). */
 /** Every action, then the chats' lastMessageAt / lastReadAt brought in step (withChatMeta) – only when the threads changed. */
+/** At least STAY_POLICY.minNights nights between start and end (date strings, ISO; whole days). */
+function hasMinNights(start: string, end: string): boolean {
+  const nights = Math.round((Date.parse(end.slice(0, 10)) - Date.parse(start.slice(0, 10))) / 86_400_000);
+  return Number.isFinite(nights) && nights >= STAY_POLICY.minNights;
+}
+
 function reducer(state: StoreState, action: StoreAction): StoreState {
   const next = reduce(state, action);
   return next.threads === state.threads ? next : { ...next, threads: withChatMeta(next.threads) };
@@ -1368,6 +1374,8 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
 
     case "createStay": {
       if (!me) return state;
+      // At least one night together (config/policies.ts STAY_POLICY) – the form checks it, the store too.
+      if (!hasMinNights(action.stay.startDate, action.stay.endDate)) return state;
       // A window of a saved place: only the host's own place, and never more people than its free rooms + the host.
       const ownPlace = action.stay.placeId ? state.places.find((p) => p.id === action.stay.placeId && p.ownerId === me) : undefined;
       const created = action.stay.placeId && (!ownPlace || action.stay.spotsTotal > ownPlace.freeSpots + 1) ? { ...action.stay, placeId: undefined } : action.stay;
@@ -1721,6 +1729,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
     case "updateStay": {
       const stay = state.stays.find((s) => s.id === action.stayId);
       if (!stay || !me || stay.hostId !== me) return state;
+      if (!hasMinNights(action.patch.startDate ?? stay.startDate, action.patch.endDate ?? stay.endDate)) return state;
       // Never below the people already in.
       const spotsTotal = Math.max(action.patch.spotsTotal, stay.spotsFilled);
       // The social depth is fixed after the first booking (lib/depth.ts).
@@ -2378,7 +2387,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
             houseId: stay.id,
             userId: me,
             amount: mine.total,
-            revenue: paymentSplit(mine.share, mine.hostFee).revenue,
+            revenue: paymentSplit(mine.share, mine.hostFee, stay.currency).revenue,
             currency: stay.currency,
             ...attributionOf(mine),
           }),

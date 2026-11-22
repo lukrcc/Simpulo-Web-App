@@ -15,6 +15,7 @@ import { getMyPayment, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn, housePhotos } from "@/lib/utils";
 import { FEE_MODEL } from "@/config/policies";
+import { isMinimumFee, minimumFee } from "@/lib/fees";
 import { Img } from "@/components/ui/Img";
 import { APP_MODE } from "@/lib/appMode";
 import { convertApprox } from "@/lib/rates";
@@ -166,7 +167,7 @@ export function CardPayForm({ stay, amounts, onPay }: CardPayFormProps) {
           <Row label={amounts.hostFee ? tPremium("share") : t("share")} value={money(amounts.share)} />
           {amounts.hostFee ? <Row label={tPremium("fieldLabel")} value={money(amounts.hostFee)} /> : null}
           {/* Guests only – the host pays their share without a service fee. */}
-          {amounts.fee > 0 && <Row label={t("feeIncluded", { percent: FEE_MODEL.serviceFeePercent })} value={money(amounts.fee)} muted />}
+          {amounts.fee > 0 && <Row label={isMinimumFee(amounts.share, stay.currency) ? t("feeMinimum", { min: money(minimumFee(stay.currency)) }) : t("feeIncluded", { percent: FEE_MODEL.serviceFeePercent })} value={money(amounts.fee)} muted />}
           <div className="h-px bg-ink/8" aria-hidden />
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-body font-semibold text-ink">{t("total")}</dt>

@@ -1,7 +1,7 @@
 import { suggestedDepth, type Depth } from "@/config/depth";
 import { cleanSpace, spaceAnswered, type HouseSpace } from "@/config/space";
 import { WAITLIST_MAX_DEFAULT, waitlistMaxOf } from "@/lib/waitlist";
-import { INVITE_POLICY } from "@/config/policies";
+import { INVITE_POLICY, STAY_POLICY } from "@/config/policies";
 import { ACCOMMODATION_CATEGORIES, PRICE_BUDGET_EUR, accommodationOf } from "@/config/accommodation";
 import { convert } from "@/lib/currency";
 import { placeById, placeKindOf } from "@/lib/data/places";
@@ -634,7 +634,7 @@ export type FieldKey = "source" | "rentPeriod" | "monthlyRent" | "allowedToHost"
 
 /** A field's problem: the key of its `create.errors` message. */
 export type FieldError =
-  | { key: "cover" | "vibe" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "budget" | "budgetOrder" | "hostFee" | "crewGroupUrl" | "lookingForUnfinished" | "month" | "dateProposal" | "placeProposal" }
+  | { key: "cover" | "vibe" | "region" | "startDate" | "startPast" | "endDate" | "dateOrder" | "minNights" | "budget" | "budgetOrder" | "hostFee" | "crewGroupUrl" | "lookingForUnfinished" | "month" | "dateProposal" | "placeProposal" }
   | { key: "tooLong"; max: number }
   | { key: "titleLength"; min: number; max: number }
   | { key: "spots"; min: number }
@@ -692,7 +692,9 @@ function datesErrors({ form, today, editing }: ValidationContext): FieldErrors {
   if (!form.endDate) errors.endDate = { key: "endDate" };
   else if (form.startDate) {
     const nights = nightsBetween(form.startDate, form.endDate);
-    if (nights < 1) errors.endDate = { key: "dateOrder" };
+    // Before the start: the order; the same day (or fewer nights than the minimum): "A House needs at least one night together."
+    if (nights < 0) errors.endDate = { key: "dateOrder" };
+    else if (nights < STAY_POLICY.minNights) errors.endDate = { key: "minNights" };
     else if (nights > MAX_NIGHTS) errors.endDate = { key: "tooLong", max: MAX_NIGHTS };
   }
   return errors;
@@ -758,7 +760,7 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
       else if (form.datesMode === "crew") {
         const earliest = earliestStart(today);
-        const valid = (p: DateProposal) => p.start && p.end && nightsBetween(p.start, p.end) >= 1 && (!earliest || p.start >= earliest);
+        const valid = (p: DateProposal) => p.start && p.end && nightsBetween(p.start, p.end) >= STAY_POLICY.minNights && (!earliest || p.start >= earliest);
         if (form.dateProposals.length === 0 || !form.dateProposals.every(valid)) errors.dateProposals = { key: "dateProposal" };
       }
       break;

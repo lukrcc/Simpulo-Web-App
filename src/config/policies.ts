@@ -35,6 +35,13 @@ export const CANCELLATION_POLICY = {
  */
 export const FEE_MODEL = {
   serviceFeePercent: 10,
+  /**
+   * The service fee per guest and booking is at least this much (EUR, converted into the House's currency) – it applies when the percent
+   * is lower (a short or cheap House). lib/fees.ts guestFee.
+   */
+  minServiceFeeEur: 5,
+  /** A cap per guest and booking (EUR) – prepared, off: while `enabled` is false the percent has no ceiling. */
+  serviceFeeCap: { enabled: false, eur: 150 },
   /** On the rent (the crew's shares the host passes on): nothing – the host receives the guests' full shares */
   hostCommissionPercent: 0,
   /** On a host fee (coaching, a program, guiding – the host's real income): Simpulo keeps this much */
@@ -281,3 +288,21 @@ export const REMINDER_TIMING = {
   /** "Want to do it again?": this long after a House ended, to everyone in its crew */
   doItAgainDaysAfter: 2,
 } as const;
+
+/**
+ * The move (Admin › Übersicht, under Gewinn): calendar months in a row with a profit of at least `profitPerMonth`; from `planFrom` months
+ * the move is planned ("Planen ✓"), from `moveFrom` months it happens. Counted in calendar months, whatever period the overview shows.
+ */
+export const MOVE_STREAK = { profitPerMonth: 5000, planFrom: 3, moveFrom: 6 } as const;
+
+/**
+ * The overview's targets (Admin › Übersicht), monthly – scaled to the chosen period (config/admin.ts PERIOD_MONTHS: a week ≈ 10 full Houses,
+ * a month 44): full Houses (not the launch criterion of 50 real Houses) and what Simpulo earns from a paid booking (the guest's service fee).
+ */
+export const OVERVIEW_GOALS = { fullHousesPerMonth: 44, perBookingGuest: 30 } as const;
+
+/**
+ * How long a House is at least (Regel „Mindestens eine Nacht“): living together means at least one night under one roof – no Houses without
+ * a night (Day House, Nearby, City Circle are parked). Open a House, editing and the store check it (create/model.ts, lib/store.tsx).
+ */
+export const STAY_POLICY = { minNights: 1 } as const;

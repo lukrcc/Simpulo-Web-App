@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminMoney } from "@/components/admin/AdminCockpit";
+import { AdminMoney } from "@/components/admin/AdminMoney";
 
 export const metadata: Metadata = { title: "Geld · Steuern · Admin" };
 

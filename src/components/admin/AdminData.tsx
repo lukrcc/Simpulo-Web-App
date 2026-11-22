@@ -162,12 +162,12 @@ function Flow() {
   );
 }
 
-/** A small bar: the share "Genutzt" (white 80 %) and "Wird erfasst" (white 40 %) of a moment's data points. */
+/** A small bar: the share "Genutzt" (primary) and "Wird erfasst" (chart-2) of a moment's data points, on the grey track. */
 function ShareBar({ used, collecting, total, label }: { used: number; collecting: number; total: number; label: string }) {
   return (
-    <span role="img" aria-label={label} className="flex h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-ink/8">
-      <span className="h-full bg-ink/80" style={{ width: `${(used / Math.max(1, total)) * 100}%` }} />
-      <span className="h-full bg-ink/40" style={{ width: `${(collecting / Math.max(1, total)) * 100}%` }} />
+    <span role="img" aria-label={label} className="flex h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-adm-chart-track">
+      <span className="h-full bg-adm-chart-primary" style={{ width: `${(used / Math.max(1, total)) * 100}%` }} />
+      <span className="h-full bg-adm-chart-2" style={{ width: `${(collecting / Math.max(1, total)) * 100}%` }} />
     </span>
   );
 }
@@ -178,7 +178,7 @@ function StageDots({ stage, label }: { stage: ModelStage; label: string }) {
   return (
     <span className="flex items-center gap-1.5 text-small text-ink/60">
       {STAGES.map((s, i) => (
-        <span key={s} aria-hidden className={cn("size-2 rounded-full", i <= reached ? "bg-ink/85" : "border border-ink/30")} />
+        <span key={s} aria-hidden className={cn("size-2 rounded-full", i <= reached ? "bg-adm-chart-primary" : "bg-adm-chart-track")} />
       ))}
       <span className="ml-1">{label}</span>
     </span>
@@ -298,9 +298,9 @@ function ThesisBar({ bar }: { bar: ReturnType<typeof hypothesisBar> }) {
   const t = useTranslations("admin.data.hyp");
   if (!bar) return <span role="img" aria-label={t("notMeasurable")} className="block h-2 rounded-full border border-dashed border-ink/25" />;
   return (
-    <span role="img" aria-label={t("barLabel", { now: bar.now, target: bar.target })} className="relative block h-2 rounded-full bg-ink/8">
-      <span className="absolute inset-y-0 left-0 rounded-full bg-ink/70" style={{ width: `${(bar.now / bar.max) * 100}%` }} />
-      <span className="absolute -inset-y-1 w-0.5 rounded-full bg-ink" style={{ left: `${(bar.target / bar.max) * 100}%` }} />
+    <span role="img" aria-label={t("barLabel", { now: bar.now, target: bar.target })} className="relative block h-2 rounded-full bg-adm-chart-track">
+      <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-primary" style={{ width: `${(bar.now / bar.max) * 100}%` }} />
+      <span className="absolute -inset-y-1 w-0.5 rounded-full bg-adm-chart-goal" style={{ left: `${(bar.target / bar.max) * 100}%` }} />
     </span>
   );
 }

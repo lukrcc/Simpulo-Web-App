@@ -129,7 +129,7 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
                   {t(`todoStatus.${x.status}`)}
                 </span>
                 <span className="flex min-w-[min(15rem,100%)] shrink-0 items-center justify-end gap-3 max-md:justify-start">
-                  <Link href="/admin/platform?view=roadmap&sub=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">
+                  <Link href="/admin/zeitplan?tab=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">
                     {t("open")} →
                   </Link>
                 </span>

@@ -342,6 +342,16 @@
   --color-adm-critical: var(--adm-critical);
   --color-adm-neutral: var(--adm-neutral);
   --color-adm-chart-1: var(--adm-chart-1);
+  --color-adm-chart-primary: var(--adm-chart-primary);
+  --color-adm-chart-hover: var(--adm-chart-hover);
+  --color-adm-chart-current: var(--adm-chart-current);
+  --color-adm-chart-fill: var(--adm-chart-fill);
+  --color-adm-chart-fill-hover: var(--adm-chart-fill-hover);
+  --color-adm-chart-compare: var(--adm-chart-compare);
+  --color-adm-chart-goal: var(--adm-chart-goal);
+  --color-adm-chart-grid: var(--adm-chart-grid);
+  --color-adm-chart-track: var(--adm-chart-track);
+  --color-adm-chart-primary-soft: var(--adm-chart-primary-soft);
   --color-adm-chart-2: var(--adm-chart-2);
   --color-adm-chart-3: var(--adm-chart-3);
   --color-adm-chart-4: var(--adm-chart-4);

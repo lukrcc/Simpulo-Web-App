@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminSection, AdminShell } from "@/components/admin/AdminShell";
 import { AdminSort, AdminTabs, BackToList, type AdminTab } from "@/components/admin/AdminLayout";
-import { ProgressBar, StatusDot } from "@/components/admin/AdminCharts";
+import { ProgressBar, StatusDot, ProgressRing } from "@/components/admin/AdminCharts";
 import { ChangeLine, InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
 import { KindPicker, MatchingOffer, MotivationPicker, PartnerControls, PartnerDetail, type PartnerFilters } from "@/components/admin/AdminPartners";
 import { Button } from "@/components/ui/ActionButton";
@@ -36,10 +36,9 @@ import {
   SERIES_STRUCTURE,
   SHORT_CHANNELS,
   SHOT_LIST,
-  STRATEGY_WEEK_TASKS,
 } from "@/config/marketing";
 import { useAdminActions } from "@/lib/admin/actions";
-import { againstAssumption, compareDate, getChange, launchCountdown, marketingFunnel, marketingFunnelBy, marketingLoops, mondayOf, partnerHouses, partnerStepDue, shortsInWeek, strategyDates, weekTarget, type Status } from "@/lib/admin/metrics";
+import { againstAssumption, compareDate, getChange, launchCountdown, marketingFunnel, marketingFunnelBy, marketingLoops, mondayOf, partnerHouses, partnerStepDue, shortsInWeek, strategyDates, type Status, isRunningSpan } from "@/lib/admin/metrics";
 import { download } from "@/lib/admin/exporters";
 import { tableCsv } from "@/lib/admin/exporters/csv";
 import { useAdminData } from "@/lib/admin/store";
@@ -49,6 +48,7 @@ import { compact, day, monthYear, num, share } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
 import { cn, housePhotos } from "@/lib/utils";
 import { isOpenTodo, roadmapTodos } from "@/lib/roadmap";
+import { usePlanTodos } from "./AdminZeitplan";
 import { findUser, useStore } from "@/lib/store";
 import { memoriesStats } from "@/lib/memories";
 import { useMemorySrc } from "@/lib/memoryMedia";
@@ -170,7 +170,7 @@ export function AdminMarketing() {
   const { start: marketingStart, launch: launchDate } = strategyDates();
   const controls =
     tab === "countdown" ? (
-      <Link href="/admin/platform?view=roadmap" data-strategy-dates className="text-small text-muted underline-offset-4 hover:text-ink hover:underline">
+      <Link href="/admin/zeitplan" data-strategy-dates className="text-small text-muted underline-offset-4 hover:text-ink hover:underline">
         {t("countdown.dates", {
           start: day(marketingStart),
           launch: day(launchDate),
@@ -251,19 +251,6 @@ export function AdminMarketing() {
 
 // ─── Countdown ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** A progress ring: the arc to the goal (ink), a tick where the number should stand today. */
-function Ring({ ratio, due }: { ratio: number; due: number }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const angle = Math.min(1, Math.max(0, due)) * 2 * Math.PI - Math.PI / 2;
-  return (
-    <svg viewBox="0 0 80 80" aria-hidden className="size-20 shrink-0">
-      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-ink/10" />
-      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" strokeLinecap="round" className="stroke-ink/85" strokeDasharray={`${Math.min(1, ratio) * c} ${c}`} transform="rotate(-90 40 40)" />
-      {due > 0 && <line x1={40 + Math.cos(angle) * 26} y1={40 + Math.sin(angle) * 26} x2={40 + Math.cos(angle) * 42} y2={40 + Math.sin(angle) * 42} strokeWidth="2" className="stroke-adm-chart-1" />}
-    </svg>
-  );
-}
 
 function Countdown() {
   const t = useTranslations("admin.marketing.countdown");
@@ -290,7 +277,7 @@ function Countdown() {
       <dl className="grid grid-cols-2 gap-(--adm-inner) lg:grid-cols-4">
         {c.rings.map((r) => (
           <div key={r.metric} data-ring={r.metric} className="flex min-w-0 items-center gap-4">
-            <Ring ratio={r.goal ? r.value / r.goal : 0} due={r.goal ? r.due / r.goal : 0} />
+            <ProgressRing ratio={r.goal ? r.value / r.goal : 0} due={r.goal ? r.due / r.goal : 0} />
             <div className="min-w-0">
               <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
                 {t(`rings.${r.metric}`)}
@@ -337,7 +324,7 @@ function Countdown() {
       </p>
 
       <div className="grid gap-x-(--adm-section) gap-y-[calc(var(--adm-inner)*1.5)] lg:grid-cols-2">
-        <ThisWeek begins={c.begins} ends={c.ends} start={c.start} phaseKey={c.phase} />
+        <ThisWeek begins={c.begins} ends={c.ends} phaseKey={c.phase} />
         <section aria-labelledby="week-numbers">
           <h2 id="week-numbers" className="mb-(--adm-inner) flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
             {t("weekNumbers")}
@@ -363,9 +350,9 @@ function Countdown() {
                       : `${num(b.actual)} · ${t("noTarget")}`}
                   </span>
                 </div>
-                <div className="relative mt-1.5 h-2 rounded-full bg-ink/8">
+                <div className="relative mt-1.5 h-2 rounded-full bg-adm-chart-track">
                   <div
-                    className="h-2 rounded-full bg-ink/70"
+                    className="h-2 rounded-full bg-adm-chart-primary"
                     style={{
                       width: `${b.target > 0 ? Math.min(100, (b.actual / b.target) * 100) : b.actual > 0 ? 100 : 0}%`,
                     }}
@@ -449,7 +436,7 @@ function BeforeStart({ daysToStart, daysLeft, start }: { daysToStart: number; da
             ))}
           </ul>
         )}
-        <Link href="/admin/platform?view=roadmap&sub=todos&due=beforeLanding" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+        <Link href="/admin/zeitplan?tab=todos&due=beforeLanding" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
           {t("prepAll")}
         </Link>
       </section>
@@ -471,9 +458,10 @@ function PhaseTimeline({ today, launchDate, current, phases }: { today: string; 
         <ol className="flex h-14 gap-1">
           {phases.map((p) => {
             const width = at(addDays(p.to, 1)) - at(p.from);
-            const here = p.key === current;
+            // The running phase in the "current" style (Regel „Admin-Diagramme“).
+            const here = p.key === current && isRunningSpan(p.from, p.to, today);
             return (
-              <li key={p.key} data-phase={p.key} style={{ width: `${width}%` }} className={cn("flex min-w-0 flex-col justify-center rounded-lg px-3", here ? "bg-(--adm-here)" : "bg-(--adm-block)")}>
+              <li key={p.key} data-phase={p.key} style={{ width: `${width}%` }} className={cn("flex min-w-0 flex-col justify-center rounded-lg px-3", here ? "border border-dashed border-adm-chart-hover bg-adm-chart-current" : "bg-(--adm-block)")}>
                 <span className={cn("truncate text-small font-semibold", here ? "text-ink" : "text-ink/75")}>
                   {p.no} · {p.label}
                 </span>
@@ -500,13 +488,15 @@ function PhaseTimeline({ today, launchDate, current, phases }: { today: string; 
 }
 
 /** "Diese Woche": the week's numbers as tasks, the phase's tasks (weekly ones per week), and tasks added by hand – ticked off, stored, logged. */
-function ThisWeek({ begins, ends, start, phaseKey }: { begins: string; ends: string; start: string; phaseKey: string }) {
+function ThisWeek({ begins, ends, phaseKey }: { begins: string; ends: string; phaseKey: string }) {
   const monday = begins;
   const t = useTranslations("admin.marketing.countdown");
-  const data = useAdminData();
   const actions = useAdminActions();
   const [draft, setDraft] = useState("");
-  const weekly = data.launchTasks ?? {};
+  // The same to-do model as Admin › Zeitplan (lib/roadmap.ts planTodos): this week's marketing tasks (the numbers, the weekly steps), the
+  // phase's one-off steps (due at its end) and own tasks of this week – ticked off through the one status store, logged.
+  const tStatus = useTranslations("admin.platform.roadmap.status");
+  const plan = usePlanTodos();
   type Row = {
     key: string;
     text: string;
@@ -515,51 +505,19 @@ function ThisWeek({ begins, ends, start, phaseKey }: { begins: string; ends: str
     toggle: (on: boolean) => void;
     remove?: () => void;
   };
-  const rows: Row[] = [
-    ...STRATEGY_WEEK_TASKS.flatMap((metric) => {
-      const count = weekTarget(metric, begins, start);
-      if (count <= 0) return [];
-      const key = `${monday}:${metric}`;
-      const text = t(`tasks.${metric}`, { count });
-      return [
-        {
-          key,
-          text,
-          done: Boolean(weekly[key]),
-          toggle: (on: boolean) => actions.setLaunchTask(key, text, on),
-        },
-      ];
-    }),
-    ...MARKETING_NEXT_STEPS.filter((s) => s.phase === phaseKey).map((s) =>
-      s.weekly
-        ? {
-            key: `${monday}:${s.id}`,
-            text: s.text,
-            note: t("weekly"),
-            done: Boolean(weekly[`${monday}:${s.id}`]),
-            toggle: (on: boolean) => actions.setLaunchTask(`${monday}:${s.id}`, s.text, on),
-          }
-        : {
-            key: s.id,
-            text: s.text,
-            note: t("phaseTask", { due: s.due }),
-            done: Boolean(data.marketingSteps[s.id]),
-            toggle: (on: boolean) => actions.setMarketingStep(s.id, s.text, on),
-          },
-    ),
-    ...(data.launchCustomTasks ?? [])
-      .filter((c) => c.week === monday)
-      .map((c) => {
-        const key = `${monday}:${c.id}`;
-        return {
-          key,
-          text: c.text,
-          done: Boolean(weekly[key]),
-          toggle: (on: boolean) => actions.setLaunchTask(key, c.text, on),
-          remove: () => actions.deleteLaunchTask(c.id, c.text),
-        };
-      }),
-  ];
+  const rows: Row[] = plan
+    .filter((x) => (x.source === "marketing" && ((x.due !== null && x.due >= begins && x.due <= ends && !x.id.startsWith("step:")) || (x.id.startsWith("step:") && x.milestone === phaseKey))) || (x.source === "own" && x.due !== null && x.due >= begins && x.due <= ends))
+    .map((x) => {
+      const step = x.id.startsWith("step:") ? MARKETING_NEXT_STEPS.find((s) => `step:${s.id}` === x.id) : MARKETING_NEXT_STEPS.find((s) => x.id === `${monday}:${s.id}`);
+      return {
+        key: x.id,
+        text: x.title,
+        note: step ? (step.weekly ? t("weekly") : t("phaseTask", { due: step.due })) : undefined,
+        done: x.status === "done",
+        toggle: (on: boolean) => actions.setRoadmapTodoStatus(x.id, x.title, on ? "done" : "open", tStatus(on ? "done" : "open")),
+        remove: x.removable ? () => actions.deleteLaunchTask(x.id, x.title) : undefined,
+      };
+    });
   const done = rows.filter((r) => r.done).length;
   const add = () => {
     const text = draft.trim();

@@ -7,8 +7,10 @@
 // numbers from the mock records. TODO(firestore): an adapter `getStats(from, to)` in lib/data and these functions over its result.
 import { HOST_REFERRAL } from "@/config/policies";
 import { firstPaidStayOf } from "@/lib/hostReferral";
-import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, fullHousesTarget, feeModelPerFullHouse, type ChangeMetric, type ChartLevel, type ComparePeriod, COMPARE_PERIODS, HOUSE_RISK, HOUSE_LEVER_RULES, HOUSE_DONE_RECHECK_DAYS, type HouseLever, PERIOD_CHART, PERIOD_MONTHS, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, MOVE_TARGET, PROFIT_TARGET_PER_MONTH, STATUS_RULES, STREAK_MONTHS, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
-import { FEE_MODEL } from "@/config/policies";
+import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, feeModelPerFullHouse, type ChangeMetric, type ChartLevel, type ComparePeriod, COMPARE_PERIODS, HOUSE_RISK, HOUSE_LEVER_RULES, HOUSE_DONE_RECHECK_DAYS, type HouseLever, PERIOD_CHART, PERIOD_MONTHS, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, STATUS_RULES, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
+import { FEE_MODEL, OVERVIEW_GOALS } from "@/config/policies";
+import { LENGTH_BOUNDS, SIZE_BOUNDS, SPECTRUM_ROWS, SPECTRUM_SPARSE_SHARE, SPECTRUM_TOP, type SpectrumRowKey } from "@/config/spectrum";
+import { STRIPE_FEE } from "@/config/tax";
 import { convert, isCurrency } from "@/lib/currency";
 import { VIBES } from "@/lib/catalog";
 import type { Thread } from "@/lib/types";
@@ -16,7 +18,7 @@ import type { HypothesisStatus } from "@/config/hypotheses";
 import { ACCOMMODATION_CATEGORIES, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { MATRIX_HOUSES_FROM, type DepthUnlockMeasure, type RevenueMeasure } from "@/config/vision";
 import type { ModelId } from "@/config/models";
-import type { AdminData, ContentPost, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
+import type { AdminData, ContentPost, CostCategory, CostEntry, HouseOutcome, LedgerEntry, MarketingContact, MarketingPartner, MetricsHistory, OverviewSnapshot } from "@/lib/data";
 import { FALLBACK_RULES, FUNNEL_ASSUMPTIONS, LAUNCH_DATE, LAUNCH_PHASES, MARKETING_START_DATE, PROJECTION_HOUSES, STRATEGY_RINGS, STRATEGY_WEEK_BARS, STRATEGY_WEEKS, type LaunchPhaseKey, type StrategyMetric } from "@/config/marketing";
 import { READINESS, READINESS_ITEMS, VALUATION, type ReadinessKey } from "@/config/funding";
 import { answersSlowly, responseRate } from "@/lib/requests";
@@ -170,9 +172,21 @@ export function periodTarget(monthly: number, period: ChartLevel, format: "eur" 
 
 interface DayRow {
   date: string;
+  /** Profit = revenue − costs (the overview's chart, the move to €5,000) */
   profit: number;
   full: number;
   nights: number;
+  /** Money (Admin › Geld, Übersicht › Geld): what guests paid, what Simpulo keeps and from what, its costs */
+  bookingVolume: number;
+  revenue: number;
+  serviceFees: number;
+  hostFeeShare: number;
+  refunds: number;
+  stripeFees: number;
+  otherCosts: number;
+  /** Paying guests, and hosts whose House carries a host fee */
+  guests: number;
+  proHosts: number;
 }
 
 /** A calm, fixed rhythm of the days (no randomness): the weekend a little stronger, a small wobble per date. */
@@ -185,21 +199,67 @@ function dayWeight(date: string): number {
 }
 
 /**
- * Profit, full Houses and shared nights per day, as far back as known – the one source of every period (TODO(firestore): stats/daily).
- * With a history (the mock) its monthly values are spread over the month's days in a fixed rhythm (this month up to today), so every period
- * sums to the same months; without one, the records themselves: profit by the day it was paid, full Houses and their nights by start day.
+ * The cost entries (Geld › Kosten) as dated amounts up to today, spread over days so no week jumps: a one-off over the ONE_OFF_DAYS (30) days
+ * from its date (its amount ÷ 30 a day); a recurring one accrued over the days of every month from its first day (its monthly amount ÷ the
+ * month's days).
  */
-function dailyRows(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">): DayRow[] {
+export function costEntryDays(entries: readonly CostEntry[], today: string): { date: string; amount: number; category: CostCategory; id: string }[] {
+  const out: { date: string; amount: number; category: CostCategory; id: string }[] = [];
+  for (const e of entries) {
+    if (!e.recurring) {
+      for (let d = 0; d < ONE_OFF_DAYS; d++) {
+        const date = isoDay(dayMs(e.date) + d * DAY_MS);
+        if (date > today) break;
+        out.push({ date, amount: e.amount / ONE_OFF_DAYS, category: e.category, id: e.id });
+      }
+      continue;
+    }
+    for (let m = e.date.slice(0, 7); `${m}-01` <= today; m = addMonths(`${m}-01`, 1).slice(0, 7)) {
+      const first = `${m}-01`;
+      const days = Math.round((dayMs(addMonths(first, 1)) - dayMs(first)) / DAY_MS);
+      for (let d = 0; d < days; d++) {
+        const date = isoDay(dayMs(first) + d * DAY_MS);
+        if (date > today) break;
+        if (date >= e.date) out.push({ date, amount: e.amount / days, category: e.category, id: e.id });
+      }
+    }
+  }
+  return out;
+}
+
+/** A one-off cost is spread over this many days from its date (costEntryDays). */
+const ONE_OFF_DAYS = 30;
+
+/** Stripe's fee on a day's bookings (config/tax.ts STRIPE_FEE, an estimate): a percent of what guests paid plus a fixed amount per payment. */
+const stripeFeeOf = (bookingVolume: number, payments: number) => (bookingVolume * STRIPE_FEE.percent) / 100 + payments * STRIPE_FEE.fixedEur;
+
+type DayInputs = Pick<AdminInputs, "stays" | "payments" | "history" | "today"> & Partial<Pick<AdminInputs, "admin" | "ledger">>;
+
+/**
+ * Per day, as far back as known – the one source of every period (TODO(firestore): stats/daily): revenue (what Simpulo keeps), what guests
+ * paid, its split into service fees and host-fee share, refunds, Stripe's fees, the cost entries, profit (revenue − costs), full Houses, their
+ * shared nights, paying guests and hosts with a host fee. With a history (the mock) its monthly values are spread over the month's days in a
+ * fixed rhythm (this month up to today) – the split, refunds, guests and hosts from the ledger's shares and the real Houses; without one, the
+ * records: payments by the day they were paid, full Houses by their start day. Costs: Stripe automatically from the bookings, the rest the
+ * entries in Geld › Kosten (AdminData.costEntries).
+ */
+function dailyRows(inputs: DayInputs): DayRow[] {
   const { history, today } = inputs;
+  const empty = (date: string): DayRow => ({ date, profit: 0, full: 0, nights: 0, bookingVolume: 0, revenue: 0, serviceFees: 0, hostFeeShare: 0, refunds: 0, stripeFees: 0, otherCosts: 0, guests: 0, proHosts: 0 });
+  const byDay = new Map<string, DayRow>();
+  const at = (date: string) => byDay.get(date) ?? byDay.set(date, empty(date)).get(date)!;
   if (history) {
-    const months = new Map<number, { profit: number; full: number; nights: number }>();
-    for (const o of history.olderMonths ?? []) months.set(o.monthsAgo, { profit: o.profit, full: o.full, nights: o.sharedNights });
+    const shares = moneyShares(inputs);
+    const months = new Map<number, { revenue: number; full: number; nights: number; bookingVolume: number | null }>();
+    for (const o of history.olderMonths ?? []) months.set(o.monthsAgo, { revenue: o.profit, full: o.full, nights: o.sharedNights, bookingVolume: null });
     for (const p of history.profitPerMonth) {
       const i = 11 - p.monthsAgo;
       const full = history.fullHousesPerMonth.find((h) => h.monthsAgo === p.monthsAgo)?.full ?? 0;
-      months.set(p.monthsAgo, { profit: p.profit, full, nights: history.series?.sharedNights[i] ?? full * 56 });
+      months.set(p.monthsAgo, { revenue: p.profit, full, nights: history.series?.sharedNights[i] ?? full * 56, bookingVolume: history.series?.bookingVolume[i] ?? null });
     }
-    const rows: DayRow[] = [];
+    // Months without a booking volume (older ones): the history's mean ratio of booking volume to revenue.
+    const known = [...months.values()].filter((v) => v.bookingVolume !== null && v.revenue > 0);
+    const ratio = known.length ? known.reduce((n, v) => n + v.bookingVolume! / v.revenue, 0) / known.length : 10;
     for (const back of [...months.keys()].toSorted((a, b) => b - a)) {
       const v = months.get(back)!;
       // The running month's value is the month's level: spread over the whole month, only the days up to today count (monthSoFar).
@@ -208,24 +268,75 @@ function dailyRows(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | 
       const days: string[] = [];
       for (let t = dayMs(first); t <= dayMs(last); t += DAY_MS) days.push(isoDay(t));
       const total = days.reduce((n, d) => n + dayWeight(d), 0);
+      const bv = v.bookingVolume ?? v.revenue * ratio;
       for (const d of days) {
         if (d > today) break;
         const share = dayWeight(d) / total;
-        rows.push({ date: d, profit: v.profit * share, full: v.full * share, nights: v.nights * share });
+        const row = at(d);
+        const revenue = v.revenue * share;
+        const full = v.full * share;
+        const guests = full * shares.guestsPerFull;
+        row.revenue += revenue;
+        row.full += full;
+        row.nights += v.nights * share;
+        row.bookingVolume += bv * share;
+        row.hostFeeShare += revenue * shares.hostFeeShare;
+        row.serviceFees += revenue * (1 - shares.hostFeeShare);
+        row.refunds += revenue * shares.refunds;
+        row.guests += guests;
+        row.proHosts += full * shares.proShare;
+        row.stripeFees += stripeFeeOf(bv * share, guests);
       }
     }
-    return rows;
+  } else {
+    for (const p of inputs.payments) {
+      if (p.status !== "paid" && p.status !== "refunded") continue;
+      if (!p.paidAt || p.paidAt.slice(0, 10) > today) continue;
+      const row = at(p.paidAt.slice(0, 10));
+      const eurOf = (n: number) => toEur(n, inputs.stays, p.stayId);
+      const total = eurOf(p.total);
+      row.bookingVolume += total;
+      row.serviceFees += eurOf(p.fee);
+      row.hostFeeShare += eurOf(((p.hostFee ?? 0) * FEE_MODEL.hostFeeCommissionPercent) / 100);
+      row.revenue += eurOf(keptOf(p));
+      row.refunds += eurOf(p.refundedAmount ?? 0);
+      row.guests += 1;
+      row.stripeFees += stripeFeeOf(total, 1);
+    }
+    for (const s of inputs.stays) {
+      if (!isReal(s) || !isFull(s) || s.startDate > today) continue;
+      const row = at(s.startDate.slice(0, 10));
+      row.full += 1;
+      row.nights += s.spotsTotal * nightsOf(s);
+      if ((s.hostFeePerPerson ?? 0) > 0) row.proHosts += 1;
+    }
   }
-  const byDay = new Map<string, DayRow>();
-  const at = (date: string) => byDay.get(date) ?? byDay.set(date, { date, profit: 0, full: 0, nights: 0 }).get(date)!;
-  for (const p of inputs.payments) if (p.status === "paid" && p.paidAt && p.paidAt.slice(0, 10) <= today) at(p.paidAt.slice(0, 10)).profit += keptOf(p);
-  for (const s of inputs.stays) {
-    if (!isReal(s) || !isFull(s) || s.startDate > today) continue;
-    const row = at(s.startDate.slice(0, 10));
-    row.full += 1;
-    row.nights += s.spotsTotal * nightsOf(s);
+  for (const c of costEntryDays(inputs.admin?.costEntries ?? [], today)) {
+    if (history && !byDay.has(c.date)) continue;
+    at(c.date).otherCosts += c.amount;
   }
+  for (const row of byDay.values()) row.profit = row.revenue - row.stripeFees - row.otherCosts;
   return [...byDay.values()].toSorted((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * The shares the history's months are split by (the mock): the host-fee share of revenue and the refunds from the ledger (else 10 % / 2 %),
+ * paying guests per full House (the real Houses' mean crew less the host), the share of Houses with a host fee.
+ */
+function moneyShares(inputs: DayInputs) {
+  const ledger = inputs.ledger ?? [];
+  const income = ledger.filter((e) => e.kind === "income");
+  const totalIncome = income.reduce((n, e) => n + e.net, 0);
+  const hostIncome = income.filter((e) => e.category === "Anteil Host-Fee").reduce((n, e) => n + e.net, 0);
+  const refunds = -ledger.filter((e) => e.kind === "refund").reduce((n, e) => n + e.net, 0);
+  const real = inputs.stays.filter(isReal);
+  const crew = real.length ? real.reduce((n, s) => n + s.spotsTotal, 0) / real.length : 4;
+  return {
+    hostFeeShare: totalIncome > 0 ? hostIncome / totalIncome : 0.1,
+    refunds: totalIncome > 0 ? refunds / totalIncome : 0.02,
+    guestsPerFull: Math.max(1, crew - 1),
+    proShare: real.length ? real.filter((s) => (s.hostFeePerPerson ?? 0) > 0).length / real.length : 0.3,
+  };
 }
 
 /**
@@ -246,12 +357,216 @@ export function monthSoFar(today: string): number {
 }
 
 /** Profit, full Houses and shared nights from `from` to `to` (both included), rounded once here. */
-export function rangeTotals(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">, from: string, to: string) {
+export function rangeTotals(inputs: DayInputs, from: string, to: string) {
   const rows = dailyRows(inputs).filter((r) => r.date >= from && r.date <= to);
   return { profit: Math.round(rows.reduce((n, r) => n + r.profit, 0)), full: Math.round(rows.reduce((n, r) => n + r.full, 0)), nights: Math.round(rows.reduce((n, r) => n + r.nights, 0)) };
 }
 
+// ── Money (Übersicht › Geld, Admin › Geld) ───────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The money terms – ONE definition each, the same words in the ⓘ of the overview and on Geld (lib/i18n/admin.de.ts money.terms.<key>):
+ * Buchungsvolumen (everything guests pay: rent, host fee, service fee) · Umsatz (what Simpulo keeps: service fees + its share of host fees)
+ * · Kosten (Stripe's fees from the bookings + the entries in Geld › Kosten) · Gewinn (Umsatz − Kosten) · Take Rate (Umsatz ÷ Buchungsvolumen)
+ * · Ø pro Buchung (guest: the service fee per paid booking; host: the host-fee share per House with a host fee).
+ */
+export const MONEY_TERMS = ["bookingVolume", "revenue", "costs", "profit", "takeRate", "perBooking", "serviceFees", "hostFeeShare", "refunds", "perGuest", "bookingPerGuest", "valuePerGuestYear", "perHost", "hostFeePerHouse", "valuePerHostYear", "stripeFees", "otherCosts", "paidOut", "openPayouts"] as const;
+export type MoneyTerm = (typeof MONEY_TERMS)[number];
+
+export interface MoneyTotals {
+  bookingVolume: number;
+  revenue: number;
+  serviceFees: number;
+  hostFeeShare: number;
+  refunds: number;
+  stripeFees: number;
+  otherCosts: number;
+  costs: number;
+  profit: number;
+  guests: number;
+  proHosts: number;
+  full: number;
+  /** Umsatz ÷ Buchungsvolumen, 0–100; null without bookings */
+  takeRate: number | null;
+  /** Service fees per paying guest; null without guests */
+  perGuest: number | null;
+  /** What a paying guest booked on average */
+  bookingPerGuest: number | null;
+  /** Host-fee share per host with a host fee */
+  perHost: number | null;
+  /** Revenue per full House (each has one host) */
+  revenuePerHost: number | null;
+}
+
+/** Every money number from `from` to `to` (both included) – summed from the days, rounded once here. */
+export function moneyTotals(inputs: DayInputs, from: string, to: string): MoneyTotals {
+  const rows = dailyRows(inputs).filter((r) => r.date >= from && r.date <= to);
+  const sum = (k: keyof Omit<DayRow, "date">) => rows.reduce((n, r) => n + r[k], 0);
+  const revenue = sum("revenue");
+  const bookingVolume = sum("bookingVolume");
+  const stripeFees = sum("stripeFees");
+  const otherCosts = sum("otherCosts");
+  const guests = sum("guests");
+  const proHosts = sum("proHosts");
+  const full = sum("full");
+  const serviceFees = sum("serviceFees");
+  const hostFeeShare = sum("hostFeeShare");
+  const per = (n: number, d: number) => (d >= 0.5 ? Math.round(n / d) : null);
+  return {
+    bookingVolume: Math.round(bookingVolume),
+    revenue: Math.round(revenue),
+    serviceFees: Math.round(serviceFees),
+    hostFeeShare: Math.round(hostFeeShare),
+    refunds: Math.round(sum("refunds")),
+    stripeFees: Math.round(stripeFees),
+    otherCosts: Math.round(otherCosts),
+    costs: Math.round(stripeFees + otherCosts),
+    profit: Math.round(revenue - stripeFees - otherCosts),
+    guests: Math.round(guests),
+    proHosts: Math.round(proHosts),
+    full: Math.round(full),
+    takeRate: bookingVolume > 0 ? Math.round((revenue / bookingVolume) * 1000) / 10 : null,
+    perGuest: per(serviceFees, guests),
+    bookingPerGuest: per(bookingVolume, guests),
+    perHost: per(hostFeeShare, proHosts),
+    revenuePerHost: per(revenue, full),
+  };
+}
+
+/**
+ * The money numbers for a period (Woche · Monat · Quartal · Jahr) or an opened bar: the running stretch up to today against the same span of
+ * the period before (periodRanges / rangesFor), each change from getChange; plus the last 365 days for "Wert pro Gast/Host im Jahr".
+ */
+export function moneyPeriod(inputs: DayInputs, period: ComparePeriod, focus: { level: ComparePeriod; from: string } | null = null) {
+  const ranges = focus ? rangesFor(focus.level, focus.from, periodEnd(focus.from, focus.level), inputs.today) : periodRanges(inputs.today, period);
+  const now = moneyTotals(inputs, ranges.current.from, ranges.current.to);
+  const prev = moneyTotals(inputs, ranges.previous.from, ranges.previous.to);
+  const year = moneyTotals(inputs, isoDay(dayMs(inputs.today) - 364 * DAY_MS), inputs.today);
+  const yearBefore = moneyTotals(inputs, isoDay(dayMs(ranges.previous.to) - 364 * DAY_MS), ranges.previous.to);
+  // Per guest and per host, not per booking: a guest books, a host hosts, more than once a year – the repeat factor from the Houses' outcomes.
+  const repeat = repeatFactors(inputs);
+  const perYear = (t: MoneyTotals, by: "guests" | "full") => {
+    const people = t[by] / (by === "guests" ? repeat.bookingsPerGuest : repeat.housesPerHost);
+    return people >= 0.5 ? Math.round(t.revenue / people) : null;
+  };
+  const change = (metric: ChangeMetric, a: number | null, b: number | null) => getChange(metric, a, b);
+  return {
+    ranges,
+    level: focus?.level ?? period,
+    now,
+    prev,
+    valuePerGuestYear: perYear(year, "guests"),
+    valuePerHostYear: perYear(year, "full"),
+    changes: {
+      bookingVolume: change("bookingVolume", now.bookingVolume, prev.bookingVolume),
+      revenue: change("revenue", now.revenue, prev.revenue),
+      costs: change("costs", now.costs, prev.costs),
+      profit: change("profit", now.profit, prev.profit),
+      takeRate: change("takeRate", now.takeRate, prev.takeRate),
+      perGuest: change("perGuest", now.perGuest, prev.perGuest),
+      perHost: change("perHost", now.perHost, prev.perHost),
+      serviceFees: change("revenue", now.serviceFees, prev.serviceFees),
+      hostFeeShare: change("revenue", now.hostFeeShare, prev.hostFeeShare),
+      refunds: change("refunds", now.refunds, prev.refunds),
+      bookingPerGuest: change("perGuest", now.bookingPerGuest, prev.bookingPerGuest),
+      revenuePerHost: change("perHost", now.revenuePerHost, prev.revenuePerHost),
+      valuePerGuestYear: change("perGuest", perYear(year, "guests"), perYear(yearBefore, "guests")),
+      valuePerHostYear: change("perHost", perYear(year, "full"), perYear(yearBefore, "full")),
+      stripeFees: change("costs", now.stripeFees, prev.stripeFees),
+      otherCosts: change("costs", now.otherCosts, prev.otherCosts),
+    },
+  };
+}
+
+/** How often one guest books and one host hosts in a year (the Houses' outcomes of the last 365 days; at least 1). */
+function repeatFactors(inputs: DayInputs) {
+  const outcomes = "users" in inputs ? outcomesOf(inputs as AdminInputs) : [];
+  const from = isoDay(dayMs(inputs.today) - 364 * DAY_MS);
+  const recent = outcomes.filter((o) => o.startDate >= from && o.startDate <= inputs.today);
+  const seats = recent.reduce((n, o) => n + o.guestIds.length, 0);
+  const guests = new Set(recent.flatMap((o) => o.guestIds)).size;
+  const hosts = new Set(recent.map((o) => o.hostId)).size;
+  return { bookingsPerGuest: guests ? Math.max(1, seats / guests) : 1, housesPerHost: hosts ? Math.max(1, recent.length / hosts) : 1 };
+}
+
+/** Geld › Überblick's chart: revenue, costs and profit per period (the last PERIOD_CHART weeks, months, quarters, years), the running one marked. */
+export function moneyBuckets(inputs: DayInputs, period: ComparePeriod) {
+  const count = PERIOD_CHART[period] ?? 4;
+  const current = periodStart(inputs.today, period);
+  return Array.from({ length: count }, (_, i) => shiftPeriod(current, period, i - count + 1)).map((from) => {
+    const to = periodEnd(from, period);
+    const t = moneyTotals(inputs, from, to < inputs.today ? to : inputs.today);
+    return { from, to, level: period as ChartLevel, revenue: t.revenue, costs: t.costs, profit: t.profit, current: runningState(period, from, inputs.today) };
+  });
+}
+
+/** Geld › Gäste: how many guests bring how much – each guest's service fees over every House (Analyse's outcomes), in fixed buckets. */
+export function guestRevenueBuckets(inputs: AdminInputs) {
+  const perGuest = new Map<string, number>();
+  for (const o of outcomesOf(inputs)) {
+    if (!o.guestIds.length) continue;
+    const each = o.serviceFee / o.guestIds.length;
+    for (const g of o.guestIds) perGuest.set(g, (perGuest.get(g) ?? 0) + each);
+  }
+  const edges = [25, 50, 100, 200] as const;
+  const buckets = [...edges.map((to, i) => ({ from: i === 0 ? 0 : edges[i - 1], to: to as number | null })), { from: edges.at(-1)!, to: null }].map((b) => ({ ...b, guests: 0, revenue: 0 }));
+  for (const v of perGuest.values()) {
+    const b = buckets.find((x) => x.to === null || v < x.to)!;
+    b.guests += 1;
+    b.revenue += v;
+  }
+  return buckets.map((b) => ({ ...b, revenue: Math.round(b.revenue) }));
+}
+
+/** Geld › Hosts: value per year by host tier (Share · Pro · Anchor) and the hosts who bring the most (hostOverview, the last 12 months). */
+export function hostMoney(inputs: AdminInputs) {
+  const hosts = hostOverview(inputs);
+  const byTier = HOST_TIERS.map((tier) => {
+    const list = hosts.filter((h) => h.tier === tier);
+    return { tier, hosts: list.length, valuePerYear: list.reduce((n, h) => n + h.valuePerYear, 0) };
+  });
+  return { byTier, top: hosts.toSorted((a, b) => b.valuePerYear - a.valuePerYear).slice(0, 5) };
+}
+
+/**
+ * Geld › Auszahlungen: the hosts' money (rent shares + their host fee less Simpulo's share) from the paid payments – paid out once everyone in
+ * the House paid (Stay.allPaidAt, the day it went out), else still open (collected, waiting for the crew). Read only, no payout buttons.
+ */
+export function hostPayouts(inputs: Pick<AdminInputs, "stays" | "payments" | "users" | "today">, from: string, to: string) {
+  const rows = new Map<string, { stay: Stay; amount: number; paidOutAt: string | null; settled: boolean }>();
+  for (const p of inputs.payments) {
+    if (p.status !== "paid") continue;
+    const stay = inputs.stays.find((s) => s.id === p.stayId);
+    if (!stay || stay.isExample) continue;
+    const toHost = toEur(p.share + ((p.hostFee ?? 0) * (100 - FEE_MODEL.hostFeeCommissionPercent)) / 100, inputs.stays, p.stayId);
+    // Paid out the day everyone had paid (Stay.allPaidAt); a booked or finished House without that stamp: the day of its last payment.
+    const done = stay.allPaidAt ?? (stay.status === "booked" || stay.status === "completed" ? "settled" : null);
+    const row = rows.get(stay.id) ?? { stay, amount: 0, paidOutAt: done && done !== "settled" ? done.slice(0, 10) : null, settled: done === "settled" };
+    row.amount += toHost;
+    if (row.settled && p.paidAt && (!row.paidOutAt || p.paidAt.slice(0, 10) > row.paidOutAt)) row.paidOutAt = p.paidAt.slice(0, 10);
+    rows.set(stay.id, row);
+  }
+  const list = [...rows.values()].map((r) => ({ ...r, amount: Math.round(r.amount), host: inputs.users.find((u) => u.id === r.stay.hostId) ?? null }));
+  const paid = list.filter((r) => r.paidOutAt && r.paidOutAt >= from && r.paidOutAt <= to && r.paidOutAt <= inputs.today);
+  const open = list.filter((r) => !r.paidOutAt || r.paidOutAt > inputs.today);
+  return { paid: paid.toSorted((a, b) => b.paidOutAt!.localeCompare(a.paidOutAt!)), open: open.toSorted((a, b) => b.amount - a.amount), paidTotal: paid.reduce((n, r) => n + r.amount, 0), openTotal: open.reduce((n, r) => n + r.amount, 0) };
+}
+
 /** One bar of the overview's chart (chartBuckets). */
+/**
+ * The ONE place that says whether a period on a chart's time axis is the running one (Regel „Admin-Diagramme“): a day, week, month, quarter
+ * or year that contains today. "today" for a day (the axis says „heute“), "running" for the longer ones („läuft“), null otherwise. Every chart
+ * with a time axis asks this – no component decides it itself. `start` is any day inside the period.
+ */
+export function runningState(level: ChartLevel, start: string, today: string): "running" | "today" | null {
+  const from = periodStart(start, level);
+  if (!isRunningSpan(from, periodEnd(from, level), today)) return null;
+  return level === "day" ? "today" : "running";
+}
+
+/** The same question for any stretch (a phase on a timeline, a code section): today lies in [from, to], both days included. */
+export const isRunningSpan = (from: string, to: string, today: string) => from <= today && today <= to;
+
 export interface ChartBucket {
   level: ChartLevel;
   /** First and last day it covers (a week inside a month is cut to the month) */
@@ -261,8 +576,8 @@ export interface ChartBucket {
   profit: number | null;
   /** The same span of the period before (rangesFor) – for the tooltip's change */
   previous: number | null;
-  /** The running one (today lies in it) */
-  current: boolean;
+  /** The running one (today lies in it – runningState): "running", a day "today", else null */
+  current: "running" | "today" | null;
   /** Days only: what happened that day – new requests, paid stays, new Houses */
   events?: { requests: number; paid: number; houses: number };
 }
@@ -304,7 +619,7 @@ export function chartBuckets(inputs: Pick<AdminInputs, "stays" | "payments" | "h
   return starts.map(({ from, to }) => {
     const ahead = from > today;
     const r = rangesFor(level, from, to, today);
-    const bucket: ChartBucket = { level, from, to, profit: ahead ? null : sum(r.current.from, r.current.to), previous: ahead ? null : sum(r.previous.from, r.previous.to), current: from <= today && today <= to };
+    const bucket: ChartBucket = { level, from, to, profit: ahead ? null : sum(r.current.from, r.current.to), previous: ahead ? null : sum(r.previous.from, r.previous.to), current: runningState(level, from, today) };
     if (level === "day") {
       bucket.events = {
         requests: inputs.joinRequests.filter((q) => day(q.createdAt) === from).length,
@@ -330,6 +645,51 @@ export function previousOverview(inputs: Pick<AdminInputs, "stays" | "payments" 
   const monthsBack = Math.round((dayMs(periodStart(inputs.today, "month")) - dayMs(periodStart(previous.to, "month"))) / (30.44 * DAY_MS));
   const repeatFromSeries = inputs.history?.series?.repeatRate.at(-1 - monthsBack) ?? null;
   return { profit: totals.profit, fullHouses: totals.full, sharedNights: totals.nights, reservedShare: snap?.reservedShare ?? null, repeatRate: snap?.repeatRate ?? repeatFromSeries };
+}
+
+/**
+ * A monthly share series (history.series, the last value this month) at a day: between the month before's value and its month's, by how far
+ * the month has run – so a week differs from the week before (`decimals`: 1 = to a tenth). Up to a year before the series its first value
+ * (a year compared with the year before), earlier null.
+ */
+function shareAt(values: readonly number[] | undefined, date: string, today: string, decimals = 0): number | null {
+  if (!values?.length) return null;
+  const first = periodStart(date, "month");
+  const back = Math.round((dayMs(periodStart(today, "month")) - dayMs(first)) / (30.44 * DAY_MS));
+  const i = values.length - 1 - back;
+  if (i < -values.length || i >= values.length) return null;
+  if (i < 0) return values[0];
+  const before = values[Math.max(0, i - 1)];
+  const days = Math.round((dayMs(addMonths(first, 1)) - dayMs(first)) / DAY_MS);
+  const ran = (Math.round((dayMs(date) - dayMs(first)) / DAY_MS) + 1) / days;
+  const f = 10 ** decimals;
+  return Math.round((before + (values[i] - before) * ran) * f) / f;
+}
+
+/**
+ * The mock's connection rate of a stretch: the monthly series at its last day; a week (or day) is its own small cohort, so it wobbles by a
+ * fixed −2…+2 points per week (a hash of its first day), kept inside the series' range.
+ */
+function connectionAt(series: readonly number[], level: ChartLevel, from: string, to: string, today: string): number | null {
+  const base = shareAt(series, to, today);
+  if (base === null || (level !== "week" && level !== "day")) return base;
+  let h = 2166136261;
+  for (const c of periodStart(from, "week")) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return Math.min(Math.max(...series), Math.max(Math.min(...series), base + ((h >>> 0) % 5) - 2));
+}
+
+/**
+ * Verbindungsrate for the overview: with a history (the mock) its monthly series at the stretch's last day against the one compared with;
+ * else from the records (afterMetrics: all answers so far, no comparison yet – TODO(backend): daily snapshots).
+ */
+export function connectionOverview(inputs: AdminInputs, ranges: ReturnType<typeof rangesFor>, level: ChartLevel) {
+  const series = inputs.history?.series?.connectionRate;
+  if (series) {
+    const now = connectionAt(series, level, ranges.current.from, ranges.current.to, inputs.today);
+    const before = connectionAt(series, level, ranges.previous.from, ranges.previous.to, inputs.today);
+    return { value: now, change: getChange("connectionRate", now, before) };
+  }
+  return { value: afterMetrics(inputs).connectionRate.value, change: null };
 }
 
 export type HouseKind = "example" | "founding" | "real";
@@ -394,9 +754,8 @@ function monthBefore(today: string, back: number): string {
 }
 
 /**
- * Full real Houses per month, the last 12 up to this one (so far), against the dynamic target (fullHousesTarget) – from the history where there is one (the
- * mock), else counted from the Houses by their start month. `streak`: completed months in a row at or above the target, at most
- * STREAK_MONTHS back.
+ * Full real Houses per month, the last 12 up to this one (so far), against the overview's monthly goal (config/policies.ts
+ * OVERVIEW_GOALS.fullHousesPerMonth) – from the history where there is one (the mock), else counted from the Houses by their start month.
  */
 export function fullHousesPerMonth(inputs: Pick<AdminInputs, "stays" | "history" | "today" | "payments">) {
   const { stays, history, today } = inputs;
@@ -409,15 +768,8 @@ export function fullHousesPerMonth(inputs: Pick<AdminInputs, "stays" | "history"
     return { month, full: fromHistory ?? full.filter((s) => monthOf(s.startDate) === month).length };
   });
   const current = rows.at(-1)!.full;
-  // The target is dynamic: €5,000 over what one full House brings this month (fullHousesTarget; without full Houses the fee model).
-  const profit = profitPerMonth(inputs).at(-1)!.profit;
-  const target = fullHousesTarget(current > 0 ? Math.round(profit / current) : null);
-  let streak = 0;
-  for (const row of rows.slice(0, -1).toReversed().slice(0, STREAK_MONTHS)) {
-    if (row.full < target) break;
-    streak++;
-  }
-  return { rows, current, target, streak, streakOf: STREAK_MONTHS, status: statusAgainst(current, target), progress: progress(current, target) };
+  const target = OVERVIEW_GOALS.fullHousesPerMonth;
+  return { rows, current, target, status: statusAgainst(current, target), progress: progress(current, target) };
 }
 
 // ── Houses ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -613,37 +965,26 @@ function toEur(amount: number, stays: readonly Stay[], stayId: string): number {
   return currency && isCurrency(currency) ? convert(amount, currency, "EUR") : amount;
 }
 
-/**
- * Profit this month (against PROFIT_TARGET_PER_MONTH), per full House this month, and in all – from the history (mock), else from the paid
- * payments. TODO(backend): in EUR at the day's rate; the fallback adds the Houses' own currencies as they are.
- */
-export function money(inputs: Pick<AdminInputs, "stays" | "payments" | "history" | "today">) {
-  const paid = inputs.payments.filter((p) => p.status === "paid" && p.paidAt);
-  const perMonth = (back: number) =>
-    inputs.history?.profitPerMonth.find((h) => h.monthsAgo === back)?.profit ?? paid.filter((p) => monthOf(p.paidAt!) === monthBefore(inputs.today, back)).reduce((n, p) => n + keptOf(p), 0);
-  const thisMonth = Math.round(perMonth(0));
-  const total = Math.round(inputs.history ? inputs.history.profitPerMonth.reduce((n, h) => n + h.profit, 0) : paid.reduce((n, p) => n + keptOf(p), 0));
-  const fullThisMonth = fullHousesPerMonth({ ...inputs, history: inputs.history }).current;
+/** Profit (revenue − costs) this month, per full House this month, and in all – from the days (dailyRows). No money target. */
+export function money(inputs: DayInputs) {
+  const months = profitPerMonth(inputs);
+  const thisMonth = months.at(-1)!.profit;
+  const total = Math.round(dailyRows(inputs).reduce((n, r) => n + r.profit, 0));
+  const fullThisMonth = fullHousesPerMonth({ ...inputs, history: inputs.history ?? null }).current;
   return {
     profitThisMonth: thisMonth,
-    target: PROFIT_TARGET_PER_MONTH,
-    status: getStatus("profitPerMonth", thisMonth),
     perHouse: fullThisMonth > 0 ? Math.round(thisMonth / fullThisMonth) : null,
     total,
   };
 }
 
-/** What Simpulo kept per month, the last 12 up to this one (so far), against the target – from the history, else from the paid payments. */
-export function profitPerMonth(inputs: Pick<AdminInputs, "payments" | "history" | "today">) {
-  const paid = inputs.payments.filter((p) => p.status === "paid" && p.paidAt);
+/** Profit (revenue − costs) per month, the last 12 up to this one (so far) – from the days (dailyRows), one source. */
+export function profitPerMonth(inputs: DayInputs) {
   return Array.from({ length: 12 }, (_, i) => {
-    const back = 11 - i;
-    const month = monthBefore(inputs.today, back);
-    const level = inputs.history?.profitPerMonth.find((h) => h.monthsAgo === back)?.profit;
-    // The history's running month is its level – so far is the part of it that has passed (monthSoFar).
-    const fromHistory = level === undefined ? undefined : back === 0 ? level * monthSoFar(inputs.today) : level;
-    const profit = fromHistory ?? paid.filter((p) => monthOf(p.paidAt!) === month).reduce((n, p) => n + keptOf(p), 0);
-    return { month, profit: Math.round(profit), status: getStatus("profitPerMonth", profit) };
+    const month = monthBefore(inputs.today, 11 - i);
+    const end = isoDay(dayMs(addMonths(`${month}-01`, 1)) - DAY_MS);
+    const profit = rangeTotals(inputs, `${month}-01`, end < inputs.today ? end : inputs.today).profit;
+    return { month, profit };
   });
 }
 
@@ -667,12 +1008,11 @@ export interface CockpitNumber {
 /**
  * The overview (Übersicht) for a period (Tag · Woche · Monat · Quartal · Jahr): profit, full Houses and shared nights in the running period up
  * to today (rangeTotals), each against the same span of the period before (periodRanges) and its monthly target scaled to the period
- * (periodTarget); the shares (reservations, repeat guests) with their fixed targets; the months in a row at €5,000 always monthly (move).
+ * (periodTarget; full Houses only – no money targets); the shares (reservations, repeat guests) with their fixed targets.
  */
 export function cockpit(inputs: AdminInputs, period: ComparePeriod, focus: { level: ComparePeriod; from: string } | null = null) {
   const o = overview(inputs);
   const a = algorithmMetrics(inputs);
-  const full = fullHousesPerMonth(inputs);
   const pct = (ratio: number | null) => (ratio === null ? null : Math.round(ratio * 100));
   const reserved = pct(o.reservedShare);
   const repeat = pct(a.repeatRate);
@@ -683,11 +1023,9 @@ export function cockpit(inputs: AdminInputs, period: ComparePeriod, focus: { lev
   const prev = previousOverview(inputs, level, ranges);
   const perHouse = now.full > 0 ? Math.round(now.profit / now.full) : null;
   const prevPerHouse = prev.profit !== null && prev.fullHouses ? Math.round(prev.profit / prev.fullHouses) : null;
-  const move = moveProgress(inputs);
-
   // Targets are monthly; counts and euros scale to the period (periodTarget), shares stay.
-  const fullTarget = periodTarget(full.target, level, "count");
-  const profitTarget = periodTarget(MOVE_TARGET.profitPerMonth, level, "eur");
+  // Full Houses: the overview's own monthly goal (config/policies.ts OVERVIEW_GOALS, not the launch criterion), scaled to the period.
+  const fullTarget = periodTarget(OVERVIEW_GOALS.fullHousesPerMonth, level, "count");
   const perHouseTarget = feeModelPerFullHouse();
   const number = (key: CockpitKey, value: number | null, format: CockpitNumber["format"], target: number, previous: number | null, metric: ChangeMetric): CockpitNumber => ({
     key,
@@ -703,12 +1041,10 @@ export function cockpit(inputs: AdminInputs, period: ComparePeriod, focus: { lev
     level,
     ranges,
     compareDate: ranges.previous.to,
-    /** Profit in the period up to today, against its target (€5,000 a month, scaled) and the same span of the period before. */
-    profit: { current: now.profit, target: profitTarget, status: statusAgainst(now.profit, profitTarget), change: getChange("profit", now.profit, prev.profit) },
+    /** Profit in the period up to today against the same span of the period before – no money target. */
+    profit: { current: now.profit, change: getChange("profit", now.profit, prev.profit) },
     /** Shared nights (people × nights in full Houses) in the period – no target. */
     nights: { current: now.nights, change: getChange("sharedNights", now.nights, prev.sharedNights ?? null) },
-    /** The months in a row at €5,000 – always monthly, whatever the period. */
-    move,
     areas: [
       { key: "supply", href: "/admin/houses", number: number("fullHouses", now.full, "count", fullTarget, prev.fullHouses, "fullHouses") },
       { key: "demand", href: "/admin/growth", number: number("reservedShare", reserved, "percent", OVERVIEW_TARGETS.reservedShare, prev.reservedShare, "reservedShare") },
@@ -814,7 +1150,7 @@ export function sortTickets(tickets: readonly SupportTicket[]): SupportTicket[] 
 // ── Money: what's left ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** This year: profit − tax reserve (TAX_RESERVE_PERCENT) − private withdrawals = what's still in the company. */
-export function companyBalance(inputs: Pick<AdminInputs, "payments" | "history" | "today" | "admin">) {
+export function companyBalance(inputs: DayInputs & Pick<AdminInputs, "admin">) {
   const year = inputs.today.slice(0, 4);
   const profit = profitPerMonth(inputs)
     .filter((r) => r.month.startsWith(year))
@@ -822,30 +1158,6 @@ export function companyBalance(inputs: Pick<AdminInputs, "payments" | "history" 
   const taxReserve = Math.round((profit * TAX_RESERVE_PERCENT) / 100);
   const withdrawals = inputs.admin.withdrawals.filter((w) => w.date.startsWith(year)).reduce((n, w) => n + w.amount, 0);
   return { year, profit, taxReserve, taxPercent: TAX_RESERVE_PERCENT, withdrawals, left: profit - taxReserve - withdrawals };
-}
-
-// ── The move and the vision (Cockpit's stage, Admin › Vision) ─────────────────────────────────────────────────────────────────────
-
-/** Completed months in a row (this month left out) at or above the target, at most MOVE_TARGET.months back. */
-function streakAt(values: readonly number[], target: number): number {
-  let streak = 0;
-  for (const value of values.slice(0, -1).toReversed().slice(0, MOVE_TARGET.months)) {
-    if (value < target) break;
-    streak++;
-  }
-  return streak;
-}
-
-/** The move: profit this month against €5,000, the last 12 months, and the completed months in a row at it (of six). */
-export function moveProgress(inputs: Pick<AdminInputs, "payments" | "history" | "today">) {
-  const rows = profitPerMonth(inputs);
-  const current = rows.at(-1)!.profit;
-  const target = MOVE_TARGET.profitPerMonth;
-  const streak = streakAt(
-    rows.map((r) => r.profit),
-    target,
-  );
-  return { rows, current, target, streak, streakOf: MOVE_TARGET.months, reached: streak >= MOVE_TARGET.months, status: getStatus("profitPerMonth", current), progress: progress(current, target) };
 }
 
 /**
@@ -985,9 +1297,11 @@ export type AnalysisDimension = "topic" | "length" | "crew" | "category" | "orig
 export const ANALYSIS_DIMENSIONS: readonly AnalysisDimension[] = ["topic", "length", "crew", "category", "origin", "hub", "tier", "depth"];
 export const analysisDimensions = (depthOn: boolean) => ANALYSIS_DIMENSIONS.filter((d) => depthOn || d !== "depth");
 /** kurz ≤ 5 nights · mittel 1–3 weeks (6–27) · lang 4+ weeks (28+) */
-export const lengthBand = (nights: number) => (nights <= 5 ? "short" : nights < 28 ? "mid" : "long");
+/** The bands of Analyse › Länge and Spektrum – one definition (config/spectrum.ts LENGTH_BOUNDS): Kurz 1–5, Mittel 6–20, Lang 21+ nights. */
+export const lengthBand = (nights: number) => (nights <= LENGTH_BOUNDS.shortMax ? "short" : nights <= LENGTH_BOUNDS.midMax ? "mid" : "long");
 /** 2–4 · 5–8 · 9+ (host included) */
-export const crewBand = (size: number) => (size <= 4 ? "2-4" : size <= 8 ? "5-8" : "9+");
+/** The bands of Analyse › Crew and Spektrum (config/spectrum.ts SIZE_BOUNDS): 2–3, 4–6, 7+ people, host included. */
+export const crewBand = (size: number) => (size <= SIZE_BOUNDS.smallMax ? "2-3" : size <= SIZE_BOUNDS.midMax ? "4-6" : "7+");
 
 /** The real records as outcomes: past real Houses with their accepted guests, what Simpulo kept (EUR), how fast they filled. */
 export function outcomesFromRecords({ stays, users, joinRequests, payments, today }: Pick<AdminInputs, "stays" | "users" | "joinRequests" | "payments" | "today">): HouseOutcome[] {
@@ -1007,6 +1321,7 @@ export function outcomesFromRecords({ stays, users, joinRequests, payments, toda
         tier: tiers.get(s.hostId) ?? "share",
         startDate: s.startDate,
         guestIds: joinRequests.filter((r) => r.stayId === s.id && r.status === "accepted").map((r) => r.userId),
+        guestCountries: joinRequests.filter((r) => r.stayId === s.id && r.status === "accepted").map((r) => users.find((u) => u.id === r.userId)?.country ?? null),
         serviceFee: Math.round(paid.reduce((n, p) => n + toEur(p.fee, stays, s.id), 0)),
         hostFeeShare: Math.round(paid.reduce((n, p) => n + toEur(((p.hostFee ?? 0) * FEE_MODEL.hostFeeCommissionPercent) / 100, stays, s.id), 0)),
         daysToFull: daysToFullOf(s, joinRequests),
@@ -1125,6 +1440,86 @@ export function analysisRows(inputs: AdminInputs, dimension: AnalysisDimension, 
     groups.set(key, [...(groups.get(key) ?? []), o]);
   }
   return [...groups.entries()].map(([key, group]) => analysisRow(key, group, stays)).toSorted((a, b) => (b.valuePerPersonYear ?? -1) - (a.valuePerPersonYear ?? -1));
+}
+
+/** One column of Analyse › Spektrum. */
+export interface SpectrumCell {
+  key: string;
+  houses: number;
+  /** Share of the period's Houses, 0–1 */
+  share: number;
+  /** Simpulo's service fee per paid booking (EUR) – the overview's „Ø pro Buchung · Gast“ */
+  perBooking: number | null;
+  /** Mutual „Mit dir wieder“ of the crew pairs who answered, 0–1 (the Houses' outcomes) */
+  connection: number | null;
+  /** Guests with 2+ Houses in the last 12 months, 0–1 */
+  repeat: number | null;
+  /** Median days until full */
+  daysToFull: number | null;
+  /** „Wer bucht“: the top topics (by Houses) and the guests' top countries */
+  topTopics: { key: string; count: number }[];
+  topCountries: { key: string; count: number }[];
+  /** Under SPECTRUM_SPARSE_SHARE of the Houses – the one hint */
+  sparse: boolean;
+}
+
+const topOf = (values: readonly (string | null | undefined)[]) => {
+  const counts = new Map<string, number>();
+  for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.entries()].map(([key, count]) => ({ key, count })).toSorted((a, b) => b.count - a.count || a.key.localeCompare(b.key)).slice(0, SPECTRUM_TOP);
+};
+
+/**
+ * Analyse › Spektrum: the Houses that started in the period (Woche · Monat · Quartal · Jahr, the running one up to today) – when the
+ * running period has none yet (the outcomes are the Houses that ran), the last full one, and `fallback` says so – in three rows of three
+ * equal columns (config/spectrum.ts: Länge, Größe, Host), each with its share, € per booking, connection rate, repeat guests, days to full
+ * and who books. `averages`: guests per House and € per booking over all of them (also for the planning matrix).
+ */
+export function spectrum(inputs: AdminInputs, period: ComparePeriod) {
+  const outcomes = outcomesOf(inputs);
+  const current = periodRanges(inputs.today, period).current;
+  const inRange = (from: string, to: string) => outcomes.filter((o) => o.startDate >= from && o.startDate <= to);
+  let range = { from: current.from, to: current.to };
+  let list = inRange(range.from, range.to);
+  const fallback = list.length === 0;
+  if (fallback) {
+    const from = shiftPeriod(current.from, period, -1);
+    range = { from, to: periodEnd(from, period) };
+    list = inRange(range.from, range.to);
+  }
+  const stays = staysLastYear(outcomes, inputs.today);
+  const keyOf: Record<SpectrumRowKey, (o: HouseOutcome) => string> = { length: (o) => lengthBand(o.nights), size: (o) => crewBand(o.crewSize), host: (o) => o.tier };
+  const perBooking = (group: readonly HouseOutcome[]) => {
+    const guests = group.reduce((n, o) => n + o.guestIds.length, 0);
+    return guests ? Math.round(group.reduce((n, o) => n + o.serviceFee, 0) / guests) : null;
+  };
+  const rows = SPECTRUM_ROWS.map((row) => ({
+    key: row.key,
+    columns: row.columns.map((col): SpectrumCell => {
+      const group = list.filter((o) => keyOf[row.key](o) === col.key);
+      const base = analysisRow(col.key, group, stays);
+      const share = list.length ? group.length / list.length : 0;
+      return {
+        key: col.key,
+        houses: group.length,
+        share,
+        perBooking: perBooking(group),
+        connection: againShare(group),
+        repeat: base.repeat12,
+        daysToFull: base.daysToFull,
+        topTopics: topOf(group.map((o) => o.topic)),
+        topCountries: topOf(group.flatMap((o) => o.guestCountries ?? [])),
+        sparse: list.length > 0 && share < SPECTRUM_SPARSE_SHARE,
+      };
+    }),
+  }));
+  return { range, fallback, houses: list.length, rows, averages: spectrumAverages(list) };
+}
+
+/** Ø over a set of Houses: guests per House and Simpulo's service fee per booking – the Spektrum's bottom line and the planning matrix's base. */
+export function spectrumAverages(list: readonly HouseOutcome[]) {
+  const guests = list.reduce((n, o) => n + o.guestIds.length, 0);
+  return { guestsPerHouse: list.length ? Math.round((guests / list.length) * 10) / 10 : null, perBooking: guests ? Math.round(list.reduce((n, o) => n + o.serviceFee, 0) / guests) : null };
 }
 
 /**
@@ -1346,9 +1741,9 @@ export function waitlistMatches(inputs: Pick<AdminInputs, "admin">, stay: Stay):
   return inputs.admin.waitlist.filter((e) => e.interests.includes(stay.vibe) && (!e.where || e.where.toLowerCase() === hub || e.where.toLowerCase() === stay.city.toLowerCase())).length;
 }
 
-/** Vision › Zielgruppen, "Simpulo heute": what Simpulo kept in the last 12 months (this month so far included), EUR. */
-export function revenueLast12(inputs: Pick<AdminInputs, "payments" | "history" | "today">): number {
-  return profitPerMonth(inputs).reduce((n, r) => n + r.profit, 0);
+/** Vision › Zielgruppen, "Simpulo heute": what Simpulo kept (revenue, before costs) in the last 12 months (this month so far included), EUR. */
+export function revenueLast12(inputs: DayInputs): number {
+  return moneyTotals(inputs, `${monthBefore(inputs.today, 11)}-01`, inputs.today).revenue;
 }
 
 /**
@@ -1356,7 +1751,7 @@ export function revenueLast12(inputs: Pick<AdminInputs, "payments" | "history" |
  * level against PROVIDER_COST (from 5 % "warning" amber, from 10 % "critical" ember – "Selbermachen prüfen"). null = not known (the real
  * source has no costs yet); `example` = mock values.
  */
-export function providerCosts(inputs: Pick<AdminInputs, "payments" | "history" | "today">) {
+export function providerCosts(inputs: DayInputs) {
   const costs = inputs.history?.providerCosts ?? null;
   const revenue = revenueLast12(inputs);
   const shareOf = (cost: number | undefined) => (cost === undefined || revenue <= 0 ? null : Math.round((cost / revenue) * 1000) / 10);
@@ -1380,7 +1775,6 @@ export function providerCosts(inputs: Pick<AdminInputs, "payments" | "history" |
  * (revenue minus payment fees and marketing).
  */
 export function fundingReadiness(inputs: AdminInputs) {
-  const move = moveProgress(inputs);
   const repeat = algorithmMetrics(inputs).repeatRate;
   const repeatPct = repeat === null ? null : Math.round(repeat * 100);
 
@@ -1409,8 +1803,6 @@ export function fundingReadiness(inputs: AdminInputs) {
   }
 
   const values = {
-    moved: { met: inputs.admin.fundingMoved },
-    profitStreak: { met: move.streak >= READINESS.profit.months, streak: move.streak, current: move.current },
     repeatRate: { met: repeatPct !== null && repeatPct >= READINESS.repeatRatePercent, value: repeatPct },
     fullHousesGrowth: { met: growth !== null && growth * 100 >= READINESS.fullHousesGrowth.percentPerMonth, value: growth, from, to },
     hubsFill: { met: hubs.length >= READINESS.hubs.min, hubs },
@@ -1419,7 +1811,7 @@ export function fundingReadiness(inputs: AdminInputs) {
   // Every key of the checklist has its value (checked by the type, extra fields allowed).
   const byKey: Record<ReadinessKey, { met: boolean }> = values;
   const items = READINESS_ITEMS.map((item) => ({ ...item, met: byKey[item.key].met }));
-  return { items, values, met: items.filter((i) => i.met).length, total: items.length, moved: values.moved.met };
+  return { items, values, met: items.filter((i) => i.met).length, total: items.length };
 }
 
 // ── North star and the numbers around it ─────────────────────────────────────────────────────────────────────────────────────────
@@ -1444,7 +1836,7 @@ export function monthlySeries(inputs: AdminInputs) {
   const repeatNow = algorithmMetrics(inputs).repeatRate;
   return profit.map((p, i) => {
     const month = p.month;
-    const fromSeries = (key: keyof NonNullable<MetricsHistory["series"]>) => series?.[key][i] ?? null;
+    const fromSeries = (key: keyof NonNullable<MetricsHistory["series"]>) => series?.[key]?.[i] ?? null;
     const sharedNights = fromSeries("sharedNights") ?? realFull.filter((s) => monthOf(s.startDate) === month).reduce((n, s) => n + s.spotsTotal * nightsOf(s), 0);
     const bookingVolume =
       fromSeries("bookingVolume") ??

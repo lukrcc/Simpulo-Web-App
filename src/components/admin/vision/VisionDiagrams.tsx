@@ -1,7 +1,7 @@
 "use client";
 
 // Admin › Vision, the diagrams added on top of blocks (boxes and lines, the BlockMap like the flows in Algorithmus):
-//   ContinuumForms – Simpulo, Zusammenleben auf Zeit → Day House · Wochenende · 1–4 Wochen · Hof / Dorf; the sentence; "Positionierung".
+//   ContinuumForms – Simpulo, Zusammenleben auf Zeit → Wochenende · 1–4 Wochen · Hof / Dorf; the sentence; "Positionierung".
 //   HofTogether    – MARKTPLATZ → five pillars → DER HOF ("Wo alles zusammenkommt").
 //   HofBranches    – Der Hof → six branches, each opening its part (or Finanzierung › Firmenstruktur, or Longevity).
 //   LongevityView  – five factors → LÄNGER UND BESSER LEBEN; products, limits, sources (to check before any use outside), the sentence.

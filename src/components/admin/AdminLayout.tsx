@@ -7,7 +7,7 @@
 //   AdminSubTabs    – the second level, smaller capsules right under the row, only when a tab has sub-items.
 //   AdminListDetail – the list left (about 40 %), the detail right. A row: status dot · title · one line of meta · on the right only ✓
 //                     (Erledigt) or nothing. Every other action lives in the detail.
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -263,5 +263,19 @@ export function BackToList({ onBack }: { onBack: () => void }) {
     <button type="button" onClick={onBack} className="mb-4 text-body text-ink lg:hidden">
       ‹ {t("list")}
     </button>
+  );
+}
+
+/**
+ * A direct link into an external service („In Stripe öffnen“, „Stripe-Konto“, „In Firebase öffnen“, „Protokoll öffnen“, config/tools.ts):
+ * a small text link with ↗ in a new tab – nothing at all without an address (mock ids, dev and demo).
+ */
+export function DirectLink({ href, children, className }: { href: string | null; children: ReactNode; className?: string }) {
+  if (!href) return null;
+  return (
+    <a href={href} target="_blank" rel="noreferrer noopener" data-direct-link className={cn("inline-flex items-center gap-1 text-small font-semibold text-ink hover:underline", className)}>
+      {children}
+      <ArrowUpRight aria-hidden className="size-3.5 text-muted" />
+    </a>
   );
 }

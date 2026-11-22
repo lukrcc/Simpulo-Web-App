@@ -8,13 +8,13 @@ import { AdminSort, AdminTabs } from "./AdminLayout";
 import { StatusDot } from "./AdminCharts";
 import { VIBE_ICONS } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
-import { algorithmMetrics, topicScores, waitlistMetrics } from "@/lib/admin/metrics";
+import { algorithmMetrics, runningState, topicScores, waitlistMetrics } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { getTrafficReport } from "@/lib/data";
 import { findUser, useStore } from "@/lib/store";
 import { waitlistStatus, type Vibe } from "@/lib/types";
-import { BarList, ColumnChart, TrendChart } from "./AdminCharts";
+import { BarList, ColumnChart } from "./AdminCharts";
 import { LaunchCriteria } from "./AdminCockpit";
 import type { LegalChecklist } from "@/lib/legal/status";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
@@ -160,14 +160,14 @@ export function AdminWaitlist({ legal }: { legal?: LegalChecklist }) {
         )}
       </AdminSection>
       <AdminSection title={t("overTime")}>
-        <TrendChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total }))} />
+        <ColumnChart label={t("overTime")} data={w.overTime.map((p) => ({ label: dayLabel(p.week), value: p.total, current: runningState("week", p.week, inputs.today) }))} />
       </AdminSection>
       <div className="mt-(--adm-section) grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
         <AdminSection title={t("sources")}>
-          <BarList tone="chart-2" rows={w.bySource.map((s) => ({ key: s.key, label: s.key === "direct" ? t("direct") : s.key, value: s.count }))} />
+          <BarList rows={w.bySource.map((s) => ({ key: s.key, label: s.key === "direct" ? t("direct") : s.key, value: s.count }))} />
         </AdminSection>
         <AdminSection title={t("interests")}>
-          <BarList tone="chart-3" rows={w.byInterest.map((s) => ({ key: s.key, label: <VibeLabel vibe={s.key} />, value: s.count }))} />
+          <BarList rows={w.byInterest.map((s) => ({ key: s.key, label: <VibeLabel vibe={s.key} />, value: s.count }))} />
         </AdminSection>
       </div>
     </AdminShell>
@@ -213,8 +213,8 @@ export function ThemeScore() {
                 <td className="py-3 pr-4">
                   <span className="flex items-center gap-3">
                     <span className="w-8 shrink-0 tabular-nums font-semibold text-ink">{topic.score}</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/8">
-                      <span className="block h-full rounded-full bg-adm-chart-1" style={{ width: `${topic.score}%` }} />
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-adm-chart-track">
+                      <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${topic.score}%` }} />
                     </span>
                   </span>
                 </td>
@@ -255,7 +255,7 @@ export function NetworkToday() {
         ))}
       </dl>
       <p className="mb-4 mt-(--adm-section) text-small text-muted">{t("toFullChart")}</p>
-      <ColumnChart label={t("toFullChart")} data={a.daysToFullBuckets.map((b) => ({ label: b.key, value: b.count }))} unit={t("houses")} tone="chart-2" />
+      <ColumnChart label={t("toFullChart")} data={a.daysToFullBuckets.map((b) => ({ label: b.key, value: b.count }))} unit={t("houses")} />
     </AdminSection>
   );
 }
@@ -263,6 +263,7 @@ export function NetworkToday() {
 // ── Traffic ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function AdminTraffic() {
+  const { today } = useAdminInputs();
   const t = useTranslations("admin.traffic");
   const tAdmin = useTranslations("admin");
   const report = useMemo(() => getTrafficReport(), []);
@@ -282,14 +283,14 @@ export function AdminTraffic() {
             ]}
           />
           <AdminSection title={t("visitorsChart")}>
-            <TrendChart label={t("visitorsChart")} data={report.visitorsPerWeek.map((p) => ({ label: dayLabel(p.week), value: p.visitors }))} />
+            <ColumnChart label={t("visitorsChart")} data={report.visitorsPerWeek.map((p) => ({ label: dayLabel(p.week), value: p.visitors, current: runningState("week", p.week, today) }))} />
           </AdminSection>
           <div className="mt-(--adm-section) grid gap-x-16 md:grid-cols-2 [&>section]:mt-0 max-md:[&>section+section]:mt-14">
             <AdminSection title={t("countries")}>
-              <BarList tone="chart-2" rows={report.countries.map((c) => ({ key: c.country, label: c.country, value: c.share, display: percent(c.share) }))} />
+              <BarList rows={report.countries.map((c) => ({ key: c.country, label: c.country, value: c.share, display: percent(c.share) }))} />
             </AdminSection>
             <AdminSection title={t("sources")}>
-              <BarList tone="chart-3" rows={report.sources.map((s) => ({ key: s.source, label: s.source, value: s.share, display: percent(s.share) }))} />
+              <BarList rows={report.sources.map((s) => ({ key: s.source, label: s.source, value: s.share, display: percent(s.share) }))} />
             </AdminSection>
           </div>
           <AdminSection title={t("funnel")}>

@@ -41,9 +41,26 @@ body:has(.admin-scope) {
   --adm-warning: #e3b354; /* amber */
   --adm-critical: #f07c56; /* ember */
   --adm-chart-1: #72aadf; /* ocean – focus: the page's main number, the chosen tab, a chart's one colour */
-  /* Comparison lines and second series: white steps, not more colours. */
-  --adm-chart-2: rgb(255 255 255 / 0.62);
-  --adm-chart-3: rgb(255 255 255 / 0.38);
+  /* Admin charts (Regel „Admin-Diagramme“, CLAUDE.md): violet is the one chart colour. One series = primary; more = primary, then chart-2
+     (turquoise), then chart-3 (rosé), never more than three; the running period = current (primary 28 % with a dashed edge in hover); the
+     period before = compare (grey); goals and the move line = goal (amber, dashed). Bars, rings and progress tracks too – status colours
+     never fill a chart. */
+  --adm-chart-primary: #9d8cf2;
+  --adm-chart-hover: #b9adf7;
+  /* Bars, areas and rings: a strong 1.5px edge in primary over a light fill of the same colour – the opacities here, set once. */
+  --adm-chart-fill: rgb(157 140 242 / 0.22);
+  --adm-chart-fill-hover: rgb(157 140 242 / 0.45);
+  --adm-chart-fill-current: rgb(157 140 242 / 0.08);
+  /* The running period: the current fill with a dashed edge in hover (also the Gantt's running phase and section). */
+  --adm-chart-current: var(--adm-chart-fill-current);
+  --adm-chart-compare: #6e6a67;
+  --adm-chart-goal: #d9a85b;
+  --adm-chart-2: #6fc1b0;
+  --adm-chart-3: #e58fa8;
+  --adm-chart-grid: rgb(255 255 255 / 0.06);
+  /* The grey track under a bar, a ring or a progress line. */
+  --adm-chart-track: rgb(255 255 255 / 0.08);
+  /* Quiet steps for drawings that are not series (lines between blocks, dashes): white, not more colours. */
   --adm-chart-4: rgb(255 255 255 / 0.24);
   /* A fifth comparison line: dashed white (the line itself), not another colour. */
   --adm-chart-5: rgb(255 255 255 / 0.14);
@@ -53,12 +70,7 @@ body:has(.admin-scope) {
   --adm-warning-soft: rgb(227 179 84 / 0.14);
   --adm-critical-soft: rgb(240 124 86 / 0.14);
   --adm-chart-1-soft: rgb(114 170 223 / 0.16);
-  /* The overview's chart: the running period's bar – a lighter tone of its colour (with an outline in the full colour). */
-  --adm-bar-current: rgb(114 170 223 / 0.42);
-  --adm-good-current: rgb(143 194 156 / 0.42);
-  --adm-warning-current: rgb(227 179 84 / 0.42);
-  --adm-chart-2-soft: rgb(255 255 255 / 0.08);
-  --adm-chart-3-soft: rgb(255 255 255 / 0.06);
+  --adm-chart-primary-soft: rgb(157 140 242 / 0.16);
 
   /* Area colours (NOT status – never sage, amber, ember): Markt blue · Wachstum violet · Betrieb turquoise · Launch rosé. The side list's icons
      and headings, the 2px line over an area. Headings: the colour 16 % behind – the only colour surface in the side list. */
@@ -126,7 +138,7 @@ body:has(.admin-scope) {
      header after the top padding, the 4 area headings (28px each, + 4px) and 16px of air: 28–40px a row; a gap half a row. Room for more
      entries: the rows shrink first; below 28px the list folds (AdminSideList: only the current area's entries, the others by their heading). */
   --sidebar-heading-h: 28px;
-  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px) / 16.5), 40px);
+  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px) / 17.5), 40px);
   --sidebar-gap: calc(var(--sidebar-item-h) * 0.5);
   --sidebar-item-font: 15px;
   --sidebar-icon: 18px;

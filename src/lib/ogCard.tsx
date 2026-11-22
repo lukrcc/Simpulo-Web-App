@@ -1,3 +1,4 @@
+import { withGuestFee } from "@/lib/fees";
 import { tEn } from "@/lib/i18n/translate";
 /* eslint-disable @next/next/no-img-element -- next/og renders plain <img>, not next/image */
 // Share cards (Open Graph / X), 1200×630, rendered on the server with next/og: the House's cover left, its facts right, the wordmark.
@@ -43,8 +44,10 @@ const money = (amount: number, currency: string) => new Intl.NumberFormat("en", 
 
 /** "€480 pp", "€500–700 pp", "Price set with crew" – in the House's currency (the card has no viewer). */
 export function ogPrice(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" | "currency">): string {
-  if (stay.pricePerPerson) return `${money(stay.pricePerPerson, stay.currency)} pp`;
-  if (stay.budgetPerPerson) return `${money(stay.budgetPerPerson.min, stay.currency)}–${money(stay.budgetPerPerson.max, stay.currency).replace(/^[^\d]+/, "")} pp`;
+  // Including the service fee, like everywhere a guest sees a price (lib/fees.ts withGuestFee).
+  const all = (n: number) => withGuestFee(n, stay.currency);
+  if (stay.pricePerPerson) return `${money(all(stay.pricePerPerson), stay.currency)} pp`;
+  if (stay.budgetPerPerson) return `${money(all(stay.budgetPerPerson.min), stay.currency)}–${money(all(stay.budgetPerPerson.max), stay.currency).replace(/^[^\d]+/, "")} pp`;
   return tEn("og.priceTbd");
 }
 

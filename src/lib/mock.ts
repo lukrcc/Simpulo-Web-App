@@ -55,6 +55,8 @@ export interface HostBusiness {
 }
 
 export interface User extends Attribution {
+  /** Stripe Connect account of a host (acct_…) – set by the backend; Admin › Hosts links to it („Stripe-Konto“, config/tools.ts) */
+  stripeAccountId?: string;
   id: string;
   name: string;
   age: number;
@@ -382,6 +384,8 @@ export interface StayPractical {
 
 export interface Stay {
   id: string;
+  /** Stripe: the transfer of the crew's money to the host (tr_…) – set by the backend; Admin › Geld › Auszahlungen links to it (config/tools.ts) */
+  stripeTransferId?: string;
   /** "unlisted": works through its link but isn't on Explore (before the launch, src/lib/launch.ts). */
   visibility?: 'unlisted' | 'listed';
   /** ISO. Until then only the people whose search it answers see it (src/lib/launch.ts). */
@@ -604,6 +608,8 @@ export interface HouseInvite {
 
 export interface Payment extends Attribution {
   id: string;
+  /** Stripe's PaymentIntent (pi_…) – set by the backend; the admin links to it (config/tools.ts stripeUrl) */
+  stripePaymentIntentId?: string;
   stayId: string;
   userId: string;
   share: number;

@@ -1,4 +1,4 @@
-import { guestFee } from "./fees";
+import { guestFee, withGuestFee } from "./fees";
 import { CURRENCY_CODES } from "./currency";
 import { VIBES } from "./catalog";
 import type { Currency, Stay, TypicalDayStop, User } from "./types";
@@ -85,16 +85,21 @@ export function firstName(user: Pick<User, "name">): string {
 type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
 
 export type StayPrice =
-  | { kind: "price"; amount: number; fee: number }
+  /** amount: the total per person including the service fee; share: the rent share alone; fee: the service fee */
+  | { kind: "price"; amount: number; share: number; fee: number }
   | { kind: "budget"; min: number; max: number }
   | { kind: "tbd" };
 
-/** A fixed price only exists once the place is locked; before that there's at most a rough budget. */
+/**
+ * A fixed price only exists once the place is locked; before that there's at most a rough budget. Always what a guest pays per person
+ * including the service fee (lib/fees.ts withGuestFee) – the host fee is shown apart.
+ */
 export function stayPrice(stay: PricedStay): StayPrice {
   if (stay.accommodationStatus === "locked" && stay.pricePerPerson) {
-    return { kind: "price", amount: stay.pricePerPerson, fee: guestFee(stay.pricePerPerson) };
+    const fee = guestFee(stay.pricePerPerson, stay.currency);
+    return { kind: "price", amount: stay.pricePerPerson + fee, share: stay.pricePerPerson, fee };
   }
-  if (stay.budgetPerPerson) return { kind: "budget", ...stay.budgetPerPerson };
+  if (stay.budgetPerPerson) return { kind: "budget", min: withGuestFee(stay.budgetPerPerson.min, stay.currency), max: withGuestFee(stay.budgetPerPerson.max, stay.currency) };
   return { kind: "tbd" };
 }
 

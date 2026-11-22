@@ -1,11 +1,11 @@
 // Admin › Finanzierung ("Wann und wofür holen wir Geld?") – every text, threshold and share of the tab, in German (the admin is German), to
 // edit by hand. Theses for orientation, no financial advice. Content only from the founders' brief: where it names no reason or proof, the
 // field says "noch offen" – fill it in here. A valuation appears ONLY in the subtab "Bewertung & Anteile" – a private orientation for the
-// founder (greyed until the move is set, no export, no PDF); nowhere else in the admin.
+// founder (no export, no PDF); nowhere else in the admin.
 // The live values come from lib/admin/metrics.ts fundingReadiness – never from here.
 
 export const FUNDING_TITLE = "Finanzierung";
-export const FUNDING_NOTE = "Thesen zur Orientierung, keine Finanzberatung. Vor dem Umzug keine Investoren und keine Bewertung.";
+export const FUNDING_NOTE = "Thesen zur Orientierung, keine Finanzberatung.";
 export const OPEN = "noch offen";
 export const YOU_ARE_HERE = "Du bist hier";
 
@@ -21,12 +21,10 @@ export const FUNDING_TABS: readonly { key: FundingTab; label: string }[] = [
 
 // ── Bereitschaft ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type ReadinessKey = "moved" | "profitStreak" | "repeatRate" | "fullHousesGrowth" | "hubsFill" | "contribution";
+export type ReadinessKey = "repeatRate" | "fullHousesGrowth" | "hubsFill" | "contribution";
 
 /** The thresholds behind the checklist (lib/admin/metrics.ts fundingReadiness reads them). */
 export const READINESS = {
-  /** € profit a month, so many months in a row (the move target) */
-  profit: { perMonth: 5000, months: 6 },
   /** Repeat guests, percent */
   repeatRatePercent: 25,
   /** Full Houses grow at least this much a month (compound), over this many completed months */
@@ -37,10 +35,8 @@ export const READINESS = {
   contribution: { variableCostCategories: ["Zahlungsgebühren", "Marketing"] },
 } as const;
 
-/** The checklist, in this order; `required`: the one point without which nothing else counts. */
-export const READINESS_ITEMS: readonly { key: ReadinessKey; label: string; required?: true }[] = [
-  { key: "moved", label: "Umzug erledigt, Firma im Ausland", required: true },
-  { key: "profitStreak", label: "5.000 € Gewinn 6 Monate in Folge" },
+/** The checklist, in this order – no money targets (Regel „Keine Geldziele“). */
+export const READINESS_ITEMS: readonly { key: ReadinessKey; label: string }[] = [
   { key: "repeatRate", label: "Wiederkehrer ≥ 25 %" },
   { key: "fullHousesGrowth", label: "Volle Houses wachsen ≥ 10 % pro Monat über 6 Monate" },
   { key: "hubsFill", label: "2–3 Hubs mit Füllrate ≥ 70 %" },
@@ -49,16 +45,10 @@ export const READINESS_ITEMS: readonly { key: ReadinessKey; label: string; requi
 
 export const READINESS_TEXT = {
   ready: "Bereit: {met} von {total}",
-  moveFirst: "Erst umziehen, dann Werte schaffen.",
-  required: "Pflicht",
-  manual: "von Hand",
-  movedSwitch: "Umzug erledigt",
   met: "erfüllt",
   notMet: "offen",
   /** What each live value says */
   value: {
-    moved: { yes: "erledigt", no: "noch nicht" },
-    profitStreak: "{streak} von {months} Monaten · diesen Monat {current}",
     repeatRate: "{value} von 25 %",
     fullHousesGrowth: "{value} pro Monat (von {from} auf {to} volle Houses)",
     hubsFill: "{count} Hubs: {hubs}",
@@ -116,7 +106,7 @@ export const ROUNDS_TEXT = {
   after: "nach {round}",
   question: "Kernfrage: Kontrolle oder maximale Größe?",
   investorsTitle: "Investoren",
-  later: "nach dem Umzug",
+  later: "später",
   investorColumns: ["Name", "Fonds", "Stufe", "Letzter Kontakt", "Notiz"],
 };
 
@@ -152,12 +142,11 @@ export const DOCUMENTS_TEXT = {
 // ── Bewertung & Anteile ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * A private orientation only: ranges, never a single number; greyed until "Umzug erledigt" is set; no export, no PDF. The multiples are
+ * A private orientation only: ranges, never a single number; no export, no PDF. The multiples are
  * rough rules of thumb from the brief; the live values (run rate, growth, repeat guests, margin) from lib/admin/metrics.ts valuationRange.
  */
 export const VALUATION = {
   note: "Nur Orientierung für mich, keine Bewertung im rechtlichen Sinn, keine Finanzberatung. Nicht weitergeben.",
-  beforeMove: "Vor dem Umzug: keine Bewertung nach außen.",
   /** Method A: the revenue run rate × a multiple by growth per year (percent) – the first band whose `below` holds the growth */
   revenueMultiples: [
     { below: 30, low: 1, high: 3, label: "Wachstum < 30 %/Jahr" },

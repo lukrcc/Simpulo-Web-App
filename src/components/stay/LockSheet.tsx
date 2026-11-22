@@ -53,7 +53,7 @@ export function LockSheet({ stay, link, onClose }: { stay: Stay; link?: string; 
   const totalValue = Math.round(Number(total));
   const perPerson = totalValue > 0 ? Math.ceil(totalValue / spots) : 0;
   // A guest's payment: stay share + host programme (capped at 30 % of the share) + guest fee.
-  const split = paymentSplit(perPerson, stay.hostFeePerPerson);
+  const split = paymentSplit(perPerson, stay.hostFeePerPerson, stay.currency);
   const programmeCapped = perPerson > 0 && stay.hostFeePerPerson !== undefined && split.hostFee < stay.hostFeePerPerson;
   const canSubmit = urlValid && perPerson > 0 && payBy !== "" && !busy;
   const spotChoices = Array.from({ length: maxSpots - crewSize + 1 }, (_, i) => crewSize + i);

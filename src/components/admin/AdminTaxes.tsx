@@ -479,7 +479,7 @@ function InvestmentsSection({ entries }: { entries: ReturnType<typeof inPeriod> 
           <p className="mt-1 text-h1 tabular-nums text-ink">{eur(inv.total)}</p>
           <p className="mt-2 text-body text-ink">{t("sentence")}</p>
         </div>
-        <BarList tone="ink" rows={inv.byCategory.map((c) => ({ key: c.category, label: c.category, value: c.total, display: eur(c.total) }))} />
+        <BarList rows={inv.byCategory.map((c) => ({ key: c.category, label: c.category, value: c.total, display: eur(c.total) }))} />
       </div>
     </AdminSection>
   );

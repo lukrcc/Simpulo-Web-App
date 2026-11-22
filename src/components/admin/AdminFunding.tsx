@@ -21,7 +21,6 @@ import {
   FUNDING_TABS,
   FUNDING_TITLE,
   OPEN,
-  READINESS,
   READINESS_TEXT,
   ROUND_NOW,
   ROUNDS,
@@ -86,12 +85,9 @@ function MetMark({ met }: { met: boolean }) {
 
 function Readiness({ inputs }: { inputs: AdminInputs }) {
   const r = fundingReadiness(inputs);
-  const actions = useAdminActions();
   const v = r.values;
   const t = READINESS_TEXT.value;
   const valueOf = {
-    moved: v.moved.met ? t.moved.yes : t.moved.no,
-    profitStreak: fill(t.profitStreak, { streak: v.profitStreak.streak, months: READINESS.profit.months, current: eur(v.profitStreak.current) }),
     repeatRate: v.repeatRate.value === null ? t.none : fill(t.repeatRate, { value: pct(v.repeatRate.value) }),
     fullHousesGrowth: v.fullHousesGrowth.value === null ? t.none : fill(t.fullHousesGrowth, { value: `${(v.fullHousesGrowth.value * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`, from: v.fullHousesGrowth.from, to: v.fullHousesGrowth.to }),
     hubsFill: v.hubsFill.hubs.length === 0 ? t.hubsNone : fill(t.hubsFill, { count: v.hubsFill.hubs.length, hubs: v.hubsFill.hubs.map((h) => `${h.hub} ${pct(Math.round(h.fill * 100))}`).join(" · ") }),
@@ -99,14 +95,13 @@ function Readiness({ inputs }: { inputs: AdminInputs }) {
   };
   return (
     <>
-      {/* "Bereit: X von 6" large, the six as segments under it; without the move the one sentence that matters. */}
+      {/* "Bereit: X von 4" large, the points as segments under it. */}
       <p className="text-display tabular-nums text-ink">{fill(READINESS_TEXT.ready, { met: r.met, total: r.total })}</p>
       <div role="meter" aria-label={fill(READINESS_TEXT.ready, { met: r.met, total: r.total })} aria-valuemin={0} aria-valuemax={r.total} aria-valuenow={r.met} className="mt-4 flex max-w-md gap-1.5">
         {r.items.map((item) => (
-          <span key={item.key} className={cn("h-1.5 flex-1 rounded-full", item.met ? "bg-adm-good" : "bg-ink/10")} />
+          <span key={item.key} className={cn("h-1.5 flex-1 rounded-full", item.met ? "bg-adm-chart-primary" : "bg-adm-chart-track")} />
         ))}
       </div>
-      {!r.moved && <p className="mt-(--adm-inner) text-h3 text-ink">{READINESS_TEXT.moveFirst}</p>}
 
       <ol className="mt-(--adm-section) divide-y divide-ink/8 border-y border-ink/8">
         {r.items.map((item) => (
@@ -115,17 +110,10 @@ function Readiness({ inputs }: { inputs: AdminInputs }) {
             <span className="min-w-0 flex-1 basis-72">
               <span className="flex flex-wrap items-center gap-2 text-body font-semibold text-ink">
                 {item.label}
-                {item.required && <span className="rounded-full border border-ink/15 px-2 text-small font-medium text-muted">{READINESS_TEXT.required}</span>}
                 <span className="sr-only">· {item.met ? READINESS_TEXT.met : READINESS_TEXT.notMet}</span>
               </span>
               <span className="mt-0.5 block text-small text-muted">{valueOf[item.key]}</span>
             </span>
-            {item.key === "moved" && (
-              <span className="flex items-center gap-1 text-small text-muted">
-                {READINESS_TEXT.manual}
-                <Switch on={v.moved.met} label={READINESS_TEXT.movedSwitch} onChange={(on) => actions.setMoved(on)} />
-              </span>
-            )}
           </li>
         ))}
       </ol>
@@ -146,8 +134,8 @@ function Thesis() {
           <li key={a.key} className="grid items-center gap-x-6 gap-y-1 sm:grid-cols-[200px_minmax(0,1fr)_56px]">
             <span className="text-body font-semibold text-ink">{a.label}</span>
             <span className="order-3 sm:order-none">
-              <span aria-hidden className="block h-3 overflow-hidden rounded-full bg-ink/6">
-                <span className="block h-full rounded-full bg-ink/70" style={{ width: `${(a.percent / max) * 100}%` }} />
+              <span aria-hidden className="block h-3 overflow-hidden rounded-full bg-adm-chart-track">
+                <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${(a.percent / max) * 100}%` }} />
               </span>
               <span className={cn("mt-1.5 block text-small", a.reason ? "text-muted" : "text-ink/40")}>{a.reason ?? THESIS_TEXT.reasonOpen}</span>
             </span>
@@ -236,8 +224,8 @@ function ShareCalculator() {
         {steps.map((s) => (
           <li key={s.key} className="grid items-center gap-x-6 gap-y-1 sm:grid-cols-[160px_minmax(0,1fr)_120px]">
             <span className="text-body text-ink">{s.label}</span>
-            <span aria-hidden className="flex h-3 overflow-hidden rounded-full bg-ink/8">
-              <span className="block h-full rounded-full bg-ink/70" style={{ width: `${s.founders}%` }} />
+            <span aria-hidden className="flex h-3 overflow-hidden rounded-full bg-adm-chart-track">
+              <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${s.founders}%` }} />
             </span>
             <span className="text-body tabular-nums text-ink sm:text-right">
               {ROUNDS_TEXT.founders} <span className="font-semibold">{pct(Math.round(s.founders * 10) / 10)}</span>
@@ -313,7 +301,7 @@ function Documents({ inputs }: { inputs: AdminInputs }) {
       <AdminSection title={DOCUMENTS_TEXT.title} aside={<span className="text-small text-muted">{fill(DOCUMENTS_TEXT.done, { done, total: DOCUMENTS.length })}</span>}>
         <div className="mb-(--adm-inner) flex max-w-md gap-1.5" aria-hidden>
           {DOCUMENTS.map((d) => (
-            <span key={d.key} className={cn("h-1.5 flex-1 rounded-full", statusOf(d.key) === "done" ? "bg-ink/70" : statusOf(d.key) === "inProgress" ? "bg-ink/30" : "bg-ink/10")} />
+            <span key={d.key} className={cn("h-1.5 flex-1 rounded-full", statusOf(d.key) === "done" ? "bg-adm-chart-primary" : statusOf(d.key) === "inProgress" ? "bg-adm-chart-current" : "bg-adm-chart-track")} />
           ))}
         </div>
         <ul className="divide-y divide-ink/8 border-y border-ink/8">
@@ -350,14 +338,13 @@ function Documents({ inputs }: { inputs: AdminInputs }) {
 const mio = (n: number) => (Math.abs(n) >= 1_000_000 ? `${dec(Math.round(n / 100_000) / 10)} Mio. €` : eur(Math.round(n)));
 
 /**
- * A private orientation (config/funding.ts VALUATION): the valuation only as two ranges (never one number) and the three drivers – greyed
- * with "Vor dem Umzug: keine Bewertung nach außen." until the move is set –, private vs. stock exchange, the cap table calculator (not
+ * A private orientation (config/funding.ts VALUATION): the valuation only as two ranges (never one number) and the three drivers,
+ * private vs. stock exchange, the cap table calculator (not
  * saved) and the terms. No export, no PDF.
  */
 function Valuation({ inputs }: { inputs: AdminInputs }) {
   const v = valuationRange(inputs);
   const t = VALUATION.text;
-  const moved = inputs.admin.fundingMoved;
   const max = Math.max(v.revenue.high, v.profit?.high ?? 0, 1);
   const ranges = [
     { key: "a", title: t.methodA, detail: fill(t.methodADetail, { revenue: eur(v.revenue.runRate), low: v.revenue.band.low, high: v.revenue.band.high, band: v.revenue.band.label }), low: v.revenue.low, high: v.revenue.high },
@@ -373,17 +360,16 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
   return (
     <>
       <AdminSection title={t.rangeTitle}>
-        {!moved && <p className="mb-(--adm-inner) text-h3 text-ink">{VALUATION.beforeMove}</p>}
         {/* Two range bars on one scale: the span from low to high, the two ends written under it. */}
-        <ul className={cn("flex flex-col gap-8", !moved && "opacity-40")} aria-disabled={!moved || undefined}>
+        <ul className="flex flex-col gap-8">
           {ranges.map((r) => (
             <li key={r.key}>
               <p className="text-body font-semibold text-ink">{r.title}</p>
               <p className="mt-0.5 text-small text-muted">{r.detail}</p>
               {r.low !== null && r.high !== null && (
                 <div className="mt-3 max-w-3xl">
-                  <span aria-hidden className="relative block h-3 rounded-full bg-ink/6">
-                    <span className="absolute inset-y-0 rounded-full bg-ink/60" style={{ left: `${(r.low / max) * 100}%`, width: `${Math.max(1, ((r.high - r.low) / max) * 100)}%` }} />
+                  <span aria-hidden className="relative block h-3 rounded-full bg-adm-chart-track">
+                    <span className="absolute inset-y-0 rounded-full bg-adm-chart-primary" style={{ left: `${(r.low / max) * 100}%`, width: `${Math.max(1, ((r.high - r.low) / max) * 100)}%` }} />
                   </span>
                   <p className="mt-2 text-body tabular-nums text-ink">
                     <span className="text-small text-muted">{t.low}</span> {mio(r.low)} – {mio(r.high)} <span className="text-small text-muted">{t.high}</span>
@@ -455,7 +441,8 @@ function Valuation({ inputs }: { inputs: AdminInputs }) {
   );
 }
 
-const CAP_COLORS = { founders: "bg-ink/70", investors: "bg-adm-chart-1", pool: "bg-adm-chart-2" } as const;
+/** Three series (Regel „Admin-Diagramme“): founders primary, investors chart-2, pool chart-3. */
+const CAP_COLORS = { founders: "bg-adm-chart-primary", investors: "bg-adm-chart-2", pool: "bg-adm-chart-3" } as const;
 
 /**
  * The cap table: from 100 % founders, up to three rounds with pre-money and amount (Mio. €) and an optional employee pool (% of post-money).

@@ -2,18 +2,18 @@
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
 // through lib/admin/actions.ts (and into the log).
-import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminListDetail, AdminSort, AdminSubTabs, AdminTabs, BackToList, DirectLink } from "./AdminLayout";
 import { BACKLOG, BACKLOG_PHASES, BACKLOG_STATUSES, LAUNCH_PLAN_URL, type BacklogPhase, type BacklogStatus } from "@/config/backlog";
 import type { LaunchFacts } from "@/lib/launchChecks";
 import { AdminLaunch } from "./AdminLaunch";
-import { RoadmapTimeline, RoadmapTodos } from "./AdminRoadmap";
-import { TODO_DUES, type TodoDue } from "@/config/roadmap";
+import { TODO_DUES } from "@/config/roadmap";
+import { useRouter } from "next/navigation";
 import { DUTIES, dutyStatus } from "@/config/obligations";
 import { ADDRESS_FIELDS, hasBusinessAddress } from "@/config/company";
 import { FOUNDING_HOST } from "@/config/policies";
 import { isFoundingHost } from "@/lib/founding";
-import { StatusDot } from "./AdminCharts";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { ProgressBar, StatusDot } from "./AdminCharts";
+import { ArrowUpRight, ChartColumn, Code, CreditCard, Database, ExternalLink, Eye, Flame, Globe, HardDrive, Landmark, Mail, ScrollText, Server, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { ModalFooter, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
-import { TOOL_LINKS } from "@/config/app-links";
+import { TOOLS, TOOL_GROUPS, errorLogUrl, firebaseDocUrl, stripeUrl, type ToolIcon } from "@/config/tools";
 import { VIBE_ICONS } from "@/config/explore";
 import { examples, launch, phaseRules, PLATFORM_PHASES, usePlatformPhase, type PhaseRules } from "@/config/platform";
 import { useFormat } from "@/i18n/format";
@@ -180,7 +180,10 @@ function HostColumns({ row }: { row: HostOverview }) {
     <span className={HOST_COLS}>
       <span className="truncate text-left text-small text-muted">{tTier(row.tier)}</span>
       <span className="text-small tabular-nums text-ink">{row.houses.length}</span>
-      <span className="text-small tabular-nums text-ink">{share(row.fillRate)}</span>
+      <span className="flex items-center gap-2 text-small tabular-nums text-ink">
+        <ProgressBar ratio={row.fillRate ?? 0} label={share(row.fillRate)} className="w-10 shrink-0" />
+        {share(row.fillRate)}
+      </span>
       <span className="text-small tabular-nums text-ink">{formatEur(row.valuePerYear)}</span>
       <span className="flex justify-end">
         {row.warnings.length > 0 && (
@@ -234,6 +237,11 @@ function HostDetail({ row, onBack }: { row: HostOverview; onBack: () => void }) 
           </Link>
           <p className="text-small text-muted">{row.hubs.join(", ")}</p>
         </div>
+      </div>
+      {/* Only with real ids in production (config/tools.ts) – in the mock nothing. */}
+      <div className="mt-1 flex flex-wrap gap-x-4 empty:hidden">
+        <DirectLink href={stripeUrl("account", user.stripeAccountId)}>{t("stripeAccount")}</DirectLink>
+        <DirectLink href={firebaseDocUrl("users", user.id)}>{t("openFirebase")}</DirectLink>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-small">
         {(user.socials ?? []).map((link) => (
@@ -515,34 +523,28 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   // Going public without a business address in the imprint: blocked (config/company.ts; the server's facts know it).
   const addressMissing = facts ? facts.legal.companyGaps.some((g) => (ADDRESS_FIELDS as readonly string[]).includes(g)) : !hasBusinessAddress();
   const blockedLive = pending === "live" && addressMissing;
-  // Einstellungen (phase, tools, values) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
+  // Einstellungen (phase, values) · Tools (?view=tools) · Launch-Vorbereitung with its Unterreiter: Backlog (config/backlog.ts) · Launch (the checklist,
   // config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
-  const [view, setView] = useState<"settings" | "prepare" | "roadmap">("settings");
+  const [view, setView] = useState<"settings" | "tools" | "prepare">("settings");
   const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
-  // Zeitplan & Vorbereitung: Zeitleiste · To-dos; a diamond on the timeline opens the to-dos filtered by its due milestone.
-  const [roadmapView, setRoadmapView] = useState<"timeline" | "todos">("timeline");
-  const [todoDue, setTodoDue] = useState<TodoDue | "all">("all");
-  // Links from the Übersicht and the Marketing countdown: ?view=roadmap[&sub=todos][&due=…] – read once on arrival.
+  const router = useRouter();
+  // ?view=tools opens Tools; the old „Zeitplan & Vorbereitung“ links (?view=roadmap[&sub=todos][&due=…]) go to Admin › Zeitplan.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("view") === "tools") return void requestAnimationFrame(() => setView("tools"));
     if (params.get("view") !== "roadmap") return;
-    requestAnimationFrame(() => {
-      setView("roadmap");
-      if (params.get("sub") === "todos") setRoadmapView("todos");
-      const due = params.get("due");
-      if (due && TODO_DUES.some((d) => d.id === due)) setTodoDue(due as TodoDue);
-    });
-  }, []);
+    const due = params.get("due");
+    const todos = params.get("sub") === "todos";
+    router.replace(`/admin/zeitplan?tab=${todos ? "todos" : "timeline"}${todos && due && TODO_DUES.some((d) => d.id === due) ? `&due=${due}` : ""}`);
+  }, [router]);
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "prepare", "roadmap"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
       subTabs={
         view === "prepare" ? (
           <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} />
-        ) : view === "roadmap" ? (
-          <AdminSubTabs label={t("roadmapViews.label")} value={roadmapView} onChange={setRoadmapView} tabs={(["timeline", "todos"] as const).map((value) => ({ value, label: t(`roadmapViews.${value}`) }))} />
         ) : undefined
       }
       aside={
@@ -551,15 +553,8 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         </Link>
       }
     >
-      {view === "roadmap" && roadmapView === "todos" ? (
-        <RoadmapTodos due={todoDue} onDue={setTodoDue} />
-      ) : view === "roadmap" ? (
-        <RoadmapTimeline
-          onPickDue={(due) => {
-            setTodoDue(due);
-            setRoadmapView("todos");
-          }}
-        />
+      {view === "tools" ? (
+        <Tools />
       ) : view === "prepare" && prep === "duties" ? (
         <Duties />
       ) : view === "prepare" && prep === "launch" ? (
@@ -580,7 +575,6 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
         />
         <p className="mt-3 text-small text-muted">{t("current", { phase: t(`phases.${phase}`) })}</p>
       </AdminSection>
-      <Tools />
       <AdminSection title={t("values")}>
         <dl className="grid gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -701,9 +695,9 @@ function Backlog() {
   const [filter, setFilter] = useState<BacklogStatus | "all">("all");
   const [phase, setPhase] = useState<BacklogPhase | "all">("all");
   const items = BACKLOG.map((item) => ({ ...item, status: data.backlog?.[item.id] ?? item.status }));
-  const open = items.filter((i) => i.status !== "done").length;
-  // Done at the end, otherwise the config's order.
-  const shown = items.filter((i) => (filter === "all" || i.status === filter) && (phase === "all" || i.phase === phase)).toSorted((a, b) => Number(a.status === "done") - Number(b.status === "done"));
+  const open = items.filter((i) => i.status === "open" || i.status === "inProgress").length;
+  // Done and parked at the end, otherwise the config's order.
+  const shown = items.filter((i) => (filter === "all" || i.status === filter) && (phase === "all" || i.phase === phase)).toSorted((a, b) => Number(a.status === "done" || a.status === "parked") - Number(b.status === "done" || b.status === "parked"));
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -729,7 +723,7 @@ function Backlog() {
       ) : (
         <ul className="mt-(--adm-inner) divide-y divide-ink/8 border-y border-ink/8">
           {shown.map((item) => (
-            <li key={item.id} data-backlog-item={item.id} className={cn("flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5", item.status === "done" && "opacity-45")}>
+            <li key={item.id} data-backlog-item={item.id} className={cn("flex min-h-(--adm-row-h) flex-wrap items-center gap-x-6 gap-y-2 py-2.5", (item.status === "done" || item.status === "parked") && "opacity-45")}>
               <div className="min-w-0 flex-1 basis-[320px]">
                 <p className="truncate text-body font-semibold text-ink">{item.title}</p>
                 <p className="truncate text-small text-muted">{item.description}</p>
@@ -744,38 +738,67 @@ function Backlog() {
   );
 }
 
+const TOOL_ICON: Record<ToolIcon, LucideIcon> = { flame: Flame, database: Database, users: Users, storage: HardDrive, logs: ScrollText, server: Server, card: CreditCard, bank: Landmark, code: Code, eye: Eye, mail: Mail, globe: Globe, chart: ChartColumn };
+
 /**
- * "Tools": the status line (environment, errors in 24h, cost this month – only the environment is known before phase 4, the rest marked)
- * and quick links to the consoles (config/app-links.ts TOOL_LINKS), each in a new tab.
+ * System › Tools: the status line (environment, errors in 24h – with „Protokoll öffnen“ in production –, cost this month; the last two
+ * before phase 4 „–“) and the external services grouped (config/tools.ts TOOLS: Firebase · Geld · Code · Versand & Domain · Später), each
+ * its symbol, name and one line, opening in a new tab. Unknown services (no address yet) are not shown; links only, never credentials.
  */
 function Tools() {
   const t = useTranslations("admin.platform.tools");
   const status = [
-    { label: t("environment"), value: t(`env.${APP_MODE}`) },
-    { label: t("errors"), value: "–" },
-    { label: t("cost"), value: "–" },
+    { label: t("environment"), value: t(`env.${APP_MODE}`), link: null },
+    { label: t("errors"), value: "–", link: errorLogUrl() },
+    { label: t("cost"), value: "–", link: null },
   ];
   return (
-    <AdminSection title={t("title")} aside={<Badge>{t("later")}</Badge>}>
-      <dl className="grid grid-cols-3">
-        {status.map((s, i) => (
-          <div key={s.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-6")}>
-            <dt className="text-small text-muted">{s.label}</dt>
-            <dd className={cn("mt-1 text-h3", i === 0 ? "text-ink" : "text-muted")}>{s.value}</dd>
-          </div>
-        ))}
-      </dl>
-      <ul className="mt-8 flex flex-wrap gap-2">
-        {TOOL_LINKS.map((tool) => (
-          <li key={tool.key}>
-            <a href={tool.url} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-2 rounded-full border border-ink/12 px-4 text-nav-main text-ink transition-colors duration-150 hover:bg-ink/5">
-              {t(`links.${tool.key}`)}
-              <ArrowUpRight aria-hidden className="size-4 text-muted" />
-              <span className="sr-only">{t("newTab")}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </AdminSection>
+    <>
+      <AdminSection title={t("title")} aside={<Badge>{t("later")}</Badge>}>
+        <dl className="grid grid-cols-3">
+          {status.map((s, i) => (
+            <div key={s.label} className={cn("min-w-0", i > 0 && "border-l border-ink/8 pl-6")}>
+              <dt className="text-small text-muted">{s.label}</dt>
+              <dd className={cn("mt-1 text-h3", i === 0 ? "text-ink" : "text-muted")}>{s.value}</dd>
+              <dd>
+                <DirectLink href={s.link}>{t("openLog")}</DirectLink>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-3 text-small text-muted">{t("note")}</p>
+      </AdminSection>
+      <div className="mt-(--adm-section) grid gap-x-12 gap-y-(--adm-section) md:grid-cols-2 xl:grid-cols-3">
+        {TOOL_GROUPS.map((group) => {
+          const tools = TOOLS.filter((tool) => tool.group === group && tool.url);
+          if (tools.length === 0) return null;
+          return (
+            <section key={group} data-tool-group={group} aria-labelledby={`tools-${group}`}>
+              <h2 id={`tools-${group}`} className="mb-2 text-eyebrow uppercase text-(--adm-label)">
+                {t(`groups.${group}`)}
+              </h2>
+              <ul className="divide-y divide-ink/8 border-y border-ink/8">
+                {tools.map((tool) => {
+                  const Icon = TOOL_ICON[tool.icon];
+                  return (
+                    <li key={tool.id}>
+                      <a href={tool.url!} target="_blank" rel="noreferrer noopener" data-tool={tool.id} className="group flex min-h-(--adm-row-h) items-center gap-3 py-2 transition-colors duration-150 hover:bg-ink/4">
+                        <Icon aria-hidden className="size-5 shrink-0 text-muted group-hover:text-ink" strokeWidth={1.75} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-body font-semibold text-ink">{t(`items.${tool.id}.name`)}</span>
+                          <span className="block truncate text-small text-muted">{t(`items.${tool.id}.purpose`)}</span>
+                        </span>
+                        <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted group-hover:text-ink" />
+                        <span className="sr-only">{t("newTab")}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    </>
   );
 }

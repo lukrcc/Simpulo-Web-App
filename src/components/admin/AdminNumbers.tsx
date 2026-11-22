@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 // The admin's main-number pieces (CLAUDE.md "Admin › Kennzahlen"): the change "like a stock" under a number (computed only by getChange in
 // lib/admin/metrics.ts, its colour by better/worse – sage, ember, grey ±0, ink when neither is better) and the ⓘ with one sentence.
 import { Info } from "lucide-react";
@@ -115,7 +117,7 @@ export function KeyNumbers({
   items,
   className,
 }: {
-  items: readonly { key: string; label: string; info: string; value: string; change: Change | null; against?: string; target?: { text: string; status: Status | null }; sub?: ReactNode }[];
+  items: readonly { key: string; label: string; info: string; value: ReactNode; change: Change | null; against?: string; target?: { text: string; status: Status | null }; sub?: ReactNode; /** The label as a link (e.g. to its tab in Geld) */ href?: string }[];
   className?: string;
 }) {
   return (
@@ -123,7 +125,13 @@ export function KeyNumbers({
       {items.map((n, i) => (
         <div key={n.key} className={cn("min-w-0 pr-4 md:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 3 !== 0 && "md:max-lg:border-l md:max-lg:border-ink/8", i % 3 === 0 && "md:max-lg:pl-0", i % 2 === 1 && "max-md:border-l max-md:border-ink/8 max-md:pl-4")}>
           <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
-            {n.label}
+            {n.href ? (
+              <Link href={n.href} data-key-link className="underline-offset-4 hover:text-ink hover:underline">
+                {n.label} →
+              </Link>
+            ) : (
+              n.label
+            )}
             <InfoTip text={typeof n.sub === "string" ? `${n.info} ${n.sub}` : n.info} />
           </dt>
           <dd className="mt-1 text-h1 tabular-nums text-ink">{n.value}</dd>
@@ -134,5 +142,49 @@ export function KeyNumbers({
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * A main number as a card (Admin › Übersicht): a surface a step lighter than the ground (--adm-block), a fine edge, radius 12, a 2px stripe
+ * on top in its group's colour (Geld violet, Kern turquoise); its label with ⓘ, the number, ONE line change · target, and at the bottom its
+ * footer (only Gewinn: the months in a row – no small charts in cards, Regel „Admin-Diagramme“). With `href` the whole card is a link (a stretched link under the ⓘ).
+ */
+export function MetricCard({
+  label,
+  info,
+  value,
+  change,
+  target,
+  accent,
+  href,
+  openLabel,
+  footer,
+}: {
+  label: string;
+  info: string;
+  value: ReactNode;
+  change: Change | null;
+  target?: { text: string; status: Status | null };
+  accent: "primary" | "chart-2";
+  href?: string;
+  openLabel?: string;
+  footer?: ReactNode;
+}) {
+  return (
+    <div data-metric-card className="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink/8 bg-(--adm-block) px-4 pt-3.5 pb-3 transition-colors duration-150 has-[[data-card-link]:hover]:bg-(--adm-block-hover)">
+      <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5", accent === "primary" ? "bg-adm-chart-primary" : "bg-adm-chart-2")} />
+      {href && <Link href={href} data-card-link aria-label={openLabel ?? label} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />}
+      <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
+        {label}
+        {href && <span aria-hidden> →</span>}
+        <InfoTip text={info} />
+      </dt>
+      <dd className="mt-1 text-h1 tabular-nums text-ink">{value}</dd>
+      <dd className="mt-1">
+        <ChangeLine change={change} target={target} className="block" />
+      </dd>
+      {footer && <dd className="mt-auto pt-3 text-small text-muted">{footer}</dd>}
+    </div>
   );
 }

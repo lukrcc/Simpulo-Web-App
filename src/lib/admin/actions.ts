@@ -11,10 +11,10 @@ import { notify, notifyByEmail } from "@/lib/notify";
 import { tEn } from "@/lib/i18n/translate";
 import { waitlistStatus } from "@/lib/types";
 import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, PlatformPhase, Report, ReportOutcome, Stay, SupportTicket, TicketStatus } from "@/lib/types";
-import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addContentPost, patchContentPost, deleteContentPost } from "./store";
+import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, addCostEntry, deleteCostEntry, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addOwnTodo, patchRoadmapMilestone, addContentPost, patchContentPost, deleteContentPost } from "./store";
 import { useAdminData } from "./store";
-import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setFundingMoved, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
-import type { ContentPost, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import type { ContentPost, CostEntry, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 /** Reports opened in this visit (the log line once each). */
 const viewedReports = new Set<string>();
@@ -221,18 +221,13 @@ export function useAdminActions() {
       patchTaxQuestion(question.id, patch);
       appendAdminLog("tax_question_updated", `${question.text}${patch.status ? ` · ${patch.status}` : ""}`, by);
     },
-    /** Finanzierung › Bereitschaft: "Umzug erledigt, Firma im Ausland" by hand. */
-    setMoved(moved: boolean) {
-      setFundingMoved(moved);
-      appendAdminLog("funding_moved", moved ? "erledigt" : "noch nicht", by);
-    },
     /** Finanzierung › Unterlagen: a document's status. */
     setFundingDocStatus(key: string, label: string, status: "missing" | "inProgress" | "done") {
       setFundingDoc(key, status);
       appendAdminLog("funding_doc", `${label} · ${status}`, by);
     },
     /** System › Backlog: an item's status. */
-    setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done", statusLabel: string) {
+    setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done" | "parked", statusLabel: string) {
       setBacklog(id, status);
       appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
     },
@@ -240,6 +235,15 @@ export function useAdminActions() {
     confirmLaunchCheck(id: string, label: string, confirmed: boolean) {
       setLaunchCheck(id, confirmed ? new Date().toISOString() : null);
       appendAdminLog("launch_check", `${label} · ${confirmed ? "bestätigt" : "zurückgenommen"}`, by);
+    },
+    /** Geld › Kosten: a cost entered or removed (logged with amount and category). */
+    addCostEntry(entry: Omit<CostEntry, "id">, label: string) {
+      addCostEntry(entry);
+      appendAdminLog("cost_entry", `${label} · ${entry.amount} € · ${entry.date}${entry.recurring ? " · monatlich" : ""}`, by);
+    },
+    deleteCostEntry(entry: CostEntry, label: string) {
+      deleteCostEntry(entry.id);
+      appendAdminLog("cost_entry", `${label} · ${entry.amount} € · entfernt`, by);
     },
     /** System › Zeitplan & Vorbereitung: a to-do's status (logged with the new status). */
     setRoadmapTodoStatus(id: string, title: string, status: "open" | "inProgress" | "done" | "later", label: string) {
@@ -255,6 +259,20 @@ export function useAdminActions() {
     setRoadmapReached(id: string, label: string, reached: boolean) {
       setRoadmapReached(id, reached);
       appendAdminLog("roadmap_milestone", `${label} · ${reached ? "erreicht" : "zurückgenommen"}`, by);
+    },
+    /** Zeitplan › Meilensteine: postponed (or back) and the note (logged without its text). */
+    setMilestonePostponed(id: string, label: string, postponed: boolean) {
+      patchRoadmapMilestone(id, { postponed });
+      appendAdminLog("roadmap_milestone", `${label} · ${postponed ? "verschoben" : "nicht mehr verschoben"}`, by);
+    },
+    setMilestoneNote(id: string, label: string, note: string) {
+      patchRoadmapMilestone(id, { note });
+      appendAdminLog("roadmap_milestone", `${label} · Notiz`, by);
+    },
+    /** Zeitplan › To-dos: an own to-do added (logged with its due day). */
+    addOwnTodo(text: string, due: string, week: string, group: string) {
+      addOwnTodo(text, due, week, group);
+      appendAdminLog("roadmap_todo", `${text} · neu · fällig ${due}`, by);
     },
     /** A due milestone whose to-dos are all done (logged once, when the last one is ticked). */
     logRoadmapMilestone(label: string) {

@@ -1,23 +1,39 @@
 "use client";
 
-// The admin dashboard's charts: few and thin. One series each (no legend – the heading names it), in the admin colours (styles/admin-tokens.css):
-// the page's main line in chart-1 (ocean, the focus), others chart-2 / chart-3 or ink; status colours never fill a chart or a bar – only the
-// small dot beside a number (StatusDot). Recessive grid (ink), a tooltip on hover. Lists of shares are plain bars (BarList), not a chart library.
+// The admin dashboard's charts: few and thin, always bars – no line charts, no sparklines as a line (only dashed goal and reference lines); in the admin chart colours (Regel „Admin-Diagramme“, styles/admin-tokens.css): one series is
+// always violet (--adm-chart-primary); more series primary → chart-2 (turquoise) → chart-3 (rosé), never more than three. Bars, areas and
+// rings: a 1.5px edge in primary over a light fill (--adm-chart-fill), hover a stronger fill (--adm-chart-fill-hover) with the edge in hover;
+// the running period a dashed edge in hover over the faint --adm-chart-fill-current, the axis says „läuft“ – a day „heute“ (which period
+// runs: metrics.ts runningState);
+// goals as a dashed amber line (--adm-chart-goal); bars with 5px round tops; bars, rings and progress lines in primary on a grey track. Status
+// colours never fill a chart – only the small dot beside a number (StatusDot) and the change arrows. Recessive grid, a tooltip on hover.
 import { memo, useMemo, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 // Month labels: every one while they fit, on a phone only as many as do (preserveStartEnd + minTickGap) – never on top of each other.
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { getStatus, type Status } from "@/lib/admin/metrics";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { Status } from "@/lib/admin/metrics";
 import { eur, num } from "@/lib/i18n/adminFormat";
-import { profitMilestones } from "@/config/admin";
 import { cn } from "@/lib/utils";
+import { niceScale } from "@/lib/admin/scale";
 
-/** "ink": a quiet series in the words' colour at 70 % (on the Ember stage cream, by the tokens) */
-export type ChartTone = "chart-1" | "chart-2" | "chart-3" | "ink";
+/** A series' colour: primary for one series; chart-2 and chart-3 only for a second and third series in the same chart. */
+export type ChartTone = "primary" | "chart-2" | "chart-3";
 
-/** Whole class names (Tailwind finds them only so): the series' colour as `color` (charts draw in currentColor), as a fill, as a background. */
-const TONE_TEXT: Record<ChartTone, string> = { "chart-1": "text-adm-chart-1", "chart-2": "text-adm-chart-2", "chart-3": "text-adm-chart-3", ink: "text-ink/70" };
-const TONE_BG: Record<ChartTone, string> = { "chart-1": "bg-adm-chart-1", "chart-2": "bg-adm-chart-2", "chart-3": "bg-adm-chart-3", ink: "bg-ink/70" };
+/** Whole class names (Tailwind finds them only so): the series' colour as `color` (charts draw in currentColor), as a background. */
+const TONE_TEXT: Record<ChartTone, string> = { primary: "text-adm-chart-primary", "chart-2": "text-adm-chart-2", "chart-3": "text-adm-chart-3" };
+const TONE_BG: Record<ChartTone, string> = { primary: "bg-adm-chart-primary", "chart-2": "bg-adm-chart-2", "chart-3": "bg-adm-chart-3" };
 export const STATUS_BG: Record<Status, string> = { good: "bg-adm-good", warning: "bg-adm-warning", critical: "bg-adm-critical" };
+
+/** The one bar shape: 5px round tops on the baseline. */
+export const BAR_RADIUS: [number, number, number, number] = [5, 5, 0, 0];
+/** A bar: the 1.5px edge in primary over the light fill. */
+const BAR = { fill: "var(--adm-chart-fill)", stroke: "var(--adm-chart-primary)", strokeWidth: 1.5 } as const;
+/** The running period's bar: a dashed edge in the hover tone over the faint fill. */
+const CURRENT_BAR = { fill: "var(--adm-chart-fill-current)", stroke: "var(--adm-chart-hover)", strokeWidth: 1.5, strokeDasharray: "4 3" } as const;
+const GRID = "var(--adm-chart-grid)";
+/** A goal or the move line: amber, dashed. */
+const GOAL_LINE = { stroke: "var(--adm-chart-goal)", strokeDasharray: "5 4", strokeWidth: 1.5 } as const;
+const ACTIVE_BAR = { fill: "var(--adm-chart-fill-hover)", stroke: "var(--adm-chart-hover)", strokeWidth: 1.5 } as const;
 
 /** A number's status as a dot 8px (no rule: a quiet ink dot). The status word is the label beside it, so colour is never alone. */
 export function StatusDot({ status, className }: { status: Status | null; className?: string }) {
@@ -27,6 +43,8 @@ export function StatusDot({ status, className }: { status: Status | null; classN
 export interface ChartPoint {
   label: string;
   value: number;
+  /** The running period on a time axis (metrics.ts runningState): "running" → „läuft“, "today" → „heute“ */
+  current?: "running" | "today" | null;
 }
 
 const AXIS = { fontSize: 12, fill: "var(--text-muted)" } as const;
@@ -43,7 +61,26 @@ function ChartTooltip({ active, payload, label, unit }: { active?: boolean; payl
   );
 }
 
-/** Columns over a time axis or buckets: 4px rounded tops on the baseline, an optional dashed target line. */
+/** An axis label with a second line for the running period („läuft“ / „heute“). */
+function TimeTick({ x, y, payload, points }: { x?: number; y?: number; payload?: { value: string; index: number }; points: readonly ChartPoint[] }) {
+  const t = useTranslations("admin.charts");
+  if (!payload || x === undefined || y === undefined) return null;
+  const current = points[payload.index]?.current;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy={12} textAnchor="middle" fontSize={12} fill="var(--text-muted)">
+        {payload.value}
+      </text>
+      {current && (
+        <text dy={27} textAnchor="middle" fontSize={11} fill="var(--text)" fontWeight={600}>
+          {t(current)}
+        </text>
+      )}
+    </g>
+  );
+}
+
+/** Columns over a time axis or buckets: 5px round tops on the baseline, an optional dashed goal line, the running period in "current". */
 export function ColumnChart({
   data,
   target,
@@ -51,7 +88,6 @@ export function ColumnChart({
   unit,
   height = 220,
   label,
-  tone = "chart-1",
 }: {
   data: readonly ChartPoint[];
   target?: number;
@@ -59,43 +95,30 @@ export function ColumnChart({
   unit?: string;
   height?: number;
   label: string;
-  tone?: ChartTone;
 }) {
+  const hasCurrent = data.some((d) => d.current);
+  const scale = niceScale(data.map((d) => d.value), target);
   return (
-    <div role="img" aria-label={label} className={TONE_TEXT[tone]} style={{ height }}>
+    <div role="img" aria-label={label} className={TONE_TEXT.primary} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: -16 }} barCategoryGap="28%">
-          <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(Math.max(target ?? 0, ...data.map((d) => d.value)))} domain={[0, (max: number) => Math.max(max, target ?? 0)]} ticks={target !== undefined ? [0, target] : undefined} />
+          <CartesianGrid vertical={false} stroke={GRID} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={6} height={hasCurrent ? 36 : 30} tick={<TimeTick points={data} />} />
+          <YAxis tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(scale.max)} domain={[scale.min, scale.max]} ticks={scale.ticks} />
           <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.05 }} content={<ChartTooltip unit={unit} />} />
-          {target !== undefined && <ReferenceLine y={target} stroke="var(--text-muted)" strokeDasharray="4 4" label={targetLabel ? { value: targetLabel, position: "insideTopLeft", ...AXIS } : undefined} />}
-          <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false} />
+          {target !== undefined && <ReferenceLine y={target} {...GOAL_LINE} label={targetLabel ? { value: targetLabel, position: "insideTopLeft", ...AXIS } : undefined} />}
+          <Bar dataKey="value" {...BAR} radius={BAR_RADIUS} maxBarSize={40} isAnimationActive={false} activeBar={ACTIVE_BAR}>
+            {data.map((d) => (d.current ? <Cell key={d.label} {...CURRENT_BAR} /> : <Cell key={d.label} {...BAR} />))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
-/** A running total or a count over time: a 2px line over a faint area. */
-export function TrendChart({ data, unit, height = 220, label, tone = "chart-1" }: { data: readonly ChartPoint[]; unit?: string; height?: number; label: string; tone?: ChartTone }) {
-  return (
-    <div role="img" aria-label={label} className={TONE_TEXT[tone]} style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} minTickGap={24} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={AXIS} tickFormatter={(v: number) => num(v)} width={axisWidth(Math.max(...data.map((d) => d.value)))} />
-          <Tooltip cursor={{ stroke: "currentColor", strokeOpacity: 0.2 }} content={<ChartTooltip unit={unit} />} />
-          <Area type="monotone" dataKey="value" stroke="currentColor" strokeWidth={2} fill="currentColor" fillOpacity={0.12} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
-/** Shares as rows: label left, value right, a 6px bar (the tone on ink 8 %) under each. */
-export function BarList({ rows, tone = "chart-1", className }: { rows: readonly { key: string; label: ReactNode; value: number; display?: ReactNode }[]; tone?: ChartTone; className?: string }) {
+/** Shares as rows: label left, value right, a 6px bar (primary on the grey track) under each. One list = one series. */
+export function BarList({ rows, tone = "primary", className }: { rows: readonly { key: string; label: ReactNode; value: number; display?: ReactNode }[]; tone?: ChartTone; className?: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <ul className={cn("space-y-3", className)}>
@@ -105,7 +128,7 @@ export function BarList({ rows, tone = "chart-1", className }: { rows: readonly 
             <span className="flex min-w-0 items-center gap-2 truncate text-ink">{r.label}</span>
             <span className="shrink-0 tabular-nums text-muted">{r.display ?? r.value}</span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink/8">
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-adm-chart-track">
             <div className={cn("h-full rounded-full", TONE_BG[tone])} style={{ width: `${(r.value / max) * 100}%` }} />
           </div>
         </li>
@@ -114,221 +137,126 @@ export function BarList({ rows, tone = "chart-1", className }: { rows: readonly 
   );
 }
 
-/** A progress bar toward a target: ink 70 % on ink 8 % (the status is the dot beside its number, never the bar). */
+/** A progress bar toward a target: primary on the grey track (the status is the dot beside its number, never the bar). */
 export function ProgressBar({ ratio, label, className }: { ratio: number; label: string; className?: string }) {
   return (
-    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} className={cn("h-1.5 overflow-hidden rounded-full bg-ink/8", className)}>
-      <div className="h-full rounded-full bg-ink/70" style={{ width: `${Math.max(ratio > 0 ? 2 : 0, ratio * 100)}%` }} />
+    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} className={cn("h-1.5 overflow-hidden rounded-full bg-adm-chart-track", className)}>
+      <div className="h-full rounded-full bg-adm-chart-primary" style={{ width: `${Math.max(ratio > 0 ? 2 : 0, Math.min(1, ratio) * 100)}%` }} />
     </div>
   );
 }
 
-/** Steps toward a count ("3 of 6 months", "2 of 5 criteria"): one short segment each, the reached ones filled ink. */
+/** Steps toward a count ("3 of 6 months", "2 of 5 criteria"): one short segment each, the reached ones primary on the grey track. */
 export function StepMeter({ reached, of, label, className }: { reached: number; of: number; label: string; className?: string }) {
   return (
     <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={of} aria-valuenow={reached} className={cn("flex gap-1", className)}>
       {Array.from({ length: of }, (_, i) => (
-        <span key={i} className={cn("h-1.5 flex-1 rounded-full", i < reached ? "bg-ink/70" : "bg-ink/10")} />
+        <span key={i} className={cn("h-1.5 flex-1 rounded-full", i < reached ? "bg-adm-chart-primary" : "bg-adm-chart-track")} />
       ))}
     </div>
   );
 }
 
-/**
- * The profit axis (config/admin.ts profitMilestones): `fixed` = a chosen top (the switch "Achse": 10k · 25k · 50k · 100k), else the first step
- * whose top holds the highest month ("Aktuell"); its ticks every step (bis 5.000 in 1.000er, 10.000 in 2.500er, 25.000 in 5.000er,
- * 50.000 in 10.000er, 100.000 in 20.000er Schritten).
- */
-export function profitAxis(max: number, fixed?: number | null): { top: number; ticks: number[] } {
-  const steps = profitMilestones.axis;
-  const tier = (fixed ? steps.find((s) => s.max === fixed) : steps.find((s) => max <= s.max)) ?? steps[steps.length - 1];
-  return { top: tier.max, ticks: Array.from({ length: tier.max / tier.step + 1 }, (_, i) => i * tier.step) };
-}
-
-function ProfitTooltip({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) {
-  if (!active || !payload?.length || typeof payload[0].value !== "number") return null;
+/** A progress ring: the grey track; the progress as an arc of the light fill edged in primary (1.5px each side); optional `due` = a short amber tick where it should stand. */
+export function ProgressRing({ ratio, due, size = 80, className }: { ratio: number; due?: number; size?: number; className?: string }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const angle = Math.min(1, Math.max(0, due ?? 0)) * 2 * Math.PI - Math.PI / 2;
   return (
-    <div className="tooltip-box">
-      {label} · <span className="font-semibold">{eur(payload[0].value)}</span>
-    </div>
-  );
-}
-
-const PROFIT_MARGIN = { top: 12, right: 56, bottom: 0, left: 0 } as const;
-const PROFIT_CURSOR = { fill: "var(--text)", fillOpacity: 0.04 } as const;
-const PROFIT_TOOLTIP = <ProfitTooltip />;
-const formatEur = (v: number) => eur(v);
-
-/**
- * Profit per month on the overview, open on the light page: the value axis in euros (German format) with fine horizontal grid lines (profitAxis;
- * `fixedTop` from the switch "Achse"); no dashed target – the milestone lines (the move at 5.000 €) a little stronger, labelled on the right,
- * only once the axis reaches them. Bars below the move amber, from it sage (getStatus "profitPerMonth"). Tooltip "Okt · 4.900 €".
- * Smooth hover: memoised (the page never re-renders on hover – recharts keeps the hover itself), no animation on bars or tooltip, a plain
- * cursor; the data is built once per change (useMemo in the caller).
- */
-export const ProfitChart = memo(function ProfitChart({
-  data,
-  label,
-  milestoneLabel,
-  fixedTop = null,
-  height = 320,
-  target = null,
-  showLine = true,
-}: {
-  data: readonly ChartPoint[];
-  label: string;
-  /** The move line's label ("Umzug") */
-  milestoneLabel: string;
-  /** A fixed top for the value axis; null = it grows with the data */
-  fixedTop?: number | null;
-  height?: number;
-  /**
-   * The move on another period (the overview's Tag · Woche · Quartal · Jahr – €5,000 a month scaled, metrics.ts periodTarget): bars below it
-   * amber, from it sage, the line at it, a calm axis above both (niceAxis). null = per month (the milestone axis).
-   */
-  target?: number | null;
-  /** The line at the target (off for days – too restless) */
-  showLine?: boolean;
-}) {
-  const rows = useMemo(() => data.map((d) => ({ ...d, good: target === null ? getStatus("profitPerMonth", d.value) === "good" : d.value >= target })), [data, target]);
-  const max = Math.max(0, ...data.map((d) => d.value));
-  const { top, ticks } = useMemo(() => (target === null ? profitAxis(max, fixedTop) : niceAxis(Math.max(max, showLine ? target * 1.1 : 0))), [max, fixedTop, target, showLine]);
-  const lines = !showLine ? [] : target === null ? profitMilestones.lines.filter((m) => m.value <= top) : [{ key: "move", value: target }];
-  return (
-    <div role="img" aria-label={label} style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
-          <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
-          <YAxis tickLine={false} axisLine={false} tick={AXIS} width={24 + eur(top).length * 7.5} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} allowDataOverflow />
-          <Tooltip cursor={PROFIT_CURSOR} content={PROFIT_TOOLTIP} isAnimationActive={false} />
-          {lines.map((m) => (
-            <ReferenceLine key={m.key} y={m.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: milestoneLabel, position: "insideTopRight", fontSize: 12, fill: "var(--text-muted)" }} />
+    <svg viewBox="0 0 80 80" aria-hidden className={cn("shrink-0", className)} style={{ width: size, height: size }}>
+      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-adm-chart-track" />
+      {ratio > 0 && (
+        <>
+          <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-(--adm-chart-fill)" strokeDasharray={`${Math.min(1, ratio) * c} ${c}`} transform="rotate(-90 40 40)" />
+          {[r - 3.5, r + 3.5].map((edge) => (
+            <circle key={edge} cx="40" cy="40" r={edge} fill="none" strokeWidth="1.5" className="stroke-adm-chart-primary" strokeDasharray={`${Math.min(1, ratio) * 2 * Math.PI * edge} ${2 * Math.PI * edge}`} transform="rotate(-90 40 40)" />
           ))}
-          <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false}>
-            {rows.map((d) => (
-              <Cell key={d.label} className={d.good ? "fill-adm-good" : "fill-adm-warning"} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+        </>
+      )}
+      {due !== undefined && due > 0 && <line x1={40 + Math.cos(angle) * 26} y1={40 + Math.sin(angle) * 26} x2={40 + Math.cos(angle) * 42} y2={40 + Math.sin(angle) * 42} strokeWidth="2" className="stroke-adm-chart-goal" />}
+    </svg>
   );
-});
-
-/** A calm value axis for any count: a top of 1 · 2 · 2,5 · 5 × 10ⁿ above the highest value, about five ticks. */
-export function niceAxis(max: number): { top: number; ticks: number[] } {
-  if (max <= 0) return { top: 1, ticks: [0, 1] };
-  const raw = max / 5;
-  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw)!;
-  const top = Math.ceil(max / step) * step;
-  return { top, ticks: Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step) };
 }
 
-/** Bars per month in ocean (the north star), the same axis logic as the profit (a calm top, fine grid lines), no animation, a plain cursor. */
-export const CountBars = memo(function CountBars({ data, label, unit, height = 320 }: { data: readonly ChartPoint[]; label: string; unit?: string; height?: number }) {
-  const { top, ticks } = useMemo(() => niceAxis(Math.max(0, ...data.map((d) => d.value))), [data]);
-  const rows = useMemo(() => [...data], [data]);
-  return (
-    <div role="img" aria-label={label} className="text-adm-chart-1" style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={PROFIT_MARGIN} barCategoryGap="28%">
-          <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
-          <YAxis tickLine={false} axisLine={false} tick={AXIS} width={axisWidth(top)} domain={[0, top]} ticks={ticks} tickFormatter={(v: number) => num(v)} />
-          <Tooltip cursor={PROFIT_CURSOR} content={<ChartTooltip unit={unit} />} isAnimationActive={false} />
-          <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-});
-
-export interface LineSeries {
+/** A series of a combined chart: its key, label and colour slot (primary → chart-2 → chart-3, never more than three). */
+export interface ComboSeries {
   key: string;
   label: string;
-  /** A CSS colour (an admin token, var(--adm-…)) */
-  color: string;
-  /** How a real value reads in the tooltip */
-  format: (value: number) => string;
+  tone: ChartTone;
 }
+const TONE_VAR: Record<ChartTone, string> = { primary: "var(--adm-chart-primary)", "chart-2": "var(--adm-chart-2)", "chart-3": "var(--adm-chart-3)" };
+/** A tone's light fill (22 %), hover (45 %) and running fill (8 %) – the same steps as --adm-chart-fill*, mixed from the tone's colour. */
+const toneFill = (tone: ChartTone, percent: 22 | 45 | 8) => (tone === "primary" ? `var(${percent === 22 ? "--adm-chart-fill" : percent === 45 ? "--adm-chart-fill-hover" : "--adm-chart-fill-current"})` : `color-mix(in srgb, ${TONE_VAR[tone]} ${percent}%, transparent)`);
 
-function LinesTooltip({ active, payload, label, series, raw }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string; series: readonly LineSeries[]; raw?: (label: string, key: string) => number | null }) {
+function ComboTooltip({ active, payload, label, series, format }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string; series: readonly ComboSeries[]; format: (v: number) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="tooltip-box">
-      <p className="mb-1 text-inverse/70">{label}</p>
+    <div className="tooltip-box flex flex-col gap-0.5">
+      <span className="text-muted">{label}</span>
       {series.map((s) => {
-        const point = payload.find((p) => p.dataKey === s.key);
-        const value = raw && label ? raw(label, s.key) : (point?.value ?? null);
-        if (value === null || value === undefined) return null;
-        return (
-          <p key={s.key} className="flex items-center gap-2">
-            <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: s.color }} />
-            {s.label} · <span className="font-semibold">{s.format(value)}</span>
-          </p>
-        );
+        const v = payload.find((p) => p.dataKey === s.key)?.value;
+        return typeof v === "number" ? (
+          <span key={s.key} className="flex items-center gap-2">
+            <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: TONE_VAR[s.tone] }} />
+            {s.label} · <span className="font-semibold tabular-nums">{format(v)}</span>
+          </span>
+        ) : null;
       })}
     </div>
   );
 }
 
 /**
- * Several 2px lines over months (Alles im Vergleich, the cohorts): one colour each, the legend under the chart (ink text, a coloured dash
- * beside it), the tooltip with every line's real value (`raw`, else the plotted one). No animation.
+ * Grouped bars over a time axis (Geld › Überblick: Umsatz, Kosten and Gewinn side by side – never a line, Regel „Admin-Diagramme“): each
+ * series in its slot, the edge over the light fill, the running period in the "current" style (dashed edge, faint fill) with „läuft“ under the axis; a legend under it.
  */
-export const LinesChart = memo(function LinesChart({
-  data,
-  series,
-  label,
-  yFormat,
-  raw,
-  reference,
-  height = 320,
-}: {
-  data: readonly Record<string, string | number | null>[];
-  series: readonly LineSeries[];
-  label: string;
-  yFormat: (v: number) => string;
-  raw?: (label: string, key: string) => number | null;
-  /** A thin line across (e.g. index 100) */
-  reference?: number;
-  height?: number;
-}) {
-  const rows = useMemo(() => [...data], [data]);
+export function ComboChart({ data, series, label, height = 260, format }: { data: readonly (Record<string, number | string | null | undefined> & { label: string; current?: "running" | "today" | null })[]; series: readonly ComboSeries[]; label: string; height?: number; format: (v: number) => string }) {
+  const points: ChartPoint[] = data.map((d) => ({ label: d.label, value: 0, current: d.current ?? null }));
+  const hasCurrent = points.some((p) => p.current);
+  const scale = niceScale(data.flatMap((d) => series.map((s) => Number(d[s.key] ?? 0))));
   return (
     <div>
       <div role="img" aria-label={label} style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={rows} margin={{ top: 12, right: 16, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} interval="preserveStartEnd" minTickGap={6} />
-            <YAxis tickLine={false} axisLine={false} tick={AXIS} width={56} tickFormatter={yFormat} />
-            <Tooltip cursor={{ stroke: "var(--text)", strokeOpacity: 0.15 }} content={<LinesTooltip series={series} raw={raw} />} isAnimationActive={false} />
-            {reference !== undefined && <ReferenceLine y={reference} stroke="var(--text-muted)" strokeDasharray="3 3" />}
+          <ComposedChart data={[...data]} margin={{ top: 12, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%" barGap={4}>
+            <CartesianGrid vertical={false} stroke={GRID} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={6} height={hasCurrent ? 36 : 30} tick={<TimeTick points={points} />} />
+            <YAxis tickLine={false} axisLine={false} tick={AXIS} tickFormatter={format} width={24 + Math.max(format(scale.max).length, format(scale.min).length) * 7.5} domain={[scale.min, scale.max]} ticks={scale.ticks} />
+            <Tooltip cursor={{ fill: "var(--text)", fillOpacity: 0.04 }} content={<ComboTooltip series={series} format={format} />} isAnimationActive={false} />
+            {scale.min < 0 && <ReferenceLine y={0} stroke="var(--adm-chart-compare)" />}
             {series.map((s) => (
-              <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+              <Bar key={s.key} dataKey={s.key} radius={BAR_RADIUS} maxBarSize={22} isAnimationActive={false} activeBar={{ fill: toneFill(s.tone, 45), stroke: TONE_VAR[s.tone], strokeWidth: 1.5 }}>
+                {data.map((d) =>
+                  d.current ? (
+                    <Cell key={d.label} fill={toneFill(s.tone, 8)} stroke={TONE_VAR[s.tone]} strokeWidth={1.5} strokeDasharray="4 3" />
+                  ) : (
+                    <Cell key={d.label} fill={toneFill(s.tone, 22)} stroke={TONE_VAR[s.tone]} strokeWidth={1.5} />
+                  ),
+                )}
+              </Bar>
             ))}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-small text-ink">
+      <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small text-ink">
         {series.map((s) => (
           <li key={s.key} className="flex items-center gap-2">
-            <span aria-hidden className="h-0.5 w-4 rounded-full" style={{ background: s.color }} />
+            <span aria-hidden className="inline-block size-2.5 rounded-full" style={{ background: TONE_VAR[s.tone] }} />
             {s.label}
           </li>
         ))}
       </ul>
     </div>
   );
-});
+}
 
+
+const PROFIT_CURSOR = { fill: "var(--text)", fillOpacity: 0.04 } as const;
+const formatEur = (v: number) => eur(v);
 
 // ── The overview's chart with drill-down ──────────────────────────────────────────────────────────────────────────────────────
 
-/** One bar of the overview's chart: its axis label (and a small second line), the tooltip's title and change, its tone. */
+/** One bar of the overview's chart: its axis label (and a small second line), the tooltip's title and change. */
 export interface DrillBar {
   key: string;
   main: string;
@@ -339,23 +267,17 @@ export interface DrillBar {
   value: number | null;
   /** The change against the period before, rendered by the caller (ChangeLine) */
   change: ReactNode;
-  /** The running period: a lighter tone of the same colour with an outline, its axis says "läuft" */
-  current: boolean;
-  /** neutral (ocean) – or against the move's €5,000 in the months: good (sage) · warning (amber) */
-  tone: "neutral" | "good" | "warning";
+  /** The running period (metrics.ts runningState): "current" style, its axis says „läuft“ (a day „heute“) */
+  current: "running" | "today" | null;
 }
 
-const DRILL_FILL: Record<DrillBar["tone"], { normal: string; current: string; edge: string }> = {
-  neutral: { normal: "fill-adm-chart-1", current: "fill-(--adm-bar-current)", edge: "var(--adm-chart-1)" },
-  good: { normal: "fill-adm-good", current: "fill-(--adm-good-current)", edge: "var(--adm-good)" },
-  warning: { normal: "fill-adm-warning", current: "fill-(--adm-warning-current)", edge: "var(--adm-warning)" },
-};
 const DRILL_MARGIN = { top: 12, right: 56, bottom: 0, left: 0 } as const;
 
-function DrillTick({ x, y, payload, bars, running }: { x?: number; y?: number; payload?: { index: number }; bars: readonly DrillBar[]; running: string }) {
+function DrillTick({ x, y, payload, bars }: { x?: number; y?: number; payload?: { index: number }; bars: readonly DrillBar[] }) {
+  const t = useTranslations("admin.charts");
   const bar = payload ? bars[payload.index] : undefined;
   if (!bar || x === undefined || y === undefined) return null;
-  const sub = bar.current ? (bar.sub ? `${bar.sub} · ${running}` : running) : bar.sub;
+  const sub = bar.current ? (bar.sub ? `${bar.sub} · ${t(bar.current)}` : t(bar.current)) : bar.sub;
   return (
     <g transform={`translate(${x},${y})`}>
       <text dy={12} textAnchor="middle" fontSize={12} fill="var(--text-muted)">
@@ -383,46 +305,46 @@ function DrillTooltip({ active, payload, bars }: { active?: boolean; payload?: {
 }
 
 /**
- * The overview's profit chart: one bar per period, the running one lighter with an outline and "läuft" under it; a calm axis (niceAxis); the
- * line "Umzug" only where the bars are months (`line`). A click on a bar opens it one level deeper (`onOpen`, the caller keeps the state in
- * the URL). `below`: one cell under each bar (the week's days: what happened). Memoised – hovering never re-renders the page.
+ * The overview chart's bars: recharts leaves `gap` on EACH side of a column, so 19 % leaves the bar ~62 % of its column; at most 80px wide –
+ * the same ratio in every period.
+ */
+const DRILL_BAR = { gap: "19%", max: 80 } as const;
+
+/**
+ * The overview's profit chart: one bar per period in primary, the running one in "current" with „läuft“ (a day „heute“) under it; a calm axis
+ * (niceScale, lib/admin/scale.ts); no goal line (no money targets). Bars ~62 % of their column, at most 80px, the same ratio in every period
+ * (DRILL_BAR). A click on a bar opens it one level deeper
+ * (`onOpen`, the caller keeps the state in the URL). `below`: one cell under each bar (the week's days: what happened). Memoised – hovering
+ * never re-renders the page.
  */
 export const DrillChart = memo(function DrillChart({
   bars,
   label,
   height,
-  line,
   onOpen,
-  running,
   below,
 }: {
   bars: readonly DrillBar[];
   label: string;
   height: number;
-  line: { value: number; label: string } | null;
   onOpen?: (key: string) => void;
-  running: string;
   below?: (bar: DrillBar) => ReactNode;
 }) {
   const rows = useMemo(() => bars.map((b, index) => ({ index, label: b.key, value: b.value })), [bars]);
-  const max = Math.max(0, ...bars.map((b) => b.value ?? 0));
-  const { top, ticks } = useMemo(() => niceAxis(Math.max(max, line ? line.value * 1.1 : 0)), [max, line]);
-  const yWidth = 24 + eur(top).length * 7.5;
+  const scale = useMemo(() => niceScale(bars.map((b) => b.value ?? 0)), [bars]);
+  const yWidth = 24 + Math.max(eur(scale.max).length, eur(scale.min).length) * 7.5;
   return (
     <div>
       <div role="img" aria-label={label} style={{ height }} className={cn(onOpen && "[&_.recharts-bar-rectangle]:cursor-pointer")}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={DRILL_MARGIN} barCategoryGap="28%">
-            <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={36} tick={<DrillTick bars={bars} running={running} />} />
-            <YAxis tickLine={false} axisLine={false} tick={AXIS} width={yWidth} domain={[0, top]} ticks={ticks} tickFormatter={formatEur} />
+          <BarChart data={rows} margin={DRILL_MARGIN} barCategoryGap={DRILL_BAR.gap}>
+            <CartesianGrid vertical={false} stroke={GRID} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={36} tick={<DrillTick bars={bars} />} />
+            <YAxis tickLine={false} axisLine={false} tick={AXIS} width={yWidth} domain={[scale.min, scale.max]} ticks={scale.ticks} tickFormatter={formatEur} />
+            {scale.min < 0 && <ReferenceLine y={0} stroke="var(--adm-chart-compare)" />}
             <Tooltip cursor={PROFIT_CURSOR} content={<DrillTooltip bars={bars} />} isAnimationActive={false} />
-            {line && <ReferenceLine y={line.value} stroke="var(--text-muted)" strokeWidth={1.5} label={{ value: line.label, position: "insideTopRight", fontSize: 12, fill: "var(--text-muted)" }} />}
-            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false} onClick={onOpen ? (d: { label?: string }) => d.label && onOpen(d.label) : undefined}>
-              {bars.map((b) => {
-                const f = DRILL_FILL[b.tone];
-                return <Cell key={b.key} className={b.current ? f.current : f.normal} stroke={b.current ? f.edge : undefined} strokeWidth={b.current ? 1.5 : 0} />;
-              })}
+            <Bar dataKey="value" radius={BAR_RADIUS} maxBarSize={DRILL_BAR.max} isAnimationActive={false} activeBar={ACTIVE_BAR} onClick={onOpen ? (d: { label?: string }) => d.label && onOpen(d.label) : undefined}>
+              {bars.map((b) => (b.current ? <Cell key={b.key} {...CURRENT_BAR} /> : <Cell key={b.key} {...BAR} />))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>

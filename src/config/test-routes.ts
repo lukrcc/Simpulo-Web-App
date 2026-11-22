@@ -98,6 +98,7 @@ export const TEST_ROUTES: readonly TestRoute[] = [
   { route: "/admin/vision", key: "admin-vision", label: "Admin Vision" },
   { route: "/admin/funding", key: "admin-finanzierung", label: "Admin Finanzierung" },
   { route: "/admin/posteingang", key: "admin-posteingang", label: "Admin Posteingang" },
+  { route: "/admin/zeitplan", key: "admin-zeitplan", label: "Admin Zeitplan" },
   { route: "/admin/money", key: "admin-geld", label: "Admin Geld" },
   { route: "/admin/money/taxes", key: "admin-steuern", label: "Admin Steuern" },
   { route: "/admin/platform", key: "admin-system", label: "Admin System" },

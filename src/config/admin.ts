@@ -1,5 +1,5 @@
 // The admin dashboard's targets and weights (/admin). The numbers are computed in lib/admin/metrics.ts – never in the UI.
-import { DEADLINES, FEE_MODEL, stayExample } from "@/config/policies";
+import { DEADLINES, FEE_MODEL, OVERVIEW_GOALS, stayExample } from "@/config/policies";
 
 /** When Simpulo is ready to launch (admin › Overview, as progress bars). */
 export const LAUNCH_CRITERIA = {
@@ -15,14 +15,6 @@ export const LAUNCH_CRITERIA = {
   waitlist: 1000,
 } as const;
 
-/** What Simpulo earns in a month (service fees + its share of host fees, EUR): the move's target. */
-export const PROFIT_TARGET_PER_MONTH = 5000;
-
-/**
- * The target that decides the move (Admin › Cockpit, on the Ember stage): €5,000 profit a month, six completed months in a row. Full Houses
- * per month is the supply number behind it (Cockpit › Supply, and Vision).
- */
-export const MOVE_TARGET = { profitPerMonth: PROFIT_TARGET_PER_MONTH, months: 6, fullHousesPerMonth: 35 } as const;
 
 /**
  * admin › Topics: a score per category from four signals, each scaled 0–100 against the strongest category, then weighted (the weights add up
@@ -41,8 +33,7 @@ export const TOPIC_WEIGHTS = {
  * without a rule have no status (a quiet dot). Status colours never appear without one of these.
  */
 export const STATUS_RULES = {
-  fullHousesPerMonth: { better: "higher", good: MOVE_TARGET.fullHousesPerMonth, warning: 20 },
-  profitPerMonth: { better: "higher", good: PROFIT_TARGET_PER_MONTH, warning: 2500 },
+  fullHousesPerMonth: { better: "higher", good: OVERVIEW_GOALS.fullHousesPerMonth, warning: 25 },
   realHouses: { better: "higher", good: LAUNCH_CRITERIA.houses, warning: 25 },
   hubs: { better: "higher", good: LAUNCH_CRITERIA.hubs.min, warning: 1 },
   /** In percent */
@@ -107,32 +98,6 @@ export const HOUSE_DONE_RECHECK_DAYS = 3;
 export const ANALYSIS_MIN_HOUSES = 10;
 
 /**
- * The profit chart on the overview: the value axis grows with the data – the first step whose `max` holds the highest month, ticks every
- * `step`. Milestones are fine lines across the chart (their label in lib/i18n/admin.de.ts cockpit.milestones), shown only once the axis
- * reaches them; the move at €5,000 is the first.
- */
-export const profitMilestones = {
-  axis: [
-    { max: 5_000, step: 1_000 },
-    { max: 10_000, step: 2_500 },
-    { max: 25_000, step: 5_000 },
-    { max: 50_000, step: 10_000 },
-    { max: 100_000, step: 20_000 },
-  ],
-  lines: [{ value: PROFIT_TARGET_PER_MONTH, key: "move" }],
-  /** The ladder beside the chart (bottom first): reached steps sage, the next with its progress in percent, the rest empty circles. */
-  ladder: [
-    { value: PROFIT_TARGET_PER_MONTH, key: "move" },
-    { value: 10_000, key: null },
-    { value: 25_000, key: null },
-    { value: 50_000, key: null },
-    { value: 100_000, key: null },
-  ],
-  /** The switch "Achse" under the chart: "Aktuell" (the axis grows with the data, above) or a fixed top. */
-  fixedAxes: [10_000, 25_000, 50_000, 100_000],
-} as const;
-
-/**
  * The admin's one period (Woche · Monat · Quartal · Jahr; the switch right in the click row, lib/admin/period.ts remembers the last choice):
  * the numbers count the running period up to today, the change compares with the same span of the period before – the week before, the
  * month before, the quarter before, the year before (lib/admin/metrics.ts periodRanges). Days are no tab: the overview's chart opens a week
@@ -161,6 +126,11 @@ export const PERIOD_CHART: Record<ComparePeriod, number | null> = { week: 12, mo
  */
 export const CHANGE_RULES = {
   /** Launch › Marketing › Trichter */
+  /** Geld */
+  takeRate: { better: "higher", unit: "percent" },
+  perGuest: { better: "higher", unit: "count" },
+  perHost: { better: "higher", unit: "count" },
+  refunds: { better: "lower", unit: "count" },
   mktContacted: { better: "higher", unit: "count" },
   mktReplyRate: { better: "higher", unit: "percent" },
   mktDemoRate: { better: "higher", unit: "percent" },
@@ -221,16 +191,13 @@ export function feeModelPerFullHouse(): number {
   return Math.round(guests * ((ex.share * FEE_MODEL.serviceFeePercent) / 100) + guests * ((0 * FEE_MODEL.hostFeeCommissionPercent) / 100));
 }
 
-/**
- * Full Houses a month needed for the move – dynamic: €5,000 over what one full House brings (measured this month; without a measurement the fee
- * model), rounded up. 5.000 € / 116 € → 44.
- */
-export const fullHousesTarget = (perFullHouse: number | null) => Math.ceil(PROFIT_TARGET_PER_MONTH / (perFullHouse && perFullHouse > 0 ? perFullHouse : feeModelPerFullHouse()));
 
 /** The overview's targets (each number's status dot is measured against it): reservations 60 %, repeat guests 25 %. */
 export const OVERVIEW_TARGETS = {
   reservedShare: LAUNCH_CRITERIA.reservedShare * 100,
   repeatRate: 25,
+  /** Gäste with at least one mutual choice ("Mit dir wieder") – 6 of 10 */
+  connectionRate: 60,
   /** Wachstum: what a guest is worth in a year over what winning them cost – at least 3 */
   valueToCost: 3,
   /** Geld: months the bank balance lasts at the average costs of the last 3 months. ⚠ Platzhalter – selbst festlegen. */
@@ -240,8 +207,6 @@ export const OVERVIEW_TARGETS = {
 /** A warning starts at this share of a target (below it critical) – for the dynamic targets. */
 export const WARNING_SHARE = 0.6;
 
-/** "Months in a row at €5,000: X / 6" */
-export const STREAK_MONTHS = MOVE_TARGET.months;
 
 /** Vision › Technik › Anbieter heute: a provider's cost in % of revenue – from `warning` amber, from `critical` ember with "Selbermachen prüfen". */
 export const PROVIDER_COST = { warning: 5, critical: 10 } as const;
@@ -249,7 +214,7 @@ export const PROVIDER_COST = { warning: 5, critical: 10 } as const;
 // Geld › Steuern: every rate, account and date lives in config/tax.ts (placeholders – mit Steuerberater klären).
 export { TAX_DEADLINES, TAX_RESERVE_PERCENT, TAX_RESERVE_RATES } from "./tax";
 
-/** Cost categories that count as investments ("Für die Bewertung beim Umzug"): software, brand and legal, since the start. */
+/** Cost categories that count as investments: software, brand and legal, since the start. */
 export const INVESTMENT_CATEGORIES = ["Software", "Marke", "Recht"] as const;
 
 

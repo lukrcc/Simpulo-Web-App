@@ -28,7 +28,8 @@ import { cn } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { InfoTip } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
-import { AdminListDetail, AdminSearch, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminListDetail, AdminSearch, AdminTabs, BackToList, DirectLink } from "./AdminLayout";
+import { stripeUrl } from "@/config/tools";
 import { Ideas, TicketDetail } from "./AdminSupport";
 
 export type InboxTab = "all" | "safety" | "money" | "houses" | "hosts" | "questions" | "broken" | "ideas";
@@ -395,6 +396,9 @@ function InboxDetail({ task, sentence, isOpen, onBack, onDone }: { task: AdminTa
         <Button size="sm" variant="secondary" onClick={() => (actions.remindGuest(guest?.name ?? task.issue.userId, task.stay?.title ?? task.issue.stayId), showToast(t("toast.remindGuest", { name: guest?.name ?? "" })))}>
           {t("action.remind")}
         </Button>
+        <DirectLink href={stripeUrl("payment", task.issue.stripePaymentIntentId)} className="self-center">
+          {t("action.openStripe")}
+        </DirectLink>
       </>
     );
   } else if (task.kind === "deadline") {

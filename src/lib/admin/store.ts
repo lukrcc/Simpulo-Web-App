@@ -7,7 +7,7 @@
 import type { PlatformPhase } from "@/lib/types";
 import type { HouseAction } from "@/lib/houseHelp";
 import { useSyncExternalStore } from "react";
-import { getAdminData, type AdminData, type ContentPost, type MarketingContact, type MarketingPartner, type TaxQuestion } from "@/lib/data";
+import { getAdminData, type AdminData, type ContentPost, type CostEntry, type MarketingContact, type MarketingPartner, type TaxQuestion } from "@/lib/data";
 import type { AdminAction, AdminLogEntry, ApplicationStatus, HostApplication, SupportTicket, WaitlistEntry, Withdrawal } from "@/lib/types";
 
 /** Under the mock prefix, so "Reset mock data" (lib/store.tsx resetMockData) clears it too. */
@@ -25,7 +25,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingMoved: saved.fundingMoved ?? seed.fundingMoved, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, costEntries: saved.costEntries ?? seed.costEntries, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
       : seed;
   } catch {
     current = seed;
@@ -203,10 +203,6 @@ export function patchTaxQuestion(id: string, patch: Partial<TaxQuestion>) {
   write({ ...read(), taxQuestions: read().taxQuestions.map((q) => (q.id === id ? { ...q, ...patch } : q)) });
 }
 
-/** Internal – lib/admin/actions.ts sets "Umzug erledigt" (Finanzierung) and logs it. */
-export function setFundingMoved(moved: boolean) {
-  write({ ...read(), fundingMoved: moved });
-}
 
 /** Internal – lib/admin/actions.ts sets a data-room document's status (Finanzierung › Unterlagen) and logs it. */
 export function setFundingDoc(key: string, status: AdminData["fundingDocs"][string]) {
@@ -316,6 +312,18 @@ export function addContentHouse(stayId: string) {
 
 // ─── Launch › Marketing › Countdown and Content (through lib/admin/actions.ts, which logs) ───────────────────────────────────────────
 
+// ─── Geld › Kosten ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export function addCostEntry(entry: Omit<CostEntry, "id">): CostEntry {
+  const added: CostEntry = { ...entry, id: newId("ce") };
+  write({ ...read(), costEntries: [added, ...(read().costEntries ?? [])] });
+  return added;
+}
+
+export function deleteCostEntry(id: string) {
+  write({ ...read(), costEntries: (read().costEntries ?? []).filter((c) => c.id !== id) });
+}
+
 // ─── System › Zeitplan & Vorbereitung ──────────────────────────────────────────────────────────────────────────────────────────────
 
 export function patchRoadmapTodo(id: string, patch: { status?: "open" | "inProgress" | "done" | "later"; note?: string; cost?: string }) {
@@ -341,6 +349,18 @@ export function setLaunchTask(key: string, done: boolean) {
 
 export function addLaunchCustomTask(week: string, text: string) {
   write({ ...read(), launchCustomTasks: [...(read().launchCustomTasks ?? []), { id: newId("lt"), week, text }] });
+}
+
+/** Zeitplan › To-dos: an own to-do with its due day and group (stored with the countdown's own tasks – one list). */
+export function addOwnTodo(text: string, due: string, week: string, group: string) {
+  write({ ...read(), launchCustomTasks: [...(read().launchCustomTasks ?? []), { id: newId("lt"), week, text, due, group }] });
+}
+
+/** Zeitplan › Meilensteine: postponed or not, and its note. */
+export function patchRoadmapMilestone(id: string, patch: { postponed?: boolean; note?: string }) {
+  const all = { ...(read().roadmapMilestones ?? {}) };
+  all[id] = { ...all[id], ...patch };
+  write({ ...read(), roadmapMilestones: all });
 }
 
 export function deleteLaunchCustomTask(id: string) {

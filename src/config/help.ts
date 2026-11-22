@@ -38,7 +38,7 @@ export const HELP: Record<HelpCategory, readonly HelpItem[]> = {
   payments: [
     { id: "payment" },
     { id: "when-to-pay", values: { hours: PAYMENT_POLICY.paymentWindowHours } },
-    { id: "fees", values: { percent: FEE_MODEL.serviceFeePercent } },
+    { id: "fees", values: { percent: FEE_MODEL.serviceFeePercent, min: FEE_MODEL.minServiceFeeEur } },
     { id: "currency" },
     { id: "refund" },
     { id: "cancellation", values: { hours: CANCELLATION_POLICY.bookingWindowHours }, link: { href: "/cancellation" } },

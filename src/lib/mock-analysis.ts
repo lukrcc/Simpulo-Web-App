@@ -115,6 +115,25 @@ function withPlaceOrigin(out: HouseOutcome[]): HouseOutcome[] {
 
 let cache: HouseOutcome[] | null = null;
 
+/**
+ * ⚠ MOCK: a demo guest's country – fixed per guest id (a hash, its own sequence, so the rest of the mock stays as it was), weighted towards
+ * where Simpulo's guests come from in the demo: German-speaking countries, the Netherlands, the UK, then the rest of Europe, the US, Australia.
+ */
+const GUEST_COUNTRIES: readonly (readonly [string, number])[] = [
+  ["Germany", 24], ["Netherlands", 11], ["United Kingdom", 10], ["Austria", 7], ["Switzerland", 7], ["France", 7], ["Spain", 6], ["United States", 6], ["Australia", 5], ["Italy", 5], ["Sweden", 4], ["Canada", 4], ["Denmark", 4],
+];
+function mockGuestCountry(id: string): string {
+  let h = 2166136261;
+  for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const total = GUEST_COUNTRIES.reduce((n, [, w]) => n + w, 0);
+  let r = (h >>> 0) % total;
+  for (const [country, w] of GUEST_COUNTRIES) {
+    if (r < w) return country;
+    r -= w;
+  }
+  return GUEST_COUNTRIES[0][0];
+}
+
 export function mockHouseOutcomes(): HouseOutcome[] {
   if (cache) return cache;
   const rand = seeded(2026);
@@ -190,6 +209,7 @@ export function mockHouseOutcomes(): HouseOutcome[] {
       tier: host.tier,
       startDate: start,
       guestIds,
+      guestCountries: guestIds.map(mockGuestCountry),
       serviceFee: Math.round(fee * guestIds.length),
       hostFeeShare: Math.round(hostFee * 0.1 * guestIds.length),
       daysToFull,

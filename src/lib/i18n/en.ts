@@ -1750,6 +1750,7 @@ const en = {
       "payButton": "Pay {amount}",
       "paidToast": "Paid {amount} – thanks!",
       "feeIncluded": "Service fee ({percent} %)",
+      "feeMinimum": "Service fee (minimum {min})",
       "payBy": "Pay by {date}",
       "applePay": "Apple Pay",
       "googlePay": "Google Pay",
@@ -2077,6 +2078,7 @@ const en = {
       "startPast": "Houses start tomorrow at the earliest.",
       "endDate": "Pick the end date.",
       "dateOrder": "End date must be after the start date.",
+      "minNights": "A House needs at least one night together.",
       "tooLong": "A House can run for at most {max} nights.",
       "titleLength": "Titles are {min}–{max} characters.",
       "lookingForUnfinished": "Finish the sentence – say who you're looking for in your own words.",
@@ -2090,7 +2092,7 @@ const en = {
       "budgetOrder": "“To” can't be lower than “From”.",
       "hostFee": "Add the amount per guest – or pick “Split the rent only”.",
       "month": "Pick a month.",
-      "dateProposal": "Each proposal needs a start and an end, from tomorrow on.",
+      "dateProposal": "Each proposal needs a start and an end at least one night later, from tomorrow on.",
       "placeProposal": "Each proposal needs a link and a price per person.",
       "accommodationType": "Pick the kind of place – or \"Not sure yet\".",
       "source": "Pick a place – or a new one.",
@@ -2531,6 +2533,7 @@ const en = {
       "placeLinkPlaceholder": "https://",
       "perPerson": "{share} per person",
       "guestFee": "Guests add a {percent} % service fee ({fee}) – you pay just your share.",
+      "guestFeeMin": "Guests add the minimum service fee ({fee}) – you pay just your share.",
       "budget": "Budget per person",
       "budgetFrom": "From",
       "budgetTo": "To",
@@ -5132,7 +5135,7 @@ const en = {
       },
       "fees": {
         "question": "What does Simpulo charge?",
-        "answer": "A {percent} % service fee on your share, shown before you pay. Nothing else."
+        "answer": "A {percent} % service fee on your share, at least €{min} per guest and booking – already in every price you see. Nothing else."
       },
       "people": {
         "question": "Who will I live with?",
@@ -5833,7 +5836,8 @@ const en = {
       "fee": "service fee per guest, not you",
       "pro": "Pro: {perGuest} host fee × {guests} guests",
       "simpulo": "Simpulo keeps {percent} %",
-      "earn": "you earn as a Pro host"
+      "earn": "you earn as a Pro host",
+      "minFee": "Guests pay a {percent} % service fee on their share, at least €{min} per booking – already in the price they see."
     },
     "home": {
       "eyebrow": "Host from your place",

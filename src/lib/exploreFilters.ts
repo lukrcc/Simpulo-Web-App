@@ -1,6 +1,7 @@
 // Explore filters: OR within one filter, AND across filters – Lisbon AND Feb 2027 AND English AND (Fitness OR Surf). The whole state
 // lives in the URL (?place=lisbon&month=2027-02&lang=en&vibe=fitness,surf&budget=200-900&sort=newest), so a filtered Explore can be
 // shared and survives a reload.
+import { withGuestFee } from "@/lib/fees";
 import { DEFAULT_DEPTH, DEPTHS, type Depth } from "@/config/depth";
 import { placeById } from "./data/places";
 import { runsIn, stayInPlace } from "./savedSearches";
@@ -162,8 +163,10 @@ export { runsIn };
 /** A House's price per person in EUR as a range (a fixed price is a range of one); null without a price. */
 export function eurRange(stay: Pick<Stay, "pricePerPerson" | "budgetPerPerson" | "currency">): { min: number; max: number } | null {
   const toEur = (amount: number) => Math.round(convertApprox(amount, stay.currency, "EUR"));
-  if (stay.pricePerPerson) return { min: toEur(stay.pricePerPerson), max: toEur(stay.pricePerPerson) };
-  if (stay.budgetPerPerson) return { min: toEur(stay.budgetPerPerson.min), max: toEur(stay.budgetPerPerson.max) };
+  // Including the service fee – the same number the cards show (lib/fees.ts withGuestFee).
+  const all = (n: number) => toEur(withGuestFee(n, stay.currency));
+  if (stay.pricePerPerson) return { min: all(stay.pricePerPerson), max: all(stay.pricePerPerson) };
+  if (stay.budgetPerPerson) return { min: all(stay.budgetPerPerson.min), max: all(stay.budgetPerPerson.max) };
   return null;
 }
 

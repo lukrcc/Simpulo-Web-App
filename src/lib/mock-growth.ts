@@ -75,7 +75,7 @@ export function mockGrowthEvents({ stays, joinRequests, payments }: { stays: Sta
       refUserId: p.refUserId,
       utmSource: p.utmSource,
       amount: p.total,
-      revenue: paymentSplit(p.share, p.hostFee).revenue,
+      revenue: paymentSplit(p.share, p.hostFee, stay?.currency).revenue,
       currency: stay?.currency,
       seed: true,
     });

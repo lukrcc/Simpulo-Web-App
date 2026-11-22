@@ -81,7 +81,7 @@ function rowOf(stay: Stay, payments: Payment[], today: string, options: Earnings
   // Past Houses in the mock have no payment records: everyone but the host paid.
   const guests = over && mine.length === 0 ? Math.max(0, stay.spotsFilled - 1) : paid.length;
   if (guests === 0) return null;
-  const split = paymentSplit(share, options.withoutHostFees ? 0 : (stay.hostFeePerPerson ?? 0));
+  const split = paymentSplit(share, options.withoutHostFees ? 0 : (stay.hostFeePerPerson ?? 0), stay.currency);
   const payoutDate = dayAfter(stay.startDate);
   const status: EarningStatus = payoutDate <= today ? "paid" : stay.allPaidAt || stay.bookingConfirmedAt ? "scheduled" : "pending";
   return {
@@ -104,7 +104,7 @@ function rowOf(stay: Stay, payments: Payment[], today: string, options: Earnings
 }
 
 function pastRow(entry: PastEarning, options: EarningsOptions): EarningRow {
-  const split = paymentSplit(entry.share, options.withoutHostFees ? 0 : entry.hostFee);
+  const split = paymentSplit(entry.share, options.withoutHostFees ? 0 : entry.hostFee, entry.currency);
   return {
     id: entry.id,
     title: entry.title,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, FileUser, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Compass, FileUser, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, ListOrdered, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
@@ -19,7 +19,7 @@ import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
 
-type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "money" | "platform" | "waitlist" | "applications" | "marketing";
+type AreaKey = "cockpit" | "houses" | "hosts" | "growth" | "topics" | "data" | "labs" | "vision" | "funding" | "inbox" | "zeitplan" | "money" | "platform" | "waitlist" | "applications" | "marketing";
 interface Area {
   key: AreaKey;
   href: string;
@@ -29,7 +29,7 @@ interface Area {
 }
 
 /**
- * The side list in four groups, in this order: MARKT Übersicht · Houses · Hosts · WACHSTUM Wachstum · Analyse · Algorithmus · Labore · Vision ·
+ * The side list in four groups, in this order (BETRIEB: Posteingang · Zeitplan · Geld · System): MARKT Übersicht · Houses · Hosts · WACHSTUM Wachstum · Analyse · Algorithmus · Labore · Vision ·
  * Finanzierung · BETRIEB Posteingang (count) · Geld · System · LAUNCH Warteliste · Bewerbungen.
  */
 const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas: readonly Area[] }[] = [
@@ -56,6 +56,7 @@ const GROUPS: readonly { key: "market" | "growth" | "operate" | "launch"; areas:
     key: "operate",
     areas: [
       { key: "inbox", href: "/admin/posteingang", icon: Inbox },
+      { key: "zeitplan", href: "/admin/zeitplan", icon: CalendarRange },
       { key: "money", href: "/admin/money", icon: Wallet },
       { key: "platform", href: "/admin/platform", icon: SlidersHorizontal, also: ["/admin/log"] },
     ],

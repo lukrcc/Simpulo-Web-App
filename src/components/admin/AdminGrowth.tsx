@@ -15,7 +15,7 @@ import { profileHref } from "@/lib/privacy";
 import { housePhotos, cn } from "@/lib/utils";
 import { SOCIAL_ICONS } from "@/components/ui/socialIcons";
 import { Img } from "@/components/ui/Img";
-import { TOOL_LINKS } from "@/config/app-links";
+import { toolUrl } from "@/config/tools";
 import { AdminShell } from "./AdminShell";
 import { AdminTabs, PeriodTabs } from "./AdminLayout";
 import { ChangeLine, InfoTip, KeyNumbers } from "./AdminNumbers";
@@ -64,7 +64,7 @@ export function AdminGrowth() {
   const byChannel = useMemo(() => growthRows(events, (e) => e.utmSource ?? DIRECT, period, today), [events, period, today]);
   const byRef = useMemo(() => growthRows(events, (e) => e.refUserId ?? NO_REF, period, today).filter((r) => r.key !== NO_REF), [events, period, today]);
   const byHouse = useMemo(() => growthRows(events, (e) => e.houseId, period, today), [events, period, today]);
-  const analytics = TOOL_LINKS.find((l) => l.key === "analytics")?.url;
+  const analytics = toolUrl("analytics");
 
   const channelName = (key: string) => (key === DIRECT ? t("channel.direct") : t.has(`channel.${key}` as Parameters<typeof t>[0]) ? t(`channel.${key}` as Parameters<typeof t>[0]) : key);
   const rowsOf = tab === "channels" ? byChannel : tab === "referrers" ? byRef : byHouse;
@@ -221,12 +221,22 @@ function FunnelList({ rows, visual, name, empty }: { rows: readonly GrowthRow[];
           <span className="shrink-0">{visual(row.key)}</span>
           <span className="w-44 shrink-0 truncate text-body font-semibold text-ink">{name(row.key)}</span>
           <span className="min-w-0 flex-1">
-            <span aria-hidden className="relative block h-2 rounded-full bg-ink/6">
-              <span className="absolute inset-y-0 left-0 rounded-full bg-ink/18" style={{ width: `${(row.visits / most) * 100}%` }} />
-              <span className="absolute inset-y-0 left-0 rounded-full bg-ink/45" style={{ width: `${(row.requests / most) * 100}%` }} />
-              <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-1" style={{ width: `${(row.paid / most) * 100}%` }} />
+            {/* Three series in one track (Regel „Admin-Diagramme“): visits primary, requests chart-2, paid chart-3 – the dots in the line below name them. */}
+            <span aria-hidden className="relative block h-2 rounded-full bg-adm-chart-track">
+              <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-primary" style={{ width: `${(row.visits / most) * 100}%` }} />
+              <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-2" style={{ width: `${(row.requests / most) * 100}%` }} />
+              <span className="absolute inset-y-0 left-0 rounded-full bg-adm-chart-3" style={{ width: `${(row.paid / most) * 100}%` }} />
             </span>
-            <span className="mt-1 block text-small tabular-nums text-muted">{t("funnelLine", { visits: num(row.visits), requests: num(row.requests), paid: num(row.paid) })}</span>
+            <span className="mt-1 flex items-center gap-1.5 text-small tabular-nums text-muted">
+              {([["visits", "bg-adm-chart-primary"], ["requests", "bg-adm-chart-2"], ["paid", "bg-adm-chart-3"]] as const).map(([key, dot], i) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  {i > 0 && <span aria-hidden>→</span>}
+                  <span aria-hidden className={cn("size-1.5 rounded-full", dot)} />
+                  {num(row[key])}
+                </span>
+              ))}
+              <span className="sr-only">{t("funnelLine", { visits: num(row.visits), requests: num(row.requests), paid: num(row.paid) })}</span>
+            </span>
           </span>
           <span className="w-24 shrink-0 text-right text-body font-semibold tabular-nums text-ink">{f.price(Math.round(row.revenue), "EUR")}</span>
         </li>

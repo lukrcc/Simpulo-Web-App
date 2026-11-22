@@ -3,10 +3,11 @@
 // Admin texts in German (like everything in /admin).
 
 export type BacklogPhase = "desktop" | "mobile" | "darkMode" | "backend" | "beforeLaunch" | "afterLaunch";
-export type BacklogStatus = "open" | "inProgress" | "done";
+/** "parked": decided against for now – kept, not planned (e.g. Houses without a night). */
+export type BacklogStatus = "open" | "inProgress" | "done" | "parked";
 
 export const BACKLOG_PHASES: readonly BacklogPhase[] = ["desktop", "mobile", "darkMode", "backend", "beforeLaunch", "afterLaunch"];
-export const BACKLOG_STATUSES: readonly BacklogStatus[] = ["open", "inProgress", "done"];
+export const BACKLOG_STATUSES: readonly BacklogStatus[] = ["open", "inProgress", "done", "parked"];
 
 export interface BacklogItem {
   id: string;
@@ -59,7 +60,9 @@ export const BACKLOG: readonly BacklogItem[] = [
   { id: "width-test", title: "Breiten-Test", description: "npm run test:breiten grün über alle Seiten und Breiten", phase: "beforeLaunch", status: "open" },
   { id: "performance", title: "Performance", description: "Ladezeiten, Bildgrößen, Bundle – messen und senken", phase: "beforeLaunch", status: "open" },
   { id: "backend", title: "Backend-Phase", description: "Firebase, Stripe, Resend, Push – die Mocks ablösen", phase: "backend", status: "open" },
-  { id: "day-house", title: "Nearby / Day House", description: "Houses ohne Übernachtung, Treffen in der Nähe", phase: "afterLaunch", status: "open" },
-  { id: "simpulo-base", title: "Simpulo Base", description: "Nach dem Umzug", phase: "afterLaunch", status: "open" },
+  // Parked: a House is at least one night (config/policies.ts STAY_POLICY) – no Houses without a night for now.
+  { id: "day-house", title: "Day House / Nearby / City Circle", description: "Houses ohne Übernachtung, Treffen in der Nähe – geparkt: ein House hat mindestens eine Nacht", phase: "afterLaunch", status: "parked" },
+  { id: "crew-reunion", title: "Wiedersehen bestehender Crews als Netzwerk-Funktion", description: "Frühere Crews sehen sich wieder – als Funktion im Netzwerk", phase: "afterLaunch", status: "open" },
+  { id: "simpulo-base", title: "Simpulo Base", description: "Später", phase: "afterLaunch", status: "open" },
   { id: "liveHouseStreamers", title: "Live House für Streamer", description: "Kennzeichnung, Zustimmung je Gast, kamerafreie Zonen und Zeiten", phase: "afterLaunch", status: "open" },
 ];

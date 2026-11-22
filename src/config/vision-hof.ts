@@ -107,8 +107,8 @@ export const HOF = {
         head: ["Stufe", "Produkt", "Kapital", "Wann"],
         rows: [
           ["1 Klein", "Fragenkarten, Welcome-Box, gedrucktes Album", "wenig", "nach Launch"],
-          ["2 Möbel", "Simpulo-Tisch, Raum-Set", "mittel", "nach Umzug"],
-          ["3 Räume", "Simpulo-Räume, Certified Places", "mittel", "nach Umzug"],
+          ["2 Möbel", "Simpulo-Tisch, Raum-Set", "mittel", "später"],
+          ["3 Räume", "Simpulo-Räume, Certified Places", "mittel", "später"],
           ["4 Bewegung", "Bus/Van, Boot-House", "hoch", "viel später"],
           ["5 Treffen", "Festival, Markttag", "mittel", "nach der Runde"],
           ["6 Gebäude", "Stadthof, Dorf", "sehr hoch", "nach Beweis"],
@@ -124,7 +124,7 @@ export const HOF = {
       groups: [
         { title: "sinnvoll", points: ["Schloss", "Haus-Bildschirm", "Lichtszenen für Bogen-Momente", "Lärmpegel ohne Ton", "Sicherheit", "Energie fair teilen", "anonyme Raumnutzung"] },
         { title: "rote Linien", points: ["keine Kameras innen", "keine Mikrofone", "keine Personen verfolgen", "nie heimlich", "nie Pflicht"] },
-        { title: "Phasen", points: ["Launch: nichts", "nach Launch: Schloss + Lärm", "nach Umzug: Bildschirm + Licht", "Hof: ganzes Betriebssystem"] },
+        { title: "Phasen", points: ["Launch: nichts", "nach Launch: Schloss + Lärm", "später: Bildschirm + Licht", "Hof: ganzes Betriebssystem"] },
       ],
       highlight: "Verbinden, nicht selbst bauen",
       sentence: "Simpulo misst Räume, nie Menschen.",
@@ -137,7 +137,7 @@ export const HOF = {
       groups: [
         { title: "Getrennt", points: ["Simpulo: Tech, Wachstum", "Simpulo Places: Anteile 10–30 % je Hof-Gesellschaft", "Rendite fließt zurück"] },
         { title: "Lebensdauer", points: ["Rohbau 50–100 J", "Innenausbau 10–15 J", "Technik 5–10 J", "Plattform ständig", "Bedürfnis zeitlos"] },
-        { title: "Phasen", points: ["jetzt: keine Immobilien", "nach Umzug: Pacht als Test", "nach Runde: erste Höfe mit Partnern", "mit Beweis: Anteile wachsen"] },
+        { title: "Phasen", points: ["jetzt: keine Immobilien", "später: Pacht als Test", "nach Runde: erste Höfe mit Partnern", "mit Beweis: Anteile wachsen"] },
       ],
       links: [{ label: "Finanzierung", href: "/admin/funding" }],
     },

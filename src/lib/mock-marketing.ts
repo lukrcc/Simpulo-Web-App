@@ -1,6 +1,6 @@
 // ⚠ DEMO DATA: 40 invented creator contacts across three niches for Admin › Launch › Marketing (Kontakte, Trichter) – no real people,
 // fixed values (no randomness), so the funnel and the filters are filled in dev and demo. Production starts empty (Firestore marketingContacts).
-import type { ContentPost, ContentSprint, MarketingMotivation, PartnerKind, MarketingContact, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "./data/adapter";
+import type { ContentPost, ContentSprint, CostEntry, MarketingMotivation, PartnerKind, MarketingContact, MarketingContactStatus, MarketingContactWay, MarketingPartner } from "./data/adapter";
 
 const TODAY = Date.UTC(2026, 10, 19);
 const DAY = 86_400_000;
@@ -149,4 +149,21 @@ export function mockContentPosts(): ContentPost[] {
 
 export function mockContentSprints(): ContentSprint[] {
   return [{ id: "cs-demo1", from: "2026-12-07", to: "2026-12-11", label: "Sprint 1" }];
+}
+
+// ⚠ DEMO DATA: costs entered by hand for Geld › Kosten – running ones every month from their first day (the history begins in January 2024),
+// creator clips as one-offs. Fixed amounts (no randomness); Stripe's fees come from the bookings, not from here.
+export function mockCostEntries(): CostEntry[] {
+  const c = (id: number, date: string, amount: number, category: CostEntry["category"], recurring: boolean, note: string): CostEntry => ({ id: `ce-demo${id}`, date, amount, category, recurring, note });
+  return [
+    c(1, "2025-03-03", 180, "tools", true, "Google Cloud (Firebase)"),
+    c(2, "2024-01-03", 55, "tools", true, "Workspace, Figma, Resend"),
+    c(3, "2026-03-02", 60, "tools", true, "Mapbox"),
+    c(4, "2026-06-01", 1100, "marketing", true, "Meta Ads"),
+    c(5, "2026-01-15", 150, "other", true, "Steuerberatung"),
+    c(6, "2024-01-05", 11, "other", true, "Qonto"),
+    c(7, "2026-09-14", 600, "creator", false, "Creator-Clip Ericeira"),
+    c(8, "2026-10-20", 450, "creator", false, "Creator-Clip Lissabon"),
+    c(9, "2026-11-10", 500, "creator", false, "Creator-Clip Bangkok"),
+  ];
 }

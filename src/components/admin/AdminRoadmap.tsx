@@ -1,25 +1,22 @@
 "use client";
 
-// Admin › System › Zeitplan & Vorbereitung: the schedule as a Gantt-like timeline (Code · Marketing · Reise · Vorbereitung · Launch,
-// Nov 2026 – Jun 2027, "heute" as a line) and the preparation to-dos. All dates and to-dos from config/roadmap.ts (the one source; the
+// Admin › Zeitplan › Zeitleiste: the schedule as a Gantt-like timeline (Code · Marketing · Reise · Vorbereitung · Launch,
+// Nov 2026 – Jun 2027, "heute" as a line); the rest of the page is AdminZeitplan.tsx. All dates and to-dos from config/roadmap.ts (the one source; the
 // marketing phases from config/marketing.ts), the to-dos' status, note and cost through the adapter (AdminData.roadmapTodos), every change
 // and every milestone reached logged (useAdminActions). German, dark, the admin's tokens.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
-import { CODE_MILESTONES, DEPARTURE, LAUNCH, ROADMAP_IDEAS, ROADMAP_RANGE, TODO_DUES, TODO_GROUPS, TODO_STATUSES, TRAVEL, type TodoDue, type TodoStatus } from "@/config/roadmap";
+import { CODE_MILESTONES, DEPARTURE, LAUNCH, ROADMAP_IDEAS, ROADMAP_RANGE, TRAVEL, type TodoDue } from "@/config/roadmap";
 import { useAdminActions } from "@/lib/admin/actions";
-import { strategyDates, strategyPhases } from "@/lib/admin/metrics";
+import { isRunningSpan, strategyDates, strategyPhases } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { day, month } from "@/lib/i18n/adminFormat";
-import { daysToDeparture, dueProgress, isOpenTodo, nextMilestone, roadmapTodos, type RoadmapTodoState } from "@/lib/roadmap";
+import { daysToDeparture, dueProgress, nextMilestone, roadmapTodos, type PlanMilestone } from "@/lib/roadmap";
 import { cn } from "@/lib/utils";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Button } from "@/components/ui/ActionButton";
 import { STATUS_BG, StatusDot } from "./AdminCharts";
-import { AdminSort } from "./AdminLayout";
-import { AdminSection } from "./AdminShell";
 
 const ms = (d: string) => Date.parse(`${d}T00:00:00Z`);
 const SPAN = ms(ROADMAP_RANGE.to) + 86_400_000 - ms(ROADMAP_RANGE.from);
@@ -27,14 +24,22 @@ const SPAN = ms(ROADMAP_RANGE.to) + 86_400_000 - ms(ROADMAP_RANGE.from);
 const at = (d: string) => Math.min(100, Math.max(0, ((ms(d) - ms(ROADMAP_RANGE.from)) / SPAN) * 100));
 const endOf = (d: string) => at(new Date(ms(d) + 86_400_000).toISOString().slice(0, 10));
 
-/** "Nächster Meilenstein: … in X Tagen · Abreise in X Tagen" – the timeline's top line and the Übersicht's (a link there). */
+/** A milestone's name: "M1 Footer + Dashboard", "Woche 1–2 · Fundament", "Launch · Simpulo öffnet" (words in admin.zeitplan). */
+export function useMilestoneName() {
+  const t = useTranslations("admin.zeitplan");
+  return (m: Pick<PlanMilestone, "kind" | "label" | "title" | "weeks">) =>
+    m.kind === "code" ? `${m.label} ${m.title}` : m.kind === "marketing" ? `${t("weeks", { from: m.weeks!.from, to: m.weeks!.to })} · ${m.title}` : `${t("launchLabel")} · ${t("launchTitle")}`;
+}
+
+/** "Nächster Meilenstein: … in X Tagen · Abreise in X Tagen" – the timeline's top line and the Übersicht's (a link to /admin/zeitplan). */
 export function RoadmapHeadline({ href, className }: { href?: string; className?: string }) {
   const t = useTranslations("admin.platform.roadmap");
   const { today } = useAdminInputs();
   const data = useAdminData();
-  const next = nextMilestone(today, data.roadmapReached);
+  const name = useMilestoneName();
+  const next = nextMilestone(today, data);
   const dep = daysToDeparture(today);
-  const text = `${next ? t("next", { label: next.label, days: next.days }) : t("nextNone")} · ${dep >= 0 ? t("departure", { days: dep }) : t("departed")}`;
+  const text = `${next ? t("next", { label: name(next), days: next.days }) : t("nextNone")} · ${dep >= 0 ? t("departure", { days: dep }) : t("departed")}`;
   return href ? (
     <Link data-roadmap-headline href={href} className={cn("text-small text-muted underline-offset-4 hover:text-ink hover:underline", className)}>
       {text} →
@@ -150,7 +155,9 @@ export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => vo
           {CODE_MILESTONES.map((m, i) => {
             const done = Boolean(reached[m.id]);
             const left = i === 0 ? 0 : at(CODE_MILESTONES[i - 1].date);
-            return <span key={`${m.id}-bar`} aria-hidden style={{ left: `${left}%`, width: `${at(m.date) - left}%` }} className={cn("absolute top-3 h-2 rounded-full", done ? "bg-ink/60" : "bg-ink/18")} />;
+            // Reached: primary; the section today lies in: the "current" style (metrics.ts isRunningSpan); still ahead: the grey track.
+            const running = !done && isRunningSpan(i === 0 ? ROADMAP_RANGE.from : CODE_MILESTONES[i - 1].date, m.date, today);
+            return <span key={`${m.id}-bar`} aria-hidden style={{ left: `${left}%`, width: `${at(m.date) - left}%` }} className={cn("absolute top-3 h-2 rounded-full", done ? "bg-adm-chart-primary" : running ? "border border-dashed border-adm-chart-hover bg-adm-chart-current" : "bg-adm-chart-track")} />;
           })}
           {CODE_MILESTONES.map((m) => {
             const done = Boolean(reached[m.id]);
@@ -175,7 +182,7 @@ export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => vo
 
         <Lane label={t("lanes.marketing")} height={laneHeight(phaseRows)}>
           {phases.map((p) => {
-            const here = today >= p.from && today <= p.to;
+            const here = isRunningSpan(p.from, p.to, today);
             const place = phaseLabels[p.key];
             return (
               <span key={p.key} data-roadmap-phase={p.key}>
@@ -185,7 +192,7 @@ export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => vo
                     left: `${at(p.from)}%`,
                     width: `${endOf(p.to) - at(p.from)}%`,
                   }}
-                  className={cn("absolute top-2.5 h-3 rounded-sm", here ? "bg-adm-chart-1" : "bg-ink/40")}
+                  className={cn("absolute top-2.5 h-3 rounded-sm", here ? "border border-dashed border-adm-chart-hover bg-adm-chart-current" : "bg-adm-chart-primary")}
                 />
                 <span
                   style={{
@@ -260,10 +267,10 @@ export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => vo
               left: `${at(LAUNCH.date)}%`,
               width: `${at(fallbackEnd) - at(LAUNCH.date)}%`,
             }}
-            className="absolute top-4 h-3 rounded-full border border-dashed border-ink/30"
+            className="absolute top-4 h-3 rounded-full border border-dashed border-adm-chart-goal"
           />
           <span data-launch-star style={{ left: `${at(LAUNCH.date)}%` }} className="absolute top-1 flex -translate-x-1/2 flex-col items-center">
-            <svg viewBox="0 0 24 24" aria-hidden className="size-6 fill-adm-chart-1">
+            <svg viewBox="0 0 24 24" aria-hidden className="size-6 fill-adm-chart-goal">
               <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 17.2l-5.9 3.3 1.3-6.6-4.9-4.5 6.6-.8z" />
             </svg>
             <span className="text-small font-semibold whitespace-nowrap text-ink">{t("launch", { date: day(LAUNCH.date) })}</span>
@@ -312,121 +319,5 @@ export function RoadmapTimeline({ onPickDue }: { onPickDue: (due: TodoDue) => vo
         </span>
       </div>
     </div>
-  );
-}
-
-/** The to-dos: progress per group, "vor Abreise: x offen", filters status and due, the list in groups. */
-export function RoadmapTodos({ due, onDue }: { due: TodoDue | "all"; onDue: (due: TodoDue | "all") => void }) {
-  const t = useTranslations("admin.platform.roadmap");
-  const data = useAdminData();
-  const actions = useAdminActions();
-  const [status, setStatus] = useState<TodoStatus | "all" | "notDone">("all");
-  const todos = roadmapTodos(data);
-  const dues = dueProgress(todos);
-  const shown = todos.filter((x) => (due === "all" || x.due === due) && (status === "all" || (status === "notDone" ? x.status !== "done" : x.status === status)));
-  const departureOpen = dues.find((d) => d.id === "beforeDeparture")?.open ?? 0;
-  const setStatusOf = (x: RoadmapTodoState, next: TodoStatus) => {
-    if (next === x.status) return;
-    actions.setRoadmapTodoStatus(x.id, x.title, next, t(`status.${next}`));
-    // The last open one of a due milestone done → that milestone is reached (logged once).
-    const d = dues.find((p) => p.id === x.due);
-    if (next === "done" && d && d.open === 1 && isOpenTodo(x)) actions.logRoadmapMilestone(`Vorbereitung ${d.label}`);
-  };
-  return (
-    <div data-roadmap-todos className="flex flex-col gap-(--adm-section)">
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-        <dl className="flex flex-wrap gap-x-8 gap-y-3">
-          {TODO_GROUPS.map((g) => {
-            const list = todos.filter((x) => x.group === g.id);
-            const done = list.filter((x) => x.status === "done").length;
-            return (
-              <div key={g.id} data-todo-group-progress={g.id}>
-                <dt className="text-eyebrow uppercase text-(--adm-label)">{g.label}</dt>
-                <dd className="mt-1 text-h3 tabular-nums text-ink">{t("groupProgress", { done, total: list.length })}</dd>
-              </div>
-            );
-          })}
-        </dl>
-        <p data-departure-open className="flex items-center gap-2 text-body font-semibold text-ink">
-          <StatusDot status={departureOpen === 0 ? "good" : "warning"} />
-          {t("beforeDeparture", { count: departureOpen })}
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <AdminSort
-          label={t("filterStatus")}
-          options={[
-            { value: "all" as const, label: t("all") },
-            { value: "notDone" as const, label: t("openOnly") },
-            ...TODO_STATUSES.map((s) => ({
-              value: s,
-              label: t(`status.${s}`),
-            })),
-          ]}
-          value={status}
-          onChange={setStatus}
-        />
-        <AdminSort label={t("filterDue")} options={[{ value: "all" as const, label: t("all") }, ...TODO_DUES.map((d) => ({ value: d.id, label: d.label }))]} value={due} onChange={onDue} />
-      </div>
-      {shown.length === 0 && <p className="text-body text-muted">{t("empty")}</p>}
-      {TODO_GROUPS.map((g) => {
-        const list = shown.filter((x) => x.group === g.id);
-        if (list.length === 0) return null;
-        return (
-          <AdminSection key={g.id} title={g.label} className="mt-0">
-            <ul className="divide-y divide-ink/8 border-y border-ink/8">
-              {list.map((x) => (
-                <TodoRow key={x.id} todo={x} onStatus={(s) => setStatusOf(x, s)} />
-              ))}
-            </ul>
-          </AdminSection>
-        );
-      })}
-    </div>
-  );
-}
-
-function TodoRow({ todo, onStatus }: { todo: RoadmapTodoState; onStatus: (s: TodoStatus) => void }) {
-  const t = useTranslations("admin.platform.roadmap");
-  const actions = useAdminActions();
-  const [note, setNote] = useState(todo.note);
-  const [cost, setCost] = useState(todo.cost ?? "");
-  const dueInfo = TODO_DUES.find((d) => d.id === todo.due);
-  const commit = (field: "note" | "cost", value: string) => {
-    const old = field === "note" ? todo.note : (todo.cost ?? "");
-    if (value.trim() !== old) actions.setRoadmapTodoField(todo.id, todo.title, field, value.trim(), t(`what.${field}`));
-  };
-  return (
-    <li data-todo={todo.id} data-todo-status={todo.status} className="grid gap-x-6 gap-y-2 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_auto]">
-      <div className="min-w-0">
-        <p className={cn("text-body font-semibold", todo.status === "done" ? "text-muted line-through" : "text-ink")}>{todo.title}</p>
-        <p className="text-small text-muted">
-          {todo.text} · {t("due", { label: dueInfo?.label ?? "" })}
-          {dueInfo?.date && ` (${day(dueInfo.date.date)}${dueInfo.date.uncertain ? ", ca." : ""})`}
-          {todo.link && (
-            <>
-              {" · "}
-              <Link href={todo.link} className="text-ink hover:underline">
-                {t("open")} →
-              </Link>
-            </>
-          )}
-        </p>
-      </div>
-      <div className="flex min-w-0 gap-2">
-        <input value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => commit("note", note)} placeholder={t("notePlaceholder")} aria-label={t("note")} className="h-9 min-w-0 flex-1 rounded-full bg-(--adm-cap-bg) px-3 text-small text-ink placeholder:text-muted" />
-        <input value={cost} onChange={(e) => setCost(e.target.value)} onBlur={() => commit("cost", cost)} placeholder={t("cost")} aria-label={`${t("cost")} – ${t("costPlaceholder")}`} className="h-9 w-24 rounded-full bg-(--adm-cap-bg) px-3 text-small text-ink placeholder:text-muted" />
-      </div>
-      <CapsuleGroup
-        size="sm"
-        label={todo.title}
-        value={todo.status}
-        onChange={onStatus}
-        options={TODO_STATUSES.map((s) => ({
-          value: s,
-          content: t(`status.${s}`),
-        }))}
-      />
-    </li>
   );
 }

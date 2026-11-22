@@ -132,8 +132,8 @@ export const STRUCTURE = {
   /** 4 Phasen */
   phases: {
     steps: [
-      { when: "Jetzt bis Umzug", what: ["keine Immobilien", "Daten sammeln"] },
-      { when: "Nach Umzug", what: ["gepachtete Häuser als Test", "Simpulo betreibt"] },
+      { when: "Jetzt", what: ["keine Immobilien", "Daten sammeln"] },
+      { when: "Danach", what: ["gepachtete Häuser als Test", "Simpulo betreibt"] },
       { when: "Nach der Runde", what: ["erste Höfe mit Partnern", "Places hält kleinen Anteil"] },
       { when: "Mit Beweis", what: ["Anteile wachsen", "Franchise"] },
       { when: "Börse", what: ["ab Stufe „sehr erfolgreich“ (100 Mio.–1 Mrd. € Umsatz/Jahr)", "nur mit leichtem Modell"] },
