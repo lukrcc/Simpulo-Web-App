@@ -30,8 +30,8 @@ export interface AdminTab<T extends string> {
   /** One sentence for a technical term – a tooltip on the capsule itself (hover; long press on touch). No ⓘ beside a tab (Regel). */
   tooltip?: string;
   /**
-   * A colour of its own (a CSS colour, e.g. "var(--adm-kind-safety)" for Aufgaben's kinds): a small dot before the name, and the active
-   * state in this colour instead of the page's group colour.
+   * A colour of its own (a CSS colour – a unit, config/admin-tiles.ts, or Aufgaben's kinds "var(--adm-kind-safety)"): the capsule softly
+   * filled in it (12 %, active 24 % with an edge in the full colour), its words neutral (admin-tokens.css "Unit colour").
    */
   tone?: string;
   /** Not choosable (a day still to come) – shown greyed */
@@ -145,7 +145,6 @@ export function AdminTabs<T extends string>({ label, tabs, value, onChange, leve
             style={tab.tone ? ({ "--cap-tone": tab.tone } as CSSProperties) : undefined}
             data-toned={tab.tone ? true : undefined}
           >
-            {tab.tone && <span aria-hidden className="adm-cap-dot" />}
             {tab.label}
             {tab.marked && <span aria-hidden data-today className="ml-0.5 inline-block size-1.5 rounded-full bg-current align-middle" />}
             {tab.count !== undefined && <span className="adm-cap-count tabular-nums">{tab.count}</span>}

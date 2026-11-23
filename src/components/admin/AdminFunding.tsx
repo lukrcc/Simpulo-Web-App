@@ -58,7 +58,7 @@ export function AdminFunding() {
   const inputs = useAdminInputs();
   // ?tab=structure opens Firmenstruktur (a link from Vision › Der Hof › Eigentum) – Next's search params are current on a client navigation too.
   // The capsule in ?tab= (pushed – back works); Firmenstruktur's point in ?focus= (motors · group · farms · franchise · phases; old ?view=).
-  const url = useAdminTab<FundingTab | "overview">(["overview", ...FUNDING_TABS.map((x) => x.key)], "overview");
+  const url = useAdminTab<FundingTab | "overview">(["overview", ...FUNDING_TABS.map((x) => x.key)], "overview", { marketcap: "valuation" });
   const tab = url.tab;
   const setTab = (next: FundingTab | "overview") => url.open(next);
   const tOverview = useTranslations("admin.overviewBlock");
@@ -75,13 +75,20 @@ export function AdminFunding() {
       subTabs={tab === "structure" ? <CompanyStructureTabs view={structure} onChange={setStructure} /> : undefined}
     >
       {tab === "overview" && <FundingOverview inputs={inputs} onOpen={(next) => setTab(next)} />}
-      {tab === "marketcap" && <AdminMarketCap embedded />}
-      {tab !== "structure" && tab !== "overview" && tab !== "marketcap" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
+      {tab !== "structure" && tab !== "overview" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
       {tab === "readiness" && <Readiness inputs={inputs} />}
       {tab === "thesis" && <Thesis />}
       {tab === "rounds" && <Rounds />}
       {tab === "documents" && <Documents inputs={inputs} />}
-      {tab === "valuation" && <Valuation inputs={inputs} />}
+      {tab === "valuation" && (
+        // Bewertung: the Market Cap on top (the estimate, its methods, drivers and course), the ranges and the share calculator under it.
+        <>
+          <AdminMarketCap embedded />
+          <div className="mt-(--adm-section)">
+            <Valuation inputs={inputs} />
+          </div>
+        </>
+      )}
       {tab === "structure" && <CompanyStructure view={structure} />}
     </AdminShell>
   );

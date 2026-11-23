@@ -24,7 +24,7 @@ import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SPECTRUM_ROWS } from "@/config/spectrum";
 import { AdminShell } from "./AdminShell";
-import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
 import { routeTiles, withUnits } from "./tileRoutes";
 import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
@@ -39,6 +39,10 @@ type Tab = "overview" | "value" | AnalysisDimension;
 const AUDIENCE: Partial<Record<AnalysisDimension, Record<string, string>>> = Object.fromEntries(
   SPECTRUM_ROWS.map((row) => [row.detail, Object.fromEntries(row.columns.map((c) => [c.key, c.audience]))]),
 );
+
+/** The capsules that hold several angles (as sub-tabs). */
+const GROUPS = { place: ["category", "origin", "hub"], host: ["tier", "depth"] } as const satisfies Record<string, readonly AnalysisDimension[]>;
+type Capsule = "overview" | "value" | "place" | "host" | Exclude<AnalysisDimension, (typeof GROUPS)[keyof typeof GROUPS][number]>;
 
 export function AdminAnalysis() {
   const t = useTranslations("admin.analysis");
@@ -56,10 +60,17 @@ export function AdminAnalysis() {
   };
   const shown: Tab = tab === "overview" || tab === "value" || (dims as readonly string[]).includes(tab) ? tab : "overview";
   const tv = useTranslations("admin.analysis.value");
+  // Six units at most (CLAUDE.md "Jeder Farbton nur einmal pro Seite"): Ort-Typ and Hub under "Ort", Stufe and Tiefe under "Host".
+  const groupOf = (d: AnalysisDimension): Capsule => (Object.entries(GROUPS).find(([, list]) => (list as readonly string[]).includes(d))?.[0] as Capsule | undefined) ?? (d as Capsule);
+  const capsules = [...new Set(dims.map(groupOf))];
+  const capsule: Capsule = shown === "overview" || shown === "value" ? shown : groupOf(shown);
+  const inDims = (d: AnalysisDimension) => (dims as readonly AnalysisDimension[]).includes(d);
+  const subs: AnalysisDimension[] = capsule === "place" || capsule === "host" ? (GROUPS[capsule] as readonly AnalysisDimension[]).filter(inDims) : [];
   return (
     <AdminShell
       title={tTopics("title")}
-      tabs={<AdminTabs<Tab> label={t("dimension.label")} value={shown} onChange={setTab} tabs={withUnits("analysis", [{ value: "overview" as const, label: t("dimension.overview") }, { value: "value" as const, label: tv("tab"), tooltip: tv("tabInfo") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))])} />}
+      tabs={<AdminTabs<Capsule> label={t("dimension.label")} value={capsule} onChange={(next) => setTab(next === "place" || next === "host" ? (GROUPS[next] as readonly AnalysisDimension[]).filter(inDims)[0] : next)} tabs={withUnits("analysis", [{ value: "overview" as const, label: t("dimension.overview") }, { value: "value" as const, label: tv("tab"), tooltip: tv("tabInfo") }, ...capsules.map((value) => ({ value, label: t(`dimension.${value as "place"}`) }))])} />}
+      subTabs={subs.length > 1 ? <AdminSubTabs<AnalysisDimension> label={t(`dimension.${capsule as "place"}`)} value={shown as AnalysisDimension} onChange={setTab} tabs={subs.map((value) => ({ value, label: t(`dimension.${value}`) }))} /> : undefined}
       aside={
         shown === "value" ? undefined : (
         <>

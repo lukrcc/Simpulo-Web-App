@@ -1,33 +1,37 @@
 "use client";
 import { AdminButton } from "./AdminButton";
 
-// Admin › Zeitplan (/admin/zeitplan, HEUTE after Aufgaben): Zeitleiste (first, the default) · Meilensteine · To-dos; right in the tab bar one
-// small line with the countdowns (next milestone, departure, launch). All dates, milestones and the
-// journey from config/roadmap.ts, the preparation from config/setup-todos.ts, the marketing weeks from config/marketing.ts – ONE to-do model
+// Admin › Zeitplan (/admin/zeitplan, HEUTE after Aufgaben, CLAUDE.md "Zeitplan"): capsules Zeitleiste (neutral, the default) · Code (lilac)
+// · Marketing (yellow) · Vorbereitung (orange) · Launch (pink) – the timeline's four lanes, each its own capsule in its unit colour
+// (config/admin-tiles.ts "zeitplan"): the lane's milestones or due dates with their to-dos (ticked off as before). A bar on the timeline
+// opens its lane with the entry marked (?focus=). Right in the tab bar one small line: next milestone, launch. All dates and milestones from
+// config/roadmap.ts, the preparation from config/setup-todos.ts, the marketing weeks from config/marketing.ts – ONE to-do model
 // (lib/roadmap.ts planTodos), every status, note and milestone state stored through the adapter, every change logged (useAdminActions).
-// The tab and filters in the URL (?tab=timeline|milestones|todos – an old ?tab=now opens the timeline –, &due=, &milestone=). German, dark, the admin's tokens.
+// Old links (?tab=now|milestones|todos with &due= or &milestone=) land on the matching capsule.
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { LAUNCH_PHASES } from "@/config/marketing";
-import { DEPARTURE, LAUNCH, TODO_DUES, TODO_STATUSES, type TodoDue, type TodoStatus } from "@/config/roadmap";
+import { FALLBACK_RULES, LAUNCH_PHASES } from "@/config/marketing";
+import { CODE_MILESTONES, LAUNCH, TODO_DUES, TODO_STATUSES, type TodoStatus } from "@/config/roadmap";
 import { useAdminActions } from "@/lib/admin/actions";
+import { launchProgress } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { day, num } from "@/lib/i18n/adminFormat";
-import { daysBetween, daysToDeparture, daysToLaunch, dueProgress, isOpenTodo, isOverdue, nextMilestone, PLAN_GROUPS, PLAN_SOURCES, planGroupLabel, planMilestones, planTodos, roadmapTodos, weekBuckets, weekStart, type PlanGroup, type PlanMilestone, type PlanSource, type PlanTodo } from "@/lib/roadmap";
+import { daysBetween, daysToLaunch, dueProgress, isOpenTodo, isOverdue, nextMilestone, PLAN_GROUPS, planGroupLabel, planMilestones, planTodos, roadmapTodos, weekStart, type PlanGroup, type PlanMilestone, type PlanTodo } from "@/lib/roadmap";
 import { cn } from "@/lib/utils";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { StatusDot } from "./AdminCharts";
 import { AdminSort, AdminTabs } from "./AdminLayout";
 import { RoadmapTimeline, useMilestoneName } from "./AdminRoadmap";
 import { AdminShell } from "./AdminShell";
+import { withUnits } from "./tileRoutes";
 
-type Tab = "timeline" | "milestones" | "todos";
-/** Zeitleiste first and by default; old links to "Jetzt" (?tab=now) land on it. */
-const TABS: readonly Tab[] = ["timeline", "milestones", "todos"];
+type Lane = "code" | "marketing" | "prep" | "launch";
+type Tab = "timeline" | Lane;
+const TABS: readonly Tab[] = ["timeline", "code", "marketing", "prep", "launch"];
 
 /** Every to-do of every source, worded (the marketing numbers as tasks from the countdown's words). */
 export function usePlanTodos(): PlanTodo[] {
@@ -52,31 +56,37 @@ function useSetTodoStatus() {
   };
 }
 
+/** The lane a milestone belongs to (an old ?milestone= link). */
+const laneOf = (id: string): Lane => (CODE_MILESTONES.some((m) => m.id === id) ? "code" : id === "launch" ? "launch" : "marketing");
+
 export function AdminZeitplan() {
   const t = useTranslations("admin.zeitplan");
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const params = useAdminSearch();
+  // Old links: ?tab=now → Zeitleiste, ?tab=milestones → Code, ?tab=todos (&due= → Vorbereitung, &milestone= → its lane) – with the entry marked.
   const raw = params.get("tab");
-  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "timeline";
-  const go = (next: Record<string, string | null>) => {
-    const q = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(next)) {
-      if (v === null) q.delete(k);
-      else q.set(k, v);
+  const due = params.get("due");
+  const milestone = params.get("milestone");
+  useEffect(() => {
+    if (raw === "todos" || raw === "milestones" || raw === "now" || due || milestone) {
+      const tab = milestone ? laneOf(milestone) : due || raw === "todos" ? "prep" : raw === "milestones" ? "code" : null;
+      setAdminSearch({ tab, focus: milestone ?? due ?? null, due: null, milestone: null }, { replace: true });
     }
-    // A new capsule is a new history entry (back works); filters within one replace it.
-    if ("tab" in next) router.push(`${pathname}?${q.toString()}`, { scroll: false });
-    else router.replace(`${pathname}?${q.toString()}`, { scroll: false });
-  };
+  }, [raw, due, milestone]);
+  const { tab, focus, open } = useAdminTab<Tab>(TABS, "timeline");
   return (
-    <AdminShell title={t("title")} tabs={<AdminTabs label={t("tabsLabel")} value={tab} onChange={(v) => go({ tab: v, due: null, milestone: null })} tabs={TABS.map((value) => ({ value, label: t(`tabs.${value}`) }))} />} aside={<CountdownLine />}>
+    <AdminShell
+      title={t("title")}
+      tabs={<AdminTabs label={t("tabsLabel")} value={tab} onChange={(v) => open(v)} tabs={withUnits("zeitplan", TABS.map((value) => ({ value, label: t(`tabs.${value}`), tooltip: value === "timeline" ? undefined : t(`tabInfo.${value}`) })))} />}
+      aside={<CountdownLine />}
+    >
       {tab === "timeline" ? (
-        <RoadmapTimeline onPickDue={(due) => go({ tab: "todos", due, milestone: null })} onMilestone={(milestone) => go({ tab: "todos", milestone, due: null })} onMilestones={() => go({ tab: "milestones", due: null, milestone: null })} />
-      ) : tab === "milestones" ? (
-        <MilestonesView onTodos={(milestone) => go({ tab: "todos", milestone, due: null })} />
+        <RoadmapTimeline onOpen={(lane, f) => open(lane, f)} />
+      ) : tab === "prep" ? (
+        <PrepView />
+      ) : tab === "launch" ? (
+        <LaunchView />
       ) : (
-        <TodosView due={params.get("due")} milestone={params.get("milestone")} onFilter={(key, value) => go({ [key]: value })} />
+        <LaneView lane={tab} focus={focus} />
       )}
     </AdminShell>
   );
@@ -85,7 +95,7 @@ export function AdminZeitplan() {
 // ── The countdowns ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Right in the tab bar, one small line of text (no tiles): "Nächster Meilenstein in 8 Tagen · Abreise in 30 Tagen · Launch in 162 Tagen";
+ * Right in the tab bar, one small line of text (no tiles): "Nächster Meilenstein in 8 Tagen · Launch in 162 Tagen";
  * the milestone's name in the tooltip.
  */
 function CountdownLine() {
@@ -94,11 +104,9 @@ function CountdownLine() {
   const data = useAdminData();
   const name = useMilestoneName();
   const next = nextMilestone(today, data);
-  const departure = daysToDeparture(today);
   const launch = daysToLaunch(today);
   const parts = [
     next && { key: "next", text: `${t("now.next")} ${t("inDays", { days: next.days })}`, tip: `${name(next)} · ${day(next.date)}` },
-    { key: "departure", text: departure >= 0 ? `${t("now.departure")} ${t("inDays", { days: departure })}` : t("now.departed"), tip: day(DEPARTURE.date) },
     { key: "launch", text: `${t("now.launch")} ${t("inDays", { days: launch })}`, tip: day(LAUNCH.date) },
   ].filter((p): p is { key: string; text: string; tip: string } => Boolean(p));
   return (
@@ -116,71 +124,181 @@ function CountdownLine() {
   );
 }
 
-// ── Meilensteine ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ── Code · Marketing: the lane's milestones, each with its to-dos ───────────────────────────────────────────────────────────
 
 const STATUS_DOT = { open: null, running: null, reached: "good", postponed: "warning" } as const;
 
-function MilestonesView({ onTodos }: { onTodos: (milestone: string) => void }) {
+function LaneView({ lane, focus }: { lane: "code" | "marketing"; focus: string | null }) {
   const t = useTranslations("admin.zeitplan");
   const { today } = useAdminInputs();
   const data = useAdminData();
   const actions = useAdminActions();
   const todos = usePlanTodos();
+  const milestones = planMilestones(data, today).filter((m) => m.kind === lane);
+  // Own to-dos of this lane's group: their own section at the end.
+  const own = todos.filter((x) => x.source === "own" && x.group === lane);
+  return (
+    <div data-lane={lane} className="flex flex-col gap-(--adm-section)">
+      {milestones.map((m) => (
+        <MilestoneBlock key={m.id} m={m} todos={todos.filter((x) => x.milestone === m.id)} marked={focus === m.id} />
+      ))}
+      <section aria-label={t("lane.own")} className="flex flex-col gap-(--adm-inner)">
+        <h2 className="text-eyebrow uppercase text-(--adm-label)">{t("lane.own")}</h2>
+        {own.length > 0 && <TodoList todos={own} />}
+        <AddTodo onAdd={(text, dueDay, g) => actions.addOwnTodo(text, dueDay, weekStart(dueDay), g)} today={today} defaultGroup={lane} />
+      </section>
+    </div>
+  );
+}
+
+/** One milestone: its date, name, goal, state and note – and its to-dos right under it. */
+function MilestoneBlock({ m, todos, marked }: { m: PlanMilestone; todos: readonly PlanTodo[]; marked: boolean }) {
+  const t = useTranslations("admin.zeitplan");
+  const { today } = useAdminInputs();
+  const actions = useAdminActions();
   const name = useMilestoneName();
-  const milestones = planMilestones(data, today);
-  const goalOf = (m: PlanMilestone) => {
+  const done = todos.filter((x) => x.status === "done").length;
+  const days = daysBetween(today, m.date);
+  const label = name(m);
+  const goal = (() => {
     if (m.goal) return m.goal;
     const phase = m.kind === "launch" ? LAUNCH_PHASES.at(-1)! : LAUNCH_PHASES.find((p) => p.key === m.id);
     if (!phase) return null;
     return m.kind === "launch" ? t("milestones.goalLaunch", { houses: num(phase.targets.housesOpened), waitlist: num(phase.targets.waitlist) }) : t("milestones.goalMarketing", { contacts: num(phase.targets.contacts), houses: num(phase.targets.housesOpened), waitlist: num(phase.targets.waitlist) });
-  };
+  })();
   return (
-    <ul data-milestones className="divide-y divide-ink/8 border-y border-ink/8">
-      {milestones.map((m) => {
-        const list = todos.filter((x) => x.milestone === m.id);
-        const done = list.filter((x) => x.status === "done").length;
-        const days = daysBetween(today, m.date);
-        const label = name(m);
+    <section data-milestone={m.id} data-milestone-status={m.status} data-focus-key={m.id} data-marked={marked || undefined} aria-label={label} className="flex flex-col gap-2">
+      <div className={cn("grid gap-x-6 gap-y-2 border-b border-ink/8 pb-3 lg:grid-cols-[132px_minmax(0,1fr)_minmax(0,260px)_auto]", m.status === "reached" && "opacity-70")}>
+        <div className="text-small">
+          <p className="font-semibold text-ink tabular-nums">
+            {day(m.date)}
+            {m.uncertain && ` (${t("todos.approx")})`}
+          </p>
+          <p className="text-muted">{m.status === "reached" ? t("milestones.reachedOn", { date: day(m.reachedAt!.slice(0, 10)) }) : days >= 0 ? t("inDays", { days }) : t("ago", { days: -days })}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-body font-semibold text-ink">{label}</p>
+          {goal && <p className="text-small text-muted">{goal}</p>}
+          <p className="mt-1 text-small text-muted">{todos.length === 0 ? t("milestones.noTodos") : t("milestones.todos", { done, total: todos.length })}</p>
+        </div>
+        <NoteField key={`${m.id}:${m.note}`} value={m.note} label={t("milestones.note")} placeholder={t("milestones.notePlaceholder")} onCommit={(note) => actions.setMilestoneNote(m.id, label, note)} />
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <span className="flex items-center gap-1.5 text-small text-ink" data-status-label>
+            <StatusDot status={STATUS_DOT[m.status]} />
+            <span className={cn(m.status === "running" && "font-semibold")}>{t(`milestones.status.${m.status}`)}</span>
+          </span>
+          <AdminButton variant="secondary" onClick={() => actions.setRoadmapReached(m.id, label, m.status !== "reached")}>
+            {m.status === "reached" ? t("milestones.undoReached") : t("milestones.markReached")}
+          </AdminButton>
+          {m.status !== "reached" && (
+            <AdminButton variant="secondary" onClick={() => actions.setMilestonePostponed(m.id, label, m.status !== "postponed")}>
+              {m.status === "postponed" ? t("milestones.unpostpone") : t("milestones.postpone")}
+            </AdminButton>
+          )}
+        </div>
+      </div>
+      {todos.length > 0 && <TodoList todos={todos} />}
+    </section>
+  );
+}
+
+// ── Vorbereitung: the due dates, each with its to-dos ─────────────────────────────────────────────────────────────────────────
+
+function PrepView() {
+  const t = useTranslations("admin.zeitplan");
+  const { today } = useAdminInputs();
+  const actions = useAdminActions();
+  const todos = usePlanTodos();
+  const prep = todos.filter((x) => x.source === "prep");
+  // Own to-dos that aren't Code or Marketing belong to the preparation.
+  const own = todos.filter((x) => x.source === "own" && x.group !== "code" && x.group !== "marketing");
+  return (
+    <div data-lane="prep" className="flex flex-col gap-(--adm-section)">
+      {TODO_DUES.map((d) => {
+        const list = prep.filter((x) => x.dueKey === d.id);
+        if (!list.length) return null;
+        const open = list.filter(isOpenTodo).length;
         return (
-          <li key={m.id} data-milestone={m.id} data-milestone-status={m.status} className={cn("grid gap-x-6 gap-y-2 py-3 lg:grid-cols-[132px_minmax(0,1fr)_minmax(0,260px)_auto]", m.status === "reached" && "opacity-70")}>
-            <div className="text-small">
-              <p className="font-semibold text-ink tabular-nums">
-                {day(m.date)}
-                {m.uncertain && ` (${t("todos.approx")})`}
-              </p>
-              <p className="text-muted">{m.status === "reached" ? t("milestones.reachedOn", { date: day(m.reachedAt!.slice(0, 10)) }) : days >= 0 ? t("inDays", { days }) : t("ago", { days: -days })}</p>
+          <section key={d.id} data-due={d.id} data-focus-key={d.id} aria-label={d.label} className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-ink/8 pb-2">
+              <h2 className="text-body font-semibold text-ink">
+                {d.label}
+                {d.date && <span className="font-normal text-muted"> · {t("todos.dueOn", { date: day(d.date.date) })}{d.date.uncertain ? ` (${t("todos.approx")})` : ""}</span>}
+              </h2>
+              <span className="text-small tabular-nums text-muted">{t("lane.dueState", { done: list.length - open - list.filter((x) => x.status === "later").length, total: list.length, open })}</span>
             </div>
-            <div className="min-w-0">
-              <p className="text-body font-semibold text-ink">{label}</p>
-              {goalOf(m) && <p className="text-small text-muted">{goalOf(m)}</p>}
-              <p className="mt-1 text-small text-muted">
-                {list.length === 0 ? (
-                  t("milestones.noTodos")
-                ) : (
-                  <button type="button" onClick={() => onTodos(m.id)} className="text-ink hover:underline">
-                    {t("milestones.todos", { done, total: list.length })} · {t("milestones.showTodos")}
-                  </button>
-                )}
-              </p>
-            </div>
-            <NoteField key={`${m.id}:${m.note}`} value={m.note} label={t("milestones.note")} placeholder={t("milestones.notePlaceholder")} onCommit={(note) => actions.setMilestoneNote(m.id, label, note)} />
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="flex items-center gap-1.5 text-small text-ink" data-status-label>
-                <StatusDot status={STATUS_DOT[m.status]} />
-                <span className={cn(m.status === "running" && "font-semibold text-adm-chart-1")}>{t(`milestones.status.${m.status}`)}</span>
-              </span>
-              <AdminButton variant="secondary" onClick={() => actions.setRoadmapReached(m.id, label, m.status !== "reached")}>
-                {m.status === "reached" ? t("milestones.undoReached") : t("milestones.markReached")}
-              </AdminButton>
-              {m.status !== "reached" && (
-                <AdminButton variant="secondary" onClick={() => actions.setMilestonePostponed(m.id, label, m.status !== "postponed")}>
-                  {m.status === "postponed" ? t("milestones.unpostpone") : t("milestones.postpone")}
-                </AdminButton>
-              )}
-            </div>
-          </li>
+            <TodoList todos={list} />
+          </section>
         );
       })}
+      <section aria-label={t("lane.own")} className="flex flex-col gap-(--adm-inner)">
+        <h2 className="text-eyebrow uppercase text-(--adm-label)">{t("lane.own")}</h2>
+        {own.length > 0 && <TodoList todos={own} />}
+        <AddTodo onAdd={(text, dueDay, g) => actions.addOwnTodo(text, dueDay, weekStart(dueDay), g)} today={today} defaultGroup={PLAN_GROUPS[0].id} />
+      </section>
+    </div>
+  );
+}
+
+// ── Launch: the day, its criteria, the fallback rules ─────────────────────────────────────────────────────────────────────────
+
+function LaunchView() {
+  const t = useTranslations("admin.zeitplan");
+  const tc = useTranslations("admin.overview");
+  const inputs = useAdminInputs();
+  const data = useAdminData();
+  const todos = usePlanTodos();
+  const m = planMilestones(data, inputs.today).find((x) => x.kind === "launch")!;
+  const lp = launchProgress(inputs);
+  const criteria = [
+    { key: "houses", label: tc("criteria.houses"), p: lp.houses, unit: "" },
+    { key: "hubs", label: tc("criteria.hubs", { min: lp.hubs.target }), p: lp.hubs, unit: "" },
+    { key: "reservedShare", label: tc("criteria.reservedShare", { min: 2 }), p: lp.reservedShare, unit: " %" },
+    { key: "waitlist", label: tc("criteria.waitlist"), p: lp.waitlist, unit: "" },
+  ];
+  const met = criteria.filter((c) => c.p.ratio >= 1).length;
+  return (
+    <div data-lane="launch" className="flex flex-col gap-(--adm-section)">
+      <MilestoneBlock m={m} todos={todos.filter((x) => x.milestone === "launch")} marked={false} />
+      <section aria-label={tc("launch")} data-launch-criteria>
+        <h2 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">
+          {tc("launch")} · {t("timeline.criteriaMet", { met, total: criteria.length })}
+        </h2>
+        <ul className="divide-y divide-ink/8 border-y border-ink/8">
+          {criteria.map((c) => (
+            <li key={c.key} data-criterion={c.key} className="flex min-h-(--adm-row-h) items-center gap-3">
+              <StatusDot status={c.p.ratio >= 1 ? "good" : c.p.ratio >= 0.6 ? "warning" : "critical"} />
+              <span className="min-w-0 flex-1 text-body text-ink">{c.label}</span>
+              <span className="text-body tabular-nums text-muted">
+                {num(c.p.value)}
+                {c.unit} / {num(c.p.target)}
+                {c.unit}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section aria-label={t("timeline.fallback")}>
+        <h2 className="mb-(--adm-inner) text-eyebrow uppercase text-(--adm-label)">{t("timeline.fallback")}</h2>
+        <ul className="flex flex-col gap-1.5 text-body text-ink">
+          {FALLBACK_RULES.map((r) => (
+            <li key={r.id}>{r.text}</li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+/** A lane's to-dos: the rows, done ones last. */
+function TodoList({ todos }: { todos: readonly PlanTodo[] }) {
+  const { today } = useAdminInputs();
+  const ordered = todos.toSorted((a, b) => Number(a.status === "done") - Number(b.status === "done"));
+  return (
+    <ul className="divide-y divide-ink/8 border-b border-ink/8">
+      {ordered.map((x) => (
+        <TodoRow key={x.id} todo={x} today={today} />
+      ))}
     </ul>
   );
 }
@@ -193,79 +311,11 @@ function NoteField({ value, label, placeholder, onCommit, className }: { value: 
 
 // ── To-dos ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-type DueFilter = "all" | "overdue" | "thisWeek" | "nextWeek" | "noDate" | TodoDue;
-type StatusFilter = TodoStatus | "all" | "notDone";
-
-function TodosView({ due: dueParam, milestone, onFilter }: { due: string | null; milestone: string | null; onFilter: (key: "due" | "milestone", value: string | null) => void }) {
-  const t = useTranslations("admin.zeitplan");
-  const tStatus = useTranslations("admin.platform.roadmap.status");
-  const { today } = useAdminInputs();
-  const data = useAdminData();
-  const actions = useAdminActions();
-  const todos = usePlanTodos();
-  const name = useMilestoneName();
-  const milestones = planMilestones(data, today);
-  const [source, setSource] = useState<PlanSource | "all">("all");
-  const [group, setGroup] = useState<PlanGroup | "all">("all");
-  const [status, setStatus] = useState<StatusFilter>("notDone");
-  const [shown, setShown] = useState(40);
-  const due: DueFilter = (dueParam as DueFilter | null) ?? "all";
-  const milestoneId = milestone;
-  const weeks = weekBuckets(todos, today);
-  const inWeek = (x: PlanTodo, list: readonly PlanTodo[]) => list.some((y) => y.id === x.id);
-  const filtered = todos.filter(
-    (x) =>
-      (source === "all" || x.source === source) &&
-      (group === "all" || x.group === group) &&
-      (status === "all" || (status === "notDone" ? x.status !== "done" : x.status === status)) &&
-      (!milestoneId || x.milestone === milestoneId) &&
-      (due === "all" || (due === "overdue" ? isOverdue(x, today) : due === "thisWeek" ? inWeek(x, weeks.thisWeek) : due === "nextWeek" ? inWeek(x, weeks.nextWeek) : due === "noDate" ? !x.due : x.dueKey === due)),
-  );
-  const openCount = filtered.filter(isOpenTodo).length;
-  return (
-    <div data-plan-todos className="flex flex-col gap-(--adm-inner)">
-      <div className="flex flex-wrap items-center gap-2">
-        <AdminSort label={t("todos.source")} value={source} onChange={setSource} options={[{ value: "all" as const, label: t("todos.all") }, ...PLAN_SOURCES.map((s) => ({ value: s, label: t(`todos.sources.${s}`) }))]} />
-        <AdminSort label={t("todos.group")} value={group} onChange={setGroup} options={[{ value: "all" as const, label: t("todos.all") }, ...PLAN_GROUPS.map((g) => ({ value: g.id, label: g.label }))]} />
-        <AdminSort label={t("todos.status")} value={status} onChange={setStatus} options={[{ value: "notDone" as const, label: t("todos.openOnly") }, { value: "all" as const, label: t("todos.all") }, ...TODO_STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]} />
-        <AdminSort
-          label={t("todos.due")}
-          value={due}
-          onChange={(v) => {
-            onFilter("milestone", null);
-            onFilter("due", v === "all" ? null : v);
-          }}
-          options={[{ value: "all" as const, label: t("todos.all") }, ...(["overdue", "thisWeek", "nextWeek", "noDate"] as const).map((v) => ({ value: v, label: t(`todos.dueOptions.${v}`) })), ...TODO_DUES.map((d) => ({ value: d.id, label: d.label }))]}
-        />
-        <AdminSort label={t("todos.milestone")} value={milestoneId ?? "all"} onChange={(v) => onFilter("milestone", v === "all" ? null : v)} options={[{ value: "all", label: t("todos.all") }, ...milestones.map((m) => ({ value: m.id, label: name(m) }))]} />
-        <span className="ml-auto text-small tabular-nums text-muted">
-          {t("todos.count", { count: filtered.length })} · {t("todos.openCount", { count: openCount })}
-        </span>
-      </div>
-      <AddTodo onAdd={(text, dueDay, g) => actions.addOwnTodo(text, dueDay, weekStart(dueDay), g)} today={today} />
-      {filtered.length === 0 ? (
-        <p className="text-body text-muted">{t("todos.empty")}</p>
-      ) : (
-        <ul className="divide-y divide-ink/8 border-y border-ink/8">
-          {filtered.slice(0, shown).map((x) => (
-            <TodoRow key={x.id} todo={x} today={today} milestoneName={x.milestone ? name(milestones.find((m) => m.id === x.milestone) ?? { kind: "code", label: x.milestone, title: "" }) : null} />
-          ))}
-        </ul>
-      )}
-      {filtered.length > shown && (
-        <AdminButton variant="secondary" className="self-start" onClick={() => setShown((n) => n + 40)}>
-          {t("todos.more", { count: Math.min(40, filtered.length - shown) })}
-        </AdminButton>
-      )}
-    </div>
-  );
-}
-
-function AddTodo({ onAdd, today }: { onAdd: (text: string, due: string, group: PlanGroup) => void; today: string }) {
+function AddTodo({ onAdd, today, defaultGroup }: { onAdd: (text: string, due: string, group: PlanGroup) => void; today: string; defaultGroup: PlanGroup }) {
   const t = useTranslations("admin.zeitplan");
   const [text, setText] = useState("");
   const [dueDay, setDueDay] = useState(today);
-  const [group, setGroup] = useState<PlanGroup>("marketing");
+  const [group, setGroup] = useState<PlanGroup>(defaultGroup);
   const ready = text.trim() && /^\d{4}-\d{2}-\d{2}$/.test(dueDay);
   return (
     <form
@@ -289,7 +339,7 @@ function AddTodo({ onAdd, today }: { onAdd: (text: string, due: string, group: P
   );
 }
 
-function TodoRow({ todo, today, milestoneName }: { todo: PlanTodo; today: string; milestoneName: string | null }) {
+function TodoRow({ todo, today }: { todo: PlanTodo; today: string }) {
   const t = useTranslations("admin.zeitplan");
   const tStatus = useTranslations("admin.platform.roadmap.status");
   const tRoadmap = useTranslations("admin.platform.roadmap");
@@ -300,7 +350,7 @@ function TodoRow({ todo, today, milestoneName }: { todo: PlanTodo; today: string
       <div className="min-w-0">
         <p className={cn("text-body font-semibold", todo.status === "done" ? "text-muted line-through" : "text-ink")}>{todo.title}</p>
         <p className="text-small text-muted">
-          {[t(`todos.sources.${todo.source}`), planGroupLabel(todo.group), todo.due ? `${t("todos.dueOn", { date: day(todo.due) })}${todo.uncertain ? ` (${t("todos.approx")})` : ""}` : t("todos.noDate"), milestoneName].filter(Boolean).join(" · ")}
+          {[planGroupLabel(todo.group), todo.due ? `${t("todos.dueOn", { date: day(todo.due) })}${todo.uncertain ? ` (${t("todos.approx")})` : ""}` : t("todos.noDate")].filter(Boolean).join(" · ")}
           {isOverdue(todo, today) && <span className="font-semibold text-adm-critical"> · {t("now.overdue")}</span>}
           {todo.link && (
             <>

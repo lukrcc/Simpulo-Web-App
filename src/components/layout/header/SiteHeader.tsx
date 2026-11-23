@@ -26,8 +26,8 @@ import { AvatarMenu } from "./AvatarMenu";
 /*
  * Header sizes – do not change without explicit instruction.
  *
- * ONE bar, 64px on every page, fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
- * its foot, above the page (only dialogs go over it); the content gets its 64px as padding-top. It never moves while scrolling. The same on
+ * ONE bar on every page (48px from 1100px – the admin's height –, 64px on tablets; --header-h), fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
+ * its foot, above the page (only dialogs go over it); the content gets its height as padding-top. It never moves while scrolling. The same on
  * every page: the wordmark (→ Explore) · in the middle Explore's quick search, elsewhere the capsule "Where to next?" (the same Where/When
  * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar (its account menu, AvatarMenu)
  * and "Open a House" as a thin outline button. The tab you're on a filled capsule cream 12 % (no edge). Below 1100px the tabs are icons

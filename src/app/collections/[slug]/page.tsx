@@ -58,6 +58,7 @@ async function CollectionContent({ params }: { params: PageProps<"/collections/[
   const title = t(`explore.collections.${collection.id}.title`);
   const own = COLLECTION_SEO[collection.id];
   // Intro and questions: the template (with the theme's name), or the theme's own (config/seo.ts COLLECTION_SEO).
+  // check-messages: optional (COLLECTION_SEO decides whether a theme has its own words)
   const intro = own?.intro ? tSeo(`collectionOverrides.${collection.id}.intro` as "city.intro") : `${t(`explore.collections.${collection.id}.subline`)} ${tSeo("collectionIntro")}`;
   const tFaq = await getTranslations(own?.faq ? (`seo.collectionOverrides.${collection.id}.faq` as "seo.collectionFaq") : "seo.collectionFaq");
   const faqItems = (own?.faq ?? COLLECTION_FAQ).map((id) => ({ q: tFaq(`${id}.q` as "what.q", { name: title }), a: tFaq(`${id}.a` as "what.a", { name: title, percent: FEE_MODEL.serviceFeePercent }) }));

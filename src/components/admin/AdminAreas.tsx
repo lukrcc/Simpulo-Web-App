@@ -50,6 +50,7 @@ import { OpenTasksHint } from "./OpenTasksHint";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { useFillHeight } from "./useFillHeight";
 import { routeTiles, withUnits } from "./tileRoutes";
+import { unitColorOf } from "@/config/admin-tiles";
 import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 
 // ── Houses: early warning – components/admin/AdminHouseWatch.tsx (AdminHouseList) ──────────────────────────────────────────
@@ -765,13 +766,13 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
     if (params.get("view") !== "roadmap") return;
     const due = params.get("due");
     const todos = params.get("sub") === "todos";
-    router.replace(`/admin/zeitplan?tab=${todos ? "todos" : "timeline"}${todos && due && TODO_DUES.some((d) => d.id === due) ? `&due=${due}` : ""}`);
+    router.replace(todos ? `/admin/zeitplan?tab=prep${due && TODO_DUES.some((d) => d.id === due) ? `&focus=${due}` : ""}` : "/admin/zeitplan");
   }, [router]);
 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={(["overview", "settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) }))} />}
+      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={withUnits<SystemView>("system", (["overview", "settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) })))} />}
       subTabs={
         view === "prepare" ? (
           <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} />
@@ -915,6 +916,8 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
   const met = criteria.filter((c) => c.p.value >= c.p.target).length;
   const tools = OVERVIEW_TOOLS.map((o) => ({ ...o, tool: TOOLS.find((x) => x.id === o.id) })).filter((o) => o.tool?.url);
   const tile = "adm-tile flex min-h-0 min-w-0 flex-col rounded-xl border p-5";
+  // Each section in the colour of the capsule it belongs to (CLAUDE.md "Einheiten-Farbe"): Phase and Werte – Einstellungen, Tools, Launch.
+  const unit = (tab: SystemView) => ({ "data-unit": "", style: { "--unit": unitColorOf("system", tab) } as CSSProperties });
   const head = "mb-3 text-eyebrow uppercase text-(--adm-label)";
   const values = [
     { label: t("hideCategory"), value: t("realHouses", { count: examples.hideCategoryAtRealCount }) },
@@ -925,7 +928,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
   return (
     <div ref={box} data-system-overview className="grid gap-(--adm-grid-gap) lg:grid-cols-2 lg:grid-rows-2" style={height ? ({ height } as CSSProperties) : undefined}>
       {/* Phase: the capsules (a change asks first, then the log), what this phase allows now. */}
-      <section aria-labelledby="sys-phase" className={tile}>
+      <section aria-labelledby="sys-phase" className={tile} {...unit("settings")}>
         <h2 id="sys-phase" className={head}>{t("phase")}</h2>
         <CapsuleGroup label={t("phase")} value={phase} onChange={onPhase} options={PLATFORM_PHASES.map((value) => ({ value, content: t(`phases.${value}`) }))} />
         <p className="mt-4 text-small font-semibold text-ink">{t("overview.allowed")}</p>
@@ -939,7 +942,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
         </ul>
       </section>
       {/* Tools: link tiles in their brand colour, a new tab each. */}
-      <section aria-labelledby="sys-tools" className={tile}>
+      <section aria-labelledby="sys-tools" className={tile} {...unit("tools")}>
         <h2 id="sys-tools" className={head}>{t("views.tools")}</h2>
         <ul className="grid min-h-0 flex-1 grid-cols-2 gap-2">
           {tools.map(({ id, brand, tool }) => {
@@ -961,7 +964,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
         </ul>
       </section>
       {/* Launch: x of 4 criteria with their values – a click opens the checklist. */}
-      <section aria-labelledby="sys-launch" className={cn(tile, "adm-press relative")}>
+      <section aria-labelledby="sys-launch" className={cn(tile, "adm-press relative")} {...unit("prepare")}>
         <button type="button" onClick={onLaunch} data-card-link aria-label={t("overview.openLaunch")} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
         <h2 id="sys-launch" className={head}>{t("overview.launch")}</h2>
         <TileValue value={t("overview.criteria", { met, total: criteria.length })} className="block" />
@@ -978,7 +981,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
         </dl>
       </section>
       {/* The values of config/platform.ts, compact. */}
-      <section aria-labelledby="sys-values" className={tile}>
+      <section aria-labelledby="sys-values" className={tile} {...unit("settings")}>
         <h2 id="sys-values" className={head}>{t("values")}</h2>
         <dl className="grid min-h-0 grid-cols-2 gap-x-6 gap-y-3">
           {values.map((v) => (

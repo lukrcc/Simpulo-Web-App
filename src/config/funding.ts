@@ -9,15 +9,15 @@ export const FUNDING_NOTE = "Thesen zur Orientierung, keine Finanzberatung.";
 export const OPEN = "noch offen";
 export const YOU_ARE_HERE = "Du bist hier";
 
-export type FundingTab = "readiness" | "thesis" | "rounds" | "documents" | "valuation" | "marketcap" | "structure";
+export type FundingTab = "readiness" | "thesis" | "rounds" | "documents" | "valuation" | "structure";
 export const FUNDING_TABS: readonly { key: FundingTab; label: string }[] = [
   { key: "readiness", label: "Bereitschaft" },
   { key: "thesis", label: "These" },
   { key: "rounds", label: "Runden" },
   { key: "documents", label: "Unterlagen" },
-  { key: "valuation", label: "Bewertung & Anteile" },
-  // The Market Cap view as a capsule (Übersicht's tile leads here; /admin/market-cap redirects).
-  { key: "marketcap", label: "Market Cap" },
+  // Bewertung: the Market Cap on top, the valuation ranges and the share calculator under it (Übersicht's tile leads here; /admin/market-cap
+  // and the old ?tab=marketcap redirect).
+  { key: "valuation", label: "Bewertung" },
   { key: "structure", label: "Firmenstruktur" },
 ];
 

@@ -1,22 +1,21 @@
 "use client";
 
-// Admin › Zeitplan › Zeitleiste (the page's first tab): a clean Gantt over the whole screen – from this month to December of the next year
-// (timelineRange; every month shown, the year at the start and at the turn), a fixed name column left (220px), the time axis right, five
-// rows that share the window's remaining height evenly (bars, diamonds, the star and their words grow with them), one band each:
-// Code (M1–M6 one after another) · Marketing (phases 1–4) · Reise (Deutschland · Bangkok · Bali) · Vorbereitung (diamonds at the due dates
-// with the number of open to-dos) · Launch (star with its date). No other text in the drawing – names, dates and lists in the tooltips.
-// Nothing overlaps: diamonds closer than a few days merge into one, and a label never crosses the "heute" line (it moves to the side of
-// the band that has room). Colours by tokens: Code primary, Marketing chart-2, Reise neutral grey, Vorbereitung and Launch the goal amber;
-// bars as everywhere (edge, light fill), reached filled, running dashed. All dates from config/roadmap.ts (the marketing phases from
-// config/marketing.ts), the to-dos' state through the adapter. German, dark, the admin's tokens.
+// Admin › Zeitplan › Zeitleiste (the page's first capsule, CLAUDE.md "Zeitplan"): a clean Gantt over the whole screen – from this month to
+// December of the next year (timelineRange; every month shown, the year at the start and at the turn), a fixed name column left (220px),
+// the time axis right, FOUR rows that share the window's remaining height evenly: Code (M1–M6) · Marketing (phases 1–4) · Vorbereitung (one
+// bar per due date, from the one before to it: "{Frist} · x offen", the done share filled, the rest tinted) · Launch (the launch window: the
+// star and its date on 3 May, two weeks of buffer dashed after it – the fallback rule). Each row in its capsule's unit colour (config/
+// admin-tiles.ts "zeitplan"); a click on a bar opens that capsule with the entry marked (?focus=). The journey (config/roadmap.ts TRAVEL)
+// stays in the config but isn't shown. Nothing overlaps: a label never crosses the "heute" line. German, the admin's tokens.
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { CODE_MILESTONES, LAUNCH, ROADMAP_RANGE, TRAVEL, type TodoDue } from "@/config/roadmap";
+import { CODE_MILESTONES, LAUNCH, ROADMAP_RANGE, type TodoDue } from "@/config/roadmap";
+import { unitColorOf } from "@/config/admin-tiles";
 import { FALLBACK_RULES } from "@/config/marketing";
-import { isRunningSpan, strategyDates, strategyPhases } from "@/lib/admin/metrics";
+import { isRunningSpan, launchProgress, strategyDates, strategyPhases } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { day, month } from "@/lib/i18n/adminFormat";
+import { day, month, num } from "@/lib/i18n/adminFormat";
 import { dueProgress, isOpenTodo, roadmapTodos, timelineRange, type PlanMilestone } from "@/lib/roadmap";
 import { cn } from "@/lib/utils";
 
@@ -34,10 +33,27 @@ const AXIS_H = 60;
 const BOTTOM_GAP = 44;
 /** Each row at least this high – below it the page may scroll rather than squeeze. */
 const MIN_ROW = 64;
-/** Diamonds closer than this (px on the track) become one – nothing on top of each other. */
-const MERGE_PX = 44;
-/** A band shows its label only when it fits (≈ 10px per character + 12px room); otherwise the name stays in the tooltip. */
-const labelFits = (label: string, px: number) => px >= label.length * 10 + 12;
+/** The rows: Code · Marketing · Vorbereitung · Launch. */
+const ROWS = 4;
+/** Due dates closer than this (days) share one preparation bar – a bar of a day or two would carry no label. */
+const MERGE_DAYS = 7;
+/** The launch window: the launch week solid, then the buffer of the fallback rule ("Launch +2 Wochen") dashed. */
+const LAUNCH_WEEK_DAYS = 7;
+const LAUNCH_BUFFER_DAYS = 14;
+const addDays = (d: string, n: number) => new Date(ms(d) + n * 86_400_000).toISOString().slice(0, 10);
+let measureCtx: CanvasRenderingContext2D | null = null;
+/** A label's width in the band's type (15px semibold), measured once per label; on the server an estimate (≈ 9px per character). */
+function textWidth(label: string): number {
+  if (typeof document === "undefined") return label.length * 9;
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  if (!measureCtx) return label.length * 9;
+  measureCtx.font = `600 15px ${getComputedStyle(document.body).fontFamily}`;
+  return measureCtx.measureText(label).width;
+}
+/** A band shows a label only when it fits with room on both sides (plate included); otherwise the next shorter one, else the tooltip. */
+const labelFits = (label: string, px: number) => px >= textWidth(label) + 14;
+/** The longest of a band's labels that fits ("vor Abreise · 17 offen" → "Abreise · 17" → "17"); none: the tooltip carries it. */
+const fitting = (labels: readonly string[], px: number) => labels.find((l) => labelFits(l, px)) ?? null;
 
 /** A milestone's name: "M1 Footer + Dashboard", "Woche 1–2 · Fundament", "Launch · Simpulo öffnet" (words in admin.zeitplan). */
 export function useMilestoneName() {
@@ -46,28 +62,16 @@ export function useMilestoneName() {
     m.kind === "code" ? `${m.label} ${m.title}` : m.kind === "marketing" ? `${t("weeks", { from: m.weeks!.from, to: m.weeks!.to })} · ${m.title}` : `${t("launchLabel")} · ${t("launchTitle")}`;
 }
 
-type Tone = "code" | "marketing" | "travel";
+type Tone = "code" | "marketing" | "prep" | "launch";
 type State = "open" | "running" | "reached" | "uncertain";
-/** A band's look by its tone and state: edge + light fill; reached filled; running dashed over the faint fill; uncertain dashed, no fill. */
-const BAND: Record<Tone, Record<State, string>> = {
-  code: {
-    open: "border-adm-chart-primary bg-(--adm-chart-fill) text-ink",
-    running: "border-dashed border-adm-chart-hover bg-(--adm-chart-fill-current) text-ink",
-    reached: "border-adm-chart-primary bg-adm-chart-primary text-(--adm-cap-on-text)",
-    uncertain: "border-dashed border-adm-chart-primary text-ink",
-  },
-  marketing: {
-    open: "border-adm-chart-2 bg-(--adm-chart-2-fill) text-ink",
-    running: "border-dashed border-adm-chart-2 bg-(--adm-chart-2-fill-current) text-ink",
-    reached: "border-adm-chart-2 bg-adm-chart-2 text-(--adm-cap-on-text)",
-    uncertain: "border-dashed border-adm-chart-2 text-ink",
-  },
-  travel: {
-    open: "border-ink/25 bg-ink/6 text-ink",
-    running: "border-ink/40 bg-ink/10 text-ink",
-    reached: "border-ink/25 bg-ink/6 text-ink",
-    uncertain: "border-dashed border-ink/40 text-ink",
-  },
+/** Each row's colour: its capsule's unit colour (config/admin-tiles.ts "zeitplan"). */
+const TONE: Record<Tone, string> = { code: unitColorOf("zeitplan", "code")!, marketing: unitColorOf("zeitplan", "marketing")!, prep: unitColorOf("zeitplan", "prep")!, launch: unitColorOf("zeitplan", "launch")! };
+/** A band's look in its row's colour (--tone): edge + light fill; reached filled (inverse text); running dashed over a fainter fill; uncertain dashed, no fill. */
+const BAND: Record<State, string> = {
+  open: "border-(--tone) bg-[color-mix(in_srgb,var(--tone)_24%,var(--bg))] text-ink",
+  running: "border-dashed border-(--tone) bg-[color-mix(in_srgb,var(--tone)_12%,var(--bg))] text-ink",
+  reached: "border-(--tone) bg-(--tone) text-(--adm-cap-on-text)",
+  uncertain: "border-dashed border-(--tone) text-ink",
 };
 
 /**
@@ -95,16 +99,23 @@ function Row({ name, children }: { name: string; children: ReactNode }) {
 }
 
 /** A band on the track: one section, its short label inside (kept off the today line), the full text in the tooltip; a button when it opens something. */
-function Band({ id, from, to, tone, state, label, tip, now, track, onClick }: { id: string; from: number; to: number; tone: Tone; state: State; label: string; tip: string; now: number | null; track: number; onClick?: () => void }) {
+function Band({ id, from, to, tone, state, label, labels, tip, now, track, onClick, dashed = false, done, children }: { id: string; from: number; to: number; tone: Tone; state: State; label: string; /** Shorter labels to fall back on when `label` doesn't fit */ labels?: readonly string[]; tip: string; now: number | null; track: number; onClick?: () => void; /** A dashed edge while keeping its fill (an uncertain due date) */ dashed?: boolean; /** The done share (0–1): filled in the full colour, the rest stays tinted (Vorbereitung) */ done?: number; children?: ReactNode }) {
   const centre = labelCentre(from, to, now);
-  const roomy = labelFits(label, ((to - from) / 100) * track);
-  const className = cn("absolute top-1/2 h-(--band-h) -translate-y-1/2 overflow-hidden rounded-lg border-[1.5px] text-body font-semibold", BAND[tone][state], onClick && "cursor-pointer transition-[filter] duration-150 hover:brightness-125");
-  const style = { left: `${from}%`, width: `calc(${to - from}% - 2px)` };
-  const inner = roomy ? (
-    <span aria-hidden className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap leading-none" style={{ left: `${centre}%` }}>
-      {label}
-    </span>
-  ) : null;
+  const shown = label ? fitting([label, ...(labels ?? [])], ((to - from) / 100) * track) : null;
+  const className = cn("absolute top-1/2 h-(--band-h) -translate-y-1/2 overflow-hidden rounded-lg border-[1.5px] text-body font-semibold", BAND[state], dashed && "border-dashed", onClick && "adm-press cursor-pointer");
+  const style = { left: `${from}%`, width: `calc(${to - from}% - 2px)`, "--tone": TONE[tone] } as CSSProperties;
+  // Over a partly filled bar the label sits on a small plate of the ground, so it reads on both parts.
+  const inner = (
+    <>
+      {done !== undefined && done > 0 && <span aria-hidden data-band-done className="absolute inset-y-0 left-0 bg-(--tone)" style={{ width: `${Math.min(1, done) * 100}%` }} />}
+      {shown && (
+        <span aria-hidden className={cn("absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap leading-none", done !== undefined && "rounded-md bg-(--bg) px-1.5 py-1 text-ink")} style={{ left: `${centre}%` }}>
+          {shown}
+        </span>
+      )}
+      {children}
+    </>
+  );
   return onClick ? (
     <button type="button" data-band={id} data-band-state={state} data-tooltip-info={tip} aria-label={tip} onClick={onClick} className={className} style={style}>
       {inner}
@@ -116,10 +127,11 @@ function Band({ id, from, to, tone, state, label, tip, now, track, onClick }: { 
   );
 }
 
-export function RoadmapTimeline({ onPickDue, onMilestone, onMilestones }: { onPickDue: (due: TodoDue) => void; onMilestone: (id: string) => void; onMilestones: () => void }) {
+export function RoadmapTimeline({ onOpen }: { onOpen: (lane: "code" | "marketing" | "prep" | "launch", focus: string) => void }) {
   const t = useTranslations("admin.zeitplan.timeline");
   const tz = useTranslations("admin.zeitplan");
-  const { today } = useAdminInputs();
+  const inputs = useAdminInputs();
+  const { today } = inputs;
   const data = useAdminData();
   const reached = data.roadmapReached ?? {};
   const phases = strategyPhases(strategyDates().start);
@@ -140,7 +152,7 @@ export function RoadmapTimeline({ onPickDue, onMilestone, onMilestones }: { onPi
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined) return;
       const rest = window.innerHeight - (top + window.scrollY) - AXIS_H - (legend.current?.offsetHeight ?? 0) - BOTTOM_GAP;
-      setRowH(Math.max(MIN_ROW, Math.floor(rest / 5)));
+      setRowH(Math.max(MIN_ROW, Math.floor(rest / ROWS)));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -159,26 +171,38 @@ export function RoadmapTimeline({ onPickDue, onMilestone, onMilestones }: { onPi
     m = new Date(Date.UTC(d.getUTCFullYear(), mm + 1, 1)).toISOString().slice(0, 10);
   }
 
-  // The preparation's due dates with to-dos; dates closer than MERGE_PCT become one diamond (its count the sum, its tooltip both).
-  const dues = dueProgress(todos).filter((d) => d.date && d.total > 0);
-  const clusters: { pos: number; ids: TodoDue[]; open: number; uncertain: boolean; tip: string[] }[] = [];
-  for (const d of dues.toSorted((a, b) => a.date!.date.localeCompare(b.date!.date))) {
-    const pos = at(d.date!.date);
+  // The preparation as bars: each due date with to-dos from the one before (the first from the range's start) to its date, "{Frist} · x offen";
+  // due dates closer than MERGE_DAYS share one bar (named after the later one, both in the tooltip).
+  const dues = dueProgress(todos).filter((d) => d.date && d.total > 0).toSorted((a, b) => a.date!.date.localeCompare(b.date!.date));
+  const prepBars: { ids: TodoDue[]; label: string; short: string; from: string; to: string; open: number; done: number; total: number; uncertain: boolean; tip: string[] }[] = [];
+  for (const d of dues) {
     const openTitles = todos.filter((x) => x.due === d.id && isOpenTodo(x)).map((x) => x.title);
     const list = openTitles.length ? `: ${openTitles.slice(0, 4).join(", ")}${openTitles.length > 4 ? " …" : ""}` : "";
     const line = `${d.label} · ${day(d.date!.date)}${d.date!.uncertain ? ` (${tz("todos.approx")})` : ""} · ${t("open", { count: d.open })}${list}`;
-    const last = clusters.at(-1);
-    if (last && ((pos - last.pos) / 100) * track < MERGE_PX) {
-      last.ids.push(d.id);
-      last.open += d.open;
-      last.uncertain ||= Boolean(d.date!.uncertain);
-      last.tip.push(line);
-    } else clusters.push({ pos, ids: [d.id], open: d.open, uncertain: Boolean(d.date!.uncertain), tip: [line] });
+    const last = prepBars.at(-1);
+    if (last && (ms(d.date!.date) - ms(last.to)) / 86_400_000 < MERGE_DAYS) {
+      Object.assign(last, { ids: [...last.ids, d.id], label: d.label, short: t(`prepShortName.${d.id}`), to: d.date!.date, open: last.open + d.open, done: last.done + d.done, total: last.total + d.total, uncertain: last.uncertain || Boolean(d.date!.uncertain), tip: [...last.tip, line] });
+    } else prepBars.push({ ids: [d.id], label: d.label, short: t(`prepShortName.${d.id}`), from: last ? last.to : range.from, to: d.date!.date, open: d.open, done: d.done, total: d.total, uncertain: Boolean(d.date!.uncertain), tip: [line] });
   }
 
   const stateOf = (id: string, from: string, to: string): State => (reached[id] ? "reached" : isRunningSpan(from, to, today) ? "running" : "open");
-  const launch = at(LAUNCH.date);
-  const launchTip = `${t("launch", { date: day(LAUNCH.date) })} · ${t("fallback")}: ${FALLBACK_RULES.map((r) => r.text).join(" · ")}`;
+  // The launch window: the launch week solid (the star and its date), the buffer dashed; the tooltip with the criteria and how many are met.
+  const lp = launchProgress(inputs);
+  const tc = useTranslations("admin.overview");
+  const criteria = [
+    { key: "houses", label: tc("criteria.houses"), p: lp.houses, unit: "" },
+    { key: "hubs", label: tc("criteria.hubs", { min: lp.hubs.target }), p: lp.hubs, unit: "" },
+    { key: "reservedShare", label: tc("criteria.reservedShare", { min: 2 }), p: lp.reservedShare, unit: " %" },
+    { key: "waitlist", label: tc("criteria.waitlist"), p: lp.waitlist, unit: "" },
+  ];
+  const met = criteria.filter((c) => c.p.ratio >= 1).length;
+  const launchEnd = addDays(LAUNCH.date, LAUNCH_WEEK_DAYS - 1);
+  const bufferEnd = addDays(LAUNCH.date, LAUNCH_WEEK_DAYS + LAUNCH_BUFFER_DAYS - 1);
+  const launchTip = [
+    `${t("launch", { date: day(LAUNCH.date) })} · ${t("criteriaMet", { met, total: criteria.length })}`,
+    ...criteria.map((c) => `${c.p.ratio >= 1 ? "✓" : "○"} ${c.label}: ${num(c.p.value)}${c.unit} / ${num(c.p.target)}${c.unit}`),
+    `${t("fallback")}: ${FALLBACK_RULES.map((r) => r.text).join(" · ")}`,
+  ].join(" · ");
 
   return (
     <div data-roadmap-timeline className="flex flex-col" style={sizes}>
@@ -205,49 +229,47 @@ export function RoadmapTimeline({ onPickDue, onMilestone, onMilestones }: { onPi
         <Row name={t("rows.code")}>
           {CODE_MILESTONES.map((m, i) => {
             const from = i === 0 ? ROADMAP_RANGE.from : CODE_MILESTONES[i - 1].date;
-            return <Band key={m.id} id={m.id} from={at(from)} to={endOf(m.date)} tone="code" state={m.uncertain ? "uncertain" : stateOf(m.id, from, m.date)} label={m.label} tip={`${m.label} ${m.title} · ${t("due", { date: day(m.date) })}`} now={now} track={track} onClick={() => onMilestone(m.id)} />;
+            return <Band key={m.id} id={m.id} from={at(from)} to={endOf(m.date)} tone="code" state={m.uncertain ? "uncertain" : stateOf(m.id, from, m.date)} label={m.label} tip={`${m.label} ${m.title} · ${t("due", { date: day(m.date) })}`} now={now} track={track} onClick={() => onOpen("code", m.id)} />;
           })}
         </Row>
 
         <Row name={t("rows.marketing")}>
           {phases.map((p, i) => (
-            <Band key={p.key} id={p.key} from={at(p.from)} to={endOf(p.to)} tone="marketing" state={stateOf(p.key, p.from, p.to)} label={String(i + 1)} tip={`${tz("weeks", { from: p.weeks.from, to: p.weeks.to })} · ${p.label} · ${day(p.from)} – ${day(p.to)}`} now={now} track={track} onClick={() => onMilestone(p.key)} />
-          ))}
-        </Row>
-
-        <Row name={t("rows.travel")}>
-          {TRAVEL.map((s) => (
-            <Band key={s.id} id={s.id} from={at(s.from)} to={endOf(s.to)} tone="travel" state={s.uncertain ? "uncertain" : isRunningSpan(s.from, s.to, today) ? "running" : "open"} label={s.label} tip={`${s.label} · ${day(s.from)} – ${day(s.to)}${s.uncertain ? ` · ${t("uncertain")}` : ""}`} now={now} track={track} />
+            <Band key={p.key} id={p.key} from={at(p.from)} to={endOf(p.to)} tone="marketing" state={stateOf(p.key, p.from, p.to)} label={String(i + 1)} tip={`${tz("weeks", { from: p.weeks.from, to: p.weeks.to })} · ${p.label} · ${day(p.from)} – ${day(p.to)}`} now={now} track={track} onClick={() => onOpen("marketing", p.key)} />
           ))}
         </Row>
 
         <Row name={t("rows.prep")}>
-          {clusters.map((c) => (
-            <button
-              key={c.ids.join("+")}
-              type="button"
-              data-due={c.ids.join("+")}
-              data-tooltip-info={c.tip.join(" · ")}
-              aria-label={c.tip.join(" · ")}
-              onClick={() => onPickDue(c.ids[0])}
-              style={{ left: `${c.pos}%` }}
-              className="group absolute top-1/2 flex -translate-y-1/2 items-center gap-1.5"
-            >
-              <span aria-hidden className={cn("-ml-[calc(var(--mark)/2)] size-(--mark) rotate-45 rounded-[3px] border-[1.5px] border-adm-chart-goal", c.open === 0 ? "bg-adm-chart-goal" : "bg-(--adm-chart-goal-fill)", c.uncertain && "border-dashed")} />
-              <span aria-hidden className="text-body font-semibold tabular-nums text-ink group-hover:underline">
-                {c.open}
-              </span>
-            </button>
+          {prepBars.map((b) => (
+            <Band
+              key={b.ids.join("+")}
+              id={b.ids.join("+")}
+              from={at(b.from)}
+              to={endOf(b.to)}
+              tone="prep"
+              state={b.open === 0 ? "reached" : "open"}
+              dashed={b.uncertain && b.open > 0}
+              done={b.open === 0 ? undefined : b.done / b.total}
+              label={t("prepLabel", { label: b.label, count: b.open })}
+              labels={[t("prepShort", { label: b.short, count: b.open }), num(b.open)]}
+              tip={b.tip.join(" · ")}
+              now={now}
+              track={track}
+              onClick={() => onOpen("prep", b.ids[0])}
+            />
           ))}
         </Row>
 
         <Row name={t("rows.launch")}>
-          <button type="button" data-launch-star data-tooltip-info={launchTip} aria-label={launchTip} onClick={onMilestones} style={{ left: `${launch}%` }} className="group absolute top-1/2 flex -translate-y-1/2 items-center gap-1.5">
-            <svg viewBox="0 0 24 24" aria-hidden className="-ml-[calc(var(--mark)*0.7)] size-[calc(var(--mark)*1.4)] fill-(--adm-chart-goal-fill) stroke-adm-chart-goal" strokeWidth={1.5}>
+          {/* The star and the date right before the window (the week itself is too narrow to carry them). */}
+          <span aria-hidden data-launch-star className="pointer-events-none absolute top-1/2 flex -translate-x-full -translate-y-1/2 items-center gap-1.5 pr-2 text-body font-semibold whitespace-nowrap text-ink" style={{ left: `${at(LAUNCH.date)}%`, "--tone": TONE.launch } as CSSProperties}>
+            <svg viewBox="0 0 24 24" className="size-(--mark) shrink-0 fill-(--tone) stroke-(--tone)" strokeWidth={1.5}>
               <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 17.2l-5.9 3.3 1.3-6.6-4.9-4.5 6.6-.8z" />
             </svg>
-            <span className="text-body font-semibold whitespace-nowrap text-ink group-hover:underline">{day(LAUNCH.date)}</span>
-          </button>
+            {day(LAUNCH.date)}
+          </span>
+          <Band id="launch" from={at(LAUNCH.date)} to={endOf(launchEnd)} tone="launch" state="reached" label="" tip={launchTip} now={now} track={track} onClick={() => onOpen("launch", "launch")} />
+          <Band id="launch-buffer" from={endOf(launchEnd)} to={endOf(bufferEnd)} tone="launch" state="uncertain" label={t("buffer")} labels={[t("bufferShort")]} tip={launchTip} now={now} track={track} onClick={() => onOpen("launch", "launch")} />
         </Row>
 
         {/* Fine month lines and the thin today line across the rows. */}

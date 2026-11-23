@@ -1,8 +1,8 @@
 "use client";
 
-// /admin – the overview ("Wie läuft Simpulo?", Pyramide Ebene 1): only tiles – no sentence, no chart (the profit chart lives in Geld ›
-// Überblick, ProfitDrill). The admin's period top right, every tile counts by it. Rows by the side list's groups – Heute · Zahlen (two
-// rows) · Plattform · Planen –, five equal tiles each (--adm-tile-h), tinted in the row's group; the whole tile opens its page. Every
+// /admin – the overview ("Wie läuft Simpulo?", Pyramide Ebene 1, CLAUDE.md "Übersicht mit Kapseln"): capsules Überblick · Heute · Richtung ·
+// Geld · Nachfrage · Qualität, the period a menu right. Überblick: 20 tiles in four rows (config/admin/overview.ts), each in its group
+// capsule's colour; a click opens that capsule with the tile marked – its details from the pages' own parts (OverviewGroups.tsx). Every
 // number from lib/admin/metrics.ts.
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -30,8 +30,12 @@ import { AdminButton, AdminDialogFooter } from "./AdminButton";
 import { KeyNumbers } from "./AdminNumbers";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 import { TileBoard, type TileRow } from "./AdminTiles";
-import { routeTiles } from "./tileRoutes";
-import { OVERVIEW_ROWS } from "@/config/admin/overview";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { OVERVIEW_GROUP_AREA, OVERVIEW_GROUP_PAGE, OVERVIEW_GROUPS, OVERVIEW_ROWS, type OverviewGroup } from "@/config/admin/overview";
+import { useAdminTab } from "@/lib/admin/urlState";
+import Link from "next/link";
+import { AdminTabs } from "./AdminLayout";
+import { OverviewGroupView } from "./OverviewGroups";
 import { useMilestoneName } from "./AdminRoadmap";
 import { day as dayLabel, dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
@@ -42,8 +46,13 @@ function valueText(value: number | null, format: CockpitNumber["format"]): strin
   return num(value);
 }
 
+type Tab = "overview" | OverviewGroup;
+const TABS: readonly Tab[] = ["overview", ...OVERVIEW_GROUPS];
+
 export function AdminCockpit() {
   const t = useTranslations("admin.cockpit");
+  // The capsule (?tab=) and the tile it was opened from (?focus=, marked by the admin frame).
+  const { tab, open: openTab } = useAdminTab<Tab>(TABS, "overview");
   const tm = useTranslations("admin.money");
   const tg = useTranslations("admin.growthArea");
   const inputs = useAdminInputs();
@@ -309,30 +318,44 @@ export function AdminCockpit() {
   const byKey = new Map(allRows.flatMap((r) => r.tiles.map((tile) => [tile.key, tile] as const)));
   const ordered: TileRow[] = OVERVIEW_ROWS.map((r) => ({
     key: r.key,
-    group: r.tiles[0].group,
-    gaps: r.gapAfter ? [r.gapAfter] : undefined,
+    group: OVERVIEW_GROUP_AREA[r.tiles[0].group],
     tiles: r.tiles.flatMap((c) => {
       const tile = byKey.get(c.key);
-      return tile ? [{ ...tile, group: c.group }] : [];
+      // The tile's group capsule sets its colour and where a click leads (config/admin-tiles.ts "overview"); the title stays neutral.
+      return tile ? [{ ...tile, group: OVERVIEW_GROUP_AREA[c.group] }] : [];
     }),
   }));
   const rows: readonly TileRow[] = tall ? ordered : ordered.map((row) => ({ ...row, tiles: row.tiles.map((tile) => ({ ...tile, extra: tile.extra ?? tile.details?.[0], details: undefined })) }));
+  const routed: readonly TileRow[] = rows.map((row) => ({ ...row, tiles: routeTiles("overview", row.tiles) }));
+  const groupTiles = (group: OverviewGroup) => {
+    const keys = new Set(OVERVIEW_ROWS.flatMap((r) => r.tiles.filter((x) => x.group === group).map((x) => x.key)));
+    return routed.flatMap((r) => r.tiles.filter((tile) => keys.has(tile.key)));
+  };
 
   return (
-    // Only tiles (CLAUDE.md "Übersicht"): no sentence, no chart (the profit chart lives in Geld › Verlauf). Rows by the side list's groups –
-    // Heute · Zahlen (two rows) · Plattform · Planen –, five equal tiles each, tinted in the row's group, over the full height (TileBoard);
-    // the period centred above them.
+    // Capsules Überblick · Heute · Richtung · Geld · Nachfrage · Qualität (CLAUDE.md "Übersicht mit Kapseln"); the period a menu right like on
+    // every page. Überblick: the 20 tiles over the full height; a tile opens its group's capsule with its number marked.
     <AdminShell
       title={t("title")}
-      period="center"
+      tabs={<AdminTabs label={t("title")} value={tab} onChange={(next) => openTab(next)} tabs={withUnits("overview", TABS.map((value) => ({ value, label: t(`tabs.${value}`), tooltip: value === "overview" ? undefined : t(`tabInfo.${value}`) })))} />}
+      aside={
+        tab !== "overview" ? (
+          <Link href={OVERVIEW_GROUP_PAGE[tab]} data-full-page className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+            {t(`fullPage.${tab}`)}
+          </Link>
+        ) : undefined
+      }
+      period
     >
-      {/* Every tile leads to a capsule of the page it belongs to (config/admin-tiles.ts, "overview"). */}
-      <TileBoard label={t("title")} rows={rows.map((row) => ({ ...row, tiles: routeTiles("overview", row.tiles) }))} spacious colorTitles />
+      {tab === "overview" ? (
+        <TileBoard label={t("title")} rows={routed} spacious />
+      ) : (
+        <OverviewGroupView group={tab} area={OVERVIEW_GROUP_AREA[tab]} tiles={groupTiles(tab)} funnel={{ visitors: funnel.visitors.value, requests: funnel.requests.value, bookings: source.paid.now }} />
+      )}
     </AdminShell>
   );
 }
 
-/** „● live“: the simulated (demo) or – later – counted visitors right now, read again every few seconds; null until known (never in the first render). */
 export function useLiveVisitors(): number | null {
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {

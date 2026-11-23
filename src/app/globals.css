@@ -538,13 +538,33 @@ html.sim-standalone {
   background: var(--line);
 }
 
-/* The site header: ONE bar, 64px, fixed and static (never moves while scrolling), the same on every page (SiteHeader.tsx); the page's
-   content gets exactly its 64px as padding-top. */
+/* The site header: ONE bar, fixed and static (never moves while scrolling), the same on every page (SiteHeader.tsx); the page's content gets
+   exactly its height as padding-top. Tablets (744–1099px) 64px; from 1100px (the desktop bar) 48px – the same as the admin's (CLAUDE.md
+   "Header"). Everything that sits under it reads --header-h / --header-total. */
 @media (min-width: 744px) {
   :root {
     --header-h: 64px;
     --header-total: calc(64px + var(--band-h));
     --band-h: calc(var(--demo-band-h) + var(--safe-top));
+  }
+}
+@media (min-width: 1100px) {
+  :root {
+    --header-h: 48px;
+    --header-total: calc(48px + var(--band-h));
+    --header-open-total: calc(48px + var(--band-h));
+    --header-row-total: calc(92px + var(--band-h));
+  }
+  /* The bar's controls 36px (the search field, Short trips, the themes, More, All filters – product and admin alike), the avatar 32px. */
+  [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
+    height: 36px;
+  }
+  [data-site-header] [data-explore-slot] {
+    --control-h: 36px;
+  }
+  [data-site-header] [data-header-avatar] {
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -557,9 +577,9 @@ html.sim-standalone {
   --page-margin: clamp(20px, 3vw, 48px);
   --space-section: clamp(56px, 6vw, 96px);
   --space-inner: clamp(20px, 2vw, 32px);
-  /* The header's one bar (64px). */
+  /* The header's one bar (64px; from 1100px 48px – above). */
   --header-open-total: calc(64px + var(--band-h));
-  /* The grid's card height keeps the chip row's former depth (108px), so the deeper tab doesn't shrink the cards. */
+  /* The grid's card height keeps the chip row's former depth (bar + 44px), so the deeper tab doesn't shrink the cards. */
   --header-row-total: calc(108px + var(--band-h));
   --scroll-under-tab: calc(var(--header-open-total) + 40px);
   /* The footers (CLAUDE.md "Footer"): the large one the header's colour; the slim one the page's own surface with a fine line on top. */

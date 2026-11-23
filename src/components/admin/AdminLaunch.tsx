@@ -86,7 +86,7 @@ export function AdminLaunch({ facts }: { facts: LaunchFacts | null }) {
             <ul className="divide-y divide-ink/8 border-y border-ink/8">
               {group === "prep"
                 ? prepTodos.map((x) => (
-                    <Row key={x.id} id={`todo-${x.id}`} ok={x.status === "done"} statusLabel={t(`todoStatus.${x.status}`)} title={x.title} text={x.text} action={<Link href="/admin/zeitplan?tab=todos&due=beforeLaunch" className="text-small font-semibold text-ink hover:underline">{t("open")} →</Link>} />
+                    <Row key={x.id} id={`todo-${x.id}`} ok={x.status === "done"} statusLabel={t(`todoStatus.${x.status}`)} title={x.title} text={x.text} action={<Link href="/admin/zeitplan?tab=prep&focus=beforeLaunch" className="text-small font-semibold text-ink hover:underline">{t("open")} →</Link>} />
                   ))
                 : LAUNCH_POINTS.filter((p) => p.group === group).map((p) => {
                     const state = stateOf(p);

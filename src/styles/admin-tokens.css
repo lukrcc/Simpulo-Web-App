@@ -485,15 +485,15 @@ body:has(.admin-scope) {
   --adm-group-plan-edge: rgb(150 82 15 / 0.32);
 
   --adm-kind-safety: #a3301f;
-  --adm-kind-money: #22714d;
-  --adm-kind-houses: #6e49bc;
+  --adm-kind-money: #1d6644;
+  --adm-kind-houses: #6242ac;
   --adm-kind-hosts: #335fa3;
-  --adm-kind-questions: #556275;
+  --adm-kind-questions: #735a00;
   --adm-kind-safety-soft: rgb(179 55 42 / 0.07);
   --adm-kind-money-soft: rgb(35 117 79 / 0.07);
   --adm-kind-houses-soft: rgb(110 73 188 / 0.07);
   --adm-kind-hosts-soft: rgb(51 95 163 / 0.07);
-  --adm-kind-questions-soft: rgb(85 98 117 / 0.07);
+  --adm-kind-questions-soft: rgb(140 109 0 / 0.08);
 
   --adm-area-market: #335fa3;
   --adm-area-growth: #6e49bc;
@@ -597,14 +597,14 @@ body:has(.admin-scope) {
      the tabs, a small label, the active tab. -soft: the label's surface. */
   --adm-kind-safety: #f48c7b;
   --adm-kind-money: #5fcf9f;
-  --adm-kind-houses: #b48ef0;
+  --adm-kind-houses: #c4a5f5;
   --adm-kind-hosts: #7fa6e8;
-  --adm-kind-questions: #9aa8bc;
+  --adm-kind-questions: #e3c24f;
   --adm-kind-safety-soft: rgb(244 140 123 / 0.12);
   --adm-kind-money-soft: rgb(95 207 159 / 0.14);
   --adm-kind-houses-soft: rgb(180 142 240 / 0.16);
   --adm-kind-hosts-soft: rgb(127 166 232 / 0.16);
-  --adm-kind-questions-soft: rgb(154 168 188 / 0.16);
+  --adm-kind-questions-soft: rgb(227 194 79 / 0.16);
 
   /* Marketing › Content: a content sprint's band over the calendar days (the launch area's rosé – a drawing colour, not status). */
   --adm-sprint: var(--adm-area-launch);
@@ -905,24 +905,72 @@ body:has(.admin-scope[data-admin-group="system"]) {
   border-radius: 10px;
 }
 
-/* Units (CLAUDE.md "Kapsel = Einheit = eine Frage = eine Farbe"): a muted palette – Sand · Salbei · Nebelblau · Flieder · Terrakotta ·
-   Schiefer – for a capsule's dot and the titles of its tiles (the surface stays silvery). Greyer than the side list's group colours and the
-   ▲/▼ colours, so neither is mistaken for them; each ≥ 4.5 : 1 on the tile surface in both modes. */
+/* Units (CLAUDE.md "Ein Farbprofil", "Jeder Farbton nur einmal pro Seite"): ONE palette for every admin page, in the overview's style –
+   six clearly different hues: Blau · Grün · Gelb · Orange · Pink · Lila. Blau, Grün, Orange, Lila are exactly the side list's group colours;
+   Gelb and Pink are tuned to the same strength (Gelb: a deep mustard in Hell, a soft gold in Dunkel, so ink / cream words and their grey
+   keep 4.5 : 1 on its 24 % fill). On a page every hue at most once. Used only as a soft fill of tiles and capsules, never as text. */
 .admin-scope,
 body:has(.admin-scope) {
-  --adm-unit-sand: #7a5c30;
-  --adm-unit-sage: #4e6a57;
-  --adm-unit-mist: #456478;
-  --adm-unit-lilac: #6e5a8c;
-  --adm-unit-terra: #8c5a48;
-  --adm-unit-slate: #4f5965;
+  --adm-unit-blue: var(--adm-group-today);
+  --adm-unit-green: var(--adm-group-numbers);
+  --adm-unit-yellow: #8c6d00;
+  --adm-unit-orange: var(--adm-group-plan);
+  --adm-unit-pink: #ae2f74;
+  --adm-unit-lilac: var(--adm-group-platform);
 }
 :root[data-theme="dark"] .admin-scope,
 :root[data-theme="dark"] body:has(.admin-scope) {
-  --adm-unit-sand: #d6b98e;
-  --adm-unit-sage: #a9c2ae;
-  --adm-unit-mist: #a2bacb;
-  --adm-unit-lilac: #c3b0d8;
-  --adm-unit-terra: #dca38e;
-  --adm-unit-slate: #b3bbc5;
+  --adm-unit-yellow: #e3c24f;
+  --adm-unit-pink: #f08dc3;
+}
+
+/* Unit colour = a full, soft fill of capsule and tiles; the words stay neutral (CLAUDE.md "Einheiten-Farbe"). A tile of a unit (--unit:
+   a capsule's colour, or on Übersicht its row's group colour): the surface 24 % over the ground, the edge 45 %, hover 30 % (pressed as
+   everywhere). A capsule with a colour (AdminTab tone – units, Aufgaben's kinds): like its tiles 24 % / edge 45 %, hover 30 %, active 38 % with an edge in the full
+   colour; its words in the main text colour. Überblick and the period stay neutral. */
+/* On a tinted surface the secondary words a step stronger (ink 70 % instead of 64 %): they keep 4.5 : 1 on every tint (Hell; Dunkel only gains). */
+.admin-scope .adm-tile[data-unit],
+.admin-scope .adm-cap[data-toned] {
+  --text-muted: color-mix(in srgb, var(--text) 70%, transparent);
+  --adm-label: color-mix(in srgb, var(--text) 70%, transparent);
+  --adm-cap-text: color-mix(in srgb, var(--text) 70%, transparent);
+}
+.admin-scope .adm-tile[data-unit] {
+  background-color: color-mix(in srgb, var(--unit) 24%, var(--bg));
+  border-color: color-mix(in srgb, var(--unit) 45%, var(--bg));
+}
+.admin-scope .adm-tile[data-unit]:has([data-card-link]:hover),
+.admin-scope .adm-tile[data-unit].adm-press:hover {
+  background-color: color-mix(in srgb, var(--unit) 30%, var(--bg));
+}
+.admin-scope .adm-cap[data-toned] {
+  background-color: color-mix(in srgb, var(--cap-tone) 24%, var(--bg));
+  border-color: color-mix(in srgb, var(--cap-tone) 45%, var(--bg));
+  color: var(--text);
+}
+.admin-scope .adm-cap[data-toned]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--cap-tone) 30%, var(--bg));
+  color: var(--text);
+}
+.admin-scope .adm-cap[data-toned][data-on],
+.admin-scope .adm-cap[data-toned][data-on]:hover {
+  background-color: color-mix(in srgb, var(--cap-tone) 38%, var(--bg));
+  border-color: var(--cap-tone);
+  color: var(--text);
+}
+.admin-scope .adm-cap[data-toned][data-on] .adm-cap-count {
+  /* On the strongest fill (38 %) the count in the main colour – grey would drop under 4.5 : 1 on Gelb. */
+  color: var(--text);
+  opacity: 1;
+}
+
+/* ▲/▼ on a tinted tile (CLAUDE.md "Einheiten-Farbe"): one step stronger, so they keep 4.5 : 1 on every unit fill (24 %) – Hell darker,
+   Dunkel lighter; the same muted greens and reds. */
+.admin-scope .adm-tile[data-unit] {
+  --adm-trend-up: #285240;
+  --adm-trend-down: #80362a;
+}
+:root[data-theme="dark"] .admin-scope .adm-tile[data-unit] {
+  --adm-trend-up: #a6d0b2;
+  --adm-trend-down: #efae9f;
 }

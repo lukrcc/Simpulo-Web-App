@@ -70,6 +70,7 @@ async function CityPageContent({ params }: { params: PageProps<"/co-living/[city
   const faqIds = own?.faq ?? CITY_FAQ;
   const tFaq = await getTranslations(own?.faq ? `seo.cityOverrides.${city.slug}.faq` as "seo.cityFaq" : "seo.cityFaq");
   const faqItems = faqIds.map((id) => ({ q: tFaq(`${id}.q` as "how.q", { name: city.name }), a: tFaq(`${id}.a` as "how.a", { name: city.name, percent: FEE_MODEL.serviceFeePercent }) }));
+  // check-messages: optional (CITY_SEO decides whether a city has its own words)
   const intro = own?.intro ? t(`cityOverrides.${city.slug}.intro` as "city.intro", { city: city.name }) : t(stays.length === 0 ? "city.introEmpty" : "city.intro", { city: city.name });
   // The categories this city's Houses have, as Explore filters.
   const vibes = [...new Set(stays.map((s) => s.vibe))];

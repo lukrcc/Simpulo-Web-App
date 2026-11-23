@@ -3,7 +3,7 @@
 // The one way a tile opens (CLAUDE.md "Jede Kachel → eine Kapsel"): its route from config/admin-tiles.ts – on its own page the capsule and
 // focus in the URL (?tab=&focus=, setAdminSearch: back works, links can be shared), on another page a link to that page's capsule. A tile
 // without a route keeps what it had (and dev says so – the config should know it). And its unit (CLAUDE.md "Kapsel = Einheit = eine Frage =
-// eine Farbe"): the title in its capsule's colour, the tiles of one unit side by side (the page's order, else the capsules' order).
+// eine Farbe"): the tile softly filled in its capsule's colour, the tiles of one unit side by side (the page's order, else the capsules' order).
 import { ADMIN_PAGES, routeHref, unitColorOf, type AdminPageKey } from "@/config/admin-tiles";
 import { APP_MODE } from "@/lib/appMode";
 import { setAdminSearch } from "@/lib/admin/urlState";
@@ -19,13 +19,14 @@ export function routeTiles(page: AdminPageKey, tiles: readonly TileSpec[]): Tile
       return tile;
     }
     const target = route.page ?? page;
-    // Übersicht keeps its row colours; elsewhere a tile wears its unit's colour (a tile of another page none).
-    const unit = page === "overview" || target !== page ? undefined : (route.unit ?? route.tab);
-    const titleColor = unit ? unitColorOf(page, unit) : null;
-    if (target !== page) return { ...tile, onOpen: undefined, href: routeHref(page, route), unit, titleColor };
+    // A tile wears its unit's colour – its capsule's (Übersicht too: its group capsules); a tile of another page none.
+    const unit = target !== page ? undefined : (route.unit ?? route.tab);
+    const unitColor = unit ? unitColorOf(page, unit) : null;
+    if (target !== page) return { ...tile, onOpen: undefined, href: routeHref(page, route), unit, unitColor };
     const first = def.capsules[0]?.key;
-    return { ...tile, href: undefined, onOpen: () => setAdminSearch({ tab: route.tab === first ? null : route.tab, focus: route.focus ?? null }), unit, titleColor };
+    return { ...tile, href: undefined, onOpen: () => setAdminSearch({ tab: route.tab === first ? null : route.tab, focus: route.focus ?? null }), unit, unitColor };
   });
+  // Übersicht brings its rows in their fixed order (config/admin/overview.ts).
   if (page === "overview") return routed;
   // The order: the page's own (config), else by unit in the capsules' order (stable; tiles without a unit last).
   if (def.order) {
@@ -42,7 +43,7 @@ export function routeTiles(page: AdminPageKey, tiles: readonly TileSpec[]): Tile
   return routed.toSorted((a, b) => capIndex(a.unit) - capIndex(b.unit));
 }
 
-/** A page's capsules with their unit dot (the tab's `tone`): Überblick none. */
+/** A page's capsules filled in their unit colour (the tab's `tone`): Überblick none. */
 export function withUnits<T extends string>(page: AdminPageKey, tabs: readonly AdminTab<T>[]): AdminTab<T>[] {
   return tabs.map((tab) => ({ ...tab, tone: tab.tone ?? unitColorOf(page, tab.value) ?? undefined }));
 }

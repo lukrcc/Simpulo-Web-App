@@ -11,7 +11,7 @@ export const TILES_FUNDING = {
   round: { label: "Aktuelle Runde", info: "Die Stufe der Finanzierung, auf der Simpulo steht." },
   next: { label: "Nächste Runde", info: "Die nächste Stufe der Leiter mit ihrer Spanne.", amountOpen: "Betrag noch offen" },
   documents: { label: "Unterlagen", info: "Fertige Unterlagen im Datenraum – bereit ist 7 von 7.", value: "{done} / {total}" },
-  valuation: { label: "Bewertung & Anteile", info: "Geschätzter Wert = Market Cap (Median aus 3 Methoden, wie Übersicht › Market Cap) – nur Orientierung, nicht weitergeben.", value: "{value} Tsd. €" },
+  valuation: { label: "Bewertung", info: "Geschätzter Wert = Market Cap (Median aus 3 Methoden, wie Übersicht › Market Cap) – nur Orientierung, nicht weitergeben.", value: "{value} Tsd. €" },
   motors: { label: "Zwei Motoren", info: "Wachstum über Simpulo (Tech), Rendite über Simpulo Places – Places füllt Tech, die Rendite fließt ohne Anteilsabgabe zurück. Öffnet Firmenstruktur › Zwei Motoren.", value: "Tech + Places" },
   structure: { label: "Firmenstruktur", info: "Die heutige Rechtsform und die nächste Stufe aus Vision (Spur „Struktur“) – öffnet Firmenstruktur." },
   /** Detail lines (rich tiles) */

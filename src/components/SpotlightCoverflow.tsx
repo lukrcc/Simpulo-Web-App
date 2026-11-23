@@ -37,8 +37,10 @@ import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
  * any slide's transform.
  */
 
-/** The slide's size from the same clamp as --spot-h, before it can be measured (the header's 64px bar). */
-const slideHeightFor = (windowHeight: number) => Math.min(680, Math.max(440, windowHeight - 64 - BAND_HEIGHT - 160));
+/** The header bar's height as the page has it (--header-h: 48px from 1100px, else 64px). */
+const headerHeight = () => (typeof window === "undefined" ? 64 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 64);
+/** The slide's size from the same clamp as --spot-h, before it can be measured (the header's bar). */
+const slideHeightFor = (windowHeight: number) => Math.min(680, Math.max(440, windowHeight - headerHeight() - BAND_HEIGHT - 160));
 /** How Embla lays the slides out, at their full size. */
 const LAYOUT_GAP = 24;
 /** The gap you see between the scaled cards. */
@@ -54,8 +56,7 @@ const FIT_THEME = [28, 24, 20];
 const TEXT_ABOVE_TAB = 32;
 /** Logged in: from the bottom of "Where to next?" to the neighbour's tab. */
 const GREETING_ABOVE_TAB = 40;
-/** The text sets the carousel's place: 40px under the header's one bar (64px) – no more centring, so the cards sit high. */
-const TAB_BOTTOM = 64;
+/** The text sets the carousel's place: 40px under the header's one bar (headerHeight()) – no more centring, so the cards sit high. */
 const GREETING_UNDER_TAB = 40;
 /** At least this much under the centre card, or the text gets smaller. */
 const WINDOW_BOTTOM = 32;
@@ -404,13 +405,14 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
       // that tab is this far into the card.
       const gapToTab = greeting ? GREETING_ABOVE_TAB : TEXT_ABOVE_TAB;
       const tabInCard = ((1 - SCALE_NEIGHBOUR) / 2) * cardH;
-      const area = window.innerHeight - BAND_HEIGHT - TAB_BOTTOM;
+      const tabBottom = headerHeight();
+      const area = window.innerHeight - BAND_HEIGHT - tabBottom;
       const textHeight = () => block.offsetHeight - (greeting && title ? TITLE_BELOW_LETTERS * parseFloat(getComputedStyle(title).fontSize) : 0) - (greeting ? HI_ABOVE_LETTERS * hiSize : 0);
       const total = () => textHeight() + gapToTab + cardH - tabInCard;
       const done = (place: "side" | "above") => {
         probe?.remove();
         if (place === "side" && title) {
-          const textTop = BAND_HEIGHT + TAB_BOTTOM + GREETING_UNDER_TAB;
+          const textTop = BAND_HEIGHT + tabBottom + GREETING_UNDER_TAB;
           stage?.style.setProperty("--spot-top", `${Math.round(textTop + textHeight() + gapToTab - tabInCard)}px`);
         } else stage?.style.removeProperty("--spot-top");
         setTextPlace(place);
@@ -510,7 +512,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
       className={cn(
         "hidden md:block [&>.stage-gradient]:md:block",
         // Until it's measured (server render): by the window's width.
-        textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-56px)]"),
+        textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-var(--header-h)+8px)]"),
       )}
     >
       <div data-spot-text className={cn(EXPLORE_SPACING.spotlightIntroBottom, textPlace === "side" ? "hidden" : textPlace === null && "min-[82.5rem]:hidden")}>

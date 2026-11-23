@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { APP_MODE } from "@/lib/appMode";
 import { adminNumberMismatches } from "@/lib/admin/consistency";
+import { unitClashes } from "@/config/admin-tiles";
 import { Compass, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
@@ -159,6 +160,12 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     if (mismatches.length) console.error("[admin] Zahlen weichen ab:", mismatches);
     else console.info("[admin] Zahlen stimmen überein (Übersicht · Geld · Wachstum · Planen).");
   }, [checkInputs, checkEvents]);
+  // Dev only (CLAUDE.md "Jeder Farbton nur einmal pro Seite"): a page that repeats a hue or has more units than hues is an error.
+  useEffect(() => {
+    if (APP_MODE !== "dev") return;
+    const clashes = unitClashes();
+    if (clashes.length) console.error("[admin] Farbtöne doppelt:", clashes);
+  }, []);
   // ?focus= (a tile's route, config/admin-tiles.ts): the element with that data-focus-key is marked (data-focused) and scrolled into view –
   // once it is there (a capsule's content can come a moment later). One place for every page.
   const search = useAdminSearch();

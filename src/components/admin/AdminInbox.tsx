@@ -78,7 +78,7 @@ function ordered(tasks: readonly AdminTask[]): AdminTask[] {
 }
 
 /** The kind's dot. */
-function KindDot({ area, className }: { area: TaskArea; className?: string }) {
+export function KindDot({ area, className }: { area: TaskArea; className?: string }) {
   return <span aria-hidden className={cn("inline-block size-2.5 shrink-0 rounded-full", className)} style={{ backgroundColor: KIND_TONE[area] }} />;
 }
 

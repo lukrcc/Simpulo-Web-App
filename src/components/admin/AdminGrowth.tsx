@@ -300,7 +300,7 @@ function Overview({ onOpen }: { onOpen: (tab: GrowthTab) => void }) {
 /** What the detail window shows: a channel or a referrer. */
 type Picked = { kind: "channel" | "ref"; key: string } | null;
 
-function Origin() {
+export function Origin() {
   const t = useTranslations("admin.growthArea.origin");
   const store = useStore();
   const channelName = useChannelName();

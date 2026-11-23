@@ -661,7 +661,7 @@ function BeforeStart({ daysToStart, daysLeft, start }: { daysToStart: number; da
             ))}
           </ul>
         )}
-        <Link href="/admin/zeitplan?tab=todos&due=beforeLanding" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
+        <Link href="/admin/zeitplan?tab=prep&focus=beforeLanding" className="mt-3 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline">
           {t("prepAll")}
         </Link>
       </section>
@@ -670,7 +670,7 @@ function BeforeStart({ daysToStart, daysLeft, start }: { daysToStart: number; da
 }
 
 /** The phases as one bar from the first phase to the launch, each as wide as its days; today as a line. */
-function PhaseTimeline({ today, launchDate, current, phases }: { today: string; launchDate: string; current: string; phases: ReturnType<typeof launchCountdown>["phases"] }) {
+export function PhaseTimeline({ today, launchDate, current, phases }: { today: string; launchDate: string; current: string; phases: ReturnType<typeof launchCountdown>["phases"] }) {
   const t = useTranslations("admin.marketing.countdown");
   const start = Date.parse(`${phases[0].from}T00:00:00Z`);
   const end = Date.parse(`${launchDate}T00:00:00Z`);

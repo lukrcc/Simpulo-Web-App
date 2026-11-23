@@ -6,7 +6,7 @@
 // Each tile: the title small (with ⓘ), the number left, the change right beside it; under them an extra line left and the target right.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment, createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Change, Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
 import { ChangeLine, InfoTip } from "./AdminNumbers";
@@ -33,8 +33,10 @@ export interface TileSpec {
   /** A word rather than a number (a name, "in 8 Tagen") – kept for callers; the size is the same for every value */
   /** Its unit (the capsule it belongs to, config/admin-tiles.ts): tiles of one unit stand together, a wider gap between two units in a row */
   unit?: string;
-  /** Its unit's colour for the title (the surface stays silvery); none: the usual secondary grey */
-  titleColor?: string | null;
+  /** Its unit's colour (a CSS colour): the tile's surface softly filled in it (admin-tokens.css "Unit colour"); the words stay neutral */
+  unitColor?: string | null;
+  /** Its key for ?focus= (data-focus-key): the overview's group capsules mark the tile a click came from */
+  focusKey?: string;
   small?: boolean;
   /** Where the tile leads: a page (href) or a tab of this page (onOpen) */
   href?: string;
@@ -47,9 +49,6 @@ export interface TileRow {
   title?: string;
   group: AreaColor;
   tiles: readonly TileSpec[];
-  /** Groups in one row (units; the overview's two halves of R1): before these tile positions the gap is twice as wide (from 1024px; an
-   *  empty track of width 0 between them) */
-  gaps?: readonly number[];
 }
 
 /** The tiles' height: never below (≥ 1280 × 720 without scrolling), never above (large screens). */
@@ -66,17 +65,11 @@ const BOTTOM_GAP = 40;
  */
 const ChangePlace = createContext<{ low: boolean; report: (id: string, crowded: boolean) => void } | null>(null);
 
-/** The grid's tracks for a row with group gaps: a column per tile, an empty track of width 0 before each gap (the gap doubles there). */
-const rowTracks = (columns: number, gaps: readonly number[]) =>
-  Array.from({ length: columns }, (_, i) => `${gaps.includes(i) ? "0px " : ""}minmax(0, 1fr)`).join(" ");
-
 /** Tiles in rows of `columns` (an overview tab's flat list → rows). */
 export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns = 5): TileRow[] {
   return Array.from({ length: Math.ceil(tiles.length / columns) }, (_, i) => {
-    const row = tiles.slice(i * columns, i * columns + columns);
-    // Where the unit changes inside the row: a wider gap (CLAUDE.md "Kapsel = Einheit").
-    const gaps = row.flatMap((tile, j) => (j > 0 && tile.unit && row[j - 1].unit && tile.unit !== row[j - 1].unit ? [j] : []));
-    return { key: `r${i}`, group, tiles: row, gaps: gaps.length ? gaps : undefined };
+    // One grid, equal columns, one gap (CLAUDE.md "Raster"): no wider gaps between units – their colour sets them apart.
+    return { key: `r${i}`, group, tiles: tiles.slice(i * columns, i * columns + columns) };
   });
 }
 
@@ -84,13 +77,14 @@ export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns 
  * The rows of tiles over the full height left on screen: measured from the board's top to the window's bottom, shared by the rows (with
  * their headings and gaps); the tile height is clamped (TILE_MIN–TILE_MAX), the gaps and the inner padding follow it.
  */
-export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
+export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false, fixedHeight }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** A fixed tile height instead of filling the screen (the overview's group capsules: the tiles on top, details under them) */ fixedHeight?: number; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
   const t = useTranslations("admin.cockpit");
   const box = useRef<HTMLDivElement>(null);
   const [tileH, setTileH] = useState(96);
   const headings = rows.filter((r) => r.title).length;
   // Measured after every render too (setState only on a change): rows above it can appear later – the period's day row after hydrating.
   useLayoutEffect(() => {
+    if (fixedHeight) return setTileH(fixedHeight);
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined || window.innerWidth < 1024) return setTileH(96);
@@ -110,7 +104,7 @@ export function TileBoard({ rows, columns = 5, label, spacious = false, colorTit
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [rows.length, headings, spacious]);
+  }, [rows.length, headings, spacious, fixedHeight]);
   const gap = "var(--adm-grid-gap)";
   // Which tiles have no room for title + change on top; any → the change sits in the value row on every tile of this board.
   const [crowdedIds, setCrowdedIds] = useState<ReadonlySet<string>>(new Set());
@@ -134,14 +128,11 @@ export function TileBoard({ rows, columns = 5, label, spacious = false, colorTit
           {row.title && <h2 className={cn("mb-1 text-eyebrow uppercase", AREA_TEXT[row.group])}>{row.title}</h2>}
           <dl
             data-key-numbers
-            className={cn("grid grid-cols-2", row.gaps?.length ? "md:grid-cols-3 lg:grid-cols-(--row-cols)" : columns === 2 ? "lg:grid-cols-2" : columns === 5 ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-3 lg:grid-cols-4")}
-            style={{ gap, ...(row.gaps?.length ? { "--row-cols": rowTracks(columns, row.gaps) } : {}) } as CSSProperties}
+            className={cn("grid grid-cols-2", columns === 2 ? "lg:grid-cols-2" : columns === 5 ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-3 lg:grid-cols-4")}
+            style={{ gap }}
           >
-            {row.tiles.map(({ key, group, ...tile }, i) => (
-              <Fragment key={key}>
-              {row.gaps?.includes(i) && <span aria-hidden data-group-gap className="hidden lg:block" />}
+            {row.tiles.map(({ key, group, ...tile }) => (
               <Tile key={key} tileKey={key} tileId={`${row.key}:${key}`} group={group ?? row.group} big={big || spacious} huge={huge} colorTitle={colorTitles} {...tile} openLabel={t("openCard", { label: tile.label })} />
-              </Fragment>
             ))}
           </dl>
         </section>
@@ -245,7 +236,7 @@ const LINE_GAP = 2;
  * The detail lines come as a list ordered by importance; as many are shown as fit the room left (measured, never cut), so a large tile
  * shows more. The whole tile a link (href) or a button (onOpen).
  */
-export function Tile({ tileKey, tileId, group, label, info, value, change, target, extra, details, href, onOpen, titleColor, openLabel, big = false, huge = false, colorTitle = false }: Omit<TileSpec, "key"> & { /** Its key (data-tile-key: the tile → capsule routes) */ tileKey?: string; /** Its id on the board (for the page-wide change place) */ tileId?: string; group: AreaColor; openLabel: string; big?: boolean; huge?: boolean; /** The title in its group's colour (the overview only); elsewhere secondary grey */ colorTitle?: boolean }) {
+export function Tile({ tileKey, tileId, group, label, info, value, change, target, extra, details, href, onOpen, unitColor, focusKey, openLabel, big = false, huge = false, colorTitle = false }: Omit<TileSpec, "key"> & { /** Its key (data-tile-key: the tile → capsule routes) */ tileKey?: string; /** Its id on the board (for the page-wide change place) */ tileId?: string; group: AreaColor; openLabel: string; big?: boolean; huge?: boolean; /** The title in its group's colour (the overview only); elsewhere secondary grey */ colorTitle?: boolean }) {
   const all = [extra, ...(details ?? [])].filter((line) => line !== undefined && line !== null && line !== "");
   // How many lines fit: the room between the value and the bottom edge (beside the target), measured.
   const room = useRef<HTMLElement>(null);
@@ -306,12 +297,12 @@ export function Tile({ tileKey, tileId, group, label, info, value, change, targe
         ) : null;
   const link = "absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
   return (
-    <div data-cockpit-tile data-tile-key={tileKey} className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-3" : "px-3 pt-2 pb-2", AREA_TILE[group])}>
+    <div data-cockpit-tile data-tile-key={tileKey} data-focus-key={focusKey} data-unit={unitColor ? "" : undefined} style={unitColor ? ({ "--unit": unitColor } as CSSProperties) : undefined} className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-3" : "px-3 pt-2 pb-2", AREA_TILE[group])}>
       {href ? <Link href={href} data-card-link aria-label={openLabel} className={link} /> : onOpen ? <button type="button" data-card-link aria-label={openLabel} onClick={onOpen} className={link} /> : null}
       {/* Top: the title + ⓘ left, the change right. */}
       <dt ref={topRow} className="flex min-w-0 shrink-0 items-center gap-2 text-eyebrow uppercase">
         <span className="flex min-w-0 flex-1 items-center gap-1">
-          <span ref={titleRef} data-tile-title style={titleColor ? { color: titleColor } : undefined} className={cn("whitespace-nowrap", tight && "text-[11px]", colorTitle ? AREA_TEXT[group] : "text-(--adm-label)")}>
+          <span ref={titleRef} data-tile-title className={cn("whitespace-nowrap", tight && "text-[11px]", colorTitle ? AREA_TEXT[group] : "text-(--adm-label)")}>
             {label}
           </span>
           <InfoTip text={info} />

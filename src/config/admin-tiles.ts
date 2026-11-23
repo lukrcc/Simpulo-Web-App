@@ -3,10 +3,15 @@
 // sort set by the page) and, for a tile of another page, that page. Several tiles may lead to the same capsule. Structure only – the words
 // live in the pages' i18n (CLAUDE.md "Configs halten Struktur, keine Wörter").
 
-export type AdminPageKey = "overview" | "money" | "growth" | "analysis" | "houses" | "hosts" | "marketing" | "data" | "labs" | "funding" | "vision" | "inbox";
+export type AdminPageKey = "overview" | "money" | "growth" | "analysis" | "houses" | "hosts" | "marketing" | "data" | "labs" | "funding" | "vision" | "inbox" | "system" | "zeitplan";
 
-/** The unit palette (admin-tokens.css --adm-unit-*), in order: a page's capsules take them one after another (Überblick none). */
-export const UNIT_PALETTE = ["sand", "sage", "mist", "lilac", "terra", "slate"] as const;
+/**
+ * The unit palette (admin-tokens.css --adm-unit-*, CLAUDE.md "Ein Farbprofil"), in order: Blau · Grün · Gelb · Orange · Pink · Lila – six
+ * clearly different hues. A page's capsules take them one after another (Überblick none) unless the page names its own (capsAs). Every hue
+ * at most once per page (CLAUDE.md "Jeder Farbton nur einmal pro Seite"): a page with more than six units merges capsules instead of
+ * repeating a colour – unitClashes() reports a breach (dev, the admin frame).
+ */
+export const UNIT_PALETTE = ["blue", "green", "yellow", "orange", "pink", "lilac"] as const;
 export type UnitColor = (typeof UNIT_PALETTE)[number];
 
 export interface CapsuleDef {
@@ -37,37 +42,41 @@ export interface AdminPageDef {
 /** A page's capsules: "overview" without a colour, the others the palette in order. */
 const caps = (...keys: string[]): CapsuleDef[] => {
   let i = 0;
-  return keys.map((key) => ({ key, unit: key === "overview" ? null : UNIT_PALETTE[i++ % UNIT_PALETTE.length] }));
+  // Past the sixth unit no colour (unitClashes reports it) – a hue never repeats on a page.
+  return keys.map((key) => ({ key, unit: key === "overview" ? null : (UNIT_PALETTE[i++] ?? null) }));
 };
+/** A page's capsules with named colours (Geld, Übersicht): "overview" without one. */
+const capsAs = (...pairs: readonly (readonly [string, UnitColor | null])[]): CapsuleDef[] => pairs.map(([key, unit]) => ({ key, unit }));
 /** Aufgaben: its kinds have their own colours – no units. */
 const plain = (...keys: string[]): CapsuleDef[] => keys.map((key) => ({ key, unit: null }));
 
 export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
-  // Übersicht has no capsules of its own: every tile leads to a capsule of the page it belongs to.
+  // Übersicht: Überblick (all 20 tiles) and one capsule per row's group – Heute · Richtung · Geld · Nachfrage · Qualität (CLAUDE.md
+  // "Übersicht mit Kapseln"); a tile opens its group's capsule with its number highlighted (?focus=<tile>).
   overview: {
     path: "/admin",
-    capsules: [],
+    capsules: capsAs(["overview", null], ["today", "blue"], ["direction", "orange"], ["money", "green"], ["demand", "yellow"], ["quality", "lilac"]),
     tiles: {
-      inbox: { page: "inbox", tab: "all" },
-      needsHelp: { page: "inbox", tab: "houses" },
-      marketCap: { page: "funding", tab: "marketcap" },
-      launch: { page: "marketing", tab: "countdown" },
-      pipeline: { page: "marketing", tab: "pipeline" },
-      revenue: { page: "money", tab: "history", focus: "revenue" },
-      profit: { page: "money", tab: "history", focus: "profit" },
-      bookingVolume: { page: "money", tab: "history", focus: "bookingVolume" },
-      perBooking: { page: "money", tab: "guests", focus: "perGuest" },
-      bookings: { page: "money", tab: "guests", focus: "bookings" },
-      visitors: { page: "growth", tab: "origin", focus: "visitors" },
-      requests: { page: "growth", tab: "origin", focus: "requests" },
-      bestChannel: { page: "growth", tab: "origin", focus: "bestChannel" },
-      webApp: { page: "growth", tab: "usage", focus: "installs" },
-      waitlist: { page: "growth", tab: "waitlist" },
-      openHouses: { page: "houses", tab: "all", focus: "open" },
-      fullHouses: { page: "houses", tab: "all", focus: "full" },
-      nights: { page: "analysis", tab: "value", focus: "perFee" },
-      connection: { page: "analysis", tab: "value", focus: "connection" },
-      repeat: { page: "analysis", tab: "topic", focus: "repeat" },
+      inbox: { tab: "today", focus: "inbox" },
+      needsHelp: { tab: "today", focus: "needsHelp" },
+      pipeline: { tab: "direction", focus: "pipeline" },
+      launch: { tab: "direction", focus: "launch" },
+      marketCap: { tab: "direction", focus: "marketCap" },
+      bookingVolume: { tab: "money", focus: "bookingVolume" },
+      revenue: { tab: "money", focus: "revenue" },
+      profit: { tab: "money", focus: "profit" },
+      bookings: { tab: "money", focus: "bookings" },
+      perBooking: { tab: "money", focus: "perBooking" },
+      visitors: { tab: "demand", focus: "visitors" },
+      requests: { tab: "demand", focus: "requests" },
+      bestChannel: { tab: "demand", focus: "bestChannel" },
+      waitlist: { tab: "demand", focus: "waitlist" },
+      webApp: { tab: "demand", focus: "webApp" },
+      openHouses: { tab: "quality", focus: "openHouses" },
+      fullHouses: { tab: "quality", focus: "fullHouses" },
+      nights: { tab: "quality", focus: "nights" },
+      connection: { tab: "quality", focus: "connection" },
+      repeat: { tab: "quality", focus: "repeat" },
     },
   },
   // Geld: the capsules Überblick · Verlauf · Kosten · Gäste · Hosts · Zahlungen · Steuern (old ?tab=payouts → Zahlungen) and the overview as a
@@ -76,7 +85,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   // R4 Zahlungsprobleme, Auszahlungen offen (Zahlungen) | Steuer-Rücklage, Nächste Steuerfrist (Steuern).
   money: {
     path: "/admin/money",
-    capsules: caps("overview", "history", "costs", "guests", "hosts", "payments", "taxes"),
+    capsules: capsAs(["overview", null], ["history", "green"], ["costs", "orange"], ["guests", "blue"], ["hosts", "lilac"], ["payments", "pink"], ["taxes", "yellow"]),
     order: ["bookingVolume", "revenue", "costs", "profit", "takeRate", "monthForecast", "stripeFees", "otherCosts", "perGuest", "valuePerGuestYear", "refunds", "valuePerHostYear", "paymentIssues", "openPayouts", "taxReserve", "nextDeadline"],
     tiles: {
       bookingVolume: { tab: "history", focus: "bookingVolume" },
@@ -121,18 +130,19 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   },
   analysis: {
     path: "/admin/topics",
-    capsules: caps("overview", "value", "topic", "length", "crew", "category", "origin", "hub", "tier", "depth"),
+    // Six units at most: Ort-Typ, Ort-Herkunft and Hub are one capsule "Ort", Stufe and Tiefe one capsule "Host" (sub-tabs under them).
+    capsules: caps("overview", "value", "topic", "length", "crew", "place", "host"),
     tiles: {
       valueCheck: { tab: "value" },
       sweetSpot: { tab: "topic" },
       "dim-topic": { tab: "topic" },
       "dim-length": { tab: "length" },
       "dim-crew": { tab: "crew" },
-      "dim-category": { tab: "category" },
-      "dim-origin": { tab: "origin" },
-      "dim-hub": { tab: "hub" },
-      "dim-tier": { tab: "tier" },
-      "dim-depth": { tab: "depth" },
+      "dim-category": { tab: "category", unit: "place" },
+      "dim-origin": { tab: "origin", unit: "place" },
+      "dim-hub": { tab: "hub", unit: "place" },
+      "dim-tier": { tab: "tier", unit: "host" },
+      "dim-depth": { tab: "depth", unit: "host" },
       "leader-connection": { tab: "topic", focus: "connection" },
       "leader-repeat": { tab: "topic", focus: "repeat" },
       "leader-speed": { tab: "topic", focus: "speed" },
@@ -225,7 +235,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   },
   funding: {
     path: "/admin/funding",
-    capsules: caps("overview", "readiness", "thesis", "rounds", "documents", "valuation", "marketcap", "structure"),
+    capsules: caps("overview", "readiness", "thesis", "rounds", "documents", "valuation", "structure"),
     tiles: {
       ready: { tab: "readiness" },
       repeat: { tab: "readiness", focus: "repeatRate" },
@@ -256,6 +266,19 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
       funding: { page: "funding", tab: "overview" },
     },
   },
+  // System: its overview's four sections belong to Einstellungen (Phase, Werte), Tools and Launch-Vorbereitung (the checklist).
+  system: {
+    path: "/admin/platform",
+    capsules: caps("overview", "settings", "tools", "prepare"),
+    tiles: {},
+  },
+  // Zeitplan: Zeitleiste (neutral) and one capsule per lane – Code lilac · Marketing yellow · Vorbereitung orange · Launch pink; a bar on the
+  // timeline opens its lane's capsule with its entry marked (?focus=).
+  zeitplan: {
+    path: "/admin/zeitplan",
+    capsules: capsAs(["timeline", null], ["code", "lilac"], ["marketing", "yellow"], ["prep", "orange"], ["launch", "pink"]),
+    tiles: {},
+  },
   inbox: {
     path: "/admin/aufgaben",
     capsules: plain("all", "houses", "hosts", "safety", "money", "questions"),
@@ -274,7 +297,26 @@ export function routeHref(from: AdminPageKey, route: TileRoute): string {
 }
 
 /** A capsule's unit colour as a CSS colour (var(--adm-unit-…)), or null. */
+/** The capsule a tab belongs to when sub-tabs sit under it (Analyse: Ort-Typ, Ort-Herkunft, Hub → "place"; Stufe, Tiefe → "host"). */
+export const CAPSULE_OF: Partial<Record<AdminPageKey, Readonly<Record<string, string>>>> = {
+  analysis: { category: "place", origin: "place", hub: "place", tier: "host", depth: "host" },
+};
+
+/** Every page whose capsules repeat a hue or have more units than hues (CLAUDE.md "Jeder Farbton nur einmal pro Seite") – empty when fine. */
+export function unitClashes(): string[] {
+  const out: string[] = [];
+  for (const [page, def] of Object.entries(ADMIN_PAGES)) {
+    const units = def.capsules.filter((c) => c.key !== "overview");
+    const colours = units.map((c) => c.unit).filter((u): u is UnitColor => Boolean(u));
+    const twice = colours.filter((u, i) => colours.indexOf(u) !== i);
+    if (twice.length) out.push(`${page}: ${[...new Set(twice)].join(", ")} doppelt`);
+    if (page !== "inbox" && units.length > UNIT_PALETTE.length) out.push(`${page}: ${units.length} Einheiten, nur ${UNIT_PALETTE.length} Farbtöne – Kapseln zusammenfassen`);
+  }
+  return out;
+}
+
 export const unitColorOf = (page: AdminPageKey, tab: string): string | null => {
-  const unit = ADMIN_PAGES[page].capsules.find((c) => c.key === tab)?.unit;
+  const key = CAPSULE_OF[page]?.[tab] ?? tab;
+  const unit = ADMIN_PAGES[page].capsules.find((c) => c.key === key)?.unit;
   return unit ? `var(--adm-unit-${unit})` : null;
 };

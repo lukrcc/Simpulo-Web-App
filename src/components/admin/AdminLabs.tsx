@@ -15,6 +15,7 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { ARCHITECTURE, type ArchitectureView } from "@/lib/admin/labs/architecture";
 import { DATA_POINTS, type DataPointStatus } from "@/config/data-points";
+import { unitColorOf } from "@/config/admin-tiles";
 import Link from "next/link";
 import { num, pct, share } from "@/lib/i18n/adminFormat";
 import { StatusDot } from "./AdminCharts";
@@ -108,7 +109,7 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
       {LABS.map((lab) => (
         // The same build as every admin tile (CLAUDE.md "Admin: Kacheln einheitlich"): title (number · name, the status right) on top, the
         // ceiling in the one value size right under it, then the detail lines – free room stays at the bottom.
-        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} className={cn("relative flex min-h-0 min-w-0 flex-col justify-start overflow-hidden rounded-xl border px-4 pt-3 pb-3", AREA_TILE.plan)}>
+        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} data-unit style={{ "--unit": unitColorOf("labs", "labs") } as CSSProperties} className={cn("relative flex min-h-0 min-w-0 flex-col justify-start overflow-hidden rounded-xl border px-4 pt-3 pb-3", AREA_TILE.plan)}>
           <button type="button" data-card-link aria-label={t("card.open", { name: lab.name })} onClick={() => onLab(lab.id)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
           <div className="flex min-w-0 shrink-0 items-center gap-2">
             <span className="truncate text-eyebrow uppercase text-(--adm-label)">{t("card.title", { no: String(lab.number), name: lab.name })}</span>

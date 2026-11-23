@@ -118,7 +118,7 @@ export const explorePageSize = (cols: number) => exploreBlockSize(cols) * 2;
  */
 export const EXPLORE_SPACING = {
   /** The Spotlight's top edge in the window, from the bar (--spot-top, globals.css). */
-  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-64px)]",
+  spotlightTop: "lg:pt-[calc(var(--spot-top)-var(--band-h)-var(--header-h))]",
   /** With the text over the carousel instead (it doesn't fit beside it): from the bar to the text. */
   spotlightTextTop: "lg:pt-[calc(var(--space-inner)+6px)]",
   /** From that title's subline to the centre card. */
