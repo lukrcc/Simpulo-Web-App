@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useSpotlightThemeLines } from "./themeLines";
 import { useFormat } from "@/i18n/format";
 import { EMPTY_FILTERS, withFilters } from "@/lib/exploreFilters";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/ActionButton";
-import { changeLetters, FlipText, FlowText } from "./FlipText";
+import { FlipText, FlowText } from "./FlipText";
 import { useMarkBreath } from "./useMarkBreath";
 
 /** Beside the centre card the sizes come from the fit (SpotlightCoverflow): --fit-title, logged in and out --fit-theme. */
@@ -86,48 +86,57 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, 
 }
 
 /**
- * Follows the category. The name and the link crossfade, the name, the sentence and the link crossfade, nothing moves with it; never for the same category again. Two
- * lines of sentence always reserved.
+ * Follows the category (CLAUDE.md "Hero-Textwechsel ruhig"): the whole block – name, sentence, "N houses open →" – fades out completely
+ * (250ms), then the new one fades in at exactly the same place (250ms). Never two texts at once, nothing moves; the block keeps a fixed
+ * height (two lines of sentence reserved). Reduced motion: an immediate swap.
  */
 function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingProps, "vibe" | "countOf" | "onPick"> & { lines: Record<Vibe, string>; fallback: (count: number) => string }) {
   const t = useTranslations("explore.spotlightGreeting");
   const format = useFormat();
-  const [state, setState] = useState({ vibe, from: null as Vibe | null, run: 0 });
-  if (state.vibe !== vibe) setState({ vibe, from: state.vibe, run: state.run + 1 });
-  const { from, run } = state;
+  // What's shown, and what it's going to (a new category starts the fade-out; the swap happens once it is out).
+  const [shown, setShown] = useState(vibe);
+  const [target, setTarget] = useState(vibe);
+  const [out, setOut] = useState(false);
+  if (target !== vibe) {
+    setTarget(vibe);
+    setOut(vibe !== shown);
+  }
+  useEffect(() => {
+    if (!out) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const id = window.setTimeout(() => {
+      setShown(target);
+      setOut(false);
+    }, reduce ? 0 : FADE_MS);
+    return () => window.clearTimeout(id);
+  }, [out, target]);
   const sentenceOf = (v: Vibe) => lines[v] ?? fallback(countOf(v));
-  const link = (v: Vibe) => (
-    <Link
-      href={`/?${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [v] })}`}
-      onClick={(e) => {
-        e.preventDefault();
-        onPick(v);
-      }}
-      className="pointer-events-auto inline-block text-body font-semibold text-ink underline-offset-4 hover:underline"
+  return (
+    <div
+      data-theme-block
+      data-out={out || undefined}
+      aria-live="polite"
+      className="w-full max-w-[360px] min-h-[calc(16px+6px+2*1.15*var(--fit-theme,28px)+10px+23px)] text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none data-out:opacity-0"
     >
-      {lines[v] ? t("open", { count: countOf(v) }) : t("seeHouses")}
-    </Link>
-  );
-  const fade = (out: ReactNode, current: ReactNode) => (
-    <div className="grid justify-items-end">
-      {from !== null && (
-        <div key={`out-${run}`} aria-hidden inert className="theme-out col-start-1 row-start-1">
-          {out}
-        </div>
-      )}
-      <div key={`in-${run}`} className={cn("col-start-1 row-start-1", from !== null && "theme-in")}>
-        {current}
+      <p className="text-eyebrow uppercase text-ink/55">{format.vibe(shown)}</p>
+      <FlipText as="p" text={sentenceOf(shown)} style={THEME_SIZE} className="text-h2 mt-1.5 ml-auto w-max max-w-full" />
+      <div className="mt-2.5">
+        <Link
+          href={`/?${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [shown] })}`}
+          onClick={(e) => {
+            e.preventDefault();
+            onPick(shown);
+          }}
+          className="pointer-events-auto inline-block text-body font-semibold text-ink underline-offset-4 hover:underline"
+        >
+          {lines[shown] ? t("open", { count: countOf(shown) }) : t("seeHouses")}
+        </Link>
       </div>
     </div>
   );
-  return (
-    <div className="w-full max-w-[360px] min-h-[calc(16px+6px+2*1.15*var(--fit-theme,28px)+10px+23px)] text-right">
-      {fade(from !== null && <p className="text-eyebrow uppercase text-ink/55">{format.vibe(from)}</p>, <p className="text-eyebrow uppercase text-ink/55">{format.vibe(vibe)}</p>)}
-      <ThemeSentence text={sentenceOf(vibe)} />
-      <div className="mt-2.5">{fade(from !== null && link(from), link(vibe))}</div>
-    </div>
-  );
 }
+// The swap a breath after the 250ms fade-out, so the old text is fully gone.
+const FADE_MS = 260;
 
 /** Before the launch and in the beta: the place of the category sentence – "Come for the place, stay for the people." and the two actions. */
 function LaunchBlock({ launch }: { launch: LaunchHero }) {
@@ -172,53 +181,4 @@ export function LaunchIntro({ launch, className }: { launch: LaunchHero; classNa
   );
 }
 
-/** The sentence: a crossfade, its right edge stays. */
-function ThemeSentence({ text }: { text: string }) {
-  const [state, setState] = useState({ text, from: null as string | null, run: 0 });
-  if (state.text !== text) setState({ text, from: state.text, run: state.run + 1 });
-  const outer = useRef<HTMLDivElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  const current = useRef<HTMLElement>(null);
-  const old = useRef<HTMLElement>(null);
-
-  useLayoutEffect(() => {
-    const wrap = outer.current;
-    const glide = box.current;
-    const now = current.current;
-    if (!wrap || !glide || !now) return;
-    const measure = () => {
-      wrap.style.setProperty("--theme-width", `${wrap.clientWidth}px`);
-      glide.style.width = `${now.offsetWidth}px`;
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(wrap);
-    observer.observe(now);
-    return () => observer.disconnect();
-  }, [state.text]);
-
-  const { from, run } = state;
-  useLayoutEffect(() => {
-    const glide = box.current;
-    if (from === null || !old.current || !current.current || !glide) return;
-    let live = true;
-    void changeLetters(old.current, current.current).then(() => {
-      if (live) setState((s) => (s.run === run ? { ...s, from: null } : s));
-    });
-    return () => {
-      live = false;
-    };
-  }, [from, run]);
-
-  return (
-    <div ref={outer} className="mt-1.5 w-full">
-      <div ref={box} className="ml-auto grid grid-cols-[minmax(0,1fr)] justify-items-end">
-        {from !== null && <FlipText key={`out-${run}`} ref={old} as="p" text={from} style={THEME_SIZE} className={THEME_CLASS} />}
-        <FlipText key={`in-${run}`} ref={current} as="p" text={state.text} style={THEME_SIZE} className={THEME_CLASS} />
-      </div>
-    </div>
-  );
-}
-
 const THEME_SIZE = { fontSize: "var(--fit-theme, 28px)" };
-const THEME_CLASS = "text-h2 col-start-1 row-start-1 w-max max-w-(--theme-width)";

@@ -10,7 +10,7 @@ import { Compass, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
@@ -30,6 +30,7 @@ import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { ADMIN_PAGE_STYLE, pageColorVars } from "@/config/admin/pages";
 import { ADMIN_ICONS } from "./adminIcons";
+import { TopicHeader } from "./AdminTopics";
 import { cn } from "@/lib/utils";
 
 type AreaKey = "cockpit" | "inbox" | "zeitplan" | "money" | "growth" | "topics" | "houses" | "hosts" | "marketing" | "data" | "labs" | "vision" | "funding" | "platform";
@@ -92,12 +93,12 @@ const AREAS: readonly Area[] = [...GROUPS.flatMap((g) => g.areas), SYSTEM];
  */
 export type AreaColor = (typeof GROUPS)[number]["key"];
 export const AREA_TEXT: Record<AreaColor, string> = { today: "text-adm-group-today", numbers: "text-adm-group-numbers", platform: "text-adm-group-platform", plan: "text-adm-group-plan" };
-/** The group headings in the side list: a neutral block over the list's full width (colour belongs to the pages, CLAUDE.md "Eine Farbe = eine Seite"). */
+/** The group headings in the side list: small grey caps, no block behind (CLAUDE.md "Admin hell nach Apple-Art", Hell and Dunkel). */
 const AREA_CHIP: Record<AreaColor, string> = {
-  today: "bg-ink/[0.06] text-ink/75",
-  numbers: "bg-ink/[0.06] text-ink/75",
-  platform: "bg-ink/[0.06] text-ink/75",
-  plan: "bg-ink/[0.06] text-ink/75",
+  today: "text-(--adm-label)",
+  numbers: "text-(--adm-label)",
+  platform: "text-(--adm-label)",
+  plan: "text-(--adm-label)",
 };
 export const AREA_BG: Record<AreaColor, string> = { today: "bg-adm-group-today", numbers: "bg-adm-group-numbers", platform: "bg-adm-group-platform", plan: "bg-adm-group-plan" };
 /** Tiles: the card surface (--card) tinted in its group (≈ 7–9 %) with an edge (≈ 28–32 %); hover a little stronger. */
@@ -347,7 +348,7 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
   const system = (
     <>
       <div className={cn("shrink-0", !fit && "mt-(--sidebar-gap)")} data-admin-system>
-        <p className="mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg bg-ink/[0.06] px-3 text-nav-group uppercase text-ink/75">{t("navGroup.system")}</p>
+        <p className="mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg px-3 text-nav-group uppercase text-(--adm-label)">{t("navGroup.system")}</p>
         <SideNav compact label={t("navGroup.system")} items={[item(SYSTEM)]} />
       </div>
       <div data-admin-theme-row className={cn("shrink-0", fit ? "mt-(--sidebar-strip-gap)" : "mt-(--sidebar-gap)")}>
@@ -394,6 +395,7 @@ export function AdminShell({
   tabs: tabsProp,
   subTabs: subTabsProp,
   period = false,
+  keepAside = false,
   children,
 }: {
   title: string;
@@ -409,6 +411,8 @@ export function AdminShell({
    * click row (Übersicht, over its tiles). Pages (or tabs) without a time reference leave it out.
    */
   period?: boolean | "center";
+  /** A card overview keeps its control top right (Labore's "Ansichten ▾" – the only way to its views) */
+  keepAside?: boolean;
   children: ReactNode;
 }) {
   let aside = asideProp;
@@ -420,6 +424,17 @@ export function AdminShell({
   // sort, filters) go to a second row – the period left, the controls and what the period covers right – so the topics fit one row.
   const topicOpen = useAdminSearch().has("topic");
   const hasPeriod = period === true;
+  // A card overview (CLAUDE.md "Kopfreihe nur für Zeitraum"): the row over the cards only for the period – no extra texts or links top right
+  // (they are in the cards); without a period no row at all, the cards start the page's inset under the header.
+  const cardsOverview = !topicOpen && !nest && isValidElement(tabsProp) && tabsProp.type === TopicHeader;
+  if (cardsOverview && !keepAside) aside = undefined;
+  if (cardsOverview && !hasPeriod && period !== "center" && !aside)
+    return (
+      <>
+        <AdminPageHeader title={title} />
+        <div data-cards-top className="pt-[calc(var(--adm-page-inset)-var(--adm-page-top))]">{children}</div>
+      </>
+    );
   if (topicOpen && (aside || hasPeriod)) {
     const own = aside;
     aside = undefined;

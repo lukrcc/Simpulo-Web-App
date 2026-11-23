@@ -2007,39 +2007,62 @@ main:has([data-preview-gate]) {
 
 
 
-/* Explore's quick search in the header bar shortens by its room (a container query on the slot, layout/header/SiteHeader.tsx
-   data-explore-slot), in this order – all of it needs about 604px: first the theme capsules go (BarCategories fills them in
-   config/explore.ts TOP_CATEGORIES order, as many as fit); under 604px "Where | When" shrinks to its magnifier (a set place or month stays written); under
-   474px the theme button goes too (the themes stay in All filters › Category); under 340px Short trips keeps only its bolt. Short trips is
-   always there; nothing ever overlaps. */
-[data-explore-slot] {
+/* The bar's middle (CLAUDE.md "Kopfleiste neu geordnet": ⌕ Where · When | Short trips · Themes ▾ · Filters ▾) moves together by its room – a
+   container query on its slot (Explore's data-explore-slot, every other page's data-center-slot): under 480px Short trips keeps only its bolt
+   (its name is the tooltip), under 400px "When" goes (the sheet behind Where has the months too; a chosen month stays written). Filters
+   always stays; nothing overlaps. */
+:is([data-explore-slot], [data-center-slot]) {
   container: bar / inline-size;
 }
-@container bar (max-width: 603px) {
-  [data-explore-slot] .search-capsule:not([data-active]) > button:first-child > span,
-  [data-explore-slot] .search-capsule:not([data-active]) > span[aria-hidden],
-  [data-explore-slot] .search-capsule:not([data-active]) > button:nth-of-type(2) {
-    display: none;
-  }
-  [data-explore-slot] .search-capsule:not([data-active]) > button:first-child {
-    padding-inline: 12px;
-    border-radius: 999px;
-  }
-}
-@container bar (max-width: 473px) {
-  [data-explore-slot] .chip-row {
+@container bar (max-width: 479px) {
+  .hdr-short-trips-label {
     display: none;
   }
 }
-@container bar (max-width: 339px) {
-  [data-explore-slot] .short-trips-label {
+@container bar (max-width: 399px) {
+  [data-where-when] [data-when-item]:not([data-on]) {
     display: none;
-  }
-  [data-explore-slot] .short-trips {
-    padding-inline: 11px;
   }
 }
 
+/* The bar in Hell from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): light glass – white 85 % over blur 20px, a fine line at its foot,
+   dark words without a shadow. Dunkel keeps the dark glass; below 1100px the fixed graphite surface stays (CLAUDE.md "Kopf unter 1100px").
+   The panels it opens have their own material (below, "The header's panels"). */
+@media (min-width: 1100px) {
+  :root:not([data-theme="dark"]) [data-site-header] {
+    --graphite-glass: rgb(255 255 255 / 0.85);
+    --graphite-glass-top: rgb(255 255 255 / 0.85);
+    --graphite-glass-filter: blur(20px) saturate(1.8);
+    --graphite-glass-line: rgb(0 0 0 / 0.08);
+    --header-bg: rgb(255 255 255 / 0.85);
+    --header-fg: #1d1d1f;
+    --hdr-fg: #1d1d1f;
+    --hdr-muted: #5e5e62;
+    --text: #1d1d1f;
+    --text-muted: #5e5e62;
+    --text-faint: #8e8e93;
+    --line: rgb(0 0 0 / 0.08);
+    --header-pill: #e8e8ed;
+    --header-pill-hover: rgb(0 0 0 / 0.06);
+    --header-pill-active: rgb(0 0 0 / 0.09);
+    --hdr-tab-hover: rgb(0 0 0 / 0.05);
+    --hdr-tab-active: rgb(0 0 0 / 0.08);
+    --hdr-corner-bg: rgb(0 0 0 / 0.05);
+    --hdr-corner-hover: rgb(0 0 0 / 0.08);
+    --hdr-avatar-ring: rgb(0 0 0 / 0.12);
+    --header-divider: rgb(0 0 0 / 0.12);
+    --hdr-dot: #8e8e93;
+    --open-house-bg: rgb(0 0 0 / 0.05);
+    --open-house-bg-hover: rgb(0 0 0 / 0.08);
+    --open-house-text: #1d1d1f;
+    --focus-ring: rgb(0 0 0 / 0.3);
+    color-scheme: light;
+    text-shadow: none;
+  }
+  :root:not([data-theme="dark"]) [data-site-header] * {
+    text-shadow: none;
+  }
+}
 
 /* The room above the footer, worked out in one place from the page's last section: a dark one ends right on the footer (0). The dark large
    footer still keeps 64px of light before it (it never runs into a dark section). */
@@ -2109,4 +2132,100 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   [data-tab-bar].header-glass {
     box-shadow: inset 0 0 0 1px var(--header-line-mobile), var(--shadow-float);
   }
+}
+
+/* ── The header's panels, one material (CLAUDE.md "Kopfleisten-Panels einheitlich", from 1100px): Where/When, Themes, Filters and the menus
+   opened from them (.bar-sheet, .themes-menu, .bar-menu). Hell: white 82 % over blur 24px with saturation, a fine edge black 6 %, a soft
+   shadow, dark words (#1D1D1F, grey #636366). Dunkel: dark glass rgb(30 30 32 / .82), light words. The taupe of the old panels is gone.
+   Inside: capsules black 5 % with dark words, chosen graphite #3A3A3C with white words (Dunkel the other way round); fields black 5 %; the
+   main action graphite like "Open a House" (Button "graphite"). Behind them the page only a little darker and soft – never tinted. ── */
+@media (min-width: 1100px) {
+  :root:not([data-theme="dark"]) :is(.bar-sheet, .bar-menu, .themes-menu) {
+    color-scheme: light;
+    --panel-bg: rgb(255 255 255 / 0.82);
+    --panel-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.06), 0 24px 60px rgb(0 0 0 / 0.14);
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f2f2f7;
+    --text: #1d1d1f;
+    /* A step darker than #6E6E73: it also sits on a highlighted row (black 8 %) – ≥ 4.5 : 1 there. */
+    --text-muted: #636366;
+    --text-faint: #8e8e93;
+    --text-inverse: #ffffff;
+    --line: rgb(0 0 0 / 0.08);
+    --input-border: rgb(0 0 0 / 0.1);
+    --chip-bg: rgb(0 0 0 / 0.05);
+    --chip-bg-hover: rgb(0 0 0 / 0.08);
+    --header-pill: rgb(0 0 0 / 0.05);
+    --header-pill-hover: rgb(0 0 0 / 0.08);
+    --header-pill-active: rgb(0 0 0 / 0.1);
+    --menu-pick-bg: #3a3a3c;
+    --menu-pick-text: #ffffff;
+    --panel-field: rgb(0 0 0 / 0.05);
+    --panel-field-focus: rgb(0 0 0 / 0.08);
+    --panel-action-bg: #3a3a3c;
+    --panel-action-bg-hover: #2c2c2e;
+    --panel-action-text: #ffffff;
+    --focus-ring: rgb(0 0 0 / 0.25);
+    --graphite-glass-line: rgb(0 0 0 / 0.06);
+  }
+  :root[data-theme="dark"] :is(.bar-sheet, .bar-menu, .themes-menu) {
+    color-scheme: dark;
+    --panel-bg: rgb(30 30 32 / 0.82);
+    --panel-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 60px rgb(0 0 0 / 0.45);
+    --bg: #1e1e20;
+    --text: #f5f5f7;
+    --text-muted: rgb(235 235 245 / 0.62);
+    --text-faint: rgb(235 235 245 / 0.42);
+    --text-inverse: #1d1d1f;
+    --line: rgb(255 255 255 / 0.1);
+    --input-border: rgb(255 255 255 / 0.14);
+    --chip-bg: rgb(255 255 255 / 0.08);
+    --chip-bg-hover: rgb(255 255 255 / 0.12);
+    --header-pill: rgb(255 255 255 / 0.08);
+    --header-pill-hover: rgb(255 255 255 / 0.12);
+    --header-pill-active: rgb(255 255 255 / 0.16);
+    --menu-pick-bg: #f5f5f7;
+    --menu-pick-text: #1d1d1f;
+    --panel-field: rgb(255 255 255 / 0.08);
+    --panel-field-focus: rgb(255 255 255 / 0.12);
+    --focus-ring: rgb(255 255 255 / 0.35);
+    --graphite-glass-line: rgb(255 255 255 / 0.08);
+  }
+  :root :is(.bar-sheet, .bar-menu, .themes-menu) {
+    background-color: var(--panel-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+    box-shadow: var(--panel-shadow);
+    color: var(--text);
+    text-shadow: none;
+  }
+  /* The Themes field over the full width: no shadow up into the bar, its line at the foot. */
+  :root .themes-menu {
+    box-shadow: inset 0 -1px 0 var(--graphite-glass-line), 0 24px 60px rgb(0 0 0 / 0.08);
+    border-bottom-color: transparent;
+  }
+  :root :is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea) {
+    background-color: var(--panel-field);
+    color: var(--text);
+    text-shadow: none;
+  }
+  :root :is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea):focus {
+    background-color: var(--panel-field-focus);
+    text-shadow: none;
+  }
+  :root :is(.bar-sheet, .bar-menu) ::placeholder {
+    color: var(--text-muted);
+  }
+}
+/* Behind a panel: only a little darker and soft, never tinted. */
+:root:not([data-theme="dark"]) .bar-sheet-scrim {
+  background-color: rgb(0 0 0 / 0.06);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+:root[data-theme="dark"] .bar-sheet-scrim {
+  background-color: rgb(0 0 0 / 0.22);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "soft" | "onImage" | "cream" | "creamOutline" | "brand" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "soft" | "onImage" | "cream" | "creamOutline" | "brand" | "danger" | "graphite";
 /** md 44px, the standard · sm 36px · lg 48px (a list's "Show more"). */
 export type ButtonSize = "md" | "sm" | "lg";
 
@@ -25,6 +25,9 @@ const variants: Record<ButtonVariant, string> = {
   creamOutline: "border border-ink/25 text-ink hover:-translate-y-px hover:bg-ink/6 disabled:translate-y-0 disabled:text-ink/50",
   // "Join in": the one orange button of an area (the House page's strip) – the action orange's deep step with white words (4.7 : 1).
   brand: "bg-(--brand-action-fill) text-on-signal shadow-(--edge-highlight) hover:-translate-y-px hover:bg-(--brand-action-fill-hover) hover:shadow-[var(--edge-highlight),var(--shadow-lift)] disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
+  // The header panels' main action ("Show N houses", CLAUDE.md "Kopfleisten-Panels einheitlich"): graphite – white words on the light glass,
+  // near-black on light grey on the dark (--panel-action-*). No orange.
+  graphite: "bg-(--panel-action-bg) text-(--panel-action-text) hover:bg-(--panel-action-bg-hover) disabled:bg-ink/10 disabled:text-muted",
   // Only for what can't be undone (Delete account): a deep red with white words (--danger-fill, 5.4 : 1), the same in light and dark.
   danger: "bg-(--danger-fill) text-on-signal shadow-(--edge-highlight) hover:-translate-y-px hover:bg-(--danger-fill-hover) disabled:translate-y-0 disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
 };
@@ -86,13 +89,10 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
 }
 
 /**
- * "Open a House" in the header (graphite): a 1px cream 25 % outline, cream words and plus, hover cream 6 %; 36px, padding 0 16px, 15px semibold,
- * fully round, the plus a 16px block on the text's centre line. Below 744px only the plus, a circle of the same height.
+ * "Open a House" in the header (CLAUDE.md "Open a House ruhig"): words only, medium (500) like the navigation, 36px like the Where/When capsule,
+ * 16px each side; no dark surface – the faint fill of the Where/When capsule (--open-house-*: black 5 % on the light bar, white 8 % on the
+ * dark), hover a little stronger, the words in the bar's primary colour. No orange. Product and admin.
  */
 export const headerActionStyles = cn(
-  // The bar's one filled button (CLAUDE.md "Kopfleiste: … Open a House kompakter in Orange"), product and admin: Simpulo's orange – the
-  // logo dot's, in its deeper step (--brand-action-fill) so white words and the plus keep AA (4.7 : 1; the dot's own orange holds 3.2) –,
-  // hover a step darker, pressed like everything (.press). Compact: as high as every capsule (--header-pill-h), less room left and right,
-  // the plus close to the words.
-  "press inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-1.5 rounded-full bg-(--brand-action-fill) px-3 text-nav-main font-semibold text-on-signal [text-shadow:none] transition-colors duration-150 hover:bg-(--brand-action-fill-hover) max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
+  "press inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-1.5 rounded-full bg-(--open-house-bg) px-4 text-nav-main font-medium text-(--open-house-text) [text-shadow:none] transition-colors duration-150 hover:bg-(--open-house-bg-hover)",
 );

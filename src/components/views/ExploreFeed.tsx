@@ -6,6 +6,7 @@ import { blockHighlight } from "@/lib/highlight";
 import { useTodayIso } from "@/lib/birthDate";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import { createPortal } from "react-dom";
+import { HeaderCenter } from "@/components/layout/header/HeaderCenter";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -396,20 +397,23 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
         headerSlot &&
         createPortal(
           <>
-            {/* One group on the left, no gaps inside: Where | When · Short trips · the theme capsules · Themes / More themes ▾ · All filters ▾.
-                The themes take as many places as fit (BarCategories measures); what's left is the flexible room after All filters, before
-                the line and the navigation. */}
-            <SearchField place={filters.place} month={filters.month} onChange={update} autoOpen />
-            <ShortTripsToggle
-              label={tf("shortTrips")}
-              active={filters.lengths.includes("weekend")}
-              onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
+            {/* The bar's middle (CLAUDE.md "Kopfleiste neu geordnet"): ⌕ Where · When | Short trips · Themes ▾ · Filters ▾ – plain words. */}
+            <HeaderCenter
+              place={filters.place}
+              month={filters.month}
+              onWhereWhen={update}
+              autoOpen
+              shortTrips={filters.lengths.includes("weekend")}
+              onShortTrips={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
+              vibes={showVibes ? filters.vibes : []}
+              sub={filters.sub}
+              onTheme={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [], sub: null })}
+              onSubTheme={(parent, sub) => update({ vibes: [parent as Vibe], sub })}
+              filterCount={panelCount}
+              filtersOpen={panelOpen}
+              onFilters={openPanel}
+              filtersRef={setFiltersEl}
             />
-            {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} themesLabel={tHeaderThemes("themes")} moreThemesLabel={tHeaderThemes("moreThemes")} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} sub={filters.sub} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [], sub: null })} onSelectSub={(parent, sub) => update({ vibes: [parent as Vibe], sub })} />}
-            {/* All filters: the bar's one capsule, only a chevron after the words – right after the theme button. */}
-            <span ref={setFiltersEl} className="contents">
-              <FiltersButton variant="compact" count={panelCount} expanded={panelOpen} onClick={openPanel} />
-            </span>
           </>,
           headerSlot,
         )}

@@ -31,12 +31,15 @@ function usePopularPlaces(): SearchPlace[] {
 }
 
 /** The one search over every place: cities, regions and countries. You pick from the list, nothing typed is ever a place of its own. */
-export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; onPick: (place: SearchPlace) => void; label: string; placeholder: string }) {
+export function PlaceCombobox({ id, onPick, label, placeholder, limit }: { id: string; onPick: (place: SearchPlace) => void; label: string; placeholder: string; /** At most this many places (the header's sheet: 4 – it never scrolls) */ limit?: number }) {
   const t = useTranslations("explore.search");
   const popular = usePopularPlaces();
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<{ query: string; hits: SearchPlace[] } | null>(null);
-  const [active, setActive] = useState(0);
+  // The header's sheet (limit): nothing chosen in advance – a row gets its surface only on hover or by the keyboard (CLAUDE.md "ruhiger
+  // Feinschliff"); elsewhere the first row stays the default.
+  const none = limit ? -1 : 0;
+  const [active, setActive] = useState(none);
 
   useEffect(() => {
     const q = query.trim();
@@ -53,7 +56,7 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
   }, [query]);
 
   const q = query.trim();
-  const suggestions = q ? (found?.hits ?? []) : popular;
+  const suggestions = (q ? (found?.hits ?? []) : popular).slice(0, limit ?? Infinity);
   const nothing = q !== "" && found?.query === q && found.hits.length === 0;
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -63,8 +66,8 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
       setActive((i) => (i + 1) % suggestions.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((i) => (i - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === "Enter") {
+      setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Enter" && suggestions[active]) {
       e.preventDefault();
       onPick(suggestions[active]);
     }
@@ -88,7 +91,7 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setActive(0);
+            setActive(none);
           }}
           onKeyDown={onKey}
           placeholder={placeholder}
@@ -96,15 +99,15 @@ export function PlaceCombobox({ id, onPick, label, placeholder }: { id: string; 
         />
       </div>
       {suggestions.length > 0 && (
-        <ul id={`${id}-suggestions`} role="listbox" className="mt-2 max-h-80 overflow-y-auto overscroll-contain">
+        <ul id={`${id}-suggestions`} role="listbox" className={cn("mt-2", limit ? "overflow-hidden" : "max-h-80 overflow-y-auto overscroll-contain")}>
           {suggestions.map((place, i) => {
             const kind = placeKindOf(place.id);
             const cover = placeImageOf(place.id);
             return (
               <li key={place.id} id={`${id}-option-${i}`} role="option" aria-selected={i === active}>
-                <button type="button" onClick={() => onPick(place)} className={cn("flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-body hover:bg-ink/5", i === active && "bg-ink/5")}>
-                  {/* Every row alike: the place's picture in a 40px square, or its pin in the same square. */}
-                  <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink/8 text-muted">
+                <button type="button" onClick={() => onPick(place)} onMouseEnter={limit ? () => setActive(none) : undefined} className={cn("flex w-full items-center gap-3 rounded-2xl text-left text-body hover:bg-ink/5", limit ? "min-h-13 px-2.5 py-2" : "px-3 py-2", i === active && "bg-ink/5")}>
+                  {/* Every row alike: the place's picture in a square (40px; the header's sheet 36px, rows about 52px), or its pin in the same square. */}
+                  <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink/8 text-muted", limit ? "size-9" : "size-10")}>
                     {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <MapPin aria-hidden className="size-4" />}
                   </span>
                   <span className="min-w-0 flex-1 truncate">

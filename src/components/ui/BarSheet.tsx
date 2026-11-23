@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { claimPanel, onPanelClaim, releasePanel } from "@/lib/headerPanels";
 import { createPortal } from "react-dom";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ interface BarSheetProps {
   head?: ReactNode;
   /** A fixed foot under it (All filters: "Clear all" + "Show N houses") */
   footer?: ReactNode;
+  /** As high as its content, never scrolling (the header's Where/When) */
+  fit?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -43,7 +46,7 @@ interface BarSheetProps {
  * 140px); the full one (All filters) is as high as its content.
  * The bar is the opener's closest [data-bar] – the header's bar, or a filter row in the page (city pages, phones).
  */
-export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, className, children }: BarSheetProps) {
+export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, fit = false, className, children }: BarSheetProps) {
   // Phones (< 744px): the same content as a sheet from the bottom in the same dark glass (MobileSheet) – nothing hangs from a bar there.
   const phone = useIsPhone();
   const [shown, setShown] = useState(open);
@@ -102,6 +105,17 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
   useEffect(() => {
     closeRef.current = onClose;
   });
+  // Only one panel at a time (lib/headerPanels.ts): opening claims the place; another one opening closes this one at once.
+  const panelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    claimPanel(panelId);
+    const off = onPanelClaim((id) => id !== panelId && closeRef.current());
+    return () => {
+      off();
+      releasePanel(panelId);
+    };
+  }, [open, panelId]);
   useEffect(() => {
     if (!open || phone) return;
     const onPointer = (e: PointerEvent) => {
@@ -133,10 +147,10 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
   }
   if (!shown || !place) return null;
   const sheet = (
-    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && "max-h-[calc(100vh-148px)]", className)}>
+    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && !fit && "max-h-[calc(100vh-148px)]", className)}>
       {head && <div className="bar-sheet-body shrink-0">{head}</div>}
       {/* Full (All filters): as high as its content, no scrolling inside – it is laid out to fit. */}
-      <div className={cn("bar-sheet-body min-h-0 flex-1", size === "narrow" && "overflow-y-auto overscroll-contain")}>{children}</div>
+      <div className={cn("bar-sheet-body min-h-0 flex-1", size === "narrow" && (fit ? "overflow-hidden" : "overflow-y-auto overscroll-contain"))}>{children}</div>
       {footer && <div className="bar-sheet-body shrink-0">{footer}</div>}
     </div>
   );

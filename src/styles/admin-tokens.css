@@ -893,6 +893,9 @@ body:has(.admin-scope[data-admin-group="system"]) {
 .admin-scope .adm-tile-text-xs {
   font-size: 15px;
 }
+.admin-scope .adm-tile-text-xxs {
+  font-size: 13px;
+}
 
 
 /* A tile's focus (?focus=, CLAUDE.md "Jede Kachel → eine Kapsel"): the number or row it opened, marked in the page's group colour. */
@@ -998,16 +1001,60 @@ body:has(.admin-scope) {
   --adm-trend-down: #efae9f;
 }
 
-/* "Acht Karten": the card's main number large (the tile's value a step up); a word value a step down from it. */
+/* "Acht Karten", Apple-Art (CLAUDE.md "Karten-Inhalte größer"): the cards have the room – title 18px with a 32px symbol square, the main
+   number 68px with its unit 24px, the line under it 16px, the sub numbers 16px label / 18px value. A word value up to two lines, stepping down
+   (40 · 32 · 26 · 21px) until it fits – never cut. */
 .admin-scope .adm-card-big .adm-tile-value {
-  font-size: 44px;
+  font-size: 68px;
   line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.admin-scope .adm-card-big .adm-tile-unit {
+  font-size: 24px;
+  letter-spacing: 0;
 }
 .admin-scope .adm-card-big .adm-tile-text {
-  font-size: 28px;
-  line-height: 1.15;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
-
+.admin-scope .adm-card-big .adm-tile-text-sm {
+  font-size: 32px;
+}
+.admin-scope .adm-card-big .adm-tile-text-xs {
+  font-size: 26px;
+}
+.admin-scope .adm-card-big .adm-tile-text-xxs {
+  font-size: 21px;
+}
+.admin-scope .adm-card-title {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.admin-scope .adm-card-line {
+  font-size: 16px;
+  line-height: 1.35;
+}
+.admin-scope .adm-card-sub-label {
+  font-size: 16px;
+  line-height: 1.35;
+}
+.admin-scope .adm-card-sub-value {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.admin-scope [data-topic-card] .adm-icon-sq {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+.admin-scope [data-topic-card] .adm-icon-sq svg {
+  width: 18px;
+  height: 18px;
+}
 
 /* Aufgaben (CLAUDE.md "Ruhe"): the message in the detail large – 24px, generous line height. */
 .admin-scope .adm-message-lg {
@@ -1022,40 +1069,55 @@ body:has(.admin-scope) {
    Every page ONE colour (config/admin/pages.ts): --adm-c-<colour> for words and charts (≥ 4.5 : 1 on the cards, the side list and the
    ground – Hell and Dunkel each their own step), --adm-c-<colour>-fill for the small square behind a symbol (white symbol ≥ 4.4 : 1, the same
    in both modes). The page sets --adm-page-color / --adm-page-fill (AdminShell; a card leading to another page sets that page's). */
+/* Apple's system colours (CLAUDE.md "Seitenfarben = Apple-Systemfarben"): the fill of a symbol's square is the system colour itself (light
+   variant, the same in both modes; deepened just enough that the white symbol keeps 3 : 1), the words and charts a step deeper in Hell and the
+   dark variant in Dunkel – each ≥ 4.6 : 1 on the cards (hover) and the side list. */
 .admin-scope,
 body:has(.admin-scope) {
-  --adm-c-green: #1e7034;
-  --adm-c-blue: #1d58b3;
-  --adm-c-purple: #7638a0;
-  --adm-c-orange: #a14200;
-  --adm-c-pink: #aa1e52;
-  --adm-c-yellow: #765800;
-  --adm-c-teal: #0b6573;
-  --adm-c-red: #b0261f;
-  --adm-c-slate: #4a5768;
-  --adm-c-green-fill: #217f39;
-  --adm-c-blue-fill: #1f63c9;
-  --adm-c-purple-fill: #8944ab;
-  --adm-c-orange-fill: #b84e00;
-  --adm-c-pink-fill: #c4245a;
-  --adm-c-yellow-fill: #8a6700;
-  --adm-c-teal-fill: #0b7383;
-  --adm-c-red-fill: #c42b2b;
-  --adm-c-slate-fill: #5b6878;
+  --adm-c-green: #1d6f32;
+  --adm-c-blue: #005ec4;
+  --adm-c-purple: #8840ad;
+  --adm-c-orange: #8f5300;
+  --adm-c-pink: #ba213e;
+  --adm-c-yellow: #755e00;
+  --adm-c-teal: #1d6b79;
+  --adm-c-red: #b82a23;
+  --adm-c-indigo: #5351c9;
+  --adm-c-mint: #006d68;
+  --adm-c-brown: #735e43;
+  --adm-c-cyan: #1e688a;
+  --adm-c-gray: #616164;
+  --adm-c-green-fill: #2ba349;
+  --adm-c-blue-fill: #007aff;
+  --adm-c-purple-fill: #af52de;
+  --adm-c-orange-fill: #d17a00;
+  --adm-c-pink-fill: #ff2d55;
+  --adm-c-yellow-fill: #ad8b00;
+  --adm-c-teal-fill: #2b9db1;
+  --adm-c-red-fill: #ff3b30;
+  --adm-c-indigo-fill: #5856d6;
+  --adm-c-mint-fill: #009f98;
+  --adm-c-brown-fill: #a2845e;
+  --adm-c-cyan-fill: #2c98ca;
+  --adm-c-gray-fill: #8e8e93;
   /* The symbol on its square. */
   --adm-icon-on: #ffffff;
 }
 :root[data-theme="dark"] .admin-scope,
 :root[data-theme="dark"] body:has(.admin-scope) {
-  --adm-c-green: #6bd38a;
-  --adm-c-blue: #7eb0ff;
-  --adm-c-purple: #c9a2f2;
-  --adm-c-orange: #ffa25c;
-  --adm-c-pink: #ff8fb4;
-  --adm-c-yellow: #efc95a;
-  --adm-c-teal: #62d2e0;
-  --adm-c-red: #ff8b82;
-  --adm-c-slate: #aebaca;
+  --adm-c-green: #30d158;
+  --adm-c-blue: #369aff;
+  --adm-c-purple: #c973f4;
+  --adm-c-orange: #ff9f0a;
+  --adm-c-pink: #ff5f7f;
+  --adm-c-yellow: #ffd60a;
+  --adm-c-teal: #40c8e0;
+  --adm-c-red: #ff635a;
+  --adm-c-indigo: #8e8dee;
+  --adm-c-mint: #63e6e2;
+  --adm-c-brown: #af936e;
+  --adm-c-cyan: #64d2ff;
+  --adm-c-gray: #97979c;
 }
 /* The page's charts in its colour: the main series, its hover, the light fills (the same steps as before). */
 .admin-scope[data-admin-page] {
@@ -1095,4 +1157,180 @@ body:has(.admin-scope) {
 .admin-scope .adm-tile[data-focused] {
   border: 2px solid var(--adm-page-color);
   outline: none;
+}
+
+/* ── Heller Modus nach Apple-Art (CLAUDE.md "Admin hell nach Apple-Art"; only light, only the admin – Dunkel stays as it is) ──────────────
+   Grounds: page and side list a calm cool light grey (systemGroupedBackground #F2F2F7), cards pure white (secondarySystemGroupedBackground)
+   without an edge, only a very soft shadow. Words: values #1D1D1F, labels #6E6E73, hints #8E8E93. Colours: the symbol's square the strong
+   system colour (white symbol – on yellow and mint a dark one), titles and coloured words a darker step of each colour (≥ 4.6 : 1 on white
+   and on the grey). Capsules, menus and tooltips on these surfaces: active white with a shadow on the grey. */
+:root:not([data-theme="dark"]):has(.admin-scope),
+:root:not([data-theme="dark"]) body:has(.admin-scope),
+:root:not([data-theme="dark"]) .admin-scope {
+  --bg: #f2f2f7;
+  --band: #f2f2f7;
+  --surface: #ffffff;
+  --surface-2: #f2f2f7;
+  --card: #ffffff;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-faint: #8e8e93;
+  --line: rgb(0 0 0 / 0.08);
+  --input-border: rgb(0 0 0 / 0.12);
+  --chip-bg: rgb(0 0 0 / 0.05);
+  --adm-label: #6e6e73;
+  --adm-idle-nav: #3a3a3c;
+  /* A chosen list row: white with the cards' soft shadow (the grey words keep ≥ 4.5 : 1). */
+  --adm-row-on: #ffffff;
+  /* The admin's grey blocks (BlockMap blocks, sections with a surface): white like the cards. */
+  --adm-block: #ffffff;
+  --adm-block-hover: #fafafc;
+  /* Cards: white, no edge, a very soft shadow; hover the shadow a little stronger. */
+  --adm-tile-bg: #ffffff;
+  --adm-tile-hover: #ffffff;
+  --adm-tile-edge: transparent;
+  --adm-card-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.04);
+  --adm-card-shadow-hover: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 20px rgb(0 0 0 / 0.07);
+  /* Capsules (period, topics, menus' triggers): no edge; hover a faint grey; active white with a shadow on the grey. */
+  --adm-cap-bg: transparent;
+  --adm-cap-edge: transparent;
+  --adm-cap-hover: rgb(0 0 0 / 0.05);
+  --adm-cap-text: #3a3a3c;
+  --adm-cap-on-fill: #ffffff;
+  --adm-cap-on-ink: #1d1d1f;
+  --adm-cap-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 6px rgb(0 0 0 / 0.06);
+  /* Tooltips: white like the cards, a soft shadow. */
+  --adm-tooltip-bg: #ffffff;
+  --adm-tooltip-text: #1d1d1f;
+  --adm-tooltip-muted: #6e6e73;
+  --adm-tooltip-edge: rgb(0 0 0 / 0.06);
+  --adm-tooltip-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08);
+  /* The colours: text (titles, charts, coloured words) and fill (the symbol's square) per colour; -on: the symbol on the square. */
+  --adm-c-green: #217d38;
+  --adm-c-blue: #0069db;
+  --adm-c-purple: #9a48c3;
+  --adm-c-orange: #aa5500;
+  --adm-c-pink: #d12546;
+  --adm-c-yellow: #8f6500;
+  --adm-c-teal: #207685;
+  --adm-c-red: #cc2f26;
+  --adm-c-indigo: #5856d6;
+  --adm-c-mint: #007974;
+  --adm-c-brown: #80684a;
+  --adm-c-cyan: #22749a;
+  --adm-c-gray: #6d6d71;
+  --adm-c-green-fill: #2ca94c;
+  --adm-c-blue-fill: #007aff;
+  --adm-c-purple-fill: #af52de;
+  --adm-c-orange-fill: #d97f00;
+  --adm-c-pink-fill: #ff2d55;
+  --adm-c-yellow-fill: #ffcc00;
+  --adm-c-teal-fill: #2ca2b7;
+  --adm-c-red-fill: #ff3b30;
+  --adm-c-indigo-fill: #5856d6;
+  --adm-c-mint-fill: #00c7be;
+  --adm-c-brown-fill: #a2845e;
+  --adm-c-cyan-fill: #2e9dd1;
+  --adm-c-gray-fill: #8e8e93;
+  --adm-c-yellow-on: #1d1d1f;
+  --adm-c-mint-on: #1d1d1f;
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-tile {
+  box-shadow: var(--adm-card-shadow);
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-tile:has([data-card-link]:hover),
+:root:not([data-theme="dark"]) .admin-scope .adm-tile.adm-press:hover {
+  box-shadow: var(--adm-card-shadow-hover);
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-on],
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-on]:hover {
+  box-shadow: var(--adm-cap-shadow);
+}
+/* Topic capsules in the page's colour: inactive a faint tint of it, active white with a shadow and the words in the colour. */
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-toned] {
+  border-color: transparent;
+  background-color: color-mix(in srgb, var(--cap-tone) 9%, transparent);
+  color: #1d1d1f;
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-toned]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--cap-tone) 15%, transparent);
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-toned][data-on],
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-toned][data-on]:hover {
+  border-color: transparent;
+  background-color: #ffffff;
+  color: var(--cap-tone);
+  box-shadow: var(--adm-cap-shadow);
+}
+:root:not([data-theme="dark"]) .admin-scope .adm-cap[data-toned][data-on] .adm-cap-count {
+  color: var(--cap-tone);
+}
+/* The side list's active entry: a white surface with a soft shadow. */
+:root:not([data-theme="dark"]) .admin-scope [data-admin-nav] nav a[aria-current="page"] {
+  background-color: #ffffff;
+  box-shadow: var(--adm-cap-shadow);
+  color: #1d1d1f;
+}
+/* The symbol on its square: white, on yellow and mint dark (--adm-page-on). */
+.admin-scope .adm-icon-sq {
+  color: var(--adm-page-on, var(--adm-icon-on));
+}
+/* Menus (Sortieren, Ansichten, the avatar menu, the ⌘K results): white with a soft shadow, dark words. */
+:root:not([data-theme="dark"]):has(.admin-scope) .bar-menu {
+  color-scheme: light;
+  --bg: #ffffff;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-faint: #8e8e93;
+  --line: rgb(0 0 0 / 0.08);
+  --input-border: rgb(0 0 0 / 0.12);
+  --chip-bg: rgb(0 0 0 / 0.05);
+  --chip-bg-hover: rgb(0 0 0 / 0.08);
+  --text-inverse: #ffffff;
+  --focus-ring: rgb(0 0 0 / 0.25);
+  background-color: #ffffff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(0 0 0 / 0.04);
+  color: var(--text);
+}
+/* The bar in the light admin: white glass .80 with blur, a fine line at its foot, dark words; the search a light grey field; "Open a House"
+   stays orange. */
+:root:not([data-theme="dark"]) header[data-admin] {
+  --graphite-glass: rgb(255 255 255 / 0.8);
+  --graphite-glass-top: rgb(255 255 255 / 0.8);
+  --graphite-glass-filter: blur(20px) saturate(1.8);
+  --graphite-glass-line: rgb(0 0 0 / 0.08);
+  --header-bg: rgb(255 255 255 / 0.8);
+  --header-fg: #1d1d1f;
+  --hdr-fg: #1d1d1f;
+  --hdr-muted: #5e5e62;
+  --text: #1d1d1f;
+  /* A step darker than the page's grey: it sits on the search's grey field (≥ 4.5 : 1). */
+  --text-muted: #5e5e62;
+  --line: rgb(0 0 0 / 0.08);
+  --header-pill: #e8e8ed;
+  --header-pill-hover: rgb(0 0 0 / 0.06);
+  --header-pill-active: rgb(0 0 0 / 0.09);
+  --hdr-tab-hover: rgb(0 0 0 / 0.05);
+  --hdr-tab-active: rgb(0 0 0 / 0.08);
+  --hdr-avatar-ring: rgb(0 0 0 / 0.12);
+  --header-divider: rgb(0 0 0 / 0.12);
+  --hdr-corner-bg: rgb(0 0 0 / 0.05);
+  --hdr-corner-hover: rgb(0 0 0 / 0.08);
+  --hdr-dot: #8e8e93;
+  --open-house-bg: rgb(0 0 0 / 0.05);
+  --open-house-bg-hover: rgb(0 0 0 / 0.08);
+  --open-house-text: #1d1d1f;
+  --focus-ring: rgb(0 0 0 / 0.3);
+  color-scheme: light;
+  color: #1d1d1f;
+  text-shadow: none;
+}
+:root:not([data-theme="dark"]) header[data-admin] * {
+  text-shadow: none;
+}
+/* A chosen list row in Hell: white with the cards' soft shadow. */
+:root:not([data-theme="dark"]) .admin-scope [data-row-on] {
+  box-shadow: var(--adm-card-shadow);
 }

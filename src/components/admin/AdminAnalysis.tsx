@@ -363,11 +363,11 @@ function MeasureBars({ dimension, measure, rows, selected, onSelect }: { dimensi
           return (
             <li key={r.key}>
               <button type="button" onClick={() => onSelect(r.key)} aria-pressed={r.key === selected} className={cn("grid w-full grid-cols-[minmax(0,11rem)_minmax(0,1fr)_5.5rem] items-center gap-3 rounded-md px-1 py-0.5 text-left transition-colors duration-150 hover:bg-(--adm-block-hover)", r.key === selected && "bg-(--adm-row-on)")}>
-                <span className={cn("truncate text-small", r.tooFew ? "text-ink/40" : "text-ink")}>{label(dimension, r.key)}</span>
+                <span className={cn("truncate text-small", r.tooFew ? "text-muted" : "text-ink")}>{label(dimension, r.key)}</span>
                 <span aria-hidden className="relative block h-4 rounded-[5px] bg-adm-chart-track">
                   <span className={cn("absolute inset-y-0 left-0 rounded-[5px] border-[1.5px]", r.tooFew ? "border-adm-chart-compare bg-adm-chart-compare/20" : "border-adm-chart-primary bg-(--adm-chart-fill)")} style={{ width: `${width(v)}%` }} />
                 </span>
-                <span className={cn("text-right text-small tabular-nums", r.tooFew ? "text-ink/40" : "text-ink")}>{measureText(measure, v)}</span>
+                <span className={cn("text-right text-small tabular-nums", r.tooFew ? "text-muted" : "text-ink")}>{measureText(measure, v)}</span>
               </button>
             </li>
           );
@@ -415,7 +415,7 @@ function AnalysisTable({ dimension, measure, rows, selected, onSelect }: { dimen
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.key} onClick={() => onSelect(row.key)} aria-selected={row.key === selected} className={cn("cursor-pointer border-b border-ink/8 transition-colors duration-150", row.key === selected ? "bg-(--adm-row-on)" : "hover:bg-ink/3", row.tooFew && "text-ink/40")}>
+            <tr key={row.key} onClick={() => onSelect(row.key)} aria-selected={row.key === selected} className={cn("cursor-pointer border-b border-ink/8 transition-colors duration-150", row.key === selected ? "bg-(--adm-row-on)" : "hover:bg-ink/3", row.tooFew && "text-muted")}>
               <td className="h-(--adm-row-h) min-w-0 px-3 pl-0">
                 <button type="button" onClick={() => onSelect(row.key)} className="block max-w-full text-left">
                   <span className={cn(row.tooFew ? undefined : "font-semibold text-ink", row.key === selected && "font-semibold text-(--adm-active)")}>{label(dimension, row.key)}</span>

@@ -2,17 +2,17 @@
 import { HeaderBack } from "@/components/layout/HeaderBack";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
+import { HeaderCenterNav } from "./HeaderCenter";
 import { cn } from "@/lib/utils";
 import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
-import { Plus, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { headerActionStyles } from "@/components/ui/ActionButton";
-import { SearchField } from "@/components/explore/SearchFields";
 import { Logo } from "@/components/layout/Logo";
 import { isNavActive, navItemsFor } from "@/components/layout/nav";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
@@ -114,7 +114,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // The text tabs: 36px, padding 0 14px, 15px medium; from 1100px text buttons without a surface (CLAUDE.md "Kopfleiste leichter"): a light
   // surface only on hover, the page you're on a light one and semibold (--hdr-tab-* in globals.css).
   // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
-  const tab = "press relative inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150";
+  const tab = "press relative inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-2 rounded-full px-3 text-nav-main transition-colors duration-150";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
@@ -124,14 +124,16 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
       <div data-header-row className="bar-width flex h-full items-center">
         {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
         <HeaderBack className="mr-2" />
-        <Logo className="mr-8 shrink-0" />
+        <Logo className="mr-6 shrink-0" />
+        {/* Three groups over the full width (CLAUDE.md "Kopfleiste neu geordnet"): the logo · the middle, centred between the logo and the
+            right group (Explore's quick search, or the same entries leading to Explore on every other page) · the navigation. */}
         {explorePage ? (
-          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 max-split:hidden [--control-h:40px]" />
+          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden [--control-h:36px]" />
         ) : adminPage ? (
           <div ref={setAdminHeaderSlot} data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
-          <div className="flex min-w-0 flex-1 max-split:hidden">
-            <HeaderSearch />
+          <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden">
+            <HeaderCenterNav />
           </div>
         )}
         {/* Below 1100px (tablets): ONE light search field across the width with the filter button inside (CompactSearch) – Explore's quick
@@ -140,9 +142,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
         {/* Below 1100px (tablets) the tab bar at the bottom carries the navigation (BottomTabBar) – the header holds the logo, the search and
             Explore's filters only. */}
-        <nav aria-label={t("compactLabel")} className={cn("flex shrink-0 items-center gap-1 max-split:hidden", explorePage ? "ml-4" : "ml-5")}>
-          {/* Explore: All filters | the right group – a 1px line cream 15 %, 24px high, 16px on each side. */}
-          {explorePage && <span aria-hidden className="mr-2 h-6 w-px shrink-0 bg-(--header-divider)" />}
+        <nav aria-label={t("compactLabel")} className="ml-6 flex shrink-0 items-center gap-1 max-split:hidden">
           {navItemsFor(me !== undefined, "header").map((item) => {
             const label = t(`items.${item.headerLabelKey ?? item.labelKey}`);
             // A small number in the capsule: Messages – unread chats (not messages); Your houses – open tasks. None at 0.
@@ -163,7 +163,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                       }
                     : undefined
                 }
-                className={cn(tab, explorePage ? "max-split:size-10 max-split:px-0" : "max-lg:size-10 max-lg:px-0", current ? "bg-(--hdr-tab-active) font-semibold" : "bg-(--hdr-tab-bg) hover:bg-(--hdr-tab-hover)")}
+                // The tab you're on in the full text colour and semibold, no capsule; the others grey, full colour on hover.
+                className={cn(tab, explorePage ? "max-split:size-10 max-split:px-0" : "max-lg:size-10 max-lg:px-0", current ? "font-semibold text-ink" : "text-muted hover:text-ink")}
               >
                 {/* Icons below 1100px; a tablet's wider window (1024–1099px) shows the words – except on Explore, whose filters need the room. */}
                 <span className={explorePage ? "hidden max-split:contents" : "hidden max-lg:contents"}>
@@ -174,57 +175,20 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
                     (the tab's 8px gap − 2px), centred on the text. Below 1100px (icons) the same dot inside the circle, top right of the icon.
                     Your houses shows nothing; both keep the count in their aria-label. */}
                 {count > 0 && item.labelKey === "messages" && (
-                  <span aria-hidden data-unread-dot className={cn("-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--brand-action)", explorePage ? "max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" : "max-lg:absolute max-lg:right-2 max-lg:top-2 max-lg:ml-0")} />
+                  <span aria-hidden data-unread-dot className={cn("-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--hdr-dot)", explorePage ? "max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" : "max-lg:absolute max-lg:right-2 max-lg:top-2 max-lg:ml-0")} />
                 )}
               </Link>
             );
           })}
-          <span className="ml-2 flex">{profile}</span>
-          {/* "Open a House": the capsule (headerActionStyles) with "+" and its words on every width the header has (tablets too, CLAUDE.md
-              "Tablet"); only on Explore below 1100px its "+" alone (tooltip "Open a House") – the filters need the room. */}
-          <Link href={openEntry.href} aria-label={openEntry.label} className={cn(headerActionStyles, "ml-2", explorePage && "max-split:w-9 max-split:px-0")}>
-            <Plus aria-hidden strokeWidth={2.25} />
-            <span className={explorePage ? "max-split:hidden" : undefined}>{openEntry.label}</span>
+          {/* "Open a House" (headerActionStyles: graphite on the light glass, light grey on the dark), then the profile at the very right
+              (CLAUDE.md "Profil ganz rechts") – the same 8px before each. Only on Explore below 1100px its "+" alone (tooltip "Open a House"). */}
+          {/* Words only, no plus (CLAUDE.md "Open a House weicher"). */}
+          <Link href={openEntry.href} className={cn(headerActionStyles, "ml-2")}>
+            {openEntry.label}
           </Link>
+          <span className="ml-2 flex">{profile}</span>
         </nav>
       </div>
     </header>
-  );
-}
-
-/**
- * "Where to next?" on every page but Explore: the same Where/When sheet as Explore's search, growing out of the bar. Picking a place keeps it
- * open for the month; picking a month – or closing it with a place chosen – goes to Explore with the filter set (?place=&month=).
- */
-function HeaderSearch() {
-  const router = useRouter();
-  const [picked, setPicked] = useState<{ place: string | null; month: string | null }>({ place: null, month: null });
-  // The latest choice for the close handler (the sheet calls onClose right after the month's onChange).
-  const latest = useRef(picked);
-  const go = (next: { place: string | null; month: string | null }) => {
-    const params = new URLSearchParams();
-    if (next.place) params.set("place", next.place);
-    if (next.month) params.set("month", next.month);
-    setPicked({ place: null, month: null });
-    latest.current = { place: null, month: null };
-    router.push(params.size ? `/explore?${params}` : "/explore");
-  };
-  return (
-    <div className="flex min-w-0 flex-1">
-      <SearchField
-        trigger="whereNext"
-        place={picked.place}
-        month={picked.month}
-        onChange={(change) => {
-          const next = { ...latest.current, ...change };
-          latest.current = next;
-          setPicked(next);
-          if ("month" in change) go(next);
-        }}
-        onClose={() => {
-          if (latest.current.place) go(latest.current);
-        }}
-      />
-    </div>
   );
 }

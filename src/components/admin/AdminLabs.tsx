@@ -43,7 +43,8 @@ export function AdminLabs() {
     <AdminShell
       title={ADMIN_DE.nav.labs}
       tabs={view ? <ViewHeader view={view} onBack={back} /> : <TopicHeader page="labs" title={ADMIN_DE.nav.labs} />}
-      aside={!topic && !view ? <AdminSort label={t("card.viewsLabel")} trigger={t("card.views")} options={VIEWS.map((v) => ({ value: v, label: T.tabs[v] }))} value={"pyramid" as View} onChange={openView} /> : undefined}
+      // "Ansichten ▾": the overview has no row over its cards (CLAUDE.md "Kopfreihe nur für Zeitraum") – the menu stands in a lab's view.
+      aside={!view ? <AdminSort label={t("card.viewsLabel")} trigger={t("card.views")} options={VIEWS.map((v) => ({ value: v, label: T.tabs[v] }))} value={"pyramid" as View} onChange={openView} /> : undefined}
     >
       {lab && <LabDetail lab={lab} />}
       {view === "pyramid" && <Pyramid onOpen={open} />}

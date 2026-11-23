@@ -169,6 +169,18 @@
   --filter-sheet-muted: rgba(34, 30, 27, 0.72);
   /* The thin divider before the header's tabs (Explore), cream 15 %. */
   --header-divider: rgba(244, 238, 231, 0.15);
+  /* The unread dot on Messages (--hdr-dot below): neutral grey. */
+  /* "Open a House" (CLAUDE.md "Open a House ruhig"): no dark surface – the Where/When capsule's faint fill (dark glass white 8 %, hover 12 %;
+     the light bar black 5 %, hover 8 %, globals.css), the words in the bar's primary colour, medium. The only button with a surface on the right. */
+  --open-house-bg: rgb(255 255 255 / 0.08);
+  --open-house-bg-hover: rgb(255 255 255 / 0.12);
+  --open-house-text: #ffffff;
+  /* The panels' main action ("Show N houses", Button "graphite"): on dark glass light grey with near-black words, on light glass (globals.css)
+     graphite with white words. */
+  --panel-action-bg: #e5e5ea;
+  --panel-action-bg-hover: #d1d1d6;
+  --panel-action-text: #1d1d1f;
+  --hdr-dot: rgb(255 255 255 / 0.55);
   /* The compact crew's ring on a photo (HouseCard). */
   --image-ring: rgba(20, 16, 14, 0.85);
   /* Where a dark strip or band meets the floor: nothing on the light page (its hard edge is enough), a fine light line in dark mode. */
@@ -737,17 +749,19 @@
 
 
 
-/* The price histogram in the header's All filters: bars in the chosen range white 80 %, the rest white 25 % – no other colour. */
+/* The price histogram in the header's All filters: bars in the chosen range the words' colour 75 %, the rest 22 % – no other colour; it follows
+   the panel's material (light glass dark bars, dark glass light ones). */
 .bar-sheet [data-histogram] > [data-in] {
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: color-mix(in srgb, var(--text) 75%, transparent);
 }
 .bar-sheet [data-histogram] > :not([data-in]) {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: color-mix(in srgb, var(--text) 22%, transparent);
 }
-/* No other colours in the menus: the panel's counts beside a label calm (white 16 %, white number), the category icons in the words' colour. */
+/* No other colours in the menus: the panel's counts beside a label calm (the capsule's stronger step, the words' colour), the category icons
+   in the words' colour. */
 .bar-sheet [data-filter-count] {
   background-color: var(--header-pill-active);
-  color: var(--header-fg);
+  color: var(--text);
 }
 
 

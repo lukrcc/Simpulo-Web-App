@@ -5,13 +5,14 @@
 import type { AdminIconName } from "@/components/admin/adminIcons";
 import type { TopicPage } from "../admin-topics";
 
-export const ADMIN_COLORS = ["green", "blue", "purple", "orange", "pink", "yellow", "teal", "red", "slate"] as const;
+/** Apple's system colours (admin-tokens.css --adm-c-*). */
+export const ADMIN_COLORS = ["green", "blue", "purple", "orange", "pink", "yellow", "teal", "red", "indigo", "mint", "brown", "cyan", "gray"] as const;
 export type AdminColor = (typeof ADMIN_COLORS)[number];
 
 /** The side list's pages (AdminShell keys) with their colour and symbol. */
 export const ADMIN_PAGE_STYLE = {
-  cockpit: { color: "slate", icon: "Gauge" },
-  inbox: { color: "slate", icon: "Inbox" },
+  cockpit: { color: "gray", icon: "Gauge" },
+  inbox: { color: "cyan", icon: "Inbox" },
   zeitplan: { color: "red", icon: "CalendarRange" },
   money: { color: "green", icon: "Wallet" },
   growth: { color: "blue", icon: "TrendingUp" },
@@ -19,11 +20,11 @@ export const ADMIN_PAGE_STYLE = {
   houses: { color: "orange", icon: "Home" },
   hosts: { color: "pink", icon: "Users" },
   marketing: { color: "yellow", icon: "Megaphone" },
-  data: { color: "slate", icon: "Network" },
-  labs: { color: "slate", icon: "FlaskConical" },
-  vision: { color: "slate", icon: "Compass" },
+  data: { color: "indigo", icon: "Network" },
+  labs: { color: "mint", icon: "FlaskConical" },
+  vision: { color: "brown", icon: "Compass" },
   funding: { color: "teal", icon: "Landmark" },
-  platform: { color: "slate", icon: "SlidersHorizontal" },
+  platform: { color: "gray", icon: "SlidersHorizontal" },
 } as const satisfies Record<string, { color: AdminColor; icon: AdminIconName }>;
 export type AdminPageKey = keyof typeof ADMIN_PAGE_STYLE;
 
@@ -71,4 +72,12 @@ export function pageOfHref(href: string): AdminPageKey | null {
 }
 
 /** CSS custom properties for a page's colour: --adm-page (words, charts) and --adm-page-fill (the symbol's square). */
-export const pageColorVars = (color: AdminColor) => ({ "--adm-page-color": `var(--adm-c-${color})`, "--adm-page-fill": `var(--adm-c-${color}-fill)` });
+/** CSS custom properties for a page's colour: --c-text / --adm-page-color (words, charts), --c-fill / --adm-page-fill (the symbol's square),
+ *  --adm-page-on (the symbol on it: white, on yellow and mint in Hell dark). */
+export const pageColorVars = (color: AdminColor) => ({
+  "--adm-page-color": `var(--adm-c-${color})`,
+  "--adm-page-fill": `var(--adm-c-${color}-fill)`,
+  "--adm-page-on": `var(--adm-c-${color}-on, var(--adm-icon-on))`,
+  "--c-text": `var(--adm-c-${color})`,
+  "--c-fill": `var(--adm-c-${color}-fill)`,
+});

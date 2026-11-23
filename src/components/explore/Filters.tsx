@@ -16,7 +16,7 @@ import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
 import { MenuLayer } from "@/components/ui/MenuLayer";
-import Link from "next/link";
+import { claimPanel, onPanelClaim, otherPanelOpen, releasePanel } from "@/lib/headerPanels";
 import { createPortal } from "react-dom";
 import { useHydrated } from "@/lib/useHydrated";
 import { SUB_THEMES } from "@/config/themes";
@@ -329,7 +329,7 @@ function MoreGrid({ options, value, onPick, countOf }: { options: ReadonlyArray<
  * category picked from More (or one that doesn't fit) comes first in the group, with a × that clears it. Single choice; a click on the chosen
  * one clears it.
  */
-export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, top, all, value, onSelect, onSelectSub, sub = null }: { label: string; moreLabel: string; /** The button's words with no theme capsule shown: "Themes" */ themesLabel: string; /** …with some shown: "More themes" */ moreThemesLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** A sub theme picked in the Themes menu (its top theme and its id) */ onSelectSub?: (parent: string, sub: string) => void; /** The sub theme chosen now */ sub?: string | null; /** Kept for callers – the menu lists every theme now */ countOf?: (value: string) => number }) {
+export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, top, all, value, onSelect, onSelectSub, sub = null, menuOnly = false, buttonClass }: { /** The header (CLAUDE.md "Kopfleiste neu geordnet"): only "Themes ▾" (or the chosen theme), no capsules – the menu has them all */ menuOnly?: boolean; /** The button's look in menuOnly */ buttonClass?: string; label: string; moreLabel: string; /** The button's words with no theme capsule shown: "Themes" */ themesLabel: string; /** …with some shown: "More themes" */ moreThemesLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** A sub theme picked in the Themes menu (its top theme and its id) */ onSelectSub?: (parent: string, sub: string) => void; /** The sub theme chosen now */ sub?: string | null; /** Kept for callers – the menu lists every theme now */ countOf?: (value: string) => number }) {
   const moreRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -346,7 +346,9 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
     clearTimers();
     timer.current = setTimeout(() => setOpen(what === "open"), ms);
   };
-  const hoverable = () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  // Hover opens Themes only on a pointer device and only while no other panel of the bar (Where/When, Filters) is open.
+  const panelId = useId();
+  const hoverable = () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches && !otherPanelOpen(panelId);
   useEffect(() => clearTimers, []);
   // ↓ on the button: the first link takes the focus once the menu is rendered open.
   const focusFirst = useRef(false);
@@ -356,6 +358,21 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
     panelRef.current?.querySelector<HTMLElement>("[data-theme-link]")?.focus();
   }, [open]);
   useDismiss(open, () => (clearTimers(), setOpen(false)), rootRef, moreRef, panelRef);
+  // One panel at a time (lib/headerPanels.ts): opening Themes closes Where/When or Filters; another panel opening closes Themes.
+  useEffect(() => {
+    if (!open) return;
+    claimPanel(panelId);
+    const off = onPanelClaim((id) => {
+      if (id !== panelId) {
+        clearTimers();
+        setOpen(false);
+      }
+    });
+    return () => {
+      off();
+      releasePanel(panelId);
+    };
+  }, [open, panelId]);
   // Which of the bar's themes are shown: the first ones of TOP_CATEGORIES (config order) that fit the room left in the bar.
   const [shownKeys, setShownKeys] = useState<readonly string[]>(() => top.slice(0, BAR_CATEGORIES_MIN));
   const active = value.length === 1 ? value[0] : null;
@@ -421,6 +438,49 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
   const moreClass = chipStyles(false, { variant: "bare", size: "lg" });
   // A theme chosen that has no capsule shown: the theme button carries its name.
   const hiddenActive = active && !shown.includes(active) ? option(active) : undefined;
+  const tSubName = useTranslations("common.subThemes");
+  if (menuOnly) {
+    // One entry: "Themes ▾", or what's chosen ("Wellness", "Yoga"); the same hover menu.
+    const chosen = sub ? tSubName(sub as "running") : active ? (option(active)?.label ?? null) : null;
+    return (
+      <div ref={rootRef} className="relative flex shrink-0 items-center">
+        <button
+          ref={moreRef}
+          type="button"
+          onClick={() => (clearTimers(), setOpen((o) => !o))}
+          onMouseEnter={() => hoverable() && later("open", OPEN_DELAY)}
+          onMouseLeave={() => hoverable() && later("close", CLOSE_GRACE)}
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowDown") return;
+            e.preventDefault();
+            focusFirst.current = true;
+            setOpen(true);
+          }}
+          aria-expanded={open}
+          aria-haspopup="true"
+          aria-controls="themes-menu"
+          data-on={chosen ? "" : undefined}
+          className={buttonClass}
+        >
+          <span className="truncate">{chosen ?? themesLabel}</span>
+          <ChevronDown aria-hidden className={cn("transition-transform", open && "rotate-180")} />
+        </button>
+        <ThemesMenu
+          open={open}
+          panelRef={panelRef}
+          label={moreLabel}
+          value={value}
+          sub={sub}
+          labelOf={(id) => option(id)?.label ?? id}
+          onEnter={clearTimers}
+          onLeave={() => hoverable() && later("close", CLOSE_GRACE)}
+          onPick={(id) => (setOpen(false), onSelect(value.length === 1 && value[0] === id && !sub ? null : id))}
+          onPickSub={(parent, id) => (setOpen(false), onSelectSub ? onSelectSub(parent, id) : onSelect(parent))}
+          onClose={() => (setOpen(false), moreRef.current?.focus())}
+        />
+      </div>
+    );
+  }
   return (
     <div ref={rootRef} className="chip-row relative flex shrink-0 items-center">
       {/* The hidden copies the count is measured from – same classes, so the same sizes. */}
@@ -486,12 +546,11 @@ const CLOSE_GRACE = 250;
 
 /**
  * The Themes menu: every active top theme (config/themes.ts – new ones appear by themselves) as a column, its active sub themes under it as
- * plain text links, "All themes →" top right. A field over the full width right under the bar, in the bar's glass; no boxes, no images.
+ * plain text links, centred in at most 1200px. A field over the full width right under the bar, in the panels' glass; no boxes, no images.
  * Keyboard: ↑ ↓ within a column, ← → between columns, Escape closes (focus back on the button). Fades in 180ms (opacity + 4px);
  * reduced motion: only shown and hidden.
  */
 function ThemesMenu({ open, panelRef, label, value, sub, labelOf, onEnter, onLeave, onPick, onPickSub, onClose }: { open: boolean; panelRef: React.RefObject<HTMLDivElement | null>; label: string; value: readonly string[]; sub: string | null; labelOf: (id: string) => string; onEnter: () => void; onLeave: () => void; onPick: (id: string) => void; onPickSub: (parent: string, id: string) => void; onClose: () => void }) {
-  const t = useTranslations("explore.barThemes");
   const tSub = useTranslations("common.subThemes");
   const hydrated = useHydrated();
   const columns = activeThemes().map((id) => ({ id, subs: SUB_THEMES.filter((x) => x.parent === id && x.status === "active" && !x.mergedInto) }));
@@ -533,12 +592,8 @@ function ThemesMenu({ open, panelRef, label, value, sub, labelOf, onEnter, onLea
         open ? "visible translate-y-0 opacity-100 transition-[opacity,translate]" : "pointer-events-none invisible -translate-y-1 opacity-0 transition-[opacity,translate,visibility]",
       )}
     >
-      <div className="bar-width mx-auto flex flex-col gap-4 py-6">
-        <div className="flex justify-end">
-          <Link href="/themes" role="menuitem" tabIndex={open ? 0 : -1} className={cn(link, "text-small font-semibold text-ink hover:underline")}>
-            {t("allThemes")}
-          </Link>
-        </div>
+      {/* The columns centred in a container of at most 1200px, six equal columns, the same room above and below (CLAUDE.md "Feinschliff"). */}
+      <div className="mx-auto w-full max-w-[1200px] px-(--page-margin) py-8">
         <div className="grid grid-cols-6 gap-x-8 gap-y-7">
           {columns.map((c, col) => (
             <div key={c.id} className="flex min-w-0 flex-col items-start gap-2">

@@ -10,6 +10,7 @@ import { Anchored } from "@/components/ui/Anchored";
 import { Chip } from "@/components/ui/Chip";
 import { placeById } from "@/lib/data/places";
 import { cn } from "@/lib/utils";
+import { hdrPair, hdrSegment } from "@/components/layout/header/headerItem";
 import { useDismiss } from "./Filters";
 import { PlaceCombobox } from "./PlaceCombobox";
 
@@ -108,7 +109,7 @@ export function SearchField({
   /** "split": Explore's "Where | When" capsule · "whereNext": the header's "Where to next?" on every other page (opens on Where) · "pill": the
    *  header's one search field below 1100px (CompactSearch) – light, across the width, "Where to next? · Any time" or the values, `trailing`
    *  (the filter button) inside on the right */
-  trigger?: "split" | "whereNext" | "pill";
+  trigger?: "split" | "whereNext" | "pill" | "text";
   /** "pill": what sits inside the field on the right (the filter button) */
   trailing?: ReactNode;
   /** The sheet closed (picked, clicked beside it, Escape) */
@@ -175,6 +176,28 @@ export function SearchField({
           </button>
           {trailing}
         </span>
+      ) : trigger === "text" ? (
+        // The header from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): "⌕ Where" and "When" as plain words, no capsule; each opens the same
+        // sheet right under them on its part. A chosen value replaces the word ("Lisbon", "Mar") with a small × that clears it.
+        <span ref={anchor} data-where-when data-open={open || undefined} className={cn(hdrPair, className)}>
+          <button type="button" onClick={() => toggle("where")} aria-expanded={section === "where"} aria-haspopup="dialog" aria-label={placeName ? `${t("where")} ${placeName}` : t("where")} data-on={placeName ? "" : undefined} className={hdrSegment}>
+            <Search aria-hidden />
+            <span className="truncate">{placeName ?? t("whereShort")}</span>
+          </button>
+          {placeName && (
+            <button type="button" onClick={() => onChange({ place: null })} aria-label={tf("remove", { label: placeName })} className="-ml-2 flex size-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-(--hdr-tab-active) hover:text-ink">
+              <X className="size-3.5" aria-hidden />
+            </button>
+          )}
+          <button type="button" onClick={() => toggle("when")} aria-expanded={section === "when"} aria-haspopup="dialog" aria-label={monthLabel ? `${t("when")} ${monthLabel}` : t("when")} data-when-item data-on={monthLabel ? "" : undefined} className={hdrSegment}>
+            <span className="truncate">{monthLabel ?? t("whenShort")}</span>
+          </button>
+          {monthLabel && (
+            <button type="button" onClick={() => onChange({ month: null })} aria-label={tf("remove", { label: monthLabel })} className="-ml-2 flex size-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-(--hdr-tab-active) hover:text-ink">
+              <X className="size-3.5" aria-hidden />
+            </button>
+          )}
+        </span>
       ) : trigger === "whereNext" ? (
         // Every other page: ONE capsule "Where to next?" (magnifier + words, 40px, at most 360px) – it opens the same sheet on Where.
         <span ref={anchor} className={cn("flex min-w-0 flex-1", className)}>
@@ -211,10 +234,12 @@ export function SearchField({
       </span>
       )}
       {/* One sheet for both halves: out of the bar (ui/BarSheet), 520px under the capsule. */}
-      <BarSheet open={open} onClose={close} anchor={anchor} label={tf("whereWhen")} className="p-5">
+      {/* The header (trigger "text", CLAUDE.md "Feinschliff"): as high as its content, never scrolling – at most 4 places – and 24px inside on
+          both sides for the field and the months alike. */}
+      <BarSheet open={open} onClose={close} anchor={anchor} label={tf("whereWhen")} fit={trigger === "text"} className="p-5">
         <div ref={body}>
           <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
-          <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} onPick={(p) => onChange({ place: p.id })} />
+          <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} limit={trigger === "text" ? 4 : undefined} onPick={(p) => onChange({ place: p.id })} />
           {place && (
             <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
               {t("anywhere")}
@@ -223,6 +248,7 @@ export function SearchField({
           <div data-when>
             <p className="mb-2 mt-4 px-1 text-nav font-semibold text-ink">{t("when")}</p>
             <MonthOptions
+              roomy={trigger === "text"}
               value={month}
               onPick={(next) => {
                 onChange({ month: next });
@@ -287,16 +313,32 @@ export function MonthField({ value, onChange, size, className }: { value: string
 }
 
 /** Mounted only while open: it reads today's date. */
-export function MonthOptions({ value, onPick }: { value: string | null; onPick: (month: string | null) => void }) {
+export function MonthOptions({ value, onPick, roomy = false }: { value: string | null; onPick: (month: string | null) => void; /** The header's sheet: the months grouped by year, 10px apart */ roomy?: boolean }) {
   const t = useTranslations("explore.search");
   const monthName = useMonthName();
   const format = useFormatter();
   const [months] = useState(() => upcomingMonths(new Date()));
   return (
-    <div role="radiogroup" aria-label={t("when")} className="space-y-1.5">
+    <div role="radiogroup" aria-label={t("when")} data-month-options={roomy ? "grouped" : undefined} className="space-y-1.5">
       <Chip role="radio" aria-checked={value === null} active={value === null} onClick={() => onPick(null)} className="w-full justify-center">
         {t("anyMonth")}
       </Chip>
+      {roomy ? (
+        // The header's sheet (CLAUDE.md "ruhiger Feinschliff"): the months grouped by year – a small grey year over its months, the grid of three
+        // starting anew for each year; the capsules only the month's name.
+        [...new Set(months.map((m) => m.slice(0, 4)))].map((year) => [year, months.filter((m) => m.startsWith(year))] as const).map(([year, list]) => (
+          <div key={year}>
+            <p className="mb-1 px-1 text-small text-muted">{year}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {list.map((month) => (
+                <Chip key={month} role="radio" aria-checked={value === month} active={value === month} aria-label={monthName(month, true)} onClick={() => onPick(month)} className="w-full justify-center px-1!">
+                  {shortMonth(format, month, false)}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        ))
+      ) : (
       <div className="grid grid-cols-3 gap-1.5">
         {months.map((month, i) => (
           <Chip key={month} role="radio" aria-checked={value === month} active={value === month} aria-label={monthName(month, true)} onClick={() => onPick(month)} className="w-full justify-center px-1!">
@@ -304,6 +346,7 @@ export function MonthOptions({ value, onPick }: { value: string | null; onPick: 
           </Chip>
         ))}
       </div>
+      )}
     </div>
   );
 }

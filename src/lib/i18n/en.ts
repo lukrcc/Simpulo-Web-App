@@ -1185,8 +1185,7 @@ const en = {
     "barThemes": {
       "themes": "Themes",
       "moreThemes": "More themes",
-      "menuLabel": "All themes",
-      "allThemes": "All themes →"
+      "menuLabel": "All themes"
     },
     "themeLines": {
       "member": {

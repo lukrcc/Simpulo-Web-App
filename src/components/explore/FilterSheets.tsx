@@ -190,9 +190,9 @@ export function FilterSheets(props: FilterSheetsProps) {
       ) : (
         <span />
       )}
-      {/* The one main action: applies the draft. In the header's sheet the action orange (brand), on phones the primary. With 0 matches it
-          says so and can't be pressed. */}
-      <Button variant={brand ? "brand" : "primary"} size="md" onClick={apply} disabled={count === 0 && !settling} aria-busy={settling || undefined}>
+      {/* The one main action: applies the draft. In the header's panel graphite like "Open a House" (no orange), on phones the primary. With 0
+          matches it says so and can't be pressed. */}
+      <Button variant={brand ? "graphite" : "primary"} size="md" onClick={apply} disabled={count === 0 && !settling} aria-busy={settling || undefined}>
         {/* One span: inside the button's flex row, "Show", the number and "houses" would each be an item with 8px gaps instead of spaces. */}
         <span>{count === 0 ? tf("noneMatch") : tf.rich("show", { count, num: () => <RollingNumber value={count} /> })}</span>
       </Button>

@@ -147,11 +147,32 @@ export function TopicCards({ page, pool }: { page: TopicPage; /** The page's num
       window.removeEventListener("resize", measure);
     };
   }, [rows]);
+  // Sub numbers by room (CLAUDE.md "Karten-Inhalte größer": nothing cut): a card that overflows drops its last sub number, one at a time,
+  // until it fits – the most important (first in the config) stay. Measured again whenever the cards' height changes.
+  const [fit, setFit] = useState<Readonly<Record<string, number>>>({});
+  const [fitFor, setFitFor] = useState(`${h}:${cols}`);
+  if (fitFor !== `${h}:${cols}`) {
+    setFitFor(`${h}:${cols}`);
+    setFit({});
+  }
+  useLayoutEffect(() => {
+    const check = () => {
+      const cards = box.current?.querySelectorAll<HTMLElement>("[data-topic-card]") ?? [];
+      const next: Record<string, number> = {};
+      for (const el of cards) {
+        const shownSubs = el.querySelectorAll("[data-card-sub]").length;
+        if (el.scrollHeight > el.clientHeight + 1 && shownSubs > 0) next[el.dataset.topicCard!] = shownSubs - 1;
+      }
+      if (Object.keys(next).length) setFit((now) => ({ ...now, ...next }));
+    };
+    const id = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(id);
+  });
   return (
     <div ref={box} data-topic-cards className="grid grid-cols-1 gap-(--adm-grid-gap) md:grid-cols-2 lg:grid-cols-(--cols)" style={{ "--cols": `repeat(${cols}, minmax(0, 1fr))` } as CSSProperties}>
       {shown.map(({ def, card }) => {
         const label = t(`${titleOf(def.key)}` as "history");
-        const subs = (card.subs ?? []).filter((x): x is { label: string; value: ReactNode; oneLine?: boolean } => Boolean(x)).slice(0, 3);
+        const subs = (card.subs ?? []).filter((x): x is { label: string; value: ReactNode; oneLine?: boolean } => Boolean(x)).slice(0, fit[def.key] ?? 3);
         // Neutral cards (CLAUDE.md "Eine Farbe = eine Seite"): the page's colour only on the symbol's square and the title; a card leading to
         // another page takes that page's colour.
         const target = def.href ? pageOfHref(def.href) : null;
@@ -169,15 +190,16 @@ export function TopicCards({ page, pool }: { page: TopicPage; /** The page's num
               <button type="button" data-card-link aria-label={tc("openCard", { label })} onClick={() => open(def.key)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
             )}
             {/* Top: the symbol square, the topic in the page's colour and its ⓘ left, the change right. */}
-            <div className="flex min-w-0 shrink-0 items-center gap-2">
+            {/* Never cut the title: when title and change don't fit one line, the change moves under it, right-aligned. */}
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
               <IconSquare icon={defOf(def.key)?.icon} />
-              <span className="flex min-w-0 flex-1 items-center gap-1">
-                <span className="adm-page-title truncate text-body font-semibold">{label}</span>
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="adm-page-title adm-card-title whitespace-nowrap">{label}</span>
                 <InfoTip text={card.info} />
               </span>
-              {card.badge !== undefined && <span className="shrink-0 text-small whitespace-nowrap">{card.badge}</span>}
+              {card.badge !== undefined && <span className="ml-auto shrink-0 text-small whitespace-nowrap">{card.badge}</span>}
               {card.badge === undefined && card.change !== undefined && (
-                <span className="shrink-0 text-small whitespace-nowrap normal-case tracking-normal">
+                <span className="ml-auto shrink-0 text-small whitespace-nowrap normal-case tracking-normal">
                   <ChangeLine change={card.change} short />
                 </span>
               )}
@@ -185,16 +207,16 @@ export function TopicCards({ page, pool }: { page: TopicPage; /** The page's num
             {/* The main number, large. */}
             <div className="adm-card-big mt-2 min-w-0 shrink-0">
               <TileValue value={card.value} className="max-w-full" />
-              {card.mainLabel && card.mainLabel !== label && <p className="mt-1 truncate text-small text-muted">{card.mainLabel}</p>}
-              {card.caption && <p className="mt-0.5 line-clamp-2 text-small text-muted">{card.caption}</p>}
+              {card.mainLabel && card.mainLabel !== label && <p className="adm-card-line mt-1 truncate text-muted">{card.mainLabel}</p>}
+              {card.caption && <p className="adm-card-line mt-0.5 text-muted">{card.caption}</p>}
             </div>
             {/* The sub numbers at the foot, each with its short label; the target bottom right. */}
             <dl className="mt-auto flex min-w-0 flex-col gap-1.5 pt-3">
               {subs.map((s) => (
-                <div key={s.label} className="flex min-w-0 items-baseline justify-between gap-3">
-                  <dt className="shrink-0 text-small text-muted">{s.label}</dt>
-                  {/* Never cut: a long value wraps (right-aligned) instead of "…". */}
-                  <dd className={cn("min-w-0 text-right text-body font-semibold tabular-nums text-ink", s.oneLine ? "truncate" : "[overflow-wrap:anywhere]")}>{s.value}</dd>
+                <div key={s.label} data-card-sub className="flex min-w-0 items-baseline justify-between gap-3">
+                  {/* Never cut: the label wraps when it has to, the value keeps whole words (right-aligned, up to 60 % of the row). */}
+                  <dt className="adm-card-sub-label min-w-0 text-muted">{s.label}</dt>
+                  <dd className={cn("adm-card-sub-value max-w-[60%] shrink-0 text-right tabular-nums text-ink [overflow-wrap:break-word]", s.oneLine && "whitespace-nowrap")}>{s.value}</dd>
                 </div>
               ))}
               {card.target && (

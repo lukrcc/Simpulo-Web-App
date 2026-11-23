@@ -190,7 +190,8 @@ export function TileValue({ value, className }: { value: ReactNode; className?: 
     const check = () => {
       if (isText) {
         const lineH = parseFloat(getComputedStyle(el).lineHeight) || 26;
-        if (el.scrollHeight > lineH * 2 + 2) setStep((s) => Math.min(2, s + 1));
+        // The rendered height (an inline span has no scrollHeight); a card's larger word steps once more (CLAUDE.md "Karten-Inhalte größer").
+        if (el.getBoundingClientRect().height > lineH * 2 + 2) setStep((s) => Math.min(3, s + 1));
         setCut(false);
       } else setCut(el.scrollWidth > el.clientWidth + 1);
     };
@@ -201,7 +202,7 @@ export function TileValue({ value, className }: { value: ReactNode; className?: 
   }, [value, isText, step]);
   if (isText)
     return (
-      <span ref={ref} data-tile-value data-tile-text={step} className={cn("adm-tile-text min-w-0 text-ink", step === 1 && "adm-tile-text-sm", step === 2 && "adm-tile-text-xs", className)}>
+      <span ref={ref} data-tile-value data-tile-text={step} className={cn("adm-tile-text min-w-0 text-ink", step === 1 && "adm-tile-text-sm", step === 2 && "adm-tile-text-xs", step === 3 && "adm-tile-text-xxs", className)}>
         {text}
       </span>
     );
