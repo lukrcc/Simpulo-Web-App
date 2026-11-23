@@ -1,4 +1,6 @@
 "use client";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton } from "./AdminButton";
 
 // Admin › Launch › Marketing: the launch strategy as a cockpit – Countdown · Pipeline · Partner · Content. The strategy (phases, targets,
@@ -225,17 +227,7 @@ export function AdminMarketing() {
   return (
     <AdminShell
       title={t("title")}
-      tabs={
-        <AdminTabs
-          label={t("title")}
-          tabs={tabs}
-          value={tab}
-          onChange={(v) => {
-            setTab(v);
-            setPartnerId(null);
-          }}
-        />
-      }
+      tabs={<TopicHeader page="marketing" title={t("title")} />}
       aside={controls}
     >
       {tab === "overview" && (
@@ -246,10 +238,33 @@ export function AdminMarketing() {
           }}
         />
       )}
-      {tab === "countdown" && <Countdown />}
-      {tab === "pipeline" && <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />}
-      {tab === "partners" && (openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={shownFilters} onOpen={setPartnerId} />)}
-      {tab === "content" && <Content clips={data.marketingClips} />}
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      {tab !== "overview" && (
+        <MarketingOverview
+          onOpen={(next) => {
+            setTab(next);
+            setPartnerId(null);
+          }}
+          render={(tiles) => (
+            <AdminCapsuleView
+              page="marketing"
+              capsule={tab}
+              tiles={tiles}
+              fallback={
+                tab === "countdown" ? (
+                  <Countdown />
+                ) : tab === "pipeline" ? (
+                  <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />
+                ) : tab === "partners" ? (
+                  openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={shownFilters} onOpen={setPartnerId} />
+                ) : (
+                  <Content clips={data.marketingClips} />
+                )
+              }
+            />
+          )}
+        />
+      )}
       <Sheet variant="panel" open={tab === "pipeline" && openContact !== null} onClose={() => setContactId(null)} title={openContact?.name ?? tc("list")}>
         {openContact && (
           <div className="px-6 pb-6">
@@ -271,7 +286,7 @@ export function AdminMarketing() {
 /** A day `n` days after `d` (YYYY-MM-DD). */
 const addDaysIso = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
-function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, opts?: { dueOnly?: boolean }) => void }) {
+function MarketingOverview({ onOpen, render }: { onOpen: (tab: Exclude<Tab, "overview">, opts?: { dueOnly?: boolean }) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.marketing");
   const tm = useTranslations("admin.marketing");
   const inputs = useAdminInputs();
@@ -471,7 +486,21 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       onOpen: () => (next?.partner ? onOpen("partners", { dueOnly: true }) : onOpen("countdown")),
     },
   ];
-  return <TileBoard label={tm("title")} rows={chunkRows(routeTiles("marketing", tiles), "plan", 5)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/marketing.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    phase: { label: ts("phase"), value: `${phase.no} · ${phase.label}` },
+    startOrWeek: c.state === "before" ? { label: ts("startIn"), value: num(c.daysToStart) } : { label: ts("week"), value: `${num(c.weekNo)} / ${num(c.weeks)}` },
+    entries: { label: ts("entries"), value: num(data.waitlist.length) },
+    activePartners: { label: ts("activePartners"), value: num(active.length) },
+    avgShare: avgShare === null ? null : { label: ts("avgShare"), value: `${num(avgShare)} %` },
+    plannedWeek: { label: ts("plannedWeek"), value: num(plannedWeek) },
+    postVisits: { label: ts("postVisits"), value: num(postVisits) },
+    openSteps: { label: ts("openSteps"), value: num(steps.length) },
+    due: next ? { label: ts("due"), value: day(next.due) } : null,
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="marketing" pool={pool} />;
 }
 
 // ─── Countdown ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -902,7 +931,7 @@ function Pipeline({
         </ul>
       </section>
       <p className="text-small text-muted">{t("dragHint")}</p>
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div className="overflow-x-auto py-1">
         <ol className="grid min-w-[960px] grid-cols-5 gap-3">
           {STATUSES.map((status) => {
             const cards = shown.filter((c) => c.status === status).toSorted((a, b) => (b.firstMessageAt ?? "").localeCompare(a.firstMessageAt ?? ""));
@@ -921,7 +950,7 @@ function Pipeline({
                   setOver(null);
                   move(e.dataTransfer.getData("text/plain"), status);
                 }}
-                className={cn("flex min-w-0 flex-col rounded-xl bg-(--adm-block) p-2 transition-colors", over === status && "bg-(--adm-here)")}
+                className={cn("flex min-w-0 flex-col rounded-xl bg-(--adm-block) p-2 transition-colors [--text-muted:color-mix(in_srgb,var(--text)_72%,transparent)]", over === status && "bg-(--adm-here)")}
               >
                 <p className="flex items-baseline justify-between px-1.5 pb-2 pt-1">
                   <span className="text-small font-semibold text-ink">{t(`columns.${status}`)}</span>

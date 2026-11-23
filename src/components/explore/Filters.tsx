@@ -16,6 +16,11 @@ import { convertApprox } from "@/lib/rates";
 import type { Currency } from "@/lib/types";
 import type { SortKey } from "@/lib/exploreFilters";
 import { MenuLayer } from "@/components/ui/MenuLayer";
+import Link from "next/link";
+import { createPortal } from "react-dom";
+import { useHydrated } from "@/lib/useHydrated";
+import { SUB_THEMES } from "@/config/themes";
+import { activeThemes } from "@/lib/themes";
 
 /**
  * "Filters". "strong": the filter row's (and the header tab's) strongest element at its right end – "All filters" in words (no icon), filled
@@ -324,11 +329,33 @@ function MoreGrid({ options, value, onPick, countOf }: { options: ReadonlyArray<
  * category picked from More (or one that doesn't fit) comes first in the group, with a × that clears it. Single choice; a click on the chosen
  * one clears it.
  */
-export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, top, all, value, onSelect, countOf }: { label: string; moreLabel: string; /** The button's words with no theme capsule shown: "Themes" */ themesLabel: string; /** …with some shown: "More themes" */ moreThemesLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** Open Houses per category, shown in More */ countOf?: (value: string) => number }) {
+export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, top, all, value, onSelect, onSelectSub, sub = null }: { label: string; moreLabel: string; /** The button's words with no theme capsule shown: "Themes" */ themesLabel: string; /** …with some shown: "More themes" */ moreThemesLabel: string; /** The bar's own, in order */ top: readonly string[]; /** Every category */ all: ReadonlyArray<ChipOption>; value: readonly string[]; onSelect: (value: string | null) => void; /** A sub theme picked in the Themes menu (its top theme and its id) */ onSelectSub?: (parent: string, sub: string) => void; /** The sub theme chosen now */ sub?: string | null; /** Kept for callers – the menu lists every theme now */ countOf?: (value: string) => number }) {
   const moreRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  // Hover (pointer devices only): opens OPEN_DELAY after the pointer rests on the button, closes CLOSE_GRACE after it left button and menu;
+  // a click toggles (touch, iPad); Escape or a click outside closes at once (Escape puts the focus back on the button).
+  const panelRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTimers = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const later = (what: "open" | "close", ms: number) => {
+    clearTimers();
+    timer.current = setTimeout(() => setOpen(what === "open"), ms);
+  };
+  const hoverable = () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  useEffect(() => clearTimers, []);
+  // ↓ on the button: the first link takes the focus once the menu is rendered open.
+  const focusFirst = useRef(false);
+  useEffect(() => {
+    if (!open || !focusFirst.current) return;
+    focusFirst.current = false;
+    panelRef.current?.querySelector<HTMLElement>("[data-theme-link]")?.focus();
+  }, [open]);
+  useDismiss(open, () => (clearTimers(), setOpen(false)), rootRef, moreRef, panelRef);
   // Which of the bar's themes are shown: the first ones of TOP_CATEGORIES (config order) that fit the room left in the bar.
   const [shownKeys, setShownKeys] = useState<readonly string[]>(() => top.slice(0, BAR_CATEGORIES_MIN));
   const active = value.length === 1 ? value[0] : null;
@@ -413,24 +440,122 @@ export function BarCategories({ label, moreLabel, themesLabel, moreThemesLabel, 
         {visible.map((o) => chip(o, value.includes(o.value), false))}
         {more.length > 0 && (
           // Its words by what's shown: a theme chosen from it – its name (the chosen look); no capsules – "Themes"; some – "More themes".
-          <button ref={moreRef} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog" data-picked={hiddenActive ? "" : undefined} className={moreClass}>
+          <button
+            ref={moreRef}
+            type="button"
+            onClick={() => (clearTimers(), setOpen((o) => !o))}
+            onMouseEnter={() => hoverable() && later("open", OPEN_DELAY)}
+            onMouseLeave={() => hoverable() && later("close", CLOSE_GRACE)}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowDown") return;
+              e.preventDefault();
+              focusFirst.current = true;
+              setOpen(true);
+            }}
+            aria-expanded={open}
+            aria-haspopup="true"
+            aria-controls="themes-menu"
+            data-picked={hiddenActive ? "" : undefined}
+            className={moreClass}
+          >
             {hiddenActive ? hiddenActive.label : visible.length === 0 ? themesLabel : moreThemesLabel}
             <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
         )}
       </div>
-      <BarSheet open={open} onClose={() => setOpen(false)} anchor={moreRef} label={moreLabel} className="p-5">
-        <MoreGrid
-          countOf={countOf}
-          options={more}
-          value={value}
-          onPick={(v) => {
-            onSelect(v);
-            setOpen(false);
-          }}
-        />
-      </BarSheet>
+      {/* The Themes menu (CLAUDE.md "Themes als ruhiges Hover-Menü"). */}
+      <ThemesMenu
+        open={open}
+        panelRef={panelRef}
+        label={moreLabel}
+        value={value}
+        sub={sub}
+        labelOf={(id) => option(id)?.label ?? id}
+        onEnter={clearTimers}
+        onLeave={() => hoverable() && later("close", CLOSE_GRACE)}
+        onPick={(id) => (setOpen(false), onSelect(value.length === 1 && value[0] === id && !sub ? null : id))}
+        onPickSub={(parent, id) => (setOpen(false), onSelectSub ? onSelectSub(parent, id) : onSelect(parent))}
+        onClose={() => (setOpen(false), moreRef.current?.focus())}
+      />
     </div>
+  );
+}
+
+const OPEN_DELAY = 200;
+const CLOSE_GRACE = 250;
+
+/**
+ * The Themes menu: every active top theme (config/themes.ts – new ones appear by themselves) as a column, its active sub themes under it as
+ * plain text links, "All themes →" top right. A field over the full width right under the bar, in the bar's glass; no boxes, no images.
+ * Keyboard: ↑ ↓ within a column, ← → between columns, Escape closes (focus back on the button). Fades in 180ms (opacity + 4px);
+ * reduced motion: only shown and hidden.
+ */
+function ThemesMenu({ open, panelRef, label, value, sub, labelOf, onEnter, onLeave, onPick, onPickSub, onClose }: { open: boolean; panelRef: React.RefObject<HTMLDivElement | null>; label: string; value: readonly string[]; sub: string | null; labelOf: (id: string) => string; onEnter: () => void; onLeave: () => void; onPick: (id: string) => void; onPickSub: (parent: string, id: string) => void; onClose: () => void }) {
+  const t = useTranslations("explore.barThemes");
+  const tSub = useTranslations("common.subThemes");
+  const hydrated = useHydrated();
+  const columns = activeThemes().map((id) => ({ id, subs: SUB_THEMES.filter((x) => x.parent === id && x.status === "active" && !x.mergedInto) }));
+  const move = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      return onClose();
+    }
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || !("themeLink" in el.dataset)) return;
+    const col = Number(el.dataset.col);
+    const row = Number(el.dataset.row);
+    const at = (c: number, r: number) => panelRef.current?.querySelector<HTMLElement>(`[data-col="${c}"][data-row="${r}"]`);
+    const next =
+      e.key === "ArrowDown" ? at(col, row + 1) : e.key === "ArrowUp" ? at(col, row - 1) : e.key === "ArrowRight" ? at(col + 1, 0) : e.key === "ArrowLeft" ? at(col - 1, 0) : undefined;
+    if (next === undefined && !e.key.startsWith("Arrow")) return;
+    e.preventDefault();
+    next?.focus();
+  };
+  const link = "rounded-md text-left outline-none transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
+  if (!hydrated) return null;
+  // On the body (the header's glass would make itself the containing block of a fixed child): right under the bar, over the full width.
+  return createPortal(
+    <div
+      id="themes-menu"
+      ref={panelRef}
+      role="menu"
+      aria-label={label}
+      aria-hidden={!open}
+      data-themes-menu
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onKeyDown={move}
+      className={cn(
+        "themes-menu fixed inset-x-0 top-(--header-total) z-40 border-b border-(--graphite-glass-line) bg-(--header-bg) [backdrop-filter:var(--header-filter)] [-webkit-backdrop-filter:var(--header-filter)]",
+        // Visible at once on opening (so the focus can land), hidden only after the fade on closing.
+        "duration-[180ms] ease-out motion-reduce:transition-none",
+        open ? "visible translate-y-0 opacity-100 transition-[opacity,translate]" : "pointer-events-none invisible -translate-y-1 opacity-0 transition-[opacity,translate,visibility]",
+      )}
+    >
+      <div className="bar-width mx-auto flex flex-col gap-4 py-6">
+        <div className="flex justify-end">
+          <Link href="/themes" role="menuitem" tabIndex={open ? 0 : -1} className={cn(link, "text-small font-semibold text-ink hover:underline")}>
+            {t("allThemes")}
+          </Link>
+        </div>
+        <div className="grid grid-cols-6 gap-x-8 gap-y-7">
+          {columns.map((c, col) => (
+            <div key={c.id} className="flex min-w-0 flex-col items-start gap-2">
+              <button type="button" role="menuitem" tabIndex={open ? 0 : -1} data-theme-link="" data-col={col} data-row={0} onClick={() => onPick(c.id)} className={cn(link, "text-body font-semibold text-ink hover:underline", value.includes(c.id) && !sub && "underline underline-offset-4")}>
+                {labelOf(c.id)}
+              </button>
+              {c.subs.map((x, i) => (
+                <button key={x.id} type="button" role="menuitem" tabIndex={open ? 0 : -1} data-theme-link="" data-col={col} data-row={i + 1} onClick={() => onPickSub(c.id, x.id)} className={cn(link, "text-small text-muted hover:text-ink", sub === x.id && "font-semibold text-ink")}>
+                  {tSub(x.id as "running")}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -76,6 +76,25 @@ const en = {
       "culture": "Culture",
       "surf-water": "Surf & Water"
     },
+    "subThemes": {
+      "running": "Running",
+      "martial-arts": "Martial arts",
+      "strength": "Strength",
+      "yoga": "Yoga",
+      "retreat": "Retreat",
+      "surf": "Surf",
+      "dive-sail": "Dive & sail",
+      "nomads": "Nomads",
+      "startup": "Startup",
+      "music": "Music",
+      "film-photo": "Film & photo",
+      "writing": "Writing",
+      "mountains": "Mountains",
+      "language": "Language",
+      "food": "Food",
+      "festival": "Festival",
+      "study": "Study"
+    },
     "paymentStatus": {
       "paid": "Paid",
       "pending": "Pending"
@@ -1165,7 +1184,9 @@ const en = {
     },
     "barThemes": {
       "themes": "Themes",
-      "moreThemes": "More themes"
+      "moreThemes": "More themes",
+      "menuLabel": "All themes",
+      "allThemes": "All themes →"
     },
     "themeLines": {
       "member": {

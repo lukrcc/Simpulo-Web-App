@@ -1,4 +1,6 @@
 "use client";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton, AdminDialogFooter, adminButtonStyles } from "./AdminButton";
 
 // The areas of /admin that list or change things: Houses, Applications, Platform. Numbers from lib/admin/metrics.ts; every change goes
@@ -17,7 +19,7 @@ import { ProgressBar, StatusDot } from "./AdminCharts";
 import { ArrowUpRight, ChartColumn, Code, CreditCard, Database, ExternalLink, Eye, Flame, Globe, HardDrive, Landmark, Mail, ScrollText, Server, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { InfoTip } from "./AdminNumbers";
 import { TileValue } from "./AdminTiles";
 import { profileHref } from "@/lib/privacy";
@@ -103,7 +105,7 @@ type ActivityFilter = "all" | "active" | "inactive" | "dormant";
 /** Active: a House running or starting within this many days; dormant: the last House ended longer ago than this. */
 const ACTIVE_DAYS = 90;
 const DORMANT_DAYS = 182;
-function hostActivity(r: HostOverview, today: string): "active" | "inactive" {
+export function hostActivity(r: HostOverview, today: string): "active" | "inactive" {
   const until = new Date(Date.parse(`${today}T12:00:00Z`) + ACTIVE_DAYS * 86_400_000).toISOString().slice(0, 10);
   return r.houses.some((h) => h.endDate >= today && h.startDate <= until && h.status !== "closed") ? "active" : "inactive";
 }
@@ -156,20 +158,8 @@ export function AdminHosts() {
   const shown = rows.filter(inTab).toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
   const selected = shown.find((r) => r.user.id === selectedId) ?? null;
 
-  const tabs = (
-    <AdminTabs
-      label={t("tabs.label")}
-      value={tab}
-      onChange={(next) => (setTab(next), setSelectedId(null))}
-      tabs={withUnits<HostTab>("hosts", [
-        { value: "overview", label: tAdmin("overviewBlock.tab") },
-        { value: "all", label: t("tabs.all"), count: rows.length },
-        { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
-        { value: "applications", label: t("tabs.applications"), count: applicationsOpen, tooltip: t("tabInfo.applications") },
-        { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
-      ])}
-    />
-  );
+  // "Acht Karten" (CLAUDE.md): the overview's eight cards; a card opens its topic (the head's bar).
+  const tabs = <TopicHeader page="hosts" title={t("title")} />;
   if (tab === "overview")
     return (
       <AdminShell title={t("title")} tabs={tabs}>
@@ -184,7 +174,7 @@ export function AdminHosts() {
   if (tab === "applications")
     return (
       <AdminNested tabs={tabs}>
-        <AdminApplications />
+        <HostsOverview rows={rows} review={review} onOpen={(next) => (setTab(next), setSelectedId(null))} render={(tiles) => <AdminCapsuleView page="hosts" capsule="applications" tiles={tiles} fallback={<AdminApplications />} />} />
       </AdminNested>
     );
 
@@ -220,6 +210,9 @@ export function AdminHosts() {
         )
       }
     >
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      <HostsOverview rows={rows} review={review} onOpen={(next) => (setTab(next), setSelectedId(null))}  render={(tiles) => (
+        <AdminCapsuleView page="hosts" capsule={tab} tiles={tiles} fallback={<>
       <OpenTasksHint area="hosts" />
       {tab === "prepared" ? (
         <PreparedList />
@@ -258,6 +251,8 @@ export function AdminHosts() {
           detail={selected ? <HostDetail key={selected.user.id} row={selected} onBack={() => setSelectedId(null)} /> : <p className="py-2 text-body text-muted">{tAdmin("inbox.pick")}</p>}
         />
       )}
+        </>} />
+      )} />
     </AdminShell>
   );
 }
@@ -267,7 +262,7 @@ export function AdminHosts() {
  * Founding · Prüfen · Bewerbungen · Vorbereitet) and the numbers behind them: average value per year and fill rate, hosts with a warning,
  * anchors against their target. Each tile opens its list (sorted where that helps).
  */
-function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]; review: readonly HostOverview[]; onOpen: (tab: HostTab, sort?: HostSort, filter?: { tier?: TierFilterValue; activity?: ActivityFilter }) => void }) {
+function HostsOverview({ rows, review, onOpen, render }: { rows: readonly HostOverview[]; review: readonly HostOverview[]; onOpen: (tab: HostTab, sort?: HostSort, filter?: { tier?: TierFilterValue; activity?: ActivityFilter }) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.hosts");
   const tHosts = useTranslations("admin.hosts");
   const inputs = useAdminInputs();
@@ -356,7 +351,25 @@ function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]
     tile("recurring", rows.length ? share(recurringNow.length / rows.length) : "–", lines(t("d.recurringCount", { count: num(recurringNow.length), all: num(rows.length) }), avgGap === null ? t("d.noGap") : t("d.avgGap", { days: num(Math.round(avgGap)) }), hostsBefore.length ? t("d.before", { value: share(recurringBefore.length / hostsBefore.length) }) : t("d.noBefore")), "all", "houses"),
     tile("active", `${num(active.length)} / ${num(rows.length - active.length)}`, lines(t("d.activeSplit", { active: num(active.length), inactive: num(rows.length - active.length) }), t("d.dormant", { count: num(dormant.length) }), rows.length ? t("d.activeShare", { value: share(active.length / rows.length) }) : null), "all", undefined, { activity: dormant.length ? "dormant" : "inactive" }),
   ];
-  return <TileBoard label={tHosts("title")} columns={4} rows={chunkRows(routeTiles("hosts", tiles), "platform", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/hosts.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    tiers: { label: ts("tiersMix"), info: tiles.find((x) => x.key === "pro")?.info, value: `${num(of("share").length)} · ${num(of("pro").length)} · ${num(of("anchor").length)}` },
+    activeCount: { label: ts("activeCount"), value: num(active.length) },
+    newMonth: { label: ts("newMonth"), value: num(newThisMonth) },
+    foundingFree: { label: ts("foundingFree"), value: num(Math.max(0, FOUNDING_HOST.limit - founding.length)) },
+    warned: { label: ts("warned"), value: num(rows.filter((r) => r.warnings.length > 0).length) },
+    anchorPending: { label: ts("anchorPending"), value: num(anchorPending) },
+    oldestDays: oldest ? { label: ts("oldestDays"), value: num(daysSince(oldest) ?? 0) } : null,
+    accepted: { label: ts("accepted"), value: num(applications.filter((a) => a.status === "yes").length) },
+    claimed: { label: ts("claimed"), value: num(claimed) },
+    preparedCities: { label: ts("preparedCities"), value: num(preparedCities) },
+    recurringCount: { label: ts("recurringCount"), value: num(recurringNow.length) },
+    avgGap: avgGap === null ? null : { label: ts("avgGap"), value: num(Math.round(avgGap)) },
+    dormant: { label: ts("dormant"), value: num(dormant.length) },
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="hosts" pool={pool} />;
 }
 
 /** The columns right in a host's row: tier · Houses · fill rate · value per year · the signal dot (a warning). */
@@ -757,7 +770,13 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   const systemUrl = useAdminTab<SystemView>(["overview", "settings", "tools", "prepare"], "overview");
   const view = systemUrl.tab;
   const setView = (next: SystemView) => systemUrl.open(next);
-  const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
+  const [prepChosen, setPrepChosen] = useState<"backlog" | "launch" | "duties">("backlog");
+  // The card "Launch-Checkliste" opens Launch-Vorbereitung on its Launch point (?focus=launch); a pick in the sub-tabs lifts that.
+  const prep = systemUrl.focus === "launch" ? "launch" : prepChosen;
+  const setPrep = (next: "backlog" | "launch" | "duties") => {
+    setPrepChosen(next);
+    if (systemUrl.focus) setAdminSearch({ focus: null }, { replace: true });
+  };
   const router = useRouter();
   // ?view=tools opens Tools; the old „Zeitplan & Vorbereitung“ links (?view=roadmap[&sub=todos][&due=…]) go to Admin › Zeitplan.
   useEffect(() => {
@@ -772,7 +791,7 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={view} onChange={setView} tabs={withUnits<SystemView>("system", (["overview", "settings", "tools", "prepare"] as const).map((value) => ({ value, label: t(`views.${value}`) })))} />}
+      tabs={<TopicHeader page="system" title={t("title")} />}
       subTabs={
         view === "prepare" ? (
           <AdminSubTabs label={t("prepViews.label")} value={prep} onChange={setPrep} tabs={(["backlog", "launch", "duties"] as const).map((value) => ({ value, label: t(`prepViews.${value}`) }))} />
@@ -785,7 +804,7 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
       }
     >
       {view === "overview" ? (
-        <SystemOverview phase={phase} onPhase={(next) => next !== phase && setPending(next)} onLaunch={() => (setView("prepare"), setPrep("launch"))} />
+        <SystemOverview phase={phase} />
       ) : view === "tools" ? (
         <Tools />
       ) : view === "prepare" && prep === "duties" ? (
@@ -900,110 +919,37 @@ const OVERVIEW_TOOLS = [
  * switching only with a confirmation, logged; under it what the phase allows), the tools as link tiles in their brand colour (new tab),
  * the launch criteria (x of 4, a click opens the checklist) and the values of config/platform.ts.
  */
-function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; onPhase: (next: PlatformPhase) => void; onLaunch: () => void }) {
+function SystemOverview({ phase }: { phase: PlatformPhase }) {
+  // "Acht Karten" (CLAUDE.md): five cards – Phase, Tools, Launch-Checkliste, Werte, Log; fewer cards get larger.
   const t = useTranslations("admin.platform");
+  const ts = useTranslations("admin.topicCards.sub");
   const inputs = useAdminInputs();
   const progress = launchProgress(inputs);
-  // The board fills what's left of the window (the page's bottom padding, 40px, stays free); from 1024px.
-  const [box, height] = useFillHeight<HTMLDivElement>(420);
+  const crit = [progress.houses, progress.hubs, progress.reservedShare, progress.waitlist];
+  const met = crit.filter((p) => p.value >= p.target).length;
   const allowed = ALL_RULES.filter((rule) => phaseRules[phase][rule]);
-  const criteria = [
-    { id: "houses", p: progress.houses, text: `${num(progress.houses.value)} / ${num(progress.houses.target)}` },
-    { id: "hubs", p: progress.hubs, text: `${num(progress.hubs.value)} / ${num(progress.hubs.target)}` },
-    { id: "reserved", p: progress.reservedShare, text: `${num(progress.reservedShare.value)} % / ${num(progress.reservedShare.target)} %` },
-    { id: "waitlist", p: progress.waitlist, text: `${num(progress.waitlist.value)} / ${num(progress.waitlist.target)}` },
-  ] as const;
-  const met = criteria.filter((c) => c.p.value >= c.p.target).length;
   const tools = OVERVIEW_TOOLS.map((o) => ({ ...o, tool: TOOLS.find((x) => x.id === o.id) })).filter((o) => o.tool?.url);
-  const tile = "adm-tile flex min-h-0 min-w-0 flex-col rounded-xl border p-5";
-  // Each section in the colour of the capsule it belongs to (CLAUDE.md "Einheiten-Farbe"): Phase and Werte – Einstellungen, Tools, Launch.
-  const unit = (tab: SystemView) => ({ "data-unit": "", style: { "--unit": unitColorOf("system", tab) } as CSSProperties });
-  const head = "mb-3 text-eyebrow uppercase text-(--adm-label)";
-  const values = [
-    { label: t("hideCategory"), value: t("realHouses", { count: examples.hideCategoryAtRealCount }) },
-    { label: t("removeAll"), value: t("realHouses", { count: examples.removeAllAtRealCount }) },
-    { label: t("launchLabel"), value: launch.targetLabel },
-    { label: t("launchMonth"), value: launch.targetMonth },
-  ];
-  return (
-    <div ref={box} data-system-overview className="grid gap-(--adm-grid-gap) lg:grid-cols-2 lg:grid-rows-2" style={height ? ({ height } as CSSProperties) : undefined}>
-      {/* Phase: the capsules (a change asks first, then the log), what this phase allows now. */}
-      <section aria-labelledby="sys-phase" className={tile} {...unit("settings")}>
-        <h2 id="sys-phase" className={head}>{t("phase")}</h2>
-        <CapsuleGroup label={t("phase")} value={phase} onChange={onPhase} options={PLATFORM_PHASES.map((value) => ({ value, content: t(`phases.${value}`) }))} />
-        <p className="mt-4 text-small font-semibold text-ink">{t("overview.allowed")}</p>
-        <ul className="mt-1 grid min-h-0 grid-cols-2 gap-x-4 gap-y-1 overflow-hidden text-body text-ink">
-          {allowed.map((rule) => (
-            <li key={rule} className="flex min-w-0 items-center gap-2">
-              <StatusDot status="good" />
-              <span className="truncate">{t(`rule.${rule}`)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      {/* Tools: link tiles in their brand colour, a new tab each. */}
-      <section aria-labelledby="sys-tools" className={tile} {...unit("tools")}>
-        <h2 id="sys-tools" className={head}>{t("views.tools")}</h2>
-        <ul className="grid min-h-0 flex-1 grid-cols-2 gap-2">
-          {tools.map(({ id, brand, tool }) => {
-            const Icon = TOOL_ICON[tool!.icon];
-            return (
-              <li key={id} className="min-h-0">
-                <a href={tool!.url!} target="_blank" rel="noreferrer noopener" data-tool={id} data-brand={brand} className="adm-press adm-brand-tile flex h-full min-h-14 flex-col justify-center gap-1 rounded-lg border px-3 py-2">
-                  <span className="flex items-center gap-2">
-                    <Icon aria-hidden className="adm-brand-icon size-5 shrink-0" strokeWidth={1.75} />
-                    <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{t(`tools.items.${id}.name`)}</span>
-                    <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted" />
-                  </span>
-                  <span className="truncate text-small text-muted">{t(`tools.items.${id}.purpose`)}</span>
-                  <span className="sr-only">{t("tools.newTab")}</span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-      {/* Launch: x of 4 criteria with their values – a click opens the checklist. */}
-      <section aria-labelledby="sys-launch" className={cn(tile, "adm-press relative")} {...unit("prepare")}>
-        <button type="button" onClick={onLaunch} data-card-link aria-label={t("overview.openLaunch")} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
-        <h2 id="sys-launch" className={head}>{t("overview.launch")}</h2>
-        <TileValue value={t("overview.criteria", { met, total: criteria.length })} className="block" />
-        <dl className="mt-3 grid min-h-0 grid-cols-2 gap-x-6 gap-y-2">
-          {criteria.map((c) => (
-            <div key={c.id} className="min-w-0">
-              <dt className="truncate text-small text-muted">{t(`launch.items.${c.id}.title`)}</dt>
-              <dd className="flex items-center gap-2 text-body tabular-nums text-ink">
-                <StatusDot status={c.p.value >= c.p.target ? "good" : "warning"} />
-                {c.text}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      {/* The values of config/platform.ts, compact. */}
-      <section aria-labelledby="sys-values" className={tile} {...unit("settings")}>
-        <h2 id="sys-values" className={head}>{t("values")}</h2>
-        <dl className="grid min-h-0 grid-cols-2 gap-x-6 gap-y-3">
-          {values.map((v) => (
-            <div key={v.label} className="min-w-0">
-              <dt className="truncate text-small text-muted">{v.label}</dt>
-              <dd className="truncate text-body font-semibold text-ink">{v.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-    </div>
-  );
+  const today = inputs.today;
+  const log = inputs.admin.log ?? [];
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/system.ts.
+  const pool = numberPool([], {
+    phase: { label: t("phase"), info: t("overview.allowed"), value: t(`phases.${phase}`) },
+    allowed: { label: ts("allowed"), value: `${num(allowed.length)} / ${num(ALL_RULES.length)}` },
+    tools: { label: t("views.tools"), info: t("views.tools"), value: num(tools.length) },
+    toolsAll: { label: ts("toolsAll"), value: num(TOOLS.filter((x) => x.url).length) },
+    toolGroups: { label: ts("toolGroups"), value: num(TOOL_GROUPS.length) },
+    criteria: { label: ts("criteria"), info: t("overview.launch"), value: `${num(met)} / ${num(crit.length)}` },
+    realHouses: { label: ts("realHouses"), value: `${num(progress.houses.value)} / ${num(progress.houses.target)}` },
+    waitlistConfirmed: { label: ts("waitlistConfirmed"), value: `${num(progress.waitlist.value)} / ${num(progress.waitlist.target)}` },
+    values: { label: t("launchLabel"), info: t("launchLabel"), value: launch.targetLabel },
+    hideCategory: { label: ts("hideCategory"), value: num(examples.hideCategoryAtRealCount) },
+    removeAll: { label: ts("removeAll"), value: num(examples.removeAllAtRealCount) },
+    log: { label: t("logLink"), info: t("logLink"), value: num(log.length) },
+    today: { label: ts("today"), value: num(log.filter((e) => e.createdAt.startsWith(today)).length) },
+  });
+  return <TopicCards page="system" pool={pool} />;
 }
 
-/**
- * System › Backlog: the decided building blocks (config/backlog.ts) – title, one line, phase, status. The status switches in the row and is
- * stored through the adapter (AdminData.backlog, logged); a filter by status; "X offen" on top; done items grey and at the end.
- */
-/**
- * System › Pflichten: what's prepared for a platform's duties (config/obligations.ts) – each with its status: vorbereitet · aktiv · vom
- * Anwalt geprüft, and where it lives.
- */
 function Duties() {
   const t = useTranslations("admin.platform.duties");
   const items = DUTIES.map((d) => ({ ...d, status: dutyStatus(d) }));

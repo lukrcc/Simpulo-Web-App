@@ -18,7 +18,8 @@ body:has(.admin-scope) {
      blocks further down. */
   --adm-tile-h: 84px;
   /* The ONE gap between tiles (columns and rows) on every page with a TileBoard – no page sets its own (CLAUDE.md "Kachel-Abstände"). */
-  --adm-grid-gap: clamp(10px, 1.5dvh, 20px);
+  /* Between cards: one gap on every page (CLAUDE.md "Karten nutzen die Fläche"). */
+  --adm-grid-gap: 16px;
 
   /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 16 %, no edge. */
   --sel-bg: var(--adm-chart-1-soft);
@@ -31,7 +32,11 @@ body:has(.admin-scope) {
   --adm-hover: var(--text);
 
   /* Compact spacing. */
-  --adm-page: 32px;
+  /* The content's ONE margin left, right and bottom (CLAUDE.md "Gleicher Rand"): every admin page's content keeps it – nothing reaches the
+     window's edge or the side list. --adm-page and --adm-page-bottom are its old names (aliases). Never reuse these names for colours. */
+  --adm-page-inset: 18px;
+  --adm-page: var(--adm-page-inset);
+  --adm-page-bottom: var(--adm-page-inset);
   /* The gap under the header – the same for the side list and the content: the first area block (MARKT) and the click row start on one line,
      right under the header (CLAUDE.md "Admin"). --admin-page-pad is the old name, kept as an alias. */
   --adm-page-top: 14px;
@@ -337,7 +342,7 @@ body:has(.admin-scope) {
 
 /* Admin: the click row is sticky under the header (AdminPageHeader sets --adm-bar-h) – anchors and jumps inside a page stop under it. */
 .admin-scope [id] {
-  scroll-margin-top: calc(var(--header-total) + var(--adm-bar-h, 0px) + 16px);
+  scroll-margin-top: calc(var(--header-total) + var(--adm-bar-h, 0px) + var(--adm-mini-h, 0px) + 16px);
 }
 
 /* ── Admin tooltips (CLAUDE.md "Admin-Tooltips nur über AdminTooltip, groß und Creme"): components/admin/AdminTooltip.tsx, the ⓘ on touch
@@ -804,18 +809,10 @@ body:has(.admin-scope[data-admin-group="system"]) {
   white-space: pre-line;
 }
 
-/* ── Market Cap (CLAUDE.md): two colours – Planen's orange for every datum (the methods' spans, the bars), the rest neutral. The admin's
-   chart tokens take the orange inside the page; the spans an orange fill with an orange edge. ── */
-.admin-scope .adm-market-cap {
-  --adm-chart-primary: var(--adm-group-plan);
-  --adm-chart-hover: var(--adm-group-plan);
-  --adm-chart-fill: color-mix(in srgb, var(--adm-group-plan) 24%, transparent);
-  --adm-chart-fill-hover: color-mix(in srgb, var(--adm-group-plan) 42%, transparent);
-  --adm-chart-fill-current: color-mix(in srgb, var(--adm-group-plan) 8%, transparent);
-}
+/* ── Market Cap: its data in the page's colour (Finanzierung's teal, CLAUDE.md "Eine Farbe = eine Seite"); the spans a fill with an edge. ── */
 .admin-scope .adm-mc-span {
-  background-color: color-mix(in srgb, var(--adm-group-plan) 28%, transparent);
-  border-color: var(--adm-group-plan);
+  background-color: color-mix(in srgb, var(--adm-page-color, var(--adm-chart-primary)) 28%, transparent);
+  border-color: var(--adm-page-color, var(--adm-chart-primary));
 }
 .admin-scope .adm-mc-span:hover {
   background-color: color-mix(in srgb, var(--adm-group-plan) 45%, transparent);
@@ -900,9 +897,27 @@ body:has(.admin-scope[data-admin-group="system"]) {
 
 /* A tile's focus (?focus=, CLAUDE.md "Jede Kachel → eine Kapsel"): the number or row it opened, marked in the page's group colour. */
 .admin-scope [data-focused] {
+  /* No separate ring with a gap any more (CLAUDE.md "Kapsel-Ansicht"): a 2px edge right on the element. */
   outline: 2px solid var(--adm-cur, var(--text));
-  outline-offset: 4px;
+  outline-offset: -2px;
   border-radius: 10px;
+}
+/* A tile that is chosen or marked: a stronger fill and a 2px edge in its full unit colour – no ring outside. */
+.admin-scope .adm-tile[data-unit][data-selected],
+.admin-scope .adm-tile[data-unit][data-focused] {
+  background-color: color-mix(in srgb, var(--unit) 36%, var(--bg));
+  border: 2px solid var(--unit);
+  outline: none;
+  /* On the stronger fill every word in the main colour and the arrows a step stronger – they keep 4.5 : 1 on every unit. */
+  --text-muted: var(--text);
+  --adm-label: var(--text);
+  --adm-trend-up: #1c3d2e;
+  --adm-trend-down: #6b2a20;
+}
+:root[data-theme="dark"] .admin-scope .adm-tile[data-unit][data-selected],
+:root[data-theme="dark"] .admin-scope .adm-tile[data-unit][data-focused] {
+  --adm-trend-up: #c6e6cf;
+  --adm-trend-down: #f8cdc3;
 }
 
 /* Units (CLAUDE.md "Ein Farbprofil", "Jeder Farbton nur einmal pro Seite"): ONE palette for every admin page, in the overview's style –
@@ -917,6 +932,9 @@ body:has(.admin-scope) {
   --adm-unit-orange: var(--adm-group-plan);
   --adm-unit-pink: #ae2f74;
   --adm-unit-lilac: var(--adm-group-platform);
+  /* "Acht Karten": two more hues of the same strength, so a page's eight cards each have their own – 7 Türkis, 8 Koralle. */
+  --adm-unit-teal: #0f6f80;
+  --adm-unit-coral: #b3412f;
   /* Neutral: a tile that leads to another page (and nothing else) – silver, filled like the others. */
   --adm-unit-silver: #77716b;
 }
@@ -925,6 +943,8 @@ body:has(.admin-scope) {
   --adm-unit-yellow: #e3c24f;
   --adm-unit-pink: #f08dc3;
   --adm-unit-silver: #c8c2bb;
+  --adm-unit-teal: #56c6d9;
+  --adm-unit-coral: #f2998a;
 }
 
 /* Unit colour = a full, soft fill of capsule and tiles; the words stay neutral (CLAUDE.md "Einheiten-Farbe"). A tile of a unit (--unit:
@@ -976,4 +996,103 @@ body:has(.admin-scope) {
 :root[data-theme="dark"] .admin-scope .adm-tile[data-unit] {
   --adm-trend-up: #a6d0b2;
   --adm-trend-down: #efae9f;
+}
+
+/* "Acht Karten": the card's main number large (the tile's value a step up); a word value a step down from it. */
+.admin-scope .adm-card-big .adm-tile-value {
+  font-size: 44px;
+  line-height: 1.05;
+}
+.admin-scope .adm-card-big .adm-tile-text {
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+
+/* Aufgaben (CLAUDE.md "Ruhe"): the message in the detail large – 24px, generous line height. */
+.admin-scope .adm-message-lg {
+  font-size: 24px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+
+/* ── "Eine Farbe = eine Seite" (CLAUDE.md, Apple-Art, Variante C) ──────────────────────────────────────────────────────────────────────
+   Every page ONE colour (config/admin/pages.ts): --adm-c-<colour> for words and charts (≥ 4.5 : 1 on the cards, the side list and the
+   ground – Hell and Dunkel each their own step), --adm-c-<colour>-fill for the small square behind a symbol (white symbol ≥ 4.4 : 1, the same
+   in both modes). The page sets --adm-page-color / --adm-page-fill (AdminShell; a card leading to another page sets that page's). */
+.admin-scope,
+body:has(.admin-scope) {
+  --adm-c-green: #1e7034;
+  --adm-c-blue: #1d58b3;
+  --adm-c-purple: #7638a0;
+  --adm-c-orange: #a14200;
+  --adm-c-pink: #aa1e52;
+  --adm-c-yellow: #765800;
+  --adm-c-teal: #0b6573;
+  --adm-c-red: #b0261f;
+  --adm-c-slate: #4a5768;
+  --adm-c-green-fill: #217f39;
+  --adm-c-blue-fill: #1f63c9;
+  --adm-c-purple-fill: #8944ab;
+  --adm-c-orange-fill: #b84e00;
+  --adm-c-pink-fill: #c4245a;
+  --adm-c-yellow-fill: #8a6700;
+  --adm-c-teal-fill: #0b7383;
+  --adm-c-red-fill: #c42b2b;
+  --adm-c-slate-fill: #5b6878;
+  /* The symbol on its square. */
+  --adm-icon-on: #ffffff;
+}
+:root[data-theme="dark"] .admin-scope,
+:root[data-theme="dark"] body:has(.admin-scope) {
+  --adm-c-green: #6bd38a;
+  --adm-c-blue: #7eb0ff;
+  --adm-c-purple: #c9a2f2;
+  --adm-c-orange: #ffa25c;
+  --adm-c-pink: #ff8fb4;
+  --adm-c-yellow: #efc95a;
+  --adm-c-teal: #62d2e0;
+  --adm-c-red: #ff8b82;
+  --adm-c-slate: #aebaca;
+}
+/* The page's charts in its colour: the main series, its hover, the light fills (the same steps as before). */
+.admin-scope[data-admin-page] {
+  --adm-chart-primary: var(--adm-page-color);
+  --adm-chart-hover: color-mix(in srgb, var(--adm-page-color) 78%, var(--text));
+  --adm-chart-fill: color-mix(in srgb, var(--adm-page-color) 22%, transparent);
+  --adm-chart-fill-hover: color-mix(in srgb, var(--adm-page-color) 40%, transparent);
+  --adm-chart-fill-current: color-mix(in srgb, var(--adm-page-color) 8%, transparent);
+  --adm-chart-current: var(--adm-chart-fill-current);
+  --adm-chart-primary-soft: color-mix(in srgb, var(--adm-page-color) 14%, transparent);
+  /* The active page's colour drives focus rings and the marked element too. */
+  --adm-cur: var(--adm-page-color);
+  --adm-cur-tint: color-mix(in srgb, var(--adm-page-color) 10%, transparent);
+}
+/* The small rounded square with the white symbol (cards, a topic's head, the side list's own colour stays the symbol itself). */
+.admin-scope .adm-icon-sq {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background-color: var(--adm-page-fill);
+  color: var(--adm-icon-on);
+}
+.admin-scope .adm-icon-sq svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+.admin-scope .adm-page-title {
+  color: var(--adm-page-color);
+}
+/* A chosen or marked tile: a 2px edge in the page's colour on the neutral surface – nothing else changes colour. */
+.admin-scope .adm-tile[data-selected],
+.admin-scope .adm-tile[data-focused] {
+  border: 2px solid var(--adm-page-color);
+  outline: none;
 }

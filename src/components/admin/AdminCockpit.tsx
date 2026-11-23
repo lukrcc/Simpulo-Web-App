@@ -4,6 +4,7 @@
 // Geld · Nachfrage · Qualität, the period a menu right. Überblick: 20 tiles in four rows (config/admin/overview.ts), each in its group
 // capsule's colour; a click opens that capsule with the tile marked – its details from the pages' own parts (OverviewGroups.tsx). Every
 // number from lib/admin/metrics.ts.
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTallScreen } from "./useTallScreen";
@@ -16,7 +17,7 @@ import { useFormat } from "@/i18n/format";
 import { OVERVIEW_GOALS } from "@/config/policies";
 import { OVERVIEW_TARGETS } from "@/config/admin";
 import { useAdminDay, useAdminFocus, useAdminPeriod } from "@/lib/admin/period";
-import { algorithmMetrics, fastestFull, waitlistMetrics, growthFunnel, growthRows, installRates, installRateOver, needsHelp, needsHelpChange, openHouses, moneyTotals, marketCap, bookingTotals, alignRows, periodEnd, rangesFor, rankByMeasure, analysisRows, connectionOverview, statusAgainst, getChange, moneyPeriod, cockpit, companyBalance, getStatus, launchProgress, type CockpitNumber } from "@/lib/admin/metrics";
+import { algorithmMetrics, fastestFull, waitlistMetrics, growthFunnel, growthRows, installRates, installRateOver, needsHelp, needsHelpChange, openHouses, moneyTotals, marketCap, bookingTotals, alignRows, periodEnd, rangesFor, rankByMeasure, analysisRows, connectionOverview, statusAgainst, getChange, moneyPeriod, cockpit, companyBalance, getStatus, launchProgress, sweetSpot, hostOverview, fundingReadiness, marketingFunnel, type CockpitNumber } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
@@ -35,7 +36,7 @@ import { OVERVIEW_GROUP_AREA, OVERVIEW_GROUP_PAGE, OVERVIEW_GROUPS, OVERVIEW_ROW
 import { useAdminTab } from "@/lib/admin/urlState";
 import Link from "next/link";
 import { AdminTabs } from "./AdminLayout";
-import { OverviewGroupView } from "./OverviewGroups";
+import { hostActivity } from "./AdminAreas";
 import { useMilestoneName } from "./AdminRoadmap";
 import { day as dayLabel, dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
@@ -313,45 +314,37 @@ export function AdminCockpit() {
     },
   ];
 
-  // The order and each title's colour from config/admin/overview.ts (the row's colour, not the target page's); a tile the config doesn't name
-  // is left out. On a short window (1280 × 720) the tiles are compact: no room for detail lines – the first one stays as the one small line.
-  const byKey = new Map(allRows.flatMap((r) => r.tiles.map((tile) => [tile.key, tile] as const)));
-  const ordered: TileRow[] = OVERVIEW_ROWS.map((r) => ({
-    key: r.key,
-    group: OVERVIEW_GROUP_AREA[r.tiles[0].group],
-    tiles: r.tiles.flatMap((c) => {
-      const tile = byKey.get(c.key);
-      // The tile's group capsule sets its colour and where a click leads (config/admin-tiles.ts "overview"); the title stays neutral.
-      return tile ? [{ ...tile, group: OVERVIEW_GROUP_AREA[c.group] }] : [];
-    }),
-  }));
-  const rows: readonly TileRow[] = tall ? ordered : ordered.map((row) => ({ ...row, tiles: row.tiles.map((tile) => ({ ...tile, extra: tile.extra ?? tile.details?.[0], details: undefined })) }));
-  const routed: readonly TileRow[] = rows.map((row) => ({ ...row, tiles: routeTiles("overview", row.tiles) }));
-  const groupTiles = (group: OverviewGroup) => {
-    const keys = new Set(OVERVIEW_ROWS.flatMap((r) => r.tiles.filter((x) => x.group === group).map((x) => x.key)));
-    return routed.flatMap((r) => r.tiles.filter((tile) => keys.has(tile.key)));
-  };
+  // "Acht Karten" (CLAUDE.md): one card per page, each leading to that page's overview – nothing twice, no topics of its own.
+  const ts = useTranslations("admin.topicCards.sub");
+  const fmt = useFormat();
+  const spot = sweetSpot(inputs, "12m", "value");
+  const hostList = hostOverview(inputs);
+  const month = inputs.today.slice(0, 7);
+  const ready = fundingReadiness(inputs);
+  const crit = launchProgress(inputs);
+  const critMet = [crit.houses, crit.hubs, crit.reservedShare, crit.waitlist].filter((p) => p.value >= p.target).length;
+  const nextMs = nextMilestone(inputs.today, inputs.admin);
+  const msName = useMilestoneName();
+  const funnelM = marketingFunnel(inputs.admin.marketingContacts ?? [], inputs.today);
+  const fullNow = inputs.stays.filter((x) => !x.isExample && x.spotsTotal > 0 && x.spotsFilled >= x.spotsTotal && x.endDate >= inputs.today && x.status !== "closed").length;
+  // The numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/overview.ts.
+  const tiles = allRows.flatMap((r) => r.tiles);
+  const pool = numberPool(tiles, {
+    sweetSpot: spot ? { label: ts("sweetSpot"), value: fmt.vibe(spot.topic) } : null,
+    fullNow: { label: ts("fullNow"), value: num(fullNow) },
+    activeHosts: { label: ts("activeHosts"), info: ts("hostsInfo"), value: num(hostList.filter((r) => hostActivity(r, inputs.today) === "active").length) },
+    newHosts: { label: ts("newMonth"), value: num(hostList.filter((r) => r.houses.map((h) => h.createdAt).toSorted()[0]?.startsWith(month)).length) },
+    applicationsOpen: { label: ts("applicationsOpen"), value: num(inputs.admin.applications.filter((a) => a.status === "new" || a.status === "maybe").length) },
+    replyRate: { label: ts("replyRate"), value: funnelM.all.replyRate === null ? "–" : pct(Math.round(funnelM.all.replyRate * 100)) },
+    readiness: { label: ts("readiness"), value: `${num(ready.met)} / ${num(ready.total)}` },
+    criteria: { label: ts("criteria"), value: `${num(critMet)} / 4` },
+    nextMilestone: nextMs ? { label: ts("nextMilestone"), value: msName(nextMs) } : null,
+  });
 
   return (
-    // Capsules Überblick · Heute · Richtung · Geld · Nachfrage · Qualität (CLAUDE.md "Übersicht mit Kapseln"); the period a menu right like on
-    // every page. Überblick: the 20 tiles over the full height; a tile opens its group's capsule with its number marked.
-    <AdminShell
-      title={t("title")}
-      tabs={<AdminTabs label={t("title")} value={tab} onChange={(next) => openTab(next)} tabs={withUnits("overview", TABS.map((value) => ({ value, label: t(`tabs.${value}`), tooltip: value === "overview" ? undefined : t(`tabInfo.${value}`) })))} />}
-      aside={
-        tab !== "overview" ? (
-          <Link href={OVERVIEW_GROUP_PAGE[tab]} data-full-page className="text-small font-semibold text-ink underline-offset-4 hover:underline">
-            {t(`fullPage.${tab}`)}
-          </Link>
-        ) : undefined
-      }
-      period
-    >
-      {tab === "overview" ? (
-        <TileBoard label={t("title")} rows={routed} spacious />
-      ) : (
-        <OverviewGroupView group={tab} area={OVERVIEW_GROUP_AREA[tab]} tiles={groupTiles(tab)} funnel={{ visitors: funnel.visitors.value, requests: funnel.requests.value, bookings: source.paid.now }} />
-      )}
+    // Eight cards, one per page; the period a menu right like on every page.
+    <AdminShell title={t("title")} tabs={<TopicHeader page="overview" title={t("title")} />} period>
+      <TopicCards page="overview" pool={pool} />
     </AdminShell>
   );
 }

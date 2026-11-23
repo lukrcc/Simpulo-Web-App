@@ -104,6 +104,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
       openPayouts: { tab: "payments", focus: "openPayouts" },
       taxReserve: { tab: "taxes", focus: "taxReserve" },
       nextDeadline: { tab: "taxes", focus: "nextDeadline" },
+      withdrawals: { tab: "taxes", focus: "withdrawals" },
     },
   },
   growth: {
@@ -276,7 +277,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   // timeline opens its lane's capsule with its entry marked (?focus=).
   zeitplan: {
     path: "/admin/zeitplan",
-    capsules: capsAs(["timeline", null], ["code", "lilac"], ["marketing", "yellow"], ["prep", "orange"], ["launch", "pink"]),
+    capsules: capsAs(["timeline", null], ["code", "blue"], ["marketing", "green"], ["prep", "orange"], ["launch", "lilac"]),
     tiles: {},
   },
   inbox: {
@@ -297,7 +298,7 @@ export function routeHref(from: AdminPageKey, route: TileRoute): string {
 }
 
 /** A tile that leads to another page: filled in neutral silver (admin-tokens.css --adm-unit-silver), never unfilled. */
-export const NEUTRAL_UNIT = "var(--adm-unit-silver)";
+export const NEUTRAL_UNIT = "var(--adm-page-color)";
 
 /** A capsule's unit colour as a CSS colour (var(--adm-unit-…)), or null. */
 /** The capsule a tab belongs to when sub-tabs sit under it (Analyse: Ort-Typ, Ort-Herkunft, Hub → "place"; Stufe, Tiefe → "host"). */
@@ -321,5 +322,6 @@ export function unitClashes(): string[] {
 export const unitColorOf = (page: AdminPageKey, tab: string): string | null => {
   const key = CAPSULE_OF[page]?.[tab] ?? tab;
   const unit = ADMIN_PAGES[page].capsules.find((c) => c.key === key)?.unit;
-  return unit ? `var(--adm-unit-${unit})` : null;
+  // "Eine Farbe = eine Seite" (CLAUDE.md): every unit-bearing capsule (and its tiles, bands) takes the page's one colour.
+  return unit ? "var(--adm-page-color)" : null;
 };

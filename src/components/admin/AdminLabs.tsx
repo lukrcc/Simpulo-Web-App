@@ -3,135 +3,89 @@
 // Admin › Wachstum › Labore (/admin/labore): Simpulo's fields of growth. No visible title; the click row with the tabs Pyramide · Karte ·
 // Labore · Fluss · Potenzial. Drawn like Algorithmus: SVG for the pyramid and the map, AdminListDetail for the labs, the BlockMap with lines
 // for the flow, a table with log bars for the potential. Every text and value from lib/admin/labs.ts (estimates, not measurements).
-import { ArrowRight } from "lucide-react";
-import { withUnits } from "./tileRoutes";
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { MOMENTS } from "@/config/data-points";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type LabStatus, type TestValue } from "@/lib/admin/labs";
 import { cn } from "@/lib/utils";
 import { labNumbers } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
+import { setAdminSearch, useAdminSearch } from "@/lib/admin/urlState";
 import { ARCHITECTURE, type ArchitectureView } from "@/lib/admin/labs/architecture";
 import { DATA_POINTS, type DataPointStatus } from "@/config/data-points";
-import { unitColorOf } from "@/config/admin-tiles";
 import Link from "next/link";
 import { num, pct, share } from "@/lib/i18n/adminFormat";
 import { StatusDot } from "./AdminCharts";
-import { AdminShell, AREA_TILE } from "./AdminShell";
-import { TileValue } from "./AdminTiles";
-import { InfoTip } from "./AdminNumbers";
-import { AdminListDetail, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminShell } from "./AdminShell";
+import { AdminSort, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
+import { TopicCards, TopicHeader, useAdminTopic, type NumberEntry, type NumberPool } from "./AdminTopics";
 import { BlockMap, type MapLink } from "./BlockMap";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
 import { Box, Database, FlaskConical, Globe2, Hammer } from "lucide-react";
 
-type Tab = "overview" | keyof typeof LABS_TEXT.tabs;
-/** Überblick first and by default (CLAUDE.md "Überblick zuerst"). */
-const TABS: readonly Tab[] = ["overview", "pyramid", "map", "labs", "flow", "potential"];
+type View = "pyramid" | "map" | "flow" | "potential";
+/** The views beside the nine labs – in the menu "Ansichten ▾" (CLAUDE.md "Labore angeglichen"), each a topic view with "← Labore". */
+const VIEWS: readonly View[] = ["pyramid", "map", "flow", "potential"];
 const T = LABS_TEXT;
 
 export function AdminLabs() {
-  // The capsule in ?tab= and the chosen lab in ?focus= (CLAUDE.md "Jede Kachel → eine Kapsel"): a card, the pyramid, the map and the flow
-  // open "Labore" with that lab; back works.
-  const url = useAdminTab<Tab>(TABS, "overview");
-  const tab = url.tab;
-  const setTab = (next: Tab) => url.open(next);
-  const tOverview = useTranslations("admin.overviewBlock");
-  const lab = (LABS.some((l) => l.id === url.focus) ? url.focus : null) as LabId | null;
-  const setLab = (id: LabId | null) => setAdminSearch({ focus: id }, { replace: true });
-  const open = (id: LabId) => url.open("labs", id);
+  // The same build as every page (CLAUDE.md "Acht Karten", Variante C): the board of nine lab cards (config/admin/cards/labs.ts); a card
+  // opens its lab (?topic=<lab>, the bar of the nine labs above, "← Labore"); the views open from "Ansichten ▾" (?tab=pyramid …).
+  const t = useTranslations("admin.pageTiles.labs");
+  const { topic, open, back } = useAdminTopic("labs");
+  const tab = useAdminSearch().get("tab");
+  const view = !topic && VIEWS.includes(tab as View) ? (tab as View) : null;
+  const openView = (v: View) => setAdminSearch({ topic: null, tab: v, focus: null, view: null });
+  const pool = useLabsPool();
+  const lab = topic ? labOf(topic as LabId) : null;
   return (
-    <AdminShell title={ADMIN_DE.nav.labs} tabs={<AdminTabs label={ADMIN_DE.nav.labs} value={tab} onChange={setTab} tabs={withUnits("labs", TABS.map((key) => ({ value: key, label: key === "overview" ? tOverview("tab") : T.tabs[key] })))} />}>
-      {tab === "overview" && <LabsOverview onLab={open} />}
-      {tab === "pyramid" && <Pyramid onOpen={open} />}
-      {tab === "map" && <LabMap onOpen={open} />}
-      {tab === "labs" && <LabList selected={lab} onSelect={setLab} />}
-      {tab === "flow" && <LabFlow onOpen={open} />}
-      {tab === "potential" && <Potential />}
+    <AdminShell
+      title={ADMIN_DE.nav.labs}
+      tabs={view ? <ViewHeader view={view} onBack={back} /> : <TopicHeader page="labs" title={ADMIN_DE.nav.labs} />}
+      aside={!topic && !view ? <AdminSort label={t("card.viewsLabel")} trigger={t("card.views")} options={VIEWS.map((v) => ({ value: v, label: T.tabs[v] }))} value={"pyramid" as View} onChange={openView} /> : undefined}
+    >
+      {lab && <LabDetail lab={lab} />}
+      {view === "pyramid" && <Pyramid onOpen={open} />}
+      {view === "map" && <LabMap onOpen={open} />}
+      {view === "flow" && <LabFlow onOpen={open} />}
+      {view === "potential" && <Potential />}
+      {!lab && !view && <TopicCards page="labs" pool={pool} />}
     </AdminShell>
   );
 }
 
-// ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Labore › Überblick (CLAUDE.md "Überblick je Seitentyp", SAMMLUNG): one card per lab in a 3 × 3 grid in the Planen colour – number and
- * name, the guiding question, the status as a coloured label (Idee · läuft · bestätigt · verworfen), the most important number (the upper
- * bound per year, an estimate) and the next step. The grid fills the height left under the bar (no scrolling at ≥ 1280 × 720); a click
- * opens the lab in the tab Labore. Every value from lib/admin/labs.ts.
- */
-/** The status as the card's value: idea muted, running amber, confirmed sage, dropped ember (status colours – the statement itself). */
-const LAB_STATUS_TEXT: Record<LabStatus, string> = { idea: "text-muted!", running: "text-adm-warning!", confirmed: "text-adm-good!", dropped: "text-adm-critical!" };
-/** Room under the grid (the page's bottom padding) and the card height's bounds. */
-const LAB_BOTTOM = 40;
-const LAB_CARD_MIN = 132;
-
-function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
-  const t = useTranslations("admin.pageTiles.labs");
-  const box = useRef<HTMLDivElement>(null);
-  const [cardH, setCardH] = useState<number | null>(null);
-  const rows = Math.ceil(LABS.length / 3);
-  useLayoutEffect(() => {
-    const measure = () => {
-      const top = box.current?.getBoundingClientRect().top;
-      if (top === undefined || window.innerWidth < 1024) return setCardH(null);
-      const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0; // --adm-grid-gap, as rendered
-      const room = window.innerHeight - (top + window.scrollY) - LAB_BOTTOM;
-      // Always the whole height (CLAUDE.md "Kacheln füllen die volle Höhe"): only a floor, no ceiling.
-      setCardH(Math.floor(Math.max(LAB_CARD_MIN, (room - gap * (rows - 1)) / rows)));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [rows]);
-  // Compact cards (short windows): a smaller number and tighter gaps, so a two-line question never pushes it out.
-  const compact = cardH !== null && cardH < 200;
-  // One real number of today per lab – from the function its page uses (lib/admin/metrics.ts labNumbers).
-  const numbers = labNumbers(useAdminInputs());
-  const metricLine = (id: LabId) => {
-    const n = numbers[id];
-    if (n.kind === "none" || n.value === null) return t(`card.metricNone.${id}`);
-    const value = n.kind === "share" ? share(n.value) : n.kind === "pct" ? pct(n.value) : num(n.value);
-    return t(`card.metric.${id}`, { value });
-  };
+/** A view's head: "← Labore" and the view's name (the same capsules as a topic's head). */
+function ViewHeader({ view, onBack }: { view: View; onBack: () => void }) {
   return (
-    <div
-      ref={box}
-      data-tile-board
-      aria-label={ADMIN_DE.nav.labs}
-      role="list"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-      style={{ gap: "var(--adm-grid-gap)", ...(cardH ? { gridAutoRows: `${cardH}px` } : {}) } as CSSProperties}
-    >
-      {LABS.map((lab) => (
-        // The same build as every admin tile (CLAUDE.md "Admin: Kacheln einheitlich"): title (number · name, the status right) on top, the
-        // ceiling in the one value size right under it, then the detail lines – free room stays at the bottom.
-        <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} data-unit style={{ "--unit": unitColorOf("labs", "labs") } as CSSProperties} className={cn("relative flex min-h-0 min-w-0 flex-col justify-start overflow-hidden rounded-xl border px-4 pt-3 pb-3", AREA_TILE.plan)}>
-          <button type="button" data-card-link aria-label={t("card.open", { name: lab.name })} onClick={() => onLab(lab.id)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <span className="truncate text-eyebrow uppercase text-(--adm-label)">{t("card.title", { no: String(lab.number), name: lab.name })}</span>
-          </div>
-          {/* The status large (Idee · läuft · bestätigt · verworfen) – the one thing a lab card says first; its colour is the statement. */}
-          <div data-lab-status={lab.status} className="mt-0.5 flex min-w-0 shrink-0 items-center">
-            <TileValue value={T.status[lab.status]} className={LAB_STATUS_TEXT[lab.status]} />
-          </div>
-          {/* The details at the bottom, the last line flush with the edge (the one tile plan): today's real number, the ceiling, the next step. */}
-          <div className="mt-auto flex min-h-0 min-w-0 flex-col justify-end gap-0.5 overflow-hidden pt-1 text-small leading-snug text-muted">
-            <p data-lab-metric className="truncate text-ink">{metricLine(lab.id)}</p>
-            {!compact && <p className="truncate">{lab.question}</p>}
-            <span className="flex min-w-0 shrink-0 items-center gap-1">
-              <span className="truncate">{t("card.ceilingLine", { value: lab.ceiling })}</span>
-              <InfoTip text={t("card.ceilingInfo")} />
-            </span>
-            <p className="truncate">{t("card.next", { step: lab.next })}</p>
-          </div>
-        </div>
-      ))}
+    <div className="flex min-w-0 items-center gap-2">
+      <button type="button" data-topic-back onClick={onBack} className="adm-cap adm-press shrink-0">
+        <ArrowLeft aria-hidden className="size-3.5" />
+        {ADMIN_DE.nav.labs}
+      </button>
+      <AdminTabs level="sub" label={T.tabs[view]} value={view} onChange={() => {}} tabs={[{ value: view, label: T.tabs[view], tone: "var(--adm-page-color)" }]} />
     </div>
   );
+}
+
+/** The status as text (Idee · läuft · bestätigt · verworfen) – its colour is the statement (status colours). */
+const LAB_STATUS_TEXT: Record<LabStatus, string> = { idea: "text-muted", running: "text-adm-warning", confirmed: "text-adm-good", dropped: "text-adm-critical" };
+
+/** The labs' numbers for their cards: today's real number (lib/admin/metrics.ts labNumbers), the question, the status, ceiling and next step. */
+function useLabsPool(): NumberPool {
+  const t = useTranslations("admin.pageTiles.labs");
+  const numbers = labNumbers(useAdminInputs());
+  const out: Record<string, NumberEntry> = {};
+  for (const lab of LABS) {
+    const n = numbers[lab.id];
+    const has = n.kind !== "none" && n.value !== null;
+    const value = !has ? "–" : n.kind === "share" ? share(n.value!) : n.kind === "pct" ? pct(n.value!) : num(n.value!);
+    out[`metric-${lab.id}`] = { label: has ? t(`card.metricLabel.${lab.id}`) : t("card.noMetric"), value, caption: lab.question, info: t("card.metricInfo") };
+    out[`status-${lab.id}`] = { label: "", value: <span data-lab-status={lab.status} className={LAB_STATUS_TEXT[lab.status]}>{T.status[lab.status]}</span> };
+    out[`ceiling-${lab.id}`] = { label: t("card.ceilingShort"), value: lab.ceiling };
+    out[`next-${lab.id}`] = { label: t("card.nextShort"), value: <span title={lab.next}>{lab.nextShort}</span>, oneLine: true };
+  }
+  return out;
 }
 
 // ── Pyramide ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -285,28 +239,14 @@ function LabMap({ onOpen }: { onOpen: (id: LabId) => void }) {
 
 const TEST_DOT: Record<TestValue, "good" | "critical" | null> = { yes: "good", no: "critical", open: null };
 
-function LabList({ selected, onSelect }: { selected: LabId | null; onSelect: (id: LabId | null) => void }) {
-  const lab = selected ? labOf(selected) : null;
-  return (
-    <AdminListDetail
-      label={T.tabs.labs}
-      rows={LABS.map((l) => ({ id: l.id, title: `${l.number} ${l.name}`, meta: `${T.level[l.level]} · ${l.question}`, aside: l.ceiling.replace(" direkt", "") }))}
-      selectedId={selected}
-      onSelect={(id) => onSelect(id as LabId)}
-      empty={null}
-      detail={lab ? <LabDetail lab={lab} onBack={() => onSelect(null)} /> : <p className="py-2 text-body text-muted">{T.pick}</p>}
-    />
-  );
-}
-
-function LabDetail({ lab, onBack }: { lab: Lab; onBack: () => void }) {
+function LabDetail({ lab, onBack }: { lab: Lab; onBack?: () => void }) {
   // Raum has a second level: Überblick · Architektur · Datenplan (?view=, Vision › Schichten links to Architektur).
   const view = useAdminSearch().get("view");
   const spaceView: ArchitectureView = lab.id === "space" && (view === "architecture" || view === "plan") ? view : "overview";
   if (lab.id === "space" && spaceView !== "overview")
     return (
       <article data-lab-detail>
-        <BackToList onBack={onBack} />
+        {onBack && <BackToList onBack={onBack} />}
         <LabHead lab={lab} view={spaceView} />
         {spaceView === "architecture" ? <Architecture /> : <DataPlan />}
       </article>
@@ -323,7 +263,7 @@ function LabDetail({ lab, onBack }: { lab: Lab; onBack: () => void }) {
   ];
   return (
     <article data-lab-detail>
-      <BackToList onBack={onBack} />
+      {onBack && <BackToList onBack={onBack} />}
       <LabHead lab={lab} view="overview" />
       <dl className="mt-(--adm-inner) grid gap-x-6 gap-y-(--adm-inner) sm:grid-cols-2">
         {fields.map((f) => (

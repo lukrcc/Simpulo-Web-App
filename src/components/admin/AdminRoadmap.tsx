@@ -7,6 +7,7 @@
 // star and its date on 3 May, two weeks of buffer dashed after it – the fallback rule). Each row in its capsule's unit colour (config/
 // admin-tiles.ts "zeitplan"); a click on a bar opens that capsule with the entry marked (?focus=). The journey (config/roadmap.ts TRAVEL)
 // stays in the config but isn't shown. Nothing overlaps: a label never crosses the "heute" line. German, the admin's tokens.
+import { pageInset } from "@/lib/admin/inset";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CODE_MILESTONES, LAUNCH, ROADMAP_RANGE, type TodoDue } from "@/config/roadmap";
@@ -30,7 +31,6 @@ function scaleOf(range: { from: string; to: string }) {
 /** The axis' height (today's label over the months). */
 const AXIS_H = 60;
 /** What stays under the legend: the page's bottom padding. */
-const BOTTOM_GAP = 44;
 /** Each row at least this high – below it the page may scroll rather than squeeze. */
 const MIN_ROW = 64;
 /** The rows: Code · Marketing · Vorbereitung · Launch. */
@@ -151,8 +151,15 @@ export function RoadmapTimeline({ onOpen }: { onOpen: (lane: "code" | "marketing
       if (trackRef.current) setTrack(trackRef.current.clientWidth);
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined) return;
-      const rest = window.innerHeight - (top + window.scrollY) - AXIS_H - (legend.current?.offsetHeight ?? 0) - BOTTOM_GAP;
+      const rest = window.innerHeight - (top + window.scrollY) - AXIS_H - (legend.current?.offsetHeight ?? 0) - pageInset();
       setRowH(Math.max(MIN_ROW, Math.floor(rest / ROWS)));
+      // Then measured once more: the rows' own borders count too – the legend ends exactly the page's inset above the window's bottom.
+      requestAnimationFrame(() => {
+        const bottom = legend.current?.getBoundingClientRect().bottom;
+        if (bottom === undefined) return;
+        const over = bottom + window.scrollY - (window.innerHeight - pageInset());
+        if (over > 0) setRowH((h) => Math.max(MIN_ROW, h - Math.ceil(over / ROWS)));
+      });
     };
     measure();
     window.addEventListener("resize", measure);

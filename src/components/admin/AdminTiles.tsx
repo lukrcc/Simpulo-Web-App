@@ -4,6 +4,7 @@
 // lightly tinted in the group of the page (Heute blue, Zahlen green, Plattform lilac, Planen orange). TileBoard fills the height left under
 // the sticky bar: rows share it evenly, the tiles grow on large screens and get compact on small ones (never a scroll at ≥ 1280 × 720).
 // Each tile: the title small (with ⓘ), the number left, the change right beside it; under them an extra line left and the target right.
+import { pageInset } from "@/lib/admin/inset";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -35,8 +36,10 @@ export interface TileSpec {
   unit?: string;
   /** Its unit's colour (a CSS colour): the tile's surface softly filled in it (admin-tokens.css "Unit colour"); the words stay neutral */
   unitColor?: string | null;
-  /** Its key for ?focus= (data-focus-key): the overview's group capsules mark the tile a click came from */
+  /** Its key for ?focus= (data-focus-key) */
   focusKey?: string;
+  /** Chosen in a capsule's mini-tile row (AdminCapsuleView): a stronger fill and a 2px edge in the full unit colour */
+  selected?: boolean;
   small?: boolean;
   /** Where the tile leads: a page (href) or a tab of this page (onOpen) */
   href?: string;
@@ -56,13 +59,27 @@ const TILE_MIN = 72;
 /** A row heading's height with its gap. */
 const HEADING_H = 22;
 /** Room under the board: the page's bottom padding (--adm-section, 40px). */
-const BOTTOM_GAP = 40;
 
 /**
  * One decision per page (CLAUDE.md "Kachel-Titel nie abkürzen"): when any tile's title and change don't fit its top row, the change of EVERY
  * tile on that board moves into the value row, right – the same position on the whole page. Tiles report through this context.
  */
 const ChangePlace = createContext<{ low: boolean; report: (id: string, crowded: boolean) => void } | null>(null);
+
+/** One shared change place for tiles outside a TileBoard (a capsule's mini-tile row): any crowded tile moves every change down. */
+export function TileChangePlace({ children }: { children: ReactNode }) {
+  const [crowdedIds, setCrowdedIds] = useState<ReadonlySet<string>>(new Set());
+  const report = useCallback((id: string, crowded: boolean) => {
+    setCrowdedIds((now) => {
+      if (now.has(id) === crowded) return now;
+      const next = new Set(now);
+      if (crowded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  return <ChangePlace.Provider value={{ low: crowdedIds.size > 0, report }}>{children}</ChangePlace.Provider>;
+}
 
 /** Tiles in rows of `columns` (an overview tab's flat list → rows). */
 export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns = 5): TileRow[] {
@@ -77,18 +94,17 @@ export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns 
  * their headings and gaps) – ALWAYS the whole height, 2, 3 or 4 rows alike (CLAUDE.md "Kacheln füllen die volle Höhe"): no empty room at the
  * bottom; only a floor (TILE_MIN, ≥ 1280 × 720 without scrolling). Taller tiles show more detail lines; the value stays on top.
  */
-export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false, fixedHeight }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** A fixed tile height instead of filling the screen (the overview's group capsules: the tiles on top, details under them) */ fixedHeight?: number; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
+export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
   const t = useTranslations("admin.cockpit");
   const box = useRef<HTMLDivElement>(null);
   const [tileH, setTileH] = useState(96);
   const headings = rows.filter((r) => r.title).length;
   // Measured after every render too (setState only on a change): rows above it can appear later – the period's day row after hydrating.
   useLayoutEffect(() => {
-    if (fixedHeight) return setTileH(fixedHeight);
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined || window.innerWidth < 1024) return setTileH(96);
-      const room = window.innerHeight - (top + window.scrollY) - BOTTOM_GAP - headings * HEADING_H;
+      const room = window.innerHeight - (top + window.scrollY) - pageInset() - headings * HEADING_H;
       // One gap on every page (--adm-grid-gap, admin-tokens.css), read as rendered; the tiles take the rest.
       const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0;
       const next = Math.floor(Math.max(TILE_MIN, (room - gap * (rows.length - 1)) / rows.length));
@@ -104,7 +120,7 @@ export function TileBoard({ rows, columns = 5, label, spacious = false, colorTit
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [rows.length, headings, spacious, fixedHeight]);
+  }, [rows.length, headings, spacious]);
   const gap = "var(--adm-grid-gap)";
   // Which tiles have no room for title + change on top; any → the change sits in the value row on every tile of this board.
   const [crowdedIds, setCrowdedIds] = useState<ReadonlySet<string>>(new Set());
@@ -236,7 +252,7 @@ const LINE_GAP = 2;
  * The detail lines come as a list ordered by importance; as many are shown as fit the room left (measured, never cut), so a large tile
  * shows more. The whole tile a link (href) or a button (onOpen).
  */
-export function Tile({ tileKey, tileId, group, label, info, value, change, target, extra, details, href, onOpen, unitColor, focusKey, openLabel, big = false, huge = false, colorTitle = false }: Omit<TileSpec, "key"> & { /** Its key (data-tile-key: the tile → capsule routes) */ tileKey?: string; /** Its id on the board (for the page-wide change place) */ tileId?: string; group: AreaColor; openLabel: string; big?: boolean; huge?: boolean; /** The title in its group's colour (the overview only); elsewhere secondary grey */ colorTitle?: boolean }) {
+export function Tile({ tileKey, tileId, group, label, info, value, change, target, extra, details, href, onOpen, unitColor, focusKey, selected, openLabel, big = false, huge = false, colorTitle = false }: Omit<TileSpec, "key"> & { /** Its key (data-tile-key: the tile → capsule routes) */ tileKey?: string; /** Its id on the board (for the page-wide change place) */ tileId?: string; group: AreaColor; openLabel: string; big?: boolean; huge?: boolean; /** The title in its group's colour (the overview only); elsewhere secondary grey */ colorTitle?: boolean }) {
   const all = [extra, ...(details ?? [])].filter((line) => line !== undefined && line !== null && line !== "");
   // How many lines fit: the room between the value and the bottom edge (beside the target), measured.
   const room = useRef<HTMLElement>(null);
@@ -297,12 +313,12 @@ export function Tile({ tileKey, tileId, group, label, info, value, change, targe
         ) : null;
   const link = "absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
   return (
-    <div data-cockpit-tile data-tile-key={tileKey} data-focus-key={focusKey} data-unit={unitColor ? "" : undefined} style={unitColor ? ({ "--unit": unitColor } as CSSProperties) : undefined} className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-3" : "px-3 pt-2 pb-2", AREA_TILE[group])}>
+    <div data-cockpit-tile data-tile-key={tileKey} data-focus-key={focusKey} data-selected={selected || undefined} data-routed={unitColor ? "" : undefined} className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-3" : "px-3 pt-2 pb-2", AREA_TILE[group])}>
       {href ? <Link href={href} data-card-link aria-label={openLabel} className={link} /> : onOpen ? <button type="button" data-card-link aria-label={openLabel} onClick={onOpen} className={link} /> : null}
       {/* Top: the title + ⓘ left, the change right. */}
       <dt ref={topRow} className="flex min-w-0 shrink-0 items-center gap-2 text-eyebrow uppercase">
         <span className="flex min-w-0 flex-1 items-center gap-1">
-          <span ref={titleRef} data-tile-title className={cn("whitespace-nowrap", tight && "text-[11px]", colorTitle ? AREA_TEXT[group] : "text-(--adm-label)")}>
+          <span ref={titleRef} data-tile-title className={cn("whitespace-nowrap", tight && "text-[11px]", colorTitle ? AREA_TEXT[group] : "adm-page-title")}>
             {label}
           </span>
           <InfoTip text={info} />

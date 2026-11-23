@@ -1,4 +1,6 @@
 "use client";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton } from "./AdminButton";
 
 // /admin/vision – Vision as a map of building blocks (Warum · Wie · Wohin) with zoom and a timeline. The click row: Karte · Zeitleiste,
@@ -88,7 +90,7 @@ export function AdminVision() {
       title={VISION_TITLE}
       tabs={
         !zoomed ? (
-          <AdminTabs<VisionTab> label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={withUnits("vision", [{ value: "overview" as const, label: tOverview("tab") }, ...VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))])} />
+          <TopicHeader page="vision" title={VISION_TITLE} />
         ) : (
           <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (view === "overview" ? `← ${tOverview("tab")}` : zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />
         )
@@ -105,7 +107,9 @@ export function AdminVision() {
         </section>
       ) : view === "overview" ? (
         <VisionOverview inputs={inputs} />
-      ) : view === "layers" ? (
+      ) : (
+        // Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht").
+        <VisionOverview inputs={inputs} render={(tiles) => <AdminCapsuleView page="vision" capsule={view} tiles={tiles} fallback={view === "layers" ? (
         // Schichten: the four layers with the continuum axis and the detail field; the flywheel small as the close.
         <VisionLayers key={focus ?? "layers"} inputs={inputs} focus={focus} onZoom={(id) => go({ view: "layers", block: id })} />
       ) : view === "continuum" ? (
@@ -139,6 +143,7 @@ export function AdminVision() {
         </>
       ) : (
         <LocationView inputs={inputs} />
+      )} />} />
       )}
     </AdminShell>
   );
@@ -186,7 +191,7 @@ type VisionTab = "overview" | VisionView;
  * Überblick (CLAUDE.md "Vision"): eight tiles in the one tile plan, group Planen, no scrolling – Schichten · Kontinuum · Markt · Zielgruppen ·
  * Verbindung · Roadmap · Standort · Finanzierung; each leads to its capsule (config/admin-tiles.ts, "vision"), Finanzierung to its page.
  */
-function VisionOverview({ inputs }: { inputs: AdminInputs }) {
+function VisionOverview({ inputs, render }: { inputs: AdminInputs ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.vision");
   const N = PHASE_TEXT.overviewNumbers;
   const ready = fundingReadiness(inputs);
@@ -268,7 +273,24 @@ function VisionOverview({ inputs }: { inputs: AdminInputs }) {
       details: keep(ready.items.some((i) => !i.met) ? t("fundingMissing", { list: ready.items.filter((i) => !i.met).map((i) => critShort[i.key]).join(", ") }) : null, t("funding.extra"), ...ready.items.filter((i) => i.met).map((i) => t("critMet", { name: critShort[i.key] }))),
     },
   ];
-  return <TileBoard label={VISION_TITLE} columns={4} rows={chunkRows(routeTiles("vision", tiles), "plan", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/vision.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    nextLayer: next ? { label: ts("nextLayer"), value: next.title } : null,
+    release: { label: ts("release"), value: `${num(layerNumbers.places.met)} / ${num(layerNumbers.places.of)}` },
+    layer: { label: ts("layer"), value: "2" },
+    live: { label: ts("live"), value: num(sourcesBy("live")) },
+    idea: { label: ts("idea"), value: num(sourcesBy("idea")) },
+    leader: { label: ts("leader"), value: leader.value },
+    today12: { label: ts("today12"), value: eur(revenueLast12(inputs)) },
+    segmentsNow: { label: ts("segmentsNow"), value: num(segmentsNow) },
+    nextStage: nextPhase ? { label: ts("nextStage"), value: nextPhase.title } : null,
+    candidates: { label: ts("candidates"), value: num(LOCATION.candidates.rows.length) },
+    met: { label: ts("met"), value: num(ready.met) },
+    open: { label: ts("open"), value: num(ready.total - ready.met) },
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="vision" pool={pool} />;
 }
 
 /** "Vision › <Name>" and "← Karte" in the click row while zoomed. */

@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/Switch";
 import type { ComparePeriod } from "@/config/admin";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminFocus, useAdminPeriod } from "@/lib/admin/period";
-import { costEntryDays, guestRevenueBuckets, hostMoney, hostPayouts, moneyPeriod, runway, statusAgainst, type MoneyTerm, moneyTotals } from "@/lib/admin/metrics";
+import { companyBalance, costEntryDays, guestRevenueBuckets, hostMoney, hostPayouts, moneyPeriod, runway, statusAgainst, type MoneyTerm, moneyTotals } from "@/lib/admin/metrics";
 import { daysUntil, taxDeadlines } from "@/lib/admin/ledger";
 import { deadlineLabel } from "@/lib/admin/exporters";
 import { OVERVIEW_GOALS } from "@/config/policies";
@@ -42,9 +42,10 @@ import { stripeUrl } from "@/config/tools";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminTaxes } from "./AdminTaxes";
 import { AdminTaxJournal } from "./AdminTaxJournal";
-import { PayoutSection, Withdrawals } from "./AdminCockpit";
+import { PayoutsDetail, useMoneyDetail } from "./details/MoneyDetails";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 
-const TABS = ["overview", "history", "costs", "guests", "hosts", "payments", "taxes"] as const;
+const TABS = ["overview", "history", "costs", "guests", "hosts", "payments", "taxes", "withdrawals", "forecast"] as const;
 type Tab = (typeof TABS)[number];
 const CATEGORIES: readonly CostCategory[] = ["tools", "creator", "marketing", "other"];
 
@@ -57,20 +58,46 @@ export function AdminMoney({ initialView = "overview" }: { initialView?: Tab }) 
   const setTab = (next: Tab) => (window.location.pathname === "/admin/money" ? open(next) : router.push(next === "overview" ? "/admin/money" : `/admin/money?tab=${next}`, { scroll: false }));
   const [taxView, setTaxView] = useState<"journal" | "overview">("journal");
   const [period] = useAdminPeriod();
+  const moneyDetail = useMoneyDetail();
+  // "Acht Karten" (CLAUDE.md): the overview is eight cards; a card opens its topic (?topic=, the head's bar); the content views as before.
+  const parts = (...keys: string[]) => (
+    <div className="flex flex-col gap-(--adm-section)">
+      {keys.map((k) => (
+        <div key={k}>{moneyDetail(k)}</div>
+      ))}
+    </div>
+  );
   return (
     <AdminShell
       title={t("title")}
-      tabs={<AdminTabs label={t("views.label")} value={tab} onChange={setTab} tabs={withUnits("money", TABS.map((value) => ({ value, label: value === "history" ? tt("tab.history") : t(`views.${value}`) })))} />}
+      tabs={<TopicHeader page="money" title={t("title")} />}
       subTabs={tab === "taxes" ? <AdminSubTabs label={t("taxViews.label")} value={taxView} onChange={setTaxView} tabs={(["journal", "overview"] as const).map((value) => ({ value, label: t(`taxViews.${value}`) }))} /> : undefined}
       period
     >
       {tab === "overview" && <OverviewTiles period={period} onOpen={setTab} />}
-      {tab === "history" && <Overview period={period} />}
-      {tab === "guests" && <Guests period={period} />}
+      {tab === "history" && (
+        <div className="flex flex-col gap-(--adm-section)">
+          <ProfitDrill />
+          {parts("revenue", "bookingVolume")}
+        </div>
+      )}
+      {tab === "costs" && (
+        <div className="flex flex-col gap-(--adm-section)">
+          {parts("costs")}
+          <Costs period={period} />
+        </div>
+      )}
+      {tab === "guests" && (
+        <div className="flex flex-col gap-(--adm-section)">
+          {parts("perGuest", "refunds")}
+          <Guests period={period} />
+        </div>
+      )}
       {tab === "hosts" && <Hosts period={period} />}
-      {tab === "costs" && <Costs period={period} />}
-      {tab === "payments" && <Payments period={period} />}
+      {tab === "payments" && <PayoutsDetail hosts={<Payments period={period} />} />}
       {tab === "taxes" && (taxView === "journal" ? <AdminTaxJournal /> : <AdminTaxes />)}
+      {tab === "withdrawals" && moneyDetail("withdrawals")}
+      {tab === "forecast" && parts("monthForecast", "takeRate")}
     </AdminShell>
   );
 }
@@ -100,7 +127,7 @@ const eurOrDash = (n: number | null) => (n === null ? "–" : eur(n));
  * pro Jahr (Gäste) · Host-Fee-Anteil · Host pro Jahr (Hosts) · Stripe-Gebühren · Weitere Kosten (Kosten) · Auszahlungen offen (Auszahlungen) ·
  * Nächste Steuerfrist (Steuern).
  */
-function OverviewTiles({ period, onOpen }: { period: ComparePeriod; onOpen: (tab: Tab) => void }) {
+function OverviewTiles({ period, onOpen, render }: { period: ComparePeriod; onOpen: (tab: Tab) => void; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.money");
   const tt = useTranslations("admin.pageTiles.money");
   const tc = useTranslations("admin.cockpit");
@@ -110,7 +137,8 @@ function OverviewTiles({ period, onOpen }: { period: ComparePeriod; onOpen: (tab
   const p = hostPayouts(inputs, m.ranges.current.from, m.ranges.current.to);
   const next = taxDeadlines(inputs.today, 120)[0];
   const against = tc(`compare.info.${period}`);
-  type Key = "bookingVolume" | "revenue" | "costs" | "profit" | "takeRate" | "perGuest" | "monthForecast" | "taxReserve" | "refunds" | "valuePerGuestYear" | "paymentIssues" | "valuePerHostYear" | "stripeFees" | "otherCosts" | "openPayouts" | "nextDeadline";
+  type Key = "bookingVolume" | "revenue" | "costs" | "profit" | "takeRate" | "perGuest" | "monthForecast" | "taxReserve" | "refunds" | "valuePerGuestYear" | "paymentIssues" | "valuePerHostYear" | "stripeFees" | "otherCosts" | "openPayouts" | "nextDeadline" | "withdrawals";
+  const balance = companyBalance(inputs);
   const tile = (key: Key, value: TileSpec["value"], tab: Tab, extra: Partial<TileSpec> = {}): TileSpec => ({ key, label: tt(`${key}.label`), info: `${tt(`${key}.info`)} ${against}`, value, onOpen: () => onOpen(tab), ...extra });
   const money = (n: number | null) => (n === null ? tt("none") : eur(n));
   const share = (part: number, all: number) => (all > 0 ? pct(Math.round((part / all) * 100)) : tt("none"));
@@ -197,36 +225,32 @@ function OverviewTiles({ period, onOpen }: { period: ComparePeriod; onOpen: (tab
       small: true,
       ...(next ? lines(deadlineLabel(next).split(":")[0], tt("detail.deadlineDate", { date: day(next.date) }), tt("detail.deadlineMore", { count: deadlines.length })) : {}),
     }),
+    // Entnahmen (Steuern): what Lukas took out of the company this year – only in the capsule's mini tiles, not on the 4 × 4 overview.
+    tile("withdrawals", eur(balance.withdrawals), "taxes", {
+      ...lines(tt("detail.withdrawalsLeft", { value: eur(balance.left) }), tt("detail.withdrawalsProfit", { value: eur(balance.profit) })),
+    }),
   ];
-  // Four columns × four rows: wide enough for the large money numbers beside their change.
-  // Each tile → its capsule (and focus) from config/admin-tiles.ts.
-  return <TileBoard label={t("title")} columns={4} rows={chunkRows(routeTiles("money", tiles), "numbers", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/money.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    hostFeeShare: { label: ts("hostFeeShare"), value: eur(m.now.hostFeeShare) },
+    proHosts: { label: ts("proHosts"), value: num(m.now.proHosts) },
+    paidOut: { label: ts("paidOut"), value: eur(p.paidTotal) },
+    deadlines: { label: ts("deadlines"), value: num(deadlines.length) },
+    inCompany: { label: ts("inCompany"), value: eur(balance.left) },
+    profitYear: { label: ts("profitYear"), value: eur(balance.profit) },
+    forecastProfit: { label: ts("forecastProfit"), value: eur(Math.round(forecast.profit)) },
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="money" pool={pool} />;
 }
 
 // ── Verlauf (the former Überblick) ────────────────────────────────────────────────────────────────────────────────────────────
 
-function Overview({ period }: { period: ComparePeriod }) {
-  const inputs = useAdminInputs();
-  const m = moneyPeriod(inputs, period, useAdminFocus(inputs.today));
-  const term = useTerm(period);
-  return (
-    <>
-      <KeyNumbers
-        className="lg:grid-cols-5"
-        items={[
-          term("bookingVolume", eur(m.now.bookingVolume), m.changes.bookingVolume),
-          term("revenue", eur(m.now.revenue), m.changes.revenue),
-          term("costs", eur(m.now.costs), m.changes.costs),
-          term("profit", eur(m.now.profit), m.changes.profit),
-          term("takeRate", m.now.takeRate === null ? "–" : `${dec(m.now.takeRate)} %`, m.changes.takeRate),
-        ]}
-      />
-      {/* The profit chart with its drill-down (moved here from the overview): a click opens a bar one level deeper. */}
-      <ProfitDrill />
-      <PayoutSection />
-      <Withdrawals />
-    </>
-  );
+function Overview() {
+  // The key numbers are the capsule's mini tiles now (CLAUDE.md "Kapsel-Ansicht"); Simpulo's payouts live in Zahlungen, the withdrawals in
+  // Steuern. What stays: the profit chart with its drill-down.
+  return <ProfitDrill />;
 }
 
 // ── Gäste ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

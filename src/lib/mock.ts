@@ -18,10 +18,8 @@ import { VIBES, locationOf } from './catalog';
 
 export { VIBES, locationOf };
 
-export type Vibe =
-  | 'fitness' | 'surf-water' | 'remote-work' | 'founder' | 'creator' | 'wellness' | 'adventure' | 'culture' | 'party' | 'holiday'
-  | 'social' // also the filter key of Houses with a host's own label (Stay.customVibe)
-  | 'students';
+/** A top theme's id – from the one list config/themes.ts ('social' is also the key of Houses with a host's own label, Stay.customVibe). */
+export type Vibe = import("@/config/themes").TopThemeId;
 export type AccommodationStatus = 'open' | 'locked';
 /** Currencies a host can price a House in. */
 /** ISO 4217 – every common one (src/lib/currency.ts). */

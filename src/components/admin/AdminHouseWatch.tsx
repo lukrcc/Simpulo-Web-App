@@ -1,4 +1,6 @@
 "use client";
+import { HouseThemesView, useHouseThemes } from "./HouseThemes";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { AdminButton, AdminDialogFooter } from "./AdminButton";
 import { Sheet } from "@/components/ui/Sheet";
 
@@ -9,7 +11,7 @@ import { ProgressBar } from "./AdminCharts";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Img } from "@/components/ui/Img";
 import { useToast } from "@/components/ui/Toast";
 import { HOUSE_LEVERS, HOUSE_RISK, type HouseLever } from "@/config/admin";
@@ -33,6 +35,7 @@ import { cn, housePhotos } from "@/lib/utils";
 import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList, DirectLink } from "./AdminLayout";
 import { firebaseDocUrl } from "@/config/tools";
 import { InfoTip, MetricCard } from "./AdminNumbers";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminShell } from "./AdminShell";
 import { routeTiles, withUnits } from "./tileRoutes";
 import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
@@ -46,7 +49,7 @@ const enMoney = new Intl.NumberFormat("en-GB", { style: "currency", currency: "E
 const enNumber = new Intl.NumberFormat("en-GB");
 
 /** "Überblick" first and by default (CLAUDE.md "Überblick zuerst"), then the lists. */
-type Tab = "overview" | "atRisk" | "goingWell" | "all";
+type Tab = "overview" | "atRisk" | "goingWell" | "all" | "themes";
 /** A tile's focus (?focus=, config/admin-tiles.ts): a filter on "Alle" or "Braucht Hilfe", and the sort it brings. */
 type HouseFocus = "open" | "full" | "reserved" | "cancelled" | "soon" | "fill" | "quiet" | "unanswered";
 const FOCUS_SORT: Partial<Record<HouseFocus, HouseSort>> = { open: "start", full: "fill", reserved: "fill", soon: "start", fill: "fill", cancelled: "start" };
@@ -95,7 +98,7 @@ export function AdminHouseList() {
   // "Braucht Hilfe" when it needs help, else "Alle".
   // The capsule in ?tab= (pushed – back works); without one a House from a link opens its list, else the overview. ?focus= (a tile's route,
   // config/admin-tiles.ts) filters the list ("Offene Houses" only the open ones …) and sets its sort; "Filter: … ✕" lifts it.
-  const url = useAdminTab<Tab>(["overview", "atRisk", "goingWell", "all"], "overview");
+  const url = useAdminTab<Tab>(["overview", "atRisk", "goingWell", "all", "themes"], "overview");
   const tab: Tab = url.tab === "overview" && picked && !new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("tab") ? (help.some((h) => h.stay.id === picked) ? "atRisk" : "all") : url.tab;
   const focus = url.focus as HouseFocus | null;
   const setTab = (next: Tab) => url.open(next);
@@ -132,23 +135,19 @@ export function AdminHouseList() {
   const reserved = cockpit(inputs, "month").areas.find((a) => a.key === "demand")!.number;
 
   const open = (next: Tab, nextSort?: HouseSort) => (setTab(next), setPicked(null), setSort(nextSort ?? null));
-  const tabs = (
-    <AdminTabs
-      label={t("tabsLabel")}
-      value={tab}
-      onChange={(next) => open(next)}
-      tabs={withUnits<Tab>("houses", [
-        { value: "overview", label: tOverview("tab") },
-        { value: "atRisk", label: t("atRisk"), count: help.length, tooltip: t("info.atRisk") },
-        { value: "goingWell", label: t("goingWell"), count: fastest.length },
-        { value: "all", label: t("all"), count: all.length },
-      ])}
-    />
-  );
+  // "Acht Karten" (CLAUDE.md): the overview's eight cards; a card opens its topic (the head's bar).
+  const tabs = <TopicHeader page="houses" title={t("title")} />;
   if (tab === "overview")
     return (
       <AdminShell title={t("title")} tabs={tabs}>
         <HousesOverview all={all} help={help} fastest={fastest} reserved={reserved.value} onOpen={open} />
+      </AdminShell>
+    );
+  // Themen: the supply per theme against the demand (components/admin/HouseThemes.tsx); the period counts.
+  if (tab === "themes")
+    return (
+      <AdminShell title={t("title")} tabs={tabs} period>
+        <HouseThemesView />
       </AdminShell>
     );
 
@@ -158,19 +157,14 @@ export function AdminHouseList() {
       tabs={tabs}
       aside={
         <>
-          {/* A tile's filter, shown and liftable: "Filter: Offene Houses ✕". */}
-          {focus && (
-            <button type="button" data-focus-filter onClick={() => setAdminSearch({ focus: null })} className="adm-cap" data-open>
-              <span className="adm-cap-count">{t("filterLabel")}:</span>
-              {tTiles(`${focus}.label`)}
-              <X aria-hidden className="size-3.5" />
-            </button>
-          )}
           <AdminSearch label={t("search")} value={query} onChange={setQuery} disabled={tab !== "all"} />
           <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["urgency", "start", "fill", "title"] as const).filter((v) => v !== "urgency" || tab === "atRisk").map((value) => ({ value, label: t(`sort.${value}`) }))} />
         </>
       }
     >
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      <HousesOverview all={all} help={help} fastest={fastest} reserved={reserved.value} onOpen={open}  render={(tiles) => (
+        <AdminCapsuleView page="houses" capsule={tab} tiles={tiles} fallback={<>
       {/* No pressure of its own: what needs doing lives in Aufgaben – only the hint, then the one number (2+ Vormerkungen). */}
       <OpenTasksHint area="houses" />
       <dl data-key-numbers className="mb-(--adm-section) grid gap-3 sm:grid-cols-2 lg:max-w-160">
@@ -211,6 +205,8 @@ export function AdminHouseList() {
           ) : null
         }
       />
+        </>} />
+      )} />
     </AdminShell>
   );
 }
@@ -639,7 +635,7 @@ function History({ stay, done }: { stay: Stay; done: React.ReactNode }) {
  * Alle) and the numbers behind them: open and full coming Houses, 2+ Vormerkungen, highlighted, starting within 30 days, the average fill,
  * the warning reasons and the fastest fill. Each tile opens its list (sorted where that helps).
  */
-function HousesOverview({ all, help, fastest, reserved, onOpen }: { all: readonly Stay[]; help: readonly NeedsHelpRow[]; fastest: readonly { stay: Stay; days: number }[]; reserved: number | null; onOpen: (tab: Tab, sort?: HouseSort) => void }) {
+function HousesOverview({ all, help, fastest, reserved, onOpen, render }: { all: readonly Stay[]; help: readonly NeedsHelpRow[]; fastest: readonly { stay: Stay; days: number }[]; reserved: number | null; onOpen: (tab: Tab, sort?: HouseSort) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.houses");
   const tHouses = useTranslations("admin.houses");
   const store = useStore();
@@ -739,5 +735,32 @@ function HousesOverview({ all, help, fastest, reserved, onOpen }: { all: readonl
     tile("unanswered", num(reason("unanswered")), unansweredMax ? keep(t("d.longestHours", { hours: num(unansweredMax.n) }), nameOf(unansweredMax.stay), t("d.answerRule", { hours: num(HOUSE_RISK.unansweredHours) })) : [t("d.noneUnanswered")], "atRisk"),
     tile("fastest", fastest[0] ? days(fastest[0].days) : "–", fastest[0] ? keep(nameOf(fastest[0].stay), t("d.cityTopic", { city: cityOf(fastest[0].stay), topic: f.vibe(fastest[0].stay.vibe) }), t("d.medianFull", { days: days(medianDays) }), fastest[1] ? t("d.second", { title: nameOf(fastest[1].stay), days: days(fastest[1].days) }) : null, t("d.fullIn7", { count: num(fastest.filter((x) => x.days <= 7).length) })) : [t("d.noneFull")], "goingWell"),
   ];
-  return <TileBoard label={tHouses("title")} columns={4} rows={chunkRows(routeTiles("houses", tiles), "platform", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/houses.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const themes = useHouseThemes();
+  const pool = numberPool(tiles, {
+    coming: { label: ts("coming"), value: num(coming.length) },
+    newThisWeek: { label: ts("newThisWeek"), value: num(newThisWeek) },
+    soon: { label: ts("soon30"), value: num(soon.length) },
+    cities: { label: ts("cities"), value: num(cities) },
+    within7: { label: ts("within7"), value: num(help.filter((h) => h.stay.startDate <= in7).length) },
+    boosted: { label: ts("boosted"), value: `${num(boosted.length)} / ${num(HIGHLIGHT_POLICY.maxConcurrent)}` },
+    medianFull: { label: ts("medianFull"), value: days(medianDays) },
+    fastest: tiles.find((x) => x.key === "fastest") && { label: ts("fastest"), value: tiles.find((x) => x.key === "fastest")!.value },
+    shareComing: { label: ts("shareComing"), value: pctOf(full.length, coming.length) },
+    spots: { label: ts("spots"), value: `${num(filledSpots)} / ${num(totalSpots)}` },
+    withTwo: { label: ts("withTwo"), value: num(withTwo) },
+    hostOnly: { label: ts("hostOnly"), value: num(hostOnly) },
+    quiet: tiles.find((x) => x.key === "quiet") && { label: ts("quiet"), value: tiles.find((x) => x.key === "quiet")!.value },
+    longestHours: unansweredMax ? { label: ts("longestHours"), value: `${num(unansweredMax.n)} h` } : null,
+    byHost: { label: ts("byHost"), value: num(cancelled.filter((c) => c.reason === "host").length) },
+    notFull: { label: ts("notFull"), value: num(cancelled.filter((c) => c.reason === "notFull").length) },
+    takenDown: { label: ts("takenDown"), value: num(cancelled.filter((c) => c.reason === "takenDown").length) },
+    themes: { label: ts("activeThemes"), info: ts("themesInfo"), value: num(themes.active) },
+    themeTop: themes.top && { label: ts("themeTop"), value: `${themes.top.name} · ${num(themes.top.count)}` },
+    themeLow: themes.low && { label: ts("themeLow"), value: `${themes.low.name} · ${num(themes.low.count)}` },
+    themeGap: themes.gaps[0] && { label: ts("themeGap"), value: themes.gaps[0].name },
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="houses" pool={pool} />;
 }

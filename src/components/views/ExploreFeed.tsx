@@ -277,10 +277,12 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
   // Explore searching: the count as the title, the active filters as chips (each removable), "Clear all".
   const searchView = !scoped && !headless && filtered;
   const monthName = useMonthName();
+  const tSubTheme = useTranslations("common.subThemes");
   const activeChips: { key: string; label: string; patch: Partial<ExploreFilters> }[] = [
     ...(filters.place ? [{ key: "place", label: placeById(filters.place)?.name.split(",")[0] ?? filters.place, patch: { place: null } }] : []),
     ...(filters.month ? [{ key: "month", label: monthName(filters.month, true), patch: { month: null } }] : []),
-    ...filters.vibes.map((vibe) => ({ key: `vibe-${vibe}`, label: format.vibe(vibe), patch: { vibes: filters.vibes.filter((v) => v !== vibe) } })),
+    ...filters.vibes.map((vibe) => ({ key: `vibe-${vibe}`, label: format.vibe(vibe), patch: { vibes: filters.vibes.filter((v) => v !== vibe), sub: null } })),
+    ...(filters.sub ? [{ key: "sub", label: tSubTheme(filters.sub as "running"), patch: { sub: null } }] : []),
     ...filters.lengths.map((length) => ({ key: `len-${length}`, label: length === "weekend" ? tf("shortTrips") : tf(`lengthOptions.${length}`), patch: { lengths: filters.lengths.filter((l) => l !== length) } })),
     ...filters.crewSizes.map((size) => ({ key: `crew-${size}`, label: `${tf("crewSize")} ${size.replace("-", "–")}`, patch: { crewSizes: filters.crewSizes.filter((c) => c !== size) } })),
     ...(filters.budget ? [{ key: "budget", label: `${tf("price")} ${filters.budget.min}–${filters.budget.max}`, patch: { budget: null } }] : []),
@@ -403,7 +405,7 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
               active={filters.lengths.includes("weekend")}
               onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
             />
-            {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} themesLabel={tHeaderThemes("themes")} moreThemesLabel={tHeaderThemes("moreThemes")} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [] })} />}
+            {showVibes && <BarCategories countOf={(vibe) => openOfVibe(vibe as Vibe)} label={vibeRow.label} moreLabel={vibeRow.moreLabel} themesLabel={tHeaderThemes("themes")} moreThemesLabel={tHeaderThemes("moreThemes")} top={TOP_CATEGORIES} all={vibeOptions} value={filters.vibes} sub={filters.sub} onSelect={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [], sub: null })} onSelectSub={(parent, sub) => update({ vibes: [parent as Vibe], sub })} />}
             {/* All filters: the bar's one capsule, only a chevron after the words – right after the theme button. */}
             <span ref={setFiltersEl} className="contents">
               <FiltersButton variant="compact" count={panelCount} expanded={panelOpen} onClick={openPanel} />

@@ -1,4 +1,6 @@
 "use client";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton } from "./AdminButton";
 
 // Admin › Finanzierung ("Wann und wofür holen wir Geld?") – Wachstum, after Vision. Four parts as capsules: Bereitschaft (the checklist with
@@ -9,7 +11,7 @@ import { AdminButton } from "./AdminButton";
 // number – it lives only in its tab) and the company structure; each tile opens its tab.
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -71,25 +73,43 @@ export function AdminFunding() {
     // The tabs in the head's one click row (Grundordnung); the note under it ("Bewertung & Anteile" its own, Firmenstruktur its own at the end).
     <AdminShell
       title={FUNDING_TITLE}
-      tabs={<AdminTabs<FundingTab | "overview"> label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={withUnits("funding", [{ value: "overview" as const, label: tOverview("tab") }, ...FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))])} />}
+      tabs={<TopicHeader page="funding" title={FUNDING_TITLE} />}
       subTabs={tab === "structure" ? <CompanyStructureTabs view={structure} onChange={setStructure} /> : undefined}
     >
       {tab === "overview" && <FundingOverview inputs={inputs} onOpen={(next) => setTab(next)} />}
-      {tab !== "structure" && tab !== "overview" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
-      {tab === "readiness" && <Readiness inputs={inputs} />}
-      {tab === "thesis" && <Thesis />}
-      {tab === "rounds" && <Rounds />}
-      {tab === "documents" && <Documents inputs={inputs} />}
-      {tab === "valuation" && (
-        // Bewertung: the Market Cap on top (the estimate, its methods, drivers and course), the ranges and the share calculator under it.
-        <>
-          <AdminMarketCap embedded />
-          <div className="mt-(--adm-section)">
-            <Valuation inputs={inputs} />
-          </div>
-        </>
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      {tab !== "overview" && (
+        <FundingOverview
+          inputs={inputs}
+          onOpen={(next) => setTab(next)}
+          render={(tiles) => (
+            <AdminCapsuleView
+              page="funding"
+              capsule={tab}
+              tiles={tiles}
+              fallback={
+                <>
+                  {tab !== "structure" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
+                  {tab === "readiness" && <Readiness inputs={inputs} />}
+                  {tab === "thesis" && <Thesis />}
+                  {tab === "rounds" && <Rounds />}
+                  {tab === "documents" && <Documents inputs={inputs} />}
+                  {tab === "valuation" && (
+                    // Bewertung: the Market Cap on top (the estimate, its methods, drivers and course), the ranges and the share calculator under it.
+                    <>
+                      <AdminMarketCap embedded />
+                      <div className="mt-(--adm-section)">
+                        <Valuation inputs={inputs} />
+                      </div>
+                    </>
+                  )}
+                  {tab === "structure" && <CompanyStructure view={structure} />}
+                </>
+              }
+            />
+          )}
+        />
       )}
-      {tab === "structure" && <CompanyStructure view={structure} />}
     </AdminShell>
   );
 }
@@ -97,7 +117,7 @@ export function AdminFunding() {
 // ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Only tiles (CLAUDE.md "Überblick zuerst"), group Planen: each opens its tab. "Bewertung & Anteile" shows the Market Cap median (the one valuation function). */
-function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: FundingTab, view?: StructureView) => void }) {
+function FundingOverview({ inputs, onOpen, render }: { inputs: AdminInputs; onOpen: (tab: FundingTab, view?: StructureView) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.funding");
   const r = fundingReadiness(inputs);
   const v = r.values;
@@ -283,7 +303,20 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
   // Only lines short enough for the 275px tile (≈ 34 characters) – never a cut line (CLAUDE.md "fester Kachel-Bauplan").
   // A target in the bottom-right corner leaves the lines less room (≈ 26 characters).
   const fitted = tiles.map((tile) => ({ ...tile, details: tile.details?.filter((l) => typeof l !== "string" || l.length <= (tile.target ? 26 : 34)) }));
-  return <TileBoard label={FUNDING_TITLE} rows={chunkRows(routeTiles("funding", fitted), "plan", 4)} columns={4} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/funding.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    spanLow: { label: ts("spanLow"), value: `${k(mc.span.low)} Tsd. €` },
+    spanHigh: { label: ts("spanHigh"), value: `${k(mc.span.high)} Tsd. €` },
+    docsInProgress: { label: ts("docsInProgress"), value: num(docsInProgress) },
+    docsMissing: { label: ts("docsMissing"), value: num(docsMissing) },
+    biggestShare: { label: ts("biggestShare"), value: `${num(biggest.percent)} %` },
+    allocated: { label: ts("allocated"), value: `${num(allocated)} %` },
+    allocationCount: { label: ts("allocationPosts"), info: tiles.find((x) => x.key === "allocation")?.info, value: num(ALLOCATION.length) },
+    ...Object.fromEntries(ranked.slice(0, 3).map((x, i) => [`allocation.${i + 1}`, { label: x.label, value: `${num(x.percent)} %` }])),
+  });
+  if (render) return render(fitted);
+  return <TopicCards page="funding" pool={pool} />;
 }
 
 // ── Bereitschaft ────────────────────────────────────────────────────────────────────────────────────────────────────────────────

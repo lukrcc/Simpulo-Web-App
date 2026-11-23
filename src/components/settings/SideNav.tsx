@@ -17,6 +17,8 @@ export interface SideNavItem {
   current?: boolean;
   /** Right-aligned in the entry (Admin: a count that needs you) */
   badge?: ReactNode;
+  /** The icon's own colour (Admin: the page's colour, CLAUDE.md "Eine Farbe = eine Seite") */
+  iconColor?: string;
 }
 
 /**
@@ -49,7 +51,7 @@ export function SideNav({
     <nav aria-label={label} className={className}>
       {top}
       <ul className={cn("flex flex-col", compact ? "gap-0" : "gap-1", top ? "mt-4" : null)}>
-        {items.map(({ key, href, label: text, icon: Icon, selected, current, badge }) => {
+        {items.map(({ key, href, label: text, icon: Icon, selected, current, badge, iconColor }) => {
           const linkClass = cn(
             listItemStyles(selected),
             compact ? "flex h-(--sidebar-item-h,36px) items-center gap-2.5 px-3 text-nav-side" : "flex h-11 items-center gap-3 px-4 text-body",
@@ -58,7 +60,7 @@ export function SideNav({
           );
           const body = (
             <>
-              <Icon aria-hidden className={cn("shrink-0", "size-5", iconClass)} strokeWidth={1.75} />
+              <Icon aria-hidden className={cn("shrink-0", "size-5", iconClass)} style={iconColor ? { color: iconColor } : undefined} strokeWidth={1.75} />
               <span className="min-w-0 flex-1 truncate">{text}</span>
               {badge}
               <ChevronLeft aria-hidden className="size-4 rotate-180 text-ink/30 lg:hidden" />

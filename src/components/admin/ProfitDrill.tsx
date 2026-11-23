@@ -3,6 +3,7 @@
 // The profit chart with its drill-down (moved from the overview to Admin › Geld › Überblick): the admin's period's bars (DrillChart), a
 // click opens a bar one level deeper (Jahr → Quartal → Monat → Woche → Tage with what happened); the opened chain in the URL (?zoom=…,
 // other parameters kept), so the browser's back works. No goal line (no money targets).
+import { pageInset } from "@/lib/admin/inset";
 import { useTranslations } from "next-intl";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -104,7 +105,6 @@ export function ProfitDrill({ fill = false }: { fill?: boolean }) {
  * line (no money targets). With `fill` its height fills the rest of the window (at least 140px); otherwise a fixed height.
  */
 /** What stays free under the chart: the page's bottom padding (admin main, --adm-page-top below) – measured so nothing scrolls. */
-const BOTTOM_GAP = 40;
 
 const ProfitPanel = memo(function ProfitPanel({
   title,
@@ -135,7 +135,7 @@ const ProfitPanel = memo(function ProfitPanel({
       if (top === undefined) return;
       // The rest of the window under the chart's top, less the days' events and the page's bottom padding (the axis' second line is inside
       // the chart); at least 200px.
-      setHeight(Math.max(140, Math.floor(window.innerHeight - (top + window.scrollY) - BOTTOM_GAP - (days ? 56 : 0))));
+      setHeight(Math.max(140, Math.floor(window.innerHeight - (top + window.scrollY) - pageInset() - (days ? 56 : 0))));
     };
     measure();
     window.addEventListener("resize", measure);

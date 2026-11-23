@@ -22,9 +22,12 @@ export const TILES_MONEY = {
   openPayouts: { label: "Auszahlungen offen", info: "Eingesammelt, geht an Hosts, sobald die Crew bezahlt hat – nur Anzeige, kein Knopf." },
   paidOutLine: "ausgezahlt {amount}",
   nextDeadline: { label: "Nächste Steuerfrist", info: "Die nächste Frist aus Geld › Steuern – gut ist, sie früh vorzubereiten." },
+  withdrawals: { label: "Entnahmen", info: "Was du dieses Jahr aus der Firma entnommen hast – Gewinn minus Steuer-Rücklage minus Entnahmen bleibt in der Firma." },
   hostLine: "Host {value}",
   // Detail lines under the number (CLAUDE.md "Überblick je Seitentyp": breakdown, top element, comparison, hint).
   detail: {
+    withdrawalsLeft: "in der Firma {value}",
+    withdrawalsProfit: "Gewinn im Jahr {value}",
     forecastProfit: "Gewinn {profit}",
     forecastSoFar: "bisher {revenue} in {days} von {all} Tagen",
     forecastPerDay: "Ø {value} pro Tag",

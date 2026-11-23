@@ -9,9 +9,11 @@
 //   Detail    – horizontal bars per group by the chosen measure, a slim table (Gruppe · Hauptzahl · Houses; Länge, Crew and Host-Stufe with
 //               „Wen es anspricht“ from config/spectrum.ts), the detail right with every other value; the first group opens selected.
 // Groups under 10 Houses grey at the end ("zu wenig Daten"). Every number from lib/admin/metrics.ts (analysisRows, rankByMeasure, sweetSpot).
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { useDepthChoice } from "@/config/platform";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useFormat } from "@/i18n/format";
 import { ANALYSIS_DIMENSIONS, ANALYSIS_MEASURES, analysisDimensions, analysisRows, cockpit, measureOf, rankByMeasure, sweetSpot, valueCheck, type ValueCheck, type AnalysisDimension, type AnalysisMeasure, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
@@ -69,8 +71,7 @@ export function AdminAnalysis() {
   return (
     <AdminShell
       title={tTopics("title")}
-      tabs={<AdminTabs<Capsule> label={t("dimension.label")} value={capsule} onChange={(next) => setTab(next === "place" || next === "host" ? (GROUPS[next] as readonly AnalysisDimension[]).filter(inDims)[0] : next)} tabs={withUnits("analysis", [{ value: "overview" as const, label: t("dimension.overview") }, { value: "value" as const, label: tv("tab"), tooltip: tv("tabInfo") }, ...capsules.map((value) => ({ value, label: t(`dimension.${value as "place"}`) }))])} />}
-      subTabs={subs.length > 1 ? <AdminSubTabs<AnalysisDimension> label={t(`dimension.${capsule as "place"}`)} value={shown as AnalysisDimension} onChange={setTab} tabs={subs.map((value) => ({ value, label: t(`dimension.${value}`) }))} /> : undefined}
+      tabs={<TopicHeader page="analysis" title={tTopics("title")} />}
       aside={
         shown === "value" ? undefined : (
         <>
@@ -84,7 +85,12 @@ export function AdminAnalysis() {
         )
       }
     >
-      {shown === "overview" ? <Overview dims={dims} measure={measure} onOpen={setTab} /> : shown === "value" ? <ValueCheckView /> : <Detail key={shown} dimension={shown} measure={measure} />}
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      {shown === "overview" ? (
+        <Overview dims={dims} measure={measure} onOpen={setTab} />
+      ) : (
+        <Overview dims={dims} measure={measure} onOpen={setTab} render={(tiles) => <AdminCapsuleView page="analysis" capsule={capsule} tiles={tiles} fallback={shown === "value" ? <ValueCheckView /> : <Detail key={shown} dimension={shown} measure={measure} />} />} />
+      )}
     </AdminShell>
   );
 }
@@ -121,7 +127,7 @@ function measureText(measure: AnalysisMeasure, value: number | null): string {
  * weakest) · the best topic by each of the four measures · Pro vollem House (monthly, like the overview) · Houses in 12 months · groups with
  * too few data. Every tile opens its tab.
  */
-function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[]; measure: AnalysisMeasure; onOpen: (tab: Exclude<Tab, "overview">) => void }) {
+function Overview({ dims, measure, onOpen, render }: { dims: readonly AnalysisDimension[]; measure: AnalysisMeasure; onOpen: (tab: Exclude<Tab, "overview">) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.analysis");
   const tt = useTranslations("admin.pageTiles.analysis");
   const tc = useTranslations("admin.cockpit");
@@ -226,7 +232,24 @@ function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[
       onOpen: () => onOpen("topic"),
     },
   ];
-  return <TileBoard label={t("dimension.overview")} columns={4} rows={chunkRows(routeTiles("analysis", tiles), "numbers", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/analysis.ts.
+  const ts = useTranslations("admin.topicCards.sub");
+  // Per angle: the best group's value, the weakest group, how many groups.
+  const angleNumbers = Object.fromEntries(
+    dims.flatMap((dim) => {
+      const ranked = enough(dim, measure);
+      const best = ranked[0];
+      const worst = ranked.length >= 2 ? ranked.at(-1)! : null;
+      return [
+        [`${dim}.bestValue`, best ? { label: ts("bestValue"), value: measureText(measure, measureOf(best, measure)) } : null],
+        [`${dim}.weakest`, worst ? { label: ts("weakest"), value: label(dim, worst.key) } : null],
+        [`${dim}.groups`, { label: ts("groups"), value: num(rowsOf(dim).length) }],
+      ];
+    }),
+  );
+  const pool = numberPool(tiles, angleNumbers);
+  if (render) return render(tiles);
+  return <TopicCards page="analysis" pool={pool} />;
 }
 
 // ── Wert-Check ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { AdminMoney } from "@/components/admin/AdminMoney";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Geld · Steuern · Admin" };
-
-/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
-export const instant = false;
-
-/** Geld with Steuern open (linked from "Heute" and Vision › Standort). Admins only (app/admin/layout.tsx). */
+/** Geld › Steuern is a topic of Geld now (CLAUDE.md "Acht Karten"): the old address leads there. */
 export default function Page() {
-  return <AdminMoney initialView="taxes" />;
+  redirect("/admin/money?topic=taxes&tab=taxes");
 }

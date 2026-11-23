@@ -1,4 +1,5 @@
 "use client";
+import { pageInset } from "@/lib/admin/inset";
 import { AdminButton, adminButtonStyles } from "./AdminButton";
 
 // Admin › Aufgaben (/admin/aufgaben; /admin/posteingang leitet hierher) – the ONE place where something needs doing (CLAUDE.md "Handeln nur
@@ -221,8 +222,8 @@ export function AdminInbox() {
       id: task.id,
       media: <KindDot area={area} />,
       title: sentence(task),
-      meta: <KindLabel area={area}>{tToday(`kind.${task.kind}`)}</KindLabel>,
-      aside: f.day(task.createdAt),
+      // A grey line of text, no pill (CLAUDE.md "Ruhe"): "Art · Datum".
+      meta: `${tToday(`kind.${task.kind}`)} · ${f.day(task.createdAt)}`,
       done: status === "done",
       ...extra,
     };
@@ -240,7 +241,7 @@ export function AdminInbox() {
     ...(later.length === 0
       ? []
       : showLater
-        ? later.map((task, i) => row(task, { section: i === 0 ? toggle : undefined, aside: f.day(task.createdAt) }))
+        ? later.map((task, i) => row(task, { section: i === 0 ? toggle : undefined }))
         : [{ id: "later-section", title: "", section: toggle, sectionOnly: true }]),
   ];
   const counts = status === "open" ? [...open, ...snoozed] : done;
@@ -253,7 +254,7 @@ export function AdminInbox() {
           label={t("tabsLabel")}
           value={tab}
           onChange={(next) => (setTab(next), setSelectedId(null))}
-          tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), count: counts.filter((task) => inTab(task, key)).length, tone: key === "all" ? undefined : KIND_TONE[key] }))}
+          tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), count: counts.filter((task) => inTab(task, key)).length, dot: key === "all" ? undefined : KIND_TONE[key] }))}
         />
       }
       aside={
@@ -265,6 +266,7 @@ export function AdminInbox() {
     >
       <AdminListDetail
         listScroll
+        calm
         label={t("title")}
         rows={rows}
         selectedId={selected?.id ?? null}
@@ -375,6 +377,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
     action =
       isOpen && !ticket.mergedInto ? (
         <form
+          id={`reply-form-${task.id}`}
           data-reply
           className="flex min-h-0 flex-1 flex-col gap-2"
           onSubmit={(e) => {
@@ -389,12 +392,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
           <label className="sr-only" htmlFor={`reply-${task.id}`}>
             {tNew("answer")}
           </label>
-          <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} className="min-h-24 flex-1 resize-none" />
-          <span>
-            <AdminButton type="submit" variant="primary" disabled={!reply.trim()}>
-              {tNew("send")}
-            </AdminButton>
-          </span>
+          <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={tNew("answerPlaceholder")} className="min-h-24 flex-1 resize-none" />
         </form>
       ) : null;
   } else if (task.kind === "money") {
@@ -553,6 +551,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
     action =
       isOpen && (reporter || report.reporterEmail) ? (
         <form
+          id={`reply-form-${task.id}`}
           data-reply
           className="flex min-h-0 flex-1 flex-col gap-2"
           onSubmit={(e) => {
@@ -565,12 +564,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
           <label className="sr-only" htmlFor={`reply-${task.id}`}>
             {tNew("answer")}
           </label>
-          <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} className="min-h-24 flex-1 resize-none" />
-          <span>
-            <AdminButton type="submit" variant="primary" disabled={!reply.trim()}>
-              {tNew("send")}
-            </AdminButton>
-          </span>
+          <Textarea id={`reply-${task.id}`} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={tNew("answerPlaceholder")} className="min-h-24 flex-1 resize-none" />
         </form>
       ) : null;
   } else if (task.kind === "appeal") {
@@ -655,16 +649,14 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
       ))}
     </ul>
   );
-  const tone = KIND_TONE[area];
-  // Exactly the room from the detail's top to the window's bottom (16px air) – followed while the page scrolls (the column is sticky).
+  // Exactly the room from the detail's top to the window's bottom – followed while the page scrolls (the column is sticky), so it never scrolls.
   const articleRef = useRef<HTMLElement>(null);
   const [fillH, setFillH] = useState<number | null>(null);
   useEffect(() => {
     const measure = () => {
       const el = articleRef.current;
       if (!el || window.innerWidth < 1024) return setFillH(null);
-      // The page keeps its bottom padding (--adm-section, 40px) – so nothing scrolls.
-      const next = Math.max(420, Math.floor(window.innerHeight - el.getBoundingClientRect().top - 40));
+      const next = Math.max(420, Math.floor(window.innerHeight - el.getBoundingClientRect().top - pageInset()));
       setFillH((now) => (now === next ? now : next));
     };
     measure();
@@ -675,7 +667,7 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
       window.removeEventListener("resize", measure);
     };
   }, []);
-  // Box B: the person behind the task (their bookings, earlier reports about them – a click filters the list by their name).
+  // The person behind the task (their bookings, earlier reports about them – a click filters the list by their name).
   const person = (() => {
     if (isTicket) return task.ticket.userId ? findUser(store, task.ticket.userId) : undefined;
     if (task.kind === "report") return task.report.subjectId ? findUser(store, task.report.subjectId) : undefined;
@@ -687,75 +679,139 @@ function InboxDetail({ task, sentence, isOpen, isLater, onBack, onDone, onLater,
   })();
   const bookings = person ? store.payments.filter((p) => p.userId === person.id && p.status === "paid").length : null;
   const earlier = person ? store.reports.filter((r) => r.subjectId === person.id && !(task.kind === "report" && r.id === task.report.id)).length : null;
-  const context = [
-    ...facts,
-    ...(bookings !== null && bookings > 0 ? [{ key: "bookings", label: tNew("field.bookings"), value: num(bookings) }] : []),
-    ...(earlier !== null && earlier > 0 && person
-      ? [{ key: "earlier", label: tNew("field.earlier"), value: (
-            <button type="button" onClick={() => onFilter(person.name)} data-tooltip-info={tNew("filterBy", { name: person.name })} className="font-semibold text-ink underline-offset-2 hover:underline">
-              {num(earlier)}
-            </button>
-          ) }]
+  const filled = (v: ReactNode) => v !== null && v !== undefined && v !== "";
+  // One context line (CLAUDE.md "Ruhe"): the people and the House as links, the bookings, earlier reports – everything else under "Details ▸".
+  const LINE_KEYS = ["person", "guest", "reporter", "subject", "host", "partner", "house"];
+  const line: ReactNode[] = [
+    ...facts.filter((x) => LINE_KEYS.includes(x.key) && filled(x.value)).map((x) => <span key={x.key}>{x.value}</span>),
+    ...(bookings ? [<span key="bookings">{tNew("bookingsLine", { count: bookings })}</span>] : []),
+    ...(earlier && person
+      ? [
+          <button key="earlier" type="button" onClick={() => onFilter(person.name)} data-tooltip-info={tNew("filterBy", { name: person.name })} className="font-semibold text-ink underline-offset-2 hover:underline">
+            {tNew("earlierLine", { count: earlier })}
+          </button>,
+        ]
       : []),
   ];
+  const rest = facts.filter((x) => !LINE_KEYS.includes(x.key) && filled(x.value));
+  const [showFacts, setShowFacts] = useState(false);
+  const [changeKind, setChangeKind] = useState(false);
+  const replyForm = (isTicket && isOpen && !task.ticket.mergedInto) || (task.kind === "report" && isOpen && Boolean(task.report.reporterId || task.report.reporterEmail));
+  const quiet = "text-small font-semibold text-muted hover:text-ink";
+  const kindWord = t(`kind.${task.kind}`);
+  const areaWord = tNew(`area.${area}`);
 
   return (
-    // Three boxes, 16px apart, together the column's height (the detail column is the window's height under the bar).
-    <article ref={articleRef} data-inbox-detail data-kind={task.kind} className="flex min-h-0 flex-col gap-(--adm-detail-gap)" style={fillH ? { height: fillH } : undefined}>
+    // ONE calm column (CLAUDE.md "Ruhe"): no framed boxes, no coloured stripe – grouped by space; one primary button; the rest under "Mehr".
+    <article ref={articleRef} data-inbox-detail data-kind={task.kind} className="flex min-h-0 flex-col" style={fillH ? { height: fillH } : undefined}>
       <BackToList onBack={onBack} />
-      {/* A · Anfrage (from outside): the kind's tint, a stripe in its colour; the head, the message large. */}
-      <section
-        aria-label={tNew("request")}
-        data-card="request"
-        className="relative shrink-0 overflow-hidden rounded-xl p-(--adm-detail-pad) pl-[calc(var(--adm-detail-pad)+var(--adm-detail-stripe))]"
-        style={{ backgroundColor: `color-mix(in srgb, ${tone} var(--adm-box-request-tint), var(--bg))` } as CSSProperties}
-      >
-        <span aria-hidden className="absolute inset-y-0 left-0 w-(--adm-detail-stripe)" style={{ backgroundColor: tone }} />
-        {head}
-        <p data-what className="adm-message mt-3 line-clamp-5 text-ink">
-          {what}
-        </p>
-        {task.kind === "report" ? <ReportDetail report={task.report} isOpen={isOpen} part="facts" /> : task.kind === "appeal" ? <AppealDetail notice={task.notice} sentence={sentence} part="facts" /> : null}
-      </section>
-      {/* B · Person & Kontext: neutral; a grid of four, the label small over its value; empty fields left out. */}
-      {context.some((c) => c.value !== null && c.value !== undefined && c.value !== "") && (
-        <section aria-label={tNew("who")} data-card="context" className="shrink-0 rounded-xl bg-(--adm-box-context) p-(--adm-detail-pad)">
-          <ContextGrid facts={context} />
-        </section>
-      )}
-      {/* C · Deine Reaktion: lighter; the answer fills what's left (or the kind's actions), then Später · ✓ Erledigt and the extras. */}
-      <section aria-label={tNew("reaction")} data-card="reaction" className="flex min-h-0 flex-1 flex-col rounded-xl border border-(--adm-box-edge) bg-(--adm-box-reaction) p-(--adm-detail-pad)">
-        <h3 className="mb-2 shrink-0 text-eyebrow uppercase text-(--adm-label)">{tNew("reaction")}</h3>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-          {isOpen && action}
-          {extras}
-          {task.kind === "report" && <ReportDetail report={task.report} isOpen={isOpen} part="decision" suspendHere={subtype !== "harassment"} />}
-          {task.kind === "appeal" && <AppealDetail notice={task.notice} sentence={sentence} part="decision" />}
-          {showMore && <div className="mt-1">{more}</div>}
-        </div>
-        <div data-inbox-bottom className="mt-3 flex shrink-0 flex-wrap items-center gap-2 border-t border-(--adm-box-edge) pt-3">
-          {isOpen && !isLater && (
-            <AdminButton variant="secondary" onClick={onLater}>
-              {t("action.later")}
-            </AdminButton>
-          )}
-          {isOpen && (
-            <AdminButton variant="primary" onClick={onDone}>
-              ✓ {t("action.done")}
-            </AdminButton>
-          )}
-          <span className="ml-auto flex items-center gap-4">
-            {details && (
-              <Link href={details} className="text-small font-semibold text-ink hover:underline">
-                {tNew("details")} →
-              </Link>
-            )}
-            <button type="button" aria-expanded={showMore} onClick={() => setShowMore((v) => !v)} className="adm-press rounded-full px-2 py-1 text-small font-semibold text-muted hover:text-ink">
-              {showMore ? "▾" : "▸"} {isTicket ? tNew("extras") : `${tNew("history")} · ${history.length}`}
+      {/* The head, small and grey: kind · priority · date; "Art ändern" (Sicherheit) a small text link right. */}
+      <div data-inbox-head className="flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-small text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <KindDot area={area} className="size-2" />
+          {areaWord}
+        </span>
+        <span aria-hidden>·</span>
+        <span className={cn(priorityOf(task) === "high" && "font-semibold text-ink")}>{tNew(`priority.${priorityOf(task)}`)}</span>
+        <span aria-hidden>·</span>
+        <span>
+          {kindWord !== areaWord && `${kindWord} · `}
+          {f.day(task.createdAt)}
+        </span>
+        {subtype && (
+          <span data-safety-subtype={subtype} className="relative ml-auto">
+            <button type="button" aria-expanded={changeKind} onClick={() => setChangeKind((v) => !v)} className={quiet}>
+              {tNew("changeKind")} · {tNew(`subtype.${subtype}`)}
             </button>
+            {changeKind && (
+              <span className="bar-menu absolute top-full right-0 z-20 mt-2 flex w-56 flex-col p-2">
+                {SAFETY_SUBTYPES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => (setChangeKind(false), value !== subtype && actions.setSafetySubtype(task.id, value, `${label} · ${tNew(`subtype.${value}`)}`))}
+                    className={cn("rounded-lg px-3 py-2 text-left text-small hover:bg-white/8", value === subtype ? "font-semibold" : "")}
+                  >
+                    {tNew(`subtype.${value}`)}
+                  </button>
+                ))}
+              </span>
+            )}
+          </span>
+        )}
+      </div>
+      {/* The message large, much air under it. */}
+      <p data-what className="adm-message-lg mt-4 line-clamp-6 shrink-0 text-ink">
+        {what}
+      </p>
+      {task.kind === "report" ? <ReportDetail report={task.report} isOpen={isOpen} part="facts" /> : task.kind === "appeal" ? <AppealDetail notice={task.notice} sentence={sentence} part="facts" /> : null}
+      {/* One context line; the rest under "Details ▸". */}
+      {(line.length > 0 || rest.length > 0) && (
+        <div data-context className="mt-8 shrink-0 text-body text-ink">
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {line.map((node, k) => (
+              <span key={k} className="inline-flex items-baseline gap-2">
+                {k > 0 && <span aria-hidden className="text-muted">·</span>}
+                {node}
+              </span>
+            ))}
+            {rest.length > 0 && (
+              <button type="button" aria-expanded={showFacts} onClick={() => setShowFacts((v) => !v)} className={cn(quiet, line.length > 0 && "ml-2")}>
+                {tNew("detailsToggle")} {showFacts ? "▾" : "▸"}
+              </button>
+            )}
+          </p>
+          {showFacts && (
+            <div className="mt-3">
+              <ContextGrid facts={rest} />
+            </div>
+          )}
+        </div>
+      )}
+      {/* A fine line, then the reaction: the answer field (no title – its placeholder says it) grows with the room. */}
+      <div className="mt-6 flex min-h-0 flex-1 flex-col gap-3 border-t border-(--line) pt-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+          {isOpen && replyForm && action}
+          {task.kind === "appeal" && <AppealDetail notice={task.notice} sentence={sentence} part="decision" />}
+          {showMore && (
+            <div data-more-panel className="flex flex-col gap-4 pb-2">
+              {extras}
+              {task.kind === "report" && <ReportDetail report={task.report} isOpen={isOpen} part="decision" suspendHere={subtype !== "harassment"} />}
+              {more}
+              {details && (
+                <Link href={details} className="text-small font-semibold text-ink hover:underline">
+                  {tNew("details")} →
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+        {/* The button row: the one primary (Senden, or the kind's own action) · "Mehr ▾" · right "Später" and "✓ Erledigt", plain. */}
+        <div data-inbox-bottom className="flex shrink-0 flex-wrap items-center gap-3">
+          {isOpen && replyForm ? (
+            <AdminButton type="submit" form={`reply-form-${task.id}`} variant="primary" disabled={!reply.trim()}>
+              {tNew("send")}
+            </AdminButton>
+          ) : (
+            isOpen && action
+          )}
+          <button type="button" aria-expanded={showMore} onClick={() => setShowMore((v) => !v)} data-more className={quiet}>
+            {tNew("more")} {showMore ? "▴" : "▾"}
+          </button>
+          <span className="ml-auto flex items-center gap-5">
+            {isOpen && !isLater && (
+              <button type="button" onClick={onLater} className={quiet}>
+                {t("action.later")}
+              </button>
+            )}
+            {isOpen && (
+              <button type="button" onClick={onDone} data-done className={quiet}>
+                ✓ {t("action.done")}
+              </button>
+            )}
           </span>
         </div>
-      </section>
+      </div>
     </article>
   );
 }

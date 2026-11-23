@@ -11,9 +11,12 @@
 //          the long text, the key and the purpose only in the detail. "Nie erfasst: …" as an ⓘ at the tab.
 // Every text from config/data-points.ts, config/models.ts, config/hypotheses.ts; numbers from lib/admin/metrics.ts. The network numbers and
 // "Tage bis voll" are no longer here (they stay in lib/admin/metrics.ts; Vision › Kern and Analyse show them).
+import { pageInset } from "@/lib/admin/inset";
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { X, Database, EyeOff, Flag, Repeat, Scale, SlidersHorizontal, Sofa, FileSignature, Hand, Lightbulb, MessageSquare, Search, Home, Inbox, Users, Megaphone, Star, LayoutGrid, MapPin, Clapperboard, RotateCcw, UserPlus, Brain, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DATA_POINT_STATUSES, DATA_POINTS, inputsOf, MOMENTS, NEVER_COLLECTED, type DataPoint, type DataPointStatus, type Moment } from "@/config/data-points";
 import { HYPOTHESES, type Hypothesis } from "@/config/hypotheses";
 import { MODEL_IDS, MODELS, type Model, type ModelId, type ModelStage } from "@/config/models";
@@ -56,19 +59,7 @@ export function AdminData() {
   return (
     <AdminShell
       title={t("title")}
-      tabs={
-        <AdminTabs
-          label={t("title")}
-          value={tab}
-          onChange={setTab}
-          tabs={withUnits<Tab>("data", [
-            { value: "overview", label: tOverview("tab") },
-            { value: "flow", label: t("tab.flow") },
-            { value: "theses", label: t("tab.theses") },
-            { value: "points", label: t("tab.points"), tooltip: t("never") },
-          ])}
-        />
-      }
+      tabs={<TopicHeader page="data" title={t("title")} />}
       aside={
         <>
           {tab === "points" && (
@@ -86,9 +77,13 @@ export function AdminData() {
           onOpen={(next) => setTab(next)}
         />
       )}
-      {tab === "flow" && <Flow />}
-      {tab === "theses" && <Theses />}
-      {tab === "points" && <DataPoints highlight={highlight} status={status} />}
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      {tab !== "overview" && (
+        <DataOverview
+          onOpen={(next) => setTab(next)}
+          render={(tiles) => <AdminCapsuleView page="data" capsule={tab} tiles={tiles} fallback={tab === "flow" ? <Flow /> : tab === "theses" ? <Theses /> : <DataPoints highlight={highlight} status={status} />} />}
+        />
+      )}
     </AdminShell>
   );
 }
@@ -100,7 +95,7 @@ export function AdminData() {
  * status – each opens Datenpunkte filtered –, moments), the models (all, by maturity, decisions → Fluss), the theses (all, by verdict →
  * Thesen) and what is never collected.
  */
-function DataOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, filter?: DataPointStatus) => void }) {
+function DataOverview({ onOpen, render }: { onOpen: (tab: Exclude<Tab, "overview">, filter?: DataPointStatus) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.pageTiles.data");
   const tData = useTranslations("admin.data");
   const results = getHypothesisResults();
@@ -160,7 +155,15 @@ function DataOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, filt
     tile("rejected", verdict("rejected"), () => onOpen("theses"), [of(HYPOTHESES.length), ...thesesIn("rejected").map(thesisLine).slice(0, 4)]),
     tile("never", NEVER_COLLECTED.length, () => onOpen("points"), [...NEVER_COLLECTED]),
   ];
-  return <TileBoard label={tData("title")} rows={chunkRows(routeTiles("data", tiles), "plan", 5)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/data.ts.
+  // The next thesis to test: the first one still open.
+  const nextOpen = HYPOTHESES.find((h) => (results[h.id]?.status ?? "open") === "open");
+  const ts = useTranslations("admin.topicCards.sub");
+  const pool = numberPool(tiles, {
+    nextThesis: nextOpen ? { label: ts("nextThesis"), info: tiles.find((x) => x.key === "open")?.info, value: nextOpen.short } : null,
+  });
+  if (render) return render(tiles);
+  return <TopicCards page="data" pool={pool} />;
 }
 /** The overview's tiles (their words in admin.pageTiles.data). */
 type TileKey = "points" | "used" | "collecting" | "planned" | "moments" | "models" | "idea" | "rules" | "trained" | "decisions" | "theses" | "supported" | "open" | "rejected" | "never";
@@ -448,7 +451,7 @@ function DataPoints({ highlight, status }: { highlight: "all" | ModelId; status:
       const list = el.querySelector("ul");
       const top = (list ?? el).getBoundingClientRect().top + window.scrollY;
       const legend = legendRef.current ? legendRef.current.getBoundingClientRect().height + 12 : 32;
-      const room = window.innerHeight - top - 40 - legend;
+      const room = window.innerHeight - top - pageInset() - legend;
       const width = el.clientWidth;
       // Fewest sub-columns first (each column as narrow as can be, so its names have room), then the tallest tile that still fits.
       let best: { h: number; rows: number; subs: number } | null = null;

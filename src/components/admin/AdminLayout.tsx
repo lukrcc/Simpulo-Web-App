@@ -38,6 +38,8 @@ export interface AdminTab<T extends string> {
   disabled?: boolean;
   /** Marked (today among the days): a small dot after the name */
   marked?: boolean;
+  /** A small colour dot before the name on a neutral capsule (Aufgaben's kinds – CLAUDE.md "Ruhe") */
+  dot?: string;
 }
 
 /**
@@ -81,7 +83,7 @@ export function AdminPageHeader({ title, badge, tabs, controls, center, subTabs 
       data-admin-bar={sticky || undefined}
       data-stuck={stuck || undefined}
       className={cn(
-        sticky && "sticky top-(--header-total) z-20 -mx-4 -mt-(--adm-page-top) border-b border-transparent bg-(--bg) px-4 pt-(--adm-page-top) pb-2 transition-colors duration-150 data-stuck:border-ink/8 md:-mx-(--adm-page) md:px-(--adm-page)",
+        sticky && "sticky top-(--header-total) z-20 -mx-4 -mt-(--adm-page-top) border-b border-transparent bg-(--bg) px-4 pt-(--adm-page-top) pb-2 transition-colors duration-150 data-stuck:border-ink/8 md:-mx-(--adm-page-inset) md:px-(--adm-page-inset)",
         // ONE gap from the capsule rows to the content on every page (CLAUDE.md "Admin: einheitlicher Kopfbereich"): --adm-header-gap (the bar's
         // own pb-2 counts in).
         sticky && "mb-[calc(var(--adm-header-gap)-0.5rem)]",
@@ -145,6 +147,7 @@ export function AdminTabs<T extends string>({ label, tabs, value, onChange, leve
             style={tab.tone ? ({ "--cap-tone": tab.tone } as CSSProperties) : undefined}
             data-toned={tab.tone ? true : undefined}
           >
+            {tab.dot && <span aria-hidden data-kind-dot className="inline-block size-2 shrink-0 rounded-full" style={{ backgroundColor: tab.dot }} />}
             {tab.label}
             {tab.marked && <span aria-hidden data-today className="ml-0.5 inline-block size-1.5 rounded-full bg-current align-middle" />}
             {tab.count !== undefined && <span className="adm-cap-count tabular-nums">{tab.count}</span>}
@@ -270,7 +273,7 @@ export function PeriodMenu() {
           </div>
         )}
       </div>
-      <PeriodRange />
+      <span data-period-range className="contents"><PeriodRange /></span>
     </span>
   );
 }
@@ -307,7 +310,7 @@ export function PeriodRange() {
  * "Woche" chosen: a second row of small capsules – Mo Di Mi Do Fr Sa So · Ganze Woche (the default). Today marked, days to come greyed; a day
  * makes every tile show that day, compared with the same weekday a week before. Remembered like the period (lib/admin/period.ts).
  */
-export function PeriodDays() {
+export function PeriodDays({ level = "sub" }: { level?: "main" | "sub" } = {}) {
   const t = useTranslations("admin.cockpit.compare");
   const [period] = useAdminPeriod();
   const [day, setDay] = useAdminDay();
@@ -320,7 +323,28 @@ export function PeriodDays() {
     { value: "all", label: t("days.all") },
   ];
   const value: V = day === null || day > todayIndex ? "all" : `${day}`;
-  return <AdminSubTabs<V> label={t("days.label")} value={value} onChange={(v) => setDay(v === "all" ? null : Number(v))} tabs={tabs} />;
+  return <AdminTabs<V> level={level} label={t("days.label")} value={value} onChange={(v) => setDay(v === "all" ? null : Number(v))} tabs={tabs} />;
+}
+
+/**
+ * The period as ONE capsule row (CLAUDE.md "Zeitraum als eine Kapsel-Reihe"): Woche · Monat · Quartal · Jahr, and – with Woche – after a
+ * fine vertical line the days Mo … So · Ganze Woche (today with a dot, days to come greyed). Neutral capsules (silvery when active). What
+ * the period covers (PeriodRange) stands right in the same row, set by the page's head.
+ */
+export function PeriodRow({ level = "main" }: { level?: "main" | "sub" }) {
+  const t = useTranslations("admin.cockpit.compare");
+  const [period, setPeriod] = useAdminPeriod();
+  return (
+    <span data-period-row className="flex min-w-0 items-center gap-3">
+      <AdminTabs level={level} label={t("label")} value={period} onChange={setPeriod} tabs={COMPARE_PERIODS.map((value) => ({ value, label: t(value), tooltip: t(`info.${value}`) }))} />
+      {period === "week" && (
+        <>
+          <span aria-hidden className="h-5 w-px shrink-0 bg-(--line)" />
+          <PeriodDays level={level} />
+        </>
+      )}
+    </span>
+  );
 }
 
 /** ISO calendar week of a date (Monday starts the week; the week with the year's first Thursday is week 1). */
@@ -451,7 +475,7 @@ export interface ListDetailRow {
  * The list left (about 40 %), the detail right (sticky under the header). A row: dot · (image) · title · one meta line · on the right only
  * ✓ (Erledigt) – or nothing. Everything else in the detail. Phones: the list, then the detail with "‹ Liste".
  */
-export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel, detail, empty, label, head, rowHeight = "min-h-(--adm-row-h)", listScroll = false }: {
+export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel, detail, empty, label, head, rowHeight = "min-h-(--adm-row-h)", listScroll = false, calm = false }: {
   rows: readonly ListDetailRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -467,14 +491,16 @@ export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel,
   head?: ReactNode;
   /** The list scrolls in its own column (from 1024px) and the page stays put – Aufgaben: only the list moves, the detail stands */
   listScroll?: boolean;
+  /** The calm list (CLAUDE.md "Ruhe", Aufgaben): taller rows (76px), the title 17px, the meta a grey line of text, very fine lines, ✓ only on hover */
+  calm?: boolean;
 }) {
   const t = useTranslations("admin.layout");
   if (rows.length === 0) return <div className="py-6">{empty}</div>;
   return (
     <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div data-list-column className={cn("min-w-0", selectedId && "max-lg:hidden", listScroll && "scroll-pane lg:max-h-[calc(100dvh-var(--header-total)-var(--adm-bar-h,0px)-var(--adm-header-gap)-2rem)] lg:overflow-y-auto lg:overscroll-contain")}>
+      <div data-list-column className={cn("min-w-0", selectedId && "max-lg:hidden", listScroll && "scroll-pane lg:max-h-[calc(100dvh-var(--header-total)-var(--adm-bar-h,0px)-var(--adm-mini-h,0px)-var(--adm-header-gap)-var(--adm-page-inset))] lg:overflow-y-auto lg:overscroll-contain")}>
       {head}
-      <ul aria-label={label} className="divide-y divide-ink/8 border-y border-ink/8">
+      <ul aria-label={label} className={calm ? "divide-y divide-ink/5" : "divide-y divide-ink/8 border-y border-ink/8"}>
         {rows.map((row) => {
           const on = row.id === selectedId;
           const heading = row.section !== undefined && (
@@ -486,18 +512,18 @@ export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel,
           return (
             <Fragment key={row.id}>
             {heading}
-            <li data-row-on={on || undefined} className={cn("group relative flex items-center gap-3 px-2 transition-colors duration-150", rowHeight, on ? "bg-(--adm-row-on)" : "hover:bg-ink/3", row.done && "opacity-50")}>
+            <li data-row-on={on || undefined} className={cn("group relative flex items-center gap-3 px-2 transition-colors duration-150", calm ? "min-h-19 rounded-lg px-3" : rowHeight, on ? "bg-(--adm-row-on)" : "hover:bg-ink/3", row.done && "opacity-50")}>
               <button type="button" onClick={() => onSelect(row.id)} aria-current={on || undefined} className="absolute inset-0 rounded-none text-left" aria-label={typeof row.title === "string" ? row.title : undefined} />
               {row.status !== undefined && <StatusDot status={row.status} className="pointer-events-none" />}
               {row.media && <span className="pointer-events-none shrink-0">{row.media}</span>}
               <span className="pointer-events-none min-w-0 flex-1 py-2">
                 {/* Chosen: the row a little lighter, its title white and semibold – never underlined. */}
-                <span className={cn("block truncate text-body", on ? "font-semibold text-(--adm-active)" : "font-medium text-ink")}>{row.title}</span>
-                {row.meta && <span className="block truncate text-small text-muted">{row.meta}</span>}
+                <span className={cn("block truncate", calm ? "text-body-lg" : "text-body", on ? "font-semibold text-(--adm-active)" : "font-medium text-ink")}>{row.title}</span>
+                {row.meta && <span className={cn("block truncate text-small text-muted", calm && "mt-0.5")}>{row.meta}</span>}
               </span>
               {row.aside && <span className="pointer-events-none shrink-0 text-small text-muted tabular-nums">{row.aside}</span>}
               {onDone && !row.done && (
-                <button type="button" onClick={() => onDone(row.id)} aria-label={doneLabel ?? t("done")} className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-ink/50 transition-colors duration-150 hover:bg-ink/8 hover:text-adm-good">
+                <button type="button" onClick={() => onDone(row.id)} aria-label={doneLabel ?? t("done")} className={cn("relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-ink/50 transition-colors duration-150 hover:bg-ink/8 hover:text-adm-good", calm && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100")}>
                   <Check aria-hidden className="size-4" />
                 </button>
               )}
@@ -508,7 +534,7 @@ export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel,
       </ul>
       </div>
       {/* The detail stands under the sticky bar and scrolls on its own; the list scrolls with the page. */}
-      <div className={cn("scroll-pane min-w-0 overscroll-contain lg:sticky lg:top-[calc(var(--header-total)+var(--adm-bar-h,0px)+0.5rem)] lg:max-h-[calc(100dvh-var(--header-total)-var(--adm-bar-h,0px)-1.5rem)] lg:self-start lg:overflow-y-auto", !selectedId && "max-lg:hidden")}>{detail}</div>
+      <div className={cn("scroll-pane min-w-0 overscroll-contain lg:sticky lg:top-[calc(var(--header-total)+var(--adm-bar-h,0px)+var(--adm-mini-h,0px)+0.5rem)] lg:max-h-[calc(100dvh-var(--header-total)-var(--adm-bar-h,0px)-var(--adm-mini-h,0px)-var(--adm-page-inset))] lg:self-start lg:overflow-y-auto", !selectedId && "max-lg:hidden")}>{detail}</div>
     </div>
   );
 }

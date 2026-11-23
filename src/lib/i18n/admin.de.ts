@@ -6,6 +6,7 @@
 //
 // Numbers and dates in German format (lib/i18n/adminFormat.ts): 1.580 · 4.400 € · 14. Nov. · 38 % (space before %).
 import { PAGE_TILES } from "./admin-tiles";
+import { TOPIC_CARDS } from "./admin-tiles/topics";
 import { INBOX_DE } from "./admin-inbox.de";
 import { HOUSE_RISK } from "@/config/admin";
 
@@ -260,8 +261,57 @@ export const ADMIN_DE = {
     open: "{tab} öffnen",
     lead: { week: "Diese Woche", month: "Diesen Monat", quarter: "Dieses Quartal", year: "Dieses Jahr" },
   },
+  /** Admin › Houses › Themen (components/admin/HouseThemes.tsx) */
+  houseThemes: {
+    analysisLink: "Was funktioniert je Thema →",
+    opened: "Eröffnete Houses je Thema (Zeitraum)",
+    noSub: "ohne Unterthema",
+    subLine: "{opened} eröffnet · {open} offen",
+    supplyDemand: "Angebot und Nachfrage",
+    demandNote: "Suchen = gespeicherte Suchen, Merken = gemerkte Houses, Warteliste = Interessen",
+    col: { theme: "Thema", open: "Offen", searches: "Suchen", saved: "Merken", waitlist: "Warteliste", trend: "Trend", hint: "Hinweis" },
+    growing: "▲ +{n} wachsend",
+    shrinking: "▼ −{n} schrumpfend",
+    same: "± 0",
+    gap: "Nachfrage ohne Angebot",
+    other: "Sonstige",
+    otherNote: "eigene Schlagwörter der Hosts ohne Zuordnung – in config/themes.ts einem Unterthema zuordnen",
+    otherNone: "Alle Schlagwörter sind zugeordnet.",
+  },
+  /** The sub themes' names (config/themes.ts SUB_THEMES ids) – renaming changes only these words, never the id */
+  themes: {
+    sub: { running: "Laufen", "martial-arts": "Kampfsport", strength: "Kraft", yoga: "Yoga", retreat: "Retreat", surf: "Surfen", "dive-sail": "Tauchen & Segeln", nomads: "Nomaden", startup: "Startup", music: "Musik", "film-photo": "Film & Foto", writing: "Schreiben", mountains: "Berge", language: "Sprache", food: "Essen", festival: "Festival", study: "Studium" },
+  },
+  /** "Acht Karten": the cards' and topics' words (lib/i18n/admin-tiles/topics.ts) */
+  topicCards: TOPIC_CARDS,
+  /** The capsules' detail under the mini tiles (CLAUDE.md "Kapsel-Ansicht") */
+  capsuleDetail: {
+    money: {
+      per: { week: "je Woche", month: "je Monat", quarter: "je Quartal", year: "je Jahr" },
+      volume: "Buchungsvolumen {per}",
+      bookings: "Buchungen {per}",
+      revenueSplit: "Umsatz {per} · Gäste und Hosts",
+      guests: "Servicegebühren Gäste",
+      hosts: "Anteil Host-Fee",
+      costsSplit: "Kosten {per} · Stripe und weitere",
+      stripe: "Stripe-Gebühren",
+      other: "Weitere Kosten",
+      stripePer: "Stripe-Gebühren {per}",
+      margin: "Marge {per}",
+      takeRate: "Take Rate {per}",
+      perGuest: "Ø pro Buchung {per}",
+      refunds: "Erstattungen {per}",
+      forecast: "Dieser Monat: bisher ({done} von {all} Tagen) und hochgerechnet",
+      revenue: "Umsatz",
+      profit: "Gewinn",
+      soFar: "bisher",
+      forecastBar: "Hochrechnung",
+      perDay: "Ø {value} Umsatz pro Tag · Take Rate {rate}",
+    },
+  },
   cockpit: {
     title: "Übersicht",
+    miniTiles: "Kacheln dieser Kapsel",
     /** The capsules (CLAUDE.md "Übersicht mit Kapseln") and what each group capsule shows */
     tabs: { overview: "Überblick", today: "Heute", direction: "Richtung", money: "Geld", demand: "Nachfrage", quality: "Qualität" },
     tabInfo: {
@@ -290,6 +340,7 @@ export const ADMIN_DE = {
       fullPerMonth: "Volle Houses je Monat",
       connectionPerMonth: "Verbindungsrate je Monat",
       repeatPerMonth: "Wiederkehrer je Monat",
+      nightsPerMonth: "Gemeinsame Nächte je Monat",
       noSeries: "Noch keine Monatswerte.",
     },
     group: { supply: "Angebot", demand: "Nachfrage", quality: "Qualität", money: "Geld" },

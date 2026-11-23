@@ -181,6 +181,7 @@
 .band-dark,
 .bubble-own,
 [data-site-header],
+.themes-menu,
 .bar-sheet,
 .bar-menu,
 .footer-dark,
@@ -227,7 +228,8 @@
   --surface: rgba(244, 238, 231, 0.1);
 }
 /* The header: graphite. Muted cream 65 % (4.7 : 1). */
-[data-site-header] {
+[data-site-header],
+.themes-menu {
   --bg: var(--graphite);
   --line: var(--graphite-line);
   /* White words on the dark glass; muted white 85 %. */
@@ -360,6 +362,7 @@
 .band-dark,
 .bubble-own,
 [data-site-header],
+.themes-menu,
 .bar-sheet,
 .bar-menu,
 .footer-dark,
@@ -982,6 +985,7 @@
 .ember,
 .band-dark,
 [data-site-header],
+.themes-menu,
 .bar-sheet,
 .bar-menu,
 .footer-dark,

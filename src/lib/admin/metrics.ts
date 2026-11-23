@@ -5,6 +5,7 @@
 // statistics documents (stats/hourly/{hour}, stats/daily/{day}: counts per channel, referrer, House, funnel steps, money, the month rows);
 // these functions then read those documents – never the raw collections (events, requests, payments). Until then they compute the same
 // numbers from the mock records. TODO(firestore): an adapter `getStats(from, to)` in lib/data and these functions over its result.
+import { themeOf, topThemeOfStay } from "@/lib/themes";
 import { HOST_REFERRAL } from "@/config/policies";
 import { firstPaidStayOf } from "@/lib/hostReferral";
 import { PROVIDER_COST, ANALYSIS_MIN_HOUSES, ANCHOR_TARGET, CHANGE_RULES, OVERVIEW_TARGETS, WARNING_SHARE, feeModelPerFullHouse, type ChangeMetric, type ChartLevel, type ComparePeriod, COMPARE_PERIODS, HOUSE_RISK, HOUSE_LEVER_RULES, HOUSE_DONE_RECHECK_DAYS, type HouseLever, PERIOD_CHART, PERIOD_MONTHS, HOST_TIER_RULES, HOST_TIERS, LAUNCH_CRITERIA, STATUS_RULES, TAX_RESERVE_PERCENT, TOPIC_WEIGHTS, type StatusMetric } from "@/config/admin";
@@ -523,6 +524,18 @@ export function moneyBuckets(inputs: DayInputs, period: ComparePeriod) {
 }
 
 /** Geld › Gäste: how many guests bring how much – each guest's service fees over every House (Analyse's outcomes), in fixed buckets. */
+/**
+ * Every money number per period for the last `count` periods up to the running one (Woche: 12 weeks, … – the capsules' detail charts,
+ * CLAUDE.md "Kapsel-Ansicht"): the same day rows as everything else (moneyTotals), the running one marked.
+ */
+export function moneySeries(inputs: DayInputs, period: ComparePeriod, count = PERIOD_CHART[period] ?? 3) {
+  const current = periodStart(inputs.today, period);
+  return Array.from({ length: count }, (_, i) => shiftPeriod(current, period, i - count + 1)).map((from) => {
+    const to = periodEnd(from, period);
+    return { from, to, level: period as ChartLevel, current: runningState(period, from, inputs.today), ...moneyTotals(inputs, from, to < inputs.today ? to : inputs.today) };
+  });
+}
+
 export function guestRevenueBuckets(inputs: AdminInputs) {
   const perGuest = new Map<string, number>();
   for (const o of outcomesOf(inputs)) {
@@ -1416,7 +1429,7 @@ export function outcomesFromRecords({ stays, users, joinRequests, payments, toda
       return {
         id: s.id,
         hostId: s.hostId,
-        topic: s.vibe,
+        topic: topThemeOfStay(s),
         nights: Math.max(1, Math.round((Date.parse(s.endDate) - Date.parse(s.startDate)) / DAY_MS)),
         crewSize: s.spotsTotal,
         category: accommodationOf(s.accommodationType)?.category.id ?? null,
@@ -1435,7 +1448,8 @@ export function outcomesFromRecords({ stays, users, joinRequests, payments, toda
     });
 }
 
-const outcomesOf = (inputs: AdminInputs) => inputs.outcomes ?? outcomesFromRecords(inputs);
+/** The Houses' outcomes; a merged theme counts towards its target (config/themes.ts, lib/themes.ts themeOf – CLAUDE.md "Themen erweiterbar"). */
+const outcomesOf = (inputs: AdminInputs) => (inputs.outcomes ?? outcomesFromRecords(inputs)).map((o) => (themeOf(o.topic) === o.topic ? o : { ...o, topic: themeOf(o.topic) }));
 
 /** The period's first day (inclusive) and its length in days – for "per year" figures. */
 function periodRange(period: AnalysisPeriod, today: string, outcomes: readonly HouseOutcome[]): { from: string; days: number } {

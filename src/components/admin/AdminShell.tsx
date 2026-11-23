@@ -5,11 +5,12 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { APP_MODE } from "@/lib/appMode";
 import { adminNumberMismatches } from "@/lib/admin/consistency";
 import { unitClashes } from "@/config/admin-tiles";
+import { topicClashes } from "@/config/admin-topics";
 import { Compass, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
 import { NextIntlClientProvider, useMessages, useTranslations } from "next-intl";
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { lockScroll } from "@/components/ui/ModalOverlay";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import type { Locale } from "@/i18n/config";
@@ -20,13 +21,15 @@ import { useIsAdmin } from "@/lib/admin/access";
 import type { Status } from "@/lib/admin/metrics";
 import { StatusDot } from "./AdminCharts";
 import { useAdminPeriod } from "@/lib/admin/period";
-import { AdminPageHeader, PeriodDays, PeriodMenu, PeriodTabs, TabLevelContext } from "./AdminLayout";
+import { AdminPageHeader, PeriodDays, PeriodRange, PeriodRow, PeriodTabs, TabLevelContext } from "./AdminLayout";
 import { AdminTooltip } from "./AdminTooltip";
 import { AdminThemeSwitch, useAdminThemeLabels } from "./AdminThemeSwitch";
 import { AdminCommandSearch } from "./AdminCommandSearch";
 import { useAdminSearch } from "@/lib/admin/urlState";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
+import { ADMIN_PAGE_STYLE, pageColorVars } from "@/config/admin/pages";
+import { ADMIN_ICONS } from "./adminIcons";
 import { cn } from "@/lib/utils";
 
 type AreaKey = "cockpit" | "inbox" | "zeitplan" | "money" | "growth" | "topics" | "houses" | "hosts" | "marketing" | "data" | "labs" | "vision" | "funding" | "platform";
@@ -89,12 +92,12 @@ const AREAS: readonly Area[] = [...GROUPS.flatMap((g) => g.areas), SYSTEM];
  */
 export type AreaColor = (typeof GROUPS)[number]["key"];
 export const AREA_TEXT: Record<AreaColor, string> = { today: "text-adm-group-today", numbers: "text-adm-group-numbers", platform: "text-adm-group-platform", plan: "text-adm-group-plan" };
-/** The group headings in the side list: a block over the list's full width, the colour 16 % behind, the words in the colour. */
+/** The group headings in the side list: a neutral block over the list's full width (colour belongs to the pages, CLAUDE.md "Eine Farbe = eine Seite"). */
 const AREA_CHIP: Record<AreaColor, string> = {
-  today: "bg-adm-group-today-chip text-adm-group-today",
-  numbers: "bg-adm-group-numbers-chip text-adm-group-numbers",
-  platform: "bg-adm-group-platform-chip text-adm-group-platform",
-  plan: "bg-adm-group-plan-chip text-adm-group-plan",
+  today: "bg-ink/[0.06] text-ink/75",
+  numbers: "bg-ink/[0.06] text-ink/75",
+  platform: "bg-ink/[0.06] text-ink/75",
+  plan: "bg-ink/[0.06] text-ink/75",
 };
 export const AREA_BG: Record<AreaColor, string> = { today: "bg-adm-group-today", numbers: "bg-adm-group-numbers", platform: "bg-adm-group-platform", plan: "bg-adm-group-plan" };
 /** Tiles: the card surface (--card) tinted in its group (≈ 7–9 %) with an edge (≈ 28–32 %); hover a little stronger. */
@@ -163,7 +166,7 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   // Dev only (CLAUDE.md "Jeder Farbton nur einmal pro Seite"): a page that repeats a hue or has more units than hues is an error.
   useEffect(() => {
     if (APP_MODE !== "dev") return;
-    const clashes = unitClashes();
+    const clashes = [...unitClashes(), ...topicClashes()];
     if (clashes.length) console.error("[admin] Farbtöne doppelt:", clashes);
   }, []);
   // ?focus= (a tile's route, config/admin-tiles.ts): the element with that data-focus-key is marked (data-focused) and scrolled into view –
@@ -213,13 +216,16 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   if (!isAdmin) notFound();
 
   const active = activeHref(pathname);
+  const activePage: AreaKey = [...GROUPS.flatMap((g) => g.areas), SYSTEM].find((a) => a.href === active)?.key ?? "cockpit";
   // What needs you, as an ember count at the entry's right – all from the one task list (taskCounts), so they agree with "Braucht dich".
   const needs: Partial<Record<AreaKey, number>> = { inbox: inboxOpen };
+  // Every page its one colour and symbol (config/admin/pages.ts, CLAUDE.md "Eine Farbe = eine Seite") – the same symbol as its card in Übersicht.
   const item = (a: Area) => ({
     key: a.key,
     href: a.href,
     label: t(`nav.${a.key}`),
-    icon: a.icon,
+    icon: ADMIN_ICONS[ADMIN_PAGE_STYLE[a.key].icon],
+    iconColor: `var(--adm-c-${ADMIN_PAGE_STYLE[a.key].color})`,
     selected: active === a.href,
     current: active === a.href,
     badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} urgent={a.key === "inbox" && counts.safetyOpen} /> : undefined,
@@ -232,14 +238,18 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     // From 1024px at least the window's height under the header, and over the main area's bottom padding: the side list is never pushed up.
     // Light/dark: the product's own setting (html[data-theme], lib/theme.ts) – the admin has no look of its own. data-admin-group: the active
     // page's group – its colour drives the capsules' active state, focus rings and the tiles (admin-tokens.css).
-    <div data-admin-group={GROUPS.find((g) => g.areas.some((a) => a.href === active))?.key ?? "system"} className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)] lg:pl-4">
+    <div
+      data-admin-group={GROUPS.find((g) => g.areas.some((a) => a.href === active))?.key ?? "system"}
+      data-admin-page={activePage}
+      style={pageColorVars(ADMIN_PAGE_STYLE[activePage].color) as CSSProperties}
+      className="admin-scope lg:-mb-(--space-section) lg:grid lg:min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[220px_minmax(0,1fr)] lg:pl-4">
       {/* The side list fills the height: entries --sidebar-item-h (from the window's height), the active one white 8 %; before each area
           capsule 0.8 × an entry. */}
       {/* Never scrolls (overflow hidden): the rows follow the window's height; a very flat window folds the other areas (AdminSideList fit). */}
       <aside className="max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-hidden lg:pb-(--adm-page-top) lg:pt-(--adm-page-top)" data-admin-nav>
         <AdminSideList active={active} item={item} needs={needs} fit />
       </aside>
-      <div className="min-w-0 px-4 pb-(--adm-section) pt-(--adm-page-top) md:px-(--adm-page)">
+      <div data-admin-content className="min-w-0 px-4 pb-(--adm-page-inset) pt-(--adm-page-top) md:px-(--adm-page-inset)">
         {/* Phones (< 744px): two rows – the four areas (Markt · Wachstum · Betrieb · Launch) as a scrolling row of capsules, under it the
             pages of the current area as scrolling tabs (bold, white, underlined – the admin's active state). A capsule opens its area's first
             page. Tablets: every page in one row. */}
@@ -326,7 +336,7 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
           ) : (
             <p className={heading}>{t(`navGroup.${group.key}`)}</p>
           )}
-          {shown && <SideNav compact iconClass={AREA_TEXT[group.key]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
+          {shown && <SideNav compact label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
         </div>
       );
       return fit ? [block, spacer(`gap-${group.key}`)] : [block];
@@ -337,8 +347,8 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
   const system = (
     <>
       <div className={cn("shrink-0", !fit && "mt-(--sidebar-gap)")} data-admin-system>
-        <p className="mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg bg-adm-group-system-chip px-3 text-nav-group uppercase text-adm-group-system">{t("navGroup.system")}</p>
-        <SideNav compact iconClass="text-adm-group-system" label={t("navGroup.system")} items={[item(SYSTEM)]} />
+        <p className="mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg bg-ink/[0.06] px-3 text-nav-group uppercase text-ink/75">{t("navGroup.system")}</p>
+        <SideNav compact label={t("navGroup.system")} items={[item(SYSTEM)]} />
       </div>
       <div data-admin-theme-row className={cn("shrink-0", fit ? "mt-(--sidebar-strip-gap)" : "mt-(--sidebar-gap)")}>
         <AdminThemeSwitch strip labels={themeLabels} />
@@ -380,9 +390,9 @@ function NavBadge({ count, label, urgent = false }: { count: number; label: stri
 export function AdminShell({
   title,
   badge,
-  aside,
-  tabs,
-  subTabs,
+  aside: asideProp,
+  tabs: tabsProp,
+  subTabs: subTabsProp,
   period = false,
   children,
 }: {
@@ -401,13 +411,45 @@ export function AdminShell({
   period?: boolean | "center";
   children: ReactNode;
 }) {
+  let aside = asideProp;
+  let subTabs = subTabsProp;
+  let tabs = tabsProp;
   const nest = useContext(NestContext);
   const [chosen] = useAdminPeriod();
-  // The period: a menu button right (its days inside the menu); only Übersicht keeps the centred capsules with the day row.
-  const controls = period === true ? (
+  // "Acht Karten": in a topic view the first row holds "← Seite" and the topics; the period's capsule row and the page's own controls (search,
+  // sort, filters) go to a second row – the period left, the controls and what the period covers right – so the topics fit one row.
+  const topicOpen = useAdminSearch().has("topic");
+  const hasPeriod = period === true;
+  if (topicOpen && (aside || hasPeriod)) {
+    const own = aside;
+    aside = undefined;
+    subTabs = (
+      <div data-topic-controls className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          {subTabs}
+          {hasPeriod && <PeriodRow level="sub" />}
+        </div>
+        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-(--adm-cap-gap)">
+          {own}
+          {hasPeriod && <PeriodRange />}
+        </div>
+      </div>
+    );
+  }
+  // The period as ONE capsule row (CLAUDE.md "Zeitraum als eine Kapsel-Reihe"): on the overview left in the head's row (Woche · Monat ·
+  // Quartal · Jahr | the days), what it covers right ("KW 48 · 23.–29. Nov ⓘ").
+  const withPeriod = hasPeriod && !topicOpen;
+  if (withPeriod)
+    tabs = (
+      <div className="flex min-w-0 items-center gap-3">
+        {tabs}
+        <PeriodRow />
+      </div>
+    );
+  const controls = withPeriod ? (
     <>
       {aside}
-      <PeriodMenu />
+      <PeriodRange />
     </>
   ) : (
     aside

@@ -11,6 +11,8 @@
 //   Nutzung   – app installs and asking the host, each a number with one sentence.
 //   Warteliste – the waitlist page as a tab (AdminNested: its own tabs and filters in the second row).
 // Every number from lib/admin/metrics.ts (later from the pre-computed statistics, see there).
+import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
+import { AdminCapsuleView } from "./AdminCapsuleView";
 import { Link2, MessageCircle, MousePointerClick, Search, Globe, type LucideIcon, MessageSquare, Share, Ticket, QrCode, ImageIcon, Megaphone, UserPlus, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -102,12 +104,13 @@ export function AdminGrowth({ legal }: { legal?: LegalChecklist }) {
   const { tab, open } = useAdminTab<GrowthTab>(TABS, "overview");
   const setTab = (next: GrowthTab) => open(next);
 
-  const tabs = <AdminTabs label={t("tabsLabel")} value={tab} onChange={setTab} tabs={withUnits("growth", TABS.map((key) => ({ value: key, label: t(`tab.${key}`), tooltip: key === "origin" ? t("channelsInfo") : undefined })))} />;
+  // "Acht Karten" (CLAUDE.md): the overview's eight cards; a card opens its topic (the head's bar).
+  const tabs = <TopicHeader page="growth" title={tAdmin("growthTitle")} />;
   // Warteliste: the whole page as a tab (its own tabs and filters in the second row).
   if (tab === "waitlist")
     return (
       <AdminNested tabs={tabs}>
-        <AdminWaitlist legal={legal} />
+        <Overview onOpen={setTab} render={(tiles) => <AdminCapsuleView page="growth" capsule="waitlist" tiles={tiles} fallback={<AdminWaitlist legal={legal} />} />} />
       </AdminNested>
     );
   return (
@@ -117,7 +120,8 @@ export function AdminGrowth({ legal }: { legal?: LegalChecklist }) {
       aside={tab === "origin" ? <CreateLink /> : undefined}
       period={tab !== "usage"}
     >
-      {tab === "overview" ? <Overview onOpen={setTab} /> : tab === "origin" ? <Origin /> : tab === "houses" ? <Houses /> : <Usage />}
+      {/* Every capsule but Überblick: its mini tiles on top, the chosen tile's detail under them (CLAUDE.md "Kapsel-Ansicht"). */}
+      {tab === "overview" ? <Overview onOpen={setTab} /> : <Overview onOpen={setTab} render={(tiles) => <AdminCapsuleView page="growth" capsule={tab} tiles={tiles} fallback={tab === "origin" ? <Origin /> : tab === "houses" ? <Houses /> : <Usage />} />} />}
     </AdminShell>
   );
 }
@@ -163,7 +167,7 @@ function useGrowthData() {
  * the money) · Bester Kanal · Top-Empfehler · Marketing-Kosten · Über eigene Posts · Weiterempfohlen · Gefunden (Herkunft) · Kaum angefragt · Meistgesehenes House
  * (Houses) · App installiert · Fragen → Anfrage · Anfragen mit Notiz (Nutzung) · Warteliste.
  */
-function Overview({ onOpen }: { onOpen: (tab: GrowthTab) => void }) {
+function Overview({ onOpen, render }: { onOpen: (tab: GrowthTab) => void ; /** A capsule's view of these tiles (AdminCapsuleView) instead of the board */ render?: (tiles: TileSpec[]) => ReactNode }) {
   const t = useTranslations("admin.growthArea");
   const tt = useTranslations("admin.pageTiles.growth");
   const tc = useTranslations("admin.cockpit");
@@ -291,8 +295,10 @@ function Overview({ onOpen }: { onOpen: (tab: GrowthTab) => void }) {
       false,
     ),
   ];
-  // Four columns × four rows: wide enough for the numbers beside their change.
-  return <TileBoard label={t("tab.overview")} columns={4} rows={chunkRows(routeTiles("growth", tiles), "numbers", 4)} />;
+  // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/growth.ts.
+  const pool = numberPool(tiles);
+  if (render) return render(tiles);
+  return <TopicCards page="growth" pool={pool} />;
 }
 
 // ── Herkunft ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -583,7 +589,7 @@ function Houses() {
  * each a card with the number, its change against the month before, ⓘ (meaning + a good value) and one sentence what it means. Monthly – the
  * last full month, so no period switch on this tab.
  */
-function Usage() {
+export function Usage() {
   const t = useTranslations("admin.growthArea");
   const inputs = useAdminInputs();
   const k = installRates(inputs);
